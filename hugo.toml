@@ -55,7 +55,7 @@ paginate = 10
     repo = "tuan4743/tuan4743.github.io"
     repoId = "R_kgDOUSNr1A"
     category = "Announcements"
-    categoryId = "GISCUS_CATEGORY_ID_PENDING"
+    categoryId = "DIC_kwDOUSNr1M4DFJmt"
 
 [markup]
   [markup.goldmark]
