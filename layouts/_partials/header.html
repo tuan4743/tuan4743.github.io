@@ -72,21 +72,36 @@
                     <div class="palette-panel" id="palette-panel">
                         <div class="palette-panel-title">背景配色</div>
                         <div class="palette-swatches">
-                            <button class="palette-swatch" data-palette="" title="默认"
-                                aria-label="默认配色"
-                                style="background: linear-gradient(90deg, #ffffff 50%, #1d1e20 50%);"></button>
-                            <button class="palette-swatch" data-palette="mist" title="雾蓝"
-                                aria-label="雾蓝配色"
-                                style="background: linear-gradient(90deg, rgb(240,244,250) 50%, rgb(22,28,42) 50%);"></button>
-                            <button class="palette-swatch" data-palette="warm" title="暖阳"
-                                aria-label="暖阳配色"
-                                style="background: linear-gradient(90deg, rgb(250,245,236) 50%, rgb(38,33,26) 50%);"></button>
-                            <button class="palette-swatch" data-palette="mint" title="薄荷"
-                                aria-label="薄荷配色"
-                                style="background: linear-gradient(90deg, rgb(238,247,243) 50%, rgb(19,30,27) 50%);"></button>
-                            <button class="palette-swatch" data-palette="violet" title="夜紫"
-                                aria-label="夜紫配色"
-                                style="background: linear-gradient(90deg, rgb(246,243,252) 50%, rgb(28,24,41) 50%);"></button>
+                            <div class="palette-option">
+                                <button class="palette-swatch" data-palette="" title="默认"
+                                    aria-label="默认配色"
+                                    style="background: linear-gradient(90deg, #ffffff 50%, #1d1e20 50%);"></button>
+                                <span class="palette-name">默认</span>
+                            </div>
+                            <div class="palette-option">
+                                <button class="palette-swatch" data-palette="mist" title="雾蓝"
+                                    aria-label="雾蓝配色"
+                                    style="background: linear-gradient(90deg, rgb(240,244,250) 50%, rgb(22,28,42) 50%);"></button>
+                                <span class="palette-name">雾蓝</span>
+                            </div>
+                            <div class="palette-option">
+                                <button class="palette-swatch" data-palette="warm" title="暖阳"
+                                    aria-label="暖阳配色"
+                                    style="background: linear-gradient(90deg, rgb(250,245,236) 50%, rgb(38,33,26) 50%);"></button>
+                                <span class="palette-name">暖阳</span>
+                            </div>
+                            <div class="palette-option">
+                                <button class="palette-swatch" data-palette="mint" title="薄荷"
+                                    aria-label="薄荷配色"
+                                    style="background: linear-gradient(90deg, rgb(238,247,243) 50%, rgb(19,30,27) 50%);"></button>
+                                <span class="palette-name">薄荷</span>
+                            </div>
+                            <div class="palette-option">
+                                <button class="palette-swatch" data-palette="violet" title="夜紫"
+                                    aria-label="夜紫配色"
+                                    style="background: linear-gradient(90deg, rgb(246,243,252) 50%, rgb(28,24,41) 50%);"></button>
+                                <span class="palette-name">夜紫</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -126,7 +141,8 @@
                 {{- $is_search := eq (site.GetPage .KeyName).Layout `search` }}
                 <li>
                     <a href="{{ .URL | absLangURL }}" title="{{ .Title | default .Name }} {{- cond $is_search (" (Alt + /)" | safeHTMLAttr) ("" | safeHTMLAttr ) }}"
-                    {{- cond $is_search (" accesskey=/" | safeHTMLAttr) ("" | safeHTMLAttr ) }}>
+                    {{- cond $is_search (" accesskey=/" | safeHTMLAttr) ("" | safeHTMLAttr ) }}
+                    {{- if eq $menu_item_url $page_url }} class="active"{{- end }}>
                         <span {{- if eq $menu_item_url $page_url }} class="active" {{- end }}>
                             {{- .Pre }}
                             {{- .Name -}}
