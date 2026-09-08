@@ -8,7 +8,7 @@ buildFuture = false
 buildExpired = false
 enableEmoji = true
 pygmentsUseClasses = true
-mainsections = ["posts"]
+mainsections = ["posts", "tech"]
 paginate = 10
 
 [minify]
@@ -51,6 +51,12 @@ paginate = 10
     ShowPoweredBy = true
     ShowCopyright = true
 
+  [params.giscus]
+    repo = "tuan4743/tuan4743.github.io"
+    repoId = "R_kgDOUSNr1A"
+    category = "Announcements"
+    categoryId = "GISCUS_CATEGORY_ID_PENDING"
+
 [markup]
   [markup.goldmark]
     [markup.goldmark.renderer]
@@ -63,21 +69,27 @@ paginate = 10
     style = "dracula"
 
 [[menu.main]]
-  identifier = "archives"
-  name = "归档"
-  url = "/archives/"
+  identifier = "home"
+  name = "主页"
+  url = "/"
+  weight = 10
+
+[[menu.main]]
+  identifier = "tech"
+  name = "技术"
+  url = "/tech/"
   weight = 20
 
 [[menu.main]]
-  identifier = "search"
-  name = "搜索"
-  url = "/search/"
+  identifier = "archives"
+  name = "归档"
+  url = "/archives/"
   weight = 30
 
 [[menu.main]]
-  identifier = "tags"
-  name = "标签"
-  url = "/tags/"
+  identifier = "guestbook"
+  name = "留言"
+  url = "/guestbook/"
   weight = 40
 
 [[menu.main]]

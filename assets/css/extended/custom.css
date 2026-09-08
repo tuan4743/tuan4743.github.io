@@ -1,0 +1,63 @@
+/* ============================================================
+   站点自定义样式(由 PaperMod 自动并入主样式表,位于最后,可覆盖默认样式)
+   ============================================================ */
+
+/* ---------- 顶栏:左顶格 / 右定格 / 拉开间距 ---------- */
+.header-nav {
+    padding: 0;               /* 去掉两侧内边距:logo 左顶格、导航组右定格 */
+    column-gap: 2rem;         /* logo 组与导航组之间的最小间距 */
+}
+
+.logo {
+    column-gap: 1rem;         /* logo 文字与主题切换按钮之间 */
+}
+
+.logo-switches {
+    gap: 0.75rem;
+}
+
+/* 右侧组合容器:菜单 + 独立搜索按钮 */
+.nav-right {
+    display: flex;
+    align-items: center;
+    column-gap: 1.5rem;
+}
+
+.menu {
+    column-gap: 1.75rem;      /* 导航项之间的间距 */
+    min-width: 0;             /* 允许窄屏下横向滚动 */
+}
+
+/* ---------- 独立搜索按钮(最右侧) ---------- */
+.search-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--secondary);
+    transition: color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.search-btn:hover {
+    color: var(--primary);
+    border-color: var(--primary);
+    transform: translateY(-1px);
+}
+
+.search-btn:active {
+    transform: translateY(0);
+}
+
+.search-btn svg {
+    pointer-events: none;
+}
+
+/* 窄屏:给顶栏恢复少量留白,避免过于贴边 */
+@media (max-width: 640px) {
+    .header-nav {
+        padding: 0 0.75rem;
+    }
+}

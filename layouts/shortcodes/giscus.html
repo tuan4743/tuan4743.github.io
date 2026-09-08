@@ -1,0 +1,22 @@
+{{- /* Giscus 评论组件(基于 GitHub Discussions),仅留言板页使用 */ -}}
+{{- $repo := site.Params.giscus.repo | default "tuan4743/tuan4743.github.io" -}}
+<hr />
+<div class="giscus-wrap">
+    <h2>留言</h2>
+    <p>想要留言请先在 GitHub 上登录(使用你的 GitHub 账号)。</p>
+    <script src="https://giscus.app/client.js"
+        data-repo="{{ $repo }}"
+        data-repo-id="{{ site.Params.giscus.repoId }}"
+        data-category="{{ site.Params.giscus.category }}"
+        data-category-id="{{ site.Params.giscus.categoryId }}"
+        data-mapping="pathname"
+        data-strict="0"
+        data-reactions-enabled="1"
+        data-emit-metadata="0"
+        data-input-position="top"
+        data-theme="preferred_color_scheme"
+        data-lang="zh-CN"
+        crossorigin="anonymous"
+        async>
+    </script>
+</div>
