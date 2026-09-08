@@ -111,14 +111,22 @@
                 </li>
                 {{- end }}
             </ul>
-            <a class="search-btn" href="{{ "/search/" | absLangURL }}" accesskey="/" title="搜索 (Alt + /)"
-                aria-label="Search">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="11" cy="11" r="7"></circle>
-                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                </svg>
-            </a>
+            <div class="search-widget" id="header-search">
+                <div class="search-box">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        aria-hidden="true">
+                        <circle cx="11" cy="11" r="7"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input id="header-search-input" type="search" placeholder="搜索..." autocomplete="off"
+                        accesskey="/" aria-label="搜索" title="搜索 (Alt + /)">
+                </div>
+                <div class="search-results" id="header-search-results" hidden>
+                    <div class="search-results-list"></div>
+                    <a class="search-results-more" href="{{ "/search/" | absLangURL }}">在搜索页中查看全部 →</a>
+                </div>
+            </div>
         </div>
     </nav>
 </header>

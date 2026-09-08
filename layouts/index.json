@@ -1,0 +1,8 @@
+{{- /* 全站搜索索引:供顶栏即时搜索与搜索页使用 */ -}}
+{{- $pages := where site.RegularPages "Layout" "ne" "search" -}}
+[
+{{- range $i, $p := $pages -}}
+{{- if $i }},{{ end -}}
+{"title":{{ $p.Title | jsonify }},"url":{{ $p.Permalink | jsonify }},"content":{{ ($p.Plain | strings.Truncate 500 "…") | jsonify }}}
+{{- end -}}
+]

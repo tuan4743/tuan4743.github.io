@@ -2,10 +2,11 @@
    站点自定义样式(由 PaperMod 自动并入主样式表,位于最后,可覆盖默认样式)
    ============================================================ */
 
-/* ---------- 顶栏:左顶格 / 右定格 / 拉开间距 ---------- */
+/* ---------- 顶栏:全宽,左顶格 / 右定格,拉开间距 ---------- */
 .header-nav {
-    padding: 0;               /* 去掉两侧内边距:logo 左顶格、导航组右定格 */
-    column-gap: 2rem;         /* logo 组与导航组之间的最小间距 */
+    max-width: none;          /* 去掉 1024px 居中容器限制,顶栏贯穿全屏 */
+    padding-inline: 0.75rem;  /* 仅留极小留白,视觉上顶格 */
+    column-gap: 2rem;         /* logo 组与右侧组之间的最小间距 */
 }
 
 .logo {
@@ -16,7 +17,7 @@
     gap: 0.75rem;
 }
 
-/* 右侧组合容器:菜单 + 独立搜索按钮 */
+/* 右侧组合容器:菜单 + 搜索框 */
 .nav-right {
     display: flex;
     align-items: center;
@@ -28,36 +29,133 @@
     min-width: 0;             /* 允许窄屏下横向滚动 */
 }
 
-/* ---------- 独立搜索按钮(最右侧) ---------- */
-.search-btn {
-    display: inline-flex;
+/* ---------- 顶栏内置搜索框 ---------- */
+.search-widget {
+    position: relative;
+}
+
+.search-box {
+    position: relative;
+    display: flex;
     align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+}
+
+.search-box svg {
+    position: absolute;
+    left: 0.75rem;
     color: var(--secondary);
-    transition: color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
-}
-
-.search-btn:hover {
-    color: var(--primary);
-    border-color: var(--primary);
-    transform: translateY(-1px);
-}
-
-.search-btn:active {
-    transform: translateY(0);
-}
-
-.search-btn svg {
     pointer-events: none;
 }
 
-/* 窄屏:给顶栏恢复少量留白,避免过于贴边 */
+.search-box input {
+    width: clamp(150px, 18vw, 280px);
+    padding: 0.42rem 1rem 0.42rem 2.25rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;     /* 圆角胶囊形搜索框 */
+    background: var(--entry);
+    color: var(--primary);
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.2s ease, width 0.2s ease;
+}
+
+.search-box input:focus {
+    border-color: var(--primary);
+    width: clamp(170px, 22vw, 340px);
+}
+
+.search-box input::placeholder {
+    color: var(--secondary);
+}
+
+/* 搜索结果下拉面板 */
+.search-results {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    width: min(440px, calc(100vw - 1.5rem));
+    max-height: 60vh;
+    overflow-y: auto;
+    background: var(--entry);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14);
+    z-index: 100;
+    padding: 0.35rem;
+}
+
+[data-theme="dark"] .search-results {
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+}
+
+.search-results-list:empty {
+    display: none;
+}
+
+.search-result-item {
+    display: block;
+    padding: 0.6rem 0.75rem;
+    border-radius: 6px;
+}
+
+.search-result-item:hover,
+.search-result-item:focus {
+    background: rgba(128, 128, 128, 0.12);
+    text-decoration: none;
+}
+
+.sr-title {
+    font-weight: 600;
+    line-height: 1.45;
+}
+
+.sr-snippet {
+    font-size: 0.85rem;
+    color: var(--secondary);
+    margin-top: 0.15rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.sr-title mark,
+.sr-snippet mark {
+    background: rgba(76, 158, 240, 0.32);
+    color: inherit;
+    border-radius: 3px;
+    padding: 0 0.1em;
+}
+
+.search-results-empty {
+    padding: 0.9rem;
+    text-align: center;
+    color: var(--secondary);
+    font-size: 0.9rem;
+    display: block;
+}
+
+.search-results-more {
+    display: block;
+    text-align: center;
+    padding: 0.55rem;
+    font-size: 0.9rem;
+    color: var(--secondary);
+    border-top: 1px solid var(--border);
+}
+
+.search-results-more:hover {
+    color: var(--primary);
+    text-decoration: none;
+}
+
+/* 窄屏:菜单允许滚动,搜索框缩短 */
 @media (max-width: 640px) {
-    .header-nav {
-        padding: 0 0.75rem;
+    .search-box input {
+        width: 120px;
+    }
+
+    .search-box input:focus {
+        width: 150px;
     }
 }
