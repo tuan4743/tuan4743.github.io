@@ -1,0 +1,11 @@
+{{- /* 头部扩展:背景配色在首帧渲染前恢复,避免切换闪烁 */ -}}
+<script>
+    (function () {
+        try {
+            var p = localStorage.getItem("pref-palette");
+            if (p && p !== "default") {
+                document.documentElement.dataset.palette = p;
+            }
+        } catch (e) {}
+    })();
+</script>

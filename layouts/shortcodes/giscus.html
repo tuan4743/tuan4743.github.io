@@ -19,4 +19,37 @@
         crossorigin="anonymous"
         async>
     </script>
+    <script>
+        /* 让 Giscus 主题跟随站点明暗切换(通过 postMessage 动态 setConfig) */
+        (function () {
+            var frame = null;
+            function find() {
+                if (!frame) frame = document.querySelector("iframe.giscus-frame");
+                return frame;
+            }
+            function currentTheme() {
+                var t = document.documentElement.dataset.theme;
+                return t === "dark" ? "transparent_dark" : "light";
+            }
+            function send() {
+                var f = find();
+                if (f && f.contentWindow) {
+                    f.contentWindow.postMessage(
+                        { giscus: { setConfig: { theme: currentTheme() } } },
+                        "https://giscus.app"
+                    );
+                }
+            }
+            var tries = 0;
+            var timer = setInterval(function () {
+                send();
+                if (find() || ++tries > 20) clearInterval(timer);
+            }, 300);
+            new MutationObserver(function () { send(); })
+                .observe(document.documentElement, {
+                    attributes: true,
+                    attributeFilter: ["data-theme", "data-palette"],
+                });
+        })();
+    </script>
 </div>

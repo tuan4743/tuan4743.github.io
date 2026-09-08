@@ -25,11 +25,30 @@
 }
 
 .menu {
-    column-gap: 1.75rem;      /* 导航项之间的间距 */
+    column-gap: 1.6rem;       /* 导航项之间的间距 */
     min-width: 0;             /* 允许窄屏下横向滚动 */
 }
 
-/* ---------- 顶栏内置搜索框 ---------- */
+/* 导航项:内联 flex + 小图标 */
+.nav-right .menu a {
+    display: inline-flex;
+    align-items: center;
+}
+
+.menu .menu-icon {
+    width: 15px;
+    height: 15px;
+    margin-right: 0.4em;
+    flex: none;
+}
+
+/* 悬停 / 选中:加粗 */
+.nav-right .menu a:hover span,
+.nav-right .menu span.active {
+    font-weight: 700;
+}
+
+/* ---------- 顶栏内置搜索框(紧凑版) ---------- */
 .search-widget {
     position: relative;
 }
@@ -42,26 +61,26 @@
 
 .search-box svg {
     position: absolute;
-    left: 0.75rem;
+    left: 0.65rem;
     color: var(--secondary);
     pointer-events: none;
 }
 
 .search-box input {
-    width: clamp(150px, 18vw, 280px);
-    padding: 0.42rem 1rem 0.42rem 2.25rem;
+    width: clamp(110px, 13vw, 180px);
+    padding: 0.28rem 0.75rem 0.28rem 1.95rem;
     border: 1px solid var(--border);
     border-radius: 999px;     /* 圆角胶囊形搜索框 */
     background: var(--entry);
     color: var(--primary);
-    font-size: 0.95rem;
+    font-size: 0.88rem;
     outline: none;
     transition: border-color 0.2s ease, width 0.2s ease;
 }
 
 .search-box input:focus {
     border-color: var(--primary);
-    width: clamp(170px, 22vw, 340px);
+    width: clamp(150px, 18vw, 240px);
 }
 
 .search-box input::placeholder {
@@ -149,13 +168,147 @@
     text-decoration: none;
 }
 
+/* ---------- 页面切换动效 ---------- */
+@view-transition {
+    navigation: auto;
+}
+
+::view-transition-old(root) {
+    animation: vt-out 0.18s ease both;
+}
+
+::view-transition-new(root) {
+    animation: vt-in 0.25s ease both;
+}
+
+@keyframes vt-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+}
+
+@keyframes vt-out {
+    to {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+}
+
+/* 不支持 View Transitions 时:整页轻微淡入保底 */
+@media (prefers-reduced-motion: no-preference) {
+    @keyframes page-fade {
+        from {
+            opacity: 0.01;
+        }
+    }
+
+    body {
+        animation: page-fade 0.25s ease-out;
+    }
+}
+
+/* ---------- 背景配色(画板) ---------- */
+:root[data-palette="mist"] {
+    --theme: rgb(240, 244, 250);
+    --entry: rgb(251, 253, 255);
+    --border: rgb(220, 227, 238);
+    --primary: rgb(40, 52, 78);
+    --secondary: rgb(96, 110, 138);
+    --tertiary: rgb(206, 214, 228);
+    --content: rgb(44, 56, 82);
+    --code-bg: rgb(245, 248, 252);
+}
+
+:root[data-theme="dark"][data-palette="mist"] {
+    --theme: rgb(22, 28, 42);
+    --entry: rgb(31, 39, 56);
+    --border: rgb(53, 65, 90);
+    --primary: rgb(223, 230, 244);
+    --secondary: rgb(146, 158, 184);
+    --tertiary: rgb(66, 78, 103);
+    --content: rgb(210, 218, 235);
+    --code-bg: rgb(25, 32, 48);
+}
+
+:root[data-palette="warm"] {
+    --theme: rgb(250, 245, 236);
+    --entry: rgb(255, 252, 246);
+    --border: rgb(235, 226, 210);
+    --primary: rgb(64, 56, 42);
+    --secondary: rgb(133, 120, 98);
+    --tertiary: rgb(228, 218, 200);
+    --content: rgb(66, 58, 44);
+    --code-bg: rgb(248, 243, 234);
+}
+
+:root[data-theme="dark"][data-palette="warm"] {
+    --theme: rgb(38, 33, 26);
+    --entry: rgb(47, 41, 32);
+    --border: rgb(83, 71, 55);
+    --primary: rgb(236, 228, 214);
+    --secondary: rgb(167, 154, 130);
+    --tertiary: rgb(92, 79, 60);
+    --content: rgb(222, 214, 199);
+    --code-bg: rgb(33, 29, 23);
+}
+
+:root[data-palette="mint"] {
+    --theme: rgb(238, 247, 243);
+    --entry: rgb(250, 253, 252);
+    --border: rgb(213, 230, 222);
+    --primary: rgb(34, 66, 58);
+    --secondary: rgb(95, 133, 123);
+    --tertiary: rgb(203, 224, 215);
+    --content: rgb(38, 72, 63);
+    --code-bg: rgb(243, 250, 247);
+}
+
+:root[data-theme="dark"][data-palette="mint"] {
+    --theme: rgb(19, 30, 27);
+    --entry: rgb(27, 42, 38);
+    --border: rgb(52, 76, 69);
+    --primary: rgb(216, 232, 226);
+    --secondary: rgb(140, 170, 160);
+    --tertiary: rgb(62, 88, 80);
+    --content: rgb(206, 224, 217);
+    --code-bg: rgb(16, 26, 23);
+}
+
+:root[data-palette="violet"] {
+    --theme: rgb(246, 243, 252);
+    --entry: rgb(253, 251, 255);
+    --border: rgb(226, 219, 240);
+    --primary: rgb(58, 48, 90);
+    --secondary: rgb(122, 110, 156);
+    --tertiary: rgb(219, 210, 236);
+    --content: rgb(60, 50, 92);
+    --code-bg: rgb(248, 246, 253);
+}
+
+:root[data-theme="dark"][data-palette="violet"] {
+    --theme: rgb(28, 24, 41);
+    --entry: rgb(37, 32, 53);
+    --border: rgb(73, 64, 100);
+    --primary: rgb(229, 222, 245);
+    --secondary: rgb(163, 152, 196);
+    --tertiary: rgb(92, 80, 127);
+    --content: rgb(219, 211, 238);
+    --code-bg: rgb(24, 20, 36);
+}
+
+/* ---------- emoji 一律彩色字形渲染 ---------- */
+body {
+    font-variant-emoji: emoji;
+}
+
 /* 窄屏:菜单允许滚动,搜索框缩短 */
 @media (max-width: 640px) {
     .search-box input {
-        width: 120px;
+        width: 96px;
     }
 
     .search-box input:focus {
-        width: 150px;
+        width: 132px;
     }
 }
