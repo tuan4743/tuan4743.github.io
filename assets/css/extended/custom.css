@@ -67,8 +67,8 @@
 }
 
 .search-box input {
-    width: clamp(110px, 13vw, 180px);
-    padding: 0.28rem 0.75rem 0.28rem 1.95rem;
+    width: clamp(92px, 11vw, 150px);
+    padding: 0.28rem 0.7rem 0.28rem 1.85rem;
     border: 1px solid var(--border);
     border-radius: 999px;     /* 圆角胶囊形搜索框 */
     background: var(--entry);
@@ -80,7 +80,7 @@
 
 .search-box input:focus {
     border-color: var(--primary);
-    width: clamp(150px, 18vw, 240px);
+    width: clamp(126px, 15vw, 200px);
 }
 
 .search-box input::placeholder {
@@ -168,17 +168,27 @@
     text-decoration: none;
 }
 
-/* ---------- 页面切换动效 ---------- */
+/* ---------- 页面切换动效(顶栏保持静止) ---------- */
 @view-transition {
     navigation: auto;
 }
 
+/* 顶栏不参与过渡,切换页面时保持不动 */
+.header {
+    view-transition-name: header;
+}
+
+::view-transition-old(header),
+::view-transition-new(header) {
+    animation: none;
+}
+
 ::view-transition-old(root) {
-    animation: vt-out 0.18s ease both;
+    animation: vt-out 0.54s ease both;
 }
 
 ::view-transition-new(root) {
-    animation: vt-in 0.25s ease both;
+    animation: vt-in 0.75s ease both;
 }
 
 @keyframes vt-in {
@@ -204,7 +214,7 @@
     }
 
     body {
-        animation: page-fade 0.25s ease-out;
+        animation: page-fade 0.75s ease-out;
     }
 }
 
@@ -305,10 +315,74 @@ body {
 /* 窄屏:菜单允许滚动,搜索框缩短 */
 @media (max-width: 640px) {
     .search-box input {
-        width: 96px;
+        width: 84px;
     }
 
     .search-box input:focus {
-        width: 132px;
+        width: 120px;
     }
+}
+
+/* ---------- 背景配色选择面板(画板) ---------- */
+.palette-wrap {
+    position: relative;
+}
+
+.palette-panel {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    min-width: 176px;
+    padding: 0.7rem 0.8rem 0.75rem;
+    background: var(--entry);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14);
+    z-index: 120;
+    visibility: hidden;
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
+}
+
+[data-theme="dark"] .palette-panel {
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+}
+
+.palette-wrap:hover .palette-panel,
+.palette-wrap:focus-within .palette-panel,
+.palette-wrap.open .palette-panel {
+    visibility: visible;
+    opacity: 1;
+    transform: none;
+}
+
+.palette-panel-title {
+    font-size: 0.8rem;
+    color: var(--secondary);
+    margin-bottom: 0.55rem;
+}
+
+.palette-swatches {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.palette-swatch {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    padding: 0;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.palette-swatch:hover {
+    transform: scale(1.15);
+}
+
+.palette-swatch.active {
+    box-shadow: 0 0 0 2px var(--theme), 0 0 0 4px var(--primary);
 }

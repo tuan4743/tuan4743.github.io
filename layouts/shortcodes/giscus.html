@@ -20,7 +20,8 @@
         async>
     </script>
     <script>
-        /* 让 Giscus 主题跟随站点明暗切换(通过 postMessage 动态 setConfig) */
+        /* 让 Giscus 主题跟随站点明暗切换(通过 postMessage 动态 setConfig)
+           轮询 60 秒直到 iframe 就绪,避免 Giscus 加载慢时主题不同步 */
         (function () {
             var frame = null;
             function find() {
@@ -38,13 +39,24 @@
                         { giscus: { setConfig: { theme: currentTheme() } } },
                         "https://giscus.app"
                     );
+                    return true;
+                }
+                return false;
+            }
+            function attachLoad() {
+                var f = find();
+                if (f && !f.__giscusSyncAttached) {
+                    f.__giscusSyncAttached = true;
+                    f.addEventListener("load", function () { send(); });
                 }
             }
             var tries = 0;
             var timer = setInterval(function () {
+                tries++;
+                attachLoad();
                 send();
-                if (find() || ++tries > 20) clearInterval(timer);
-            }, 300);
+                if (tries > 120) clearInterval(timer); /* 最长约 60 秒 */
+            }, 500);
             new MutationObserver(function () { send(); })
                 .observe(document.documentElement, {
                     attributes: true,

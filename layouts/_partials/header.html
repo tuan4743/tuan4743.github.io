@@ -58,16 +58,38 @@
                 </button>
                 {{- end }}
 
-                <button id="palette-toggle" class="theme-toggle" accesskey="p" title="背景配色 (Alt + P)"
-                    aria-label="Toggle palette">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 22a10 10 0 1 1 10-10c0 1.7-1.3 3-3 3h-2.4c-1.2 0-2.2 1-2.2 2.2 0 .6.2 1.1.6 1.5.4.4.6.9.6 1.5 0 1.5-1.2 2.8-2.8 2.8Z"></path>
-                        <circle cx="7.5" cy="10.5" r="1"></circle>
-                        <circle cx="12" cy="7.5" r="1"></circle>
-                        <circle cx="16.5" cy="10.5" r="1"></circle>
-                    </svg>
-                </button>
+                <div class="palette-wrap" id="palette-wrap">
+                    <button id="palette-toggle" class="theme-toggle" accesskey="p" title="背景配色 (Alt + P)"
+                        aria-label="Toggle palette">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 22a10 10 0 1 1 10-10c0 1.7-1.3 3-3 3h-2.4c-1.2 0-2.2 1-2.2 2.2 0 .6.2 1.1.6 1.5.4.4.6.9.6 1.5 0 1.5-1.2 2.8-2.8 2.8Z"></path>
+                            <circle cx="7.5" cy="10.5" r="1"></circle>
+                            <circle cx="12" cy="7.5" r="1"></circle>
+                            <circle cx="16.5" cy="10.5" r="1"></circle>
+                        </svg>
+                    </button>
+                    <div class="palette-panel" id="palette-panel">
+                        <div class="palette-panel-title">背景配色</div>
+                        <div class="palette-swatches">
+                            <button class="palette-swatch" data-palette="" title="默认"
+                                aria-label="默认配色"
+                                style="background: linear-gradient(90deg, #ffffff 50%, #1d1e20 50%);"></button>
+                            <button class="palette-swatch" data-palette="mist" title="雾蓝"
+                                aria-label="雾蓝配色"
+                                style="background: linear-gradient(90deg, rgb(240,244,250) 50%, rgb(22,28,42) 50%);"></button>
+                            <button class="palette-swatch" data-palette="warm" title="暖阳"
+                                aria-label="暖阳配色"
+                                style="background: linear-gradient(90deg, rgb(250,245,236) 50%, rgb(38,33,26) 50%);"></button>
+                            <button class="palette-swatch" data-palette="mint" title="薄荷"
+                                aria-label="薄荷配色"
+                                style="background: linear-gradient(90deg, rgb(238,247,243) 50%, rgb(19,30,27) 50%);"></button>
+                            <button class="palette-swatch" data-palette="violet" title="夜紫"
+                                aria-label="夜紫配色"
+                                style="background: linear-gradient(90deg, rgb(246,243,252) 50%, rgb(28,24,41) 50%);"></button>
+                        </div>
+                    </div>
+                </div>
                 
                 {{- if (not site.Params.disableLangToggle) }}
                     {{- $lang := .Lang}}
