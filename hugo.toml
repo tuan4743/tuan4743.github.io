@@ -60,6 +60,39 @@ paginate = 10
     category = "Announcements"
     categoryId = "DIC_kwDOUSNr1M4DFJmt"
 
+  [params.showcase]
+    heroTitle = "TUAGFEY"
+    heroSlogan = "记录 · 折腾 · 探索"
+    heroIntro = "这里是我的数字基地——技术笔记、生活片段与开源项目。\n用左侧标签或键盘 ← → 穿梭面板。"
+    github = "https://github.com/tuan4743"
+    techIntro = "我在 GitHub 上折腾的开源项目与技术实践,持续更新。"
+    techBtn = "进入技术区 →"
+    techUrl = "/tech/"
+    archivesIntro = "按时间线翻阅全部文章,学习与生活都在这里。"
+    archivesBtn = "查看全部归档 →"
+    archivesUrl = "/archives/"
+    guestText = "想说点什么?留言板随时开放,用 GitHub 账号即可发言。"
+    guestBtn = "去留言板 →"
+    guestUrl = "/guestbook/"
+    aboutText = "你好,我是 tuan4743(网名 Tuagfey)。\n这里记录技术、生活与思考,感谢来访。"
+    aboutBtn = "更多关于 →"
+    aboutUrl = "/about/"
+
+    [[params.showcase.repos]]
+      name = "Hugo"
+      desc = "本站的静态站点生成器"
+      url = "https://github.com/gohugoio/hugo"
+
+    [[params.showcase.repos]]
+      name = "PaperMod"
+      desc = "本站使用的博客主题"
+      url = "https://github.com/adityatelange/hugo-PaperMod"
+
+    [[params.showcase.repos]]
+      name = "GitHub"
+      desc = "我的代码仓库"
+      url = "https://github.com/tuan4743"
+
 [markup]
   [markup.goldmark]
     [markup.goldmark.renderer]

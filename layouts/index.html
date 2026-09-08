@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="{{ site.Language.LanguageCode }}" dir="auto" data-theme="auto">
+{{- partial "head.html" . }}
+<link rel="stylesheet" href="{{ "css/showcase.css" | relURL }}">
+<body id="top" class="showcase-page">
+    <div class="bg-layer">
+        <div class="bg-grid"></div>
+        <div class="bg-blob bg-blob-1"></div>
+        <div class="bg-blob bg-blob-2"></div>
+        <div class="bg-blob bg-blob-3"></div>
+        <div class="bg-ring"></div>
+        <canvas id="bg-canvas"></canvas>
+    </div>
+
+    <div class="showcase-shell">
+        <aside class="side-nav" id="side-nav" aria-label="面板导航">
+            <div class="side-nav-head">
+                <span class="side-nav-title">NAV</span>
+            </div>
+            <div class="side-nav-items">
+                <a href="#home" class="side-item is-active" data-panel="home" aria-current="page">
+                    <span class="side-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
+                    </span>
+                    <span class="side-label">主页</span>
+                </a>
+                <a href="#tech" class="side-item" data-panel="tech">
+                    <span class="side-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                    </span>
+                    <span class="side-label">技术</span>
+                </a>
+                <a href="#archives" class="side-item" data-panel="archives">
+                    <span class="side-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+                    </span>
+                    <span class="side-label">归档</span>
+                </a>
+                <a href="#guestbook" class="side-item" data-panel="guestbook">
+                    <span class="side-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+                    </span>
+                    <span class="side-label">留言</span>
+                </a>
+                <a href="#about" class="side-item" data-panel="about">
+                    <span class="side-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    </span>
+                    <span class="side-label">关于</span>
+                </a>
+            </div>
+            <div class="side-nav-foot">
+                <a href="/search/" class="side-search" title="搜索 (Ctrl + K 或 Alt + /)" aria-label="搜索">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <span>搜索</span>
+                </a>
+            </div>
+        </aside>
+
+        <main class="showcase-main">
+            <section class="panel is-active" data-panel="home">
+                <div class="panel-inner">
+                    <div class="hero-title-wrap">
+                        <span class="hero-tag">// DIGITAL BASE</span>
+                        <h1 class="hero-title">{{ site.Params.showcase.heroTitle }}</h1>
+                        <p class="hero-slogan">{{ site.Params.showcase.heroSlogan }}</p>
+                    </div>
+                    <div class="hero-intro">
+                        {{- range (split (site.Params.showcase.heroIntro | default "") "\n") }}
+                        <p>{{ . }}</p>
+                        {{- end }}
+                    </div>
+                    <div class="hero-actions">
+                        <a class="glass-btn accent" href="{{ site.Params.showcase.github }}" target="_blank" rel="noopener noreferrer">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+                            GitHub
+                        </a>
+                        <a class="glass-btn" href="#tech" data-goto="tech">探索面板 →</a>
+                    </div>
+                    <div class="hud-meta">
+                        <span class="hud-line" id="hud-clock">--:--:--</span>
+                        <span class="hud-line hud-line-dim">SYS//TUAGFEY.COM · ONLINE</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel" data-panel="tech">
+                <div class="panel-inner">
+                    <div class="panel-head">
+                        <span class="panel-tag">02 // PROJECTS</span>
+                        <h2 class="panel-title">技术</h2>
+                        <p class="panel-desc">{{ site.Params.showcase.techIntro }}</p>
+                    </div>
+                    <div class="repo-grid">
+                        {{- range site.Params.showcase.repos }}
+                        <a class="repo-card glass" href="{{ .url }}" target="_blank" rel="noopener noreferrer">
+                            <div class="repo-card-top">
+                                <span class="repo-name">{{ .name }}</span>
+                                <svg class="repo-arrow" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>
+                            </div>
+                            <p class="repo-desc">{{ .desc }}</p>
+                        </a>
+                        {{- end }}
+                    </div>
+                    <div class="panel-actions">
+                        <a class="glass-btn accent" href="{{ site.Params.showcase.techUrl }}">{{ site.Params.showcase.techBtn }}</a>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel" data-panel="archives">
+                <div class="panel-inner">
+                    <div class="panel-head">
+                        <span class="panel-tag">03 // TIMELINE</span>
+                        <h2 class="panel-title">归档</h2>
+                        <p class="panel-desc">{{ site.Params.showcase.archivesIntro }}</p>
+                    </div>
+                    <ul class="post-list">
+                        {{- $recent := first 6 (where site.RegularPages "Layout" "ne" "search") }}
+                        {{- range $recent }}
+                        <li>
+                            <a class="post-row glass" href="{{ .RelPermalink }}">
+                                <span class="post-row-title">{{ .Title }}</span>
+                                <span class="post-row-meta">
+                                    {{- if .Date }}<time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "2006-01-02" }}</time>{{- end }}
+                                    {{- with .Params.tags }}<span class="post-row-tags">{{ range first 2 . }}<i>{{ . }}</i>{{ end }}</span>{{- end }}
+                                </span>
+                            </a>
+                        </li>
+                        {{- end }}
+                    </ul>
+                    <div class="panel-actions">
+                        <a class="glass-btn accent" href="{{ site.Params.showcase.archivesUrl }}">{{ site.Params.showcase.archivesBtn }}</a>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel" data-panel="guestbook">
+                <div class="panel-inner">
+                    <div class="panel-head">
+                        <span class="panel-tag">04 // CONTACT</span>
+                        <h2 class="panel-title">留言</h2>
+                        <p class="panel-desc">{{ site.Params.showcase.guestText }}</p>
+                    </div>
+                    <div class="panel-actions">
+                        <a class="glass-btn accent" href="{{ site.Params.showcase.guestUrl }}">{{ site.Params.showcase.guestBtn }}</a>
+                    </div>
+                    <div class="hud-meta">
+                        <span class="hud-line hud-line-dim">GISCUS · GITHUB DISCUSSIONS</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel" data-panel="about">
+                <div class="panel-inner">
+                    <div class="panel-head">
+                        <span class="panel-tag">05 // IDENTITY</span>
+                        <h2 class="panel-title">关于</h2>
+                        <div class="about-body">
+                            <div class="about-avatar" aria-hidden="true">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="88" height="88">
+                                    <rect width="64" height="64" rx="14" fill="url(#avatar-grad)"></rect>
+                                    <text x="32" y="44" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="bold" fill="#ffffff" text-anchor="middle">T</text>
+                                    <defs>
+                                        <linearGradient id="avatar-grad" x1="0" y1="0" x2="1" y2="1">
+                                            <stop offset="0" stop-color="#22d3ee"></stop>
+                                            <stop offset="1" stop-color="#8b5cf6"></stop>
+                                        </linearGradient>
+                                    </defs>
+                                </svg>
+                            </div>
+                            <div class="about-text">
+                                {{- range (split (site.Params.showcase.aboutText | default "") "\n") }}
+                                <p>{{ . }}</p>
+                                {{- end }}
+                            </div>
+                        </div>
+                        <div class="panel-actions">
+                            <a class="glass-btn accent" href="{{ site.Params.showcase.aboutUrl }}">{{ site.Params.showcase.aboutBtn }}</a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div class="ctrl-corner">
+        <button id="theme-toggle" class="theme-toggle" accesskey="t" title="(Alt + T)" aria-label="Toggle theme">
+            <svg class="moon" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+            <svg class="sun" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+        </button>
+        <div class="palette-wrap" id="palette-wrap">
+            <button id="palette-toggle" class="theme-toggle" accesskey="p" title="背景配色 (Alt + P)" aria-label="Toggle palette">
+                <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a10 10 0 1 1 10-10c0 1.7-1.3 3-3 3h-2.4c-1.2 0-2.2 1-2.2 2.2 0 .6.2 1.1.6 1.5.4.4.6.9.6 1.5 0 1.5-1.2 2.8-2.8 2.8Z"></path><circle cx="7.5" cy="10.5" r="1"></circle><circle cx="12" cy="7.5" r="1"></circle><circle cx="16.5" cy="10.5" r="1"></circle></svg>
+            </button>
+            <div class="palette-panel" id="palette-panel">
+                <div class="palette-panel-title">背景配色</div>
+                <div class="palette-swatches">
+                    <div class="palette-option">
+                        <button class="palette-swatch" data-palette="" title="默认" aria-label="默认配色" style="background: linear-gradient(90deg, #ffffff 50%, #1d1e20 50%);"></button>
+                        <span class="palette-name">默认</span>
+                    </div>
+                    <div class="palette-option">
+                        <button class="palette-swatch" data-palette="mist" title="雾蓝" aria-label="雾蓝配色" style="background: linear-gradient(90deg, rgb(240,244,250) 50%, rgb(22,28,42) 50%);"></button>
+                        <span class="palette-name">雾蓝</span>
+                    </div>
+                    <div class="palette-option">
+                        <button class="palette-swatch" data-palette="warm" title="暖阳" aria-label="暖阳配色" style="background: linear-gradient(90deg, rgb(250,245,236) 50%, rgb(38,33,26) 50%);"></button>
+                        <span class="palette-name">暖阳</span>
+                    </div>
+                    <div class="palette-option">
+                        <button class="palette-swatch" data-palette="mint" title="薄荷" aria-label="薄荷配色" style="background: linear-gradient(90deg, rgb(238,247,243) 50%, rgb(19,30,27) 50%);"></button>
+                        <span class="palette-name">薄荷</span>
+                    </div>
+                    <div class="palette-option">
+                        <button class="palette-swatch" data-palette="violet" title="夜紫" aria-label="夜紫配色" style="background: linear-gradient(90deg, rgb(246,243,252) 50%, rgb(28,24,41) 50%);"></button>
+                        <span class="palette-name">夜紫</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="hud-strip">
+        <span class="hud-line">TUAGFEY.DIGITAL · v1.0</span>
+        <span class="hud-line hud-line-dim">PANEL: <b id="hud-panel">HOME</b></span>
+    </div>
+
+    <script>
+        /* 首帧前恢复主题(与主题脚本保持同一 key) */
+        (function () {
+            try {
+                var t = localStorage.getItem("pref-theme");
+                if (t === "dark" || t === "light") {
+                    document.documentElement.dataset.theme = t;
+                }
+            } catch (e) {}
+        })();
+    </script>
+    <script defer src="{{ "js/theme-palette.js" | relURL }}"></script>
+    <script defer src="{{ "js/showcase.js" | relURL }}"></script>
+</body>
+</html>
