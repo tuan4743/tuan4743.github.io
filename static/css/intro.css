@@ -41,7 +41,7 @@ body.intro-page {
 }
 
 body.scene-open .scene {
-    transform: translateX(calc(-1 * var(--rack-w)));  /* 视角向右平移 */
+    transform: translateX(var(--rack-w));   /* 视角向左平移 */
 }
 
 /* ---------- 屏幕:占满视口,机身外框 + 圆角 ---------- */
@@ -114,10 +114,10 @@ body.scene-open .scene {
     white-space: pre-line;
 }
 
-/* ---------- 屏幕右缘:光驱边缝 + 入口箭头(随屏幕刚体一起动) ---------- */
+/* ---------- 屏幕左缘:光驱边缝 + 入口箭头(随屏幕刚体一起动) ---------- */
 .screen-slot {
     position: absolute;
-    right: 0;
+    left: 0;
     top: 34%;
     z-index: 10;
     display: flex;
@@ -154,10 +154,10 @@ body.scene-open .scene {
     color: var(--intro-accent);
 }
 
-/* ---------- CD 架(托盘):从屏幕右缘滑出区域 ---------- */
+/* ---------- CD 架(托盘):从屏幕左缘滑出区域 ---------- */
 .rack {
     position: absolute;
-    left: 100%;               /* 紧贴屏幕右缘,刚体的一部分 */
+    right: 100%;              /* 紧贴屏幕左缘,刚体的一部分 */
     top: 0;
     width: var(--rack-w);
     height: 100%;
@@ -166,7 +166,7 @@ body.scene-open .scene {
     padding: 18px 22px 16px;
     background: linear-gradient(180deg, #25282f 0%, #1a1c21 100%);
     border: 1px solid var(--intro-border);
-    border-radius: 0 18px 18px 0;
+    border-radius: 18px 0 0 18px;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 40px rgba(0, 0, 0, 0.35);
 }
 

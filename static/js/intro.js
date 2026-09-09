@@ -25,11 +25,11 @@
   var locked = false;
   var STEP = 22;              /* 相邻 CD 角度步长(度) */
 
-  /* ---------- 轮盘几何:轴心 = hub(插入点),CD 在其左侧绕转 ---------- */
+  /* ---------- 轮盘几何:轴心 = hub(插入点,靠近屏幕接缝),CD 在其左侧绕转 ---------- */
   function layout() {
     var rect = wheel.getBoundingClientRect();
     var R = Math.max(96, Math.min(190, rect.height * 0.34, rect.width * 0.38));
-    var hubX = Math.min(rect.width * 0.3, R + 60);
+    var hubX = Math.max(rect.width * 0.7, rect.width - R - 60);  /* hub 靠右(接缝侧) */
     var hubY = rect.height * 0.5;
     var hubW = hub.offsetWidth;
     var hubH = hub.offsetHeight;
