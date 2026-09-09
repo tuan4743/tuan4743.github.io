@@ -27,11 +27,13 @@
   var STEP = 20;             /* 相邻 CD 的弧度步长(度) */
   var STORAGE = "intro-theme";
 
-  /* ---------- 几何:CD 沿圆弧排布,选中位为 0°(弧中点) ---------- */
+  /* ---------- 几何:CD 沿圆弧排布,选中位为 0°(弧中点),槽口紧随弧心右侧 ---------- */
   function layout() {
     arcRect = arc.getBoundingClientRect();
     var cx = arcRect.width * 0.42;
     var cy = arcRect.height * 0.5;
+    var rad = Math.max(100, Math.min(170, arcRect.height * 0.3));
+    R = rad;
     cds.forEach(function (cd, i) {
       var a = ((i - selIndex) * STEP) * Math.PI / 180;
       var x = cx + R * Math.cos(a) - cd.offsetWidth / 2;
@@ -47,6 +49,10 @@
         cd.removeAttribute("aria-selected");
       }
     });
+    /* 槽口位于选中位右侧,与弧心同高 */
+    slot.style.left = (cx + R + 26).toFixed(1) + "px";
+    slot.style.top = (cy - slot.offsetHeight / 2).toFixed(1) + "px";
+    paintSlotCd();
   }
 
   /* 占位槽口 CD 配色(真实资产替换后移除) */

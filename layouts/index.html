@@ -5,6 +5,8 @@
 <body id="top" class="intro-page">
     <div class="intro-bg"></div>
 
+    {{- partial "header.html" . }}
+
     <!-- 左侧小箭头(初始唯一可见入口,常驻不动) -->
     <button class="intro-toggle" id="intro-toggle" aria-expanded="false" aria-controls="intro-drawer"
         title="打开主题轮盘">
@@ -17,21 +19,21 @@
     <!-- CD 弧形滚轮 + 光驱槽口(弹出层) -->
     <aside class="intro-drawer" id="intro-drawer" aria-hidden="true">
         <div class="tray-window" id="tray-window">
-            <span class="tray-deck-label">{{ site.Params.intro.drawerLabel }} · ROLLER</span>
             <div class="cd-arc" id="cd-arc">
                 {{- range site.Params.intro.panels }}
                 <button class="cd" data-panel="{{ .key }}" aria-label="主题:{{ .title }}">
                     <span class="cd-disc">
-                        <span class="cd-face"></span>
-                        <span class="cd-label">{{ .title }}</span>
+                        <span class="cd-face">
+                            <span class="cd-label">{{ .title }}</span>
+                        </span>
                     </span>
                     <span class="cd-title">{{ .title }}</span>
                 </button>
                 {{- end }}
-            </div>
-            <div class="cd-slot" id="cd-slot" aria-hidden="true">
-                <div class="slot-glow"></div>
-                <div class="slot-cd" id="slot-cd"></div>
+                <div class="cd-slot" id="cd-slot" aria-hidden="true">
+                    <div class="slot-glow"></div>
+                    <div class="slot-cd" id="slot-cd"></div>
+                </div>
             </div>
             <p class="tray-hint" id="tray-hint">滚轮 / ↑↓ 选择 · 点击 CD 确认</p>
         </div>
@@ -50,44 +52,6 @@
         {{- end }}
     </main>
 
-    <!-- 右上控制角:明暗 + 画板(与全站共享设置) -->
-    <div class="intro-ctrl">
-        <button id="theme-toggle" class="theme-toggle" accesskey="t" title="(Alt + T)" aria-label="Toggle theme">
-            <svg class="moon" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-            <svg class="sun" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
-        </button>
-        <div class="palette-wrap" id="palette-wrap">
-            <button id="palette-toggle" class="theme-toggle" accesskey="p" title="背景配色 (Alt + P)" aria-label="Toggle palette">
-                <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a10 10 0 1 1 10-10c0 1.7-1.3 3-3 3h-2.4c-1.2 0-2.2 1-2.2 2.2 0 .6.2 1.1.6 1.5.4.4.6.9.6 1.5 0 1.5-1.2 2.8-2.8 2.8Z"></path><circle cx="7.5" cy="10.5" r="1"></circle><circle cx="12" cy="7.5" r="1"></circle><circle cx="16.5" cy="10.5" r="1"></circle></svg>
-            </button>
-            <div class="palette-panel" id="palette-panel">
-                <div class="palette-panel-title">背景配色</div>
-                <div class="palette-swatches">
-                    <div class="palette-option">
-                        <button class="palette-swatch" data-palette="" title="默认" aria-label="默认配色" style="background: linear-gradient(90deg, #ffffff 50%, #1d1e20 50%);"></button>
-                        <span class="palette-name">默认</span>
-                    </div>
-                    <div class="palette-option">
-                        <button class="palette-swatch" data-palette="mist" title="雾蓝" aria-label="雾蓝配色" style="background: linear-gradient(90deg, rgb(240,244,250) 50%, rgb(22,28,42) 50%);"></button>
-                        <span class="palette-name">雾蓝</span>
-                    </div>
-                    <div class="palette-option">
-                        <button class="palette-swatch" data-palette="warm" title="暖阳" aria-label="暖阳配色" style="background: linear-gradient(90deg, rgb(250,245,236) 50%, rgb(38,33,26) 50%);"></button>
-                        <span class="palette-name">暖阳</span>
-                    </div>
-                    <div class="palette-option">
-                        <button class="palette-swatch" data-palette="mint" title="薄荷" aria-label="薄荷配色" style="background: linear-gradient(90deg, rgb(238,247,243) 50%, rgb(19,30,27) 50%);"></button>
-                        <span class="palette-name">薄荷</span>
-                    </div>
-                    <div class="palette-option">
-                        <button class="palette-swatch" data-palette="violet" title="夜紫" aria-label="夜紫配色" style="background: linear-gradient(90deg, rgb(246,243,252) 50%, rgb(28,24,41) 50%);"></button>
-                        <span class="palette-name">夜紫</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <script>
         /* 首帧前恢复主题 */
         (function () {
@@ -99,6 +63,7 @@
             } catch (e) {}
         })();
     </script>
+    <script defer src="{{ "js/header-search.js" | relURL }}"></script>
     <script defer src="{{ "js/theme-palette.js" | relURL }}"></script>
     <script defer src="{{ "js/intro.js" | relURL }}"></script>
 </body>
