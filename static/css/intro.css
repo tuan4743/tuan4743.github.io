@@ -1,0 +1,332 @@
+/* ============================================================
+   首页介绍页:CD 托盘侧边栏骨架(占位 CD,资产到位后替换为 `<img>`)
+   原则:面板切换时导航(箭头/托盘/CD)完全不动
+   ============================================================ */
+
+:root {
+    --intro-accent: rgb(34, 211, 238);
+    --intro-glass: rgba(255, 255, 255, 0.045);
+    --intro-border: rgba(255, 255, 255, 0.10);
+    --intro-dim: rgba(255, 255, 255, 0.55);
+    --drawer-w: 236px;               /* 托盘展开宽度,与 JS/主视野位移保持一致 */
+}
+
+:root[data-theme="light"] {
+    --intro-glass: rgba(255, 255, 255, 0.55);
+    --intro-border: rgba(0, 0, 0, 0.10);
+    --intro-dim: rgba(0, 0, 0, 0.55);
+}
+
+html:has(body.intro-page) {
+    overflow: hidden;
+}
+
+body.intro-page {
+    height: 100vh;
+    overflow: hidden;
+    background: var(--theme);
+    color: var(--primary);
+}
+
+/* ---------- 背景(静态,先给一点纵深) ---------- */
+.intro-bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background:
+        radial-gradient(1000px 700px at 80% -10%, rgba(34, 211, 238, 0.08), transparent 60%),
+        radial-gradient(800px 600px at -5% 110%, rgba(139, 92, 246, 0.08), transparent 60%),
+        var(--theme);
+}
+
+/* ---------- 左侧箭头(常驻,唯一初始入口) ---------- */
+.intro-toggle {
+    position: fixed;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 56px;
+    border-radius: 10px;
+    border: 1px solid var(--intro-border);
+    background: var(--intro-glass);
+    color: var(--primary);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.intro-toggle svg {
+    transition: transform 0.4s ease;
+}
+
+.intro-toggle:hover {
+    border-color: var(--intro-accent);
+    color: var(--intro-accent);
+}
+
+body.intro-open .intro-toggle svg {
+    transform: rotate(180deg);
+}
+
+/* ---------- CD 托盘 ---------- */
+.intro-drawer {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: var(--drawer-w);
+    z-index: 30;
+    transform: translateX(-105%);
+    transition: transform 0.5s cubic-bezier(0.22, 0.61, 0.36, 1);
+    padding: 18px 0 18px 14px;
+}
+
+body.intro-open .intro-drawer {
+    transform: none;
+}
+
+/* 托盘窗口:玻璃机身 + 弹出槽位 */
+.tray-window {
+    height: 100%;
+    border: 1px solid var(--intro-border);
+    border-left: none;
+    border-radius: 0 16px 16px 0;
+    background: var(--intro-glass);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    box-shadow: 6px 0 30px rgba(0, 0, 0, 0.18);
+    padding: 22px 16px;
+    transform: translateX(-14px) translateY(12px);
+    opacity: 0;
+    transition: transform 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) 0.08s,
+        opacity 0.4s ease 0.08s;
+}
+
+body.intro-open .tray-window {
+    transform: none;
+    opacity: 1;
+}
+
+.tray-deck {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.tray-deck-label {
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.32em;
+    color: var(--intro-accent);
+    padding-left: 4px;
+}
+
+/* ---------- CD(占位:CSS 渐变圆盘 + 旋转;资产到位替换) ---------- */
+.cd {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--secondary);
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.cd:hover {
+    background: var(--intro-glass);
+    color: var(--primary);
+}
+
+.cd.is-active {
+    background: var(--intro-glass);
+    border-color: var(--intro-border);
+    color: var(--primary);
+    box-shadow: inset 3px 0 0 var(--cd-color, var(--intro-accent));
+}
+
+.cd-disc {
+    --cd-color: var(--intro-accent);
+    position: relative;
+    flex: none;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at center,
+            transparent 0 5px,
+            var(--theme) 5px 7px,
+            transparent 7px 9px,
+            rgba(128, 128, 128, 0.55) 9px 46px);
+    border: 1px solid rgba(128, 128, 128, 0.55);
+    box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.3);
+    animation: cd-spin 7s linear infinite;
+}
+
+.cd-disc::before {
+    content: "";
+    position: absolute;
+    inset: 8px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--cd-color) 26%, transparent);
+}
+
+.cd-label {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.62rem;
+    color: color-mix(in srgb, var(--cd-color) 60%, var(--primary));
+}
+
+.cd:hover .cd-disc {
+    animation-duration: 1.4s;
+}
+
+.cd[data-panel="self"] .cd-disc { --cd-color: rgb(34, 211, 238); }
+.cd[data-panel="growth"] .cd-disc { --cd-color: rgb(74, 222, 128); }
+.cd[data-panel="lost"] .cd-disc { --cd-color: rgb(167, 139, 250); }
+.cd[data-panel="tech"] .cd-disc { --cd-color: rgb(96, 165, 250); }
+.cd[data-panel="future"] .cd-disc { --cd-color: rgb(244, 114, 182); }
+
+@keyframes cd-spin {
+    to { transform: rotate(360deg); }
+}
+
+.cd-title {
+    font-size: 1rem;
+}
+
+/* ---------- 主体视野(随托盘开合整体平移;切换面板时不动) ---------- */
+.intro-main {
+    position: relative;
+    z-index: 1;
+    height: 100vh;
+    transition: transform 0.5s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+body.intro-open .intro-main {
+    transform: translateX(var(--drawer-w));
+}
+
+.intro-panel {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 48px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px);
+    transition: opacity 0.4s ease, transform 0.4s ease, visibility 0s linear 0.4s;
+}
+
+.intro-panel.is-active {
+    visibility: visible;
+    opacity: 1;
+    transform: none;
+    transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.panel-inner {
+    width: min(720px, 100%);
+}
+
+.panel-kicker {
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-size: 0.76rem;
+    letter-spacing: 0.3em;
+    color: var(--intro-accent);
+}
+
+.panel-title {
+    font-size: clamp(2.6rem, 8vw, 4.6rem);
+    font-weight: 800;
+    margin: 12px 0 16px;
+    letter-spacing: 0.04em;
+}
+
+.panel-text {
+    color: var(--intro-dim);
+    font-size: 1.05rem;
+    line-height: 1.9;
+    max-width: 560px;
+}
+
+/* ---------- 右上控制角 ---------- */
+.intro-ctrl {
+    position: fixed;
+    top: 14px;
+    right: 16px;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 14px;
+    border: 1px solid var(--intro-border);
+    background: var(--intro-glass);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+}
+
+/* ---------- 响应式:窄屏改用底部抽屉 ---------- */
+@media (max-width: 720px) {
+    :root {
+        --drawer-w: 72vw;
+    }
+
+    .intro-toggle {
+        top: auto;
+        bottom: 20px;
+        transform: rotate(90deg);
+    }
+
+    body.intro-open .intro-toggle {
+        transform: rotate(-90deg);
+    }
+
+    .intro-drawer {
+        width: 72vw;
+    }
+
+    .tray-deck {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .cd {
+        flex-direction: column;
+        gap: 6px;
+        width: 86px;
+    }
+
+    .intro-panel {
+        padding: 24px 20px;
+    }
+}
+
+/* 减少动效 */
+@media (prefers-reduced-motion: reduce) {
+    .intro-drawer,
+    .tray-window,
+    .intro-main,
+    .intro-panel,
+    .intro-toggle svg {
+        transition: none !important;
+    }
+
+    .cd-disc {
+        animation: none !important;
+    }
+}

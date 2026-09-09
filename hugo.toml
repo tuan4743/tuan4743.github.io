@@ -60,6 +60,39 @@ paginate = 10
     category = "Announcements"
     categoryId = "DIC_kwDOUSNr1M4DFJmt"
 
+  [params.intro]
+    drawerLabel = "THEMES"
+
+    [[params.intro.panels]]
+      key = "self"
+      title = "自我"
+      tagline = "WHO AM I"
+      text = "留白:面板内容待补充"
+
+    [[params.intro.panels]]
+      key = "growth"
+      title = "成长"
+      tagline = "GROWING"
+      text = "留白:面板内容待补充"
+
+    [[params.intro.panels]]
+      key = "lost"
+      title = "迷茫"
+      tagline = "LOST & FOUND"
+      text = "留白:面板内容待补充"
+
+    [[params.intro.panels]]
+      key = "tech"
+      title = "技术"
+      tagline = "TECH"
+      text = "留白:面板内容待补充"
+
+    [[params.intro.panels]]
+      key = "future"
+      title = "未来"
+      tagline = "FUTURE"
+      text = "留白:面板内容待补充"
+
 [markup]
   [markup.goldmark]
     [markup.goldmark.renderer]
