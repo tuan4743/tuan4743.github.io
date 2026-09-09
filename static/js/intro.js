@@ -1,13 +1,14 @@
-/* 首页介绍页 v0.1:CD 弧形滚轮 + 光驱槽口交互(占位资产) */
+/* 首页介绍页 v0.2:屏幕+CD架刚体场景,CD轮以插入点(hub)为轴心 */
 (function () {
   "use strict";
 
   var body = document.body;
   var toggle = document.getElementById("intro-toggle");
-  var drawer = document.getElementById("intro-drawer");
-  var arc = document.getElementById("cd-arc");
-  var slot = document.getElementById("cd-slot");
-  var slotCd = document.getElementById("slot-cd");
+  var closeBtn = document.getElementById("rack-close");
+  var rack = document.getElementById("rack");
+  var wheel = document.getElementById("wheel");
+  var hub = document.getElementById("hub");
+  var hubCd = document.getElementById("hub-cd");
   var hint = document.getElementById("tray-hint");
   var cds = Array.prototype.slice.call(document.querySelectorAll(".cd[data-panel]"));
   var panels = document.querySelectorAll(".intro-panel");
@@ -20,46 +21,47 @@
   };
 
   var selIndex = 0;
-  var activeKey = null;      /* 当前机内 CD(已插入的主题) */
-  var locked = false;        /* 插拔动画期间锁输入 */
-  var arcRect = null;
-  var R = 110;
-  var STEP = 20;             /* 相邻 CD 的弧度步长(度) */
-  var STORAGE = "intro-theme";
+  var activeKey = null;
+  var locked = false;
+  var STEP = 22;              /* 相邻 CD 角度步长(度) */
 
-  /* ---------- 几何:CD 沿圆弧排布,选中位为 0°(弧中点),槽口紧随弧心右侧 ---------- */
+  /* ---------- 轮盘几何:轴心 = hub(插入点),CD 在其左侧绕转 ---------- */
   function layout() {
-    arcRect = arc.getBoundingClientRect();
-    var cx = arcRect.width * 0.42;
-    var cy = arcRect.height * 0.5;
-    var rad = Math.max(100, Math.min(170, arcRect.height * 0.3));
-    R = rad;
+    var rect = wheel.getBoundingClientRect();
+    var R = Math.max(96, Math.min(190, rect.height * 0.34, rect.width * 0.38));
+    var hubX = Math.min(rect.width * 0.3, R + 60);
+    var hubY = rect.height * 0.5;
+    var hubW = hub.offsetWidth;
+    var hubH = hub.offsetHeight;
+
     cds.forEach(function (cd, i) {
-      var a = ((i - selIndex) * STEP) * Math.PI / 180;
-      var x = cx + R * Math.cos(a) - cd.offsetWidth / 2;
-      var y = cy + R * Math.sin(a) - cd.offsetHeight / 2;
-      cd.style.transform = "translate(" + x.toFixed(1) + "px," + y.toFixed(1) + "px)";
+      var deg = 180 - (i - selIndex) * STEP;   /* 选中位在 hub 左侧(180°) */
+      var rad = deg * Math.PI / 180;
+      var x = hubX + R * Math.cos(rad) - cd.offsetWidth / 2;
+      var y = hubY + R * Math.sin(rad) - cd.offsetHeight / 2;
+      var counter = 180 - deg;                 /* 保持盘面立正 */
+      cd.style.transform =
+        "translate(" + x.toFixed(1) + "px," + y.toFixed(1) + "px) rotate(" + counter.toFixed(1) + "deg)";
       var sel = i === selIndex;
       cd.classList.toggle("is-selected", sel);
       cd.classList.toggle("is-dimmed", !sel);
       if (sel) {
         cd.setAttribute("aria-selected", "true");
-        slotCd.style.setProperty("--sl-color", themeColors[cd.getAttribute("data-panel")] || "");
+        hubCd.style.setProperty("--sl-color", themeColors[cd.getAttribute("data-panel")] || "");
       } else {
         cd.removeAttribute("aria-selected");
       }
     });
-    /* 槽口位于选中位右侧,与弧心同高 */
-    slot.style.left = (cx + R + 26).toFixed(1) + "px";
-    slot.style.top = (cy - slot.offsetHeight / 2).toFixed(1) + "px";
-    paintSlotCd();
+
+    hub.style.left = (hubX - hubW / 2).toFixed(1) + "px";
+    hub.style.top = (hubY - hubH / 2).toFixed(1) + "px";
+    paintHubCd();
   }
 
-  /* 占位槽口 CD 配色(真实资产替换后移除) */
-  function paintSlotCd() {
-    var c = getComputedStyle(slotCd).getPropertyValue("--sl-color").trim() || "rgba(128,128,128,.6)";
-    slotCd.style.borderColor = c;
-    slotCd.style.boxShadow = "0 0 12px " + c;
+  function paintHubCd() {
+    var c = getComputedStyle(hubCd).getPropertyValue("--sl-color").trim() || "rgba(128,128,128,.6)";
+    hubCd.style.borderColor = c;
+    hubCd.style.boxShadow = "0 0 12px " + c;
   }
 
   /* ---------- 选择 ---------- */
@@ -92,61 +94,56 @@
     if (key === activeKey) return;
     locked = true;
 
-    (function cycle() {
-      var ejecting = activeKey !== null;
-      if (!ejecting) {
-        insert();
-        return;
-      }
-      slotCd.classList.remove("is-inserting");
-      void slotCd.offsetWidth;
-      slotCd.classList.add("is-ejecting");
-      paintSlotCd();
-      wait(720).then(function () {
-        slotCd.classList.remove("is-ejecting");
-        insert();
-      });
-    })();
-
     function insert() {
-      slotCd.classList.remove("is-ejecting");
-      void slotCd.offsetWidth;
-      slotCd.classList.add("is-inserting");
-      paintSlotCd();
+      hubCd.classList.remove("is-ejecting");
+      void hubCd.offsetWidth;
+      hubCd.classList.add("is-inserting");
+      paintHubCd();
       wait(820).then(function () {
-        slotCd.classList.remove("is-inserting");
+        hubCd.classList.remove("is-inserting");
         activeKey = key;
         playPanel(key);
-        slot.classList.add("is-playing");
-        try { localStorage.setItem(STORAGE, key); } catch (e) {}
+        hub.classList.add("is-playing");
+        try { localStorage.setItem("intro-theme", key); } catch (e) {}
         locked = false;
-        /* 首次选择完成后收起托盘,进入内容页 */
-        if (!restored) {
-          setOpen(false);
-        }
+        if (!restored) setOpen(false);   /* 首次选择完成后收起 CD 架 */
       });
+    }
+
+    if (activeKey !== null) {
+      hubCd.classList.remove("is-inserting");
+      void hubCd.offsetWidth;
+      hubCd.classList.add("is-ejecting");
+      paintHubCd();
+      wait(720).then(function () {
+        hubCd.classList.remove("is-ejecting");
+        insert();
+      });
+    } else {
+      insert();
     }
   }
 
-  /* ---------- 托盘开合 ---------- */
+  /* ---------- 场景平移开合(视角平移,刚体) ---------- */
   function setOpen(open) {
-    body.classList.toggle("intro-open", open);
-    body.classList.toggle("intro-selecting", open && activeKey === null);
+    body.classList.toggle("scene-open", open);
     toggle.setAttribute("aria-expanded", open ? "true" : "false");
-    drawer.setAttribute("aria-hidden", open ? "false" : "true");
-    if (open) {
-      setTimeout(function () { layout(); }, 60);
-    }
+    rack.setAttribute("aria-hidden", open ? "false" : "true");
+    if (open) setTimeout(layout, 80);
   }
 
   toggle.addEventListener("click", function () {
-    setOpen(!body.classList.contains("intro-open"));
+    setOpen(!body.classList.contains("scene-open"));
+  });
+
+  closeBtn.addEventListener("click", function () {
+    setOpen(false);
   });
 
   document.addEventListener("click", function (e) {
     if (
-      body.classList.contains("intro-open") &&
-      !drawer.contains(e.target) &&
+      body.classList.contains("scene-open") &&
+      !rack.contains(e.target) &&
       !toggle.contains(e.target)
     ) {
       setOpen(false);
@@ -155,16 +152,16 @@
 
   /* ---------- 滚轮 / 方向键 ---------- */
   var lastWheel = 0;
-  drawer.addEventListener("wheel", function (e) {
+  rack.addEventListener("wheel", function (e) {
     e.preventDefault();
     var now = Date.now();
-    if (now - lastWheel < 200) return;
+    if (now - lastWheel < 180) return;
     lastWheel = now;
     step(e.deltaY > 0 ? 1 : -1);
   }, { passive: false });
 
   window.addEventListener("keydown", function (e) {
-    if (!body.classList.contains("intro-open")) return;
+    if (!body.classList.contains("scene-open")) return;
     if (e.key === "ArrowUp") { e.preventDefault(); step(-1); }
     else if (e.key === "ArrowDown") { e.preventDefault(); step(1); }
   });
@@ -178,7 +175,7 @@
     });
   });
 
-  /* ---------- CD 随鼠标微倾斜(占位,真实资产到位后升级为帧插值) ---------- */
+  /* ---------- CD 随鼠标微倾斜 ---------- */
   cds.forEach(function (cd) {
     var disc = cd.querySelector(".cd-disc");
     cd.addEventListener("mousemove", function (e) {
@@ -197,28 +194,20 @@
   /* ---------- 初始状态 ---------- */
   var restored = false;
   var savedKey = null;
-  try { savedKey = localStorage.getItem(STORAGE); } catch (e) {}
+  try { savedKey = localStorage.getItem("intro-theme"); } catch (e) {}
 
   if (savedKey && panels.length) {
-    /* 老访客:直接播放上次主题,托盘关闭 */
     restored = true;
     activeKey = savedKey;
     playPanel(savedKey);
     cds.forEach(function (cd, i) {
       if (cd.getAttribute("data-panel") === savedKey) selIndex = i;
     });
-    setOpen(false);
     layout();
-    slot.classList.add("is-playing");
+    hub.classList.add("is-playing");
   } else {
-    /* 新访客:显示 CD 选择页 */
-    showSelection();
-  }
-
-  function showSelection() {
-    setOpen(true);
     layout();
-    if (hint) hint.textContent = "滚轮 / ↑↓ 选择 · 点击 CD 确认";
+    setOpen(true);            /* 首次访问:直接打开 CD 架选择 */
   }
 
   window.addEventListener("resize", layout);

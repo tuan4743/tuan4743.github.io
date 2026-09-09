@@ -1,8 +1,7 @@
 /* ============================================================
-   首页介绍页 v0.1:CD 弧形滚轮 + 光驱槽口(占位资产)
-   - 弧中为选中位,槽口在弧中点右侧
-   - 面板切换时导航(箭头/滚轮/槽口)完全不动
-   - CD 渲染资产到位后:cd-disc → <img>,插拔动画 → Canvas 帧播放器
+   首页介绍页 v0.2:整页=屏幕,右侧 CD 架(从屏幕边缝滑出)
+   - 视角平移:屏幕上整个 .scene 刚体 transform,内容不位移
+   - CD 轮:旋转轴 = 插入点 hub,CD 在 hub 左侧绕其旋转
    ============================================================ */
 
 :root {
@@ -10,14 +9,16 @@
     --intro-glass: rgba(255, 255, 255, 0.045);
     --intro-border: rgba(255, 255, 255, 0.10);
     --intro-dim: rgba(255, 255, 255, 0.55);
-    --drawer-w: 66vw;                /* 打开后占屏幕 2/3 */
-    --header-h: 60px;                /* 与主题 --header-height 一致 */
+    --frame: rgb(20, 22, 27);            /* 屏幕外框(机身材质) */
+    --rack-w: 66vw;                      /* CD 架宽度 = 视角平移距离 */
+    --header-h: 60px;
 }
 
 :root[data-theme="light"] {
     --intro-glass: rgba(255, 255, 255, 0.55);
     --intro-border: rgba(0, 0, 0, 0.10);
     --intro-dim: rgba(0, 0, 0, 0.55);
+    --frame: rgb(226, 228, 233);
 }
 
 html:has(body.intro-page) {
@@ -31,289 +32,39 @@ body.intro-page {
     color: var(--primary);
 }
 
-/* ---------- 背景 ---------- */
-.intro-bg {
+/* ---------- 场景:屏幕 + CD 架,刚体平移(视角平移) ---------- */
+.scene {
     position: fixed;
     inset: 0;
-    z-index: 0;
-    background:
-        radial-gradient(1000px 700px at 80% -10%, rgba(34, 211, 238, 0.08), transparent 60%),
-        radial-gradient(800px 600px at -5% 110%, rgba(139, 92, 246, 0.08), transparent 60%),
-        var(--theme);
+    will-change: transform;
+    transition: transform 0.55s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
-/* ---------- 左侧箭头(常驻) ---------- */
-.intro-toggle {
-    position: fixed;
-    left: 10px;
-    top: calc(50% + var(--header-h) / 2);
-    transform: translateY(-50%);
-    z-index: 40;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 34px;
-    height: 56px;
-    border-radius: 10px;
-    border: 1px solid var(--intro-border);
-    background: var(--intro-glass);
-    color: var(--primary);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    transition: border-color 0.2s ease, color 0.2s ease;
+body.scene-open .scene {
+    transform: translateX(calc(-1 * var(--rack-w)));  /* 视角向右平移 */
 }
 
-.intro-toggle svg {
-    transition: transform 0.4s ease;
-}
-
-.intro-toggle:hover {
-    border-color: var(--intro-accent);
-    color: var(--intro-accent);
-}
-
-body.intro-open .intro-toggle svg {
-    transform: rotate(180deg);
-}
-
-/* ---------- 滚轮托盘 ---------- */
-.intro-drawer {
-    position: fixed;
-    left: 0;
-    top: var(--header-h);
-    bottom: 0;
-    width: var(--drawer-w);
-    z-index: 30;
-    transform: translateX(-105%);
-    transition: transform 0.5s cubic-bezier(0.22, 0.61, 0.36, 1);
-    padding: 18px 0 18px 14px;
-}
-
-body.intro-open .intro-drawer {
-    transform: none;
-}
-
-.tray-window {
-    position: relative;
-    height: 100%;
-    border: 1px solid var(--intro-border);
-    border-left: none;
-    border-radius: 0 16px 16px 0;
-    background: var(--intro-glass);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
-    box-shadow: 6px 0 30px rgba(0, 0, 0, 0.18);
-    padding: 20px 14px;
-    transform: translateX(-14px) translateY(12px);
-    opacity: 0;
-    transition: transform 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) 0.08s,
-        opacity 0.4s ease 0.08s;
-}
-
-body.intro-open .tray-window {
-    transform: none;
-    opacity: 1;
-}
-
-/* ---------- 弧形滚轮区 ---------- */
-.cd-arc {
-    position: relative;
-    height: calc(100% - 92px);
-    min-height: 320px;
-}
-
-.cd {
+/* ---------- 屏幕:占满视口,机身外框 + 圆角 ---------- */
+.screen {
     position: absolute;
     left: 0;
     top: 0;
+    width: 100vw;
+    height: 100vh;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 8px;
-    border-radius: 12px;
-    border: 1px solid transparent;
-    background: transparent;
-    color: var(--secondary);
-    cursor: pointer;
-    will-change: transform;
-    transition: transform 0.5s cubic-bezier(0.22, 0.61, 0.36, 1),
-        color 0.2s ease, opacity 0.3s ease, filter 0.3s ease;
-}
-
-.cd-disc {
-    --cd-color: var(--intro-accent);
-    position: relative;
-    flex: none;
-    width: 68px;
-    height: 68px;
-    border-radius: 50%;
-    transition: transform 0.3s ease, filter 0.3s ease;
-    transform: perspective(400px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
-}
-
-/* 盘面(内层):持有材质与自转;外层 tilt 与自转互不覆盖 */
-.cd-face {
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    background:
-        radial-gradient(circle at center,
-            transparent 0 8px,
-            var(--theme) 8px 10.5px,
-            transparent 10.5px 13px,
-            rgba(128, 128, 128, 0.6) 13px 68px);
-    border: 1px solid rgba(128, 128, 128, 0.6);
-    box-shadow: inset 0 0 14px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.3);
-    animation: cd-spin 8s linear infinite;
-    transition: animation-duration 0.25s ease;
-}
-
-.cd-face::before {
-    content: "";
-    position: absolute;
-    inset: 12px;
-    border-radius: 50%;
-    background: color-mix(in srgb, var(--cd-color) 26%, transparent);
-}
-
-.cd-label {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.8rem;
-    color: color-mix(in srgb, var(--cd-color) 60%, var(--primary));
-}
-
-.cd-title {
-    font-size: 0.95rem;
-}
-
-.cd:hover .cd-face {
-    animation-duration: 1.6s;
-}
-
-.cd[data-panel="self"] .cd-face { --cd-color: rgb(34, 211, 238); }
-.cd[data-panel="growth"] .cd-face { --cd-color: rgb(74, 222, 128); }
-.cd[data-panel="lost"] .cd-face { --cd-color: rgb(167, 139, 250); }
-.cd[data-panel="tech"] .cd-face { --cd-color: rgb(96, 165, 250); }
-.cd[data-panel="future"] .cd-face { --cd-color: rgb(244, 114, 182); }
-
-@keyframes cd-spin {
-    to { transform: rotate(-360deg); }   /* 逆时针 */
-}
-
-/* 选中位(弧中点):放大 + 高亮 + 提示可点击 */
-.cd.is-selected {
-    color: var(--primary);
-    border-color: var(--intro-border);
-    background: var(--intro-glass);
-    box-shadow: inset 3px 0 0 var(--cd-color, var(--intro-accent));
-}
-
-.cd.is-selected .cd-face {
-    animation-duration: 3.2s;
-    filter: drop-shadow(0 0 10px color-mix(in srgb, var(--cd-color, var(--intro-accent)) 45%, transparent));
-}
-
-.cd.is-dimmed {
-    opacity: 0.45;
-}
-
-/* ---------- 光驱槽口(弧中选中位右侧;光驱机主体不展示,位置由 JS 随弧心计算) ---------- */
-.cd-slot {
-    position: absolute;
-    width: 84px;
-    height: 96px;
-    border: 1px solid var(--intro-border);
-    border-radius: 12px;
-    background: linear-gradient(180deg, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.75));
-    box-shadow: inset 0 0 14px rgba(0, 0, 0, 0.8);
+    border: 14px solid var(--frame);
+    border-radius: 20px;
+    background: var(--theme);
     overflow: hidden;
-    visibility: hidden;
+    box-shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
 }
 
-body.intro-open .cd-slot,
-body.intro-selecting .cd-slot {
-    visibility: visible;
-}
-
-.slot-glow {
-    position: absolute;
-    inset: 0;
-    border-radius: 12px;
-    background: radial-gradient(60% 50% at 50% 60%, rgba(34, 211, 238, 0.22), transparent 70%);
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-.cd-slot.is-playing .slot-glow {
-    opacity: 1;
-}
-
-.slot-cd {
-    position: absolute;
-    right: -10px;
-    top: 50%;
-    width: 62px;
-    height: 62px;
-    margin-top: -31px;
-    border-radius: 50%;
-    background:
-        radial-gradient(circle at center,
-            transparent 0 7px,
-            var(--theme) 7px 9.5px,
-            transparent 9.5px 12px,
-            rgba(128, 128, 128, 0.6) 12px 62px);
-    border: 1px solid rgba(128, 128, 128, 0.6);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-    opacity: 0;
-}
-
-.slot-cd.is-inserting {
-    animation: slot-insert 0.8s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-}
-
-.slot-cd.is-ejecting {
-    animation: slot-eject 0.7s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-}
-
-@keyframes slot-insert {
-    0% { opacity: 0; transform: translateX(26px) scale(0.92); }
-    35% { opacity: 1; }
-    70% { opacity: 0.9; transform: translateX(-16px) scale(1); }
-    100% { opacity: 0; transform: translateX(-34px) scale(0.9); }
-}
-
-@keyframes slot-eject {
-    0% { opacity: 0; transform: translateX(-30px) scale(0.9); }
-    40% { opacity: 1; transform: translateX(2px) scale(1); }
-    100% { opacity: 0; transform: translateX(30px) scale(0.96); }
-}
-
-.tray-hint {
-    position: absolute;
-    left: 14px;
-    right: 14px;
-    bottom: 14px;
-    font-size: 0.78rem;
-    line-height: 1.7;
-    color: var(--intro-dim);
-    text-align: center;
-}
-
-/* ---------- 主体视野(随托盘开合整体平移;切换面板时不动) ---------- */
+/* 屏幕内容布局:导航(header)固定于顶部,面板区占剩余 */
 .intro-main {
     position: relative;
-    z-index: 1;
-    height: calc(100vh - var(--header-h));
-    transition: transform 0.5s cubic-bezier(0.22, 0.61, 0.36, 1);
-}
-
-body.intro-open .intro-main {
-    transform: translateX(var(--drawer-w));
+    flex: 1;
+    min-height: 0;
 }
 
 .intro-panel {
@@ -327,6 +78,7 @@ body.intro-open .intro-main {
     visibility: hidden;
     transform: translateY(10px);
     transition: opacity 0.4s ease, transform 0.4s ease, visibility 0s linear 0.4s;
+    overflow-y: auto;
 }
 
 .intro-panel.is-active {
@@ -362,47 +114,303 @@ body.intro-open .intro-main {
     white-space: pre-line;
 }
 
-/* ---------- 右上控制角 ---------- */
-.intro-ctrl {
-    position: fixed;
-    top: 14px;
-    right: 16px;
-    z-index: 50;
+/* ---------- 屏幕右缘:光驱边缝 + 入口箭头(随屏幕刚体一起动) ---------- */
+.screen-slot {
+    position: absolute;
+    right: 0;
+    top: 34%;
+    z-index: 10;
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 10px;
-    border-radius: 14px;
+    gap: 8px;
+}
+
+.slot-seam {
+    display: block;
+    width: 3px;
+    height: 150px;
+    border-radius: 2px;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.85));
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.6);
+}
+
+.slot-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 52px;
+    border-radius: 10px;
     border: 1px solid var(--intro-border);
     background: var(--intro-glass);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
+    color: var(--primary);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.slot-toggle:hover {
+    border-color: var(--intro-accent);
+    color: var(--intro-accent);
+}
+
+/* ---------- CD 架(托盘):从屏幕右缘滑出区域 ---------- */
+.rack {
+    position: absolute;
+    left: 100%;               /* 紧贴屏幕右缘,刚体的一部分 */
+    top: 0;
+    width: var(--rack-w);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 18px 22px 16px;
+    background: linear-gradient(180deg, #25282f 0%, #1a1c21 100%);
+    border: 1px solid var(--intro-border);
+    border-radius: 0 18px 18px 0;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 40px rgba(0, 0, 0, 0.35);
+}
+
+.rack-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 12px;
+}
+
+.rack-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    border: 1px solid var(--intro-border);
+    background: transparent;
+    color: var(--intro-dim);
+    transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.rack-close:hover {
+    color: var(--primary);
+    border-color: var(--intro-accent);
+}
+
+.rack-label {
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.34em;
+    color: var(--intro-dim);
+}
+
+/* ---------- CD 轮盘:旋转轴 = hub(插入点),CD 在左侧绕其旋转 ---------- */
+.wheel {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+}
+
+.cd {
+    position: absolute;
+    left: 0;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    border-radius: 12px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--secondary);
+    cursor: pointer;
+    will-change: transform;
+    transition: transform 0.55s cubic-bezier(0.22, 0.61, 0.36, 1),
+        color 0.2s ease, opacity 0.3s ease, filter 0.3s ease;
+}
+
+.cd-disc {
+    --cd-color: var(--intro-accent);
+    position: relative;
+    flex: none;
+    width: 66px;
+    height: 66px;
+    border-radius: 50%;
+    transition: transform 0.3s ease, filter 0.3s ease;
+    transform: perspective(400px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
+}
+
+/* 盘面(内层):材质 + 自转;外层 tilt 与自转互不覆盖 */
+.cd-face {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at center,
+            transparent 0 8px,
+            var(--theme) 8px 10.5px,
+            transparent 10.5px 13px,
+            rgba(128, 128, 128, 0.6) 13px 66px);
+    border: 1px solid rgba(128, 128, 128, 0.6);
+    box-shadow: inset 0 0 14px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.3);
+    animation: cd-spin 8s linear infinite;
+    transition: animation-duration 0.25s ease;
+}
+
+.cd-face::before {
+    content: "";
+    position: absolute;
+    inset: 12px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--cd-color) 26%, transparent);
+}
+
+.cd-label {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.78rem;
+    color: color-mix(in srgb, var(--cd-color) 60%, var(--primary));
+}
+
+.cd-title {
+    font-size: 0.95rem;
+}
+
+.cd:hover .cd-face {
+    animation-duration: 1.6s;
+}
+
+.cd[data-panel="self"] .cd-face { --cd-color: rgb(34, 211, 238); }
+.cd[data-panel="growth"] .cd-face { --cd-color: rgb(74, 222, 128); }
+.cd[data-panel="lost"] .cd-face { --cd-color: rgb(167, 139, 250); }
+.cd[data-panel="tech"] .cd-face { --cd-color: rgb(96, 165, 250); }
+.cd[data-panel="future"] .cd-face { --cd-color: rgb(244, 114, 182); }
+
+@keyframes cd-spin {
+    to { transform: rotate(-360deg); }
+}
+
+/* 选中位(弧中 = hub 左侧,180°):放大 + 高亮 */
+.cd.is-selected {
+    color: var(--primary);
+    border-color: var(--intro-border);
+    background: var(--intro-glass);
+    box-shadow: inset 3px 0 0 var(--cd-color, var(--intro-accent));
+}
+
+.cd.is-selected .cd-face {
+    animation-duration: 3.2s;
+    filter: drop-shadow(0 0 10px color-mix(in srgb, var(--cd-color, var(--intro-accent)) 45%, transparent));
+}
+
+.cd.is-dimmed {
+    opacity: 0.45;
+}
+
+/* ---------- hub:插入点(旋转轴心 + 吸入式槽口) ---------- */
+.hub {
+    position: absolute;
+    width: 92px;
+    height: 112px;
+    border-radius: 14px;
+    border: 1px solid var(--intro-border);
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.62), rgba(0, 0, 0, 0.82));
+    box-shadow: inset 0 0 16px rgba(0, 0, 0, 0.85);
+    overflow: hidden;
+    visibility: hidden;
+}
+
+body.scene-open .hub {
+    visibility: visible;
+}
+
+.hub-glow {
+    position: absolute;
+    inset: 0;
+    border-radius: 14px;
+    background: radial-gradient(60% 50% at 50% 62%, rgba(34, 211, 238, 0.22), transparent 70%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.hub.is-playing .hub-glow {
+    opacity: 1;
+}
+
+.hub-cd {
+    position: absolute;
+    left: -40px;
+    top: 50%;
+    width: 62px;
+    height: 62px;
+    margin-top: -31px;
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at center,
+            transparent 0 7px,
+            var(--theme) 7px 9.5px,
+            transparent 9.5px 12px,
+            rgba(128, 128, 128, 0.6) 12px 62px);
+    border: 1px solid rgba(128, 128, 128, 0.6);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    opacity: 0;
+}
+
+.hub-cd.is-inserting {
+    animation: hub-insert 0.8s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+.hub-cd.is-ejecting {
+    animation: hub-eject 0.7s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes hub-insert {
+    0% { opacity: 0; transform: translateX(-52px) scale(0.92); }
+    35% { opacity: 1; }
+    70% { opacity: 0.9; }
+    100% { opacity: 0; transform: translateX(30px) scale(0.92); }
+}
+
+@keyframes hub-eject {
+    0% { opacity: 0; transform: translateX(24px) scale(0.96); }
+    40% { opacity: 1; }
+    100% { opacity: 0; transform: translateX(-56px) scale(0.98); }
+}
+
+.rack-hint {
+    text-align: center;
+    font-size: 0.8rem;
+    line-height: 1.7;
+    color: var(--intro-dim);
+    padding: 10px 0 2px;
+}
+
+/* ---------- 背景 ---------- */
+.intro-bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background:
+        radial-gradient(1000px 700px at 80% -10%, rgba(34, 211, 238, 0.06), transparent 60%),
+        radial-gradient(800px 600px at -5% 110%, rgba(139, 92, 246, 0.06), transparent 60%),
+        var(--theme);
 }
 
 /* ---------- 响应式 ---------- */
 @media (max-width: 720px) {
     :root {
-        --drawer-w: 82vw;
+        --rack-w: 84vw;
     }
 
-    .intro-toggle {
-        top: auto;
-        bottom: 20px;
-        transform: rotate(90deg);
+    .screen {
+        border-width: 8px;
+        border-radius: 12px;
     }
 
-    body.intro-open .intro-toggle {
-        transform: rotate(-90deg);
-    }
-
-    .intro-drawer {
-        width: 82vw;
-        padding-left: 0;
-    }
-
-    .tray-window {
-        border-left: 1px solid var(--intro-border);
-        border-radius: 16px;
+    .rack {
+        padding: 12px 14px;
     }
 
     .intro-panel {
@@ -412,19 +420,12 @@ body.intro-open .intro-main {
 
 /* 减少动效 */
 @media (prefers-reduced-motion: reduce) {
-    .intro-drawer,
-    .tray-window,
-    .intro-main,
+    .scene,
     .intro-panel,
-    .intro-toggle svg,
     .cd,
-    .slot-cd {
+    .slot-toggle,
+    .hub-cd {
         transition: none !important;
-    }
-
-    .cd-disc,
-    .slot-cd.is-inserting,
-    .slot-cd.is-ejecting {
         animation: none !important;
     }
 }
