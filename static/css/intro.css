@@ -1,6 +1,8 @@
 /* ============================================================
-   首页介绍页:CD 托盘侧边栏骨架(占位 CD,资产到位后替换为 `<img>`)
-   原则:面板切换时导航(箭头/托盘/CD)完全不动
+   首页介绍页 v0.1:CD 弧形滚轮 + 光驱槽口(占位资产)
+   - 弧中为选中位,槽口在弧中点右侧
+   - 面板切换时导航(箭头/滚轮/槽口)完全不动
+   - CD 渲染资产到位后:cd-disc → <img>,插拔动画 → Canvas 帧播放器
    ============================================================ */
 
 :root {
@@ -8,7 +10,7 @@
     --intro-glass: rgba(255, 255, 255, 0.045);
     --intro-border: rgba(255, 255, 255, 0.10);
     --intro-dim: rgba(255, 255, 255, 0.55);
-    --drawer-w: 236px;               /* 托盘展开宽度,与 JS/主视野位移保持一致 */
+    --drawer-w: 320px;
 }
 
 :root[data-theme="light"] {
@@ -28,7 +30,7 @@ body.intro-page {
     color: var(--primary);
 }
 
-/* ---------- 背景(静态,先给一点纵深) ---------- */
+/* ---------- 背景 ---------- */
 .intro-bg {
     position: fixed;
     inset: 0;
@@ -39,7 +41,7 @@ body.intro-page {
         var(--theme);
 }
 
-/* ---------- 左侧箭头(常驻,唯一初始入口) ---------- */
+/* ---------- 左侧箭头(常驻) ---------- */
 .intro-toggle {
     position: fixed;
     left: 10px;
@@ -73,7 +75,7 @@ body.intro-open .intro-toggle svg {
     transform: rotate(180deg);
 }
 
-/* ---------- CD 托盘 ---------- */
+/* ---------- 滚轮托盘 ---------- */
 .intro-drawer {
     position: fixed;
     left: 0;
@@ -90,8 +92,8 @@ body.intro-open .intro-drawer {
     transform: none;
 }
 
-/* 托盘窗口:玻璃机身 + 弹出槽位 */
 .tray-window {
+    position: relative;
     height: 100%;
     border: 1px solid var(--intro-border);
     border-left: none;
@@ -100,7 +102,7 @@ body.intro-open .intro-drawer {
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
     box-shadow: 6px 0 30px rgba(0, 0, 0, 0.18);
-    padding: 22px 16px;
+    padding: 20px 14px;
     transform: translateX(-14px) translateY(12px);
     opacity: 0;
     transition: transform 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) 0.08s,
@@ -112,67 +114,73 @@ body.intro-open .tray-window {
     opacity: 1;
 }
 
-.tray-deck {
+.tray-deck-label {
+    display: block;
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.3em;
+    color: var(--intro-accent);
+    padding: 2px 4px 12px;
+}
+
+/* ---------- 弧形滚轮区 ---------- */
+.cd-arc {
+    position: relative;
+    height: calc(100% - 92px);
+    min-height: 320px;
+}
+
+.cd {
+    position: absolute;
+    left: 0;
+    top: 0;
     display: flex;
     flex-direction: column;
-    gap: 16px;
-}
-
-.tray-deck-label {
-    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
-    font-size: 0.7rem;
-    letter-spacing: 0.32em;
-    color: var(--intro-accent);
-    padding-left: 4px;
-}
-
-/* ---------- CD(占位:CSS 渐变圆盘 + 旋转;资产到位替换) ---------- */
-.cd {
-    display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 8px 10px;
+    gap: 6px;
+    padding: 6px 8px;
     border-radius: 12px;
     border: 1px solid transparent;
     background: transparent;
     color: var(--secondary);
-    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
-}
-
-.cd:hover {
-    background: var(--intro-glass);
-    color: var(--primary);
-}
-
-.cd.is-active {
-    background: var(--intro-glass);
-    border-color: var(--intro-border);
-    color: var(--primary);
-    box-shadow: inset 3px 0 0 var(--cd-color, var(--intro-accent));
+    cursor: pointer;
+    will-change: transform;
+    transition: transform 0.5s cubic-bezier(0.22, 0.61, 0.36, 1),
+        color 0.2s ease, opacity 0.3s ease, filter 0.3s ease;
 }
 
 .cd-disc {
     --cd-color: var(--intro-accent);
     position: relative;
     flex: none;
-    width: 46px;
-    height: 46px;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    transition: transform 0.3s ease, filter 0.3s ease;
+    transform: perspective(400px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
+}
+
+/* 盘面(内层):持有材质与自转;外层 tilt 与自转互不覆盖 */
+.cd-face {
+    position: absolute;
+    inset: 0;
     border-radius: 50%;
     background:
         radial-gradient(circle at center,
-            transparent 0 5px,
-            var(--theme) 5px 7px,
-            transparent 7px 9px,
-            rgba(128, 128, 128, 0.55) 9px 46px);
-    border: 1px solid rgba(128, 128, 128, 0.55);
+            transparent 0 6px,
+            var(--theme) 6px 8px,
+            transparent 8px 10px,
+            rgba(128, 128, 128, 0.6) 10px 52px);
+    border: 1px solid rgba(128, 128, 128, 0.6);
     box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.3);
-    animation: cd-spin 7s linear infinite;
+    animation: cd-spin 8s linear infinite;
+    transition: animation-duration 0.25s ease;
 }
 
-.cd-disc::before {
+.cd-face::before {
     content: "";
     position: absolute;
-    inset: 8px;
+    inset: 9px;
     border-radius: 50%;
     background: color-mix(in srgb, var(--cd-color) 26%, transparent);
 }
@@ -183,29 +191,131 @@ body.intro-open .tray-window {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.62rem;
+    font-size: 0.64rem;
     color: color-mix(in srgb, var(--cd-color) 60%, var(--primary));
 }
 
-.cd:hover .cd-disc {
-    animation-duration: 1.4s;
+.cd-title {
+    font-size: 0.9rem;
 }
 
-.cd[data-panel="self"] .cd-disc { --cd-color: rgb(34, 211, 238); }
-.cd[data-panel="growth"] .cd-disc { --cd-color: rgb(74, 222, 128); }
-.cd[data-panel="lost"] .cd-disc { --cd-color: rgb(167, 139, 250); }
-.cd[data-panel="tech"] .cd-disc { --cd-color: rgb(96, 165, 250); }
-.cd[data-panel="future"] .cd-disc { --cd-color: rgb(244, 114, 182); }
+.cd:hover .cd-face {
+    animation-duration: 1.6s;
+}
+
+.cd[data-panel="self"] .cd-face { --cd-color: rgb(34, 211, 238); }
+.cd[data-panel="growth"] .cd-face { --cd-color: rgb(74, 222, 128); }
+.cd[data-panel="lost"] .cd-face { --cd-color: rgb(167, 139, 250); }
+.cd[data-panel="tech"] .cd-face { --cd-color: rgb(96, 165, 250); }
+.cd[data-panel="future"] .cd-face { --cd-color: rgb(244, 114, 182); }
 
 @keyframes cd-spin {
     to { transform: rotate(360deg); }
 }
 
-.cd-title {
-    font-size: 1rem;
+/* 选中位(弧中点):放大 + 高亮 + 提示可点击 */
+.cd.is-selected {
+    color: var(--primary);
+    border-color: var(--intro-border);
+    background: var(--intro-glass);
+    box-shadow: inset 3px 0 0 var(--cd-color, var(--intro-accent));
 }
 
-/* ---------- 主体视野(随托盘开合整体平移;切换面板时不动) ---------- */
+.cd.is-selected .cd-face {
+    animation-duration: 3.2s;
+    filter: drop-shadow(0 0 10px color-mix(in srgb, var(--cd-color, var(--intro-accent)) 45%, transparent));
+}
+
+.cd.is-dimmed {
+    opacity: 0.45;
+}
+
+/* ---------- 光驱槽口(弧中选中位右侧;光驱机主体不展示) ---------- */
+.cd-slot {
+    position: absolute;
+    top: 50%;
+    right: 14px;
+    width: 74px;
+    height: 84px;
+    transform: translateY(-50%);
+    border: 1px solid var(--intro-border);
+    border-radius: 12px;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.75));
+    box-shadow: inset 0 0 14px rgba(0, 0, 0, 0.8);
+    overflow: hidden;
+    visibility: hidden;
+}
+
+body.intro-open .cd-slot,
+body.intro-selecting .cd-slot {
+    visibility: visible;
+}
+
+.slot-glow {
+    position: absolute;
+    inset: 0;
+    border-radius: 12px;
+    background: radial-gradient(60% 50% at 50% 60%, rgba(34, 211, 238, 0.22), transparent 70%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.cd-slot.is-playing .slot-glow {
+    opacity: 1;
+}
+
+.slot-cd {
+    position: absolute;
+    right: -10px;
+    top: 50%;
+    width: 52px;
+    height: 52px;
+    margin-top: -26px;
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at center,
+            transparent 0 6px,
+            var(--theme) 6px 8px,
+            transparent 8px 10px,
+            rgba(128, 128, 128, 0.6) 10px 52px);
+    border: 1px solid rgba(128, 128, 128, 0.6);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    opacity: 0;
+}
+
+.slot-cd.is-inserting {
+    animation: slot-insert 0.8s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+.slot-cd.is-ejecting {
+    animation: slot-eject 0.7s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes slot-insert {
+    0% { opacity: 0; transform: translateX(26px) scale(0.92); }
+    35% { opacity: 1; }
+    70% { opacity: 0.9; transform: translateX(-16px) scale(1); }
+    100% { opacity: 0; transform: translateX(-34px) scale(0.9); }
+}
+
+@keyframes slot-eject {
+    0% { opacity: 0; transform: translateX(-30px) scale(0.9); }
+    40% { opacity: 1; transform: translateX(2px) scale(1); }
+    100% { opacity: 0; transform: translateX(30px) scale(0.96); }
+}
+
+.tray-hint {
+    position: absolute;
+    left: 14px;
+    right: 14px;
+    bottom: 14px;
+    font-size: 0.78rem;
+    line-height: 1.7;
+    color: var(--intro-dim);
+    text-align: center;
+}
+
+/* ---------- 主体视野 ---------- */
 .intro-main {
     position: relative;
     z-index: 1;
@@ -260,6 +370,7 @@ body.intro-open .intro-main {
     font-size: 1.05rem;
     line-height: 1.9;
     max-width: 560px;
+    white-space: pre-line;
 }
 
 /* ---------- 右上控制角 ---------- */
@@ -279,10 +390,10 @@ body.intro-open .intro-main {
     -webkit-backdrop-filter: blur(14px);
 }
 
-/* ---------- 响应式:窄屏改用底部抽屉 ---------- */
+/* ---------- 响应式 ---------- */
 @media (max-width: 720px) {
     :root {
-        --drawer-w: 72vw;
+        --drawer-w: 78vw;
     }
 
     .intro-toggle {
@@ -296,19 +407,13 @@ body.intro-open .intro-main {
     }
 
     .intro-drawer {
-        width: 72vw;
+        width: 78vw;
+        padding-left: 0;
     }
 
-    .tray-deck {
-        flex-direction: row;
-        flex-wrap: wrap;
-        gap: 10px;
-    }
-
-    .cd {
-        flex-direction: column;
-        gap: 6px;
-        width: 86px;
+    .tray-window {
+        border-left: 1px solid var(--intro-border);
+        border-radius: 16px;
     }
 
     .intro-panel {
@@ -322,11 +427,15 @@ body.intro-open .intro-main {
     .tray-window,
     .intro-main,
     .intro-panel,
-    .intro-toggle svg {
+    .intro-toggle svg,
+    .cd,
+    .slot-cd {
         transition: none !important;
     }
 
-    .cd-disc {
+    .cd-disc,
+    .slot-cd.is-inserting,
+    .slot-cd.is-ejecting {
         animation: none !important;
     }
 }

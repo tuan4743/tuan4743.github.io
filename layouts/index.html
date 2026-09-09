@@ -14,20 +14,26 @@
         </svg>
     </button>
 
-    <!-- CD 托盘(弹出层) -->
+    <!-- CD 弧形滚轮 + 光驱槽口(弹出层) -->
     <aside class="intro-drawer" id="intro-drawer" aria-hidden="true">
         <div class="tray-window" id="tray-window">
-            <div class="tray-deck">
-                <span class="tray-deck-label">{{ site.Params.intro.drawerLabel }}</span>
+            <span class="tray-deck-label">{{ site.Params.intro.drawerLabel }} · ROLLER</span>
+            <div class="cd-arc" id="cd-arc">
                 {{- range site.Params.intro.panels }}
                 <button class="cd" data-panel="{{ .key }}" aria-label="主题:{{ .title }}">
                     <span class="cd-disc">
+                        <span class="cd-face"></span>
                         <span class="cd-label">{{ .title }}</span>
                     </span>
                     <span class="cd-title">{{ .title }}</span>
                 </button>
                 {{- end }}
             </div>
+            <div class="cd-slot" id="cd-slot" aria-hidden="true">
+                <div class="slot-glow"></div>
+                <div class="slot-cd" id="slot-cd"></div>
+            </div>
+            <p class="tray-hint" id="tray-hint">滚轮 / ↑↓ 选择 · 点击 CD 确认</p>
         </div>
     </aside>
 
