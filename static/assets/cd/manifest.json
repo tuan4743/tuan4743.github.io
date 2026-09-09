@@ -1,0 +1,22 @@
+{
+  "model": "/assets/cd/drive.glb",
+  "animations": {
+    "eject": "A_Eject",
+    "insert": "A_Insert",
+    "pop": "A_Pin"
+  },
+  "cds": {
+    "self":   { "label": "自我", "mesh": "CD_Self",   "tex": "/assets/cd/cds/self.webp" },
+    "growth": { "label": "成长", "mesh": "CD_Growth", "tex": "/assets/cd/cds/growth.webp" },
+    "lost":   { "label": "迷茫", "mesh": "CD_Lost",   "tex": "/assets/cd/cds/lost.webp" },
+    "tech":   { "label": "技术", "mesh": "CD_Tech",   "tex": "/assets/cd/cds/tech.webp" },
+    "future": { "label": "未来", "mesh": "CD_Future", "tex": "/assets/cd/cds/future.webp" }
+  },
+  "hub": [0, 0, 0],
+  "cdOrbitRadius": 0.35,
+  "light": {
+    "position": [2.2, 1.6, -1.8],
+    "intensity": 1.6,
+    "color": "#bfe6ff"
+  }
+}

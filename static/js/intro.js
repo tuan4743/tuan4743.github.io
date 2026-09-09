@@ -12,6 +12,7 @@
   var hint = document.getElementById("tray-hint");
   var cds = Array.prototype.slice.call(document.querySelectorAll(".cd[data-panel]"));
   var panels = document.querySelectorAll(".intro-panel");
+  var cdOrder = cds.map(function (cd) { return cd.getAttribute("data-panel"); });
   var themeColors = {
     self: "rgb(34, 211, 238)",
     growth: "rgb(74, 222, 128)",
@@ -71,6 +72,7 @@
     if (i === selIndex) { confirmTheme(); return; }
     selIndex = i;
     layout();
+    if (cd3dApi) cd3dApi.setSelection(selIndex);
   }
 
   function step(dir) {
@@ -129,7 +131,11 @@
     body.classList.toggle("scene-open", open);
     toggle.setAttribute("aria-expanded", open ? "true" : "false");
     rack.setAttribute("aria-hidden", open ? "false" : "true");
-    if (open) setTimeout(layout, 80);
+    if (cd3dApi) cd3dApi.setPaused(!open);
+    if (open) {
+      setTimeout(layout, 80);
+      tryInit3D();
+    }
   }
 
   toggle.addEventListener("click", function () {
@@ -190,6 +196,38 @@
       disc.style.setProperty("--tilt-x", "0deg");
     });
   });
+
+  /* ---------- Three.js 懒加载(资产缺失/无WebGL/减少动效 → DOM 降级) ---------- */
+  var cd3dApi = null;
+  var cd3dTried = false;
+
+  function tryInit3D() {
+    if (cd3dTried) return;
+    cd3dTried = true;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (!window.WebGLRenderingContext) return;
+
+    import("/js/cd3d.js")
+      .then(function (m) {
+        return m.initCd3d({
+          container: wheel,
+          selIndex: selIndex,
+          onReady: function (api) {
+            cd3dApi = api;
+            body.classList.add("cd3d-on");
+            api.setSelection(selIndex);
+          },
+          onCdClick: function (key) {
+            var i = cdOrder.indexOf(key);
+            if (i === -1) return;
+            if (i === selIndex) confirmTheme();
+            else { selIndex = i; layout(); if (cd3dApi) cd3dApi.setSelection(i); }
+          },
+          onScroll: function (dir) { step(dir); }
+        });
+      })
+      .catch(function () {});
+  }
 
   /* ---------- 初始状态 ---------- */
   var restored = false;

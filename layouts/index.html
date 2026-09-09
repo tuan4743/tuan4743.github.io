@@ -2,6 +2,14 @@
 <html lang="{{ site.Language.LanguageCode }}" dir="auto" data-theme="auto">
 {{- partial "head.html" . }}
 <link rel="stylesheet" href="{{ "css/intro.css" | relURL }}">
+<script type="importmap">
+    {
+        "imports": {
+            "three": "/vendor/three/three.module.min.js",
+            "three/addons/": "/vendor/three/examples/jsm/"
+        }
+    }
+</script>
 <body id="top" class="intro-page">
     <div class="intro-bg"></div>
 

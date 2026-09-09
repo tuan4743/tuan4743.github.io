@@ -387,6 +387,13 @@ body.scene-open .hub {
     padding: 10px 0 2px;
 }
 
+/* ---------- Three.js 模式:隐藏 DOM 轮盘(由 3D 画布接管) ---------- */
+body.cd3d-on .cd,
+body.cd3d-on .hub,
+body.cd3d-on .hub-cd {
+    display: none;
+}
+
 /* ---------- 背景 ---------- */
 .intro-bg {
     position: fixed;
