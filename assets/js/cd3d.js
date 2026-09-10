@@ -366,16 +366,20 @@ export async function initCd3d(opts) {
     }
   }
 
-  /* 插入 / 拔出:先把自转转回 0,再走「上移 → 飞入 → 下移到位」三段路径;期间与插入后都不自转 */
+  /* 插入 / 拔出:
+     - 插入:目标盘先自转归正 → 上移 → 飞入 → 下移到位;其余盘**等飞行结束再补位**(避免穿模)
+     - 拔出:其余盘先让位,旧盘再飞回自己的架位 */
   function setInserted(key) {
     const prevInserted = insertedKey;
     insertedKey = key;
+    const insertTotal = spinBackMs + 60 + flyMs + settleMs;   /* 插入飞行总时长 */
+    const ejectTotal = 160 + flyMs + settleMs;                /* 拔出飞行总时长 */
 
     cdItems.forEach((item) => {
-      if (item.key === insertedKey) {
+      if (item.key === key) {
         /* 1) 快速转回原方向(最短路径),之后冻结自转 */
         const cur = item.userData.spinAngle || 0;
-        let delta = ((-cur % 360) + 540) % 360 - 180;   /* 最短角差 */
+        const delta = ((-cur % 360) + 540) % 360 - 180;
         item.userData.spinTween = {
           from: cur,
           to: cur + delta,
@@ -383,24 +387,31 @@ export async function initCd3d(opts) {
           dur: spinBackMs,
           freezeAfter: true
         };
-        /* 2) 延迟到自转归位后,走三段路径:上移 → 飞入 → 下移到位 */
+        /* 2) 三段路径:上移 → 飞入 → 下移到位 */
         const from = item.group.position.clone();
         const p1 = new THREE.Vector3(from.x, slotPoint.y + riseY, from.z);
         const p2 = new THREE.Vector3(slotPoint.x, slotPoint.y + riseY, slotPoint.z);
         const p3 = slotPoint.clone();
         setPath(item, [p1, p2, p3], [spinBackMs + 60, flyMs, settleMs], 0);
-        /* 立体感:同时沿 Z 轴抬高 */
         item.userData.path.points[0].z = from.z;
-      } else if (item.key === prevInserted) {
-        /* 旧盘拔出:沿原路返回(下移 → 飞出 → 落回架位) */
+        return;
+      }
+      if (item.key === prevInserted) {
+        /* 旧盘拔出:先让架上其他盘让位,再沿原路返回 */
         item.userData.spinFrozen = false;
         const tgt = rackTargetFor(item);
         const p1 = new THREE.Vector3(item.group.position.x, slotPoint.y + riseY, item.group.position.z);
         const p2 = new THREE.Vector3(tgt.x, tgt.y + riseY, tgt.z);
-        setPath(item, [p1, p2, tgt], [160, flyMs, settleMs], 0);
-      } else {
-        moveToRack(item, false);
+        setPath(item, [p1, p2, tgt], [160, flyMs, settleMs], 260);
+        return;
       }
+      /* 其余盘:插入完成后补位;拔出时立即让位 */
+      setPath(
+        item,
+        [rackTargetFor(item)],
+        [rackMoveMs],
+        key ? insertTotal + 40 : 0
+      );
     });
     if (window.__cd3dDebug) window.__cd3dDebug.insertedKey = key;
   }

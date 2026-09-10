@@ -126,6 +126,7 @@
     function finish() {
       activeKey = key;
       insertedKey = key;          /* 记录"盘已在光驱内" */
+      moveSelectionOff(key);      /* 飞入完成后再补位/换中心,避免穿模 */
       playPanel(key);
       hub.classList.add("is-playing");
       try { localStorage.setItem("intro-theme", key); } catch (e) {}
@@ -136,7 +137,6 @@
     function insert() {
       if (use3d) {
         cd3dApi.setInserted(key);      /* 旧盘(若有)自动飞回自己的架位 */
-        moveSelectionOff(key);         /* 选中项挪到相邻盘,架子不跳位 */
         wait(insertDelay).then(finish);
         return;
       }
@@ -194,7 +194,8 @@
     if (
       body.classList.contains("scene-open") &&
       !rack.contains(e.target) &&
-      !toggle.contains(e.target)
+      !toggle.contains(e.target) &&
+      !(e.target.closest && e.target.closest(".header"))   /* 点顶栏(导航/明暗/配色)不收起 CD 架 */
     ) {
       setOpen(false);
     }

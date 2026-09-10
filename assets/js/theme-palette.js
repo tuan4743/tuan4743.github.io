@@ -1,6 +1,25 @@
-/* 背景配色:面板预设色块选择,localStorage 持久化 */
+/* 背景配色:面板预设色块选择,localStorage 持久化
+   另:首页是独立文档(不含主题 footer),明暗切换需要在这里自行绑定 */
 (function () {
   "use strict";
+
+  /* ---------- 明暗切换(仅首页需要,普通页面由主题 footer 绑定,避免重复绑定) ---------- */
+  if (document.body.classList.contains("intro-page")) {
+    var themeBtn = document.getElementById("theme-toggle");
+    if (themeBtn) {
+      themeBtn.addEventListener("click", function () {
+        var html = document.documentElement;
+        if (html.dataset.theme === "dark") {
+          html.dataset.theme = "light";
+          try { localStorage.setItem("pref-theme", "light"); } catch (e) {}
+        } else {
+          html.dataset.theme = "dark";
+          try { localStorage.setItem("pref-theme", "dark"); } catch (e) {}
+        }
+      });
+    }
+  }
+
   var wrap = document.getElementById("palette-wrap");
   var btn = document.getElementById("palette-toggle");
   var panel = document.getElementById("palette-panel");

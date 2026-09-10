@@ -130,6 +130,11 @@ html.magnetic-reduced .magnetic-cursor {
 }
 
 /* ---------- 顶栏:全宽,左顶格 / 右定格,拉开间距 ---------- */
+.header {
+    position: relative;
+    z-index: 40;              /* 顶栏(及其下拉面板)始终在内容之上 */
+}
+
 .header-nav {
     max-width: none;          /* 去掉 1024px 居中容器限制,顶栏贯穿全屏 */
     padding-inline: 0.75rem;  /* 仅留极小留白,视觉上顶格 */
