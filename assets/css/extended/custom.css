@@ -9,6 +9,7 @@
     --mc-color: rgb(34, 211, 238);          /* 磁力光标颜色 */
     --mc-size: 34px;                        /* 默认框体尺寸 */
     --mc-thick: 2px;                        /* 角标线宽 */
+    --mc-dot: 6px;                          /* 中心实点直径 */
 }
 
 :root[data-theme="dark"] {
@@ -30,6 +31,33 @@
     transition: width 0.18s ease-out, height 0.18s ease-out,
         margin 0.18s ease-out, opacity 0.2s ease-out;
     will-change: transform, width, height;
+}
+
+/* 中心实点:严格贴在鼠标真实坐标上(无过渡,保证点击精准),磁吸锁定时隐藏 */
+.magnetic-dot {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: var(--mc-dot, 6px);
+    height: var(--mc-dot, 6px);
+    margin: calc(var(--mc-dot, 6px) / -2) 0 0 calc(var(--mc-dot, 6px) / -2);
+    border-radius: 50%;
+    background: var(--mc-color);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35),
+        0 0 8px color-mix(in srgb, var(--mc-color) 70%, transparent);
+    pointer-events: none;
+    z-index: 10000;
+    opacity: 0;
+    transition: opacity 0.15s ease;   /* 只过渡透明度:位置必须即时到位 */
+}
+
+.magnetic-dot.is-visible {
+    opacity: 1;
+}
+
+/* 磁吸锁定:小点让位给框体 */
+html.magnetic-locked .magnetic-dot {
+    opacity: 0;
 }
 
 .magnetic-cursor.is-visible {
@@ -90,7 +118,8 @@ html.magnetic-reduced .magnetic-cursor {
 
 /* 触屏/窄屏不启用 */
 @media (pointer: coarse) {
-    .magnetic-cursor {
+    .magnetic-cursor,
+    .magnetic-dot {
         display: none;
     }
 
