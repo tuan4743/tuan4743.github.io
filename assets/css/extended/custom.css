@@ -6,11 +6,98 @@
 :root {
     --menu-active-bg: rgba(99, 102, 241, 0.16);
     --menu-hover-bg: rgba(127, 127, 127, 0.10);
+    --mc-color: rgb(34, 211, 238);          /* 磁力光标颜色 */
+    --mc-size: 34px;                        /* 默认框体尺寸 */
+    --mc-thick: 2px;                        /* 角标线宽 */
 }
 
 :root[data-theme="dark"] {
     --menu-active-bg: rgba(129, 140, 248, 0.22);
     --menu-hover-bg: rgba(255, 255, 255, 0.08);
+}
+
+/* ---------- 磁力光标(四角选择框 + 磁吸) ---------- */
+.magnetic-cursor {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: var(--mc-w, var(--mc-size));
+    height: var(--mc-h, var(--mc-size));
+    margin: calc(var(--mc-h, var(--mc-size)) / -2) 0 0 calc(var(--mc-w, var(--mc-size)) / -2);
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0;
+    transition: width 0.18s ease-out, height 0.18s ease-out,
+        margin 0.18s ease-out, opacity 0.2s ease-out;
+    will-change: transform, width, height;
+}
+
+.magnetic-cursor.is-visible {
+    opacity: 1;
+}
+
+.magnetic-cursor i {
+    position: absolute;
+    width: 11px;
+    height: 11px;
+    border: 0 solid var(--mc-color);
+    transition: border-color 0.2s ease;
+}
+
+.magnetic-cursor i:nth-child(1) {
+    top: 0;
+    left: 0;
+    border-top-width: var(--mc-thick);
+    border-left-width: var(--mc-thick);
+}
+
+.magnetic-cursor i:nth-child(2) {
+    top: 0;
+    right: 0;
+    border-top-width: var(--mc-thick);
+    border-right-width: var(--mc-thick);
+}
+
+.magnetic-cursor i:nth-child(3) {
+    bottom: 0;
+    left: 0;
+    border-bottom-width: var(--mc-thick);
+    border-left-width: var(--mc-thick);
+}
+
+.magnetic-cursor i:nth-child(4) {
+    bottom: 0;
+    right: 0;
+    border-bottom-width: var(--mc-thick);
+    border-right-width: var(--mc-thick);
+}
+
+/* 磁吸到目标时略加强调 */
+.magnetic-cursor.is-locked i {
+    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--mc-color) 65%, transparent));
+}
+
+/* 启用后隐藏系统光标(JS 正常初始化才会加上这个 class) */
+html.magnetic-on,
+html.magnetic-on * {
+    cursor: none !important;
+}
+
+/* 减少动效:不做过渡 */
+html.magnetic-reduced .magnetic-cursor {
+    transition: none;
+}
+
+/* 触屏/窄屏不启用 */
+@media (pointer: coarse) {
+    .magnetic-cursor {
+        display: none;
+    }
+
+    html.magnetic-on,
+    html.magnetic-on * {
+        cursor: auto !important;
+    }
 }
 
 /* ---------- 顶栏:全宽,左顶格 / 右定格,拉开间距 ---------- */

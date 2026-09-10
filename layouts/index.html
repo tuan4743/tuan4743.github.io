@@ -6,6 +6,7 @@
 {{- $cd3dJs := resources.Get "js/cd3d.js" | fingerprint "sha256" }}
 {{- $paletteJs := resources.Get "js/theme-palette.js" | fingerprint "sha256" }}
 {{- $searchJs := resources.Get "js/header-search.js" | fingerprint "sha256" }}
+{{- $cursorJs := resources.Get "js/magnetic-cursor.js" | fingerprint "sha256" }}
 <link rel="stylesheet" href="{{ $introCss.RelPermalink }}">
 <script type="importmap">
     {
@@ -91,6 +92,7 @@
         })();
     </script>
     <script defer src="{{ $searchJs.RelPermalink }}"></script>
+    <script defer src="{{ $cursorJs.RelPermalink }}"></script>
     <script defer src="{{ $paletteJs.RelPermalink }}"></script>
     <script defer src="{{ $introJs.RelPermalink }}"></script>
 </body>

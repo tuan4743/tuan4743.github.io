@@ -1,9 +1,13 @@
-{{- /* 全站页脚扩展:顶栏即时搜索 + 背景配色切换(带指纹,自动打破浏览器缓存) */ -}}
+{{- /* 全站页脚扩展:顶栏即时搜索 + 背景配色切换 + 磁力光标(带指纹,自动打破浏览器缓存) */ -}}
 {{- with resources.Get "js/header-search.js" }}
 {{- $u := . | fingerprint "sha256" }}
 <script defer src="{{ $u.RelPermalink }}"></script>
 {{- end }}
 {{- with resources.Get "js/theme-palette.js" }}
+{{- $u := . | fingerprint "sha256" }}
+<script defer src="{{ $u.RelPermalink }}"></script>
+{{- end }}
+{{- with resources.Get "js/magnetic-cursor.js" }}
 {{- $u := . | fingerprint "sha256" }}
 <script defer src="{{ $u.RelPermalink }}"></script>
 {{- end }}
