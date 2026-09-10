@@ -1,7 +1,12 @@
 <!DOCTYPE html>
 <html lang="{{ site.Language.LanguageCode }}" dir="auto" data-theme="auto">
 {{- partial "head.html" . }}
-<link rel="stylesheet" href="{{ "css/intro.css" | relURL }}">
+{{- $introCss := resources.Get "css/intro.css" | fingerprint "sha256" }}
+{{- $introJs := resources.Get "js/intro.js" | fingerprint "sha256" }}
+{{- $cd3dJs := resources.Get "js/cd3d.js" | fingerprint "sha256" }}
+{{- $paletteJs := resources.Get "js/theme-palette.js" | fingerprint "sha256" }}
+{{- $searchJs := resources.Get "js/header-search.js" | fingerprint "sha256" }}
+<link rel="stylesheet" href="{{ $introCss.RelPermalink }}">
 <script type="importmap">
     {
         "imports": {
@@ -10,7 +15,7 @@
         }
     }
 </script>
-<body id="top" class="intro-page">
+<body id="top" class="intro-page" data-cd3d="{{ $cd3dJs.RelPermalink }}">
     <div class="intro-bg"></div>
 
     <!-- 场景:屏幕(右缘为光驱边缝)+ 右侧 CD 架,整体刚体平移 -->
@@ -85,8 +90,8 @@
             } catch (e) {}
         })();
     </script>
-    <script defer src="{{ "js/header-search.js" | relURL }}"></script>
-    <script defer src="{{ "js/theme-palette.js" | relURL }}"></script>
-    <script defer src="{{ "js/intro.js" | relURL }}"></script>
+    <script defer src="{{ $searchJs.RelPermalink }}"></script>
+    <script defer src="{{ $paletteJs.RelPermalink }}"></script>
+    <script defer src="{{ $introJs.RelPermalink }}"></script>
 </body>
 </html>

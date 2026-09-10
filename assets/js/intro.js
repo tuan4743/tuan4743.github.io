@@ -75,8 +75,15 @@
     if (cd3dApi) cd3dApi.setSelection(selIndex);
   }
 
+  /* 换选:跳过已插入光驱的那张;到边界即停(不循环) */
   function step(dir) {
-    select(selIndex + dir);
+    var i = selIndex;
+    var n = cdOrder.length;
+    for (var k = 0; k < n; k++) {
+      i += dir;
+      if (i < 0 || i >= n) return;
+      if (cdOrder[i] !== activeKey) { select(i); return; }
+    }
   }
 
   /* ---------- 插拔时序:拔出 → 插入 → 切换面板 ---------- */
@@ -90,34 +97,68 @@
     });
   }
 
+  /* 插入某张盘后,把"架位中心/选中项"挪到最近的仍在架上的盘(避免整排跳位) */
+  function moveSelectionOff(key) {
+    var ki = cdOrder.indexOf(key);
+    if (ki === -1) return;
+    if (selIndex !== ki) return;
+    for (var d = 1; d < cdOrder.length; d++) {
+      if (ki - d >= 0) { selIndex = ki - d; break; }
+      if (ki + d < cdOrder.length) { selIndex = ki + d; break; }
+    }
+    layout();
+    if (cd3dApi) cd3dApi.setSelection(selIndex);
+  }
+
   function confirmTheme() {
     if (locked) return;
     var key = cds[selIndex].getAttribute("data-panel");
     if (key === activeKey) return;
     locked = true;
 
+    /* 3D 模式:让「真实选中的那张 CD」飞入光驱(前端补间) */
+    var use3d = !!cd3dApi;
+    var insertDelay = use3d ? cd3dApi.timings.insert + 80 : 820;
+    var ejectDelay = use3d ? cd3dApi.timings.eject + 60 : 720;
+
+    function finish() {
+      activeKey = key;
+      playPanel(key);
+      hub.classList.add("is-playing");
+      try { localStorage.setItem("intro-theme", key); } catch (e) {}
+      locked = false;
+      setOpen(false);   /* 插入完成后收起 CD 架 */
+    }
+
     function insert() {
+      if (use3d) {
+        cd3dApi.setInserted(key);      /* 旧盘(若有)自动飞回自己的架位 */
+        moveSelectionOff(key);         /* 选中项挪到相邻盘,架子不跳位 */
+        wait(insertDelay).then(finish);
+        return;
+      }
       hubCd.classList.remove("is-ejecting");
       void hubCd.offsetWidth;
       hubCd.classList.add("is-inserting");
       paintHubCd();
-      wait(820).then(function () {
+      wait(insertDelay).then(function () {
         hubCd.classList.remove("is-inserting");
-        activeKey = key;
-        playPanel(key);
-        hub.classList.add("is-playing");
-        try { localStorage.setItem("intro-theme", key); } catch (e) {}
-        locked = false;
-        if (!restored) setOpen(false);   /* 首次选择完成后收起 CD 架 */
+        finish();
       });
     }
 
     if (activeKey !== null) {
+      if (use3d) {
+        /* 旧盘飞回架位 → 新盘飞入 */
+        cd3dApi.setInserted(null);
+        wait(ejectDelay).then(insert);
+        return;
+      }
       hubCd.classList.remove("is-inserting");
       void hubCd.offsetWidth;
       hubCd.classList.add("is-ejecting");
       paintHubCd();
-      wait(720).then(function () {
+      wait(ejectDelay).then(function () {
         hubCd.classList.remove("is-ejecting");
         insert();
       });
@@ -159,6 +200,7 @@
   /* ---------- 滚轮 / 方向键 ---------- */
   var lastWheel = 0;
   rack.addEventListener("wheel", function (e) {
+    if (cd3dApi) return;              /* 3D 模式:滚轮由 Three.js 画布接管 */
     e.preventDefault();
     var now = Date.now();
     if (now - lastWheel < 180) return;
@@ -204,29 +246,46 @@
   function tryInit3D() {
     if (cd3dTried) return;
     cd3dTried = true;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    if (!window.WebGLRenderingContext) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      console.info("[cd3d] 跳过:系统开启了减少动效,继续使用 DOM 轮盘");
+      return;
+    }
+    if (!window.WebGLRenderingContext) {
+      console.info("[cd3d] 跳过:浏览器不支持 WebGL,继续使用 DOM 轮盘");
+      return;
+    }
 
-    import("/js/cd3d.js")
-      .then(function (m) {
-        return m.initCd3d({
+    import(body.dataset.cd3d || "/js/cd3d.js")
+      .then(function (mod) {
+        return mod.initCd3d({
           container: wheel,
           selIndex: selIndex,
           onReady: function (api) {
             cd3dApi = api;
             body.classList.add("cd3d-on");
             api.setSelection(selIndex);
+            console.info("[cd3d] 3D 模式已激活");
           },
           onCdClick: function (key) {
             var i = cdOrder.indexOf(key);
             if (i === -1) return;
-            if (i === selIndex) confirmTheme();
-            else { selIndex = i; layout(); if (cd3dApi) cd3dApi.setSelection(i); }
+            console.info("[cd3d] 点击 CD:", key);
+            /* 单击即选中并插入(无需点两次) */
+            if (i !== selIndex) {
+              selIndex = i;
+              layout();
+              cd3dApi.setSelection(i);
+            }
+            confirmTheme();
           },
           onScroll: function (dir) { step(dir); }
+        }).then(function (api) {
+          if (!api) console.warn("[cd3d] 未能初始化(资产缺失/加载失败),继续使用 DOM 轮盘");
         });
       })
-      .catch(function () {});
+      .catch(function (e) {
+        console.warn("[cd3d] 模块加载失败:", e && e.message);
+      });
   }
 
   /* ---------- 初始状态 ---------- */
@@ -235,6 +294,7 @@
   try { savedKey = localStorage.getItem("intro-theme"); } catch (e) {}
 
   if (savedKey && panels.length) {
+    /* 回访:面板先显示上次的主题(光驱内为空),同时打开 CD 架进入选择界面 */
     restored = true;
     activeKey = savedKey;
     playPanel(savedKey);
@@ -242,11 +302,11 @@
       if (cd.getAttribute("data-panel") === savedKey) selIndex = i;
     });
     layout();
-    hub.classList.add("is-playing");
   } else {
     layout();
-    setOpen(true);            /* 首次访问:直接打开 CD 架选择 */
   }
+  /* 每次进入首页都默认打开 CD 选择界面(光驱内为空) */
+  setOpen(true);
 
   window.addEventListener("resize", layout);
 })();

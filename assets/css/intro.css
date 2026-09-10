@@ -147,6 +147,17 @@ body.scene-open .scene {
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     transition: border-color 0.2s ease, color 0.2s ease;
+    animation: slot-nudge 3s ease-in-out infinite;   /* 轻微提示:入口在此 */
+}
+
+body.scene-open .slot-toggle {
+    animation: none;
+}
+
+@keyframes slot-nudge {
+    0%, 70%, 100% { transform: translateX(0); }
+    80% { transform: translateX(6px); }
+    90% { transform: translateX(2px); }
 }
 
 .slot-toggle:hover {
@@ -207,6 +218,7 @@ body.scene-open .scene {
     position: relative;
     flex: 1;
     min-height: 0;
+    margin-right: -22px;   /* 画布延伸到架子右边缘(与屏幕接缝齐平,不被内层边距挡住) */
 }
 
 .cd {
@@ -418,6 +430,10 @@ body.cd3d-on .hub-cd {
 
     .rack {
         padding: 12px 14px;
+    }
+
+    .wheel {
+        margin-right: -14px;
     }
 
     .intro-panel {

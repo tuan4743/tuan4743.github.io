@@ -1,22 +1,78 @@
 {
   "model": "/assets/cd/drive.glb",
+  "driveNode": "CD_drive",
+  "cdNodes": {
+    "self": "self",
+    "growth": "groth",
+    "lost": "lost",
+    "tech": "tech",
+    "future": "future"
+  },
   "animations": {
     "eject": "A_Eject",
     "insert": "A_Insert",
     "pop": "A_Pin"
   },
-  "cds": {
-    "self":   { "label": "自我", "mesh": "CD_Self",   "tex": "/assets/cd/cds/self.webp" },
-    "growth": { "label": "成长", "mesh": "CD_Growth", "tex": "/assets/cd/cds/growth.webp" },
-    "lost":   { "label": "迷茫", "mesh": "CD_Lost",   "tex": "/assets/cd/cds/lost.webp" },
-    "tech":   { "label": "技术", "mesh": "CD_Tech",   "tex": "/assets/cd/cds/tech.webp" },
-    "future": { "label": "未来", "mesh": "CD_Future", "tex": "/assets/cd/cds/future.webp" }
-  },
   "hub": [0, 0, 0],
-  "cdOrbitRadius": 0.35,
+  "driveRot": [90, 0, 0],
+  "driveOffset": [0, 0, -0.35],
+  "driveRightMargin": -0.115,
+  "driveHeightFraction": 0.65,
+  "cdSpacing": null,
+  "cdSpacingRatio": 0.538,
+  "cdOrbitRadius": null,
+  "cdOrbitRatio": 0.64,
+  "cdCurve": 0.08,
+  "cdStandRotX": 90,
+  "cdFlipDeg": 180,
+  "cdZ": 0,
+  "tiltMaxDeg": 14,
+  "tiltTarget": "selected",
+  "tiltYawSign": 1,
+  "tiltPitchSign": 1,
+  "cdSpinDegPerSec": 12,
+  "spinBackMs": 350,
+  "slotOffset": [0.25, -0.15, 0.4],
+  "slotRiseY": 0.6,
+  "insertFlyMs": 520,
+  "settleMs": 300,
+  "rackMoveMs": 450,
+  "wheelCooldownMs": 530,
+  "camera": { "fov": 30 },
+  "envIntensity": 0.7,
+  "envMode": "studio",
+  "envStudio": {
+    "bgColor": "#0b0e14",
+    "keyColor": "#d8ecff",
+    "keyIntensity": 3.2,
+    "fillColor": "#5a6a86",
+    "fillIntensity": 0.5,
+    "topColor": "#2a3244",
+    "topIntensity": 0.35
+  },
+  "exposure": 1.0,
+  "cdMaterial": {
+    "roughness": 0.18,
+    "metalness": 0.35,
+    "clearcoat": 0.6,
+    "clearcoatRoughness": 0.2,
+    "iridescence": 0.7,
+    "iridescenceIOR": 1.35,
+    "iridescenceThicknessRange": [120, 420],
+    "anisotropy": 0.4,
+    "envMapIntensity": 1.2
+  },
   "light": {
-    "position": [2.2, 1.6, -1.8],
-    "intensity": 1.6,
+    "position": [2.3, 2.4, 2.6],
+    "intensity": 1.7,
     "color": "#bfe6ff"
+  },
+  "useExternalTex": false,
+  "cds": {
+    "self":   { "label": "\u81ea\u6211", "tex": "/assets/cd/cds/self.webp" },
+    "growth": { "label": "\u6210\u957f", "tex": "/assets/cd/cds/growth.webp" },
+    "lost":   { "label": "\u8ff7\u832b", "tex": "/assets/cd/cds/lost.webp" },
+    "tech":   { "label": "\u6280\u672f", "tex": "/assets/cd/cds/tech.webp" },
+    "future": { "label": "\u672a\u6765", "tex": "/assets/cd/cds/future.webp" }
   }
 }
