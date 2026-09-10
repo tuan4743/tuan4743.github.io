@@ -20,6 +20,9 @@
   var PAD = 10;           /* 包住目标时的外扩(px) */
   var ROT_MAX = 7;        /* 速度倾斜最大角度(度),0 = 不倾斜 */
   var VEL_DIV = 5200;     /* 速度→角度换算除数(越大越不敏感) */
+  var SPIN = 24;          /* 实时自转速度(度/秒),0 = 不自转 */
+  var SPIN_SLOW = 0.12;   /* 锁定目标时自转的衰减系数(越小越接近停转) */
+  var ROT_EASE = 0.12;    /* 旋转角平滑收敛速度 */
 
   var SELECTOR = [
     "[data-magnetic]",
@@ -52,10 +55,19 @@
   var target = null;
   var mx = -999, my = -999;      /* 鼠标真实坐标(小点用,严格贴手) */
   var fx = -999, fy = -999;      /* 框体坐标(平滑) */
-  var rot = 0;                   /* 当前倾斜角 */
+  var spinAngle = 0;             /* 实时自转累积角 */
+  var rot = 0;                   /* 当前显示角度(平滑) */
   var last = 0;
   var raf = 0;
   var visible = false;
+
+  /* 取最短角差,避免归正时绕远路 */
+  function angleDelta(to, from) {
+    var d = (to - from) % 360;
+    if (d > 180) d -= 360;
+    if (d < -180) d += 360;
+    return d;
+  }
 
   function paintDot() {
     dot.style.transform = "translate3d(" + mx + "px," + my + "px,0)";
@@ -82,13 +94,18 @@
     fx += (tx - fx) * k;
     fy += (ty - fy) * k;
 
-    /* 速度倾斜:横向移动越快,框体越倾斜;锁定目标时归正 */
-    var vx = (fx - px) / dt;
-    var rotTarget = 0;
+    /* 旋转 = 实时自转 + 速度倾斜;锁定目标时转正对齐 */
+    var lean = 0;
     if (!target && ROT_MAX > 0 && !reduced) {
-      rotTarget = Math.max(-ROT_MAX, Math.min(ROT_MAX, -vx / VEL_DIV));
+      var vx = (fx - px) / dt;
+      lean = Math.max(-ROT_MAX, Math.min(ROT_MAX, -vx / VEL_DIV));
     }
-    rot += (rotTarget - rot) * 0.12;
+    if (!reduced) {
+      spinAngle += SPIN * dt * (target ? SPIN_SLOW : 1);
+    }
+    var targetRot = target ? 0 : spinAngle + lean;
+    var kr = 1 - Math.pow(1 - ROT_EASE, dt * 60);   /* 帧率无关的旋转收敛 */
+    rot += angleDelta(targetRot, rot) * kr;
 
     frame.style.transform =
       "translate3d(" + fx.toFixed(1) + "px," + fy.toFixed(1) + "px,0) rotate(" + rot.toFixed(2) + "deg)";

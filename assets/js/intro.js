@@ -22,7 +22,8 @@
   };
 
   var selIndex = 0;
-  var activeKey = null;
+  var activeKey = null;      /* 当前"正在播放"的主题(持久化用) */
+  var insertedKey = null;    /* 真正位于光驱内的那张盘(刷新后为空) */
   var locked = false;
   var STEP = 22;              /* 相邻 CD 角度步长(度) */
 
@@ -75,14 +76,14 @@
     if (cd3dApi) cd3dApi.setSelection(selIndex);
   }
 
-  /* 换选:跳过已插入光驱的那张;到边界即停(不循环) */
+  /* 换选:只跳过"真正在光驱里"的那张;到边界即停(不循环) */
   function step(dir) {
     var i = selIndex;
     var n = cdOrder.length;
     for (var k = 0; k < n; k++) {
       i += dir;
       if (i < 0 || i >= n) return;
-      if (cdOrder[i] !== activeKey) { select(i); return; }
+      if (cdOrder[i] !== insertedKey) { select(i); return; }
     }
   }
 
@@ -113,7 +114,8 @@
   function confirmTheme() {
     if (locked) return;
     var key = cds[selIndex].getAttribute("data-panel");
-    if (key === activeKey) return;
+    /* 只有"该盘已在光驱内"才阻止重复插入;刷新后光驱为空,即使主题相同也能插 */
+    if (insertedKey !== null && key === insertedKey) return;
     locked = true;
 
     /* 3D 模式:让「真实选中的那张 CD」飞入光驱(前端补间) */
@@ -123,6 +125,7 @@
 
     function finish() {
       activeKey = key;
+      insertedKey = key;          /* 记录"盘已在光驱内" */
       playPanel(key);
       hub.classList.add("is-playing");
       try { localStorage.setItem("intro-theme", key); } catch (e) {}
