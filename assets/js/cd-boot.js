@@ -63,30 +63,29 @@
     });
   }
 
-  /* DeepSeek 鲸鱼:原图是单条纯黑路径,画在深色水里看不见 → 重新上色 */
+  /* DeepSeek 鲸鱼:原图是单条纯黑路径,画在深色水里看不见 → 重新上色。
+     注意这个 svg 自己带 width/height,直接当图片加载即可 ——
+     之前走 fetch+改文本的路子,给它又加了一对 width/height,
+     属性重复 → XML 非法 → 图片加载失败,所以鲸鱼一直没出现 ✗ */
   var _whale = null, _whaleLoading = false;
   function loadWhale() {
     if (_whaleLoading) return;
     _whaleLoading = true;
-    fetch("/assets/eggs/deepseek.svg")
-      .then(function (r) { return r.ok ? r.text() : ""; })
-      .then(function (svg) {
-        if (!svg) return null;
-        return blobImage(svg.replace(/<svg /, '<svg width="254" height="200" '));
-      })
-      .then(function (im) {
-        if (!im) return;
-        /* 用 source-atop 把黑色路径重新刷成亮青色 */
+    var im = new Image();
+    im.onload = function () {
+      try {
         var c = document.createElement("canvas");
         c.width = 254; c.height = 200;
         var g = c.getContext("2d");
         g.drawImage(im, 0, 0, 254, 200);
-        g.globalCompositeOperation = "source-atop";
+        g.globalCompositeOperation = "source-atop";     /* 只刷已有像素 → 保持鲸鱼轮廓 */
         g.fillStyle = "#9fe8ff";
         g.fillRect(0, 0, 254, 200);
         _whale = c;
-      })
-      .catch(function () { });
+      } catch (e) { _whale = null; }
+    };
+    im.onerror = function () { _whale = null; };
+    im.src = "/assets/eggs/deepseek.svg";
   }
 
   /* 故障那套要用的盘封面 */
@@ -95,7 +94,7 @@
     if (_techImg) return;
     var im = new Image();
     im.onload = function () { _techImg = im; };
-    im.src = "/assets/cd/cds/tech.webp";
+    im.src = "/assets/cd/cds/tech_horizontal.webp";     /* 横向版封面 */
   }
 
   function drawFallbackFace(ctx, s) {
@@ -190,7 +189,10 @@
     var R = Math.max(W / (cols * 1.732), H / (rows * 1.49));
     var hw = 1.732 * R, stepY = 1.49 * R, per = 6 * R;
     var gridW = (cols + 2) * hw, gridH = (rows + 2) * stepY;
-    var ox = (W - gridW) / 2, oy = (H - gridH) / 2;
+    var ox = (W - gridW) / 2;
+    /* 行号从 -1 铺到 rows,所以纵向要多让一行才真的居中 ——
+       否则屏幕中线上的其实是 r+1 那一行,"中间行最先消失"就会变成"第三行先消失" */
+    var oy = (H - gridH) / 2 + stepY;
     var midRow = (rows - 1) / 2, midCol = cols / 2;
     var COLLAPSE = HX.collapse || 620;
     var ROW_STEP = COLLAPSE * 0.5;                          /* 上一行消失一半,下一行才开始 */
@@ -236,7 +238,7 @@
             ctx.setLineDash([per]);
             ctx.lineDashOffset = -h.dir * per * (1 - easeOutQuart(dp));
             ctx.strokeStyle = accent;
-            ctx.lineWidth = Math.max(1, R * 0.035);
+            ctx.lineWidth = Math.max(0.6, R * 0.018);   /* 边框细一点 */
             ctx.stroke();
           }
           ctx.restore();
@@ -259,10 +261,15 @@
         sp: rand(0.10, 0.26) * (Math.random() > 0.5 ? 1 : -1),
         x: Math.random(),
         ph: rand(0, 6.28),
-        hue: rand(0.48, 0.56)
+        hue: rand(0.48, 0.56),
+        boss: i === 0                       /* 第一条大鱼 = 写着站名的彩蛋鱼 */
       });
     }
-    var whale = { y: rand(0.3, 0.55), r: Math.min(W, H) * 0.13, sp: rand(0.07, 0.12), x: 0.1, ph: 1.2 };
+    fish[0].r *= 2.15;
+    fish[0].y = 0.62;                        /* 位置固定一点,保证在"水盖满"那段里看得见 */
+    fish[0].sp = 0.16;
+    /* DeepSeek 鲸鱼:横穿的时间固定在水盖满的那一段,保证一定看得到 */
+    var whale = { y: 0.4 };
 
     function level(el) {
       if (el < RISE) return easeOutQuad(el / RISE) * 1.12;
@@ -286,8 +293,8 @@
       ctx.quadraticCurveTo(-r * 0.15, r * 0.88, -r * 1.5, 0);
       ctx.closePath();
       ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(-r * 1.42, 0);
+      ctx.beginPath();                                   /* 尾鳍(接头往身体里多伸一点,免得看着断开)*/
+      ctx.moveTo(-r * 1.15, 0);
       ctx.lineTo(-r * 2.35, -r * (0.62 + wig));
       ctx.lineTo(-r * 1.95, 0);
       ctx.lineTo(-r * 2.35, r * (0.62 - wig));
@@ -335,21 +342,35 @@
           ctx.globalAlpha = 0.9;
           ctx.fillStyle = "hsl(" + Math.round(f.hue * 360) + " " + Math.round(45 + f.r * 2) + "% " + Math.round(58 + Math.sin(f.ph) * 12) + "%)";
           fishBody(px, py, f.r, Math.sin(t * 7 + f.ph) * 0.55, f.sp > 0 ? 1 : -1);
-        }
-        /* DeepSeek 鲸鱼(彩蛋)*/
-        if (_whale) {
-          var wx = ((whale.x + whale.sp * t) % 1.5 + 1.5) % 1.5 - 0.25;
-          var wpx = wx * W;
-          var wpy = whale.y * H + Math.sin(t * 1.1 + whale.ph) * 12;
-          if (wpy > surface(base, wpx, el) + whale.r) {
-            var ww = whale.r * 2.4, wh = ww * (200 / 254);
+          if (f.boss) {                                      /* 彩蛋:大鱼身上写着站名 */
+            ctx.globalAlpha = 0.5;
+            ctx.fillStyle = "#04222f";
+            ctx.font = "700 " + Math.round(f.r * 0.42) + "px ui-monospace, Consolas, monospace";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
             ctx.save();
-            ctx.globalAlpha = 0.92;
-            ctx.translate(wpx, wpy);
-            if (whale.sp < 0) ctx.scale(-1, 1);
-            ctx.rotate(Math.sin(t * 1.1 + whale.ph) * 0.06);
-            ctx.drawImage(_whale, -ww / 2, -wh / 2, ww, wh);
+            ctx.translate(px, py);
+            ctx.scale(f.sp > 0 ? 1 : -1, 1);
+            ctx.fillText("TUAGFEY", -f.r * 0.15, 0);
             ctx.restore();
+          }
+        }
+        /* DeepSeek 鲸鱼(彩蛋):在"水盖满"那段时间里从左边横穿到右边 */
+        if (_whale) {
+          var wp = clamp((el - RISE * 0.55) / (HOLD * 0.95), 0, 1);
+          if (wp > 0 && wp < 1) {
+            var wr = Math.min(W, H) * 0.16;
+            var ww = wr * 2.4, wh = ww * (200 / 254);
+            var wpx = (-0.2 + wp * 1.4) * W;
+            var wpy = whale.y * H + Math.sin(t * 1.1) * 16;
+            if (wpy > surface(base, wpx, el) + wh * 0.5) {
+              ctx.save();
+              ctx.globalAlpha = 0.95;
+              ctx.translate(wpx, wpy);
+              ctx.rotate(Math.sin(t * 1.1) * 0.07);
+              ctx.drawImage(_whale, -ww / 2, -wh / 2, ww, wh);
+              ctx.restore();
+            }
           }
         }
         ctx.globalAlpha = 1;
@@ -435,15 +456,26 @@
 
     function errorText() {
       var big = Math.round(Math.min(W / (word.length * 0.62), H * 0.24));
+      var jx = (Math.random() - 0.5) * big * 0.22, jy = (Math.random() - 0.5) * big * 0.14;
+      var lw = Math.max(2, big * 0.07);
       ctx.font = "900 " + big + "px Impact, 'Arial Black', sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
+      ctx.lineJoin = "round";
+      /* 红蓝分离的描边重影 */
       ctx.globalCompositeOperation = "screen";
-      var jx = (Math.random() - 0.5) * big * 0.22, jy = (Math.random() - 0.5) * big * 0.14;
-      ctx.fillStyle = "#ff0033"; ctx.fillText(word, W / 2 + jx + big * 0.035, H / 2 + jy);
-      ctx.fillStyle = "#0066ff"; ctx.fillText(word, W / 2 + jx - big * 0.035, H / 2 + jy);
-      ctx.fillStyle = "#eaf8ff"; ctx.fillText(word, W / 2 + jx, H / 2 + jy);
+      ctx.lineWidth = lw;
+      ctx.strokeStyle = "#ff0033";
+      ctx.strokeText(word, W / 2 + jx + big * 0.035, H / 2 + jy);
+      ctx.strokeStyle = "#0066ff";
+      ctx.strokeText(word, W / 2 + jx - big * 0.035, H / 2 + jy);
       ctx.globalCompositeOperation = "source-over";
+      /* 正体:红色描边 + 深色内填 */
+      ctx.lineWidth = lw;
+      ctx.strokeStyle = "#ff2d4d";
+      ctx.strokeText(word, W / 2 + jx, H / 2 + jy);
+      ctx.fillStyle = "#0a0d14";
+      ctx.fillText(word, W / 2 + jx, H / 2 + jy);
       ctx.globalAlpha = 1;
     }
 
@@ -476,9 +508,9 @@
      每个格子有出生时间,活得够久就从中心开始融化,于是变成一圈向外扩散的花纹;
      迭代完成后,一个从中心扩散的圆把剩下的黑底清掉。 */
   function sceneFractal(ctx, W, H, accent) {
-    var GROW = 2600, MELT_AFTER = 900, MELT_MS = 420, WIPE = 700;
+    var GROW = 3000, MELT_AFTER = 900, MELT_MS = 420, WIPE = 700;
     var R = Math.min(W, H) / 26;                     /* 单格六边形的半径(大一点才铺得满屏)*/
-    var ARM = 10, MAXD = 3;
+    var ARM = 9, MAXD = 4;                           /* 迭代 4 轮 */
     var DIRS = [[1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1]];
     var cells = [];
     var seen = {};
