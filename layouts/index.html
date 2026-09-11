@@ -49,7 +49,19 @@
     <!-- 场景:屏幕(右缘为光驱边缝)+ 右侧 CD 架,整体刚体平移 -->
     <div class="scene" id="scene">
         <div class="screen" id="screen">
-            {{- partial "header.html" . }}
+            <!-- 花屏:切回/离开主界面时先放 2 秒电视雪花(在屏幕贴图之下)-->
+            <canvas class="screen-static" id="screen-static" aria-hidden="true"></canvas>
+            <!-- 状态栏(顶栏):按上缘的箭头可显示/隐藏 -->
+            <button class="statusbar-toggle" id="statusbar-toggle" aria-expanded="true" aria-controls="statusbar"
+                title="显示 / 隐藏状态栏">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+                    <polyline points="6 15 12 9 18 15"></polyline>
+                </svg>
+            </button>
+            <div class="statusbar" id="statusbar">
+                {{- partial "header.html" . }}
+            </div>
 
             <main class="intro-main">
                 {{- range $i, $p := site.Params.intro.panels }}
@@ -63,7 +75,7 @@
                 {{- end }}
             </main>
 
-            <!-- 屏幕右缘:光驱边缝 + 入口箭头(常驻,不动) -->
+            <!-- 屏幕右缘:光驱边缝 + 入口箭头(常驻,不动;位置让开屏幕贴图的边框)-->
             <div class="screen-slot">
                 <span class="slot-seam"></span>
                 <button class="slot-toggle" id="intro-toggle" aria-expanded="false" aria-controls="rack"
@@ -74,6 +86,8 @@
                     </svg>
                 </button>
             </div>
+            <!-- 屏幕贴图(金属边框):已把黑心转成透明,盖在内容之上 -->
+            <div class="screen-frame" aria-hidden="true"></div>
         </div>
 
         <!-- CD 架:从屏幕右缘滑出,内部轮盘以插入点(hub)为轴心 -->

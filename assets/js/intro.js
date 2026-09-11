@@ -304,12 +304,99 @@
     }
   }
 
+  /* ---------- 花屏(电视雪花):离开/回到主界面时放 2 秒 ---------- */
+  var staticCv = document.getElementById("screen-static");
+  var staticCtx = staticCv ? staticCv.getContext("2d") : null;
+  var staticTiles = [];
+  var staticRAF = 0;
+  var noMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function buildStaticTiles() {
+    if (staticTiles.length) return;
+    for (var t = 0; t < 5; t++) {
+      var c = document.createElement("canvas");
+      c.width = c.height = 256;
+      var g = c.getContext("2d");
+      var img = g.createImageData(256, 256);
+      for (var i = 0; i < img.data.length; i += 4) {
+        var v = Math.random() * 255;
+        img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+        img.data[i + 3] = 255;
+      }
+      g.putImageData(img, 0, 0);
+      staticTiles.push(c);
+    }
+  }
+
+  function runStatic(ms) {
+    if (!staticCtx || noMotion) return;
+    buildStaticTiles();
+    /* 画布尺寸按屏幕实际大小(DPR 限 1.5,雪花不需要那么细)*/
+    var dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    staticCv.width = Math.max(1, Math.round(staticCv.clientWidth * dpr));
+    staticCv.height = Math.max(1, Math.round(staticCv.clientHeight * dpr));
+    staticCv.classList.add("is-on");
+    if (staticRAF) cancelAnimationFrame(staticRAF);
+    var t0 = performance.now();
+    var pattern = null;
+    var patIdx = -1;
+    function frame(now) {
+      var el = now - t0;
+      if (el >= ms || document.hidden) {
+        staticCtx.clearRect(0, 0, staticCv.width, staticCv.height);
+        staticCv.classList.remove("is-on");
+        staticRAF = 0;
+        return;
+      }
+      /* 每 ~55ms 换一张噪点图 ≈ 18fps 的雪花(rAF 时间戳可能略早于 t0,要做成正模)*/
+      var n = staticTiles.length;
+      var idx = Math.abs(Math.floor(Math.max(0, el) / 55)) % n;
+      if (idx !== patIdx) {
+        pattern = staticCtx.createPattern(staticTiles[idx], "repeat");
+        patIdx = idx;
+      }
+      staticCtx.globalAlpha = el > ms - 260 ? Math.max(0, (ms - el) / 260) : 1;   /* 末尾淡出 */
+      staticCtx.fillStyle = pattern || "#000";
+      staticCtx.save();
+      staticCtx.translate(Math.random() * 40 - 20, Math.random() * 40 - 20);      /* 抖动 */
+      staticCtx.fillRect(-40, -40, staticCv.width + 80, staticCv.height + 80);
+      staticCtx.restore();
+      staticRAF = requestAnimationFrame(frame);
+    }
+    staticRAF = requestAnimationFrame(frame);
+  }
+  /* 调试/验证入口:手动放一段花屏 */
+  window.__runStatic = runStatic;
+
+  /* ---------- 状态栏:上缘箭头显示 / 隐藏(记忆在 localStorage)---------- */
+  var sbToggle = document.getElementById("statusbar-toggle");
+  var SB_KEY = "cd-statusbar";
+
+  function setStatusbar(show) {
+    body.classList.toggle("statusbar-hidden", !show);
+    if (sbToggle) sbToggle.setAttribute("aria-expanded", show ? "true" : "false");
+    try { localStorage.setItem(SB_KEY, show ? "1" : "0"); } catch (e) {}
+  }
+
+  (function initStatusbar() {
+    var saved = null;
+    try { saved = localStorage.getItem(SB_KEY); } catch (e) {}
+    setStatusbar(saved !== "0");
+    if (sbToggle) {
+      sbToggle.addEventListener("click", function () {
+        setStatusbar(body.classList.contains("statusbar-hidden"));
+      });
+    }
+  })();
+
   /* ---------- 场景平移开合(视角平移,刚体) ---------- */
   function setOpen(open) {
     body.classList.toggle("scene-open", open);
     toggle.setAttribute("aria-expanded", open ? "true" : "false");
     rack.setAttribute("aria-hidden", open ? "false" : "true");
     if (cd3dApi) cd3dApi.setPaused(!open);
+    /* 平移一开始就放花屏,2 秒后画面才出来 */
+    runStatic(2000);
     if (open) {
       setTimeout(layout, 80);
       scheduleEject();                 /* 每次打开都重新弹出光驱 */

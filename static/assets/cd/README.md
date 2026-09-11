@@ -147,6 +147,26 @@ CD 页左侧竖排 4 个开关(状态记在 localStorage),可任意叠加,颜色
 
 辅助工具:`node tools/verify/ink-check.mjs` 会把这张对比度表打出来。
 
+## 主界面(屏幕造型 / 状态栏 / 花屏)
+
+- **屏幕贴图**:`static/assets/screen/frame.webp`(由 `screen.webp` 用"亮度→透明度"转出来,
+  所以中心是透明的、金属边框保留)。想重做/换阈值就跑
+  `node tools/verify/make-screen-frame.mjs [源图] [输出] [暗阈值] [亮阈值] [最大宽度]`,
+  默认 `0.07 / 0.16`(低于 7% 亮度全透明、高于 16% 全不透明);换完刷新即可。
+  贴图在 CSS 里是 `.screen-frame`(z-index 34,内容之上、状态栏之上),内容让开边框靠 `.screen` 的 padding。
+- **状态栏**:首页的顶栏包在 `.statusbar` 里,上缘中间有个小箭头(`#statusbar-toggle`)可收起/展开,
+  状态记在 localStorage(`cd-statusbar`)。收起动画与位置在 `intro.css` 的 `.statusbar` / `body.statusbar-hidden`。
+- **花屏(电视雪花)**:`.screen-static` 画布放在**贴图之下、内容之上**(z-index 30),
+  离开/回到主界面(即场景平移开始)时放 2 秒再淡出。实现是 5 张预生成的 256² 噪点图轮流平铺 +
+  随机抖动(≈18fps),尊重 `prefers-reduced-motion`。想手动放一段:`window.__runStatic(2000)`。
+
+## 鼓点律动(背景线与彩色多边形)
+
+背景的**线**跟着鼓点伸长/变粗;**彩色多边形位置颜色全固定**(它们只是背景纹理,不闪)。
+鼓点判定用**低频谱通量**(低频突增)而不是音量绝对值 —— 低频常年饱和在 1.0,绝对阈值法分不出来。
+包络用半衰期衰减,所以低帧率下也不会被一帧清空。调参:`fx.beat`
+(`thresh` 越小越容易触发、`gain` 越大跳得越猛、`halfLife` 越小越干脆)、`fx.lines.grow` 伸长幅度。
+
 ## 光驱音效(`audio` 段:前端实时合成,没有任何音频文件)
 
 弹出 / 收回 / 末尾那声"咔哒" / CD 落入盘托 —— 四个音效由 Web Audio 现场合成(零音频文件、零依赖):

@@ -32,8 +32,7 @@ const DEFAULTS = {
 let cfg = Object.assign({}, DEFAULTS);
 let ctx = null;
 let bus = null;
-let on = true;                      /* 用户开关(静音)*/
-let master = 0.5;                   /* 主音量 0..1(滑动条控制)*/
+let on = true;                      /* 用户开关(静音)*/let master = 0.5;                   /* 主音量 0..1(滑动条控制)*/
 let bound = false;
 let gestured = false;               /* 用户已经点过(自动播放策略已解锁)*/
 

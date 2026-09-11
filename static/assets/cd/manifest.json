@@ -80,9 +80,9 @@
     "particles": { "count": 13, "size": 0.085, "speed": 2.1, "speedMin": 0.2, "life": 1.5, "dist": 2.6, "spawn": 0.9, "hollowRatio": 0.5, "alpha": 0.85 },
     "rays": { "count": 64, "minLen": 0.12, "maxLen": 1.5, "width": 0.018, "alpha": 0.95 },
     "rings": { "max": 4, "speed": 1.125, "width": 0.022, "grow": 4.6, "cooldown": 0.45, "chance": 0.22, "threshold": 0.3, "alpha": 1.0, "segments": 14, "wobble": 0.075, "drift": 0.1 },
-    "lines": { "count": 5, "lenMin": 0.22, "lenMax": 0.85, "width": 2.4, "widthGrow": 2.4, "grow": 0.25, "alpha": 0.5 },
+    "lines": { "count": 5, "lenMin": 0.22, "lenMax": 0.85, "width": 2.4, "widthGrow": 3.2, "grow": 0.45, "alpha": 0.5 },
     "polys": { "count": 5, "sizeMin": 0.03, "sizeMax": 0.13, "alphaMin": 0.06, "alphaMax": 0.3, "sat": 0.7, "light": 0.5, "rotate": 0.45 },
-    "beat": { "avg": 1.2, "thresh": 1.4, "gain": 4, "halfLife": 0.12, "lowRatio": 0.25 }
+    "beat": { "avg": 1.2, "thresh": 1.25, "gain": 7, "halfLife": 0.13, "lowRatio": 0.25 }
   },
   "camera": { "fov": 30 },
   "envIntensity": 0.7,

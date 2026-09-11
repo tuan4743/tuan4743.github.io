@@ -475,18 +475,16 @@ export function createFx(opts) {
     if (cfg.on.lines) {
       bg2d.clearRect(0, 0, W, H);
       const S = Math.min(W, H);
-      /* 多边形:位置/大小/旋转/颜色都固定 —— 但跟着鼓点"弹"一下(放大 + 提亮)*/
+      /* 多边形:位置/大小/旋转/颜色全都固定不动(它们只是背景纹理,不跟着鼓点闪) */
       if (cfg.polys.count > 0) {
         const P = cfg.polys;
-        const b = beatEnv;
         for (const q of polyPattern) {
           bg2d.save();
-          bg2d.globalAlpha = Math.min(1, q.alpha * (0.85 + smoothLevel * 0.3 + b * 1.2));
-          bg2d.fillStyle = "hsl(" + Math.round(q.hue * 360) + " " + Math.round(P.sat * 100) + "% " + Math.round(Math.min(0.72, P.light + b * 0.18) * 100) + "%)";
+          bg2d.globalAlpha = q.alpha;
+          bg2d.fillStyle = "hsl(" + Math.round(q.hue * 360) + " " + Math.round(P.sat * 100) + "% " + Math.round(P.light * 100) + "%)";
           bg2d.translate(q.x * W, q.y * H);
           if (q.rot) bg2d.rotate(q.rot);
-          const sc = 1 + b * 0.22;                 /* 鼓点上放大约 22% */
-          const w = q.w * S * sc, h = q.h * S * sc;
+          const w = q.w * S, h = q.h * S;
           if (q.tri) {
             bg2d.beginPath();
             bg2d.moveTo(-w / 2, h / 2);
@@ -500,18 +498,16 @@ export function createFx(opts) {
           bg2d.restore();
         }
       }
-      /* 线:跟着鼓点伸长/变粗(鼓点包络是"快速起落",所以看得见"一下一下")*/
+      /* 线:只有它们跟着鼓点一下一下地伸长/变粗 */
       {
         const L = cfg.lines;
-        const v = Math.max(0, Math.min(1.2, smoothLevel));
         const b = beatEnv;
         bg2d.strokeStyle = baseColor;
         bg2d.lineCap = "round";
         bg2d.globalAlpha = L.alpha != null ? L.alpha : 1;
         for (const ln of linePattern) {
-          const growT = v * 0.12 + b;                 /* 鼓点占大头 */
-          const len = Math.max(6, ln.len * (1 + growT * L.grow) * W);
-          bg2d.lineWidth = Math.min(ln.w * 2.4, ln.w * (1 + b * (L.widthGrow / Math.max(0.01, ln.w)) * 0.5));
+          const len = Math.max(6, ln.len * (1 + b * L.grow) * W);
+          bg2d.lineWidth = Math.min(ln.w * 3, ln.w + b * L.widthGrow);
           const x0 = ln.x * W, y0 = ln.y * H;
           bg2d.beginPath();
           bg2d.moveTo(x0, y0);
