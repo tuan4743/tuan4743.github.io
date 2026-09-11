@@ -373,13 +373,14 @@
      六边形的画法参考 JIEJOE 的 hexagons matrix:描边用 dash 偏移"画"出来(随机错开),
      然后从中心向外依次缩小消失。这里用 canvas 原生 setLineDash/lineDashOffset 实现,不引第三方库 */
   var HEX = {
-    cols: 14, rows: 9,
-    load: 620,            /* loading 时长(ms)*/
+    cols: 15, rows: 10,
+    load: 900,            /* 进度条 0→100% 的时长(ms)*/
+    hold: 500,            /* 读满后停顿(让 100% 看清楚)*/
+    fade: 260,            /* loading 淡出 */
     draw: 430,            /* 每个六边形描边时长 */
-    drawEach: 2.6,        /* 随机错开的总窗口(ms × 个数) */
+    drawEach: 2.2,        /* 描边随机错开的总窗口(ms × 个数) */
     collapse: 640,        /* 塌缩时长 */
-    collapseEach: 2.0,    /* 从中心向外错开 */
-    fade: 240             /* 末尾黑底淡出 */
+    collapseEach: 2.0     /* 从中心向外错开 */
   };
   var bootRAF = 0;
 
@@ -396,6 +397,11 @@
   function easeOutQuart(t) { return 1 - Math.pow(1 - t, 4); }
   function easeOutQuad(t) { return 1 - (1 - t) * (1 - t); }
 
+  /* 开机动画:黑屏 + 进度条 → 整块六边形面板 → 描边画出 → 从中心向外塌缩露出界面
+     关键点(和参考实现一致):
+       1) 进度必须读满 → 停一下 → 淡出,然后才开始后面的动画
+       2) 六边形用"深色填充"拼成一整块面板(一开始看不出格子),边框是后来画上去的
+       3) 塌缩时不再铺全屏底色,所以每个六边形缩掉的空位会露出下面的页面 */
   function screenBoot() {
     if (!staticCtx || !staticWrap || noMotion) return;
     if (staticRAF) { cancelAnimationFrame(staticRAF); staticRAF = 0; }
@@ -405,64 +411,68 @@
     staticCv.height = Math.max(1, Math.round(staticCv.clientHeight * dpr));
     var W = staticCv.width, H = staticCv.height;
     staticWrap.classList.remove("is-on");
-    staticWrap.classList.add("is-black");     /* 底:黑 */
+    staticWrap.classList.add("is-black");     /* 起手:黑屏 */
     var accent = "#22d3ee";
     try {
       var v = getComputedStyle(document.querySelector(".screen")).getPropertyValue("--intro-accent").trim();
       if (v) accent = v;
     } catch (e) {}
 
-    /* 六边形网格(尖顶、行间错半格,和参考实现同一套比例)*/
+    /* 六边形网格(尖顶、行间错半格;多铺一圈保证盖满边缘)*/
     var R = Math.max(W / (HEX.cols * 1.732), H / (HEX.rows * 1.49));
     var hw = 1.732 * R, stepY = 1.49 * R, per = 6 * R;
-    var gridW = (HEX.cols + 1) * hw, gridH = HEX.rows * stepY;
+    var gridW = (HEX.cols + 2) * hw, gridH = (HEX.rows + 2) * stepY;
     var ox = (W - gridW) / 2, oy = (H - gridH) / 2;
     var hexes = [];
     var maxD = Math.hypot(gridW / 2, gridH / 2);
-    for (var r = 0; r < HEX.rows; r++) {
-      for (var c = 0; c <= HEX.cols; c++) {
-        var x = ox + c * hw + (r % 2 ? hw / 2 : 0);
+    for (var r = -1; r <= HEX.rows; r++) {
+      for (var c = -1; c <= HEX.cols + 1; c++) {
+        var x = ox + c * hw + (Math.abs(r % 2) ? hw / 2 : 0);
         var y = oy + r * stepY;
         hexes.push({
           x: x, y: y,
-          drawAt: Math.random() * (hexes.length + 1) * HEX.drawEach,
+          drawAt: Math.random(),
           dir: Math.random() > 0.5 ? 1 : -1,
           dist: Math.hypot(x - W / 2, y - H / 2) / maxD
         });
       }
     }
     var drawWindow = hexes.length * HEX.drawEach;
-    var tDraw0 = HEX.load;
+    var tFull = HEX.load;                                  /* 进度读满 */
+    var tFadeIn = tFull + HEX.hold;                        /* 停 0.5s 后开始淡出 */
+    var tPanel = tFadeIn + HEX.fade;                       /* loading 淡完 → 面板顶上 */
+    var tDraw0 = tPanel;
     var tCol0 = tDraw0 + HEX.draw + drawWindow;
-    var tEnd = tCol0 + HEX.collapse + hexes.length * HEX.collapseEach * 0.5;
+    var maxColDelay = hexes.length * HEX.collapseEach * 0.5;
+    var tEnd = tCol0 + HEX.collapse + maxColDelay;
     var t0 = performance.now();
     window.__bootLastAt = Math.round(t0);
+    window.__bootTotalMs = Math.round(tEnd);
+    window.__bootPhases = { full: tFull, holdEnd: tFadeIn, panel: tPanel, drawStart: tDraw0, collapseStart: tCol0, end: tEnd };
+    var droppedBlack = false;
 
     function frame(now) {
       var el = now - t0;
-      if (el >= tEnd + HEX.fade) {
+      if (el >= tEnd) {
+        staticCtx.setTransform(1, 0, 0, 1, 0, 0);
         staticCtx.clearRect(0, 0, W, H);
         staticWrap.classList.remove("is-black");
         bootRAF = 0;
         return;
       }
       staticCtx.setTransform(1, 0, 0, 1, 0, 0);
+      staticCtx.globalAlpha = 1;
       staticCtx.clearRect(0, 0, W, H);
-      /* ---- 黑底:塌缩过半后开始淡出,界面从六边形缝隙里透出来 ----*/
-      var bgA = 1;
-      if (el > tCol0) bgA = Math.max(0, 1 - (el - tCol0) / (HEX.collapse * 0.75));
-      if (el > tEnd) bgA = Math.max(0, 1 - (el - tEnd) / HEX.fade) * bgA;
-      if (bgA > 0) {
-        staticCtx.globalAlpha = bgA;
+
+      /* ---- 阶段一:黑屏 + 进度(读满后停 hold,再淡出)----*/
+      if (el < tPanel) {
         staticCtx.fillStyle = "#04060a";
         staticCtx.fillRect(0, 0, W, H);
-      }
-
-      /* ---- loading:转动的六边形 + 进度 ----*/
-      if (el < tDraw0) {
-        var p = Math.max(0, Math.min(1, el / HEX.load));
+        var p = Math.min(1, el / HEX.load);
+        p = 1 - Math.pow(1 - p, 1.5);                       /* 末尾慢一点,读得清 */
+        var outA = el > tFadeIn ? Math.max(0, 1 - (el - tFadeIn) / HEX.fade) : 1;
         var cx = W / 2, cy = H / 2, rr = Math.min(W, H) * 0.075;
-        staticCtx.globalAlpha = 1;
+        staticCtx.globalAlpha = outA;
         staticCtx.save();
         staticCtx.translate(cx, cy);
         staticCtx.rotate(el / 900);
@@ -478,37 +488,40 @@
         staticCtx.font = "600 " + Math.round(Math.min(W, H) * 0.032) + "px ui-monospace, Consolas, monospace";
         staticCtx.textAlign = "center";
         staticCtx.textBaseline = "middle";
-        staticCtx.globalAlpha = 0.55 + 0.45 * Math.abs(Math.sin(el / 260));
+        staticCtx.globalAlpha = outA * (0.55 + 0.45 * Math.abs(Math.sin(el / 260)));
         staticCtx.fillText("LOADING  " + Math.round(p * 100) + "%", cx, cy + rr * 2.1);
         staticCtx.globalAlpha = 1;
         bootRAF = requestAnimationFrame(frame);
         return;
       }
 
-      /* ---- 六边形:先画描边,再从中心向外塌缩 ----*/
-      staticCtx.setLineDash([]);
+      /* ---- 阶段二:六边形面板(深色填充 = 一整块;描边后画上去)----
+         面板一铺满就把外层黑底撤掉:之后"谁盖住画面"完全由六边形自己负责,
+         于是每个六边形缩掉的空位就直接露出下面的页面 */
+      if (!droppedBlack) { staticWrap.classList.remove("is-black"); droppedBlack = true; }
       for (var i = 0; i < hexes.length; i++) {
         var h = hexes[i];
-        var dp = Math.max(0, Math.min(1, (el - tDraw0 - h.drawAt) / HEX.draw));
-        var cp = Math.max(0, Math.min(1, (el - tCol0 - h.dist * hexes.length * HEX.collapseEach * 0.5) / HEX.collapse));
-        if (dp <= 0 && cp <= 0) continue;
-        var scale = 1 - easeOutQuad(cp);
-        if (scale <= 0.01) continue;
+        var dp = Math.max(0, Math.min(1, (el - tDraw0 - h.drawAt * drawWindow) / HEX.draw));
+        var cp = Math.max(0, Math.min(1, (el - tCol0 - h.dist * maxColDelay) / HEX.collapse));
+        if (cp >= 1) continue;                              /* 已经消失 */
+        var scale = 1;                                      /* 描边阶段不缩放 */
+        if (cp > 0) scale = 1 - easeOutQuad(cp);
+        if (scale <= 0.012) continue;
         staticCtx.save();
         staticCtx.translate(h.x, h.y);
-        staticCtx.scale(scale, scale);
+        if (cp > 0) staticCtx.scale(scale, scale);
         hexPath(staticCtx, R);
-        /* 填充(深色,盖住界面)*/
-        staticCtx.globalAlpha = bgA > 0 ? 0.92 * (1 - cp) : 0;
-        staticCtx.fillStyle = "#0d1117";
+        staticCtx.globalAlpha = 1 - cp * 0.15;
+        staticCtx.fillStyle = "#141b26";                    /* 比黑底亮一点 → 看得出"一整块板" */
         staticCtx.fill();
-        /* 描边:用 dash 偏移做出"画一圈"的效果 */
-        staticCtx.globalAlpha = Math.min(1, dp * 1.2) * (1 - cp * 0.6);
-        staticCtx.setLineDash([per]);
-        staticCtx.lineDashOffset = -h.dir * per * (1 - easeOutQuart(dp));
-        staticCtx.strokeStyle = accent;
-        staticCtx.lineWidth = Math.max(1, R * 0.035);
-        staticCtx.stroke();
+        if (dp > 0) {
+          staticCtx.globalAlpha = Math.min(1, dp * 1.15) * (1 - cp * 0.55);
+          staticCtx.setLineDash([per]);
+          staticCtx.lineDashOffset = -h.dir * per * (1 - easeOutQuart(dp));
+          staticCtx.strokeStyle = accent;
+          staticCtx.lineWidth = Math.max(1, R * 0.035);
+          staticCtx.stroke();
+        }
         staticCtx.restore();
       }
       staticCtx.setLineDash([]);
@@ -516,7 +529,6 @@
       bootRAF = requestAnimationFrame(frame);
     }
     bootRAF = requestAnimationFrame(frame);
-    window.__bootTotalMs = Math.round(tEnd + HEX.fade);
   }
   function screenOff() {
     if (!staticWrap) return;
