@@ -16,7 +16,8 @@
    公开:initCdAudio(cfg) → { play, setEnabled, isEnabled, setVolume, render, unlock }
    ============================================================ */
 
-const PREFS_KEY = "cd-audio";        /* localStorage:"on" / "off" */
+const PREFS_KEY = "cd-audio";        /* localStorage:"on" / "off"(静音状态)*/
+const VOL_KEY = "cd-audio-vol";      /* localStorage:主音量 0..1 */
 
 const DEFAULTS = {
   enabled: true,
@@ -31,7 +32,8 @@ const DEFAULTS = {
 let cfg = Object.assign({}, DEFAULTS);
 let ctx = null;
 let bus = null;
-let on = true;                      /* 用户开关 */
+let on = true;                      /* 用户开关(静音)*/
+let master = 0.5;                   /* 主音量 0..1(滑动条控制)*/
 let bound = false;
 let gestured = false;               /* 用户已经点过(自动播放策略已解锁)*/
 
@@ -240,7 +242,7 @@ function ensureCtx() {
   if (!AC) return null;
   ctx = new AC();
   bus = ctx.createGain();
-  bus.gain.value = on ? cfg.master : 0;
+  bus.gain.value = on ? master : 0;
   bus.connect(ctx.destination);
   dbg.ctxState = ctx.state;
   return ctx;
@@ -248,7 +250,7 @@ function ensureCtx() {
 
 function applyGain() {
   if (!ctx || !bus) return;
-  const v = on ? cfg.master : 0;
+  const v = on ? master : 0;
   try { bus.gain.setTargetAtTime(v, ctx.currentTime, 0.012); } catch (e) { bus.gain.value = v; }
 }
 
@@ -285,9 +287,29 @@ function syncButton() {
   if (!btn) return;
   btn.classList.toggle("is-muted", !on);
   btn.setAttribute("aria-pressed", on ? "false" : "true");
-  const label = on ? "关闭音效" : "开启音效";
+  const label = on ? "静音" : "取消静音";
   btn.title = label;
   btn.setAttribute("aria-label", label);
+  const range = document.getElementById("volume-range");
+  const out = document.getElementById("volume-value");
+  if (range) range.value = String(Math.round(master * 100));
+  if (out) out.textContent = Math.round(master * 100) + "%";
+}
+
+/* 音量滑动条:直接改总线增益(音效 + 音乐一起),存 localStorage */
+function bindVolume() {
+  const range = document.getElementById("volume-range");
+  if (!range || range.dataset.bound) return;
+  range.dataset.bound = "1";
+  range.addEventListener("input", () => {
+    const v = Math.max(0, Math.min(1, (+range.value || 0) / 100));
+    master = v;
+    try { localStorage.setItem(VOL_KEY, String(v)); } catch (e) {}
+    if (v > 0 && !on) { on = true; try { localStorage.setItem(PREFS_KEY, "on"); } catch (e) {} }
+    if (v === 0 && on) { on = false; try { localStorage.setItem(PREFS_KEY, "off"); } catch (e) {} }
+    applyGain();
+    syncButton();
+  });
 }
 
 function bindButton() {
@@ -295,12 +317,14 @@ function bindButton() {
   if (!btn || bound) return;
   bound = true;
   btn.addEventListener("click", () => setEnabled(!on));
+  bindVolume();
   syncButton();
 }
 
 function setEnabled(v) {
   on = !!v;
   try { localStorage.setItem(PREFS_KEY, on ? "on" : "off"); } catch (e) {}
+  if (on && master <= 0) { master = cfg.master || 0.5; }   /* 之前滑到 0 了,取消静音时给回默认音量 */
   dbg.enabled = on;
   applyGain();
   syncButton();
@@ -425,6 +449,7 @@ const MUSIC_DEFAULTS = {
   previewVolume: 0.14,     /* 预览音量(很小)*/
   bgmVolume: 0.25,         /* 背景音乐音量 */
   fadeMs: 400,             /* 淡入淡出(切换的手感)*/
+  cutMs: 150,              /* 换盘时"立刻停掉旧的"用多快淡出 */
   previewMs: 0,            /* 预览播多久后自动淡出(0 = 一直播到换选/关架子)*/
   bgmRestartOnInsert: false, /* 插入后背景音乐是否从头开始(false = 接着预览继续)*/
   prefetch: true,          /* 后台预取其余几首的字节(只进 HTTP 缓存,切换时省掉下载)*/
@@ -614,12 +639,19 @@ function prefetchDecode(key) {
 }
 
 /* 选中某张盘 → 小声预览
-   关键:换选很快时只有"最后一次选中"会真正起播(前面的请求作废,不浪费解码)*/
+   语义:一旦换成别的盘,先把当前这首**立刻停掉**(150ms 快速淡出,不硬切以防爆音),
+   等新这首解码好了再开始播 —— 不是"两首叠着等交叉淡入淡出"。
+   连续快速滚轮时只有最后停下来的那张会真正起播 */
 let previewGen = 0;
 function preview(key) {
   if (!musicCfg.enabled || !key) return;
   if (cur && cur.key === key) return;              /* 已经在放这首 */
   const gen = ++previewGen;
+  /* 换盘:马上停掉旧的 */
+  if (cur) {
+    mdbg.actions.push({ a: "cut", from: cur.key, to: key, at: Math.round(performance.now()) });
+    stopAll(musicCfg.cutMs != null ? musicCfg.cutMs : 150);
+  }
   mdbg.loading = true;
   mdbg.actions.push({ a: "preview", key: key, gen: gen, at: Math.round(performance.now()) });
   prefetchOthers(key);
@@ -737,6 +769,11 @@ export function initCdAudio(conf) {
   cfg = Object.assign({}, DEFAULTS, conf || {});
   musicCfg = Object.assign({}, MUSIC_DEFAULTS, (conf && conf.music) || {});
   try { on = localStorage.getItem(PREFS_KEY) !== "off"; } catch (e) { on = true; }
+  master = cfg.master != null ? cfg.master : 0.5;
+  try {
+    const sv = parseFloat(localStorage.getItem(VOL_KEY));
+    if (!isNaN(sv)) master = Math.max(0, Math.min(1, sv));
+  } catch (e) {}
   if (cfg.enabled === false) on = false;
   dbg.enabled = on;
 
@@ -745,7 +782,13 @@ export function initCdAudio(conf) {
     render: render,
     setEnabled: setEnabled,
     isEnabled: function () { return on; },
-    setVolume: function (v) { cfg.master = v; applyGain(); },
+    setVolume: function (v) {
+      master = Math.max(0, Math.min(1, +v || 0));
+      applyGain();
+      syncButton();
+      return master;
+    },
+    getVolume: function () { return master; },
     unlock: unlock,
     cues: Object.keys(CUES),
     /* 音乐:选中预览 / 插入转背景音乐 / 离开 CD 页 / 频谱 */

@@ -59,24 +59,32 @@
                 {{- end }}
 
                 {{- if .IsHome }}
-                {{- /* 光驱音效开关(只在首页;音效模块就绪后才显示,见 custom.css)*/}}
-                <button id="sound-toggle" class="theme-toggle" aria-pressed="false" title="关闭音效"
-                    aria-label="关闭音效">
-                    <svg class="snd-on" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24"
-                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round">
-                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                        <path d="M15.6 8.6a5 5 0 0 1 0 6.8"></path>
-                        <path d="M18.6 5.4a9.5 9.5 0 0 1 0 13.2"></path>
-                    </svg>
-                    <svg class="snd-off" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24"
-                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round">
-                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                        <line x1="22" y1="9" x2="16" y2="15"></line>
-                        <line x1="16" y1="9" x2="22" y2="15"></line>
-                    </svg>
-                </button>
+                {{- /* 音量:喇叭按钮 = 静音开关,悬停/聚焦展开滑动条调音量 */}}
+                <div class="sound-wrap" id="sound-wrap">
+                    <button id="sound-toggle" class="theme-toggle" aria-pressed="false" title="静音 / 取消静音"
+                        aria-label="静音开关" aria-expanded="false" aria-controls="volume-panel">
+                        <svg class="snd-on" xmlns="http://www.w3.org/2000/svg" width="17" height="17"
+                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                            <path d="M15.6 8.6a5 5 0 0 1 0 6.8"></path>
+                            <path d="M18.6 5.4a9.5 9.5 0 0 1 0 13.2"></path>
+                        </svg>
+                        <svg class="snd-off" xmlns="http://www.w3.org/2000/svg" width="17" height="17"
+                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                            <line x1="22" y1="9" x2="16" y2="15"></line>
+                            <line x1="16" y1="9" x2="22" y2="15"></line>
+                        </svg>
+                    </button>
+                    <div class="volume-panel" id="volume-panel">
+                        <div class="volume-panel-title">音量</div>
+                        <input id="volume-range" class="volume-range" type="range" min="0" max="100" step="1" value="50"
+                            aria-label="音量">
+                        <output class="volume-value" id="volume-value">50%</output>
+                    </div>
+                </div>
                 {{- end }}
 
                 <div class="palette-wrap" id="palette-wrap">

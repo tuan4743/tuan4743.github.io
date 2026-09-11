@@ -166,6 +166,85 @@ html:not(.has-cd-audio) #sound-toggle {
     display: inline;
 }
 
+/* 音量滑动条:悬停 / 聚焦 / 点击时展开(和配色面板同一套交互)*/
+.sound-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.volume-panel {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: -8px;
+    width: 190px;
+    padding: 0.7rem 0.85rem 0.6rem;
+    border-radius: 14px;
+    background: var(--entry, var(--theme));
+    border: 1px solid var(--intro-border, rgba(255, 255, 255, 0.12));
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-6px);
+    transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
+    z-index: 60;
+}
+
+.sound-wrap:hover .volume-panel,
+.sound-wrap:focus-within .volume-panel,
+.sound-wrap.open .volume-panel {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.volume-panel-title {
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    color: var(--secondary);
+    margin-bottom: 0.5rem;
+}
+
+.volume-range {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--primary) 22%, transparent);
+    outline: none;
+    cursor: pointer;
+}
+
+.volume-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--primary);
+    border: 2px solid var(--theme);
+    cursor: pointer;
+}
+
+.volume-range::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--primary);
+    border: 2px solid var(--theme);
+    cursor: pointer;
+}
+
+.volume-value {
+    display: block;
+    margin-top: 0.45rem;
+    font-size: 0.72rem;
+    text-align: right;
+    color: var(--secondary);
+    font-variant-numeric: tabular-nums;
+}
+
 /* 右侧组合容器:菜单 + 搜索框 */
 .nav-right {
     display: flex;

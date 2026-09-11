@@ -33,12 +33,13 @@ export function createFx(opts) {
     lines: { count: 9, lenMin: 0.22, lenMax: 0.85, width: 2.4, widthGrow: 2.4, grow: 0.25, alpha: 1.0 },
     polys: { count: 26, sizeMin: 0.03, sizeMax: 0.13, alphaMin: 0.06, alphaMax: 0.3, sat: 0.7, light: 0.5, rotate: 0.45 },
     agc: { floor: 0.12, decay: 0.5 },      /* 每频段自动增益:中间的条子不再"一有声就顶满" */
+    beat: { avg: 1.1, thresh: 1.15, gain: 3.0, decay: 2.8 },  /* 鼓点检测:低频突增 → 快速起、快速落 */
     smooth: 0.3,
     idle: true
   }, opts.cfg || {});
   cfg.on = Object.assign({}, cfg.on);
   cfg.colorful = Object.assign({}, cfg.colorful);
-  ["arc", "particles", "rays", "rings", "lines", "polys", "agc"].forEach((k) => { cfg[k] = Object.assign({}, cfg[k]); });
+  ["arc", "particles", "rays", "rings", "lines", "polys", "agc", "beat"].forEach((k) => { cfg[k] = Object.assign({}, cfg[k]); });
 
   let baseColor = opts.color || "#ffffff";
   let huePhase = 0;
@@ -196,6 +197,9 @@ export function createFx(opts) {
   let smoothBands = new Float32Array(64);
   let bandPeak = new Float32Array(64);        /* 每频段的自动增益参考值 */
   let smoothLevel = 0, smoothBass = 0, time = 0;
+  let bassSlow = 0, beatEnv = 0;      /* 鼓点检测用 */
+  let prevBands = new Float32Array(64);
+  let fluxAvg = 0, fxBass = 0, fxFlux = 0, fxFluxAvg = 0, fxRaw = [];
 
   /* 彩色(只给几何体和圆环用)*/
   function hueFor(i) {
@@ -267,6 +271,36 @@ export function createFx(opts) {
     }
     smoothLevel += (level - smoothLevel) * k;
     smoothBass += (bass - smoothBass) * k;
+
+    /* ---- 鼓点检测 ----
+       平滑后的总音量几乎是恒定的(所以背景看不出律动)。这里用**低频的"突增"(谱通量)**做onset:
+       只看低频那几段每帧涨了多少,再跟它自己的平均涨速比 —— 突然涨得多就是一下鼓点。
+       比"低频绝对值超过某个阈值"稳:低频常年饱和在 1.0,绝对阈值法根本分不出来 */
+    {
+      const B = cfg.beat;
+      const nb = raw.bands ? raw.bands.length : smoothBands.length;
+      if (prevBands.length !== nb) prevBands = new Float32Array(nb);
+      const lowN = Math.max(4, Math.round(nb * (B.lowRatio != null ? B.lowRatio : 0.25)));
+      let flux = 0;
+      for (let i = 0; i < lowN && i < nb; i++) {
+        const v = raw.bands ? raw.bands[i] : 0;
+        const d = v - prevBands[i];
+        if (d > 0) flux += d;
+        prevBands[i] = v;
+      }
+      flux /= Math.max(1, lowN);
+      fluxAvg += (flux - fluxAvg) * Math.min(1, dt * (B.avg != null ? B.avg : 1.2));
+      /* 用"相对涨速"判断,跟音量大小无关;gain 决定灵敏度 */
+      const rel = flux / Math.max(0.004, fluxAvg);
+      const over = Math.max(0, rel - (B.thresh != null ? B.thresh : 1.4));
+      const hit = Math.min(1, over * (B.gain != null ? B.gain : 4));
+      if (hit > beatEnv) beatEnv = hit;
+      /* 半衰期式衰减:帧率低的时候也不会被一帧清空(线性衰减会) */
+      beatEnv *= Math.pow(0.5, dt / Math.max(0.02, B.halfLife != null ? B.halfLife : 0.12));
+      fxBass = bass; fxFlux = flux; fxFluxAvg = fluxAvg;
+      fxRaw = raw.bands ? Array.from(raw.bands.slice(0, 6)).map((v) => +v.toFixed(3)) : [];
+      if (idle) beatEnv = Math.max(beatEnv, 0.10 + 0.10 * Math.sin(time * 1.4));
+    }
 
     if (cfg.colorful.on) huePhase = (huePhase + dt * cfg.colorful.speed * (0.6 + smoothLevel * 1.6)) % 1;
 
@@ -441,16 +475,18 @@ export function createFx(opts) {
     if (cfg.on.lines) {
       bg2d.clearRect(0, 0, W, H);
       const S = Math.min(W, H);
-      /* 多边形:位置/大小/旋转/颜色都固定,只叠一层整体透明度(跟着音量轻微浮动)*/
+      /* 多边形:位置/大小/旋转/颜色都固定 —— 但跟着鼓点"弹"一下(放大 + 提亮)*/
       if (cfg.polys.count > 0) {
         const P = cfg.polys;
+        const b = beatEnv;
         for (const q of polyPattern) {
           bg2d.save();
-          bg2d.globalAlpha = Math.min(1, q.alpha * (0.85 + smoothLevel * 0.5));
-          bg2d.fillStyle = "hsl(" + Math.round(q.hue * 360) + " " + Math.round(P.sat * 100) + "% " + Math.round(P.light * 100) + "%)";
+          bg2d.globalAlpha = Math.min(1, q.alpha * (0.85 + smoothLevel * 0.3 + b * 1.2));
+          bg2d.fillStyle = "hsl(" + Math.round(q.hue * 360) + " " + Math.round(P.sat * 100) + "% " + Math.round(Math.min(0.72, P.light + b * 0.18) * 100) + "%)";
           bg2d.translate(q.x * W, q.y * H);
           if (q.rot) bg2d.rotate(q.rot);
-          const w = q.w * S, h = q.h * S;
+          const sc = 1 + b * 0.22;                 /* 鼓点上放大约 22% */
+          const w = q.w * S * sc, h = q.h * S * sc;
           if (q.tri) {
             bg2d.beginPath();
             bg2d.moveTo(-w / 2, h / 2);
@@ -464,18 +500,19 @@ export function createFx(opts) {
           bg2d.restore();
         }
       }
-      /* 线:统一用"当前整体音量",最多伸长自身长度的 1/4,粗细最多翻倍 */
+      /* 线:跟着鼓点伸长/变粗(鼓点包络是"快速起落",所以看得见"一下一下")*/
       {
         const L = cfg.lines;
         const v = Math.max(0, Math.min(1.2, smoothLevel));
+        const b = beatEnv;
         bg2d.strokeStyle = baseColor;
         bg2d.lineCap = "round";
         bg2d.globalAlpha = L.alpha != null ? L.alpha : 1;
         for (const ln of linePattern) {
-          const len = Math.max(6, ln.len * (1 + v * L.grow) * W);
-          const w = ln.w * (1 + v * (L.widthGrow / Math.max(0.01, ln.w)));
+          const growT = v * 0.12 + b;                 /* 鼓点占大头 */
+          const len = Math.max(6, ln.len * (1 + growT * L.grow) * W);
+          bg2d.lineWidth = Math.min(ln.w * 2.4, ln.w * (1 + b * (L.widthGrow / Math.max(0.01, ln.w)) * 0.5));
           const x0 = ln.x * W, y0 = ln.y * H;
-          bg2d.lineWidth = Math.min(ln.w * 2, w);
           bg2d.beginPath();
           bg2d.moveTo(x0, y0);
           bg2d.lineTo(x0 + Math.cos(ln.ang) * len, y0 + Math.sin(ln.ang) * len);
@@ -497,6 +534,12 @@ export function createFx(opts) {
     fxdbg.visible = visible;
     fxdbg.hue = +huePhase.toFixed(3);
     fxdbg.cdRadius = +R0.toFixed(3);
+    fxdbg.beat = +beatEnv.toFixed(3);
+    fxdbg.beatPeak = Math.max(fxdbg.beatPeak || 0, beatEnv);
+    fxdbg.flux = +fxFlux.toFixed(4);
+    fxdbg.fluxAvg = +fxFluxAvg.toFixed(4);
+    fxdbg.bassRaw = +fxBass.toFixed(3);
+    fxdbg.raw = fxRaw;
     if (visible && info) {
       const A = cfg.arc;
       fxdbg.arc0 = [Math.round(info.screenX), Math.round(info.screenY), Math.round(info.screenR)];
@@ -529,7 +572,8 @@ export function createFx(opts) {
   const fxdbg = {
     level: 0, bass: 0, bands: [], particlesVisible: 0, ringVisible: 0,
     modes: Object.assign({}, cfg.on), visible: false, arc0: null, arcLeftMost: null,
-    arcMaxLen: 0, hue: 0, behindZ: behindZ, cdRadius: R0, lines: cfg.lines.count
+    arcMaxLen: 0, hue: 0, behindZ: behindZ, cdRadius: R0, lines: cfg.lines.count,
+    beat: 0, beatPeak: 0
   };
   if (typeof window !== "undefined") window.__cdFxDebug = fxdbg;
 
