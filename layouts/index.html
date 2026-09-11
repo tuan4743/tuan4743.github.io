@@ -1,13 +1,31 @@
 <!DOCTYPE html>
 <html lang="{{ site.Language.LanguageCode }}" dir="auto" data-theme="auto">
 {{- partial "head.html" . }}
-{{- $introCss := resources.Get "css/intro.css" | fingerprint "sha256" }}
-{{- $introJs := resources.Get "js/intro.js" | fingerprint "sha256" }}
-{{- $cd3dJs := resources.Get "js/cd3d.js" | fingerprint "sha256" }}
-{{- $paletteJs := resources.Get "js/theme-palette.js" | fingerprint "sha256" }}
-{{- $searchJs := resources.Get "js/header-search.js" | fingerprint "sha256" }}
-{{- $cursorJs := resources.Get "js/magnetic-cursor.js" | fingerprint "sha256" }}
-<link rel="stylesheet" href="{{ $introCss.RelPermalink }}">
+{{- /* 资源指纹:某个文件缺失时只警告并跳过,不让整页渲染失败
+       (以前 resources.Get 返回 nil 会让 fingerprint 直接报错,页面打不开)*/}}
+{{- $introCss := resources.Get "css/intro.css" -}}
+{{- $introJs := resources.Get "js/intro.js" -}}
+{{- $cd3dJs := resources.Get "js/cd3d.js" -}}
+{{- $audioJs := resources.Get "js/cd-audio.js" -}}
+{{- $fxJs := resources.Get "js/cd-fx.js" -}}
+{{- $paletteJs := resources.Get "js/theme-palette.js" -}}
+{{- $searchJs := resources.Get "js/header-search.js" -}}
+{{- $cursorJs := resources.Get "js/magnetic-cursor.js" -}}
+{{- range $name := slice "css/intro.css" "js/intro.js" "js/cd3d.js" "js/cd-audio.js" "js/cd-fx.js" "js/theme-palette.js" "js/header-search.js" "js/magnetic-cursor.js" -}}
+    {{- if not (resources.Get $name) -}}
+        {{- warnf "缺少资源 assets/%s —— 该功能会被跳过(检查文件是否完整)" $name -}}
+    {{- end -}}
+{{- end -}}
+{{- with $introCss }}{{ $introCss = . | fingerprint "sha256" }}{{ end -}}
+{{- with $introJs }}{{ $introJs = . | fingerprint "sha256" }}{{ end -}}
+{{- with $cd3dJs }}{{ $cd3dJs = . | fingerprint "sha256" }}{{ end -}}
+{{- with $audioJs }}{{ $audioJs = . | fingerprint "sha256" }}{{ end -}}
+{{- with $fxJs }}{{ $fxJs = . | fingerprint "sha256" }}{{ end -}}
+{{- with $paletteJs }}{{ $paletteJs = . | fingerprint "sha256" }}{{ end -}}
+{{- with $searchJs }}{{ $searchJs = . | fingerprint "sha256" }}{{ end -}}
+{{- with $cursorJs }}{{ $cursorJs = . | fingerprint "sha256" }}{{ end -}}
+{{- with $introCss }}
+<link rel="stylesheet" href="{{ .RelPermalink }}">{{ end }}
 <script type="importmap">
     {
         "imports": {
@@ -16,7 +34,8 @@
         }
     }
 </script>
-<body id="top" class="intro-page" data-cd3d="{{ $cd3dJs.RelPermalink }}">
+<body id="top" class="intro-page"{{ with $cd3dJs }} data-cd3d="{{ .RelPermalink }}"{{ end }}{{ with $audioJs }}
+    data-cd-audio="{{ .RelPermalink }}"{{ end }}{{ with $fxJs }} data-cd-fx="{{ .RelPermalink }}"{{ end }}>
     <!-- 首次进入的加载页(3D 就绪前显示) -->
     <div class="intro-loader" id="intro-loader">
         <div class="intro-loader-inner">
@@ -59,14 +78,71 @@
 
         <!-- CD 架:从屏幕右缘滑出,内部轮盘以插入点(hub)为轴心 -->
         <div class="rack" id="rack" aria-hidden="true">
-            <div class="rack-head">
-                <button class="rack-close" id="rack-close" title="收起 CD 架" aria-label="收起 CD 架">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                        stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
-                        <polyline points="15 5 8 12 15 19"></polyline>
+            <!-- 背景:主题色菱形平铺(颜色由 intro.js 按当前选中盘注入 SVG data-URI)-->
+            <div class="rack-bg" id="rack-bg" aria-hidden="true"></div>
+            <!-- CD 架文字介绍:左上"当前主题 + 配文",左下"歌名 + 歌手"
+                 颜色 = 当前背景色的反色;背景色随"当前选中的盘"变化 -->
+            <div class="rack-info" id="rack-info">
+                {{- range site.Params.intro.panels }}
+                <div class="rack-info-item" data-panel="{{ .key }}"{{ with .bg }} data-bg="{{ . }}"{{ end }}{{ with .fg }} data-fg="{{ . }}"{{ end }}>
+                    <div class="rack-info-top">
+                        <h2 class="rack-theme">{{ .title }}</h2>
+                        <p class="rack-caption">{{ .caption | default .text }}</p>
+                    </div>
+                    <div class="rack-info-bottom">
+                        <div class="rack-song">{{ .song }}</div>
+                        <div class="rack-artist">{{ .artist }}</div>
+                    </div>
+                </div>
+                {{- end }}
+            </div>
+
+            <!-- 音频可视化开关:左侧竖排,可任意叠加(3D 就绪后才显示) -->
+            <div class="fx-switches" id="fx-switches" role="group" aria-label="音频可视化">
+                <button class="fx-switch" data-fx="arc" aria-pressed="true" title="音频条:盘左侧 135°~225°">
+                    <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor"
+                        stroke-width="1.9" stroke-linecap="round">
+                        <line x1="4" y1="8.5" x2="4" y2="11.5"></line>
+                        <line x1="10" y1="4" x2="10" y2="16"></line>
+                        <line x1="16" y1="8" x2="16" y2="12"></line>
                     </svg>
                 </button>
-                <span class="rack-label">CD RACK</span>
+                <button class="fx-switch" data-fx="particles" aria-pressed="true" title="律动几何体:从盘心向外弹射">
+                    <svg viewBox="0 0 20 20" width="16" height="16" fill="currentColor">
+                        <polygon points="10,3.5 12.8,8.5 7.2,8.5"></polygon>
+                        <polygon points="4.5,11.5 7,16 2,16"></polygon>
+                        <polygon points="15.5,11.5 18,16 13,16"></polygon>
+                    </svg>
+                </button>
+                <button class="fx-switch" data-fx="rays" aria-pressed="false" title="放射线:从盘缘随频谱伸缩">
+                    <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor"
+                        stroke-width="1.7" stroke-linecap="round">
+                        <line x1="10" y1="10" x2="10" y2="2.5"></line>
+                        <line x1="10" y1="10" x2="17.5" y2="10"></line>
+                        <line x1="10" y1="10" x2="10" y2="17.5"></line>
+                        <line x1="10" y1="10" x2="2.5" y2="10"></line>
+                        <line x1="10" y1="10" x2="15.3" y2="4.7"></line>
+                        <line x1="10" y1="10" x2="4.7" y2="15.3"></line>
+                        <line x1="10" y1="10" x2="15.3" y2="15.3"></line>
+                        <line x1="10" y1="10" x2="4.7" y2="4.7"></line>
+                    </svg>
+                </button>
+                <button class="fx-switch" data-fx="rings" aria-pressed="false" title="扩散圆环:低频一响向外扩一圈">
+                    <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor"
+                        stroke-width="1.7">
+                        <circle cx="10" cy="10" r="2.6"></circle>
+                        <circle cx="10" cy="10" r="6.2"></circle>
+                    </svg>
+                </button>
+                <button class="fx-switch" data-fx="lines" aria-pressed="true" title="背景:随机彩色多边形 + 随音量伸缩的线">
+                    <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor"
+                        stroke-width="1.7" stroke-linecap="round">
+                        <rect x="2" y="3" width="6" height="6" rx="1"></rect>
+                        <line x1="11" y1="5" x2="18" y2="5"></line>
+                        <line x1="2" y1="14" x2="12" y2="14"></line>
+                        <rect x="14" y="11" width="4" height="4" rx="1"></rect>
+                    </svg>
+                </button>
             </div>
             <div class="wheel" id="wheel">
                 {{- range site.Params.intro.panels }}
@@ -84,7 +160,6 @@
                     <div class="hub-cd" id="hub-cd"></div>
                 </div>
             </div>
-            <p class="rack-hint" id="tray-hint">滚轮 / ↑↓ 选择 · 点击 CD 确认</p>
         </div>
     </div>
 
@@ -99,9 +174,9 @@
             } catch (e) {}
         })();
     </script>
-    <script defer src="{{ $searchJs.RelPermalink }}"></script>
-    <script defer src="{{ $cursorJs.RelPermalink }}"></script>
-    <script defer src="{{ $paletteJs.RelPermalink }}"></script>
-    <script defer src="{{ $introJs.RelPermalink }}"></script>
+    {{ with $searchJs }}<script defer src="{{ .RelPermalink }}"></script>
+    {{ end }}{{ with $cursorJs }}<script defer src="{{ .RelPermalink }}"></script>
+    {{ end }}{{ with $paletteJs }}<script defer src="{{ .RelPermalink }}"></script>
+    {{ end }}{{ with $introJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
 </body>
 </html>

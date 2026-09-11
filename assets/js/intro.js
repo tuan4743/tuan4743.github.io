@@ -4,12 +4,11 @@
 
   var body = document.body;
   var toggle = document.getElementById("intro-toggle");
-  var closeBtn = document.getElementById("rack-close");
   var rack = document.getElementById("rack");
+  var rackBg = document.getElementById("rack-bg");
   var wheel = document.getElementById("wheel");
   var hub = document.getElementById("hub");
   var hubCd = document.getElementById("hub-cd");
-  var hint = document.getElementById("tray-hint");
   var cds = Array.prototype.slice.call(document.querySelectorAll(".cd[data-panel]"));
   var panels = document.querySelectorAll(".intro-panel");
   var cdOrder = cds.map(function (cd) { return cd.getAttribute("data-panel"); });
@@ -28,6 +27,110 @@
   var STEP = 22;              /* 相邻 CD 角度步长(度) */
 
   /* ---------- 轮盘几何:轴心 = hub(插入点,靠近屏幕接缝),CD 在其左侧绕转 ---------- */
+  var rackInfo = Array.prototype.slice.call(document.querySelectorAll(".rack-info-item"));
+  var rackPainted = null;
+
+  /* 反色:#RRGGBB → 每通道 255-x */
+  function invertHex(hex) {
+    var h = String(hex || "").trim().replace(/^#/, "");
+    if (h.length === 3) h = h.charAt(0) + h.charAt(0) + h.charAt(1) + h.charAt(1) + h.charAt(2) + h.charAt(2);
+    if (!/^[0-9a-fA-F]{6}$/.test(h)) return "";
+    return "#" + ("000000" + (0xffffff - parseInt(h, 16)).toString(16)).slice(-6);
+  }
+
+  /* 相对亮度(用于"背景换成深蓝黑之后,文字选哪个颜色才看得清")*/
+  function luminance(hex) {
+    var h = String(hex || "").replace(/^#/, "");
+    if (!/^[0-9a-fA-F]{6}$/.test(h)) return 0;
+    var v = [0, 2, 4].map(function (i) {
+      var c = parseInt(h.substr(i, 2), 16) / 255;
+      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+  }
+  function contrast(a, b) {
+    var hi = Math.max(a, b), lo = Math.min(a, b);
+    return (hi + 0.05) / (lo + 0.05);
+  }
+  var BASE_HEX = "#0b0b14";
+  var BASE_LUM = luminance(BASE_HEX);
+
+  /* 文字实际压在"菱形(主题色 50%)叠在深底上"的结果上,所以要拿这个合成色比对比度 */
+  function composite(hex, t) {
+    var h = String(hex || "").replace(/^#/, "");
+    var b = BASE_HEX.replace(/^#/, "");
+    if (!/^[0-9a-fA-F]{6}$/.test(h)) return BASE_HEX;
+    var out = [0, 2, 4].map(function (i) {
+      var a = parseInt(h.substr(i, 2), 16), c = parseInt(b.substr(i, 2), 16);
+      return ("0" + Math.round(a * t + c * (1 - t)).toString(16)).slice(-2);
+    });
+    return "#" + out.join("");
+  }
+
+  /* 文字色:在"主题色"和"它的反色"里挑跟实际背景(菱形 50% 合成色)对比度更高的那个 */
+  function pickInk(themeHex) {
+    var inv = invertHex(themeHex);
+    if (!themeHex) return "";
+    if (!inv) return themeHex;
+    var eff = luminance(composite(themeHex, 0.5));
+    var a = contrast(luminance(themeHex), eff);
+    var b = contrast(luminance(inv), eff);
+    if (a >= b) return themeHex;
+    return inv;
+  }
+
+  /* 主题色若和深底太接近(比如"技术"的纯黑),菱形会看不见 —— 往白里提一点点 */
+  function mixWhite(hex, t) {
+    var v = [1, 3, 5].map(function (i) { return parseInt(hex.substr(i, 2), 16); });
+    return "#" + v.map(function (c) {
+      return ("0" + Math.round(c + (255 - c) * t).toString(16)).slice(-2);
+    }).join("");
+  }
+  function liftForBase(hex) {
+    if (!/^#[0-9a-fA-F]{6}$/.test(String(hex || ""))) return hex;
+    return contrast(luminance(hex), BASE_LUM) < 1.15 ? mixWhite(hex, 0.3) : hex;
+  }
+
+  /* 菱形平铺图案:一个 45° 旋转的正方形,填当前主题色、50% 透明 */
+  function diamondBg(hex) {
+    var c = /^#[0-9a-fA-F]{6}$/.test(String(hex || "")) ? hex : "#888888";
+    c = liftForBase(c);
+    var svg = "<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'>" +
+      "<rect x='10' y='10' width='20' height='20' transform='rotate(45 20 20)' fill='" + c + "' fill-opacity='0.5'/></svg>";
+    return 'url("data:image/svg+xml,' +
+      svg.replace(/</g, "%3C").replace(/>/g, "%3E").replace(/#/g, "%23") + '")';
+  }
+
+  /* CD 架文字介绍 + 背景色:都跟随"当前选中的那张盘"(滚动换选即变色)*/
+  function paintRackInfo(key) {
+    if (key === rackPainted) return;
+    rackPainted = key;
+    var active = null;
+    rackInfo.forEach(function (el) {
+      var on = el.getAttribute("data-panel") === key;
+      el.classList.toggle("is-active", on);
+      if (on) active = el;
+    });
+    if (!active) return;
+    var bg = active.getAttribute("data-bg") || "";
+    var fg = active.getAttribute("data-fg") || pickInk(bg);
+    if (fg) rack.style.setProperty("--rack-fg", fg);
+    /* 菱形平铺背景:主题色 + 50% 透明 */
+    if (rackBg && bg) rackBg.style.backgroundImage = diamondBg(bg);
+    if (cd3dApi && cd3dApi.setFxColor) cd3dApi.setFxColor(fg);   /* 可视化跟着一起换色 */
+    window.__rackDebug = {
+      key: key, bg: bg, fg: fg, diamond: rackBg ? rackBg.style.backgroundImage.indexOf("data:image/svg") === 0 : false,
+      readBack: rackBg ? rackBg.style.backgroundImage.slice(0, 400) : "",
+      at: Math.round(performance.now())
+    };
+  }
+
+  /* 3D 就绪后要把颜色重推一次(fx 是后来才创建的)*/
+  function repaintRack() {
+    rackPainted = null;
+    paintRackInfo(cdOrder[selIndex]);
+  }
+
   function layout() {
     var rect = wheel.getBoundingClientRect();
     var R = Math.max(96, Math.min(190, rect.height * 0.34, rect.width * 0.38));
@@ -58,6 +161,7 @@
     hub.style.left = (hubX - hubW / 2).toFixed(1) + "px";
     hub.style.top = (hubY - hubH / 2).toFixed(1) + "px";
     paintHubCd();
+    paintRackInfo(cdOrder[selIndex]);   /* 文字介绍 + 背景色跟随选中盘 */
   }
 
   function paintHubCd() {
@@ -117,6 +221,12 @@
     /* 只有"该盘已在光驱内"才阻止重复插入;刷新后光驱为空,即使主题相同也能插 */
     if (insertedKey !== null && key === insertedKey) return;
     locked = true;
+    if (cd3dApi && cd3dApi.setMusicPreview) cd3dApi.setMusicPreview(false);  /* 插入期间别再切预览 */
+    /* 插入动画开始:音乐停、可视化关(否则几何体/音频条会跟着盘飞进光驱)*/
+    if (cd3dApi) {
+      if (cd3dApi.audio && cd3dApi.audio.music.stop) cd3dApi.audio.music.stop();
+      if (cd3dApi.setFxEnabled) cd3dApi.setFxEnabled(false);
+    }
 
     /* 3D 模式:让「真实选中的那张 CD」飞入光驱(前端补间) */
     var use3d = !!cd3dApi;
@@ -128,12 +238,20 @@
     function finish() {
       activeKey = key;
       insertedKey = key;          /* 记录"盘已在光驱内" */
+      /* 先把这张盘的音乐升格为背景音乐(接着预览继续放,不重启),
+         再补位/换中心 —— 顺序反了的话"换中心"会顺带请求下一张盘的预览 */
+      if (cd3dApi && cd3dApi.audio) cd3dApi.audio.music.toBgm(key);
       moveSelectionOff(key);      /* 飞入完成后再补位/换中心,避免穿模 */
       playPanel(key);
       hub.classList.add("is-playing");
       try { localStorage.setItem("intro-theme", key); } catch (e) {}
       locked = false;
+      if (cd3dApi && cd3dApi.setMusicPreview) cd3dApi.setMusicPreview(true);
       setOpen(false);   /* 插入完成后回到主界面 */
+      /* 回到主界面:重新开始这首的背景音乐,并把可视化打开(等镜头平移完再开)*/
+      setTimeout(function () {
+        if (cd3dApi && cd3dApi.setFxEnabled) cd3dApi.setFxEnabled(true);
+      }, 900);
     }
 
     /* 光驱已弹出的新流程:CD 从上方落入 → CD+光驱一起插回(末尾停顿后干脆插入) */
@@ -191,18 +309,18 @@
     if (open) {
       setTimeout(layout, 80);
       scheduleEject();                 /* 每次打开都重新弹出光驱 */
+      /* 回到 CD 页 → 当前选中的盘小声预览(背景音乐让位)*/
+      if (cd3dApi && cd3dApi.previewCurrent) cd3dApi.previewCurrent();
     } else if (cd3dApi && cd3dApi.isDriveOut() && !locked) {
       clearTimeout(ejectTimer);
       cd3dApi.retractDrive();          /* 收起架子时把弹出的光驱收回去 */
     }
+    /* 收起架子:结束预览;光驱里那张盘的背景音乐继续放 */
+    if (!open && cd3dApi && cd3dApi.audio) cd3dApi.audio.music.leaveCdPage();
   }
 
   toggle.addEventListener("click", function () {
     setOpen(!body.classList.contains("scene-open"));
-  });
-
-  closeBtn.addEventListener("click", function () {
-    setOpen(false);
   });
 
   document.addEventListener("click", function (e) {
@@ -305,6 +423,43 @@
     setOpen(true);                       /* 视角左移,CD 架滑出(内部会调度光驱弹出) */
   }
 
+  /* ---------- 音频可视化开关(左侧竖排,可叠加,记在 localStorage)---------- */
+  var fxButtons = Array.prototype.slice.call(document.querySelectorAll(".fx-switch"));
+  var FX_KEY = "cd-fx";
+
+  function saveFx() {
+    var s = {};
+    fxButtons.forEach(function (b) { s[b.getAttribute("data-fx")] = b.getAttribute("aria-pressed") === "true"; });
+    try { localStorage.setItem(FX_KEY, JSON.stringify(s)); } catch (e) {}
+  }
+
+  function pushFx() {
+    if (!cd3dApi || !cd3dApi.setFxMode) return;
+    fxButtons.forEach(function (b) {
+      cd3dApi.setFxMode(b.getAttribute("data-fx"), b.getAttribute("aria-pressed") === "true");
+    });
+  }
+
+  fxButtons.forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var on = btn.getAttribute("aria-pressed") !== "true";
+      btn.setAttribute("aria-pressed", on ? "true" : "false");
+      pushFx();
+      saveFx();
+    });
+  });
+
+  /* 恢复上次的开关状态(没存过就用 HTML 里的默认值)*/
+  (function restoreFx() {
+    var saved = null;
+    try { saved = JSON.parse(localStorage.getItem(FX_KEY) || "null"); } catch (e) {}
+    if (!saved) return;
+    fxButtons.forEach(function (b) {
+      var k = b.getAttribute("data-fx");
+      if (typeof saved[k] === "boolean") b.setAttribute("aria-pressed", saved[k] ? "true" : "false");
+    });
+  })();
+
   /* ---------- Three.js 懒加载(资产缺失/无WebGL/减少动效 → DOM 降级) ---------- */
   var cd3dApi = null;
   var cd3dTried = false;
@@ -328,11 +483,19 @@
         return mod.initCd3d({
           container: wheel,
           selIndex: selIndex,
+          audioUrl: body.dataset.cdAudio,     /* 光驱音效 + 音乐(Web Audio 合成/解码,无第三方库)*/
+          fxUrl: body.dataset.cdFx,           /* 音频可视化(音频条 / 律动几何体)*/
           onProgress: function (p, label) { setProgress(p, label); },
           onReady: function (api) {
             cd3dApi = api;
             body.classList.add("cd3d-on");
             api.setSelection(selIndex);
+            /* 可视化就绪:显示左侧开关 + 把当前状态和颜色推给它 */
+            if (api.fx) {
+              document.documentElement.classList.add("has-cd-fx");
+              pushFx();
+              repaintRack();
+            }
             console.info("[cd3d] 3D 模式已激活");
             setProgress(100, "加载完成");
             startIntro();            /* 隐藏加载页 → 打开 CD 架 → 光驱弹出 */

@@ -48,6 +48,27 @@ export async function initCd3d(opts) {
     return null;
   }
 
+  /* 2.5 音效模块(懒加载;失败只影响声音,不影响画面)*/
+  let audio = null;
+  if (opts.audioUrl) {
+    try {
+      const mod = await import(opts.audioUrl);
+      audio = mod.initCdAudio(m.audio || {});
+    } catch (e) {
+      console.warn("[cd3d] 音效模块加载失败(画面不受影响):" + (e && e.message));
+    }
+  }
+
+  /* 2.6 可视化模块(音频条 / 律动几何体等)*/
+  let createFx = null;
+  if (opts.fxUrl) {
+    try {
+      ({ createFx } = await import(opts.fxUrl));
+    } catch (e) {
+      console.warn("[cd3d] 可视化模块加载失败(画面不受影响):" + (e && e.message));
+    }
+  }
+
   /* 3. 渲染器 / 场景 / 相机 */
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -402,9 +423,13 @@ export async function initCd3d(opts) {
     setPath(item, [rackTargetFor(item)], [rackMoveMs], 0, instant);
   }
 
+  let previewAllowed = true;      /* 插入流程中关掉预览,避免"补位换中心"顺带切歌 */
+
   function place(idx, instant) {
     selIndex = idx;
     if (cdItems[idx]) centerKey = cdItems[idx].key;
+    /* 换选 → 这一首小声预览(同一首重复调用会自己忽略)*/
+    if (previewAllowed && audio && cdItems[idx]) audio.music.preview(cdItems[idx].key);
     cdItems.forEach((item) => {
       if (item.key === insertedKey) return;      /* 已插入的盘不入架 */
       moveToRack(item, instant);
@@ -451,6 +476,8 @@ export async function initCd3d(opts) {
         const p3 = slotPoint.clone();
         setPath(item, [p1, p2, p3], [spinBackMs + 60, flyMs, settleMs], 0);
         item.userData.path.points[0].z = from.z;
+        /* 音效:光驱已在机内时的"飞入"(落到盘托那一下)*/
+        if (audio) audio.play("disc", { lead: spinBackMs + 60, ms: flyMs, settle: settleMs });
         return;
       }
       if (item.key === prevInserted) {
@@ -479,6 +506,8 @@ export async function initCd3d(opts) {
       if (cb) cb();
       return;
     }
+    /* shift = 触发瞬间托盘位置(只用于验证/调试:确认声音与动画同帧)*/
+    if (audio) audio.play("eject", { ms: ejectMs, shift: +driveShift.toFixed(3) });
     animateDrive(-driveDist, ejectMs, easeOutBack, 0, cb);   /* 过冲峰值也不会超过缩进量 */
   }
 
@@ -489,9 +518,14 @@ export async function initCd3d(opts) {
       return;
     }
     const toPause = from * 0.12;                 /* 收到最后一点点 */
+    if (audio) audio.play("insert", { ms: retractMs2, shift: +driveShift.toFixed(3) });
     animateDrive(toPause, retractMs2, easeInOut, 0, function () {
       /* 停顿一下 → 干脆地插回(模拟真实光驱) */
-      animateDrive(0, retractSnapMs, easeInOut, retractPauseMs, cb);
+      if (audio) audio.play("snap", { ms: retractSnapMs, delayMs: retractPauseMs, shift: +driveShift.toFixed(3) });
+      animateDrive(0, retractSnapMs, easeInOut, retractPauseMs, function () {
+        if (audio) audio.play("clack", { shift: +driveShift.toFixed(3) });   /* 咔哒:与"落底"同一帧 */
+        if (cb) cb();
+      });
     });
   }
 
@@ -523,12 +557,16 @@ export async function initCd3d(opts) {
       freezeAfter: true
     };
     /* 2) 路径:从架位抬出画外 → 移到槽口正上方 → 落入槽口 */
+    const liftMs = 280;          /* 抬出画外那一段(音效的 lead 要用同一个值)*/
+    const seatMs = 180;          /* 落进盘托后坐实那一段 */
     const slotNow = new THREE.Vector3(slotPoint.x + driveTuck + driveShift, slotPoint.y, slotPoint.z);
     const from = item.group.position.clone();
     const p1 = new THREE.Vector3(from.x, slotPoint.y + dropHeight, from.z);
     const p2 = new THREE.Vector3(slotNow.x, slotNow.y + 0.3, slotNow.z);
     const p3 = slotNow.clone();
-    setPath(item, [p1, p2, p3], [280, dropMs, 180], spinBackMs + 60);
+    setPath(item, [p1, p2, p3], [liftMs, dropMs, seatMs], spinBackMs + 60);
+    /* 音效:先静默抬出 → 下落的 720ms 有气流 → 落在盘托那一下 + 吸到主轴 */
+    if (audio) audio.play("disc", { lead: spinBackMs + 60 + liftMs, ms: dropMs, settle: seatMs });
     item.userData.onPathDone = function () {
       rideDrive = true;                          /* 之后随光驱一起进退 */
       insertedKey = key;
@@ -687,6 +725,84 @@ export async function initCd3d(opts) {
   const tmp = new THREE.Vector3();
   let lastT = performance.now();
 
+  /* ---------- 音频可视化(可选)----------
+     CD 半径:默认从几何体量出来(你改模型大小/位置后特效自动跟随),manifest 写死数字则优先用它 */
+  let cdRadius = 0;
+  {
+    cdItems.forEach((it) => {
+      try {
+        const g = it.mesh.geometry;
+        if (!g.boundingBox) g.computeBoundingBox();
+        const b = g.boundingBox;
+        const ws = new THREE.Vector3();
+        it.mesh.getWorldScale(ws);
+        const rx = (Math.abs(b.max.x - b.min.x) / 2) * Math.abs(ws.x || 1);
+        const ry = (Math.abs(b.max.y - b.min.y) / 2) * Math.abs(ws.y || 1);
+        cdRadius = Math.max(cdRadius, rx, ry);
+      } catch (e) {}
+    });
+    if (!(cdRadius > 0)) cdRadius = 1.0;
+    if (m.cdRadius != null && m.cdRadius > 0) cdRadius = m.cdRadius;
+    console.info("[cd3d] CD 模型半径 = " + cdRadius.toFixed(3) + (m.cdRadius != null ? "(manifest 指定)" : "(几何体实测)"));
+  }
+  let fx = null;
+  let fxEnabled = true;      /* 插入动画期间关掉,免得几何体/音频条跟着盘飞进光驱 */
+  measureFxLimit();
+  if (createFx) {
+    try {
+      fx = createFx({
+        THREE: THREE,
+        scene: scene,
+        container: container,
+        cfg: m.fx || {},
+        levels: audio ? function () { return audio.music.levels(); } : null,
+        color: "#ffffff",
+        /* 特效平面必须放在盘的后面:盘会随鼠标倾斜(z 方向±0.24),
+           放在前面的话一倾斜特效就"跑到盘上面"了 */
+        behind: cdZ - 0.5,
+        cdRadius: cdRadius
+      });
+    } catch (e) {
+      console.warn("[cd3d] 可视化初始化失败:" + (e && e.message));
+    }
+  }
+
+  /* 音频条的"左墙":左侧那列开关的右边缘(条子不许越过它,否则会压住开关)。
+     这样无论怎么调轨道/盘大小,最长那条都会自动收住 */
+  let fxLeftLimit = 0;
+  function measureFxLimit() {
+    try {
+      const sw = container.parentNode && container.parentNode.querySelector(".fx-switches");
+      if (sw) {
+        const r = sw.getBoundingClientRect();
+        if (r.width > 0) fxLeftLimit = r.right + 8;
+      }
+    } catch (e) {}
+  }
+
+  /* 左墙:每秒重新量一次(开关列在 3D 就绪后才显示,初始化时量不到)*/
+  let fxLimitAge = 0;
+  function fxFrame(dt, visible) {
+    if (!fx) return;
+    fxLimitAge += dt;
+    if (fxLimitAge > 1) { fxLimitAge = 0; measureFxLimit(); }
+    if (!fxEnabled) { fx.update(dt, { visible: false }); return; }
+    const r = container.getBoundingClientRect();
+    const sel = cdItems[selIndex];
+    if (!sel) { fx.update(dt, { visible: false }); return; }
+    const w = sel.group.getWorldPosition(tmp).project(camera);
+    const pxPerUnit = r.height / viewH;
+    fx.update(dt, {
+      visible: !!visible,
+      x: sel.group.position.x,
+      y: sel.group.position.y,
+      screenX: ((w.x + 1) / 2) * r.width,
+      screenY: ((1 - w.y) / 2) * r.height,
+      screenR: cdRadius * pxPerUnit,
+      leftLimit: fxLeftLimit
+    });
+  }
+
   function frame(now) {
     raf = requestAnimationFrame(frame);
     const t = now || performance.now();
@@ -811,6 +927,21 @@ export async function initCd3d(opts) {
           Math.round(((tmp.x + 1) / 2) * r.width),
           Math.round(((1 - tmp.y) / 2) * r.height)
         ];
+        /* 选中盘在屏幕上的半径(px)+ 画布尺寸:音频条要按这个贴在盘外侧 */
+        try {
+          const geo = sel.mesh.geometry;
+          if (!geo.boundingSphere) geo.computeBoundingSphere();
+          const ws = new THREE.Vector3();
+          sel.mesh.getWorldScale(ws);
+          const worldR = geo.boundingSphere.radius * Math.max(ws.x, ws.y, ws.z);
+          const camRight = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
+          const cw = sel.group.getWorldPosition(new THREE.Vector3());
+          const edge = cw.add(camRight.multiplyScalar(worldR)).project(camera);
+          const cx = ((tmp.x + 1) / 2) * r.width;
+          const ex = ((edge.x + 1) / 2) * r.width;
+          window.__cd3dDebug.selectedScreenR = Math.round(Math.abs(ex - cx));
+        } catch (e) { window.__cd3dDebug.selectedScreenR = null; }
+        window.__cd3dDebug.wheelRect = [Math.round(r.width), Math.round(r.height)];
         if (insertedKey) {
           const ins = cdItems.find((it) => it.key === insertedKey);
           if (ins) {
@@ -836,15 +967,24 @@ export async function initCd3d(opts) {
         window.__cd3dDebug.driveShift = +driveShift.toFixed(3);
         window.__cd3dDebug.driveTuck = +driveTuck.toFixed(3);
         window.__cd3dDebug.rideDrive = rideDrive;
+        /* 架位间距(供调参/验证:改 manifest 的 cdSpacingRatio 后看这两个值)*/
+        window.__cd3dDebug.spacing = +spacing.toFixed(4);
+        window.__cd3dDebug.viewH = +viewH.toFixed(4);
+        window.__cd3dDebug.spacingRatio = +(spacing / viewH).toFixed(4);
+        window.__cd3dDebug.fxOn = fxEnabled;
+        window.__cd3dDebug.fxLeftLimit = fxLeftLimit;
       }
     }
     renderer.render(scene, camera);
+    if (!paused) fxFrame(dt, true);
   }
   frame();
 
   function onResize() {
     renderer.setSize(container.clientWidth || 1, container.clientHeight || 1);
     fit();
+    measureFxLimit();
+    if (fx) fx.resize();
   }
   window.addEventListener("resize", onResize);
 
@@ -852,6 +992,27 @@ export async function initCd3d(opts) {
     setSelection(i) {
       selIndex = i;
       place(i, false);
+    },
+    /* ---- 音频可视化 ---- */
+    audio: audio,
+    fx: fx,
+    setFxColor(hex) { if (fx) fx.setColor(hex); },
+    setFxMode(name, on) { if (fx) fx.setMode(name, on); },
+    fxModes() { return fx ? fx.modes() : null; },
+    /* 插入动画期间整体关掉可视化(切回主界面后再打开)*/
+    setFxEnabled(v) {
+      fxEnabled = !!v;
+      if (window.__cd3dDebug) window.__cd3dDebug.fxOn = fxEnabled;
+      if (fx) fx.update(0, { visible: false });
+    },
+    fxOn() { return fxEnabled; },
+    cdRadius() { return cdRadius; },
+    /* 插入流程中暂停/恢复"选盘预览" */
+    setMusicPreview(v) { previewAllowed = !!v; },
+    /* 打开 CD 页时:让当前选中的盘开始预览 */
+    previewCurrent() {
+      const it = cdItems[selIndex];
+      if (audio && it) audio.music.preview(it.key);
     },
     /* 让真实选中的 CD 飞入/飞出光驱(P2-lite:无需烘焙动画) */
     setInserted(key) {

@@ -149,6 +149,23 @@ html.magnetic-reduced .magnetic-cursor {
     gap: 0.75rem;
 }
 
+/* 光驱音效开关:音效模块就绪前不显示(3D 降级 → 没有音效,也就没有这个按钮)*/
+html:not(.has-cd-audio) #sound-toggle {
+    display: none;
+}
+
+#sound-toggle .snd-off {
+    display: none;
+}
+
+#sound-toggle.is-muted .snd-on {
+    display: none;
+}
+
+#sound-toggle.is-muted .snd-off {
+    display: inline;
+}
+
 /* 右侧组合容器:菜单 + 搜索框 */
 .nav-right {
     display: flex;

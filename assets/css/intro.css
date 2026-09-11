@@ -174,44 +174,99 @@ body.scene-open .slot-toggle {
     height: 100%;
     display: flex;
     flex-direction: column;
-    padding: 18px 22px 16px;
-    background: linear-gradient(180deg, #25282f 0%, #1a1c21 100%);
-    border: 1px solid var(--intro-border);
+    padding: 0 22px;          /* 上下不留白:画布吃满整高(左右 22px 是接缝对齐所需)*/
+    /* 底:深蓝黑;上面叠一层"主题色菱形"平铺图案(颜色由 intro.js 按当前选中盘注入)*/
+    background-color: #0b0b14;
+    border: 0;                /* 上/下边框去掉(左右在视口边缘和接缝处,本来也看不见)*/
     border-radius: 18px 0 0 18px;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 40px rgba(0, 0, 0, 0.35);
+    color: var(--rack-fg, var(--primary));
+    transition: background-color 560ms cubic-bezier(0.4, 0, 0.2, 1), color 560ms cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* 菱形平铺图案的可调项 */
+    --bg-tile: 52px;          /* 一个网格单元多大 */
+    --bg-scroll: 26s;         /* 背景缓慢流动一圈的时长(设 0s = 不动)*/
+    --bg-diamond: 0.5;        /* 菱形透明度(写在 SVG 里,这里只是备注)*/
+
+    /* CD 架文字介绍的可调尺寸(想改排版就改这里) */
+    --rack-pad: clamp(16px, 2vw, 38px);          /* 文字距左侧的距离 */
+    --rack-text-w: min(28vw, 440px);             /* 文字块最大宽度(超长歌名会换行,不压到 CD 上)*/
+    --rack-theme-size: clamp(30px, 3.4vw, 56px); /* 当前主题字号 */
+    --rack-caption-size: clamp(12px, 1.05vw, 18px);  /* 主题配文字号(比主题小)*/
+    --rack-song-size: clamp(19px, 1.9vw, 32px);  /* 歌名字号 */
+    --rack-artist-size: clamp(12px, 1.05vw, 18px);   /* 歌手字号 */
+    --rack-top: 9%;                              /* 左上文字块的纵向位置 */
+    --rack-bottom: 10%;                          /* 左下文字块的纵向位置(bottom)*/
 }
 
-.rack-head {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding-bottom: 12px;
+/* ---------- CD 架文字介绍:左上"当前主题 + 配文" / 左下"歌名 + 居中歌手" ---------- */
+.rack-info {
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+    pointer-events: none;      /* 不挡滚轮/点击(画布要接管)*/
 }
 
-.rack-close {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 34px;
-    height: 34px;
-    border-radius: 10px;
-    border: 1px solid var(--intro-border);
-    background: transparent;
-    color: var(--intro-dim);
-    transition: color 0.2s ease, border-color 0.2s ease;
+.rack-info-item {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 420ms ease;
 }
 
-.rack-close:hover {
-    color: var(--primary);
-    border-color: var(--intro-accent);
+.rack-info-item.is-active {
+    opacity: 1;
 }
 
-.rack-label {
-    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
-    font-size: 0.72rem;
-    letter-spacing: 0.34em;
-    color: var(--intro-dim);
+.rack-info-top {
+    position: absolute;
+    left: var(--rack-pad);
+    top: var(--rack-top);
+    width: max-content;
+    max-width: var(--rack-text-w);
+    overflow-wrap: break-word;
 }
+
+/* 歌名与歌手:都左对齐,歌名换行也不会把位置带跑 */
+.rack-info-bottom {
+    position: absolute;
+    left: var(--rack-pad);
+    bottom: var(--rack-bottom);
+    width: max-content;
+    max-width: var(--rack-text-w);
+    text-align: left;
+    overflow-wrap: break-word;
+}
+
+.rack-theme {
+    color: inherit;            /* 覆盖主题 reset 的 h2{color:var(--primary)},否则不跟随反色 */
+    font-size: var(--rack-theme-size);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    line-height: 1.05;
+}
+
+.rack-caption {
+    margin-top: 0.55em;
+    font-size: var(--rack-caption-size);
+    letter-spacing: 0.02em;
+    opacity: 0.72;
+}
+
+.rack-song {
+    font-size: var(--rack-song-size);
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    line-height: 1.2;
+}
+
+.rack-artist {
+    margin-top: 0.32em;
+    font-size: var(--rack-artist-size);
+    letter-spacing: 0.04em;
+    opacity: 0.72;
+}
+
+/* 顶部"CD RACK"条与底部提示条已去掉(收起架子:点屏幕右缘的箭头,或点架子外任意处)*/
 
 /* ---------- CD 轮盘:旋转轴 = hub(插入点),CD 在左侧绕其旋转 ---------- */
 .wheel {
@@ -391,13 +446,70 @@ body.scene-open .hub {
     100% { opacity: 0; transform: translateX(-56px) scale(0.98); }
 }
 
-.rack-hint {
-    text-align: center;
-    font-size: 0.8rem;
-    line-height: 1.7;
-    color: var(--intro-dim);
-    padding: 10px 0 2px;
+/* ---------- 背景:主题色菱形平铺(参考《冰与火之舞》铺面编辑器)---------- */
+.rack-bg {
+    position: absolute;
+    inset: 0;
+    z-index: 0;                /* 在特效背景画布(1)和 3D 画布之下 */
+    pointer-events: none;
+    border-radius: inherit;
+    background-repeat: repeat;
+    background-size: var(--bg-tile) var(--bg-tile);
+    animation: rack-bg-scroll var(--bg-scroll, 26s) linear infinite;
 }
+
+@keyframes rack-bg-scroll {
+    from { background-position: 0 0; }
+    to { background-position: var(--bg-tile) var(--bg-tile); }
+}
+
+/* ---------- 音频可视化开关(左侧竖排)---------- */
+.fx-switches {
+    position: absolute;
+    left: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    z-index: 7;                /* 盖在音频条(3)之上 */
+}
+
+html:not(.has-cd-fx) .fx-switches {
+    display: none;             /* 3D 没起来就没有可视化,也就没有开关 */
+}
+
+.fx-switch {
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16px;
+    border: 1px solid color-mix(in srgb, var(--rack-fg, var(--primary)) 24%, transparent);
+    background: transparent;
+    color: color-mix(in srgb, var(--rack-fg, var(--primary)) 52%, transparent);
+    cursor: pointer;
+    transition: color 0.18s ease, border-color 0.18s ease, background-color 0.18s ease, opacity 0.4s ease;
+}
+
+.fx-switch svg {
+    width: 28px;
+    height: 28px;
+}
+
+.fx-switch:hover {
+    color: var(--rack-fg, var(--primary));
+    border-color: color-mix(in srgb, var(--rack-fg, var(--primary)) 60%, transparent);
+}
+
+.fx-switch[aria-pressed="true"] {
+    color: var(--rack-fg, var(--primary));
+    border-color: var(--rack-fg, var(--primary));
+    background: color-mix(in srgb, var(--rack-fg, var(--primary)) 15%, transparent);
+}
+
+/* (底部提示条已去掉) */
 
 /* ---------- Three.js 模式:隐藏 DOM 轮盘(由 3D 画布接管) ---------- */
 body.cd3d-on .cd,
