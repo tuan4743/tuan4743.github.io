@@ -147,24 +147,32 @@ CD 页左侧竖排 4 个开关(状态记在 localStorage),可任意叠加,颜色
 
 辅助工具:`node tools/verify/ink-check.mjs` 会把这张对比度表打出来。
 
-## 主界面(屏幕造型 / 状态栏 / 花屏)
+## 开机动画(每张盘一套)与状态栏
 
-- **屏幕贴图**:`static/assets/screen/frame.webp`(由 `screen.webp` 用"亮度→透明度"转出来,
-  所以中心是透明的、金属边框保留)。想重做/换阈值就跑
-  `node tools/verify/make-screen-frame.mjs [源图] [输出] [暗阈值] [亮阈值] [最大宽度]`,
-  默认 `0.07 / 0.16`(低于 7% 亮度全透明、高于 16% 全不透明);换完刷新即可。
-  贴图在 CSS 里是 `.screen-frame`(z-index 34,内容之上、状态栏之上),内容让开边框靠 `.screen` 的 padding。
-- **状态栏**:首页的顶栏包在 `.statusbar` 里,上缘中间有个小把手(`#statusbar-toggle`)可收起/展开,
-  状态记在 localStorage(`cd-statusbar`)。收起动画与位置在 `intro.css` 的 `.statusbar` / `body.statusbar-hidden`;
-  顶栏的纵向位置由 `.screen` 的 `--sp-t` 决定(现在 13vh)。
-- **开机动画(黑屏 loading → 六边形塌缩)**:回到主界面时播放,约 2.4 秒 ——
-  先黑屏 + 转动的六边形 spinner + "LOADING x%",然后一整片**青色六边形蜂窝逐条描边画出**,
-  再从中心向外**塌缩**露出界面。做法参考 JIEJOE 的 hexagons matrix(描边用 dash 偏移"画"出来 +
-  从中心错开缩小),但用 canvas 原生 `setLineDash/lineDashOffset` 实现,没有引第三方库。
-  时长/网格密度在 `intro.js` 顶部的 `HEX`(`load / draw / drawEach / collapse / collapseEach / fade / cols / rows`);
-  手放一次:`window.__screenBoot()`。
-- **电视雪花(备用)**:`runStatic(ms)` 还在,手动放一段:`window.__runStatic(1500)`。
-- 打开 CD 架(= 光驱拔出)时屏幕是**纯黑**的,一直黑到插盘 —— 这段是 `.screen-static.is-black`。
+回到主界面时播放"开机动画":**黑屏 + LOADING 进度(所有盘共用)→ 各盘的动画 → 露出界面**。
+进度必须读满 → 停 0.5s → 淡出,然后才交给动画(时长在 `intro.js` 顶部 `HEX` 的 `load/hold/fade`)。
+
+| 盘 | key | 动画 | 实现要点 |
+|---|---|---|---|
+| 自我 | `self` | **大号小黄脸铺满 → 快速掉落** | 8×4 格,表情在**格内**随机位置/朝向/表情(抖动范围取格内余量的一半 → 数学上不可能重叠);每格一块深色底板保证盖住页面,整块一起掉落 |
+| 成长 | `growth` | **六边形矩阵** | 一整块深色面板 → 描边用 `setLineDash/lineDashOffset` 随机逐条画出 → 从中心向外塌缩 |
+| 迷茫 | `lost` | **水面 + 鱼群** | 水从底部漫上来(多层正弦水面)→ 鱼(多边形拼接,尾巴摆动)游过,其中一条大鱼身上写着 TUAGFEY → 水退回 |
+| 技术 | `tech` | **故障(faulttext 风格)** | RGB 分离大字 + 随机横向条带错位 + 随机 clip 切片 + 扫描线;结束时整个画面切成 22 条横带向两侧飞走 |
+| 未来 | `future` | **雪花分形展开** | 雪花(6 主枝 + 每枝两对小枝)从中心长出,长满后六角分裂出下一级(共 3 级);用 `destination-out` 把底板"挖穿" → 页面从雪花里透出来 |
+
+- 代码在 `assets/js/cd-boot.js`(每套一个函数,返回 `{ total, draw(el) }`),`intro.js` 只负责黑屏进度、计时和收尾。
+  映射关系:`cd-boot.js` 里的 `BY_KEY`;`intro.js` 的 `finish()` 按插入的盘选动画。
+- 小黄脸素材:用户的 svg 有三点要处理(**没有宽高** → 会被压扁;**自带描边动画** → 抓到"画一半";**右下角有水印**),
+  所以是取回文本 → 去掉 `<style>`/`<a>` → 补 `width/height` 和 `stroke="none"` → 转 blob 再交给 `Image`。
+  页面加载后 1.2s 会预抓这 10 张(不预抓的话第一次播动画会被那 10 次取回+解码卡住首帧)。
+  兜底:素材没就绪时用 canvas 自己画的黄脸。
+- 调试:`window.__screenBoot("emoji")` 手动放某套;`window.__bootStyle / __bootTotalMs / __bootPhases`;
+  电视雪花仍在:`window.__runStatic(1500)`。
+- **状态栏**:首页顶栏包在 `.statusbar` 里,上缘中间有个小把手(`#statusbar-toggle`)可收起/展开,状态记在
+  localStorage(`cd-statusbar`);纵向位置由 `.screen` 的 `--sp-t` 决定。
+- 打开 CD 架(= 光驱拔出)时屏幕是**纯黑**,一直黑到插盘(`.screen-static.is-black`)。
+  ⚠️ 画布的可见性由 `.is-on`(opacity:1)负责:谁要撤掉 `is-black` 就必须保证 `is-on` 还在,
+  否则 opacity 退回 0,动画会"完全看不见"。
 
 ## 鼓点律动(背景线与彩色多边形)
 

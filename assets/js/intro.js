@@ -251,6 +251,8 @@
       try { localStorage.setItem("intro-theme", key); } catch (e) {}
       locked = false;
       if (cd3dApi && cd3dApi.setMusicPreview) cd3dApi.setMusicPreview(true);
+      /* 用这张盘对应的那套开机动画(emoji / 六边形 / 水面 / 故障 / 雪花分形)*/
+      bootStyle = (window.CDBoot && window.CDBoot.styleFor) ? window.CDBoot.styleFor(key) : "hex";
       setOpen(false);   /* 插入完成后回到主界面 */
       /* 回到主界面:重新开始这首的背景音乐,并把可视化打开(等镜头平移完再开)*/
       setTimeout(function () {
@@ -384,72 +386,82 @@
   };
   var bootRAF = 0;
 
-  function hexPath(ctx, R) {
-    ctx.beginPath();
-    for (var i = 0; i < 6; i++) {
-      var a = Math.PI / 180 * (60 * i - 90);      /* 尖顶六边形:第一个点在正上方 */
-      var x = Math.cos(a) * R, y = Math.sin(a) * R;
-      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-    }
-    ctx.closePath();
-  }
+  var bootRAF = 0;
+  var bootStyle = "hex";        /* 当前这张盘用哪套动画(见 cd-boot.js 的 BY_KEY)*/
 
-  function easeOutQuart(t) { return 1 - Math.pow(1 - t, 4); }
-  function easeOutQuad(t) { return 1 - (1 - t) * (1 - t); }
+  /* 小黄脸素材提前抓好 —— 放到第一次播动画时才抓的话,那 10 个 svg 的取回+解码
+     会把首帧卡住,动画开头就会卡成静止画面 */
+  setTimeout(function () {
+    if (window.CDBoot && window.CDBoot.preload) window.CDBoot.preload();
+  }, 1200);
 
-  /* 开机动画:黑屏 + 进度条 → 整块六边形面板 → 描边画出 → 从中心向外塌缩露出界面
-     关键点(和参考实现一致):
-       1) 进度必须读满 → 停一下 → 淡出,然后才开始后面的动画
-       2) 六边形用"深色填充"拼成一整块面板(一开始看不出格子),边框是后来画上去的
-       3) 塌缩时不再铺全屏底色,所以每个六边形缩掉的空位会露出下面的页面 */
-  function screenBoot() {
-    if (!staticCtx || !staticWrap || noMotion) return;
+  /* 开机动画的统一流程:黑屏 + 进度条(所有盘共用)→ 各盘的 scene 接管画面
+     每个 scene 由 cd-boot.js 提供:{ total, draw(el) } —— 它自己负责盖住/揭开页面 */
+  function screenBoot(style) {
+    if (!staticCtx || !staticWrap || noMotion || !window.CDBoot) return;
     if (staticRAF) { cancelAnimationFrame(staticRAF); staticRAF = 0; }
     if (bootRAF) { cancelAnimationFrame(bootRAF); bootRAF = 0; }
     var dpr = Math.min(window.devicePixelRatio || 1, 1.5);
     staticCv.width = Math.max(1, Math.round(staticCv.clientWidth * dpr));
     staticCv.height = Math.max(1, Math.round(staticCv.clientHeight * dpr));
     var W = staticCv.width, H = staticCv.height;
-    staticWrap.classList.remove("is-on");
-    staticWrap.classList.add("is-black");     /* 起手:黑屏 */
+    staticWrap.classList.add("is-on");        /* 画布可见(opacity:1)—— 少了这个,撤掉 is-black 后
+                                                 opacity 会退回 0,整个动画就"看不见"了 */
+    staticWrap.classList.add("is-black");     /* 起手:黑屏 + 不透明 */
     var accent = "#22d3ee";
     try {
       var v = getComputedStyle(document.querySelector(".screen")).getPropertyValue("--intro-accent").trim();
       if (v) accent = v;
     } catch (e) {}
 
-    /* 六边形网格(尖顶、行间错半格;多铺一圈保证盖满边缘)*/
-    var R = Math.max(W / (HEX.cols * 1.732), H / (HEX.rows * 1.49));
-    var hw = 1.732 * R, stepY = 1.49 * R, per = 6 * R;
-    var gridW = (HEX.cols + 2) * hw, gridH = (HEX.rows + 2) * stepY;
-    var ox = (W - gridW) / 2, oy = (H - gridH) / 2;
-    var hexes = [];
-    var maxD = Math.hypot(gridW / 2, gridH / 2);
-    for (var r = -1; r <= HEX.rows; r++) {
-      for (var c = -1; c <= HEX.cols + 1; c++) {
-        var x = ox + c * hw + (Math.abs(r % 2) ? hw / 2 : 0);
-        var y = oy + r * stepY;
-        hexes.push({
-          x: x, y: y,
-          drawAt: Math.random(),
-          dir: Math.random() > 0.5 ? 1 : -1,
-          dist: Math.hypot(x - W / 2, y - H / 2) / maxD
-        });
-      }
-    }
-    var drawWindow = hexes.length * HEX.drawEach;
+    var used = style || bootStyle || "hex";
+    var scene = window.CDBoot.create(used, staticCtx, W, H, accent, HEX);
     var tFull = HEX.load;                                  /* 进度读满 */
     var tFadeIn = tFull + HEX.hold;                        /* 停 0.5s 后开始淡出 */
-    var tPanel = tFadeIn + HEX.fade;                       /* loading 淡完 → 面板顶上 */
-    var tDraw0 = tPanel;
-    var tCol0 = tDraw0 + HEX.draw + drawWindow;
-    var maxColDelay = hexes.length * HEX.collapseEach * 0.5;
-    var tEnd = tCol0 + HEX.collapse + maxColDelay;
+    var tPanel = tFadeIn + HEX.fade;                       /* loading 淡完 → 交给 scene */
+    var tEnd = tPanel + scene.total;
     var t0 = performance.now();
     window.__bootLastAt = Math.round(t0);
+    window.__bootStyle = used;
     window.__bootTotalMs = Math.round(tEnd);
-    window.__bootPhases = { full: tFull, holdEnd: tFadeIn, panel: tPanel, drawStart: tDraw0, collapseStart: tCol0, end: tEnd };
+    window.__bootPhases = { full: tFull, holdEnd: tFadeIn, panel: tPanel, sceneEnd: tEnd };
     var droppedBlack = false;
+
+    /* 共用的 loading(黑屏 + 转动的六边形 + 百分比)*/
+    function drawLoader(el) {
+      staticCtx.fillStyle = "#04060a";
+      staticCtx.fillRect(0, 0, W, H);
+      var p = Math.min(1, el / HEX.load);
+      p = 1 - Math.pow(1 - p, 1.5);                        /* 末尾慢一点,读得清 */
+      var outA = el > tFadeIn ? Math.max(0, 1 - (el - tFadeIn) / HEX.fade) : 1;
+      var cx = W / 2, cy = H / 2, rr = Math.min(W, H) * 0.075;
+      staticCtx.globalAlpha = outA;
+      staticCtx.save();
+      staticCtx.translate(cx, cy);
+      staticCtx.rotate(el / 900);
+      staticCtx.beginPath();
+      for (var i = 0; i < 6; i++) {
+        var a = Math.PI / 180 * (60 * i - 90);
+        if (i === 0) staticCtx.moveTo(Math.cos(a) * rr, Math.sin(a) * rr);
+        else staticCtx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+      }
+      staticCtx.closePath();
+      var per = 6 * rr;
+      staticCtx.setLineDash([per * 0.22, per * 0.78]);
+      staticCtx.lineDashOffset = -el / 12;
+      staticCtx.strokeStyle = accent;
+      staticCtx.lineWidth = Math.max(1.5, rr * 0.05);
+      staticCtx.stroke();
+      staticCtx.setLineDash([]);
+      staticCtx.restore();
+      staticCtx.fillStyle = accent;
+      staticCtx.font = "600 " + Math.round(Math.min(W, H) * 0.032) + "px ui-monospace, Consolas, monospace";
+      staticCtx.textAlign = "center";
+      staticCtx.textBaseline = "middle";
+      staticCtx.globalAlpha = outA * (0.55 + 0.45 * Math.abs(Math.sin(el / 260)));
+      staticCtx.fillText("LOADING  " + Math.round(p * 100) + "%", cx, cy + rr * 2.1);
+      staticCtx.globalAlpha = 1;
+    }
 
     function frame(now) {
       var el = now - t0;
@@ -457,75 +469,26 @@
         staticCtx.setTransform(1, 0, 0, 1, 0, 0);
         staticCtx.clearRect(0, 0, W, H);
         staticWrap.classList.remove("is-black");
+        staticWrap.classList.remove("is-on");
         bootRAF = 0;
         return;
       }
       staticCtx.setTransform(1, 0, 0, 1, 0, 0);
       staticCtx.globalAlpha = 1;
+      staticCtx.globalCompositeOperation = "source-over";
       staticCtx.clearRect(0, 0, W, H);
-
-      /* ---- 阶段一:黑屏 + 进度(读满后停 hold,再淡出)----*/
       if (el < tPanel) {
-        staticCtx.fillStyle = "#04060a";
-        staticCtx.fillRect(0, 0, W, H);
-        var p = Math.min(1, el / HEX.load);
-        p = 1 - Math.pow(1 - p, 1.5);                       /* 末尾慢一点,读得清 */
-        var outA = el > tFadeIn ? Math.max(0, 1 - (el - tFadeIn) / HEX.fade) : 1;
-        var cx = W / 2, cy = H / 2, rr = Math.min(W, H) * 0.075;
-        staticCtx.globalAlpha = outA;
-        staticCtx.save();
-        staticCtx.translate(cx, cy);
-        staticCtx.rotate(el / 900);
-        hexPath(staticCtx, rr);
-        staticCtx.setLineDash([per * 0.22, per * 0.78]);
-        staticCtx.lineDashOffset = -el / 12;
-        staticCtx.strokeStyle = accent;
-        staticCtx.lineWidth = Math.max(1.5, rr * 0.05);
-        staticCtx.stroke();
-        staticCtx.setLineDash([]);
-        staticCtx.restore();
-        staticCtx.fillStyle = accent;
-        staticCtx.font = "600 " + Math.round(Math.min(W, H) * 0.032) + "px ui-monospace, Consolas, monospace";
-        staticCtx.textAlign = "center";
-        staticCtx.textBaseline = "middle";
-        staticCtx.globalAlpha = outA * (0.55 + 0.45 * Math.abs(Math.sin(el / 260)));
-        staticCtx.fillText("LOADING  " + Math.round(p * 100) + "%", cx, cy + rr * 2.1);
-        staticCtx.globalAlpha = 1;
+        drawLoader(el);
         bootRAF = requestAnimationFrame(frame);
         return;
       }
-
-      /* ---- 阶段二:六边形面板(深色填充 = 一整块;描边后画上去)----
-         面板一铺满就把外层黑底撤掉:之后"谁盖住画面"完全由六边形自己负责,
-         于是每个六边形缩掉的空位就直接露出下面的页面 */
+      /* 交给 scene 之后就不再铺全屏黑底:"谁盖住页面"由 scene 自己负责,
+         这样它才能一块一块地把页面露出来 */
       if (!droppedBlack) { staticWrap.classList.remove("is-black"); droppedBlack = true; }
-      for (var i = 0; i < hexes.length; i++) {
-        var h = hexes[i];
-        var dp = Math.max(0, Math.min(1, (el - tDraw0 - h.drawAt * drawWindow) / HEX.draw));
-        var cp = Math.max(0, Math.min(1, (el - tCol0 - h.dist * maxColDelay) / HEX.collapse));
-        if (cp >= 1) continue;                              /* 已经消失 */
-        var scale = 1;                                      /* 描边阶段不缩放 */
-        if (cp > 0) scale = 1 - easeOutQuad(cp);
-        if (scale <= 0.012) continue;
-        staticCtx.save();
-        staticCtx.translate(h.x, h.y);
-        if (cp > 0) staticCtx.scale(scale, scale);
-        hexPath(staticCtx, R);
-        staticCtx.globalAlpha = 1 - cp * 0.15;
-        staticCtx.fillStyle = "#141b26";                    /* 比黑底亮一点 → 看得出"一整块板" */
-        staticCtx.fill();
-        if (dp > 0) {
-          staticCtx.globalAlpha = Math.min(1, dp * 1.15) * (1 - cp * 0.55);
-          staticCtx.setLineDash([per]);
-          staticCtx.lineDashOffset = -h.dir * per * (1 - easeOutQuart(dp));
-          staticCtx.strokeStyle = accent;
-          staticCtx.lineWidth = Math.max(1, R * 0.035);
-          staticCtx.stroke();
-        }
-        staticCtx.restore();
-      }
+      scene.draw(el - tPanel);
       staticCtx.setLineDash([]);
       staticCtx.globalAlpha = 1;
+      staticCtx.globalCompositeOperation = "source-over";
       bootRAF = requestAnimationFrame(frame);
     }
     bootRAF = requestAnimationFrame(frame);
@@ -539,8 +502,8 @@
   }
   /* 调试/验证入口:手动放一段花屏 */
   window.__runStatic = runStatic;
-  window.__screenBoot = screenBoot;      /* 调试/验证入口:手动放一次开机动画 */
-  window.__hexCfg = HEX;                 /* 调试:可以直接改这里的时长 */
+  window.__screenBoot = screenBoot;      /* 调试/验证入口:手动放一次开机动画(__screenBoot("emoji") 指定那套)*/
+  window.__hexCfg = HEX;                 /* 调试:可以直接改 loading 的时长 */
 
   /* ---------- 状态栏:上缘箭头显示 / 隐藏(记忆在 localStorage)---------- */
   var sbToggle = document.getElementById("statusbar-toggle");

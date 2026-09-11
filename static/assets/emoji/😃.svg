@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 36 36">
+<title>😃: grinning face with big eyes (U+1F603) - emojiall.com</title>
+<style>svg{stroke:#edf2f6;animation:dashoffset 10s both infinite,fill-opacity 10s both infinite,stroke-opacity 10s both infinite;stroke-dasharray:500%;stroke-dashoffset:500%}@keyframes stroke-opacity{2%,25%{stroke-opacity:.75;stroke-width:2%}100%,75%{stroke-opacity:0;stroke-width:0}}@keyframes fill-opacity{10%,25%{fill-opacity:0}0%,100%,50%{fill-opacity:1}}@keyframes dashoffset{0%,2%{stroke-dashoffset:500%}100%{stroke-dashoffset:0%}}</style>
+<path fill="#FFCC4D" d="M36 18c0 9.941-8.059 18-18 18-9.94 0-18-8.059-18-18C0 8.06 8.06 0 18 0c9.941 0 18 8.06 18 18"/>
+<ellipse fill="#664500" cx="11.5" cy="12.5" rx="2.5" ry="5.5"/>
+<ellipse fill="#664500" cx="24.5" cy="12.5" rx="2.5" ry="5.5"/>
+<path fill="#664500" d="M18 22c-3.623 0-6.027-.422-9-1-.679-.131-2 0-2 2 0 4 4.595 9 11 9 6.404 0 11-5 11-9 0-2-1.321-2.132-2-2-2.973.578-5.377 1-9 1z"/>
+<path fill="#FFF" d="M9 23s3 1 9 1 9-1 9-1-2 4-9 4-9-4-9-4z"/>
+<a xlink:href="https://www.emojiall.com/en/emoji/%F0%9F%98%83"><text x="36" y="34" font-size="1px" fill="#888da8" text-anchor="end" font-family="apple color emoji,segoe ui emoji,noto color emoji,android emoji,emojisymbols,emojione mozilla,twemoji mozilla,segoe ui symbol,Noto Color Emoji Compat,emoji,sans-serif">😃</text></a>
+<a xlink:href="https://www.emojiall.com/"><text x="36" y="35" font-size="0.8px" fill="#888da8" text-anchor="end"><title>www.emojiall.com</title>emojiall.com</text></a>
+</svg>
