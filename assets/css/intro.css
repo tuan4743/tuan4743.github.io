@@ -57,8 +57,11 @@ body.scene-open .scene {
     border-radius: 20px;
     background: var(--theme);
     overflow: hidden;
-    /* 内容避开贴图边框:左右 ~5%,上下 ~9% */
-    padding: 8.5vh 5vw 7vh;
+    /* 屏幕"可视区"内边距:内容、花屏、黑屏都用同一组变量,保证都在边框里面 */
+    --sp-t: 11vh;
+    --sp-x: 5vw;
+    --sp-b: 7.5vh;
+    padding: var(--sp-t) var(--sp-x) var(--sp-b);
     box-shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
 }
 
@@ -71,25 +74,38 @@ body.scene-open .scene {
     background: url("/assets/screen/frame.webp") center / 100% 100% no-repeat;
 }
 
-/* 花屏(电视雪花):切回/离开主界面时放 2 秒,盖住画面(含状态栏)但在边框之下 */
+/* 花屏 / 黑屏:限制在屏幕"可视区"内,不覆盖金属边框 */
 .screen-static {
     position: absolute;
-    inset: 0;
+    inset: var(--sp-t) var(--sp-x) var(--sp-b);
     z-index: 30;
-    width: 100%;
-    height: 100%;
+    border-radius: 12px;
+    overflow: hidden;
     pointer-events: none;
     opacity: 0;
+    background: transparent;
     transition: opacity 0.22s linear;
+}
+
+.screen-static canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.screen-static.is-on {
+    opacity: 1;
+}
+
+/* 黑屏(CD 架打开 = 光驱拔出状态,屏幕无信号)*/
+.screen-static.is-black {
+    opacity: 1;
+    background: #04060a;
 }
 
 /* 状态栏压到雪花之下(否则花屏时顶栏还浮在上面)*/
 .intro-page .header {
     z-index: 20;
-}
-
-.screen-static.is-on {
-    opacity: 1;
 }
 
 /* 主界面顶栏 = 状态栏:上缘箭头可显示/隐藏 */
@@ -107,7 +123,7 @@ body.statusbar-hidden .statusbar {
 .statusbar-toggle {
     position: absolute;
     left: 50%;
-    top: calc(8.5vh - 9px);
+    top: calc(var(--sp-t) - 10px);
     transform: translateX(-50%);
     z-index: 41;
     width: 46px;
@@ -191,12 +207,13 @@ body.statusbar-hidden .statusbar-toggle svg {
     white-space: pre-line;
 }
 
-/* ---------- 屏幕左缘:光驱边缝 + 入口箭头(随屏幕刚体一起动) ---------- */
+/* ---------- 屏幕左缘:光驱开关(电源键造型,贴在金属边框上,垂直居中) ---------- */
 .screen-slot {
     position: absolute;
-    left: 4.2vw;               /* 让开屏幕贴图的左边框 */
-    top: 34%;
-    z-index: 36;               /* 在贴图边框之上,才不会被动车边框盖住 */
+    left: 1.4vw;               /* 贴在贴图左边框上 */
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 36;               /* 在贴图边框之上,不会被盖住 */
     display: flex;
     align-items: center;
     gap: 8px;

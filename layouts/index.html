@@ -49,8 +49,11 @@
     <!-- 场景:屏幕(右缘为光驱边缝)+ 右侧 CD 架,整体刚体平移 -->
     <div class="scene" id="scene">
         <div class="screen" id="screen">
-            <!-- 花屏:切回/离开主界面时先放 2 秒电视雪花(在屏幕贴图之下)-->
-            <canvas class="screen-static" id="screen-static" aria-hidden="true"></canvas>
+            <!-- 花屏/黑屏:限制在屏幕可视区内(canvas 是替换元素,width:auto 会用 300x150 固有尺寸,
+                 所以外面套一层 div 撑开)-->
+            <div class="screen-static" id="screen-static" aria-hidden="true">
+                <canvas id="screen-static-cv"></canvas>
+            </div>
             <!-- 状态栏(顶栏):按上缘的箭头可显示/隐藏 -->
             <button class="statusbar-toggle" id="statusbar-toggle" aria-expanded="true" aria-controls="statusbar"
                 title="显示 / 隐藏状态栏">
@@ -79,10 +82,11 @@
             <div class="screen-slot">
                 <span class="slot-seam"></span>
                 <button class="slot-toggle" id="intro-toggle" aria-expanded="false" aria-controls="rack"
-                    title="打开 CD 架">
+                    title="打开 CD 架(电源)">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                        stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
-                        <polyline points="9 5 16 12 9 19"></polyline>
+                        stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                        <path d="M12 3.5v8"></path>
+                        <path d="M6.8 6.6a7.5 7.5 0 1 0 10.4 0"></path>
                     </svg>
                 </button>
             </div>

@@ -304,8 +304,9 @@
     }
   }
 
-  /* ---------- 花屏(电视雪花):离开/回到主界面时放 2 秒 ---------- */
-  var staticCv = document.getElementById("screen-static");
+  /* ---------- 花屏(电视雪花)/ 黑屏 ---------- */
+  var staticWrap = document.getElementById("screen-static");       /* 定位/状态在外面这层 */
+  var staticCv = document.getElementById("screen-static-cv");       /* 画雪花用里面的 canvas */
   var staticCtx = staticCv ? staticCv.getContext("2d") : null;
   var staticTiles = [];
   var staticRAF = 0;
@@ -329,13 +330,15 @@
   }
 
   function runStatic(ms) {
-    if (!staticCtx || noMotion) return;
+    if (!staticCtx || !staticWrap || noMotion) return;
+    window.__staticLastMs = ms;      /* 供验证:本次花屏设定的时长 */
     buildStaticTiles();
-    /* 画布尺寸按屏幕实际大小(DPR 限 1.5,雪花不需要那么细)*/
+    /* 画布尺寸按屏幕可视区(DPR 限 1.5,雪花不需要那么细)*/
     var dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    staticWrap.classList.remove("is-black");
     staticCv.width = Math.max(1, Math.round(staticCv.clientWidth * dpr));
     staticCv.height = Math.max(1, Math.round(staticCv.clientHeight * dpr));
-    staticCv.classList.add("is-on");
+    staticWrap.classList.add("is-on");
     if (staticRAF) cancelAnimationFrame(staticRAF);
     var t0 = performance.now();
     var pattern = null;
@@ -344,7 +347,7 @@
       var el = now - t0;
       if (el >= ms || document.hidden) {
         staticCtx.clearRect(0, 0, staticCv.width, staticCv.height);
-        staticCv.classList.remove("is-on");
+        staticWrap.classList.remove("is-on");
         staticRAF = 0;
         return;
       }
@@ -364,6 +367,15 @@
       staticRAF = requestAnimationFrame(frame);
     }
     staticRAF = requestAnimationFrame(frame);
+  }
+
+  /* 黑屏:CD 架打开(= 光驱拔出)时屏幕就是没信号的黑屏,一直黑到插盘 */
+  function screenOff() {
+    if (!staticWrap) return;
+    if (staticRAF) { cancelAnimationFrame(staticRAF); staticRAF = 0; }
+    if (staticCtx) staticCtx.clearRect(0, 0, staticCv.width, staticCv.height);
+    staticWrap.classList.remove("is-on");
+    staticWrap.classList.add("is-black");
   }
   /* 调试/验证入口:手动放一段花屏 */
   window.__runStatic = runStatic;
@@ -395,8 +407,10 @@
     toggle.setAttribute("aria-expanded", open ? "true" : "false");
     rack.setAttribute("aria-hidden", open ? "false" : "true");
     if (cd3dApi) cd3dApi.setPaused(!open);
-    /* 平移一开始就放花屏,2 秒后画面才出来 */
-    runStatic(2000);
+    /* 打开 CD 架(= 光驱拔出)= 屏幕黑掉,一直黑到插盘;
+       回到主界面 = 先花屏 1.5 秒,再出画面 */
+    if (open) screenOff();
+    else runStatic(1500);
     if (open) {
       setTimeout(layout, 80);
       scheduleEject();                 /* 每次打开都重新弹出光驱 */
