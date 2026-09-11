@@ -284,8 +284,8 @@ export function createFx(opts) {
       const P = cfg.particles;
       parts.forEach((p, i) => {
         if (p.life <= 0) {
-          if (rel < 0.06 && !idle) return;
-          if (Math.random() > P.spawn * (0.3 + rel * 1.5)) return;
+          /* 一直都有:不再等"有声音才发",只是大小/速度仍然跟着音乐走 */
+          if (Math.random() > P.spawn) return;
           const a = Math.random() * Math.PI * 2;
           const r0 = R0 * (0.15 + Math.random() * 0.5);
           p.mesh.position.set(Math.cos(a) * r0, Math.sin(a) * r0, 0);

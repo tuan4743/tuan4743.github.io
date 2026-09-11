@@ -67,16 +67,19 @@
     return "#" + out.join("");
   }
 
-  /* 文字色:在"主题色"和"它的反色"里挑跟实际背景(菱形 50% 合成色)对比度更高的那个 */
+  /* 文字/按钮/音频条的颜色:在"主题色"和"它的反色"里挑一个更稳的。
+     注意它们不只压在菱形上,也压在深底上,所以要取"两处里更差的那个"来比 ——
+     否则像"未来"这种白色主题会选出黑色,菱形上勉强能看,深底上直接消失 */
   function pickInk(themeHex) {
     var inv = invertHex(themeHex);
     if (!themeHex) return "";
     if (!inv) return themeHex;
     var eff = luminance(composite(themeHex, 0.5));
-    var a = contrast(luminance(themeHex), eff);
-    var b = contrast(luminance(inv), eff);
-    if (a >= b) return themeHex;
-    return inv;
+    var worst = function (c) {
+      var l = luminance(c);
+      return Math.min(contrast(l, eff), contrast(l, BASE_LUM));
+    };
+    return worst(themeHex) >= worst(inv) ? themeHex : inv;
   }
 
   /* 主题色若和深底太接近(比如"技术"的纯黑),菱形会看不见 —— 往白里提一点点 */
@@ -91,12 +94,13 @@
     return contrast(luminance(hex), BASE_LUM) < 1.15 ? mixWhite(hex, 0.3) : hex;
   }
 
-  /* 菱形平铺图案:一个 45° 旋转的正方形,填当前主题色、50% 透明 */
+  /* 菱形平铺图案:一个 45° 旋转的正方形,填当前主题色、50% 透明
+     (正方形比格子小一圈 → 菱形之间留出呼吸感;调 17/40 这个比例或 CSS 的 --bg-tile 都能改间距)*/
   function diamondBg(hex) {
     var c = /^#[0-9a-fA-F]{6}$/.test(String(hex || "")) ? hex : "#888888";
     c = liftForBase(c);
     var svg = "<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'>" +
-      "<rect x='10' y='10' width='20' height='20' transform='rotate(45 20 20)' fill='" + c + "' fill-opacity='0.5'/></svg>";
+      "<rect x='11.5' y='11.5' width='17' height='17' transform='rotate(45 20 20)' fill='" + c + "' fill-opacity='0.5'/></svg>";
     return 'url("data:image/svg+xml,' +
       svg.replace(/</g, "%3C").replace(/>/g, "%3E").replace(/#/g, "%23") + '")';
   }
