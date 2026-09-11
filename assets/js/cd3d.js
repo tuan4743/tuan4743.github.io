@@ -321,9 +321,11 @@ export async function initCd3d(opts) {
   const spinNormal = m.cdSpinDegPerSec != null ? m.cdSpinDegPerSec : 12;
 
   /* ---------- 光驱弹出 / 收回 ----------
-     位移 = 光驱自身长度(右缘原本贴接缝 → 弹出一个身位) */
+     静止(已插入)= 向右缩进机器里一个身位(被接缝挡住)
+     弹出       = 向左移动一个身位,停在与动画前完全相同的位置(右缘贴接缝) */
   const driveDist = m.driveEjectDist != null ? m.driveEjectDist : dSize.x;
-  const driveBaseX = driveHolder.position.x;
+  const driveTuck = driveDist;              /* 静止时缩进的距离 */
+  const driveBaseX = driveHolder.position.x;   /* 动画前的位置 = 弹出位 */
   const ejectMs = m.driveEjectMs != null ? m.driveEjectMs : 620;
   const dropHeight = m.cdDropHeight != null ? m.cdDropHeight : 3.4;
   const dropMs = m.cdDropMs != null ? m.cdDropMs : 720;
@@ -472,12 +474,19 @@ export async function initCd3d(opts) {
 
   /* ---------- 新流程:光驱弹出 → CD 从上方落入 → CD+光驱一起插回 ---------- */
   function ejectDrive(cb) {
-    rideDrive = false;
-    animateDrive(-driveDist, ejectMs, easeOutBack, 0, cb);
+    if (driveShift <= -driveTuck + 0.001) {          /* 已经弹出 */
+      if (cb) cb();
+      return;
+    }
+    animateDrive(-driveTuck, ejectMs, easeOutBack, 0, cb);
   }
 
   function retractDrive(cb) {
     const from = driveShift;
+    if (from >= -0.001) {                            /* 已在机内 */
+      if (cb) cb();
+      return;
+    }
     const toPause = from * 0.12;                 /* 收到最后一点点 */
     animateDrive(toPause, retractMs2, easeInOut, 0, function () {
       /* 停顿一下 → 干脆地插回(模拟真实光驱) */
@@ -492,6 +501,15 @@ export async function initCd3d(opts) {
       if (cb) cb();
       return;
     }
+    /* 若机内已有旧盘:先让它飞回自己的架位 */
+    const prev = insertedKey;
+    if (prev && prev !== key) {
+      const old = cdItems.find((it) => it.key === prev);
+      if (old) {
+        old.userData.spinFrozen = false;
+        setPath(old, [rackTargetFor(old)], [700], 0);
+      }
+    }
     rideDrive = false;
     /* 1) 自转快速归正 */
     const cur = item.userData.spinAngle || 0;
@@ -504,7 +522,7 @@ export async function initCd3d(opts) {
       freezeAfter: true
     };
     /* 2) 路径:从架位抬出画外 → 移到槽口正上方 → 落入槽口 */
-    const slotNow = new THREE.Vector3(slotPoint.x + driveShift, slotPoint.y, slotPoint.z);
+    const slotNow = new THREE.Vector3(slotPoint.x + driveTuck + driveShift, slotPoint.y, slotPoint.z);
     const from = item.group.position.clone();
     const p1 = new THREE.Vector3(from.x, slotPoint.y + dropHeight, from.z);
     const p2 = new THREE.Vector3(slotNow.x, slotNow.y + 0.3, slotNow.z);
@@ -526,7 +544,7 @@ export async function initCd3d(opts) {
     driveTween = null;
     driveShift = 0;
     rideDrive = false;
-    if (driveHolder.children.length) driveHolder.position.x = driveBaseX;
+    if (driveHolder.children.length) driveHolder.position.x = driveBaseX + driveTuck;
   }
 
   /* 9. 交互:屏幕空间拾取(盘面为环状几何,中心镂空)+ 滚轮 + 选中盘随鼠标倾斜 */
@@ -675,8 +693,9 @@ export async function initCd3d(opts) {
     lastT = t;
     if (document.hidden) return;
     if (pauseWhenIdle) {
-      /* 等所有补间结束再真正暂停,避免 CD 停在半空 */
-      const animating = cdItems.some((it) => it.userData.path || it.userData.spinTween);
+      /* 等所有补间(含光驱)结束再真正暂停,避免动画停在半路 */
+      const animating =
+        !!driveTween || cdItems.some((it) => it.userData.path || it.userData.spinTween);
       if (!animating) {
         paused = true;
         pauseWhenIdle = false;
@@ -746,13 +765,13 @@ export async function initCd3d(opts) {
         }
       }
       if (driveHolder.children.length) {
-        driveHolder.position.x = driveBaseX + driveShift;
+        driveHolder.position.x = driveBaseX + driveTuck + driveShift;   /* 静止 = 缩进机内 */
       }
       /* 已插入的盘随光驱一起进退 */
       if (rideDrive && insertedKey) {
         const ins = cdItems.find((it) => it.key === insertedKey);
         if (ins && !ins.userData.path) {
-          ins.group.position.set(slotPoint.x + driveShift, slotPoint.y, slotPoint.z);
+          ins.group.position.set(slotPoint.x + driveTuck + driveShift, slotPoint.y, slotPoint.z);
         }
       }
 
@@ -814,6 +833,7 @@ export async function initCd3d(opts) {
           return [it.key, Math.round(((v.x + 1) / 2) * rr.width), Math.round(((1 - v.y) / 2) * rr.height)];
         });
         window.__cd3dDebug.driveShift = +driveShift.toFixed(3);
+        window.__cd3dDebug.driveTuck = +driveTuck.toFixed(3);
         window.__cd3dDebug.rideDrive = rideDrive;
       }
     }

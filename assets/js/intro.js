@@ -189,8 +189,10 @@
     if (cd3dApi) cd3dApi.setPaused(!open);
     if (open) {
       setTimeout(layout, 80);
+      scheduleEject();                 /* 每次打开都重新弹出光驱 */
     } else if (cd3dApi && cd3dApi.isDriveOut() && !locked) {
-      cd3dApi.retractDrive();      /* 收起架子时把弹出的光驱收回去 */
+      clearTimeout(ejectTimer);
+      cd3dApi.retractDrive();          /* 收起架子时把弹出的光驱收回去 */
     }
   }
 
@@ -286,17 +288,20 @@
   /* ---------- 进入 CD 界面(加载完成后) ---------- */
   var ejectTimer = null;
 
-  function startIntro(withDrive) {
+  /* 每次打开 CD 架:等 1 秒后光驱弹出(可重复触发) */
+  function scheduleEject() {
+    clearTimeout(ejectTimer);
+    if (!cd3dApi) return;
+    ejectTimer = setTimeout(function () {
+      if (body.classList.contains("scene-open") && cd3dApi) {
+        cd3dApi.ejectDrive();          /* 等 1 秒后:光驱弹出 */
+      }
+    }, cd3dApi.timings.driveEjectDelay || 1000);
+  }
+
+  function startIntro() {
     hideLoader();
-    setOpen(true);                       /* 视角左移,CD 架滑出 */
-    if (withDrive && cd3dApi) {
-      clearTimeout(ejectTimer);
-      ejectTimer = setTimeout(function () {
-        if (body.classList.contains("scene-open") && insertedKey === null && cd3dApi) {
-          cd3dApi.ejectDrive();          /* 等 1 秒后:光驱弹出 */
-        }
-      }, cd3dApi.timings.driveEjectDelay || 1000);
-    }
+    setOpen(true);                       /* 视角左移,CD 架滑出(内部会调度光驱弹出) */
   }
 
   /* ---------- Three.js 懒加载(资产缺失/无WebGL/减少动效 → DOM 降级) ---------- */
@@ -308,12 +313,12 @@
     cd3dTried = true;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       console.info("[cd3d] 跳过:系统开启了减少动效,继续使用 DOM 轮盘");
-      startIntro(false);
+      startIntro();
       return;
     }
     if (!window.WebGLRenderingContext) {
       console.info("[cd3d] 跳过:浏览器不支持 WebGL,继续使用 DOM 轮盘");
-      startIntro(false);
+      startIntro();
       return;
     }
 
@@ -329,7 +334,7 @@
             api.setSelection(selIndex);
             console.info("[cd3d] 3D 模式已激活");
             setProgress(100, "加载完成");
-            startIntro(true);            /* 隐藏加载页 → 打开 CD 架 → 光驱弹出 */
+            startIntro();            /* 隐藏加载页 → 打开 CD 架 → 光驱弹出 */
           },
           onCdClick: function (key) {
             var i = cdOrder.indexOf(key);
@@ -347,13 +352,13 @@
         }).then(function (api) {
           if (!api) {
             console.warn("[cd3d] 未能初始化(资产缺失/加载失败),继续使用 DOM 轮盘");
-            startIntro(false);           /* 降级:直接进入 CD 界面,不播光驱动画 */
+            startIntro();           /* 降级:直接进入 CD 界面,不播光驱动画 */
           }
         });
       })
       .catch(function (e) {
         console.warn("[cd3d] 模块加载失败:", e && e.message);
-        startIntro(false);
+        startIntro();
       });
   }
 
@@ -380,7 +385,7 @@
   setTimeout(function () {
     if (!loaderDone) {
       console.warn("[cd3d] 加载超时,进入降级模式");
-      startIntro(false);
+      startIntro();
     }
   }, 9000);
 
