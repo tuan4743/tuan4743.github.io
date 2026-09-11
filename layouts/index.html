@@ -17,6 +17,14 @@
     }
 </script>
 <body id="top" class="intro-page" data-cd3d="{{ $cd3dJs.RelPermalink }}">
+    <!-- 首次进入的加载页(3D 就绪前显示) -->
+    <div class="intro-loader" id="intro-loader">
+        <div class="intro-loader-inner">
+            <span class="intro-loader-brand">TUAGFEY</span>
+            <div class="intro-loader-bar"><i id="intro-loader-fill"></i></div>
+            <span class="intro-loader-pct" id="intro-loader-pct">正在加载 3D 模型…</span>
+        </div>
+    </div>
     <div class="intro-bg"></div>
 
     <!-- 场景:屏幕(右缘为光驱边缝)+ 右侧 CD 架,整体刚体平移 -->

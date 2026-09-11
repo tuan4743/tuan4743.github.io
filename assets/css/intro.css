@@ -406,6 +406,71 @@ body.cd3d-on .hub-cd {
     display: none;
 }
 
+/* ---------- 首次进入的加载页 ---------- */
+.intro-loader {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--theme);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.45s ease;
+}
+
+.intro-loader.is-active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.intro-loader.is-done {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.intro-loader-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    width: min(420px, 76vw);
+}
+
+.intro-loader-brand {
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-size: 1.05rem;
+    letter-spacing: 0.42em;
+    color: var(--primary);
+    text-indent: 0.42em;
+}
+
+.intro-loader-bar {
+    position: relative;
+    width: 100%;
+    height: 3px;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--primary) 14%, transparent);
+    overflow: hidden;
+}
+
+.intro-loader-bar i {
+    display: block;
+    width: 0;
+    height: 100%;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--intro-accent), #8b5cf6);
+    transition: width 0.25s ease;
+}
+
+.intro-loader-pct {
+    font-size: 0.76rem;
+    letter-spacing: 0.18em;
+    color: var(--intro-dim);
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+}
+
 /* ---------- 背景 ---------- */
 .intro-bg {
     position: fixed;

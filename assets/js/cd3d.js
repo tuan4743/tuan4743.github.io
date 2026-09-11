@@ -11,6 +11,10 @@ const rad = (d) => (d * Math.PI) / 180;
 export async function initCd3d(opts) {
   const container = opts.container;
   if (!container) return null;
+  const report = (p, label) => {
+    if (opts.onProgress) opts.onProgress(Math.max(0, Math.min(100, Math.round(p))), label || "");
+  };
+  report(3, "读取配置");
 
   /* 1. 接口契约(失败时给出明确原因,不再静默降级) */
   let m;
@@ -34,6 +38,7 @@ export async function initCd3d(opts) {
 
   /* 2. 懒加载 three */
   let THREE, GLTFLoader, RoomEnvironment;
+  report(10, "加载渲染引擎");
   try {
     THREE = await import("three");
     ({ GLTFLoader } = await import("three/addons/loaders/GLTFLoader.js"));
@@ -101,15 +106,31 @@ export async function initCd3d(opts) {
   scene.add(new THREE.HemisphereLight(0xffffff, 0x1b1f27, 0.45));
   scene.add(new THREE.AmbientLight(0xffffff, 0.18));
 
-  /* 4. 加载整机 */
+  /* 4. 加载整机(带进度上报) */
   let gltf;
   try {
-    gltf = await new Promise((res, rej) => new GLTFLoader().load(m.model, res, undefined, rej));
+    report(18, "下载 3D 模型");
+    gltf = await new Promise((res, rej) =>
+      new GLTFLoader().load(
+        m.model,
+        res,
+        (xhr) => {
+          if (xhr && xhr.total) {
+            report(18 + (xhr.loaded / xhr.total) * 70, "下载 3D 模型");
+          } else if (xhr && xhr.loaded) {
+            report(Math.min(88, 18 + (xhr.loaded / 2600000) * 70), "下载 3D 模型");
+          }
+        },
+        rej
+      )
+    );
   } catch (e) {
+    console.error("[cd3d] 模型加载失败:", e && e.message);
     renderer.dispose();
     container.removeChild(renderer.domElement);
     return null;
   }
+  report(90, "组装场景");
   const root = gltf.scene;
   root.updateMatrixWorld(true);
   scene.add(root);
@@ -299,6 +320,38 @@ export async function initCd3d(opts) {
   if (m.slotOffset) slotPoint.add(new THREE.Vector3().fromArray(m.slotOffset));
   const spinNormal = m.cdSpinDegPerSec != null ? m.cdSpinDegPerSec : 12;
 
+  /* ---------- 光驱弹出 / 收回 ----------
+     位移 = 光驱自身长度(右缘原本贴接缝 → 弹出一个身位) */
+  const driveDist = m.driveEjectDist != null ? m.driveEjectDist : dSize.x;
+  const driveBaseX = driveHolder.position.x;
+  const ejectMs = m.driveEjectMs != null ? m.driveEjectMs : 620;
+  const dropHeight = m.cdDropHeight != null ? m.cdDropHeight : 3.4;
+  const dropMs = m.cdDropMs != null ? m.cdDropMs : 720;
+  const retractMs2 = m.retractMs != null ? m.retractMs : 620;
+  const retractPauseMs = m.retractPauseMs != null ? m.retractPauseMs : 260;
+  const retractSnapMs = m.retractSnapMs != null ? m.retractSnapMs : 170;
+  const ejectDelayMs = m.driveEjectDelayMs != null ? m.driveEjectDelayMs : 1000;
+
+  let driveShift = 0;          /* 0 = 归位;负值 = 已弹出 */
+  let driveTween = null;
+  let rideDrive = false;       /* 已插入的盘随光驱一起进退 */
+  const easeOutBack = (p) => 1 + 2.4 * Math.pow(p - 1, 3) + 1.4 * Math.pow(p - 1, 2);
+
+  function animateDrive(to, dur, ease, delay, onDone) {
+    driveTween = {
+      from: driveShift,
+      to: to,
+      t0: performance.now() + (delay || 0),
+      dur: dur,
+      ease: ease || easeInOut,
+      onDone: onDone || null
+    };
+  }
+
+  function rackListForInsert(excludeKey) {
+    return cdItems.filter((it) => it.key !== excludeKey);
+  }
+
   /* 架上现有盘(排除已插入的),按顺序补齐 */
   function rackList() {
     return cdItems.filter((it) => it.key !== insertedKey);
@@ -372,6 +425,7 @@ export async function initCd3d(opts) {
   function setInserted(key) {
     const prevInserted = insertedKey;
     insertedKey = key;
+    rideDrive = false;
     const insertTotal = spinBackMs + 60 + flyMs + settleMs;   /* 插入飞行总时长 */
     const ejectTotal = 160 + flyMs + settleMs;                /* 拔出飞行总时长 */
 
@@ -414,6 +468,65 @@ export async function initCd3d(opts) {
       );
     });
     if (window.__cd3dDebug) window.__cd3dDebug.insertedKey = key;
+  }
+
+  /* ---------- 新流程:光驱弹出 → CD 从上方落入 → CD+光驱一起插回 ---------- */
+  function ejectDrive(cb) {
+    rideDrive = false;
+    animateDrive(-driveDist, ejectMs, easeOutBack, 0, cb);
+  }
+
+  function retractDrive(cb) {
+    const from = driveShift;
+    const toPause = from * 0.12;                 /* 收到最后一点点 */
+    animateDrive(toPause, retractMs2, easeInOut, 0, function () {
+      /* 停顿一下 → 干脆地插回(模拟真实光驱) */
+      animateDrive(0, retractSnapMs, easeInOut, retractPauseMs, cb);
+    });
+  }
+
+  /* CD 从上方落入弹出后的槽口;完成后随光驱一起进退 */
+  function insertCd(key, cb) {
+    const item = cdItems.find((it) => it.key === key);
+    if (!item) {
+      if (cb) cb();
+      return;
+    }
+    rideDrive = false;
+    /* 1) 自转快速归正 */
+    const cur = item.userData.spinAngle || 0;
+    const delta = ((-cur % 360) + 540) % 360 - 180;
+    item.userData.spinTween = {
+      from: cur,
+      to: cur + delta,
+      t0: performance.now(),
+      dur: spinBackMs,
+      freezeAfter: true
+    };
+    /* 2) 路径:从架位抬出画外 → 移到槽口正上方 → 落入槽口 */
+    const slotNow = new THREE.Vector3(slotPoint.x + driveShift, slotPoint.y, slotPoint.z);
+    const from = item.group.position.clone();
+    const p1 = new THREE.Vector3(from.x, slotPoint.y + dropHeight, from.z);
+    const p2 = new THREE.Vector3(slotNow.x, slotNow.y + 0.3, slotNow.z);
+    const p3 = slotNow.clone();
+    setPath(item, [p1, p2, p3], [280, dropMs, 180], spinBackMs + 60);
+    item.userData.onPathDone = function () {
+      rideDrive = true;                          /* 之后随光驱一起进退 */
+      insertedKey = key;
+      if (window.__cd3dDebug) window.__cd3dDebug.insertedKey = key;
+      /* 其余盘补位(飞完之后才动,避免穿模) */
+      cdItems.forEach((it) => {
+        if (it.key !== key) setPath(it, [rackTargetFor(it)], [rackMoveMs], 0);
+      });
+      if (cb) cb();
+    };
+  }
+
+  function resetDrive() {
+    driveTween = null;
+    driveShift = 0;
+    rideDrive = false;
+    if (driveHolder.children.length) driveHolder.position.x = driveBaseX;
   }
 
   /* 9. 交互:屏幕空间拾取(盘面为环状几何,中心镂空)+ 滚轮 + 选中盘随鼠标倾斜 */
@@ -590,6 +703,11 @@ export async function initCd3d(opts) {
             if (seg === -1) {
               item.group.position.copy(path.points[path.points.length - 1]);
               item.userData.path = null;
+              if (item.userData.onPathDone) {
+                const cb = item.userData.onPathDone;
+                item.userData.onPathDone = null;
+                cb();
+              }
             } else {
               const from = seg === 0 ? path.from : path.points[seg - 1];
               item.group.position.lerpVectors(from, path.points[seg], easeInOut(localP));
@@ -613,6 +731,30 @@ export async function initCd3d(opts) {
         }
         item.mesh.rotation.y = flipRotY + rad(item.userData.spinAngle || 0);
       });
+
+      /* 光驱弹出/收回位移 */
+      if (driveTween) {
+        const el = t - driveTween.t0;
+        if (el >= 0) {
+          const p = Math.min(1, el / driveTween.dur);
+          driveShift = driveTween.from + (driveTween.to - driveTween.from) * driveTween.ease(p);
+          if (p >= 1) {
+            const cb = driveTween.onDone;
+            driveTween = null;
+            if (cb) cb();
+          }
+        }
+      }
+      if (driveHolder.children.length) {
+        driveHolder.position.x = driveBaseX + driveShift;
+      }
+      /* 已插入的盘随光驱一起进退 */
+      if (rideDrive && insertedKey) {
+        const ins = cdItems.find((it) => it.key === insertedKey);
+        if (ins && !ins.userData.path) {
+          ins.group.position.set(slotPoint.x + driveShift, slotPoint.y, slotPoint.z);
+        }
+      }
 
       /* 倾斜:按模式决定倾斜哪一张(默认只有当前选中的那张) */
       tilt.x += (tiltTarget.x - tilt.x) * 0.1;
@@ -671,6 +813,8 @@ export async function initCd3d(opts) {
           const v = it.group.position.clone().project(camera);
           return [it.key, Math.round(((v.x + 1) / 2) * rr.width), Math.round(((1 - v.y) / 2) * rr.height)];
         });
+        window.__cd3dDebug.driveShift = +driveShift.toFixed(3);
+        window.__cd3dDebug.rideDrive = rideDrive;
       }
     }
     renderer.render(scene, camera);
@@ -692,11 +836,31 @@ export async function initCd3d(opts) {
     setInserted(key) {
       setInserted(key);
     },
+    /* 光驱弹出 / 收回;CD 从上方落入 */
+    ejectDrive(cb) {
+      ejectDrive(cb);
+    },
+    retractDrive(cb) {
+      retractDrive(cb);
+    },
+    insertCd(key, cb) {
+      insertCd(key, cb);
+    },
+    isDriveOut() {
+      return driveShift < -0.001;
+    },
+    resetDrive() {
+      resetDrive();
+    },
     /* 动画实际时长,供状态机对齐面板切换时机 */
     timings: {
       insert: spinBackMs + 60 + flyMs + settleMs,
       eject: 160 + flyMs + settleMs,
-      rackMove: rackMoveMs
+      rackMove: rackMoveMs,
+      driveEjectDelay: ejectDelayMs,
+      driveEject: ejectMs,
+      driveInsert: spinBackMs + 60 + 280 + dropMs + 180,
+      driveRetract: retractMs2 + retractPauseMs + retractSnapMs
     },
     /* 收起架子时:等当前动画跑完再真正暂停,避免停在半空 */
     setPaused(p) {
