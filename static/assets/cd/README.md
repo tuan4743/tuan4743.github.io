@@ -154,11 +154,17 @@ CD 页左侧竖排 4 个开关(状态记在 localStorage),可任意叠加,颜色
   `node tools/verify/make-screen-frame.mjs [源图] [输出] [暗阈值] [亮阈值] [最大宽度]`,
   默认 `0.07 / 0.16`(低于 7% 亮度全透明、高于 16% 全不透明);换完刷新即可。
   贴图在 CSS 里是 `.screen-frame`(z-index 34,内容之上、状态栏之上),内容让开边框靠 `.screen` 的 padding。
-- **状态栏**:首页的顶栏包在 `.statusbar` 里,上缘中间有个小箭头(`#statusbar-toggle`)可收起/展开,
-  状态记在 localStorage(`cd-statusbar`)。收起动画与位置在 `intro.css` 的 `.statusbar` / `body.statusbar-hidden`。
-- **花屏(电视雪花)**:`.screen-static` 画布放在**贴图之下、内容之上**(z-index 30),
-  离开/回到主界面(即场景平移开始)时放 2 秒再淡出。实现是 5 张预生成的 256² 噪点图轮流平铺 +
-  随机抖动(≈18fps),尊重 `prefers-reduced-motion`。想手动放一段:`window.__runStatic(2000)`。
+- **状态栏**:首页的顶栏包在 `.statusbar` 里,上缘中间有个小把手(`#statusbar-toggle`)可收起/展开,
+  状态记在 localStorage(`cd-statusbar`)。收起动画与位置在 `intro.css` 的 `.statusbar` / `body.statusbar-hidden`;
+  顶栏的纵向位置由 `.screen` 的 `--sp-t` 决定(现在 13vh)。
+- **开机动画(黑屏 loading → 六边形塌缩)**:回到主界面时播放,约 2.4 秒 ——
+  先黑屏 + 转动的六边形 spinner + "LOADING x%",然后一整片**青色六边形蜂窝逐条描边画出**,
+  再从中心向外**塌缩**露出界面。做法参考 JIEJOE 的 hexagons matrix(描边用 dash 偏移"画"出来 +
+  从中心错开缩小),但用 canvas 原生 `setLineDash/lineDashOffset` 实现,没有引第三方库。
+  时长/网格密度在 `intro.js` 顶部的 `HEX`(`load / draw / drawEach / collapse / collapseEach / fade / cols / rows`);
+  手放一次:`window.__screenBoot()`。
+- **电视雪花(备用)**:`runStatic(ms)` 还在,手动放一段:`window.__runStatic(1500)`。
+- 打开 CD 架(= 光驱拔出)时屏幕是**纯黑**的,一直黑到插盘 —— 这段是 `.screen-static.is-black`。
 
 ## 鼓点律动(背景线与彩色多边形)
 

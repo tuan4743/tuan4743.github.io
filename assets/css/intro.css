@@ -58,7 +58,7 @@ body.scene-open .scene {
     background: var(--theme);
     overflow: hidden;
     /* 屏幕"可视区"内边距:内容、花屏、黑屏都用同一组变量,保证都在边框里面 */
-    --sp-t: 11vh;
+    --sp-t: 13vh;
     --sp-x: 5vw;
     --sp-b: 7.5vh;
     padding: var(--sp-t) var(--sp-x) var(--sp-b);
