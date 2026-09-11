@@ -115,7 +115,7 @@ export async function initCd3d(opts) {
     const envRT = pmrem.fromScene(envScene, 0.02);
     scene.environment = envRT.texture;
     if ("environmentIntensity" in scene) {
-      scene.environmentIntensity = m.envIntensity != null ? m.envIntensity : 0.7;
+      scene.environmentIntensity = m.envIntensity != null ? m.envIntensity : 0.95;
     }
     pmrem.dispose();
   } catch (e) {}
@@ -124,6 +124,11 @@ export async function initCd3d(opts) {
   const sun = new THREE.DirectionalLight(L.color || 0xbfe6ff, L.intensity || 1.7);
   sun.position.fromArray(L.position || [3.2, 2.4, 2.6]);
   scene.add(sun);
+  /* 补一盏冷色轮廓光(从相反方向打):金属之所以"贵",靠的就是亮高光 + 暗面的大反差。
+     只有一盏正面光的话,曲面全是均匀的中间灰,怎么调都像塑料。 */
+  const rim = new THREE.DirectionalLight(L.rimColor || 0x8fd8ff, L.rimIntensity || 1.15);
+  rim.position.fromArray(L.rimPosition || [-3.4, 2.2, -2.2]);
+  scene.add(rim);
   scene.add(new THREE.HemisphereLight(0xffffff, 0x1b1f27, 0.45));
   scene.add(new THREE.AmbientLight(0xffffff, 0.18));
 
@@ -246,11 +251,55 @@ export async function initCd3d(opts) {
   }
   cdItems.forEach((item) => upgradeCdMaterials(item.mesh));
 
+  /* 5c. 光驱材质升级 —— 之前只升级了 CD,光驱还留着 GLB 里的标准材质
+         (metalness/roughness 都是 1 = 哑光灰塑料),这是整屏"廉价感"最大的来源。
+         这里给它明确的 PBR:深色金属 + 低粗糙度 + 一点清漆,让它反射环境、出现高光。 */
+  const driveCfg = m.driveMaterial || {};
+  function upgradeDriveMaterials(group) {
+    group.traverse((o) => {
+      if (!o.isMesh || !o.material) return;
+      const isArr = Array.isArray(o.material);
+      const src = isArr ? o.material : [o.material];
+      const upgraded = src.map((old) => {
+        if (!old) return old;
+        const mat = new THREE.MeshPhysicalMaterial({
+          name: old.name,
+          map: old.map || null,
+          color: old.color ? old.color.clone() : new THREE.Color(0xffffff),
+          normalMap: old.normalMap || null,
+          normalScale: old.normalScale ? old.normalScale.clone() : undefined,
+          roughnessMap: old.roughnessMap || null,
+          metalnessMap: old.metalnessMap || null,
+          aoMap: old.aoMap || null,
+          aoMapIntensity: old.aoMapIntensity != null ? old.aoMapIntensity : 1,
+          emissive: old.emissive ? old.emissive.clone() : new THREE.Color(0x000000),
+          emissiveMap: old.emissiveMap || null,
+          transparent: !!old.transparent,
+          opacity: old.opacity != null ? old.opacity : 1,
+          side: old.side
+        });
+        /* 有贴图时把系数当"乘数"用:默认压到 0.72 → 比原来亮面得多 */
+        const hasRoughMap = !!mat.roughnessMap;
+        const hasMetalMap = !!mat.metalnessMap;
+        mat.roughness = driveCfg.roughness != null ? driveCfg.roughness : (hasRoughMap ? 0.72 : 0.42);
+        mat.metalness = driveCfg.metalness != null ? driveCfg.metalness : (hasMetalMap ? 0.95 : 0.8);
+        mat.clearcoat = driveCfg.clearcoat != null ? driveCfg.clearcoat : 0.35;
+        mat.clearcoatRoughness = driveCfg.clearcoatRoughness != null ? driveCfg.clearcoatRoughness : 0.3;
+        mat.envMapIntensity = driveCfg.envMapIntensity != null ? driveCfg.envMapIntensity : 1.5;
+        return mat;
+      });
+      o.material = isArr ? upgraded : upgraded[0];
+    });
+  }
+
   /* 6. 光驱:先挂载 → 施加 driveRot → 包围盒中心对位到 hub + driveOffset */
   const driveHolder = new THREE.Group();
   root.add(driveHolder);
   const driveNode = root.getObjectByName(m.driveNode || "");
-  if (driveNode) driveHolder.attach(driveNode);
+  if (driveNode) {
+    driveHolder.attach(driveNode);
+    upgradeDriveMaterials(driveHolder);      /* 光驱也要有材质,不然就是一块哑光灰塑料 */
+  }
   const driveRot = m.driveRot || [0, 0, 0];
   driveHolder.rotation.set(rad(driveRot[0] || 0), rad(driveRot[1] || 0), rad(driveRot[2] || 0));
   root.updateMatrixWorld(true);

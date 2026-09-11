@@ -100,6 +100,11 @@
         <div class="rack" id="rack" aria-hidden="true">
             <!-- 背景:主题色菱形平铺(颜色由 intro.js 按当前选中盘注入 SVG data-URI)-->
             <div class="rack-bg" id="rack-bg" aria-hidden="true"></div>
+            <!-- 氛围层:选中盘的主题色辉光 + 暗角 + 极淡的胶片颗粒
+                 (空间感和大反差是"高级感"的来源;纯平铺背景 + 均匀打光会显得很廉价)-->
+            <div class="rack-glow" aria-hidden="true"></div>
+            <div class="rack-vignette" aria-hidden="true"></div>
+            <div class="rack-grain" aria-hidden="true"></div>
             <!-- CD 架文字介绍:左上"当前主题 + 配文",左下"歌名 + 歌手"
                  颜色 = 当前背景色的反色;背景色随"当前选中的盘"变化 -->
             <div class="rack-info" id="rack-info">
