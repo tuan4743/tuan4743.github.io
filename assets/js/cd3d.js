@@ -321,11 +321,12 @@ export async function initCd3d(opts) {
   const spinNormal = m.cdSpinDegPerSec != null ? m.cdSpinDegPerSec : 12;
 
   /* ---------- 光驱弹出 / 收回 ----------
-     静止(已插入)= 向右缩进机器里一个身位(被接缝挡住)
-     弹出       = 向左移动一个身位,停在与动画前完全相同的位置(右缘贴接缝) */
+     静止(已插入)= 向右缩进机器里(含回弹余量,保证弹出过冲时也不会整个露出来)
+     弹出       = 向左移动一个身位(行程 = 光驱长度),停下时右缘仍留在接缝内侧一点 */
   const driveDist = m.driveEjectDist != null ? m.driveEjectDist : dSize.x;
-  const driveTuck = driveDist;              /* 静止时缩进的距离 */
-  const driveBaseX = driveHolder.position.x;   /* 动画前的位置 = 弹出位 */
+  const driveOvershoot = m.driveEjectOvershoot != null ? m.driveEjectOvershoot : 0.1;
+  const driveTuck = driveDist * (1 + driveOvershoot);   /* 静止时的缩进量 */
+  const driveBaseX = driveHolder.position.x;   /* 动画前的位置 = 弹出位参考 */
   const ejectMs = m.driveEjectMs != null ? m.driveEjectMs : 620;
   const dropHeight = m.cdDropHeight != null ? m.cdDropHeight : 3.4;
   const dropMs = m.cdDropMs != null ? m.cdDropMs : 720;
@@ -474,11 +475,11 @@ export async function initCd3d(opts) {
 
   /* ---------- 新流程:光驱弹出 → CD 从上方落入 → CD+光驱一起插回 ---------- */
   function ejectDrive(cb) {
-    if (driveShift <= -driveTuck + 0.001) {          /* 已经弹出 */
+    if (driveShift <= -driveDist + 0.001) {          /* 已经弹出 */
       if (cb) cb();
       return;
     }
-    animateDrive(-driveTuck, ejectMs, easeOutBack, 0, cb);
+    animateDrive(-driveDist, ejectMs, easeOutBack, 0, cb);   /* 过冲峰值也不会超过缩进量 */
   }
 
   function retractDrive(cb) {
@@ -867,7 +868,8 @@ export async function initCd3d(opts) {
       insertCd(key, cb);
     },
     isDriveOut() {
-      return driveShift < -0.001;
+      /* 弹出过半即视为"已弹出"(换盘流程以此为判断) */
+      return driveShift <= -driveDist * 0.5;
     },
     resetDrive() {
       resetDrive();

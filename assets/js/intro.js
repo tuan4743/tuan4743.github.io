@@ -120,7 +120,8 @@
 
     /* 3D 模式:让「真实选中的那张 CD」飞入光驱(前端补间) */
     var use3d = !!cd3dApi;
-    var useDriveFlow = use3d && insertedKey === null && cd3dApi.isDriveOut && cd3dApi.isDriveOut();
+    /* 只要光驱是弹出的,就走"光驱流程"(换盘时也一样) */
+    var useDriveFlow = use3d && cd3dApi.isDriveOut && cd3dApi.isDriveOut();
     var insertDelay = use3d ? cd3dApi.timings.insert + 80 : 820;
     var ejectDelay = use3d ? cd3dApi.timings.eject + 60 : 720;
 
@@ -139,7 +140,7 @@
     if (useDriveFlow) {
       cd3dApi.insertCd(key, function () {
         cd3dApi.retractDrive(function () {
-          finish();
+          setTimeout(finish, 200);      /* 动画播完再停 0.2s,然后回主界面 */
         });
       });
       return;
