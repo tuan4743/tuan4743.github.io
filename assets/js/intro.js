@@ -242,9 +242,8 @@
     function finish() {
       activeKey = key;
       insertedKey = key;          /* 记录"盘已在光驱内" */
-      /* 先把这张盘的音乐升格为背景音乐(接着预览继续放,不重启),
-         再补位/换中心 —— 顺序反了的话"换中心"会顺带请求下一张盘的预览 */
-      if (cd3dApi && cd3dApi.audio) cd3dApi.audio.music.toBgm(key);
+      /* 这里先不放音乐:等开机动画播完再起 BGM(见下面的 screenBoot 回调)。
+         插入动作的音效不属于音乐,照旧 */
       moveSelectionOff(key);      /* 飞入完成后再补位/换中心,避免穿模 */
       playPanel(key);
       hub.classList.add("is-playing");
@@ -253,8 +252,12 @@
       if (cd3dApi && cd3dApi.setMusicPreview) cd3dApi.setMusicPreview(true);
       /* 用这张盘对应的那套开机动画(emoji / 六边形 / 水面 / 故障 / 雪花分形)*/
       bootStyle = (window.CDBoot && window.CDBoot.styleFor) ? window.CDBoot.styleFor(key) : "hex";
-      setOpen(false);   /* 插入完成后回到主界面 */
-      /* 回到主界面:重新开始这首的背景音乐,并把可视化打开(等镜头平移完再开)*/
+      /* 回到主界面。音乐要等动画彻底放完才开始 —— 开机时是"静音通电"的 */
+      setOpen(false, function () {
+        if (cd3dApi && cd3dApi.audio) cd3dApi.audio.music.toBgm(key);
+        if (cd3dApi && cd3dApi.setMusicPreview) cd3dApi.setMusicPreview(true);
+      });
+      /* 可视化等镜头平移完再开 */
       setTimeout(function () {
         if (cd3dApi && cd3dApi.setFxEnabled) cd3dApi.setFxEnabled(true);
       }, 900);
@@ -371,18 +374,15 @@
     staticRAF = requestAnimationFrame(frame);
   }
 
-  /* ---------- 开机动画:黑屏 loading → 六边形矩阵塌缩露出界面 ----------
-     六边形的画法参考 JIEJOE 的 hexagons matrix:描边用 dash 偏移"画"出来(随机错开),
-     然后从中心向外依次缩小消失。这里用 canvas 原生 setLineDash/lineDashOffset 实现,不引第三方库 */
+  /* ---------- 开机动画的公共前缀(黑屏 + 进度)---------- */
   var HEX = {
-    cols: 15, rows: 10,
+    cols: 15, rows: 7,     /* 7 行:消失顺序 4 → 3/5 → 2/6 → 1/7 */
     load: 900,            /* 进度条 0→100% 的时长(ms)*/
     hold: 500,            /* 读满后停顿(让 100% 看清楚)*/
     fade: 260,            /* loading 淡出 */
-    draw: 430,            /* 每个六边形描边时长 */
-    drawEach: 2.2,        /* 描边随机错开的总窗口(ms × 个数) */
-    collapse: 640,        /* 塌缩时长 */
-    collapseEach: 2.0     /* 从中心向外错开 */
+    draw: 430,            /* 六边形描边时长(只有成长那套用)*/
+    drawEach: 2.2,        /* 描边随机错开的窗口(ms × 个数)*/
+    collapse: 620         /* 六边形塌缩时长(消失用时)/ */
   };
   var bootRAF = 0;
 
@@ -397,8 +397,8 @@
 
   /* 开机动画的统一流程:黑屏 + 进度条(所有盘共用)→ 各盘的 scene 接管画面
      每个 scene 由 cd-boot.js 提供:{ total, draw(el) } —— 它自己负责盖住/揭开页面 */
-  function screenBoot(style) {
-    if (!staticCtx || !staticWrap || noMotion || !window.CDBoot) return;
+  function screenBoot(style, onEnd) {
+    if (!staticCtx || !staticWrap || noMotion || !window.CDBoot) { if (onEnd) onEnd(); return; }
     if (staticRAF) { cancelAnimationFrame(staticRAF); staticRAF = 0; }
     if (bootRAF) { cancelAnimationFrame(bootRAF); bootRAF = 0; }
     var dpr = Math.min(window.devicePixelRatio || 1, 1.5);
@@ -471,6 +471,7 @@
         staticWrap.classList.remove("is-black");
         staticWrap.classList.remove("is-on");
         bootRAF = 0;
+        if (onEnd) onEnd();        /* 动画放完 → 这时候才开始放背景音乐 */
         return;
       }
       staticCtx.setTransform(1, 0, 0, 1, 0, 0);
@@ -496,6 +497,9 @@
   function screenOff() {
     if (!staticWrap) return;
     if (staticRAF) { cancelAnimationFrame(staticRAF); staticRAF = 0; }
+    /* 关键:开机动画的循环也要停 —— 否则它在收尾时会 remove("is-black"),
+       把这里的黑屏又撤掉(用户在动画播到一半时重新打开 CD 架就会踩到)*/
+    if (bootRAF) { cancelAnimationFrame(bootRAF); bootRAF = 0; }
     if (staticCtx) staticCtx.clearRect(0, 0, staticCv.width, staticCv.height);
     staticWrap.classList.remove("is-on");
     staticWrap.classList.add("is-black");
@@ -527,7 +531,7 @@
   })();
 
   /* ---------- 场景平移开合(视角平移,刚体) ---------- */
-  function setOpen(open) {
+  function setOpen(open, onBootEnd) {
     body.classList.toggle("scene-open", open);
     toggle.setAttribute("aria-expanded", open ? "true" : "false");
     rack.setAttribute("aria-hidden", open ? "false" : "true");
@@ -535,7 +539,7 @@
     /* 打开 CD 架(= 光驱拔出)= 屏幕黑掉,一直黑到插盘;
        回到主界面 = 先花屏 1.5 秒,再出画面 */
     if (open) screenOff();
-    else screenBoot();          /* 回到主界面:黑屏 loading → 六边形塌缩 → 露出界面 */
+    else screenBoot(undefined, onBootEnd);   /* 回到主界面:黑屏 loading → 本盘的动画 → 露出界面 */
     if (open) {
       setTimeout(layout, 80);
       scheduleEject();                 /* 每次打开都重新弹出光驱 */
