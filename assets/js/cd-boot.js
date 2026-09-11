@@ -94,7 +94,7 @@
     if (_techImg) return;
     var im = new Image();
     im.onload = function () { _techImg = im; };
-    im.src = "/assets/cd/cds/tech_horizontal.webp";     /* 横向版封面 */
+    im.src = "/assets/cd/cds/tech.webp";               /* 方形封面,画的时候缩到屏幕中间 */
   }
 
   function drawFallbackFace(ctx, s) {
@@ -359,7 +359,7 @@
         if (_whale) {
           var wp = clamp((el - RISE * 0.55) / (HOLD * 0.95), 0, 1);
           if (wp > 0 && wp < 1) {
-            var wr = Math.min(W, H) * 0.16;
+            var wr = Math.min(W, H) * 0.032;             /* 缩小五倍的小鲸鱼 */
             var ww = wr * 2.4, wh = ww * (200 / 254);
             var wpx = (-0.2 + wp * 1.4) * W;
             var wpy = whale.y * H + Math.sin(t * 1.1) * 16;
@@ -433,24 +433,27 @@
 
     function cover() {
       if (_techImg && _techImg.complete && _techImg.naturalWidth) {
-        var s = Math.max(W / _techImg.naturalWidth, H / _techImg.naturalHeight);
-        var dw = _techImg.naturalWidth * s, dh = _techImg.naturalHeight * s;
-        var jx = (Math.random() - 0.5) * 14, jy = (Math.random() - 0.5) * 10;
+        /* 正方形封面:缩到纵向占屏幕一半,居中放,四周留出黑底 */
+        var dh = H * 0.5;
+        var dw = dh * (_techImg.naturalWidth / _techImg.naturalHeight);
+        var jx = (Math.random() - 0.5) * 10, jy = (Math.random() - 0.5) * 8;
+        var dx = (W - dw) / 2, dy = (H - dh) / 2;
+        ctx.drawImage(_techImg, dx + jx, dy + jy, dw, dh);
+        /* 通道错位(故障感)*/
         ctx.save();
         ctx.globalCompositeOperation = "screen";
-        ctx.globalAlpha = 0.5;
-        ctx.drawImage(_techImg, (W - dw) / 2 + jx - 8, (H - dh) / 2 + jy, dw, dh);
-        ctx.globalAlpha = 0.5;
+        ctx.globalAlpha = 0.45;
+        ctx.drawImage(_techImg, dx + jx - 7, dy + jy, dw, dh);
         ctx.fillStyle = "#ff0033";
         ctx.globalCompositeOperation = "lighter";
-        ctx.drawImage(_techImg, (W - dw) / 2 + jx + 8, (H - dh) / 2 + jy, dw, dh);
+        ctx.globalAlpha = 0.35;
+        ctx.drawImage(_techImg, dx + jx + 7, dy + jy, dw, dh);
         ctx.restore();
         ctx.globalCompositeOperation = "source-over";
         ctx.globalAlpha = 1;
-        ctx.drawImage(_techImg, (W - dw) / 2 + jx, (H - dh) / 2 + jy, dw, dh);
       } else {
         ctx.fillStyle = accent;
-        ctx.fillRect(W * 0.2, H * 0.35, W * 0.6, H * 0.3);
+        ctx.fillRect(W * 0.35, H * 0.25, W * 0.3, H * 0.5);
       }
     }
 
@@ -502,86 +505,109 @@
     };
   }
 
-  /* ================= 5. 六角枝晶雪花(未来) =================
-     六边形网格上的枝晶生长(六角 L-system):从中心 6 个方向各长一条主枝,
-     沿途向左右各分出小枝,递归 3 层 —— 就是用户给的那种六角雪花。
-     每个格子有出生时间,活得够久就从中心开始融化,于是变成一圈向外扩散的花纹;
-     迭代完成后,一个从中心扩散的圆把剩下的黑底清掉。 */
+  /* ================= 5. 暴风雪 + 雪线刷新(未来) =================
+     很多小雪花从右上角飘向左下角(暴风雪),然后一条斜线从右上角扫到左下角,
+     扫过的区域露出页面。线上的雪特别密,把这条硬边盖住 ——
+     看起来就是"一阵雪把屏幕刷了一遍"。 */
+  var W0 = 0, H0 = 0;
   function sceneFractal(ctx, W, H, accent) {
-    var GROW = 3000, MELT_AFTER = 900, MELT_MS = 420, WIPE = 700;
-    var R = Math.min(W, H) / 26;                     /* 单格六边形的半径(大一点才铺得满屏)*/
-    var ARM = 9, MAXD = 4;                           /* 迭代 4 轮 */
-    var DIRS = [[1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1]];
-    var cells = [];
-    var seen = {};
-    var STEP = GROW / 26;
-
-    function put(q, r, t0, depth) {
-      var k = q + "," + r;
-      if (seen[k]) return;
-      seen[k] = 1;
-      var x = W / 2 + R * 1.732 * (q + r / 2);
-      var y = H / 2 + R * 1.5 * r;
-      cells.push({ x: x, y: y, t0: t0, depth: depth, seed: Math.random() });
+    W0 = W; H0 = H;
+    var BUILD = 650, SWEEP = 1500, TAIL = 450;
+    var SPAN = W + H;                      /* 斜坐标 s=(W-x)+y:右上角 0 → 左下角 W+H */
+    var flakes = [];
+    for (var i = 0; i < 200; i++) {
+      flakes.push({
+        s0: Math.random() * SPAN * 1.25,        /* 沿"右上→左下"的初始位置 */
+        p0: rand(-H * 0.25, SPAN + H * 0.25),   /* 垂直方向的坐标 */
+        size: rand(2.5, 11),
+        rot0: rand(0, Math.PI),
+        ph: rand(0, 6.28),
+        spd: rand(0.7, 1.4),
+        a: rand(0.5, 1)
+      });
     }
-    function branch(q, r, dir, len, t0, depth) {
-      var d = DIRS[dir];
-      for (var i = 1; i <= len; i++) {
-        put(q + d[0] * i, r + d[1] * i, t0 + i * STEP, depth);
-        if (depth < MAXD && i >= 2 && i % 2 === 0) {
-          var sub = Math.max(1, Math.round(len * 0.45));
-          branch(q + d[0] * (i - 1), r + d[1] * (i - 1), (dir + 1) % 6, sub, t0 + i * STEP + STEP * 0.6, depth + 1);
-          branch(q + d[0] * (i - 1), r + d[1] * (i - 1), (dir + 5) % 6, sub, t0 + i * STEP + STEP * 0.6, depth + 1);
-        }
+    /* 六角小雪花:三条短线交叉(小尺寸下足够像) */
+    function flake(x, y, r, rot, alpha, tint) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(rot);
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = tint || "#dff3ff";
+      ctx.lineWidth = Math.max(0.7, r * 0.22);
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      for (var k = 0; k < 3; k++) {
+        var a = k * Math.PI / 3;
+        ctx.moveTo(-Math.cos(a) * r, -Math.sin(a) * r);
+        ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
       }
+      ctx.stroke();
+      ctx.restore();
     }
-    put(0, 0, 0, 0);
-    for (var k = 0; k < 6; k++) branch(0, 0, k, ARM, STEP * 1.5, 1);
-    var born = 0;
-    cells.forEach(function (c) { if (c.t0 > born) born = c.t0; });
-    var tWipe0 = born + MELT_AFTER + MELT_MS;
+    /* 斜坐标 (s,p) → 屏幕坐标:s 从右上角的小值涨到左下角的大值,就是暴风雪的方向。
+       s=(W-x)+y、p=x+y 反解出 x=(p-s+W)/2、y=(p+s-W)/2 */
+    function place(f, t) {
+      var s = (f.s0 + t * f.spd * 300) % (SPAN * 1.25);
+      if (s < 0) s += SPAN * 1.25;
+      s -= SPAN * 0.12;
+      return { x: (f.p0 - s + W) / 2, y: (f.p0 + s - W) / 2, s: s };
+    }
 
     return {
-      total: tWipe0 + WIPE + 40,
+      total: BUILD + SWEEP + TAIL,
       draw: function (el) {
-        ctx.fillStyle = "#070c14";                     /* 黑底:最后用扩散的圆清掉 */
+        var t = el / 1000;
+        /* 底:黑屏(扫过的部分用 destination-out 挖掉)*/
+        ctx.fillStyle = "#05080f";
         ctx.fillRect(0, 0, W, H);
-        /* 晶体(边生长边从中心融化)*/
-        for (var i = 0; i < cells.length; i++) {
-          var c = cells[i];
-          var g = clamp((el - c.t0) / 260, 0, 1);      /* 长出来 */
-          if (g <= 0) continue;
-          var m = clamp((el - (c.t0 + MELT_AFTER)) / MELT_MS, 0, 1);   /* 融化 */
-          if (m >= 1) continue;
-          var s = easeOutBack(g) * (1 - easeOutQuad(m));
-          if (s <= 0.02) continue;
-          var rr = R * s;
-          ctx.save();
-          ctx.translate(c.x, c.y);
-          ctx.rotate(Math.PI / 6);
-          hexPath(ctx, rr * 0.96);
-          ctx.globalAlpha = (0.25 + 0.75 * g) * (1 - m * 0.5);
-          ctx.fillStyle = c.depth <= 1 ? "#8fe8ff" : (c.depth === 2 ? "#5cc8ee" : "#3d9dc4");
-          ctx.fill();
-          ctx.globalAlpha = (0.5 + 0.5 * g) * (1 - m * 0.6);
-          ctx.strokeStyle = "#dff6ff";
-          ctx.lineWidth = Math.max(0.5, rr * 0.12);
-          ctx.stroke();
-          ctx.restore();
+        /* 雪线位置:BUILD 之后从右上扫到左下 */
+        var T = -1;
+        if (el > BUILD) {
+          var sp = clamp((el - BUILD) / SWEEP, 0, 1);
+          T = easeInOut(sp) * (SPAN + 260) - 130;
+          var poly = revealPoly(T);
+          if (poly.length > 2) {
+            ctx.globalCompositeOperation = "destination-out";
+            ctx.beginPath();
+            ctx.moveTo(poly[0][0], poly[0][1]);
+            for (var q = 1; q < poly.length; q++) ctx.lineTo(poly[q][0], poly[q][1]);
+            ctx.closePath();
+            ctx.fill();
+            ctx.globalCompositeOperation = "source-over";
+          }
+        }
+        /* 雪花(线上的更亮更大 → 把硬边盖住)*/
+        var fade = el > BUILD + SWEEP ? clamp(1 - (el - BUILD - SWEEP) / TAIL, 0, 1) : 1;
+        for (var i = 0; i < flakes.length; i++) {
+          var f = flakes[i];
+          var p = place(f, t);
+          if (p.x < -40 || p.x > W + 40 || p.y < -40 || p.y > H + 40) continue;
+          var band = T >= 0 ? Math.abs(p.s - T) : 9999;
+          var near = clamp(1 - band / 150, 0, 1);            /* 越靠近雪线越密越亮 */
+          var r = f.size * (1 + near * 1.6);
+          var alpha = f.a * fade * (0.55 + 0.45 * near) * (1 - near * 0.15);
+          flake(p.x, p.y, r, f.rot0 + t * 1.2 * (f.spd - 1) + near, alpha, near > 0.4 ? "#ffffff" : "#dff3ff");
         }
         ctx.globalAlpha = 1;
-        /* 迭代完成后:从中心往外扩散的圆清掉所有黑底 */
-        if (el > tWipe0) {
-          var p = clamp((el - tWipe0) / WIPE, 0, 1);
-          var rad = easeInOut(p) * Math.hypot(W, H) * 0.62;
-          ctx.globalCompositeOperation = "destination-out";
-          ctx.beginPath();
-          ctx.arc(W / 2, H / 2, rad, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.globalCompositeOperation = "source-over";
-        }
       }
     };
+  }
+
+  /* 用 (W-x)+y <= T 切出"已刷新"的多边形(Sutherland-Hodgman 单边裁剪)*/
+  function revealPoly(T) {
+    var pts = [[0, 0], [W0, 0], [W0, H0], [0, H0]];
+    var out = [];
+    var f = function (p) { return (W0 - p[0]) + p[1] - T; };
+    for (var i = 0; i < 4; i++) {
+      var a = pts[i], b = pts[(i + 1) % 4];
+      var fa = f(a), fb = f(b);
+      if (fa <= 0) out.push(a);
+      if ((fa <= 0) !== (fb <= 0)) {
+        var k = fa / (fa - fb);
+        out.push([a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k]);
+      }
+    }
+    return out;
   }
 
   /* ================= 出口 ================= */

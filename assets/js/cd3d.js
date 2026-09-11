@@ -349,7 +349,7 @@ export async function initCd3d(opts) {
   const driveTuck = driveDist * (1 + driveOvershoot);   /* 静止时的缩进量 */
   const driveBaseX = driveHolder.position.x;   /* 动画前的位置 = 弹出位参考 */
   const ejectMs = m.driveEjectMs != null ? m.driveEjectMs : 620;
-  const dropHeight = m.cdDropHeight != null ? m.cdDropHeight : 3.4;
+  const dropHeight = m.cdDropHeight != null ? m.cdDropHeight : 1.1;   /* 抬起高度:大了会飞出画面 */
   const dropMs = m.cdDropMs != null ? m.cdDropMs : 720;
   const retractMs2 = m.retractMs != null ? m.retractMs : 620;
   const retractPauseMs = m.retractPauseMs != null ? m.retractPauseMs : 260;

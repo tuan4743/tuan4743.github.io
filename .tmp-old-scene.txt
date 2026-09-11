@@ -1,0 +1,82 @@
+  /* ================= 5. 六角枝晶雪花(未来) =================
+     六边形网格上的枝晶生长(六角 L-system):从中心 6 个方向各长一条主枝,
+     沿途向左右各分出小枝,递归 3 层 —— 就是用户给的那种六角雪花。
+     每个格子有出生时间,活得够久就从中心开始融化,于是变成一圈向外扩散的花纹;
+     迭代完成后,一个从中心扩散的圆把剩下的黑底清掉。 */
+  function sceneFractal(ctx, W, H, accent) {
+    var GROW = 3000, MELT_AFTER = 900, MELT_MS = 420, WIPE = 700;
+    var R = Math.min(W, H) / 26;                     /* 单格六边形的半径(大一点才铺得满屏)*/
+    var ARM = 9, MAXD = 4;                           /* 迭代 4 轮 */
+    var DIRS = [[1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1]];
+    var cells = [];
+    var seen = {};
+    var STEP = GROW / 26;
+
+    function put(q, r, t0, depth) {
+      var k = q + "," + r;
+      if (seen[k]) return;
+      seen[k] = 1;
+      var x = W / 2 + R * 1.732 * (q + r / 2);
+      var y = H / 2 + R * 1.5 * r;
+      cells.push({ x: x, y: y, t0: t0, depth: depth, seed: Math.random() });
+    }
+    function branch(q, r, dir, len, t0, depth) {
+      var d = DIRS[dir];
+      for (var i = 1; i <= len; i++) {
+        put(q + d[0] * i, r + d[1] * i, t0 + i * STEP, depth);
+        if (depth < MAXD && i >= 2 && i % 2 === 0) {
+          var sub = Math.max(1, Math.round(len * 0.45));
+          branch(q + d[0] * (i - 1), r + d[1] * (i - 1), (dir + 1) % 6, sub, t0 + i * STEP + STEP * 0.6, depth + 1);
+          branch(q + d[0] * (i - 1), r + d[1] * (i - 1), (dir + 5) % 6, sub, t0 + i * STEP + STEP * 0.6, depth + 1);
+        }
+      }
+    }
+    put(0, 0, 0, 0);
+    for (var k = 0; k < 6; k++) branch(0, 0, k, ARM, STEP * 1.5, 1);
+    var born = 0;
+    cells.forEach(function (c) { if (c.t0 > born) born = c.t0; });
+    var tWipe0 = born + MELT_AFTER + MELT_MS;
+
+    return {
+      total: tWipe0 + WIPE + 40,
+      draw: function (el) {
+        ctx.fillStyle = "#070c14";                     /* 黑底:最后用扩散的圆清掉 */
+        ctx.fillRect(0, 0, W, H);
+        /* 晶体(边生长边从中心融化)*/
+        for (var i = 0; i < cells.length; i++) {
+          var c = cells[i];
+          var g = clamp((el - c.t0) / 260, 0, 1);      /* 长出来 */
+          if (g <= 0) continue;
+          var m = clamp((el - (c.t0 + MELT_AFTER)) / MELT_MS, 0, 1);   /* 融化 */
+          if (m >= 1) continue;
+          var s = easeOutBack(g) * (1 - easeOutQuad(m));
+          if (s <= 0.02) continue;
+          var rr = R * s;
+          ctx.save();
+          ctx.translate(c.x, c.y);
+          ctx.rotate(Math.PI / 6);
+          hexPath(ctx, rr * 0.96);
+          ctx.globalAlpha = (0.25 + 0.75 * g) * (1 - m * 0.5);
+          ctx.fillStyle = c.depth <= 1 ? "#8fe8ff" : (c.depth === 2 ? "#5cc8ee" : "#3d9dc4");
+          ctx.fill();
+          ctx.globalAlpha = (0.5 + 0.5 * g) * (1 - m * 0.6);
+          ctx.strokeStyle = "#dff6ff";
+          ctx.lineWidth = Math.max(0.5, rr * 0.12);
+          ctx.stroke();
+          ctx.restore();
+        }
+        ctx.globalAlpha = 1;
+        /* 迭代完成后:从中心往外扩散的圆清掉所有黑底 */
+        if (el > tWipe0) {
+          var p = clamp((el - tWipe0) / WIPE, 0, 1);
+          var rad = easeInOut(p) * Math.hypot(W, H) * 0.62;
+          ctx.globalCompositeOperation = "destination-out";
+          ctx.beginPath();
+          ctx.arc(W / 2, H / 2, rad, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalCompositeOperation = "source-over";
+        }
+      }
+    };
+  }
+

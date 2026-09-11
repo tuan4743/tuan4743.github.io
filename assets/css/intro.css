@@ -267,9 +267,9 @@ body.statusbar-hidden .statusbar-toggle svg {
     transition: background-color 560ms cubic-bezier(0.4, 0, 0.2, 1), color 560ms cubic-bezier(0.4, 0, 0.2, 1);
 
     /* 菱形平铺图案的可调项 */
-    --bg-tile: 52px;          /* 一个网格单元多大 */
+    --bg-tile: 208px;         /* 一块贴图多大(SVG 里是 4x4 个随机朝向的菱形,所以是 4×52)*/
     --bg-scroll: 26s;         /* 背景缓慢流动一圈的时长(设 0s = 不动)*/
-    --bg-diamond: 0.5;        /* 菱形透明度(写在 SVG 里,这里只是备注)*/
+    --bg-diamond: 0.25;       /* 菱形透明度(写在 SVG 里,这里只是备注)*/
 
     /* CD 架文字介绍的可调尺寸(想改排版就改这里) */
     --rack-pad: clamp(16px, 2vw, 38px);          /* 文字距左侧的距离 */

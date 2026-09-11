@@ -42,7 +42,7 @@
   "driveEjectMs": 620,
   "driveEjectDist": null,
   "driveEjectOvershoot": 0.1,
-  "cdDropHeight": 3.4,
+  "cdDropHeight": 1.1,
   "cdDropMs": 720,
   "retractMs": 620,
   "retractPauseMs": 260,

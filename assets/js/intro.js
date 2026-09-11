@@ -94,13 +94,28 @@
     return contrast(luminance(hex), BASE_LUM) < 1.15 ? mixWhite(hex, 0.3) : hex;
   }
 
-  /* 菱形平铺图案:一个 45° 旋转的正方形,填当前主题色、50% 透明
-     (正方形比格子小一圈 → 菱形之间留出呼吸感;调 17/40 这个比例或 CSS 的 --bg-tile 都能改间距)*/
+  /* 菱形平铺图案:一块 tile 里放 4x4 个正方形,每个朝向/大小都随机(否则满屏菱形一模一样,
+     一眼就看出是贴图)。填充用主题色 25% 透明。
+     注意 tile 变大了(4 格),所以 CSS 的 --bg-tile 也要跟着 ×4 */
   function diamondBg(hex) {
     var c = /^#[0-9a-fA-F]{6}$/.test(String(hex || "")) ? hex : "#888888";
     c = liftForBase(c);
-    var svg = "<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'>" +
-      "<rect x='11.5' y='11.5' width='17' height='17' transform='rotate(45 20 20)' fill='" + c + "' fill-opacity='0.5'/></svg>";
+    var cell = 40, n = 4, side = 17;
+    var parts = "";
+    for (var r = 0; r < n; r++) {
+      for (var q = 0; q < n; q++) {
+        var cx = q * cell + cell / 2, cy = r * cell + cell / 2;
+        var ang = 45 + (Math.random() * 34 - 17);          /* 45° ± 17° */
+        var s = side * (0.82 + Math.random() * 0.36);
+        parts += "<rect x='" + (cx - s / 2).toFixed(1) + "' y='" + (cy - s / 2).toFixed(1) +
+          "' width='" + s.toFixed(1) + "' height='" + s.toFixed(1) +
+          "' transform='rotate(" + ang.toFixed(1) + " " + cx + " " + cy + ")' fill='" + c +
+          "' fill-opacity='0.25'/>";
+      }
+    }
+    var px = cell * n;
+    var svg = "<svg xmlns='http://www.w3.org/2000/svg' width='" + px + "' height='" + px +
+      "' viewBox='0 0 " + px + " " + px + "'>" + parts + "</svg>";
     return 'url("data:image/svg+xml,' +
       svg.replace(/</g, "%3C").replace(/>/g, "%3E").replace(/#/g, "%23") + '")';
   }
@@ -382,7 +397,7 @@
     fade: 260,            /* loading 淡出 */
     draw: 430,            /* 六边形描边时长(只有成长那套用)*/
     drawEach: 2.2,        /* 描边随机错开的窗口(ms × 个数)*/
-    collapse: 620         /* 六边形塌缩时长(消失用时)/ */
+    collapse: 400         /* 六边形塌缩时长(消失用时越快越干脆)/ */
   };
   var bootRAF = 0;
 
