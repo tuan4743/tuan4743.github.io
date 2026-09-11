@@ -123,10 +123,10 @@ body.statusbar-hidden .statusbar {
 .statusbar-toggle {
     position: absolute;
     left: 50%;
-    top: calc(var(--sp-t) - 10px);
+    top: calc(var(--sp-t) - 10px);   /* 位置别动:刚好跟屏幕可视区上缘对齐 */
     transform: translateX(-50%);
     z-index: 41;
-    width: 46px;
+    width: 88px;                     /* 横向拉长(原来是 46px)*/
     height: 18px;
     display: flex;
     align-items: center;
@@ -210,7 +210,7 @@ body.statusbar-hidden .statusbar-toggle svg {
 /* ---------- 屏幕左缘:光驱开关(电源键造型,贴在金属边框上,垂直居中) ---------- */
 .screen-slot {
     position: absolute;
-    left: 1.4vw;               /* 贴在贴图左边框上 */
+    left: 3vw;                 /* 贴在贴图左边框上(比原来往右挪了一点) */
     top: 50%;
     transform: translateY(-50%);
     z-index: 36;               /* 在贴图边框之上,不会被盖住 */
@@ -241,17 +241,7 @@ body.statusbar-hidden .statusbar-toggle svg {
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     transition: border-color 0.2s ease, color 0.2s ease;
-    animation: slot-nudge 3s ease-in-out infinite;   /* 轻微提示:入口在此 */
-}
-
-body.scene-open .slot-toggle {
-    animation: none;
-}
-
-@keyframes slot-nudge {
-    0%, 70%, 100% { transform: translateX(0); }
-    80% { transform: translateX(6px); }
-    90% { transform: translateX(2px); }
+    /* 这里原来有个"每 3 秒顶一下"的提示动画,已经去掉 —— 位置保持不动 */
 }
 
 .slot-toggle:hover {
