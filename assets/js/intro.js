@@ -491,50 +491,206 @@
       staticCtx.globalAlpha = outA * (0.55 + 0.45 * Math.abs(Math.sin(el / 260)));
       staticCtx.fillText("LOADING  " + Math.round(p * 100) + "%", cx, cy + rr * 2.1);
 
-      /* ---------- 终端启动日志:逐行打出来 ---------- */
+      /* ================= 终端启动外壳 =================
+         配色:霓虹青 / 冰蓝;第四张(glitch)混入品红
+         辉光:画布原生 shadowBlur(不是 CSS filter,安全)
+         色差:文字画三遍(红偏移 / 青偏移 / 正本),lighter 叠加
+         数据密度:右侧一列十六进制与实时跳动数值
+         排版:左侧日志整体轻微倾斜,MOUNTING 行两侧带进度条
+         圆环:虚线外圈 + 旋转刻度 + 雷达扫描 + 多层嵌套弧            */
+      var IS_GLITCH = String(used || "").toLowerCase() === "glitch";
+      var C_CYAN = "#7ff0ff";                       /* 主色:霓虹青 */
+      var C_ICE = "#bfe9ff";                        /* 冰蓝:次级文字 */
+      var C_DIM = "rgba(127, 240, 255, 0.45)";
+      var C_ACC = IS_GLITCH ? "#ff5ce1" : "#7ff0ff"; /* 第四张:品红点缀 */
+
+      function glowText(txt, x, y, color, blur) {
+        staticCtx.save();
+        staticCtx.shadowColor = color;
+        staticCtx.shadowBlur = blur;
+        staticCtx.fillStyle = color;
+        staticCtx.fillText(txt, x, y);
+        /* 色差:左右各偏一点点,红/青通道错开 */
+        staticCtx.globalCompositeOperation = "lighter";
+        staticCtx.globalAlpha *= 0.4;
+        staticCtx.shadowBlur = 0;
+        staticCtx.fillStyle = "rgba(255, 60, 90, 0.55)";
+        staticCtx.fillText(txt, x - 1, y);
+        staticCtx.fillStyle = "rgba(60, 230, 255, 0.55)";
+        staticCtx.fillText(txt, x + 1, y);
+        staticCtx.restore();
+      }
+
       var LOG = [
         "> OPTICAL BIOS  v1.4",
-        "> DRIVE SPIN-UP ............ OK",
+        "> DRIVE SPIN-UP ........... OK",
         "> MOUNTING DISC " + String(used || "").toUpperCase(),
-        "> READING SECTORS .......... 100%",
-        "> SIGNAL LOCK .............. STABLE",
+        "> READING SECTORS ......... 100%",
+        "> SIGNAL LOCK ............. STABLE",
         "> READY"
       ];
-      var typed = p * (LOG.length + 0.5);          /* 用同一个进度驱动行数 */
-      var lx = Math.round(W * 0.055), ly = Math.round(H * 0.075);
-      staticCtx.font = Math.round(Math.min(W, H) * 0.021) + "px ui-monospace, Consolas, monospace";
+      var typed = p * (LOG.length + 0.5);
+      var fs2 = Math.max(10, Math.round(Math.min(W, H) * 0.021));
+      var lh = Math.round(fs2 * 1.45);
+      var lx = Math.round(W * 0.05), ly = Math.round(H * 0.07);
+
+      staticCtx.save();
+      staticCtx.translate(lx, ly);
+      staticCtx.rotate(-0.022);                     /* 轻微倾斜,打破死板对齐 */
+      staticCtx.font = fs2 + "px ui-monospace, Consolas, monospace";
       staticCtx.textAlign = "left";
       staticCtx.textBaseline = "top";
+      staticCtx.globalAlpha = outA;
+
       for (var li = 0; li < LOG.length; li++) {
         var reach = typed - li;
         if (reach <= 0) break;
-        var isLast = (li === Math.min(LOG.length - 1, Math.floor(typed)));
-        staticCtx.globalAlpha = outA * Math.max(0.3, Math.min(1, reach)) *
-                                (isLast ? (0.55 + 0.45 * Math.abs(Math.sin(el / 150))) : 0.88);
-        staticCtx.fillStyle = (li === LOG.length - 1) ? "#7fe3c0" : "#9fd8e8";
-        /* 未打完的那一行:从左边一个个字符长出来 */
+        var isLast = (li === Math.floor(typed));
         var txt = LOG[li];
         if (reach < 1) txt = txt.slice(0, Math.max(1, Math.round(txt.length * reach)));
-        staticCtx.fillText(txt, lx, ly + li * Math.round(Math.min(W, H) * 0.028));
-      }
+        staticCtx.globalAlpha = outA * (isLast ? 0.72 + 0.28 * Math.abs(Math.sin(el / 150)) : 0.92);
+        var col = (li === LOG.length - 1) ? C_ACC : (li === 2 ? C_CYAN : C_ICE);
+        glowText(txt, 0, li * lh, col, isLast ? 12 : 7);
 
-      /* ---------- 环形进度:整圈里点亮 p 那一段 ---------- */
-      staticCtx.globalAlpha = outA;
+        /* MOUNTING 这一行两侧各加一根进度条 */
+        if (li === 2 && reach > 0.2) {
+          var barW = Math.round(W * 0.13), barH = 3;
+          var bx = staticCtx.measureText(txt).width + 14;
+          staticCtx.globalAlpha = outA * 0.9;
+          staticCtx.shadowColor = C_ACC; staticCtx.shadowBlur = 8;
+          staticCtx.fillStyle = "rgba(127,240,255,0.18)";
+          staticCtx.fillRect(bx, 5, barW, barH);
+          staticCtx.fillStyle = C_ACC;
+          staticCtx.fillRect(bx, 5, barW * p, barH);
+          /* 左右各一根,右边反方向 */
+          staticCtx.fillStyle = "rgba(127,240,255,0.18)";
+          staticCtx.fillRect(-barW - 26, 5, barW, barH);
+          staticCtx.fillStyle = C_CYAN;
+          staticCtx.fillRect(-26 - barW * p, 5, barW * p, barH);
+          staticCtx.shadowBlur = 0;
+        }
+      }
+      staticCtx.restore();
+
+      /* ---------- 右侧:无意义但不闲着的数据流 ---------- */
+      var seed = Math.floor(el / 90);                /* 每 90ms 换一批 */
+      function rnd(i) { var x = Math.sin(seed * 12.9898 + i * 78.233) * 43758.5453; return x - Math.floor(x); }
+      staticCtx.save();
+      staticCtx.font = Math.max(9, Math.round(fs2 * 0.86)) + "px ui-monospace, Consolas, monospace";
+      staticCtx.textAlign = "right";
+      staticCtx.textBaseline = "top";
+      for (var di = 0; di < 9; di++) {
+        var val;
+        if (di % 3 === 0) val = "0x" + Math.floor(rnd(di) * 65535).toString(16).toUpperCase().padStart(4, "0");
+        else if (di % 3 === 1) val = "SIG " + (95 + rnd(di) * 4.9).toFixed(1) + "%";
+        else val = "LAT " + (6 + rnd(di) * 9).toFixed(1) + "ms";
+        staticCtx.globalAlpha = outA * (0.35 + 0.35 * rnd(di + 40));
+        glowText(val, W * 0.955, H * 0.07 + di * lh, di % 3 === 0 ? C_DIM : C_ICE, 5);
+      }
+      /* 左下角再来一小列 */
+      staticCtx.textAlign = "left";
+      for (var dj = 0; dj < 4; dj++) {
+        var v2 = "BUF 0x" + Math.floor(rnd(dj + 90) * 65535).toString(16).toUpperCase().padStart(4, "0");
+        staticCtx.globalAlpha = outA * (0.3 + 0.3 * rnd(dj + 130));
+        glowText(v2, W * 0.05, H * 0.9 + dj * lh * 0.9, C_DIM, 4);
+      }
+      staticCtx.restore();
+
+      /* ---------- 中央圆环:多层嵌套 + 虚线外圈 + 旋转刻度 + 雷达扫描 ---------- */
       staticCtx.save();
       staticCtx.translate(cx, cy);
-      staticCtx.rotate(-Math.PI / 2);
-      staticCtx.lineWidth = Math.max(2, rr * 0.16);
-      staticCtx.strokeStyle = "rgba(160, 220, 240, 0.20)";
+      staticCtx.globalAlpha = outA;
+      var rBase = rr * 1.7;
+
+      /* 1) 虚线外圈(缓慢反向自转)*/
+      staticCtx.save();
+      staticCtx.rotate(-el / 2600);
+      staticCtx.setLineDash([rr * 0.34, rr * 0.26]);
+      staticCtx.lineWidth = Math.max(1, rr * 0.07);
+      staticCtx.strokeStyle = C_DIM;
+      staticCtx.shadowColor = C_CYAN; staticCtx.shadowBlur = 6;
       staticCtx.beginPath();
-      staticCtx.arc(0, 0, rr * 1.7, 0, Math.PI * 2);
-      staticCtx.stroke();
-      staticCtx.strokeStyle = "#7fe3c0";
-      staticCtx.beginPath();
-      staticCtx.arc(0, 0, rr * 1.7, 0, Math.PI * 2 * p);
+      staticCtx.arc(0, 0, rBase * 1.26, 0, Math.PI * 2);
       staticCtx.stroke();
       staticCtx.restore();
+
+      /* 2) 旋转刻度(每 15° 一根,长短交替)*/
+      staticCtx.save();
+      staticCtx.rotate(el / 1700);
+      staticCtx.setLineDash([]);
+      staticCtx.lineWidth = Math.max(1, rr * 0.055);
+      for (var ti = 0; ti < 24; ti++) {
+        var ang = (Math.PI * 2 / 24) * ti;
+        var long = ti % 2 === 0;
+        var r1 = rBase * (long ? 1.06 : 1.12), r2 = rBase * 1.2;
+        staticCtx.globalAlpha = outA * (long ? 0.55 : 0.3);
+        staticCtx.strokeStyle = long ? C_CYAN : C_ICE;
+        staticCtx.beginPath();
+        staticCtx.moveTo(Math.cos(ang) * r1, Math.sin(ang) * r1);
+        staticCtx.lineTo(Math.cos(ang) * r2, Math.sin(ang) * r2);
+        staticCtx.stroke();
+      }
+      staticCtx.restore();
+
+      /* 3) 雷达扫描(一圈渐隐的扇形,持续旋转)*/
+      staticCtx.save();
+      staticCtx.rotate(el / 620);
+      staticCtx.globalAlpha = outA * 0.5;
+      var sweep = staticCtx.createConicGradient ? staticCtx.createConicGradient(0, 0, 0) : null;
+      if (sweep) {
+        sweep.addColorStop(0, "rgba(127,240,255,0)");
+        sweep.addColorStop(0.12, IS_GLITCH ? "rgba(255,92,225,0.55)" : "rgba(127,240,255,0.5)");
+        sweep.addColorStop(0.25, "rgba(127,240,255,0)");
+        sweep.addColorStop(1, "rgba(127,240,255,0)");
+        staticCtx.fillStyle = sweep;
+        staticCtx.beginPath();
+        staticCtx.arc(0, 0, rBase * 1.02, 0, Math.PI * 2);
+        staticCtx.fill();
+      }
+      staticCtx.restore();
+
+      /* 4) 进度主环 + 内侧细环(双向)*/
+      staticCtx.setLineDash([]);
+      staticCtx.lineWidth = Math.max(2, rr * 0.17);
+      staticCtx.strokeStyle = "rgba(127, 240, 255, 0.16)";
+      staticCtx.beginPath();
+      staticCtx.arc(0, 0, rBase, 0, Math.PI * 2);
+      staticCtx.stroke();
+      staticCtx.save();
+      staticCtx.rotate(-Math.PI / 2);
+      staticCtx.strokeStyle = C_ACC;
+      staticCtx.shadowColor = C_ACC; staticCtx.shadowBlur = 14;
+      staticCtx.beginPath();
+      staticCtx.arc(0, 0, rBase, 0, Math.PI * 2 * p);
+      staticCtx.stroke();
+      staticCtx.restore();
+
+      staticCtx.save();
+      staticCtx.rotate(el / 900);
+      staticCtx.setLineDash([rr * 0.18, rr * 0.3]);
+      staticCtx.lineWidth = Math.max(1, rr * 0.07);
+      staticCtx.strokeStyle = C_ICE;
+      staticCtx.globalAlpha = outA * 0.5;
+      staticCtx.shadowBlur = 0;
+      staticCtx.beginPath();
+      staticCtx.arc(0, 0, rBase * 0.72, 0, Math.PI * 2);
+      staticCtx.stroke();
+      staticCtx.restore();
+
+      staticCtx.restore();
+
+      /* ---------- 中央百分比(带辉光)*/
+      staticCtx.save();
+      staticCtx.font = "600 " + Math.round(Math.min(W, H) * 0.032) + "px ui-monospace, Consolas, monospace";
       staticCtx.textAlign = "center";
       staticCtx.textBaseline = "middle";
+      staticCtx.globalAlpha = outA * (0.6 + 0.4 * Math.abs(Math.sin(el / 260)));
+      glowText(Math.round(p * 100) + "%", cx, cy, C_CYAN, 16);
+      staticCtx.restore();
+
+      staticCtx.textAlign = "center";
+      staticCtx.textBaseline = "middle";
+      staticCtx.globalAlpha = 1;
       staticCtx.globalAlpha = 1;
     }
 
