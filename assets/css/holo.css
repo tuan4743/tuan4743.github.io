@@ -10,9 +10,11 @@
 /* 中文像素字体(自备)。把文件放到 static/fonts/ 下,文件名见 README */
 @font-face {
     font-family: "Pixel CN";
-    src: url("/fonts/PixelCN.woff2") format("woff2"),
-         url("/fonts/PixelCN.ttf") format("truetype"),
-         url("/fonts/PixelCN.otf") format("opentype");
+    /* HYPixel 9px 是 9px 原生像素字体;下面留了几个备选名,改文件名不用改代码顺序 */
+    src: url("/fonts/HYPixel9pxJ-2.ttf") format("truetype"),
+         url("/fonts/HYPixel9pxJ-2.woff2") format("woff2"),
+         url("/fonts/PixelCN.woff2") format("woff2"),
+         url("/fonts/PixelCN.ttf") format("truetype");
     font-display: swap;
 }
 
@@ -65,7 +67,7 @@
     --title-size: clamp(30px, 4vh, 56px);
     --title-ls: 0.18em;
     --title-gap: 0.55em;                  /* 主题与配字间距 */
-    --caption-size: clamp(11px, 1.5vh, 15px);
+    --caption-size: clamp(9px, 1.5vh, 18px);  /* 9 的倍数 */
     --caption-ls: 0.16em;
 
     /* ═══════ 3. 侧边凸起里的"滑条 / 方按钮 / 滑条" ═══════ */
@@ -91,7 +93,7 @@
     --thumb-icon-sun: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23eaf3ff' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='4.2'/%3E%3Cpath d='M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6'/%3E%3C/svg%3E");   /* 上面那根:背景(亮度)*/
     --thumb-icon-star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23eaf3ff'%3E%3Cpath d='M12 2.6l2 6.6 6.6 2-6.6 2-2 6.6-2-6.6-6.6-2 6.6-2z'/%3E%3C/svg%3E"); /* 下面那根:星云 */
     --fader-icon-size: 14px;              /* 滑条上方那个小图标 */
-    --fader-label-size: 10px;             /* 图标旁的文字 */
+    --fader-label-size: 9px;              /* 9 的倍数 */
     --fader-label-ls: 0.2em;
     --fader-head-gap: 6px;
 
@@ -136,7 +138,7 @@
     --ui-font: "Alpha Sector", "Orbitron", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     --ui-font-cjk: "Alpha Sector", "Pixel CN", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", ui-monospace, monospace;
     --ui-pixel-smooth: none;              /* 像素字体想更锐利就留 none;想柔和改成 auto */
-    --panel-mono: var(--ui-font);
+    --panel-mono: var(--ui-font-cjk);   /* 面板也要能吃到中文像素字体 */
     --panel-fs: 12px;                     /* 字号 */
     --panel-ls: 0.14em;                   /* 字距 */
     --panel-dot: 6px;                     /* 指示灯直径 */
