@@ -525,6 +525,15 @@
          否则铺满之前页面会从缝隙里透出来(emoji 场景正是如此) */
       var holdBlack = tPanel + (scene.blackUntil || 0);
       if (!droppedBlack && el >= holdBlack) { staticWrap.classList.remove("is-black"); droppedBlack = true; }
+      /* ★ 关键:场景画在离屏画布上,离屏必须【每帧先清空】再画 ——
+         否则上一帧残留在下面,和下一帧叠在一起(帧残留/重影)。
+         原来场景直接画在可见画布上时,是靠上面那句 clearRect 清掉的。 */
+      if (POST) {
+        sceneCtx.setTransform(1, 0, 0, 1, 0, 0);
+        sceneCtx.globalAlpha = 1;
+        sceneCtx.globalCompositeOperation = "source-over";
+        sceneCtx.clearRect(0, 0, W, H);
+      }
       scene.draw(el - tPanel);
       if (POST) POST.present(staticCtx, W, H, el, 1);   /* 过一遍全息成像:泛光/扫描线/暗角/噪点 */
       staticCtx.setLineDash([]);
