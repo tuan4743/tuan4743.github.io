@@ -19,6 +19,8 @@
   var octx = null;
   var small = null;        /* 缩小版:用于廉价泛光 */
   var sctx = null;
+  var bandGrad = null, bandGradW = 0;
+  var vigGrad = null, vigW = 0, vigH = 0;
   var grain = null;        /* 噪点贴图(预生成几帧,循环使用) */
   var grainTiles = [];
   var grainIdx = 0, grainAge = 0;
@@ -62,7 +64,7 @@
   function present(ctx, W, H, el, strength) {
     ensure(W, H);
     buildGrain();
-    var s = strength == null ? 1 : strength;
+    var s_ = strength == null ? 1 : strength;
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
@@ -81,7 +83,7 @@
     sctx.drawImage(off, 0, 0, small.width, small.height);
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
-    ctx.globalAlpha = 0.32 * s;
+    ctx.globalAlpha = 0.32 * s_;
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(small, 0, 0, small.width, small.height, 0, 0, W, H);
     ctx.restore();
@@ -95,20 +97,30 @@
 
     /* ④ 滚动扫描带(一条缓慢下移的亮带 + 一条更亮的细线)*/
     var bandY = ((el * 0.12) % (H + 200)) - 100;   /* 速度:0.06 → 0.12(快一倍)*/
-    var grad = ctx.createLinearGradient(0, bandY - 60, 0, bandY + 60);
-    grad.addColorStop(0, "rgba(255,255,255,0)");
-    grad.addColorStop(0.5, "rgba(210,240,255," + (0.05 * s).toFixed(3) + ")");
-    grad.addColorStop(1, "rgba(255,255,255,0)");
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, bandY - 60, W, 120);
-    ctx.fillStyle = "rgba(220,245,255," + (0.06 * s).toFixed(3) + ")";
-    ctx.fillRect(0, bandY, W, 1);
+    ctx.save();
+    ctx.translate(0, bandY - 60);
+    /* 渐变只创建一次(依赖 W/H,不依赖位置),之后靠 translate 移动 —— 每帧重建渐变会明显掉帧 */
+    if (!bandGrad || bandGradW !== W) {
+      bandGrad = ctx.createLinearGradient(0, 0, 0, 120);
+      bandGrad.addColorStop(0, "rgba(255,255,255,0)");
+      bandGrad.addColorStop(0.5, "rgba(210,240,255," + (0.05 * s_).toFixed(3) + ")");
+      bandGrad.addColorStop(1, "rgba(255,255,255,0)");
+      bandGradW = W;
+    }
+    ctx.fillStyle = bandGrad;
+    ctx.fillRect(0, 0, W, 120);
+    ctx.fillStyle = "rgba(220,245,255," + (0.06 * s_).toFixed(3) + ")";
+    ctx.fillRect(0, 60, W, 1);
+    ctx.restore();
 
-    /* ⑤ 暗角 */
-    var vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.25, W / 2, H / 2, Math.max(W, H) * 0.72);
-    vg.addColorStop(0, "rgba(0,0,0,0)");
-    vg.addColorStop(1, "rgba(0,0,0,0.55)");
-    ctx.fillStyle = vg;
+    /* ⑤ 暗角(渐变缓存:尺寸不变就不重建)*/
+    if (!vigGrad || vigW !== W || vigH !== H) {
+      vigGrad = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.25, W / 2, H / 2, Math.max(W, H) * 0.72);
+      vigGrad.addColorStop(0, "rgba(0,0,0,0)");
+      vigGrad.addColorStop(1, "rgba(0,0,0,0.55)");
+      vigW = W; vigH = H;
+    }
+    ctx.fillStyle = vigGrad;
     ctx.fillRect(0, 0, W, H);
 
     /* ⑥ 噪点 + 闪动 */
@@ -116,7 +128,7 @@
     if (grainAge % 3 === 0) { grainIdx = (grainIdx + 1) % grainTiles.length; grain = grainTiles[grainIdx]; }
     if (grain) {
       ctx.save();
-      ctx.globalAlpha = 0.5 * s;
+      ctx.globalAlpha = 0.5 * s_;
       var pat = ctx.createPattern(grain, "repeat");
       if (pat) { ctx.fillStyle = pat; ctx.fillRect(0, 0, W, H); }
       ctx.restore();

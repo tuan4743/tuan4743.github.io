@@ -489,7 +489,7 @@
       staticCtx.textAlign = "center";
       staticCtx.textBaseline = "middle";
       staticCtx.globalAlpha = outA * (0.55 + 0.45 * Math.abs(Math.sin(el / 260)));
-      staticCtx.fillText("LOADING  " + Math.round(p * 100) + "%", cx, cy + rr * 2.1);
+      /* 中间的 "LOADING xx%" 文字已移除:进度由圆环 + 环内百分比表达 */
 
       /* ================= 终端启动外壳 =================
          配色:霓虹青 / 冰蓝;第四张(glitch)混入品红
@@ -504,7 +504,7 @@
       var C_DIM = "rgba(127, 240, 255, 0.45)";
       var C_ACC = IS_GLITCH ? "#ff5ce1" : "#7ff0ff"; /* 第四张:品红点缀 */
 
-      function glowText(txt, x, y, color, blur) {
+      function glowText(txt, x, y, color, blur, aber) {
         staticCtx.save();
         staticCtx.shadowColor = color;
         staticCtx.shadowBlur = blur;
@@ -515,9 +515,10 @@
         staticCtx.globalAlpha *= 0.4;
         staticCtx.shadowBlur = 0;
         staticCtx.fillStyle = "rgba(255, 60, 90, 0.55)";
-        staticCtx.fillText(txt, x - 1, y);
+        var off = (aber == null ? 1 : aber);
+        staticCtx.fillText(txt, x - off, y);
         staticCtx.fillStyle = "rgba(60, 230, 255, 0.55)";
-        staticCtx.fillText(txt, x + 1, y);
+        staticCtx.fillText(txt, x + off, y);
         staticCtx.restore();
       }
 
@@ -527,17 +528,28 @@
         "> MOUNTING DISC " + String(used || "").toUpperCase(),
         "> READING SECTORS ......... 100%",
         "> SIGNAL LOCK ............. STABLE",
-        "> READY"
+        "> READY",
+        "! SECTOR RETRY ... HOLD"
       ];
-      var typed = p * (LOG.length + 0.5);
-      var fs2 = Math.max(10, Math.round(Math.min(W, H) * 0.021));
+      /* ---- 逐步故障(第四张最明显)----
+         pShow:显示用的进度 —— 在 STALL_A~STALL_B 之间卡住不动,之后猛冲完成
+         glitchAmt:0→1,控制 RGB 分离幅度与报警色 */
+      var GLITCH_K = IS_GLITCH ? 1 : 0.25;          /* 其它盘也有一点点,但很轻 */
+      var STALL_A = 0.62, STALL_B = 0.80;
+      var stalling = p > STALL_A && p < STALL_B;
+      var pShow = p <= STALL_A ? p
+                : (p < STALL_B ? STALL_A
+                : STALL_A + (p - STALL_B) / (1 - STALL_B) * (1 - STALL_A));
+      var glitchAmt = Math.min(1, GLITCH_K * (stalling ? 1 : p * 0.85));
+      var typed = pShow * (LOG.length + 0.5) + (stalling ? 1 : 0);   /* 卡住时把告警行顶出来 */
+      var fs2 = Math.max(14, Math.round(Math.min(W, H) * 0.021 * 1.4));   /* 字号 ×1.4 */
       var lh = Math.round(fs2 * 1.45);
-      var lx = Math.round(W * 0.05), ly = Math.round(H * 0.07);
+      var lx = Math.round(W * 0.062), ly = Math.round(H * 0.07);          /* 往右挪一点 */
 
       staticCtx.save();
       staticCtx.translate(lx, ly);
       staticCtx.rotate(-0.022);                     /* 轻微倾斜,打破死板对齐 */
-      staticCtx.font = fs2 + "px ui-monospace, Consolas, monospace";
+      staticCtx.font = fs2 + "px \"Alpha Sector\", ui-monospace, Consolas, monospace";
       staticCtx.textAlign = "left";
       staticCtx.textBaseline = "top";
       staticCtx.globalAlpha = outA;
@@ -550,7 +562,7 @@
         if (reach < 1) txt = txt.slice(0, Math.max(1, Math.round(txt.length * reach)));
         staticCtx.globalAlpha = outA * (isLast ? 0.72 + 0.28 * Math.abs(Math.sin(el / 150)) : 0.92);
         var col = (li === LOG.length - 1) ? C_ACC : (li === 2 ? C_CYAN : C_ICE);
-        glowText(txt, 0, li * lh, col, isLast ? 12 : 7);
+        glowText(txt, 0, li * lh, col, isLast ? 12 : 7, 0.6 + glitchAmt * 3.4);
 
         /* MOUNTING 这一行两侧各加一根进度条 */
         if (li === 2 && reach > 0.2) {
@@ -561,12 +573,12 @@
           staticCtx.fillStyle = "rgba(127,240,255,0.18)";
           staticCtx.fillRect(bx, 5, barW, barH);
           staticCtx.fillStyle = C_ACC;
-          staticCtx.fillRect(bx, 5, barW * p, barH);
+          staticCtx.fillRect(bx, 5, barW * pShow, barH);
           /* 左右各一根,右边反方向 */
           staticCtx.fillStyle = "rgba(127,240,255,0.18)";
           staticCtx.fillRect(-barW - 26, 5, barW, barH);
           staticCtx.fillStyle = C_CYAN;
-          staticCtx.fillRect(-26 - barW * p, 5, barW * p, barH);
+          staticCtx.fillRect(-26 - barW * pShow, 5, barW * pShow, barH);
           staticCtx.shadowBlur = 0;
         }
       }
@@ -576,7 +588,7 @@
       var seed = Math.floor(el / 90);                /* 每 90ms 换一批 */
       function rnd(i) { var x = Math.sin(seed * 12.9898 + i * 78.233) * 43758.5453; return x - Math.floor(x); }
       staticCtx.save();
-      staticCtx.font = Math.max(9, Math.round(fs2 * 0.86)) + "px ui-monospace, Consolas, monospace";
+      staticCtx.font = Math.max(9, Math.round(fs2 * 0.72)) + "px \"Alpha Sector\", ui-monospace, Consolas, monospace";
       staticCtx.textAlign = "right";
       staticCtx.textBaseline = "top";
       for (var di = 0; di < 9; di++) {
@@ -592,7 +604,8 @@
       for (var dj = 0; dj < 4; dj++) {
         var v2 = "BUF 0x" + Math.floor(rnd(dj + 90) * 65535).toString(16).toUpperCase().padStart(4, "0");
         staticCtx.globalAlpha = outA * (0.3 + 0.3 * rnd(dj + 130));
-        glowText(v2, W * 0.05, H * 0.9 + dj * lh * 0.9, C_DIM, 4);
+        /* 从底边往上排,绝不会出屏 */
+        glowText(v2, W * 0.062, H - lh * (dj + 1.2) - 6, C_DIM, 4);
       }
       staticCtx.restore();
 
@@ -658,10 +671,11 @@
       staticCtx.stroke();
       staticCtx.save();
       staticCtx.rotate(-Math.PI / 2);
-      staticCtx.strokeStyle = C_ACC;
-      staticCtx.shadowColor = C_ACC; staticCtx.shadowBlur = 14;
+      var ringCol = stalling ? "#ff4d5e" : C_ACC;
+      staticCtx.strokeStyle = ringCol;
+      staticCtx.shadowColor = ringCol; staticCtx.shadowBlur = stalling ? 22 : 14;
       staticCtx.beginPath();
-      staticCtx.arc(0, 0, rBase, 0, Math.PI * 2 * p);
+      staticCtx.arc(0, 0, rBase, 0, Math.PI * 2 * pShow);
       staticCtx.stroke();
       staticCtx.restore();
 
@@ -685,7 +699,7 @@
       staticCtx.textAlign = "center";
       staticCtx.textBaseline = "middle";
       staticCtx.globalAlpha = outA * (0.6 + 0.4 * Math.abs(Math.sin(el / 260)));
-      glowText(Math.round(p * 100) + "%", cx, cy, C_CYAN, 16);
+      glowText(Math.round(pShow * 100) + "%", cx, cy, stalling ? "#ff4d5e" : C_CYAN, 16);
       staticCtx.restore();
 
       staticCtx.textAlign = "center";
