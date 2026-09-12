@@ -187,69 +187,16 @@
     ctx.closePath();
   }
 
+  /* ================= 2. 六边形矩阵(成长) =================
+     实际作画在 boot-fx.js 的 fxHex —— 它每帧开头会清屏,所以这里再画一遍是白费性能。
+     但"这一场多长""黑屏留到什么时候"必须由场景声明,于是从这里读它的时间轴:
+       blackUntil = 塌缩开始的时刻 → 形成过程底下是纯黑,格子开始消失才撤黑屏 */
   function sceneHex(ctx, W, H, accent, cfg) {
-    var HX = cfg || {};
-    var rows = HX.rows || 7, cols = HX.cols || 15;          /* 7 行:消失顺序 4→3/5→2/6→1/7 */
-    var R = Math.max(W / (cols * 1.732), H / (rows * 1.49));
-    var hw = 1.732 * R, stepY = 1.49 * R, per = 6 * R;
-    var gridW = (cols + 2) * hw, gridH = (rows + 2) * stepY;
-    var ox = (W - gridW) / 2;
-    /* 行号从 -1 铺到 rows,所以纵向要多让一行才真的居中 ——
-       否则屏幕中线上的其实是 r+1 那一行,"中间行最先消失"就会变成"第三行先消失" */
-    var oy = (H - gridH) / 2 + stepY;
-    var midRow = (rows - 1) / 2, midCol = cols / 2;
-    var COLLAPSE = HX.collapse || 620;
-    var ROW_STEP = COLLAPSE * 0.5;                          /* 上一行消失一半,下一行才开始 */
-    var COL_STEP = COLLAPSE * 0.0018;                       /* 行内:中间先,两边后 */
-    var hexes = [];
-    for (var r = -1; r <= rows; r++) {
-      for (var c = -1; c <= cols + 1; c++) {
-        var x = ox + c * hw + (Math.abs(r % 2) ? hw / 2 : 0);
-        var y = oy + r * stepY;
-        var rowD = Math.abs(r - midRow);
-        var colD = Math.abs(c - midCol);
-        hexes.push({
-          x: x, y: y,
-          drawAt: Math.random(),
-          dir: Math.random() > 0.5 ? 1 : -1,
-          colDelay: rowD * ROW_STEP + colD * COL_STEP
-        });
-      }
-    }
-    var drawWindow = hexes.length * (HX.drawEach || 2.2);
-    var maxColDelay = 0;
-    hexes.forEach(function (h) { if (h.colDelay > maxColDelay) maxColDelay = h.colDelay; });
-    var tCol0 = (HX.draw || 430) + drawWindow;
+    var T = (window.CDBootFx && window.CDBootFx.hexTiming) || { outAt: 990, total: 2890 };
     return {
-      total: tCol0 + COLLAPSE + maxColDelay,
-      draw: function (el) {
-        for (var i = 0; i < hexes.length; i++) {
-          var h = hexes[i];
-          var dp = clamp((el - h.drawAt * drawWindow) / (HX.draw || 430), 0, 1);
-          var cp = clamp((el - tCol0 - h.colDelay) / COLLAPSE, 0, 1);
-          if (cp >= 1) continue;
-          var scale = cp > 0 ? 1 - easeOutQuad(cp) : 1;
-          if (scale <= 0.012) continue;
-          ctx.save();
-          ctx.translate(h.x, h.y);
-          if (cp > 0) ctx.scale(scale, scale);
-          hexPath(ctx, R);
-          ctx.globalAlpha = 1 - cp * 0.15;
-          ctx.fillStyle = "#141b26";
-          ctx.fill();
-          if (dp > 0) {
-            ctx.globalAlpha = Math.min(1, dp * 1.15) * (1 - cp * 0.55);
-            ctx.setLineDash([per]);
-            ctx.lineDashOffset = -h.dir * per * (1 - easeOutQuart(dp));
-            ctx.strokeStyle = accent;
-            ctx.lineWidth = Math.max(0.6, R * 0.018);   /* 边框细一点 */
-            ctx.stroke();
-          }
-          ctx.restore();
-        }
-        ctx.setLineDash([]);
-        ctx.globalAlpha = 1;
-      }
+      total: T.total,
+      blackUntil: T.outAt,
+      draw: function () {}
     };
   }
 

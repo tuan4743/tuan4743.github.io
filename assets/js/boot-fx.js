@@ -91,96 +91,110 @@
     ctx.restore();
   }
 
-  /* ---------- hex:六边形网格扫掠点亮 + 电路光点沿边走 ---------- */
+  /* ---------- hex:六边形矩阵"自己画出来" → 从中心塌缩,把底下露出来 ----------
+     规格照用户给的范例 static/temp/hexagons matrix.html 逐项对齐:
+       viewBox 1000 宽 · 六边形宽 86.6(= √3R,R=50) · 列距 86.5 · 行距 74.5(= 1.5R)
+       → 相邻格子【边贴边】,整屏铺成一块蜂巢,不是一张蛛网
+     时间轴(总长 2.89s):
+       0.00 ~ 0.99s  形成:每格随机顺序、0.5s 内自己画一圈;这段时间底下一律【黑屏】
+       0.99s 起       消失:从屏幕中心向外逐格 scale→0 + 淡出,把底下的页面露出来
+     ★ 作画半径比格距大 1.2%:相邻格子边缘重合,消掉抗锯齿留下的缝(1px 的缝也会透出网页)*/
+  var HEX_T = {
+    form: 450,      /* 每格起始时刻的随机散布(范例 stagger each 0.002 × 225 ≈ 0.45s)*/
+    draw: 420,      /* 单格把自己画一圈的用时(范例 duration 0.5s)*/
+    hold: 120,      /* 画完停一下,保证撤黑屏时没有格子还在画 */
+    spread: 900,    /* 从中心向外逐格开始的散布(范例 stagger each 0.004 × 225 ≈ 0.9s)*/
+    out: 1000,      /* 单格塌缩用时(范例 duration 1s)*/
+    outAt: 990,     /* = form + draw + hold → 塌缩开始 = 黑屏撤掉的时刻 */
+    total: 2890     /* = outAt + spread + out */
+  };
+  var HEX_S = {
+    sizeFrac: 0.087,  /* 六边形宽 ÷ 屏宽 —— 范例 86.6 / 1000,约 11.5 列 */
+    overlap: 1.012,   /* 作画半径放大系数(消缝)*/
+    tile: "#171717",  /* 瓷砖本体 —— 范例里的 fill */
+    line: "#7ff0ff",  /* 描边:冰蓝(范例是绿 #17f700,按你的黑白/冰蓝配色换掉了)*/
+    lineFrac: 0.0011  /* 线宽 ÷ 屏宽 —— 范例 stroke-width 0.8 / 1000 */
+  };
+  function easeOutQuad(t) { var u = 1 - t; return 1 - u * u; }
+  function hexPt(i, R) {
+    var a = Math.PI / 180 * (60 * i - 90);
+    return [Math.cos(a) * R, Math.sin(a) * R];
+  }
+  function hexPath(ctx, R) {
+    for (var i = 0; i < 6; i++) {
+      var p = hexPt(i, R);
+      if (i === 0) ctx.moveTo(p[0], p[1]); else ctx.lineTo(p[0], p[1]);
+    }
+    ctx.closePath();
+  }
   function fxHex(ctx, W, H, el) {
-    /* 只由本特效作画:先清屏 —— 否则会和场景自带的六边形动画叠成'两个矩阵' */
+    /* 只由本特效作画:先清屏 —— 否则会和场景自带的六边形动画叠成"两个矩阵" */
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = "source-over";
     ctx.clearRect(0, 0, W, H);
     ctx.restore();
-    /* ---- 时间轴(照着范例的手感重排)----
-       0.00 ~ 0.75s  逐格"自己画一圈" + 淡入   (随机顺序,每格 2ms stagger)
-       0.55 ~ 1.55s  从中心向外塌缩 scale→0    (每格 4ms stagger,与上一段重叠)
-       总长 1.7s,之后交给场景自己 */
-    var T_IN = 750, T_OUT = 1000, T_OVERLAP = 200;
-    var totalIn = T_IN + 225 * 2;          /* 加上 stagger 尾巴 */
-    var totalOut = T_OUT + 225 * 4;
-    if (el > totalIn + totalOut + 200) return;
+    if (el > HEX_T.total + 40) return;
 
-    /* ★ 完全按范例的规格:
-       范例 viewBox 1000 宽、六边形宽 86.6 → 占屏宽 8.7%;
-       列距 86.5(1.732R)、行距 74.5(1.5R)。
-       之前用 min(W,H)*5.2% 导致格子又小又细,像蛛网。 */
-    var R = (W * 0.087) / 1.732;
-    var hx = R * 1.732, hy = R * 1.5;
+    var R = (W * HEX_S.sizeFrac) / 1.732;        /* 外接圆半径:范例 viewBox 1000、格宽 86.6 */
+    var RP = R * HEX_S.overlap;                  /* 作画半径(略大一点点,严丝合缝)*/
+    var hx = R * 1.732, hy = R * 1.5;            /* 列距 √3R · 行距 1.5R:六边形密铺的唯一步长 */
     var cols = Math.ceil(W / hx) + 2, rows = Math.ceil(H / hy) + 2;
-    var cx0 = W / 2, cy0 = H / 2;
+    var cx0 = W * 0.5, cy0 = H * 0.5, maxD = Math.hypot(cx0, cy0);
+    var per = 6;
 
     ctx.save();
     ctx.lineJoin = "round";
-    for (var c = 0; c < cols; c++) {
-      for (var r = 0; r < rows; r++) {
-        var ox = c * hx + (r % 2 ? hx / 2 : 0);
-        var oy = r * hy;
-        var idx = c * rows + r;
-        /* 每格自己的随机顺序值(固定,不随帧变)*/
-        var rr = mulberry32(idx * 7919 + 13)();
-        /* 第一阶段:进场 */
-        var tIn = (el - rr * T_IN - idx * 2) / 420;
+    ctx.lineWidth = Math.max(1, W * HEX_S.lineFrac);
+    /* 从 -1 铺到 cols/rows:四边都越出屏幕,蜂巢盖满整屏(不留边框缝)*/
+    for (var c = -1; c <= cols; c++) {
+      for (var r = -1; r <= rows; r++) {
+        var ox = (c + 0.5) * hx + ((r & 1) ? hx * 0.5 : 0);
+        var oy = (r + 0.5) * hy;
+        var idx = (c + 1) * (rows + 3) + (r + 1);
+        var rr = mulberry32(idx * 7919 + 13)();          /* 每格固定的"随机顺序"值 */
+        /* ① 形成:自己画一圈 */
+        var tIn = (el - rr * HEX_T.form) / HEX_T.draw;
         var inK = tIn <= 0 ? 0 : easeOutPower4(Math.min(1, tIn));
-        /* 第二阶段:从中心向外塌缩 */
-        var dist = Math.hypot(ox - cx0, oy - cy0) / Math.hypot(cx0, cy0);
-        var tOut = (el - (T_IN + T_OVERLAP) - dist * 600 - idx * 4) / T_OUT;
-        var outK = tOut <= 0 ? 0 : Math.min(1, tOut);
-        if (inK <= 0 && outK <= 0) continue;
+        /* ② 消失:从中心向外,逐格缩小 + 淡出 */
+        var dist = Math.hypot(ox - cx0, oy - cy0) / maxD;
+        var tOut = (el - HEX_T.outAt - dist * HEX_T.spread) / HEX_T.out;
+        var outK = tOut <= 0 ? 0 : easeOutQuad(Math.min(1, tOut));
+        if (outK >= 1) continue;
+        if (inK <= 0 && outK <= 0) continue;             /* 还没轮到它 → 底下一片黑 */
 
-        var scale = 1 - outK;
-        /* 瓷砖本体:只要还在场上就画(与描边进度无关)*/
-        var tileA = 1 - outK;
-        /* 描边与亮点:跟着进场进度 */
-        var alpha = inK * (1 - outK);
-        if (scale <= 0.01 || tileA <= 0.01) continue;
+        var fade = 1 - outK;                             /* 塌缩进度:同时缩 + 淡 */
+        var fillK = Math.min(1, inK * 3);                /* 瓷砖本体"凝"得比描边快 */
+        var alpha = fade * fillK;
+        if (fade <= 0.02 || alpha <= 0.01) continue;
 
         ctx.save();
         ctx.translate(ox, oy);
-        ctx.scale(scale, scale);
-        ctx.globalAlpha = tileA;
-        /* 实心暗色蜂巢底 —— 范例里 fill="#171717",这是"结构感"的来源 */
+        ctx.scale(fade, fade);
+        /* 瓷砖本体:范例的 fill #171717 —— 铺满后整屏就是这块暗色蜂巢 */
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = HEX_S.tile;
         ctx.beginPath();
-        for (var i = 0; i < 6; i++) {
-          var a = Math.PI / 180 * (60 * i - 90);
-          var px = Math.cos(a) * R * 0.86, py = Math.sin(a) * R * 0.86;
-          if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-        }
-        ctx.closePath();
-        /* ★ 精髓:每格是"实心暗色瓷砖",一开始就整片存在(范例的 fill #171717),
-           只有描边在画 —— 之前让它随 alpha 渐入,就又变成了飘着的空线框 */
-        ctx.fillStyle = "#171717";
+        hexPath(ctx, RP);
         ctx.fill();
-        ctx.globalAlpha = 1;
-        /* 描边"自己画一圈":只画前 inK 比例的那一段 */
-        var per = 6;
+        /* 描边"自己画一圈":只画前 inK 比例的那一段(范例是滑动 dash,这里用画线,更像"长出来")*/
         var seg = Math.max(0, Math.min(per, inK * per));
         if (seg > 0.02) {
-          ctx.strokeStyle = "rgba(127, 240, 255, " + (0.95 * alpha).toFixed(3) + ")";
-          ctx.lineWidth = Math.max(1, W * 0.0011);
+          ctx.globalAlpha = 0.95 * fade * Math.min(1, inK * 1.5);
+          ctx.strokeStyle = HEX_S.line;
           ctx.beginPath();
-          var started = false;
-          for (var k = 0; k <= per; k++) {
+          var k, p;
+          for (k = 0; k <= per; k++) {
             if (k > seg) break;
-            var ang = Math.PI / 180 * (60 * k - 90);
-            var qx = Math.cos(ang) * R * 0.86, qy = Math.sin(ang) * R * 0.86;
-            if (!started) { ctx.moveTo(qx, qy); started = true; } else ctx.lineTo(qx, qy);
+            p = hexPt(k, RP);
+            if (k === 0) ctx.moveTo(p[0], p[1]); else ctx.lineTo(p[0], p[1]);
           }
           var frac = seg - Math.floor(seg);
-          if (frac > 0.01 && seg < per) {          /* 收尾那一小段按比例画 */
-            var a1 = Math.PI / 180 * (60 * Math.floor(seg) - 90);
-            var a2 = Math.PI / 180 * (60 * Math.min(per, Math.floor(seg) + 1) - 90);
-            var x1 = Math.cos(a1) * R * 0.86, y1 = Math.sin(a1) * R * 0.86;
-            var x2 = Math.cos(a2) * R * 0.86, y2 = Math.sin(a2) * R * 0.86;
-            ctx.lineTo(x1 + (x2 - x1) * frac, y1 + (y2 - y1) * frac);
+          if (frac > 0.01 && seg < per) {                /* 收尾那一小段按比例画 */
+            var p1 = hexPt(Math.floor(seg), RP);
+            var p2 = hexPt(Math.min(per, Math.floor(seg) + 1), RP);
+            ctx.lineTo(p1[0] + (p2[0] - p1[0]) * frac, p1[1] + (p2[1] - p1[1]) * frac);
           }
           ctx.stroke();
         }
@@ -313,10 +327,21 @@
   var MAP = { emoji: fxEmoji, hex: fxHex, glitch: fxGlitch, fractal: fxFractal };
 
   window.CDBootFx = {
+    hexTiming: HEX_T,          /* 调试:直接改 HEX_T.outAt / .total 就能调黑屏与总时长 */
+    hexStyle: HEX_S,           /* 调试:瓷砖色 / 描边色 / 格子大小 */
     apply: function (name, ctx, W, H, el, info) {
       var fn = MAP[String(name || "").toLowerCase()];
       if (!fn) return;
-      try { fn(ctx, W, H, el, info || {}); } catch (e) { /* 特效失败不能影响动画 */ }
+      try { fn(ctx, W, H, el, info || {}); }
+      catch (e) {
+        /* 特效失败不能影响动画 —— 但也不能一声不吭(否则画面会莫名其妙空掉):
+           第一次出错时报到控制台,并把错误挂到 window 上便于排查 */
+        if (!window.__fxFailed) {
+          window.__fxFailed = true;
+          window.__fxErrMsg = name + ": " + (e && e.stack ? e.stack : e);
+          try { console.error("[CDBootFx]", name, e); } catch (e2) {}
+        }
+      }
     }
   };
 })();
