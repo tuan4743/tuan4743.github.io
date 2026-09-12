@@ -396,9 +396,9 @@
   /* ---------- 开机动画的公共前缀(黑屏 + 进度)---------- */
   var HEX = {
     cols: 15, rows: 7,     /* 7 行:消失顺序 4 → 3/5 → 2/6 → 1/7 */
-    load: 900,            /* 进度条 0→100% 的时长(ms)*/
-    hold: 500,            /* 读满后停顿(让 100% 看清楚)*/
-    fade: 260,            /* loading 淡出 */
+    load: 1800,           /* 进度条 0→100% 的时长(ms)—— 已整体 ×2 */
+    hold: 1000,           /* 读满后停顿(让 100% 看清楚)—— 已 ×2 */
+    fade: 520,            /* loading 淡出 —— 已 ×2 */
     draw: 430,            /* 六边形描边时长(只有成长那套用)*/
     drawEach: 2.2,        /* 描边随机错开的窗口(ms × 个数)*/
     collapse: 400         /* 六边形塌缩时长(消失用时越快越干脆)/ */
@@ -502,7 +502,7 @@
       var C_CYAN = "#7ff0ff";                       /* 主色:霓虹青 */
       var C_ICE = "#bfe9ff";                        /* 冰蓝:次级文字 */
       var C_DIM = "rgba(127, 240, 255, 0.45)";
-      var C_ACC = IS_GLITCH ? "#ff3b30" : "#7ff0ff"; /* 第四张:红色(不用品红)*/
+      var C_ACC = "#7ff0ff";                        /* 平时一律霓虹青;红色只在"卡住"时出现 */
 
       function glowText(txt, x, y, color, blur, aber) {
         staticCtx.save();
@@ -539,10 +539,9 @@
          glitchAmt:0→1,控制 RGB 分离幅度与报警色 */
       var GLITCH_K = IS_GLITCH ? 1 : 0;             /* 逐步故障只给第四张 */
       var STALL_A = 0.62, STALL_B = 0.80;
-      var stalling = p > STALL_A && p < STALL_B;
-      var pShow = p <= STALL_A ? p
-                : (p < STALL_B ? STALL_A
-                : STALL_A + (p - STALL_B) / (1 - STALL_B) * (1 - STALL_A));
+      var stalling = IS_GLITCH && p > STALL_A && p < STALL_B;   /* ★ 只有第四张会卡住 */
+      /* 不卡住时 pShow 就等于 p —— 其它盘进度完全顺滑,只有第四张会在 62% 冻住 */
+      var pShow = stalling ? STALL_A : p;
       var glitchAmt = Math.min(1, GLITCH_K * (stalling ? 1 : p * 0.85));
       var typed = pShow * (LOG.length + 0.5) + (stalling ? 1 : 0);   /* 卡住时把告警行顶出来 */
       var fs2 = Math.max(14, Math.round(Math.min(W, H) * 0.021 * 1.4));   /* 字号 ×1.4 */
@@ -670,7 +669,7 @@
       var sweep = staticCtx.createConicGradient ? staticCtx.createConicGradient(0, 0, 0) : null;
       if (sweep) {
         sweep.addColorStop(0, "rgba(127,240,255,0)");
-        sweep.addColorStop(0.12, IS_GLITCH ? "rgba(255,59,48,0.6)" : "rgba(127,240,255,0.5)");
+        sweep.addColorStop(0.12, "rgba(127,240,255,0.5)");
         sweep.addColorStop(0.25, "rgba(127,240,255,0)");
         sweep.addColorStop(1, "rgba(127,240,255,0)");
         staticCtx.fillStyle = sweep;
