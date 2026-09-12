@@ -7,6 +7,7 @@
 {{- $holoCss := resources.Get "css/holo.css" -}}
 {{- $reticleJs := resources.Get "js/holo-reticle.js" -}}
 {{- $statusJs := resources.Get "js/status-panel.js" -}}
+{{- $ringJs := resources.Get "js/song-ring.js" -}}
 {{- $introJs := resources.Get "js/intro.js" -}}
 {{- $bootJs := resources.Get "js/cd-boot.js" -}}
 {{- $cd3dJs := resources.Get "js/cd3d.js" -}}
@@ -15,7 +16,7 @@
 {{- $paletteJs := resources.Get "js/theme-palette.js" -}}
 {{- $searchJs := resources.Get "js/header-search.js" -}}
 {{- $cursorJs := resources.Get "js/magnetic-cursor.js" -}}
-{{- range $name := slice "css/intro.css" "css/holo.css" "js/intro.js" "js/holo-reticle.js" "js/status-panel.js" "js/cd-boot.js" "js/cd3d.js" "js/cd-audio.js" "js/cd-fx.js" "js/theme-palette.js" "js/header-search.js" "js/magnetic-cursor.js" -}}
+{{- range $name := slice "css/intro.css" "css/holo.css" "js/intro.js" "js/holo-reticle.js" "js/status-panel.js" "js/song-ring.js" "js/cd-boot.js" "js/cd3d.js" "js/cd-audio.js" "js/cd-fx.js" "js/theme-palette.js" "js/header-search.js" "js/magnetic-cursor.js" -}}
     {{- if not (resources.Get $name) -}}
         {{- warnf "缺少资源 assets/%s —— 该功能会被跳过(检查文件是否完整)" $name -}}
     {{- end -}}
@@ -24,6 +25,7 @@
 {{- with $holoCss }}{{ $holoCss = . | fingerprint "sha256" }}{{ end -}}
 {{- with $reticleJs }}{{ $reticleJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $statusJs }}{{ $statusJs = . | fingerprint "sha256" }}{{ end -}}
+{{- with $ringJs }}{{ $ringJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $introJs }}{{ $introJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $bootJs }}{{ $bootJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $cd3dJs }}{{ $cd3dJs = . | fingerprint "sha256" }}{{ end -}}
@@ -159,6 +161,16 @@
                     <canvas class="drive-status__wave" id="drive-status-wave" aria-hidden="true"></canvas>
                 </div>
 
+                <!-- 光驱下方的 3D 歌名光环(外圈歌名+歌手,内圈音量环)-->
+                <div class="song-ring" id="song-ring" aria-hidden="true">
+                    <div class="song-ring__stage">
+                        <div class="song-ring__vol song-ring__vol--1"></div>
+                        <div class="song-ring__vol song-ring__vol--2"></div>
+                        <div class="song-ring__base"></div>
+                        <div class="song-ring__track" id="song-ring-track"></div>
+                    </div>
+                </div>
+
                 <div class="holo-head">
                     <span class="holo-title" id="holo-theme">—</span>
                     <span class="holo-caption" id="holo-caption"></span>
@@ -201,7 +213,7 @@
 
             <div class="wheel" id="wheel">
                 {{- range site.Params.intro.panels }}
-                <button class="cd" data-panel="{{ .key }}" data-title="{{ .title }}" data-caption="{{ .caption }}" aria-label="主题:{{ .title }}">
+                <button class="cd" data-panel="{{ .key }}" data-song="{{ .song }}" data-artist="{{ .artist }}" data-title="{{ .title }}" data-caption="{{ .caption }}" aria-label="主题:{{ .title }}">
                     <span class="cd-disc">
                         <span class="cd-face">
                             <span class="cd-label">{{ .title }}</span>
@@ -236,5 +248,6 @@
     {{ with $introJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
     {{ with $reticleJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
     {{ with $statusJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
+    {{ with $ringJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
 </body>
 </html>
