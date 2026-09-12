@@ -278,7 +278,7 @@ body.statusbar-hidden .statusbar-toggle svg {
     --star-alpha: 0.74;                     /* 星点整体强度 */
     --grid-alpha: 0.42;                      /* 网格整体强度 */
     --grid-line: rgba(58, 186, 168, 0.075);  /* 网格线颜色(青绿) */
-    --glow-alpha: 3;                        /* 盘周围光晕强度(第三层) */
+    --glow-alpha: 0.2;                        /* 盘周围光晕强度(第三层) */
     /* ★ 光晕位置:默认跟着盘走,这里可以再偏移 / 缩放
        glow-dx/glow-dy 是相对"盘心"的像素偏移(负数是往左/往上),想整体挪就直接调这两个
        glow-x/glow-y 是"绝对位置",留空 = 跟着盘;填了就用固定位置(例如 34% / 52%) */

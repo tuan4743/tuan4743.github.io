@@ -17,6 +17,11 @@
 
     /* ═══════ 1. 形状层 ═══════ */
     --line-w: 1px;                        /* 主线宽 */
+    /* 断续节拍:长短不一,像信号断续而不是网页边框 */
+    --line-dash: 26 9 5 7 42 12 13 8 7 6;
+    --lock-len: 12px;                     /* 锁定点短刺长度 */
+    --lock-w: 1.4px;                      /* 锁定点线宽 */
+    --lock-gap: 0px;                      /* 短刺与顶点的间隙 */
     --line-a: 0.45;                       /* 主线不透明度 */
     --halo-w: 6px;                        /* 伴描边(=发光)宽度 */
     --halo-a: 0.05;
@@ -38,10 +43,12 @@
     --stack-x: 1.5%;                     /* 整条的左边界(= 凸起左边缘) */
     --stack-y: 26.9%;                     /* 上边界(= 凸起上边缘) */
     --stack-w: clamp(20px, calc(100% / 30), 34px);   /* 宽 = 凸起宽度 */
-    --stack-h: 40%;                       /* 高 = 凸起长度 */
-    --stack-gap: 5%;                      /* 三件之间的间距 */
+    --stack-h: auto;                      /* 整列高度:auto = 由两根滑条各自的长度撑开 */
+    --fader-len-top: 80px;               /* ★ 上面那根(背景)的长度:起点到终点 */
+    --fader-len-bot: 80px;               /* ★ 下面那根(星云)的长度 */
+    --stack-gap: 30%;                      /* 三件之间的间距 */
 
-    --btn-min: 54px;                      /* 方按钮最小边长 */
+    --btn-min: 48px;                      /* 方按钮最小边长 */
     --btn-max: 54px;                      /* 方按钮最大边长(贴着凸起宽) */
     --btn-fg: #eaf3ff;
     --btn-bg: rgba(234, 243, 255, 0.05);
@@ -51,13 +58,50 @@
     /* ═══════ 4. 滑条(细轨 + 图标滑块头)═══════ */
     --rail-w: 6px;                        /* 轨道粗细 */
     --rail-color: rgba(234, 243, 255, 0.22);
-    --thumb-size: 18px;                   /* 滑块头直径(要放得下图标) */
+    --thumb-size: 24px;                   /* 滑块头直径(要大才看得出是抓点)*/
     --thumb-icon-sun: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23eaf3ff' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='4.2'/%3E%3Cpath d='M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6'/%3E%3C/svg%3E");   /* 上面那根:背景(亮度)*/
     --thumb-icon-star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23eaf3ff'%3E%3Cpath d='M12 2.6l2 6.6 6.6 2-6.6 2-2 6.6-2-6.6-6.6-2 6.6-2z'/%3E%3C/svg%3E"); /* 下面那根:星云 */
     --fader-icon-size: 14px;              /* 滑条上方那个小图标 */
     --fader-label-size: 10px;             /* 图标旁的文字 */
     --fader-label-ls: 0.2em;
     --fader-head-gap: 6px;
+
+    /* ═══════ 6. 光驱上方的状态面板 ═══════ */
+    --panel-x: 68%;                       /* 面板左边界 */
+    --panel-y: 0%;                        /* 上边界 */
+    --panel-w: 30%;                       /* 宽度 */
+    --panel-pad: 10px 12px;
+    --panel-gap: 7px;                     /* 行间距 */
+    --panel-border: rgba(234, 243, 255, 0.35);
+    --panel-bg: rgba(234, 243, 255, 0.035);
+    --panel-fs: 12px;                     /* 字号 */
+    --panel-ls: 0.14em;                   /* 字距 */
+    --panel-dot: 6px;                     /* 指示灯直径 */
+    --panel-wave-h: 26px;                 /* 波形高度 */
+    --panel-cut: 0px;                     /* 右上角切角 */
+    --panel-ok: #7fe3c0;                  /* "就绪"的颜色 */
+
+    /* ═══════ 5. 锁定圆 + 扫描节点(由 holo-reticle.js 画在 canvas 上)═══════ */
+    --scan-x: 22.2%;                        /* 扫描节点位置(架子宽/高的百分比)*/
+    --scan-y: 14%;
+    --scan-stem: 48px;                    /* 从框的节点伸出的短线长度 */
+    --scan-dot: 3px;                      /* 节点圆点半径 */
+    --lock-cx: 22px;                       /* ★ 锁定圆圆心相对盘心的偏移(右为正)*/
+    --lock-cy: 0px;                       /* ★ 上为正 */
+    --lock-follow-tilt: 0;                /* ★ 1 = 跟着盘面倾斜转;0 = 永远是正圆 */
+    --lock-r: 1.07;                       /* 锁定圆半径 = 盘半径 × 这个数(1.0 贴盘缘,1.34 是星环)*/
+    --lock-a: 0.32;                       /* 锁定圆与虚线的透明度 */
+    --lock-dash: 6 10;                    /* 锁定圆的虚线节拍 */
+    --lock-spin: 0.25;                    /* 两个连接点沿圆运动的速度(弧度/秒)*/
+}
+
+/* ---------------- 锁定圆 canvas 层 ---------------- */
+.holo-reticle {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
 }
 
 /* ---------------- 形状层 ---------------- */
@@ -82,7 +126,18 @@
 
 .holo-line {
     stroke-width: var(--line-w);
+    stroke-dasharray: var(--line-dash);
     opacity: calc(var(--line-a) + var(--holo-glow) * 0.4);
+}
+
+/* 雷达锁定点:每个拐点两组互相垂直的短刺 */
+.holo-lock {
+    fill: none;
+    stroke: #ffffff;
+    stroke-width: var(--lock-w);
+    stroke-linecap: square;
+    vector-effect: non-scaling-stroke;
+    opacity: calc(0.55 + var(--holo-glow) * 0.4);
 }
 
 .holo-halo {
@@ -185,13 +240,15 @@
 
 /* ---------------- 滑条 ---------------- */
 .fader {
-    flex: 1 1 auto;
+    flex: 0 0 auto;
     width: 100%;
-    min-height: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
 }
+
+.fader--bright { --fader-len: var(--fader-len-top); }
+.fader--nebula { --fader-len: var(--fader-len-bot); }
 
 .fader__head {
     flex: 0 0 auto;
@@ -218,9 +275,8 @@
 }
 
 .fader__body {
-    flex: 1 1 auto;
     width: 100%;
-    min-height: 0;
+    height: var(--fader-len, 200px);       /* ★ 这根滑条的长度 */
     position: relative;
     display: flex;
     align-items: center;
@@ -230,7 +286,7 @@
 .fader input[type="range"] {
     -webkit-appearance: none;
     appearance: none;
-    width: 100%;
+    width: var(--fader-len, 200px);        /* ★ 轨道长度 = 上面那个长度 */
     height: var(--rail-w);
     margin: 0;
     transform: rotate(-90deg);
@@ -251,8 +307,14 @@
     background-repeat: no-repeat;
     background-position: center;
     background-size: 74% 74%;
-    border: 1px solid rgba(234, 243, 255, 0.55);
-    cursor: pointer;
+    border: 1.5px solid rgba(234, 243, 255, 0.85);
+    box-shadow: 0 0 0 3px rgba(234, 243, 255, 0.08);
+    cursor: grab;
+}
+
+.fader input[type="range"]::-webkit-slider-thumb:active {
+    cursor: grabbing;
+    border-color: #ffffff;
 }
 
 .fader--bright input[type="range"]::-webkit-slider-thumb {
@@ -272,8 +334,8 @@
     background-repeat: no-repeat;
     background-position: center;
     background-size: 74% 74%;
-    border: 1px solid rgba(234, 243, 255, 0.55);
-    cursor: pointer;
+    border: 1.5px solid rgba(234, 243, 255, 0.85);
+    cursor: grab;
 }
 
 .fader--bright input[type="range"]::-moz-range-thumb {
@@ -282,4 +344,83 @@
 
 .fader--nebula input[type="range"]::-moz-range-thumb {
     background-image: var(--thumb-icon-star);
+}
+
+/* ---------------- 光驱上方的状态面板 ---------------- */
+.drive-status {
+    position: absolute;
+    left: var(--panel-x);
+    top: var(--panel-y);
+    width: var(--panel-w);
+    box-sizing: border-box;
+    padding: var(--panel-pad);
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    /* 右上角切一刀,和整体的折线语言一致 */
+    clip-path: polygon(0 0, calc(100% - var(--panel-cut)) 0, 100% var(--panel-cut), 100% 100%, 0 100%);
+    font-size: var(--panel-fs);
+    letter-spacing: var(--panel-ls);
+    color: rgba(234, 243, 255, 0.8);
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--panel-gap);
+}
+
+.drive-status__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    white-space: nowrap;
+}
+
+.drive-status__k {
+    color: rgba(234, 243, 255, 0.5);
+}
+
+.drive-status__v {
+    color: #f2f7ff;
+    font-variant-numeric: tabular-nums;
+}
+
+.drive-status__v.is-ok {
+    color: var(--panel-ok, #7fe3c0);
+}
+
+.drive-status__dot {
+    width: var(--panel-dot);
+    height: var(--panel-dot);
+    border-radius: 50%;
+    background: var(--panel-ok, #7fe3c0);
+    margin-right: 6px;
+}
+
+/* 信号强度:一排小格 */
+.drive-status__bars {
+    display: flex;
+    gap: 3px;
+    align-items: flex-end;
+    height: calc(var(--panel-dot) + 2px);
+}
+
+.drive-status__bars i {
+    width: 3px;
+    background: rgba(234, 243, 255, 0.25);
+    border-radius: 1px;
+}
+
+.drive-status__bars i.on {
+    background: var(--panel-ok, #7fe3c0);
+}
+
+/* 低频才浮现的水平波形 */
+.drive-status__wave {
+    width: 100%;
+    height: var(--panel-wave-h);
+    display: block;
+}
+
+/* 面板整体透明度跟随音乐轻一点闪动 */
+.drive-status {
+    opacity: calc(0.85 + var(--holo-glow) * 0.15);
 }

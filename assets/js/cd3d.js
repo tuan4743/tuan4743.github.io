@@ -1295,6 +1295,24 @@ export async function initCd3d(opts) {
         rackEl.style.setProperty("--cd-y", (((1 - w.y) / 2) * r.height).toFixed(1) + "px");
         rackEl.style.setProperty("--cd-r", (cdRadius * (r.height / viewH)).toFixed(1) + "px");
         rackEl.style.setProperty("--cd-pulse", (lv ? lv.level || 0 : 0).toFixed(3));
+        rackEl.style.setProperty("--cd-bass", (lv ? lv.bass || 0 : 0).toFixed(3));
+        /* 盘面的投影基向量:把盘心沿它的局部 X/Y 轴各推一个盘半径,投影后相减。
+           2D 层拿着这两个向量就能画出"跟着盘一起倾斜"的椭圆 */
+        try {
+          const mw = sel.group.matrixWorld;
+          const e1 = new THREE.Vector3().setFromMatrixColumn(mw, 0).normalize().multiplyScalar(cdRadius);
+          const e2 = new THREE.Vector3().setFromMatrixColumn(mw, 1).normalize().multiplyScalar(cdRadius);
+          const p0 = world.clone().project(camera);
+          const p1 = world.clone().add(e1).project(camera);
+          const p2 = world.clone().add(e2).project(camera);
+          const sx2 = r.width / 2, sy2 = r.height / 2;
+          const v1x = (p1.x - p0.x) * sx2, v1y = -(p1.y - p0.y) * sy2;
+          const v2x = (p2.x - p0.x) * sx2, v2y = -(p2.y - p0.y) * sy2;
+          rackEl.style.setProperty("--cd-ax", v1x.toFixed(2) + "px");
+          rackEl.style.setProperty("--cd-ay", v1y.toFixed(2) + "px");
+          rackEl.style.setProperty("--cd-bx", v2x.toFixed(2) + "px");
+          rackEl.style.setProperty("--cd-by", v2y.toFixed(2) + "px");
+        } catch (e) {}
       }
     }
   }

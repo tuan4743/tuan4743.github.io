@@ -139,6 +139,8 @@
       hc.textContent = (cbtn && cbtn.getAttribute("data-caption")) || "";
     }
     if (cd3dApi && cd3dApi.setFxColor) cd3dApi.setFxColor(themeFg);
+    /* 广播:锁定圆那一层会据此快速淡出,切换停稳后再淡回来 */
+    try { window.dispatchEvent(new CustomEvent("cd-select", { detail: key })); } catch (e) {}
     window.__rackDebug = { key: key, bg: themeFg, fg: themeFg, at: Math.round(performance.now()) };
   }
 
@@ -238,6 +240,8 @@
     /* 只有"该盘已在光驱内"才阻止重复插入;刷新后光驱为空,即使主题相同也能插 */
     if (insertedKey !== null && key === insertedKey) return;
     locked = true;
+    /* 插入动画开始:锁定圆那一层保持隐藏(节点不隐藏)*/
+    try { window.dispatchEvent(new CustomEvent("cd-busy", { detail: true })); } catch (e) {}
     if (cd3dApi && cd3dApi.setMusicPreview) cd3dApi.setMusicPreview(false);  /* 插入期间别再切预览 */
     /* 插入动画开始:音乐停、可视化关(否则几何体/音频条会跟着盘飞进光驱)*/
     if (cd3dApi) {
@@ -266,6 +270,7 @@
       /* 用这张盘对应的那套开机动画(emoji / 六边形 / 水面 / 故障 / 雪花分形)*/
       bootStyle = (window.CDBoot && window.CDBoot.styleFor) ? window.CDBoot.styleFor(key) : "hex";
       /* 回到主界面。音乐要等动画彻底放完才开始 —— 开机时是"静音通电"的 */
+      try { window.dispatchEvent(new CustomEvent("cd-busy", { detail: false })); } catch (e) {}
       setOpen(false, function () {
         if (cd3dApi && cd3dApi.audio) cd3dApi.audio.music.toBgm(key);
         if (cd3dApi && cd3dApi.setMusicPreview) cd3dApi.setMusicPreview(true);
