@@ -24,16 +24,19 @@
    两侧是"标题+正文"和"图片",奇数页图片在右、偶数页在左
    ============================================================ */
 .deck {
-    --deck-pad-y: clamp(18px, 4vh, 46px);
-    --deck-pad-x: clamp(22px, 4.4vw, 68px);
-    --deck-gap: clamp(20px, 4vw, 66px);
-    --deck-media: clamp(190px, 33%, 400px);
-    --deck-damp: 0.16;
-    /* ↑ 滑动阻尼:每帧向目标推进的比例(越小越"重",page-deck.js 会读它)*/
-    --deck-fade: 0.82;
-    /* ↑ 淡入淡出范围:离屏幕中心超过 0.82 个屏高就完全淡掉 */
-    --deck-shift: 18px;
-    /* ↑ 淡出时额外下移多少 */
+    --deck-pad-y: clamp(20px, 4vh, 56px);
+    --deck-pad-x: clamp(24px, 4.6vw, 96px);
+    --deck-gap: clamp(24px, 4.4vw, 80px);
+    --deck-media: clamp(220px, 34%, 560px);
+    --deck-page: 0.8;
+    /* ↑ 一页占几个屏高。小于 1 → 相邻两页会互相露一条边,滚动时看得见淡入淡出。
+       改回 1 就是"一页一屏"(那样只有在切换的一瞬间才看得到淡入淡出)*/
+    --deck-tau: 90ms;
+    /* ↑ 阻尼时间常数:**越小越跟手**、越大越飘。90ms ≈ 跟手又带一点尾巴 */
+    --deck-k-lo: 0.06;
+    /* ↑ 这一页在视口里露出不足 6% → 完全透明 */
+    --deck-k-hi: 0.62;
+    /* ↑ 露出超过 62% → 完全不透明;两者之间平滑过渡 */
 
     position: absolute;
     inset: 0;
@@ -55,11 +58,13 @@
 
 .deck-slide {
     --k: 1;
-    /* ↑ 由 JS 每帧写入:离屏幕中心越近越接近 1 */
+    /* ↑ 由 JS 每帧写入:这一页在视口里露出越多越接近 1 */
+    --deck-shift: 22px;
+    /* ↑ 淡出时额外下移多少 */
     box-sizing: border-box;
     min-height: 100%;
-    /* ↑ 真正的"一页一屏"由 JS 写成 min-height: <屏高>px(见 page-deck.js:
-       百分比在 auto 高度的父级上解析不出来)*/
+    /* ↑ 真正的"一页多高"由 JS 写成 min-height: <屏高 × --deck-page>px
+       (百分比在 auto 高度的轨道上解析不出来)*/
     display: flex;
     align-items: center;
     gap: var(--deck-gap);
@@ -82,7 +87,7 @@
 .deck-idx {
     display: inline-block;
     font-family: "Alpha Sector", ui-monospace, "Cascadia Code", Consolas, monospace;
-    font-size: 0.8rem;
+    font-size: clamp(0.8rem, 0.95vw, 1.05rem);
     letter-spacing: 0.24em;
     color: var(--intro-accent);
 }
@@ -93,18 +98,20 @@
     margin: 0 0.35em;
 }
 
+/* 字号跟着屏幕走:大屏上字要大、行宽要够,否则正文会缩成一条窄竖条 */
 .deck-title {
-    font-size: clamp(1.45rem, 3.1vw, 2.5rem);
+    font-size: clamp(1.7rem, 3.4vw, 3.4rem);
     font-weight: 800;
     letter-spacing: 0.02em;
-    margin: 12px 0 14px;
+    margin: clamp(10px, 1.4vh, 20px) 0 clamp(12px, 1.7vh, 24px);
 }
 
 .deck-text {
     color: var(--intro-dim);
-    font-size: clamp(0.88rem, 1.15vw, 1.02rem);
+    font-size: clamp(0.95rem, 1.2vw, 1.35rem);
     line-height: 1.95;
-    max-width: 44ch;
+    /* 34em:中文正好 34 个字一行左右(em = 一个汉字宽),大屏小屏都不塌 */
+    max-width: 34em;
     white-space: pre-line;
 }
 
@@ -250,7 +257,7 @@
     .deck-media {
         flex: 0 0 auto;
         width: 100%;
-        max-height: 32vh;
+        max-height: 30vh;
         aspect-ratio: 16 / 10;
     }
 
