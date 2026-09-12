@@ -98,19 +98,47 @@
 
         <!-- CD 架:从屏幕右缘滑出,内部轮盘以插入点(hub)为轴心 -->
         <div class="rack" id="rack" aria-hidden="true">
-            <!-- 背景:主题色菱形平铺(颜色由 intro.js 按当前选中盘注入 SVG data-URI)-->
+            <!-- 背景分三层(从远到近):
+                 1) 最远:深空星云(暗紫/蓝紫雾 + 少量微星)
+                 2) 中层:复古数据网格(透视,青绿色,低透明度 → 设备感)
+                 3) 最近:盘周围的雾化光晕(位置/半径/律动由 cd3d.js 写 CSS 变量) -->
             <div class="rack-bg" id="rack-bg" aria-hidden="true"></div>
-            <!-- 氛围层:选中盘的主题色辉光 + 暗角 + 极淡的胶片颗粒
-                 (空间感和大反差是"高级感"的来源;纯平铺背景 + 均匀打光会显得很廉价)-->
+            <div class="rack-grid" aria-hidden="true"></div>
             <div class="rack-glow" aria-hidden="true"></div>
             <div class="rack-vignette" aria-hidden="true"></div>
             <div class="rack-grain" aria-hidden="true"></div>
-            <!-- CD 架文字介绍:左上"当前主题 + 配文",左下"歌名 + 歌手"
-                 颜色 = 当前背景色的反色;背景色随"当前选中的盘"变化 -->
+            <!-- 左上:主题 + 配文,套一个不规则的全息线框面板。
+                 歌名/曲师下一轮挪到光驱下方的 3D 光环外侧,这里先留一行小字过渡 -->
             <div class="rack-info" id="rack-info">
                 {{- range site.Params.intro.panels }}
                 <div class="rack-info-item" data-panel="{{ .key }}"{{ with .bg }} data-bg="{{ . }}"{{ end }}{{ with .fg }} data-fg="{{ . }}"{{ end }}>
                     <div class="rack-info-top">
+                        <!-- 全息面板:这块 UI 的形状本身就是不规则折线多边形
+                             (带缺口的斜角边 + 内圈斜切面 + 顶点节点),不是一个矩形外框 -->
+                        <svg class="holo-frame" viewBox="0 0 340 176" preserveAspectRatio="none" aria-hidden="true">
+                            <defs>
+                                <linearGradient id="holoFill" x1="0" y1="0" x2="0.7" y2="1">
+                                    <stop offset="0%" stop-color="currentColor" stop-opacity="0.16"></stop>
+                                    <stop offset="55%" stop-color="currentColor" stop-opacity="0.05"></stop>
+                                    <stop offset="100%" stop-color="currentColor" stop-opacity="0.11"></stop>
+                                </linearGradient>
+                            </defs>
+                            <!-- 面板本体(填充)-->
+                            <path class="holo-fill" d="M18 32 L48 8 L114 8 L126 1 L250 1 L264 13 L308 13 L332 36 L332 120 L308 144 L216 144 L200 174 L76 174 L62 152 L22 152 L8 130 L8 54 Z"></path>
+                            <!-- 外轮廓 -->
+                            <path class="holo-line" d="M18 32 L48 8 L114 8 L126 1 L250 1 L264 13 L308 13 L332 36 L332 120 L308 144 L216 144 L200 174 L76 174 L62 152 L22 152 L8 130 L8 54 Z"></path>
+                            <!-- 内圈:斜切面,让面板像投影出来的低多边形面 -->
+                            <path class="holo-line holo-line-2" d="M18 32 L48 8 M126 1 L114 8 M264 13 L250 1 M332 36 L308 13 M332 120 L308 144 M216 144 L200 174 M76 174 L62 152 M8 130 L22 152 M8 54 L18 32"></path>
+                            <!-- 内部斜切面(只走四周,不压文字)-->
+                            <path class="holo-line holo-line-3" d="M18 32 L48 34 M114 8 L112 20 M250 1 L252 16 M308 13 L296 26 M332 120 L316 116 M216 144 L214 130 M76 174 L78 158 M22 152 L34 140 M8 54 L24 60"></path>
+                            <circle class="holo-node" cx="18" cy="32" r="2.4"></circle>
+                            <circle class="holo-node" cx="126" cy="1" r="2.4"></circle>
+                            <circle class="holo-node" cx="332" cy="36" r="2.4"></circle>
+                            <circle class="holo-node" cx="332" cy="120" r="2.4"></circle>
+                            <circle class="holo-node" cx="200" cy="174" r="2.4"></circle>
+                            <circle class="holo-node" cx="8" cy="130" r="2.4"></circle>
+                            <circle class="holo-node" cx="8" cy="54" r="2.4"></circle>
+                        </svg>
                         <h2 class="rack-theme">{{ .title }}</h2>
                         <p class="rack-caption">{{ .caption | default .text }}</p>
                     </div>
@@ -122,54 +150,31 @@
                 {{- end }}
             </div>
 
-            <!-- 音频可视化开关:左侧竖排,可任意叠加(3D 就绪后才显示) -->
-            <div class="fx-switches" id="fx-switches" role="group" aria-label="音频可视化">
-                <button class="fx-switch" data-fx="arc" aria-pressed="true" title="音频条:盘左侧 135°~225°">
-                    <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor"
-                        stroke-width="1.9" stroke-linecap="round">
-                        <line x1="4" y1="8.5" x2="4" y2="11.5"></line>
-                        <line x1="10" y1="4" x2="10" y2="16"></line>
-                        <line x1="16" y1="8" x2="16" y2="12"></line>
-                    </svg>
-                </button>
-                <button class="fx-switch" data-fx="particles" aria-pressed="true" title="律动几何体:从盘心向外弹射">
-                    <svg viewBox="0 0 20 20" width="16" height="16" fill="currentColor">
-                        <polygon points="10,3.5 12.8,8.5 7.2,8.5"></polygon>
-                        <polygon points="4.5,11.5 7,16 2,16"></polygon>
-                        <polygon points="15.5,11.5 18,16 13,16"></polygon>
-                    </svg>
-                </button>
-                <button class="fx-switch" data-fx="rays" aria-pressed="false" title="放射线:从盘缘随频谱伸缩">
-                    <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor"
-                        stroke-width="1.7" stroke-linecap="round">
-                        <line x1="10" y1="10" x2="10" y2="2.5"></line>
-                        <line x1="10" y1="10" x2="17.5" y2="10"></line>
-                        <line x1="10" y1="10" x2="10" y2="17.5"></line>
-                        <line x1="10" y1="10" x2="2.5" y2="10"></line>
-                        <line x1="10" y1="10" x2="15.3" y2="4.7"></line>
-                        <line x1="10" y1="10" x2="4.7" y2="15.3"></line>
-                        <line x1="10" y1="10" x2="15.3" y2="15.3"></line>
-                        <line x1="10" y1="10" x2="4.7" y2="4.7"></line>
-                    </svg>
-                </button>
-                <button class="fx-switch" data-fx="rings" aria-pressed="false" title="扩散圆环:低频一响向外扩一圈">
-                    <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor"
-                        stroke-width="1.7">
-                        <circle cx="10" cy="10" r="2.6"></circle>
-                        <circle cx="10" cy="10" r="6.2"></circle>
-                    </svg>
-                </button>
-                <button class="fx-switch" data-fx="lines" aria-pressed="true" title="背景:随机彩色多边形 + 随音量伸缩的线">
-                    <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor"
-                        stroke-width="1.7" stroke-linecap="round">
-                        <rect x="2" y="3" width="6" height="6" rx="1"></rect>
-                        <line x1="11" y1="5" x2="18" y2="5"></line>
-                        <line x1="2" y1="14" x2="12" y2="14"></line>
-                        <rect x="14" y="11" width="4" height="4" rx="1"></rect>
-                    </svg>
-                </button>
+            <!-- 插入按钮(左中):点 CD 不再插入,统一按这里;插入动画与原来完全相同 -->
+            <button class="rack-insert" id="rack-insert" title="把中间这张盘插入光驱" aria-label="插入选中的光盘">
+                <svg viewBox="0 0 28 28" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="14" cy="11.5" r="7.2"></circle>
+                    <circle cx="14" cy="11.5" r="2.1"></circle>
+                    <path d="M14 20 V26 M11 23.2 L14 26 L17 23.2"></path>
+                </svg>
+            </button>
+
+            <!-- 两根纵向滑条:上 = 背景整体强度,下 = 星云整体可见度 -->
+            <div class="rack-slider rack-slider-top">
+                <span class="rack-slider-label">背景</span>
+                <div class="rack-slider-track">
+                    <input type="range" id="rack-bg-power" min="0" max="100" value="100" aria-label="背景整体强度">
+                </div>
             </div>
-            <div class="wheel" id="wheel">
+            <div class="rack-slider rack-slider-bottom">
+                <span class="rack-slider-label">星云</span>
+                <div class="rack-slider-track">
+                    <input type="range" id="rack-neb-power" min="0" max="100" value="100" aria-label="星云整体可见度">
+                </div>
+            </div>
+
+<div class="wheel" id="wheel">
                 {{- range site.Params.intro.panels }}
                 <button class="cd" data-panel="{{ .key }}" aria-label="主题:{{ .title }}">
                     <span class="cd-disc">

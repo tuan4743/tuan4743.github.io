@@ -134,11 +134,11 @@
     var bg = active.getAttribute("data-bg") || "";
     var fg = active.getAttribute("data-fg") || pickInk(bg);
     if (fg) rack.style.setProperty("--rack-fg", fg);
-    /* 菱形平铺背景:主题色 + 50% 透明 */
-    if (rackBg && bg) rackBg.style.backgroundImage = diamondBg(bg);
-    if (cd3dApi && cd3dApi.setFxColor) cd3dApi.setFxColor(fg);   /* 可视化跟着一起换色 */
+    /* 背景第一层现在是深空星云(CSS),不再注入菱形贴图;
+       diamondBg() 还留着,想换回来只要把下面这行改回去 */
+    if (cd3dApi && cd3dApi.setFxColor) cd3dApi.setFxColor(fg);   /* 星云带 + 光晕跟着一起换色 */
     window.__rackDebug = {
-      key: key, bg: bg, fg: fg, diamond: rackBg ? rackBg.style.backgroundImage.indexOf("data:image/svg") === 0 : false,
+      key: key, bg: bg, fg: fg, diamond: false,
       readBack: rackBg ? rackBg.style.backgroundImage.slice(0, 400) : "",
       at: Math.round(performance.now())
     };
@@ -600,12 +600,48 @@
     else if (e.key === "ArrowDown") { e.preventDefault(); step(1); }
   });
 
-  /* ---------- CD 点击 ---------- */
+  /* ---------- 插入按钮(左中)+ 两根纵向滑条 ----------
+     插入统一走按钮:点碟片只负责选中,不再插入 */
+  var insertBtn = document.getElementById("rack-insert");
+  if (insertBtn) {
+    insertBtn.addEventListener("click", function () { confirmTheme(); });
+  }
+
+  var SLIDER_KEY = "rack-power";
+  function bindSlider(id, apply) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    var saved = null;
+    try { saved = JSON.parse(localStorage.getItem(SLIDER_KEY) || "null"); } catch (e) {}
+    if (saved && typeof saved[id] === "number") el.value = String(Math.round(saved[id] * 100));
+    var push = function () {
+      var v = Math.max(0, Math.min(1, (+el.value || 0) / 100));
+      apply(v);
+      var s = {};
+      try { s = JSON.parse(localStorage.getItem(SLIDER_KEY) || "{}") || {}; } catch (e) { s = {}; }
+      s[id] = v;
+      try { localStorage.setItem(SLIDER_KEY, JSON.stringify(s)); } catch (e) {}
+    };
+    el.addEventListener("input", push);
+    push();
+  }
+  /* 上:背景整体强度(直接乘在第一层星云上)*/
+  bindSlider("rack-bg-power", function (v) {
+    rack.style.setProperty("--bg-power", v.toFixed(2));
+  });
+  /* 下:星云整体可见度(3D 粒子带 + 连线 + 第三层光晕一起)*/
+  bindSlider("rack-neb-power", function (v) {
+    rack.style.setProperty("--glow-alpha", v.toFixed(2));
+    if (cd3dApi && cd3dApi.setNebulaVisibility) cd3dApi.setNebulaVisibility(v);
+  });
+
+  /* ---------- CD 点击:只负责"选中",不再插入 ----------
+     插入统一走左侧中部的按钮(见下面的 .rack-insert);
+     点碟片 = 把它滚到中间选中,点已选中的那张也不再插入 */
   cds.forEach(function (cd) {
     cd.addEventListener("click", function () {
       var i = cds.indexOf(cd);
-      if (i === selIndex) confirmTheme();
-      else { selIndex = i; layout(); }
+      if (i !== selIndex) { selIndex = i; layout(); }
     });
   });
 
@@ -672,43 +708,6 @@
     setOpen(true);                       /* 视角左移,CD 架滑出(内部会调度光驱弹出) */
   }
 
-  /* ---------- 音频可视化开关(左侧竖排,可叠加,记在 localStorage)---------- */
-  var fxButtons = Array.prototype.slice.call(document.querySelectorAll(".fx-switch"));
-  var FX_KEY = "cd-fx";
-
-  function saveFx() {
-    var s = {};
-    fxButtons.forEach(function (b) { s[b.getAttribute("data-fx")] = b.getAttribute("aria-pressed") === "true"; });
-    try { localStorage.setItem(FX_KEY, JSON.stringify(s)); } catch (e) {}
-  }
-
-  function pushFx() {
-    if (!cd3dApi || !cd3dApi.setFxMode) return;
-    fxButtons.forEach(function (b) {
-      cd3dApi.setFxMode(b.getAttribute("data-fx"), b.getAttribute("aria-pressed") === "true");
-    });
-  }
-
-  fxButtons.forEach(function (btn) {
-    btn.addEventListener("click", function () {
-      var on = btn.getAttribute("aria-pressed") !== "true";
-      btn.setAttribute("aria-pressed", on ? "true" : "false");
-      pushFx();
-      saveFx();
-    });
-  });
-
-  /* 恢复上次的开关状态(没存过就用 HTML 里的默认值)*/
-  (function restoreFx() {
-    var saved = null;
-    try { saved = JSON.parse(localStorage.getItem(FX_KEY) || "null"); } catch (e) {}
-    if (!saved) return;
-    fxButtons.forEach(function (b) {
-      var k = b.getAttribute("data-fx");
-      if (typeof saved[k] === "boolean") b.setAttribute("aria-pressed", saved[k] ? "true" : "false");
-    });
-  })();
-
   /* ---------- Three.js 懒加载(资产缺失/无WebGL/减少动效 → DOM 降级) ---------- */
   var cd3dApi = null;
   var cd3dTried = false;
@@ -739,12 +738,9 @@
             cd3dApi = api;
             body.classList.add("cd3d-on");
             api.setSelection(selIndex);
-            /* 可视化就绪:显示左侧开关 + 把当前状态和颜色推给它 */
-            if (api.fx) {
-              document.documentElement.classList.add("has-cd-fx");
-              pushFx();
-              repaintRack();
-            }
+            /* 可视化就绪:把当前主题色推给星云带(视觉化开关已经去掉了)*/
+            document.documentElement.classList.add("has-cd-fx");
+            repaintRack();
             console.info("[cd3d] 3D 模式已激活");
             setProgress(100, "加载完成");
             startIntro();            /* 隐藏加载页 → 打开 CD 架 → 光驱弹出 */

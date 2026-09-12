@@ -122,7 +122,7 @@ export async function initCd3d(opts) {
 
   const L = m.light || {};
   const sun = new THREE.DirectionalLight(L.color || 0xbfe6ff, L.intensity || 1.7);
-  sun.position.fromArray(L.position || [3.2, 2.4, 2.6]);
+  sun.position.fromArray(L.position || [4.1, 2.4, 2.6]);
   scene.add(sun);
   /* 补一盏冷色轮廓光(从相反方向打):金属之所以"贵",靠的就是亮高光 + 暗面的大反差。
      只有一盏正面光的话,曲面全是均匀的中间灰,怎么调都像塑料。 */
@@ -795,62 +795,298 @@ export async function initCd3d(opts) {
     console.info("[cd3d] CD 模型半径 = " + cdRadius.toFixed(3) + (m.cdRadius != null ? "(manifest 指定)" : "(几何体实测)"));
   }
   let fx = null;
-  let fxEnabled = true;      /* 插入动画期间关掉,免得几何体/音频条跟着盘飞进光驱 */
-  measureFxLimit();
-  if (createFx) {
-    try {
-      fx = createFx({
-        THREE: THREE,
-        scene: scene,
-        container: container,
-        cfg: m.fx || {},
-        levels: audio ? function () { return audio.music.levels(); } : null,
-        color: "#ffffff",
-        /* 特效平面必须放在盘的后面:盘会随鼠标倾斜(z 方向±0.24),
-           放在前面的话一倾斜特效就"跑到盘上面"了 */
-        behind: cdZ - 0.5,
-        cdRadius: cdRadius
-      });
-    } catch (e) {
-      console.warn("[cd3d] 可视化初始化失败:" + (e && e.message));
-    }
+  let fxEnabled = true;      /* 插入动画期间关掉,免得星云跟着盘飞进光驱 */
+
+  /* ---------- 星云带(真 3D 粒子 · 鼓点驱动)----------
+     按反馈定的四条规矩:
+       1) 颗粒要大、看得清(旧的太小)
+       2) 转速恒定 —— 不跟音量走(跟音量会一抽一抽地顿)
+       3) 检测鼓点:每次鼓点给所有粒子一个随机冲量 + 向外一推,之后靠阻尼弹簧回位
+          → 看起来像被低音震了一下,而不是"整条带子在变速"
+       4) 相邻粒子离得近就连线(星座感)
+     axis = "z" 是绕盘心(默认,视觉上就是一圈带);"x" 则是绕 X 轴的侧环。
+     参数都在 manifest 的 nebula 段。 */
+  const NEB = Object.assign({
+    count: 420,
+    radius: 1.34,       /* 带半径(相对盘半径)*/
+    spread: 0.17,
+    thickness: 0.03,    /* 沿环轴方向的厚度 */
+    spin: 0.085,        /* 角速度(弧度/秒,恒定)*/
+    size: 0.055,        /* 粒子大小(相对盘半径)*/
+    ballR: 0.07,        /* ★ 每颗粒子游走的小球半径(相对盘半径):球心在轨道上,粒子在球内活动 */
+    drift: 0.30,        /* ★ 球内慢漂速度(每秒走过多少个球半径)*/
+    seekDur: 0.13,      /* ★ 鼓点换位用多久到达新位置(秒)*/
+    depth: 0.5,         /* ★ 沿环轴的纵深(相对盘半径):0.03 = 扁平贴片,0.5 有明显前后层次 */
+    gapLow: 0.22,       /* ★ 最稀疏处的密度(越小缺口越大,0 = 完全断开)*/
+    irregular: 0.075,   /* ★ 环半径的不规则起伏(相对半径)*/
+    linkSpread: 1.55,    /* 连线距离 = 粒子平均间距 × 这个倍数(自适应,换粒子数也不会炸)*/
+    maxLinks: 1400,     /* 连线上限(性能保险)*/
+    axis: "z",
+    tilt: 0.17,
+    beatGain: 1.0,      /* 鼓点冲量强度 */
+    spring: 26,         /* 回弹刚度 */
+    damp: 5.2           /* 阻尼 */
+  }, (m.nebula || {}));
+
+  let nebula = null;
+  let nebTint = new THREE.Color(0x22d3ee);
+  let nebSpin = 0;
+  let nebVarsAge = 0;
+  let beatPulse = 0, lastBeatMs = 0, fluxAvg = 0, prevBands = null, beatCount = 0;
+  let nebVis = 1;                 /* 星云整体可见度(由左侧滑条控制)*/
+
+  function dotTexture() {
+    const c = document.createElement("canvas");
+    c.width = c.height = 64;
+    const g = c.getContext("2d");
+    const grd = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    grd.addColorStop(0, "rgba(255,255,255,1)");
+    grd.addColorStop(0.30, "rgba(255,255,255,0.6)");
+    grd.addColorStop(0.7, "rgba(255,255,255,0.12)");
+    grd.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = grd;
+    g.fillRect(0, 0, 64, 64);
+    return new THREE.CanvasTexture(c);
   }
 
-  /* 音频条的"左墙":左侧那列开关的右边缘(条子不许越过它,否则会压住开关)。
-     这样无论怎么调轨道/盘大小,最长那条都会自动收住 */
-  let fxLeftLimit = 0;
-  function measureFxLimit() {
-    try {
-      const sw = container.parentNode && container.parentNode.querySelector(".fx-switches");
-      if (sw) {
-        const r = sw.getBoundingClientRect();
-        if (r.width > 0) fxLeftLimit = r.right + 8;
+  function buildNebula() {
+    const n = NEB.count;
+    const R = cdRadius * NEB.radius;
+    const parts = [];
+    for (let i = 0; i < n; i++) {
+      /* ① 角度:均匀基准 + 抖动;再按"密度起伏"做拒绝采样
+            → 有的弧段密、有的稀疏甚至断开,不再是 360° 完整闭环 */
+      let th = (i / n) * Math.PI * 2 + (Math.random() - 0.5) * 0.16;
+      let tries = 0;
+      while (tries++ < 24) {
+        const dens = 0.5 + 0.5 * Math.sin(th * 2.3 + 0.7) * Math.sin(th * 1.7 - 1.1);
+        if (Math.random() < NEB.gapLow + (1 - NEB.gapLow) * dens) break;
+        th += (Math.random() - 0.5) * 0.5;
       }
-    } catch (e) {}
+      /* ② 半径:环本身带缓慢起伏(碎石环的感觉,不是车出来的圆) */
+      const wob = 1 + NEB.irregular * (Math.sin(th * 2.7 + 1.4) + 0.55 * Math.sin(th * 5.1 - 0.6));
+      const k = Math.pow(Math.random(), 0.7);           /* 内侧密一点 */
+      /* ③ Z 纵深:三个随机数叠加 ≈ 正态 → 有前后层次,不再是扁平贴片 */
+      const gz = ((Math.random() + Math.random() + Math.random()) - 1.5) / 1.5;
+      parts.push({
+        r: R * wob * (1 + (k - 0.5) * NEB.spread * 2),
+        th: th,
+        x0: gz * NEB.depth * cdRadius,
+        /* 球内游走:ox/oy/oz 是相对球心的偏移(球心在轨道上),
+           vx/vy/vz 是慢漂速度,tx/ty/tz 是鼓点时随机挑的新落点 */
+        ox: 0, oy: 0, oz: 0,
+        vx: 0, vy: 0, vz: 0,
+        tx: 0, ty: 0, tz: 0,
+        seek: 0
+      });
+    }
+    const pos = new Float32Array(n * 3);
+    const col = new Float32Array(n * 3);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+    const mat = new THREE.PointsMaterial({
+      size: NEB.size * cdRadius,
+      sizeAttenuation: true,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      opacity: 0.85,
+      map: dotTexture(),
+      vertexColors: true
+    });
+    const pts = new THREE.Points(geo, mat);
+    pts.frustumCulled = false;
+    pts.renderOrder = 3;
+    scene.add(pts);
+
+    /* 连线:预分配一段线段缓冲,每帧只填"靠得近"的那些 */
+    const lpos = new Float32Array(NEB.maxLinks * 6);
+    const lgeo = new THREE.BufferGeometry();
+    lgeo.setAttribute("position", new THREE.BufferAttribute(lpos, 3));
+    lgeo.setDrawRange(0, 0);
+    const lmat = new THREE.LineBasicMaterial({
+      color: 0x9ec8ff, transparent: true, opacity: 0.16,
+      blending: THREE.AdditiveBlending, depthWrite: false
+    });
+    const lines = new THREE.LineSegments(lgeo, lmat);
+    lines.frustumCulled = false;
+    lines.renderOrder = 2;
+    scene.add(lines);
+
+    nebula = {
+      pts: pts, geo: geo, mat: mat, lines: lines, lgeo: lgeo, lmat: lmat, lpos: lpos,
+      parts: parts, n: n, R: R, color: col, grid: new Map()
+    };
   }
 
-  /* 左墙:每秒重新量一次(开关列在 3D 就绪后才显示,初始化时量不到)*/
-  let fxLimitAge = 0;
-  function fxFrame(dt, visible) {
-    if (!fx) return;
-    fxLimitAge += dt;
-    if (fxLimitAge > 1) { fxLimitAge = 0; measureFxLimit(); }
-    if (!fxEnabled) { fx.update(dt, { visible: false }); return; }
-    const r = container.getBoundingClientRect();
-    const sel = cdItems[selIndex];
-    if (!sel) { fx.update(dt, { visible: false }); return; }
-    const w = sel.group.getWorldPosition(tmp).project(camera);
-    const pxPerUnit = r.height / viewH;
-    fx.update(dt, {
-      visible: !!visible,
-      x: sel.group.position.x,
-      y: sel.group.position.y,
-      screenX: ((w.x + 1) / 2) * r.width,
-      screenY: ((1 - w.y) / 2) * r.height,
-      screenR: cdRadius * pxPerUnit,
-      leftLimit: fxLeftLimit
-    });
+  /* 鼓点检测:低频谱通量的"突增" —— 低频常年饱和,绝对阈值法分不出来,所以用相对涨速 */
+  function beatTick(dt, lv) {
+    if (!lv || !lv.bands || !lv.playing) return 0;
+    const nb = lv.bands.length;
+    const lowN = Math.max(4, Math.round(nb * 0.25));
+    if (!prevBands || prevBands.length !== nb) prevBands = new Float32Array(nb);
+    let flux = 0;
+    for (let i = 0; i < lowN; i++) {
+      const d = lv.bands[i] - prevBands[i];
+      if (d > 0) flux += d;
+      prevBands[i] = lv.bands[i];
+    }
+    flux /= lowN;
+    fluxAvg += (flux - fluxAvg) * Math.min(1, dt * 1.2);
+    const over = flux / Math.max(0.004, fluxAvg) - 1.25;
+    const now = performance.now();
+    if (over > 0 && now - lastBeatMs > 95) {
+      lastBeatMs = now;
+      const hit = Math.min(1, over * 4);
+      beatPulse = Math.max(beatPulse, hit);
+      beatCount++;
+      return hit;
+    }
+    return 0;
   }
+
+  function updateNebula(dt, world, lv) {
+    if (!nebula) return;
+    const n = nebula.n, parts = nebula.parts;
+    const hit = beatTick(dt, lv);
+    beatPulse *= Math.pow(0.5, dt / 0.18);
+    nebSpin += dt * NEB.spin;                            /* 恒定转速,不跟音量 */
+    const impulse = cdRadius * 0.22 * NEB.beatGain;   /* 位移≈冲量/√k,这里约 0.04R = 轻微一颤 */
+    const k = NEB.spring, c = NEB.damp;
+    const tint = nebTint;
+    const maxR = nebula.R * 1.2;
+    const pos = nebula.geo.attributes.position.array;
+    const col = nebula.color;
+    const cx = world.x, cy = world.y, cz = world.z;
+    const ct = Math.cos(NEB.tilt), st = Math.sin(NEB.tilt);
+
+    const ballR = cdRadius * NEB.ballR;
+    const driftV = ballR * NEB.drift;
+    const seekK = Math.min(1, dt / Math.max(0.02, NEB.seekDur));
+    for (let i = 0; i < n; i++) {
+      const p = parts[i];
+      if (hit > 0) {
+        /* 鼓点:在这个小球里随机挑一个新位置,然后平滑挪过去
+           —— 不回到球心,也不改变球心(球心永远在固定轨道上)*/
+        const u = Math.random() * 2 - 1;
+        const ang = Math.random() * Math.PI * 2;
+        const rad = Math.cbrt(Math.random()) * ballR;     /* 球内均匀 */
+        const sq = Math.sqrt(Math.max(0, 1 - u * u));
+        p.tx = rad * sq * Math.cos(ang);
+        p.ty = rad * sq * Math.sin(ang);
+        p.tz = rad * u;
+        p.seek = 1;
+      }
+      if (p.seek) {
+        p.ox += (p.tx - p.ox) * seekK;
+        p.oy += (p.ty - p.oy) * seekK;
+        p.oz += (p.tz - p.oz) * seekK;
+        const d2 = p.ox * p.ox + p.oy * p.oy + p.oz * p.oz;
+        if (d2 < ballR * ballR * 0.0025) {
+          p.seek = 0;
+          /* 到位后给一个慢漂速度,让它继续在球里游走 */
+          p.vx = (Math.random() * 2 - 1) * driftV;
+          p.vy = (Math.random() * 2 - 1) * driftV;
+          p.vz = (Math.random() * 2 - 1) * driftV;
+        }
+      } else {
+        p.ox += p.vx * dt;
+        p.oy += p.vy * dt;
+        p.oz += p.vz * dt;
+        const d2 = p.ox * p.ox + p.oy * p.oy + p.oz * p.oz;
+        if (d2 > ballR * ballR) {                          /* 碰到球面:贴着球面滑 + 改向 */
+          const d = Math.sqrt(d2) || 1;
+          p.ox = p.ox / d * ballR; p.oy = p.oy / d * ballR; p.oz = p.oz / d * ballR;
+          p.vx = -p.vx * 0.7 + (Math.random() * 2 - 1) * driftV * 0.5;
+          p.vy = -p.vy * 0.7 + (Math.random() * 2 - 1) * driftV * 0.5;
+          p.vz = -p.vz * 0.7 + (Math.random() * 2 - 1) * driftV * 0.5;
+        }
+      }
+
+      const rr = p.r;
+      const speed = 1 + 1.5 * (1 - Math.min(1, rr / maxR));   /* 差速:内圈快 */
+      const th = p.th + nebSpin * speed;
+      const px = Math.cos(th) * rr, py = Math.sin(th) * rr;
+      const i3 = i * 3;
+      if (NEB.axis === "x") {
+        pos[i3] = cx + p.x0 + p.ox;
+        pos[i3 + 1] = cy + px + p.oy;
+        pos[i3 + 2] = cz + py + p.oz;
+      } else {
+        pos[i3] = cx + px + p.ox;
+        pos[i3 + 1] = cy + py * ct + p.x0 * st + p.oy;
+        pos[i3 + 2] = cz + py * st + p.x0 * ct + p.oz;
+      }
+      /* 颜色:内侧 = 主题色,外侧偏冷紫;鼓点时整体提亮 */
+      const kk = Math.min(1, rr / maxR);
+      const b = (0.5 + 0.5 * (1 - kk)) * (0.75 + beatPulse * 0.7);
+      col[i3] = tint.r * b + 0.10 * kk;
+      col[i3 + 1] = tint.g * b + 0.12 * kk;
+      col[i3 + 2] = tint.b * b + 0.28 * kk;
+    }
+    nebula.geo.attributes.position.needsUpdate = true;
+    nebula.geo.attributes.color.needsUpdate = true;
+    nebula.mat.size = NEB.size * cdRadius * (1 + beatPulse * 0.35);
+    nebula.mat.opacity = (0.75 + beatPulse * 0.25) * nebVis;
+
+    /* 邻近连线:用格子分桶,只比同一个/相邻格子里的点 */
+    /* 粒子是铺在「二维环带」上的(带本身有径向厚度),所以平均间距要按面积算 ——
+       只按周长算会把间距低估好几倍,连线就会全部消失 */
+    const bandW = NEB.spread * 2 * nebula.R;
+    const spacing = Math.sqrt((Math.PI * 2 * nebula.R) * bandW / n);
+    const linkD = spacing * NEB.linkSpread, linkD2 = linkD * linkD;
+    const cell = linkD;
+    const grid = nebula.grid;
+    grid.clear();
+    for (let i = 0; i < n; i++) {
+      const i3 = i * 3;
+      const key = (Math.floor(pos[i3] / cell) + 512) * 1048576 +
+        (Math.floor(pos[i3 + 1] / cell) + 512) * 1024 + (Math.floor(pos[i3 + 2] / cell) + 512);
+      let bucket = grid.get(key);
+      if (!bucket) { bucket = []; grid.set(key, bucket); }
+      bucket.push(i);
+    }
+    const lpos = nebula.lpos;
+    let seg = 0;
+    const keys = Array.from(grid.keys());
+    for (let gi = 0; gi < keys.length && seg < NEB.maxLinks; gi++) {
+      const key = keys[gi];
+      const b0 = grid.get(key);
+      const kx = Math.floor(key / 1048576) - 512;
+      const ky = (Math.floor(key / 1024) % 1024) - 512;
+      const kz = (key % 1024) - 512;
+      /* 只和"自己 + 相邻 13 个格子"比,避免重复 */
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dz = -1; dz <= 1; dz++) {
+            if (dx < 0 || (dx === 0 && dy < 0) || (dx === 0 && dy === 0 && dz < 0)) continue;
+            const other = grid.get((kx + dx + 512) * 1048576 + (ky + dy + 512) * 1024 + (kz + dz + 512));
+            if (!other) continue;
+            const same = other === b0;
+            for (let ii = 0; ii < b0.length && seg < NEB.maxLinks; ii++) {
+              const ia = b0[ii] * 3;
+              for (let jj = same ? ii + 1 : 0; jj < other.length && seg < NEB.maxLinks; jj++) {
+                const ib = other[jj] * 3;
+                const ddx = pos[ia] - pos[ib], ddy = pos[ia + 1] - pos[ib + 1], ddz = pos[ia + 2] - pos[ib + 2];
+                if (ddx * ddx + ddy * ddy + ddz * ddz > linkD2) continue;
+                const o = seg * 6;
+                lpos[o] = pos[ia]; lpos[o + 1] = pos[ia + 1]; lpos[o + 2] = pos[ia + 2];
+                lpos[o + 3] = pos[ib]; lpos[o + 4] = pos[ib + 1]; lpos[o + 5] = pos[ib + 2];
+                seg++;
+              }
+            }
+          }
+        }
+      }
+    }
+    nebula.lgeo.attributes.position.needsUpdate = true;
+    nebula.lgeo.setDrawRange(0, seg * 2);
+    nebula.lmat.opacity = (0.16 + beatPulse * 0.26) * nebVis;
+    if (window.__cd3dDebug) window.__cd3dDebug.links = seg;
+  }
+
+  buildNebula();     /* 3D 星云带:替代原来那套 2D 几何特效 */
 
   function frame(now) {
     raf = requestAnimationFrame(frame);
@@ -1021,7 +1257,9 @@ export async function initCd3d(opts) {
         window.__cd3dDebug.viewH = +viewH.toFixed(4);
         window.__cd3dDebug.spacingRatio = +(spacing / viewH).toFixed(4);
         window.__cd3dDebug.fxOn = fxEnabled;
-        window.__cd3dDebug.fxLeftLimit = fxLeftLimit;
+        window.__cd3dDebug.nebula = nebula ? nebula.pts.visible : false;
+        window.__cd3dDebug.beats = beatCount;
+        window.__cd3dDebug.beatPulse = +beatPulse.toFixed(3);
       }
     }
     renderer.render(scene, camera);
@@ -1032,27 +1270,54 @@ export async function initCd3d(opts) {
   function onResize() {
     renderer.setSize(container.clientWidth || 1, container.clientHeight || 1);
     fit();
-    measureFxLimit();
-    if (fx) fx.resize();
   }
   window.addEventListener("resize", onResize);
+
+  /* 星云带:每帧更新(用选中盘的世界坐标当圆心,再顺手把它的屏幕位置写给 CSS,
+     让"最近层的雾化光晕"能跟着盘走) */
+  function fxFrame(dt, visible) {
+    if (!nebula) return;
+    const r = container.getBoundingClientRect();
+    const sel = cdItems[selIndex] || cdItems[0];
+    const lv = (audio && audio.music && visible && fxEnabled) ? audio.music.levels() : null;
+    const world = sel ? sel.group.getWorldPosition(tmp) : null;
+    nebula.pts.visible = !!visible && fxEnabled && nebVis > 0.01;
+    nebula.lines.visible = nebula.pts.visible;
+    if (nebula.pts.visible && world) updateNebula(dt, world, lv);
+    /* CSS 变量:盘在屏幕上的位置/半径/律动强度(约 20fps 写一次,别每帧都触发重排)*/
+    nebVarsAge += dt;
+    if (sel && world && nebVarsAge > 0.05) {
+      nebVarsAge = 0;
+      const w = world.clone().project(camera);
+      const rackEl = container.parentNode;
+      if (rackEl && rackEl.style) {
+        rackEl.style.setProperty("--cd-x", (((w.x + 1) / 2) * r.width).toFixed(1) + "px");
+        rackEl.style.setProperty("--cd-y", (((1 - w.y) / 2) * r.height).toFixed(1) + "px");
+        rackEl.style.setProperty("--cd-r", (cdRadius * (r.height / viewH)).toFixed(1) + "px");
+        rackEl.style.setProperty("--cd-pulse", (lv ? lv.level || 0 : 0).toFixed(3));
+      }
+    }
+  }
 
   const api = {
     setSelection(i) {
       selIndex = i;
       place(i, false);
     },
-    /* ---- 音频可视化 ---- */
+    /* ---- 音频可视化(现在是 3D 星云带)---- */
     audio: audio,
-    fx: fx,
-    setFxColor(hex) { if (fx) fx.setColor(hex); },
-    setFxMode(name, on) { if (fx) fx.setMode(name, on); },
-    fxModes() { return fx ? fx.modes() : null; },
+    nebula: function () { return nebula ? nebula.pts : null; },
+    setFxColor(hex) {
+      try { nebTint.set(hex || "#22d3ee"); } catch (e) {}
+    },
+    setFxMode() { /* 只剩一套星云带,旧的模式开关留着不报错 */ },
+    setNebulaVisibility(v) { nebVis = Math.max(0, Math.min(1, +v || 0)); },
+    fxModes() { return null; },
     /* 插入动画期间整体关掉可视化(切回主界面后再打开)*/
     setFxEnabled(v) {
       fxEnabled = !!v;
       if (window.__cd3dDebug) window.__cd3dDebug.fxOn = fxEnabled;
-      if (fx) fx.update(0, { visible: false });
+      if (nebula) nebula.pts.visible = fxEnabled;
     },
     fxOn() { return fxEnabled; },
     cdRadius() { return cdRadius; },
