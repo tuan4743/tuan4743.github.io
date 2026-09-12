@@ -500,109 +500,202 @@
     };
   }
 
-  /* ================= 5. 暴风雪 + 雪线刷新(未来) =================
-     很多小雪花从右上角飘向左下角(暴风雪),然后一条斜线从右上角扫到左下角,
-     扫过的区域露出页面。线上的雪特别密,把这条硬边盖住 ——
-     看起来就是"一阵雪把屏幕刷了一遍"。 */
-  var W0 = 0, H0 = 0;
-  function sceneFractal(ctx, W, H, accent) {
-    W0 = W; H0 = H;
-    var BUILD = 650, SWEEP = 1500, TAIL = 450;
-    var SPAN = W + H;                      /* 斜坐标 s=(W-x)+y:右上角 0 → 左下角 W+H */
+  /* ================= 5. 暴风雪 + 巨大雪花扫线(未来) =================
+     雪用用户给的 snow.glsl(真 GLSL,半分辨率渲染后平滑放大;
+     流速 speed、密度 scale/grow 都比范例放大过 —— 见下面 SNOW 表)。
+     ★ 收尾是这一张的精髓:
+       · 一朵【巨大的雪花】从【左上角】一路飞到【右下角】;
+       · 它背后同步藏着【一条线】,与雪花同速扫过 ——
+         线扫过的那一侧(左上那半边)整片清掉,雪与雪花一起退场,直接露出底下页面;
+       · 线【画在雪花之前】,所以中段被雪花挡住,只在雪花两侧伸出来。
+     时间轴:0~2.0s 暴风雪 / 2.0~3.5s 扫线收尾 / 总长 3.62s */
+  var SNOW = {
+    snow: 2000,      /* 暴风雪时长 */
+    fin: 1500,       /* 收尾(巨雪 + 扫线)时长 */
+    tail: 120,       /* 扫完停一帧,保证页面完全露出 */
+    speed: 2.6,      /* 流速倍率:着色器里 speed = 2.0 × 这个值(范例是 2.0)*/
+    scale: 1.15,     /* 整体缩放:越大雪越密越细 */
+    grow: 1.45,      /* 密度/饱满度:1.0 = 范例原样,越大雪越多越大 */
+    dark: 1.6,       /* 压暗:1.0 = 范例的亮白,越大底越暗(雪花仍亮)*/
+    bias: 1.0,       /* 底色雾亮度 */
+    sun: 0.5,        /* 太阳强度:1.0 = 范例原样(左上角会曝成一片白)*/
+    size: 0.36       /* 大雪花半径 ÷ 屏幕对角线 */
+  };
+  function sceneSnow(ctx, W, H, accent) {
+    var URL = (window.__SHADERS && window.__SHADERS.snow) || "/shaders/snow.glsl";
+    if (window.CDBootGlsl) window.CDBootGlsl.preload("snow", URL);
+
+    var S2 = Math.SQRT1_2;                       /* √2/2:斜向坐标系 */
+    var cx = W * 0.5, cy = H * 0.5;
+    var qMax = (W + H) * 0.5 * S2;               /* 屏幕中心 → 左上/右下角的投影距离 */
+    var BIG = (W + H) * 1.8;                     /* 画线/挖洞用的超大长度 */
+    var FR = Math.hypot(W, H) * SNOW.size;       /* 巨大雪花半径 */
+    var lead = FR * 0.55;                        /* 线的行程比雪花短:
+                                                    起手雪在后、收尾雪在前,全程与线相交 */
+    var feather = Math.min(W, H) * 0.05;         /* 扫线羽化宽度 */
+
+    /* 前景小雪花:给暴风雪一点景深,方向和收尾一致(往右下)*/
     var flakes = [];
-    for (var i = 0; i < 200; i++) {
-      flakes.push({
-        s0: Math.random() * SPAN * 1.25,        /* 沿"右上→左下"的初始位置 */
-        p0: rand(-H * 0.25, SPAN + H * 0.25),   /* 垂直方向的坐标 */
-        size: rand(2.5, 11),
-        rot0: rand(0, Math.PI),
-        ph: rand(0, 6.28),
-        spd: rand(0.7, 1.4),
-        a: rand(0.5, 1)
-      });
+    for (var i = 0; i < 80; i++) {
+      flakes.push({ x: rand(0, W), y: rand(0, H), r: rand(1.5, 5), v: rand(0.4, 1.1), a: rand(0.2, 0.6) });
     }
-    /* 六角小雪花:三条短线交叉(小尺寸下足够像) */
-    function flake(x, y, r, rot, alpha, tint) {
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.rotate(rot);
-      ctx.globalAlpha = alpha;
-      ctx.strokeStyle = tint || "#dff3ff";
-      ctx.lineWidth = Math.max(0.7, r * 0.22);
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      for (var k = 0; k < 3; k++) {
-        var a = k * Math.PI / 3;
-        ctx.moveTo(-Math.cos(a) * r, -Math.sin(a) * r);
-        ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+
+    /* 巨大雪花的几何:6 主臂 + 每臂 3 对分枝 + 六边形核心 + 臂尖菱形。
+       一次建好 Path2D(只在开场景时算),之后每帧只 stroke 两遍(辉光 + 本体)*/
+    var flakePath = null;
+    function buildFlake() {
+      var p = new Path2D();
+      var k, b, j, sgn, ang, dx, dy, bx, by, ba, bl, tip, px, py;
+      for (k = 0; k < 6; k++) {                              /* 核心六边形 */
+        ang = k * Math.PI / 3;
+        px = Math.cos(ang) * FR * 0.13;
+        py = Math.sin(ang) * FR * 0.13;
+        if (k === 0) p.moveTo(px, py); else p.lineTo(px, py);
       }
-      ctx.stroke();
-      ctx.restore();
-    }
-    /* 斜坐标 (s,p) → 屏幕坐标:s 从右上角的小值涨到左下角的大值,就是暴风雪的方向。
-       s=(W-x)+y、p=x+y 反解出 x=(p-s+W)/2、y=(p+s-W)/2 */
-    function place(f, t) {
-      var s = (f.s0 + t * f.spd * 300) % (SPAN * 1.25);
-      if (s < 0) s += SPAN * 1.25;
-      s -= SPAN * 0.12;
-      return { x: (f.p0 - s + W) / 2, y: (f.p0 + s - W) / 2, s: s };
+      p.closePath();
+      for (b = 0; b < 6; b++) {
+        ang = b * Math.PI / 3;
+        dx = Math.cos(ang); dy = Math.sin(ang);
+        p.moveTo(0, 0); p.lineTo(dx * FR, dy * FR);          /* 主臂 */
+        for (j = 0; j < 3; j++) {                            /* 3 对分枝 */
+          bx = dx * FR * (0.30 + j * 0.23);
+          by = dy * FR * (0.30 + j * 0.23);
+          bl = FR * (0.30 - j * 0.065);
+          for (sgn = -1; sgn <= 1; sgn += 2) {
+            ba = ang + sgn * Math.PI / 3 * 0.94;
+            p.moveTo(bx, by);
+            p.lineTo(bx + Math.cos(ba) * bl, by + Math.sin(ba) * bl);
+          }
+        }
+        tip = FR * 0.055;                                    /* 臂尖小菱形 */
+        p.moveTo(dx * FR - dy * tip, dy * FR + dx * tip);
+        p.lineTo(dx * FR * 1.13, dy * FR * 1.13);
+        p.lineTo(dx * FR + dy * tip, dy * FR - dx * tip);
+        p.closePath();
+      }
+      return p;
     }
 
     return {
-      total: BUILD + SWEEP + TAIL,
+      total: SNOW.snow + SNOW.fin + SNOW.tail,
+      /* 着色器整屏不透明(兜底渐变也是),所以可以一接手就撤黑屏 */
+      blackUntil: 0,
       draw: function (el) {
-        var t = el / 1000;
-        /* 底:黑屏(扫过的部分用 destination-out 挖掉)*/
-        ctx.fillStyle = "#05080f";
-        ctx.fillRect(0, 0, W, H);
-        /* 雪线位置:BUILD 之后从右上扫到左下 */
-        var T = -1;
-        if (el > BUILD) {
-          var sp = clamp((el - BUILD) / SWEEP, 0, 1);
-          T = easeInOut(sp) * (SPAN + 260) - 130;
-          var poly = revealPoly(T);
-          if (poly.length > 2) {
-            ctx.globalCompositeOperation = "destination-out";
-            ctx.beginPath();
-            ctx.moveTo(poly[0][0], poly[0][1]);
-            for (var q = 1; q < poly.length; q++) ctx.lineTo(poly[q][0], poly[q][1]);
-            ctx.closePath();
-            ctx.fill();
-            ctx.globalCompositeOperation = "source-over";
-          }
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.globalCompositeOperation = "source-over";
+        ctx.globalAlpha = 1;
+        ctx.clearRect(0, 0, W, H);
+
+        /* ---- 1. GLSL 暴风雪:半分辨率渲染(雪是柔和的,看不出差别),
+                   超宽屏再加个上限,免得着色器按几百万像素跑 ---- */
+        var gw = Math.round(W * 0.5), gh = Math.round(H * 0.5), CAP = 900;
+        if (gw > CAP) { gh = Math.round(gh * CAP / gw); gw = CAP; }
+        var gl = window.CDBootGlsl ? window.CDBootGlsl.render("snow", URL, el / 1000, gw, gh, {
+          speed: SNOW.speed, scale: SNOW.scale, grow: SNOW.grow,
+          dark: SNOW.dark, bias: SNOW.bias, sun: SNOW.sun
+        }) : null;
+        if (gl) {
+          ctx.imageSmoothingEnabled = true;
+          ctx.drawImage(gl, 0, 0, gw, gh, 0, 0, W, H);
+        } else {
+          /* 还没加载好(或编译失败)时的兜底:深蓝雪幕,绝不留白 */
+          var g0 = ctx.createLinearGradient(0, 0, W * 0.6, H);
+          g0.addColorStop(0, "#243550");
+          g0.addColorStop(0.5, "#141f36");
+          g0.addColorStop(1, "#0a1120");
+          ctx.fillStyle = g0;
+          ctx.fillRect(0, 0, W, H);
         }
-        /* 雪花(线上的更亮更大 → 把硬边盖住)*/
-        var fade = el > BUILD + SWEEP ? clamp(1 - (el - BUILD - SWEEP) / TAIL, 0, 1) : 1;
+
+        /* ---- 2. 前景小雪花 ---- */
+        var tt = el / 1000;
+        ctx.save();
+        ctx.strokeStyle = "#e2f2ff";
+        ctx.lineCap = "round";
         for (var i = 0; i < flakes.length; i++) {
           var f = flakes[i];
-          var p = place(f, t);
-          if (p.x < -40 || p.x > W + 40 || p.y < -40 || p.y > H + 40) continue;
-          var band = T >= 0 ? Math.abs(p.s - T) : 9999;
-          var near = clamp(1 - band / 150, 0, 1);            /* 越靠近雪线越密越亮 */
-          var r = f.size * (1 + near * 1.6);
-          var alpha = f.a * fade * (0.55 + 0.45 * near) * (1 - near * 0.15);
-          flake(p.x, p.y, r, f.rot0 + t * 1.2 * (f.spd - 1) + near, alpha, near > 0.4 ? "#ffffff" : "#dff3ff");
+          var sp = tt * f.v * 46;
+          var x = (f.x + sp * 0.85) % (W + 60) - 30;
+          var y = (f.y + sp * 0.55) % (H + 60) - 30;
+          if (x < 0) x += W + 60;
+          if (y < 0) y += H + 60;
+          ctx.globalAlpha = f.a;
+          ctx.lineWidth = Math.max(0.7, f.r * 0.26);
+          ctx.beginPath();
+          for (var k = 0; k < 3; k++) {
+            var a = k * Math.PI / 3;
+            ctx.moveTo(x - Math.cos(a) * f.r, y - Math.sin(a) * f.r);
+            ctx.lineTo(x + Math.cos(a) * f.r, y + Math.sin(a) * f.r);
+          }
+          ctx.stroke();
         }
+        ctx.restore();
+
+        /* ---- 3. 收尾:巨雪 + 那条线 ---- */
+        if (el <= SNOW.snow) { ctx.globalAlpha = 1; return; }
+        var k = clamp((el - SNOW.snow) / SNOW.fin, 0, 1);
+        var ke = easeInOut(k);
+        var qLine = (-qMax - lead) + ke * (qMax * 2 + lead * 2);
+        var qFlake = (-qMax - FR * 0.95) + ke * (qMax * 2 + FR * 1.9);
+
+        /* 3a 线扫过的那一侧整片清掉(destination-out)。
+              旋转 45° 后,局部 +x 就是"左上 → 右下"方向,qLine 就是线的位置 ——
+              于是"局部 x < qLine"正好是线【扫过】的那半边 */
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(Math.PI / 4);
+        ctx.globalCompositeOperation = "destination-out";
+        var gd = ctx.createLinearGradient(qLine - feather, 0, qLine + feather, 0);
+        gd.addColorStop(0, "rgba(0,0,0,1)");
+        gd.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = gd;
+        ctx.fillRect(-BIG, -BIG, qLine + feather + BIG, BIG * 2);
+        ctx.restore();
+
+        /* 3b 那条线:先画它,再画雪花 → 中段自然被雪花挡住 */
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(Math.PI / 4);
+        var lg = ctx.createLinearGradient(qLine, -BIG, qLine, BIG);
+        lg.addColorStop(0.00, "rgba(160, 232, 255, 0)");
+        lg.addColorStop(0.30, "rgba(196, 242, 255, 0.85)");
+        lg.addColorStop(0.50, "rgba(255, 255, 255, 1)");
+        lg.addColorStop(0.70, "rgba(196, 242, 255, 0.85)");
+        lg.addColorStop(1.00, "rgba(160, 232, 255, 0)");
+        ctx.globalCompositeOperation = "lighter";
+        ctx.strokeStyle = "rgba(120, 215, 255, 0.28)";
+        ctx.lineWidth = Math.max(6, feather * 0.9);                 /* 外发光 */
+        ctx.beginPath(); ctx.moveTo(qLine, -BIG); ctx.lineTo(qLine, BIG); ctx.stroke();
+        ctx.globalCompositeOperation = "source-over";
+        ctx.strokeStyle = lg;
+        ctx.lineWidth = Math.max(1.2, Math.min(W, H) * 0.0022);     /* 亮芯 */
+        ctx.beginPath(); ctx.moveTo(qLine, -BIG); ctx.lineTo(qLine, BIG); ctx.stroke();
+        ctx.restore();
+
+        /* 3c 巨大雪花(中心压在线上,略偏前)*/
+        if (!flakePath) flakePath = buildFlake();
+        ctx.save();
+        ctx.translate(cx + qFlake * S2, cy + qFlake * S2);
+        ctx.rotate(-0.35 + ke * 0.85);
+        ctx.lineJoin = "round";
+        ctx.lineCap = "round";
+        ctx.globalCompositeOperation = "lighter";       /* 辉光 */
+        ctx.globalAlpha = 0.5;
+        ctx.strokeStyle = "rgba(140, 218, 255, 0.55)";
+        ctx.lineWidth = FR * 0.045;
+        ctx.stroke(flakePath);
+        ctx.globalCompositeOperation = "source-over";   /* 本体 */
         ctx.globalAlpha = 1;
+        ctx.strokeStyle = "#f2fbff";
+        ctx.lineWidth = FR * 0.011;
+        ctx.stroke(flakePath);
+        ctx.restore();
+
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = "source-over";
       }
     };
-  }
-
-  /* 用 (W-x)+y <= T 切出"已刷新"的多边形(Sutherland-Hodgman 单边裁剪)*/
-  function revealPoly(T) {
-    var pts = [[0, 0], [W0, 0], [W0, H0], [0, H0]];
-    var out = [];
-    var f = function (p) { return (W0 - p[0]) + p[1] - T; };
-    for (var i = 0; i < 4; i++) {
-      var a = pts[i], b = pts[(i + 1) % 4];
-      var fa = f(a), fb = f(b);
-      if (fa <= 0) out.push(a);
-      if ((fa <= 0) !== (fb <= 0)) {
-        var k = fa / (fa - fb);
-        out.push([a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k]);
-      }
-    }
-    return out;
   }
 
   /* ================= 出口 ================= */
@@ -611,7 +704,7 @@
     hex: sceneHex,
     water: sceneWater,
     glitch: sceneGlitch,
-    fractal: sceneFractal
+    fractal: sceneSnow
   };
   var BY_KEY = { self: "emoji", growth: "hex", lost: "water", tech: "glitch", future: "fractal" };
 

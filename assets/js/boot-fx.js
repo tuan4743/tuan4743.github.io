@@ -24,17 +24,11 @@
 
   var tmp = null, tctx = null;
   var tmp2 = null, t2ctx = null, tmp3 = null, t3ctx = null;          /* 临时画布:切片类效果需要先拷一份 */
-  var julia = null, jctx = null;        /* 低分辨率缓冲:分形用 */
 
   function ensureTmp(W, H) {
     if (!tmp) { tmp = document.createElement("canvas"); tctx = tmp.getContext("2d"); }
     if (tmp.width !== W || tmp.height !== H) { tmp.width = W; tmp.height = H; }
   }
-  function ensureJulia(W, H) {
-    if (!julia) { julia = document.createElement("canvas"); jctx = julia.getContext("2d", { willReadFrequently: true }); }
-    if (julia.width !== W || julia.height !== H) { julia.width = W; julia.height = H; }
-  }
-
   /* ---------- 通用:RGB 分离(把画面按红/青两通道错开叠加)---------- */
   function rgbSplit(ctx, W, H, amount, alpha) {
     ensureTmp(W, H);
@@ -284,47 +278,10 @@
     ctx.restore();
   }
 
-  /* ---------- fractal:低分辨率 Julia 集,再放大 ---------- */
-  function fxFractal(ctx, W, H, el) {
-    var sw = Math.max(120, Math.round(W / 4)), sh = Math.max(80, Math.round(H / 4));
-    ensureJulia(sw, sh);
-    var t = el / 6000;
-    var cr = -0.72 + Math.cos(t * 1.7) * 0.12;
-    var ci = 0.27 + Math.sin(t * 1.3) * 0.11;
-    var zoom = 1.15 + 0.35 * Math.sin(t * 0.9);
-    var img = jctx.createImageData(sw, sh);
-    var d = img.data, i = 0;
-    for (var py = 0; py < sh; py++) {
-      var y0 = (py / sh - 0.5) * 2.6 / zoom;
-      for (var px = 0; px < sw; px++) {
-        var x0 = (px / sw - 0.5) * 2.6 / zoom;
-        var x = x0, y = y0, k = 0;
-        while (x * x + y * y < 4 && k < 42) {
-          var xt = x * x - y * y + cr;
-          y = 2 * x * y + ci;
-          x = xt;
-          k++;
-        }
-        var v = k / 42;
-        var glow = k >= 42 ? 0 : Math.pow(v, 0.55);
-        d[i++] = Math.round(30 + 120 * glow);
-        d[i++] = Math.round(60 + 180 * glow);
-        d[i++] = Math.round(90 + 165 * glow);
-        d[i++] = Math.round(255 * Math.min(1, glow * 1.25));
-      }
-    }
-    jctx.putImageData(img, 0, 0);
-    ctx.save();
-    ctx.globalAlpha = 0.92;
-    ctx.imageSmoothingEnabled = true;
-    ctx.drawImage(julia, 0, 0, sw, sh, 0, 0, W, H);
-    ctx.restore();
-    /* 外面再套一层轻微 RGB 分离,和整体画风一致 */
-    rgbSplit(ctx, W, H, 1.2, 0.18);
-  }
-
   /* water 已换成"像素火车驶过云海"场景,自带雨与圆形清除,这里不再叠加水波 */
-  var MAP = { emoji: fxEmoji, hex: fxHex, glitch: fxGlitch, fractal: fxFractal };
+  /* ★ fractal(未来)这一张改成 snow.glsl 场景,自带整屏作画 ——
+     如果再叠一层特效会把它盖住(之前那层 Julia 就是这么把暴风雪盖掉的)*/
+  var MAP = { emoji: fxEmoji, hex: fxHex, glitch: fxGlitch };
 
   window.CDBootFx = {
     hexTiming: HEX_T,          /* 调试:直接改 HEX_T.outAt / .total 就能调黑屏与总时长 */

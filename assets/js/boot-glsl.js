@@ -91,7 +91,12 @@
       ch0: gl.getUniformLocation(pr, "iChannel0"),
       cloud: gl.getUniformLocation(pr, "uCloud"),
       hue: gl.getUniformLocation(pr, "uHue"),
-      dark: gl.getUniformLocation(pr, "uDark")
+      dark: gl.getUniformLocation(pr, "uDark"),
+      speed: gl.getUniformLocation(pr, "uSpeed"),
+      scale: gl.getUniformLocation(pr, "uScale"),
+      grow: gl.getUniformLocation(pr, "uGrow"),
+      bias: gl.getUniformLocation(pr, "uBias"),
+      sun: gl.getUniformLocation(pr, "uSun")
     };
     return { pr: pr, u: u };
   }
@@ -135,6 +140,12 @@
     if (prog.u.cloud) gl.uniform1f(prog.u.cloud, p.cloud == null ? 1.6 : p.cloud);
     if (prog.u.hue) gl.uniform1f(prog.u.hue, p.hue == null ? 3.7 : p.hue);
     if (prog.u.dark) gl.uniform1f(prog.u.dark, p.dark == null ? 0.85 : p.dark);
+    /* 雪(snow.glsl)用的四个:没传就用范例的手感 */
+    if (prog.u.speed) gl.uniform1f(prog.u.speed, p.speed == null ? 1 : p.speed);
+    if (prog.u.scale) gl.uniform1f(prog.u.scale, p.scale == null ? 1 : p.scale);
+    if (prog.u.grow) gl.uniform1f(prog.u.grow, p.grow == null ? 1 : p.grow);
+    if (prog.u.bias) gl.uniform1f(prog.u.bias, p.bias == null ? 1 : p.bias);
+    if (prog.u.sun) gl.uniform1f(prog.u.sun, p.sun == null ? 1 : p.sun);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     return cv;
   }
