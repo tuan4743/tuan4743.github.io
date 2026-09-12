@@ -7,6 +7,15 @@
    说明:Alpha Sector 是拉丁/数字字体,不含中文字形 ——
         中文会自动回退到下面字体栈里的中文字体,不会变成方框。
    ============================================================ */
+/* 中文像素字体(自备)。把文件放到 static/fonts/ 下,文件名见 README */
+@font-face {
+    font-family: "Pixel CN";
+    src: url("/fonts/PixelCN.woff2") format("woff2"),
+         url("/fonts/PixelCN.ttf") format("truetype"),
+         url("/fonts/PixelCN.otf") format("opentype");
+    font-display: swap;
+}
+
 @font-face {
     font-family: "Alpha Sector";
     src: url("/fonts/AlphaSector.woff2") format("woff2"),
@@ -26,6 +35,8 @@
 
 .holo {
     font-family: var(--ui-font-cjk);
+    -webkit-font-smoothing: var(--ui-pixel-smooth);
+    -moz-osx-font-smoothing: var(--ui-pixel-smooth);
     position: absolute;
     inset: 0;
     z-index: 9;
@@ -123,7 +134,8 @@
     --panel-node: 6px;                           /* ★ 四角节点尺寸 */
     /* ★ UI 字体栈:Alpha Sector 负责拉丁与数字,中文自动回退 */
     --ui-font: "Alpha Sector", "Orbitron", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    --ui-font-cjk: "Alpha Sector", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", ui-monospace, monospace;
+    --ui-font-cjk: "Alpha Sector", "Pixel CN", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", ui-monospace, monospace;
+    --ui-pixel-smooth: none;              /* 像素字体想更锐利就留 none;想柔和改成 auto */
     --panel-mono: var(--ui-font);
     --panel-fs: 12px;                     /* 字号 */
     --panel-ls: 0.14em;                   /* 字距 */
@@ -228,6 +240,7 @@
 
 .holo-title {
     font-family: var(--ui-font-cjk);
+    -webkit-font-smoothing: var(--ui-pixel-smooth);
     font-size: var(--title-size);
     font-weight: 500;
     letter-spacing: var(--title-ls);
@@ -577,6 +590,7 @@
 
 .song-ring__midltr {
     font-family: var(--ui-font-cjk);
+    -webkit-font-smoothing: var(--ui-pixel-smooth);
     position: absolute;
     left: 50%;
     top: 50%;
