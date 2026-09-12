@@ -1,0 +1,29 @@
+{{/* 第二张盘「成长」的主页内容:科幻风太阳系行星图
+     数据:hugo.toml 的 [[params.intro.decks.growth]] + [params.intro.solar]
+     逻辑:assets/js/page-solar.js   样式:assets/css/pages.css 的 .solar
+     每颗行星 = 一个 .solar-node(星体 + HUD 卡片),位置由 JS 算:
+     宽屏沿黄道线排开、卡片上下交替并用细线连到星体边缘;窄屏变时间线 */}}
+{{- $star := site.Params.intro.solar | default dict -}}
+<div class="solar" data-solar="{{ .key }}">
+    <svg class="solar-svg" aria-hidden="true" preserveAspectRatio="none"></svg>
+
+    <div class="solar-node solar-node--star">
+        <span class="solar-star" aria-hidden="true"></span>
+        <div class="solar-star-label">
+            <b>{{ $star.title | default "我" }}</b>
+            <i>{{ $star.caption | default "SELF" }}</i>
+        </div>
+    </div>
+
+    {{- range $i, $p := .items }}
+    <div class="solar-node" style="--i: {{ $i }}">
+        <span class="solar-planet{{ if $p.ring }} has-ring{{ end }}" style="--size: {{ $p.size | default 0.5 }}"
+            aria-hidden="true"></span>
+        <div class="solar-card">
+            <span class="solar-code">{{ $p.code }}</span>
+            <h3 class="solar-title">{{ $p.title }}</h3>
+            <div class="solar-text">{{ $p.text }}</div>
+        </div>
+    </div>
+    {{- end }}
+</div>

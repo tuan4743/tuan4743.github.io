@@ -12,7 +12,7 @@
    ============================================================ */
 
 /* 有自定义内容的页面:去掉面板本来的居中内边距,让内容铺满屏幕可视区 */
-.intro-panel.is-deck {
+.intro-panel.is-page {
     padding: 0;
     display: block;
     overflow: hidden;
@@ -268,4 +268,321 @@
     .deck-hint {
         display: none;
     }
+}
+
+/* ============================================================
+   第二张:科幻风太阳系行星图(.solar)
+   布局坐标由 page-solar.js 算(宽屏沿黄道线排开、窄屏变时间线),
+   这里只管长相:恒星光晕、行星球体、轨道虚线、HUD 卡片、连线节点
+   ============================================================ */
+.solar {
+    --solar-acc: var(--intro-accent);
+    --solar-line: var(--intro-border);
+    /* ★ 卡片宽度用 vw 而不是 %:卡片的父级 .solar-node 宽高都是 0
+       (它只是个定位锚点),百分比会解析成 0 → 卡片永远卡在最小值上 */
+    --card-w: clamp(172px, 16vw, 268px);
+    --solar-card-gap: clamp(30px, 4.6vh, 48px);
+    /* ↑ 星体边缘到卡片之间的距离(那条细线就走在这一段里)*/
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.solar-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.solar-ecliptic {
+    fill: none;
+    stroke: color-mix(in srgb, var(--solar-acc) 26%, transparent);
+    stroke-width: 1;
+    stroke-dasharray: 2 6;
+}
+
+.solar-orbit {
+    fill: none;
+    stroke: var(--solar-line);
+    stroke-width: 1;
+    stroke-dasharray: 3 7;
+    opacity: 0.68;
+}
+
+.solar-lead {
+    fill: none;
+    stroke: color-mix(in srgb, var(--solar-acc) 62%, transparent);
+    stroke-width: 1;
+}
+
+.solar-node-dot {
+    fill: var(--solar-acc);
+    opacity: 0.9;
+}
+
+.solar-node-dot.is-end {
+    opacity: 0.45;
+}
+
+/* ---------- 恒星 ---------- */
+.solar-node {
+    position: absolute;
+    width: 0;
+    height: 0;
+    /* left / top = 星体中心,由 JS 给 */
+}
+
+.solar-star {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: calc(var(--sr, 60px) * 2);
+    height: calc(var(--sr, 60px) * 2);
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: radial-gradient(circle, #ffffff 0%, #dcf5ff 24%, #6cc8ff 50%, rgba(90, 185, 255, 0) 72%);
+    box-shadow: 0 0 56px rgba(120, 210, 255, 0.5), 0 0 130px rgba(90, 170, 255, 0.26);
+}
+
+.solar-star::after {
+    content: "";
+    position: absolute;
+    inset: -16%;
+    border-radius: 50%;
+    border: 1px dashed rgba(190, 235, 255, 0.32);
+    animation: solar-spin 30s linear infinite;
+}
+
+@keyframes solar-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.solar-star-label {
+    position: absolute;
+    left: 0;
+    top: calc(var(--sr, 60px) + 14px);
+    transform: translateX(-50%);
+    text-align: center;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.solar-star-label b {
+    display: block;
+    font-size: clamp(0.85rem, 1vw, 1.05rem);
+    letter-spacing: 0.16em;
+}
+
+.solar-star-label i {
+    display: block;
+    font-style: normal;
+    font-size: 0.7rem;
+    letter-spacing: 0.22em;
+    opacity: 0.55;
+    margin-top: 2px;
+    font-family: "Alpha Sector", ui-monospace, Consolas, monospace;
+}
+
+/* ---------- 行星 ---------- */
+.solar-planet {
+    position: absolute;
+    left: 0;
+    top: 0;
+    border-radius: 50%;
+    background: radial-gradient(circle at 33% 30%, #eefaff, #86cee9 42%, #2f5f80 78%, #17293b 100%);
+    box-shadow: inset -2px -3px 8px rgba(0, 20, 40, 0.55), 0 0 20px rgba(120, 200, 255, 0.32);
+    transform: translate(-50%, -50%) scale(0.35);
+    opacity: 0;
+    transition: transform 0.62s cubic-bezier(0.22, 0.9, 0.3, 1) calc(var(--i, 0) * 90ms),
+        opacity 0.5s ease calc(var(--i, 0) * 90ms),
+        box-shadow 0.3s ease;
+}
+
+.solar.is-live .solar-planet {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.solar-node.is-on .solar-planet,
+.solar-node:hover .solar-planet {
+    box-shadow: inset -2px -3px 8px rgba(0, 20, 40, 0.5), 0 0 30px rgba(150, 225, 255, 0.8);
+}
+
+/* 星环:压扁的一圈,像土星那样 */
+.solar-planet.has-ring::after {
+    content: "";
+    position: absolute;
+    left: -42%;
+    right: -42%;
+    top: 22%;
+    bottom: 22%;
+    border: 1px solid rgba(185, 232, 255, 0.6);
+    border-radius: 50%;
+    transform: rotate(-16deg);
+    box-shadow: 0 0 10px rgba(150, 215, 255, 0.35);
+}
+
+/* ---------- HUD 卡片 ---------- */
+.solar-card {
+    position: absolute;
+    left: 0;
+    width: var(--card-w);
+    /* --cx 由 JS 给:靠边的行星把卡片往回收,免得顶出屏幕 */
+    transform: translateX(calc(-50% + var(--cx, 0px)));
+    padding: 10px 12px 12px;
+    border: 1px solid var(--intro-border);
+    border-left: 2px solid color-mix(in srgb, var(--solar-acc) 65%, transparent);
+    border-radius: 3px;
+    background: var(--intro-glass);
+    opacity: 0;
+    transition: opacity 0.5s ease calc(var(--i, 0) * 90ms + 80ms), border-color 0.25s ease, background 0.25s ease;
+}
+
+.solar.is-live .solar-card {
+    opacity: 1;
+}
+
+.solar-node.is-up .solar-card {
+    bottom: calc(var(--r, 12px) + var(--solar-card-gap));
+}
+
+.solar-node.is-down .solar-card {
+    top: calc(var(--r, 12px) + var(--solar-card-gap));
+}
+
+.solar-card.is-on,
+.solar-node:hover .solar-card {
+    border-color: color-mix(in srgb, var(--solar-acc) 55%, transparent);
+    background: color-mix(in srgb, var(--solar-acc) 8%, transparent);
+}
+
+.solar-code {
+    display: inline-block;
+    font-family: "Alpha Sector", ui-monospace, Consolas, monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.24em;
+    color: var(--solar-acc);
+}
+
+.solar-title {
+    font-size: clamp(1rem, 1.25vw, 1.32rem);
+    font-weight: 700;
+    margin: 4px 0 6px;
+    letter-spacing: 0.02em;
+}
+
+.solar-text {
+    color: var(--intro-dim);
+    font-size: clamp(0.8rem, 0.95vw, 0.98rem);
+    line-height: 1.8;
+}
+
+/* ---------- 窄屏 / 矮屏:变成时间线(可以上下滚)---------- */
+.solar.is-narrow {
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: block;
+    padding: clamp(16px, 3vh, 34px) clamp(18px, 4vw, 34px);
+    -webkit-overflow-scrolling: touch;
+}
+
+.solar.is-narrow .solar-svg {
+    display: none;
+}
+
+.solar.is-narrow .solar-node {
+    position: relative;
+    left: auto !important;
+    top: auto !important;
+    width: auto;
+    height: auto;
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 12px 0;
+}
+
+.solar.is-narrow .solar-node--star {
+    align-items: center;
+    padding-bottom: 18px;
+    margin-bottom: 10px;
+    border-bottom: 1px dashed var(--intro-border);
+}
+
+.solar.is-narrow .solar-star {
+    position: relative;
+    left: auto;
+    top: auto;
+    width: 34px !important;
+    height: 34px !important;
+    transform: none;
+    flex: 0 0 auto;
+}
+
+.solar.is-narrow .solar-star::after {
+    display: none;
+}
+
+.solar.is-narrow .solar-star-label {
+    position: relative;
+    left: auto;
+    top: auto;
+    transform: none;
+    text-align: left;
+}
+
+.solar.is-narrow .solar-star-label b {
+    display: inline-block;
+}
+
+.solar.is-narrow .solar-star-label i {
+    display: inline-block;
+    margin-left: 8px;
+}
+
+.solar.is-narrow .solar-planet {
+    position: relative;
+    left: auto;
+    top: auto;
+    width: 14px !important;
+    height: 14px !important;
+    margin-top: 4px;
+    transform: none;
+    opacity: 1;
+    flex: 0 0 auto;
+}
+
+.solar.is-narrow .solar-planet.has-ring::after {
+    left: -30%;
+    right: -30%;
+}
+
+.solar.is-narrow .solar-card {
+    position: relative;
+    left: auto;
+    width: auto;
+    flex: 1 1 auto;
+    transform: none;
+    opacity: 1;
+    padding: 0;
+    border: 0;
+    border-left: 0;
+    background: none;
+}
+
+.solar.is-narrow .solar-card::before {
+    content: "";
+    position: absolute;
+    left: -16px;
+    top: 12px;
+    width: 16px;
+    height: 1px;
+    background: color-mix(in srgb, var(--solar-acc) 55%, transparent);
 }

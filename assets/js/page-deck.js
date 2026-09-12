@@ -42,12 +42,13 @@
     var dots = Array.prototype.slice.call(deck.querySelectorAll(".deck-dot"));
     var bar = deck.querySelector(".deck-progress > i");
 
-    var tau = defaultTau, pageK = 0.8, kLo = 0.06, kHi = 0.62;
+    var tau = defaultTau, pageK = 0.8, kLo = 0.06, kHi = 0.62, gapK = 0.10;
     function readCfg() {
       tau = num(deck, "--deck-tau", defaultTau, 10, 600);
       pageK = num(deck, "--deck-page", 0.8, 0.2, 2);
       kLo = num(deck, "--deck-k-lo", 0.06, 0, 1);
       kHi = num(deck, "--deck-k-hi", 0.62, 0, 1);
+      gapK = num(deck, "--deck-gap-y", 0.10, 0, 1);
       if (kHi <= kLo) kHi = kLo + 0.2;
     }
     readCfg();
@@ -79,10 +80,14 @@
       if (h > 1) {
         /* ★ 一页的高度写成 px:CSS 里 min-height:100% 解析不出来
            (百分比相对的是 .deck-track,而它是 auto)。--deck-page < 1 时
-           相邻两页会互相露一条边 —— 淡入淡出就是在这条边上发生的 */
+           相邻两页会互相露一条边 —— 淡入淡出就是在这条边上发生的。
+           页与页之间再留 --deck-gap-y(默认 0.1 个屏高)的间隔,让两页"分得开" */
         var need = Math.round(h * pageK) + "px";
+        var gapPx = Math.round(h * gapK) + "px";
         for (var q = 0; q < slides.length; q++) {
           if (slides[q].style.minHeight !== need) slides[q].style.minHeight = need;
+          var mb = q === slides.length - 1 ? "0px" : gapPx;
+          if (slides[q].style.marginBottom !== mb) slides[q].style.marginBottom = mb;
         }
         var vt = pos, vb = pos + h, best = 0, bd = 1e9;
         for (var i = 0; i < slides.length; i++) {
@@ -229,42 +234,6 @@
     };
   }
 
-  function buildAll() {
-    var list = document.querySelectorAll(".deck[data-deck]");
-    for (var i = 0; i < list.length; i++) {
-      var k = list[i].getAttribute("data-deck");
-      if (!decks[k]) {
-        var api = build(list[i]);
-        if (api) decks[k] = api;
-      }
-    }
-  }
-
-  function activate(key) {
-    buildAll();
-    for (var k in decks) if (Object.prototype.hasOwnProperty.call(decks, k)) decks[k].activate(k === key);
-  }
-
-  window.CDPages = {
-    activate: activate,
-    repaint: function () { for (var k in decks) if (decks[k]) decks[k].repaint(); },
-    decks: decks,
-    state: function () {
-      var out = {};
-      for (var k in decks) out[k] = decks[k].state();
-      return out;
-    }
-  };
-
-  function boot() {
-    buildAll();
-    var on = document.querySelector(".intro-panel.is-active[data-panel]");
-    if (on) activate(on.getAttribute("data-panel"));
-  }
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
-  else boot();
-
-  window.addEventListener("resize", function () {
-    for (var k in decks) if (decks[k]) decks[k].repaint();
-  });
+  /* 注册给核心(见 pages.js):"哪张盘被选中"和 resize 重排都由核心统一管 */
+  if (window.CDPages && window.CDPages.register) window.CDPages.register("deck", build);
 })();

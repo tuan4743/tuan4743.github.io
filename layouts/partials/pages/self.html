@@ -1,0 +1,32 @@
+{{/* 第一张盘「自我」的主页内容:滑动分页
+     数据来自 hugo.toml 的 [[params.intro.decks.self]]
+     逻辑:assets/js/page-deck.js   样式:assets/css/pages.css 的 .deck */}}
+<div class="deck" data-deck="{{ .key }}">
+    <div class="deck-progress" aria-hidden="true"><i></i></div>
+    <div class="deck-track">
+        {{- range $j, $s := .items }}
+        <article class="deck-slide">
+            <div class="deck-copy">
+                <span class="deck-idx">{{ printf "%02d" (add $j 1) }}<i>/</i>{{ printf "%02d" (len $.items) }}</span>
+                <h2 class="deck-title">{{ $s.title }}</h2>
+                <div class="deck-text">{{ $s.text }}</div>
+            </div>
+            <figure class="deck-media">
+                {{- with $s.image }}
+                <img src="{{ . }}" alt="{{ $s.title }}" loading="lazy" decoding="async">
+                {{- else }}
+                <span class="deck-media__ph" aria-hidden="true"><b>{{ printf "%02d" (add $j 1) }}</b><i>图片位</i></span>
+                {{- end }}
+                {{- with $s.caption }}<figcaption>{{ . }}</figcaption>{{ end }}
+            </figure>
+        </article>
+        {{- end }}
+    </div>
+    <div class="deck-dots">
+        {{- range $j, $s := .items }}
+        <button class="deck-dot{{ if eq $j 0 }} is-on{{ end }}" data-goto="{{ $j }}"
+            aria-label="第 {{ add $j 1 }} 页"></button>
+        {{- end }}
+    </div>
+    <span class="deck-hint" aria-hidden="true">SCROLL / DRAG</span>
+</div>

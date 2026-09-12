@@ -107,6 +107,53 @@ paginate = 10
 它更像一个持续更新的页面:过一段时间回来看,总会觉得上一版有点陌生。"""
       image = ""
 
+    # ---- 第二张盘「成长」的主页内容:科幻风太阳系行星图 ----
+    # 恒星(屏幕最左那颗)的标题 / 副标题
+    [params.intro.solar]
+      title = "我"
+      caption = "SELF"
+
+    # 每颗行星 = 一张 HUD 卡片。size = 0~1(相对最大行星的大小,越大越靠右越"长大"),
+    # ring = true 会画一圈星环。下面是占位文案,直接改。
+    [[params.intro.decks.growth]]
+      code = "P-01"
+      title = "起点"
+      text = "起点都长得差不多:什么都不懂,但什么都想试一下。"
+      size = 0.26
+
+    [[params.intro.decks.growth]]
+      code = "P-02"
+      title = "第一次摔"
+      text = "第一次把一件事做砸。疼的不是失败本身,是发现自己原来这么脆。"
+      size = 0.38
+
+    [[params.intro.decks.growth]]
+      code = "P-03"
+      title = "方法"
+      text = "后来明白:只靠热情撑不了多久,得攒出一套自己的办法。"
+      size = 0.50
+      ring = true
+
+    [[params.intro.decks.growth]]
+      code = "P-04"
+      title = "重复"
+      text = "把办法重复一百遍。枯燥,但只有重复过的东西才真的长在身上。"
+      size = 0.64
+
+    [[params.intro.decks.growth]]
+      code = "P-05"
+      title = "停滞"
+      text = "有一段时间怎么走都不动。那时最想放弃,也最接近想明白。"
+      size = 0.79
+
+    [[params.intro.decks.growth]]
+      code = "P-06"
+      title = "继续"
+      text = "现在也不敢说长大了。只是遇到事情时,比以前多了一点耐心。"
+      size = 1.0
+      ring = true
+
+
     [[params.intro.panels]]
       key = "growth"
       title = "成长"
