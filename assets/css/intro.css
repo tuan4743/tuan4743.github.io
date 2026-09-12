@@ -356,69 +356,6 @@ body.statusbar-hidden .statusbar-toggle svg {
     z-index: 1;
 }
 
-/* ---------- 全息面板(左上,只包主题 + 配文)----------
-   这块 UI 的形状 = 不规则折线多边形本身:
-     填充(holo-fill)= 半透明全息面
-     外轮廓(holo-line)= 亮线
-     内圈斜切(holo-line-2 / -3)= 低多边形投影感
-     顶点节点(holo-node)= 小圆点
-   文字用内边距让开折线,压在面板中间的空处 */
-.rack-info-top {
-    position: absolute;
-    left: var(--rack-pad);
-    top: var(--rack-top);
-    width: max-content;
-    max-width: var(--rack-text-w);
-    overflow-wrap: break-word;
-    /* 让开折线:左 40 / 上 34 / 右 38 / 下 38(面板做大后折线才有地方展开)*/
-    padding: 34px 38px 38px 40px;
-}
-
-.holo-frame {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    overflow: visible;
-    color: var(--rack-fg, #22d3ee);
-    filter: drop-shadow(0 0 7px color-mix(in srgb, var(--rack-fg, #22d3ee) 38%, transparent));
-    z-index: 0;
-}
-
-.holo-fill {
-    fill: url(#holoFill);
-    stroke: none;
-}
-
-.holo-line {
-    fill: none;
-    stroke: var(--rack-fg, #22d3ee);
-    stroke-width: 1.5;
-    stroke-linejoin: miter;
-    vector-effect: non-scaling-stroke;
-    opacity: 0.85;
-}
-
-.holo-line-2 {
-    stroke-width: 1;
-    opacity: 0.45;
-}
-
-.holo-line-3 {
-    stroke-width: 1;
-    opacity: 0.22;
-}
-
-.holo-node {
-    fill: var(--rack-fg, #22d3ee);
-    opacity: 0.9;
-}
-
-.rack-caption {
-    position: relative;
-    z-index: 1;
-}
 
 /* ---------- 插入按钮(左中)---------- */
 .rack-insert {

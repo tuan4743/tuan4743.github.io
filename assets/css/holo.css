@@ -1,0 +1,285 @@
+/* ============================================================
+   全息 UI —— 我们自己的方案(白细线 HUD)
+   ┌──────────────────────────────────────────────────────────┐
+   │ ★ 尺寸 / 位置 / 颜色 全部集中在下面 .holo 的变量里          │
+   │ ★ 两根滑条的"滑块头"是图标(一眼看出在调什么)              │
+   └──────────────────────────────────────────────────────────┘
+   纪律:不用 filter / backdrop-filter(会压掉 WebGL 画布)
+   ============================================================ */
+
+.holo {
+    position: absolute;
+    inset: 0;
+    z-index: 9;
+    pointer-events: none;
+    color: #eaf3ff;
+    --holo-glow: 0;                       /* 0~1,cd3d 按音乐电平写入 */
+
+    /* ═══════ 1. 形状层 ═══════ */
+    --line-w: 1px;                        /* 主线宽 */
+    --line-a: 0.45;                       /* 主线不透明度 */
+    --halo-w: 6px;                        /* 伴描边(=发光)宽度 */
+    --halo-a: 0.05;
+    --run-w: 1.6px;                       /* 跑马灯线宽 */
+    --run-len: 46;                        /* 跑马灯长度 px */
+    --run-dur: 9s;                        /* 跑一圈用时 */
+
+    /* ═══════ 2. 主题 + 配字(上侧框内)═══════ */
+    --title-x: 0.2%;                        /* 左边界 */
+    --title-y: 0%;                        /* 上边界 */
+    --title-h: 10%;                       /* 上侧框高度 */
+    --title-size: clamp(30px, 4vh, 56px);
+    --title-ls: 0.18em;
+    --title-gap: 0.55em;                  /* 主题与配字间距 */
+    --caption-size: clamp(11px, 1.5vh, 15px);
+    --caption-ls: 0.16em;
+
+    /* ═══════ 3. 侧边凸起里的"滑条 / 方按钮 / 滑条" ═══════ */
+    --stack-x: 1.5%;                     /* 整条的左边界(= 凸起左边缘) */
+    --stack-y: 26.9%;                     /* 上边界(= 凸起上边缘) */
+    --stack-w: clamp(20px, calc(100% / 30), 34px);   /* 宽 = 凸起宽度 */
+    --stack-h: 40%;                       /* 高 = 凸起长度 */
+    --stack-gap: 5%;                      /* 三件之间的间距 */
+
+    --btn-min: 54px;                      /* 方按钮最小边长 */
+    --btn-max: 54px;                      /* 方按钮最大边长(贴着凸起宽) */
+    --btn-fg: #eaf3ff;
+    --btn-bg: rgba(234, 243, 255, 0.05);
+    --btn-bg-hover: rgba(234, 243, 255, 0.16);
+    --btn-border: rgba(234, 243, 255, 0.42);
+
+    /* ═══════ 4. 滑条(细轨 + 图标滑块头)═══════ */
+    --rail-w: 6px;                        /* 轨道粗细 */
+    --rail-color: rgba(234, 243, 255, 0.22);
+    --thumb-size: 18px;                   /* 滑块头直径(要放得下图标) */
+    --thumb-icon-sun: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23eaf3ff' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='4.2'/%3E%3Cpath d='M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6'/%3E%3C/svg%3E");   /* 上面那根:背景(亮度)*/
+    --thumb-icon-star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23eaf3ff'%3E%3Cpath d='M12 2.6l2 6.6 6.6 2-6.6 2-2 6.6-2-6.6-6.6-2 6.6-2z'/%3E%3C/svg%3E"); /* 下面那根:星云 */
+    --fader-icon-size: 14px;              /* 滑条上方那个小图标 */
+    --fader-label-size: 10px;             /* 图标旁的文字 */
+    --fader-label-ls: 0.2em;
+    --fader-head-gap: 6px;
+}
+
+/* ---------------- 形状层 ---------------- */
+.holo svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    overflow: visible;
+    pointer-events: none;
+}
+
+.holo-line,
+.holo-halo,
+.holo-run {
+    fill: none;
+    stroke: #eaf3ff;
+    stroke-linejoin: miter;
+    vector-effect: non-scaling-stroke;
+}
+
+.holo-line {
+    stroke-width: var(--line-w);
+    opacity: calc(var(--line-a) + var(--holo-glow) * 0.4);
+}
+
+.holo-halo {
+    stroke-width: var(--halo-w);
+    stroke-linecap: round;
+    opacity: calc(var(--halo-a) + var(--holo-glow) * 0.1);
+}
+
+.holo-run {
+    stroke: #ffffff;
+    stroke-width: var(--run-w);
+    stroke-linecap: round;
+    stroke-dasharray: var(--run-len) 2000;
+    opacity: calc(0.5 + var(--holo-glow) * 0.45);
+    animation: holo-run var(--run-dur) linear infinite;
+}
+
+@keyframes holo-run {
+    from { stroke-dashoffset: 2046; }
+    to { stroke-dashoffset: 0; }
+}
+
+/* ---------------- 主题 + 配字 ---------------- */
+.holo-head {
+    position: absolute;
+    left: var(--title-x);
+    top: var(--title-y);
+    height: var(--title-h);
+    max-height: 92px;
+    display: flex;
+    align-items: center;
+    gap: var(--title-gap);
+    padding-left: 1.2%;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.holo-title {
+    font-size: var(--title-size);
+    font-weight: 500;
+    letter-spacing: var(--title-ls);
+    line-height: 1;
+    color: #f4f8ff;
+}
+
+.holo-caption {
+    font-size: var(--caption-size);
+    letter-spacing: var(--caption-ls);
+    color: rgba(234, 243, 255, 0.7);
+    transform: translateY(0.2em);
+}
+
+/* ---------------- 凸起里的竖列 ---------------- */
+.holo-stack {
+    position: absolute;
+    left: var(--stack-x);
+    top: var(--stack-y);
+    width: var(--stack-w);
+    height: var(--stack-h);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--stack-gap);
+    pointer-events: auto;
+}
+
+/* 方形插入按钮 */
+.holo-btn {
+    flex: 0 0 auto;
+    width: 100%;
+    min-width: var(--btn-min);
+    max-width: var(--btn-max);
+    min-height: var(--btn-min);
+    max-height: var(--btn-max);
+    aspect-ratio: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    margin: 0;
+    border-radius: 3px;
+    cursor: pointer;
+    color: var(--btn-fg);
+    background: var(--btn-bg);
+    border: 1px solid var(--btn-border);
+    transition: background 0.18s ease;
+}
+
+.holo-btn:hover {
+    background: var(--btn-bg-hover);
+}
+
+.holo-btn svg {
+    position: static;
+    width: auto;
+    height: 58%;
+    max-height: 18px;
+}
+
+/* ---------------- 滑条 ---------------- */
+.fader {
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.fader__head {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    margin-bottom: var(--fader-head-gap);
+    opacity: 0.85;
+}
+
+.fader__head svg {
+    position: static;
+    width: var(--fader-icon-size);
+    height: var(--fader-icon-size);
+    display: block;
+}
+
+.fader__label {
+    font-size: var(--fader-label-size);
+    letter-spacing: var(--fader-label-ls);
+    color: rgba(234, 243, 255, 0.7);
+    writing-mode: vertical-rl;
+}
+
+.fader__body {
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: 0;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.fader input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: var(--rail-w);
+    margin: 0;
+    transform: rotate(-90deg);
+    background: var(--rail-color);
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+}
+
+/* 滑块头 = 图标(webkit)*/
+.fader input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: var(--thumb-size);
+    height: var(--thumb-size);
+    border-radius: 50%;
+    background-color: rgba(10, 14, 22, 0.85);
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 74% 74%;
+    border: 1px solid rgba(234, 243, 255, 0.55);
+    cursor: pointer;
+}
+
+.fader--bright input[type="range"]::-webkit-slider-thumb {
+    background-image: var(--thumb-icon-sun);
+}
+
+.fader--nebula input[type="range"]::-webkit-slider-thumb {
+    background-image: var(--thumb-icon-star);
+}
+
+/* 滑块头 = 图标(firefox)*/
+.fader input[type="range"]::-moz-range-thumb {
+    width: var(--thumb-size);
+    height: var(--thumb-size);
+    border-radius: 50%;
+    background-color: rgba(10, 14, 22, 0.85);
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 74% 74%;
+    border: 1px solid rgba(234, 243, 255, 0.55);
+    cursor: pointer;
+}
+
+.fader--bright input[type="range"]::-moz-range-thumb {
+    background-image: var(--thumb-icon-sun);
+}
+
+.fader--nebula input[type="range"]::-moz-range-thumb {
+    background-image: var(--thumb-icon-star);
+}

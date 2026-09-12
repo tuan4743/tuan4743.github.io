@@ -124,24 +124,22 @@
   function paintRackInfo(key) {
     if (key === rackPainted) return;
     rackPainted = key;
-    var active = null;
-    rackInfo.forEach(function (el) {
-      var on = el.getAttribute("data-panel") === key;
-      el.classList.toggle("is-active", on);
-      if (on) active = el;
-    });
-    if (!active) return;
-    var bg = active.getAttribute("data-bg") || "";
-    var fg = active.getAttribute("data-fg") || pickInk(bg);
-    if (fg) rack.style.setProperty("--rack-fg", fg);
-    /* 背景第一层现在是深空星云(CSS),不再注入菱形贴图;
-       diamondBg() 还留着,想换回来只要把下面这行改回去 */
-    if (cd3dApi && cd3dApi.setFxColor) cd3dApi.setFxColor(fg);   /* 星云带 + 光晕跟着一起换色 */
-    window.__rackDebug = {
-      key: key, bg: bg, fg: fg, diamond: false,
-      readBack: rackBg ? rackBg.style.backgroundImage.slice(0, 400) : "",
-      at: Math.round(performance.now())
-    };
+    /* 主题色:直接取主题色表(老文字块已删)*/
+    var themeFg = themeColors[key] || "#22d3ee";
+    rack.style.setProperty("--rack-fg", themeFg);
+    /* 新全息 UI 里的大标题 + 右侧配字 */
+    var ht = document.getElementById("holo-theme");
+    if (ht) {
+      var btn = document.querySelector('.cd[data-panel="' + key + '"]');
+      ht.textContent = (btn && btn.getAttribute("data-title")) || String(key).toUpperCase();
+    }
+    var hc = document.getElementById("holo-caption");
+    if (hc) {
+      var cbtn = document.querySelector('.cd[data-panel="' + key + '"]');
+      hc.textContent = (cbtn && cbtn.getAttribute("data-caption")) || "";
+    }
+    if (cd3dApi && cd3dApi.setFxColor) cd3dApi.setFxColor(themeFg);
+    window.__rackDebug = { key: key, bg: themeFg, fg: themeFg, at: Math.round(performance.now()) };
   }
 
   /* 3D 就绪后要把颜色重推一次(fx 是后来才创建的)*/

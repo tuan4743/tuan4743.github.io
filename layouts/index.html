@@ -4,6 +4,7 @@
 {{- /* 资源指纹:某个文件缺失时只警告并跳过,不让整页渲染失败
        (以前 resources.Get 返回 nil 会让 fingerprint 直接报错,页面打不开)*/}}
 {{- $introCss := resources.Get "css/intro.css" -}}
+{{- $holoCss := resources.Get "css/holo.css" -}}
 {{- $introJs := resources.Get "js/intro.js" -}}
 {{- $bootJs := resources.Get "js/cd-boot.js" -}}
 {{- $cd3dJs := resources.Get "js/cd3d.js" -}}
@@ -12,12 +13,13 @@
 {{- $paletteJs := resources.Get "js/theme-palette.js" -}}
 {{- $searchJs := resources.Get "js/header-search.js" -}}
 {{- $cursorJs := resources.Get "js/magnetic-cursor.js" -}}
-{{- range $name := slice "css/intro.css" "js/intro.js" "js/cd-boot.js" "js/cd3d.js" "js/cd-audio.js" "js/cd-fx.js" "js/theme-palette.js" "js/header-search.js" "js/magnetic-cursor.js" -}}
+{{- range $name := slice "css/intro.css" "css/holo.css" "js/intro.js" "js/cd-boot.js" "js/cd3d.js" "js/cd-audio.js" "js/cd-fx.js" "js/theme-palette.js" "js/header-search.js" "js/magnetic-cursor.js" -}}
     {{- if not (resources.Get $name) -}}
         {{- warnf "缺少资源 assets/%s —— 该功能会被跳过(检查文件是否完整)" $name -}}
     {{- end -}}
 {{- end -}}
 {{- with $introCss }}{{ $introCss = . | fingerprint "sha256" }}{{ end -}}
+{{- with $holoCss }}{{ $holoCss = . | fingerprint "sha256" }}{{ end -}}
 {{- with $introJs }}{{ $introJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $bootJs }}{{ $bootJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $cd3dJs }}{{ $cd3dJs = . | fingerprint "sha256" }}{{ end -}}
@@ -27,6 +29,8 @@
 {{- with $searchJs }}{{ $searchJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $cursorJs }}{{ $cursorJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $introCss }}
+<link rel="stylesheet" href="{{ .RelPermalink }}">{{ end }}
+{{- with $holoCss }}
 <link rel="stylesheet" href="{{ .RelPermalink }}">{{ end }}
 <script type="importmap">
     {
@@ -107,75 +111,64 @@
             <div class="rack-glow" aria-hidden="true"></div>
             <div class="rack-vignette" aria-hidden="true"></div>
             <div class="rack-grain" aria-hidden="true"></div>
-            <!-- 左上:主题 + 配文,套一个不规则的全息线框面板。
-                 歌名/曲师下一轮挪到光驱下方的 3D 光环外侧,这里先留一行小字过渡 -->
-            <div class="rack-info" id="rack-info">
-                {{- range site.Params.intro.panels }}
-                <div class="rack-info-item" data-panel="{{ .key }}"{{ with .bg }} data-bg="{{ . }}"{{ end }}{{ with .fg }} data-fg="{{ . }}"{{ end }}>
-                    <div class="rack-info-top">
-                        <!-- 全息面板:这块 UI 的形状本身就是不规则折线多边形
-                             (带缺口的斜角边 + 内圈斜切面 + 顶点节点),不是一个矩形外框 -->
-                        <svg class="holo-frame" viewBox="0 0 190 150" preserveAspectRatio="none" aria-hidden="true">
-                            <defs>
-                                <linearGradient id="holoFill" x1="0" y1="0" x2="0.7" y2="1">
-                                    <stop offset="0%" stop-color="currentColor" stop-opacity="0.2"></stop>
-                                    <stop offset="55%" stop-color="currentColor" stop-opacity="0.06"></stop>
-                                    <stop offset="100%" stop-color="currentColor" stop-opacity="0.13"></stop>
-                                </linearGradient>
-                            </defs>
-                            <!-- 面板本体:硬折线,带大切角 / 内凹缺口 / 凸台 -->
-                            <path class="holo-fill" d="M4 52 L34 11 L82 11 L96 1 L134 1 L148 16 L170 16 L186 38 L186 70 L170 84 L186 98 L186 118 L148 146 L46 146 L26 132 L4 132 L4 100 L18 86 L4 72 Z"></path>
-                            <path class="holo-line" d="M4 52 L34 11 L82 11 L96 1 L134 1 L148 16 L170 16 L186 38 L186 70 L170 84 L186 98 L186 118 L148 146 L46 146 L26 132 L4 132 L4 100 L18 86 L4 72 Z"></path>
-                            <!-- 内圈斜切面 -->
-                            <path class="holo-line holo-line-2" d="M4 52 L34 11 M96 1 L82 11 M134 1 L148 16 M186 38 L170 16 M186 70 L170 84 M186 118 L186 98 M148 146 L186 118 M46 146 L26 132 M4 132 L26 132 M4 100 L18 86 M4 72 L4 100 Z"></path>
-                            <!-- 边角短斜线(只走四周,不压文字)-->
-                            <path class="holo-line holo-line-3" d="M4 52 L30 54 M96 1 L94 18 M170 16 L158 30 M186 70 L170 70 M186 118 L168 114 M148 146 L146 130 M46 146 L48 132 M4 100 L20 96 M4 72 L20 76"></path>
-                            <circle class="holo-node" cx="4" cy="52" r="1.9"></circle>
-                            <circle class="holo-node" cx="96" cy="1" r="1.9"></circle>
-                            <circle class="holo-node" cx="186" cy="70" r="1.9"></circle>
-                            <circle class="holo-node" cx="186" cy="118" r="1.9"></circle>
-                            <circle class="holo-node" cx="46" cy="146" r="1.9"></circle>
-                            <circle class="holo-node" cx="4" cy="100" r="1.9"></circle>
-                            <circle class="holo-node" cx="18" cy="86" r="1.9"></circle>
-                        </svg>
-                        <h2 class="rack-theme">{{ .title }}</h2>
-                        <p class="rack-caption">{{ .caption | default .text }}</p>
-                    </div>
-                    <div class="rack-info-bottom">
-                        <div class="rack-song">{{ .song }}</div>
-                        <div class="rack-artist">{{ .artist }}</div>
-                    </div>
-                </div>
-                {{- end }}
-            </div>
-
-            <!-- 插入按钮(左中):点 CD 不再插入,统一按这里;插入动画与原来完全相同 -->
-            <button class="rack-insert" id="rack-insert" title="把中间这张盘插入光驱" aria-label="插入选中的光盘">
-                <svg viewBox="0 0 28 28" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6"
-                    stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="14" cy="11.5" r="7.2"></circle>
-                    <circle cx="14" cy="11.5" r="2.1"></circle>
-                    <path d="M14 20 V26 M11 23.2 L14 26 L17 23.2"></path>
+            <!-- 全息 UI(独立模块,全新实现)-->
+            <!-- ================= 全息 UI =================
+                 形状 + 主题(+配字) + Uiverse 圆环插入按钮 + 两根 Uiverse 推子
+                 尺寸/位置全部是 holo.css 顶部 .holo 里的变量 -->
+            <!-- ================= 全息 UI =================
+                 形状 + 主题(+配字) + 侧边凸起里:滑条 / 方形插入按钮 / 滑条
+                 两根滑条的滑块头是图标(亮度 / 星云),上方还有图标+文字提示
+                 尺寸位置全部是 holo.css 顶部 .holo 里的变量 -->
+            <div class="holo" id="holo" aria-hidden="true">
+                <svg viewBox="0 0 420 400" preserveAspectRatio="none">
+                    <path class="holo-halo" d="M105 0 L81 40 L27 40 L14 61 L14 100 L28 108 L28 268 L14 275 L14 320 L0 328"></path>
+                    <path class="holo-line" d="M105 0 L81 40 L27 40 L14 61 L14 100 L28 108 L28 268 L14 275 L14 320 L0 328"></path>
+                    <path class="holo-run" d="M105 0 L81 40 L27 40 L14 61 L14 100 L28 108 L28 268 L14 275 L14 320 L0 328"></path>
                 </svg>
-            </button>
 
-            <!-- 两根纵向滑条:上 = 背景整体强度,下 = 星云整体可见度 -->
-            <div class="rack-slider rack-slider-top">
-                <span class="rack-slider-label">背景</span>
-                <div class="rack-slider-track">
-                    <input type="range" id="rack-bg-power" min="0" max="100" value="100" aria-label="背景整体强度">
+                <div class="holo-head">
+                    <span class="holo-title" id="holo-theme">—</span>
+                    <span class="holo-caption" id="holo-caption"></span>
+                </div>
+
+                <div class="holo-stack">
+                    <!-- 上:背景整体强度 -->
+                    <div class="fader fader--bright">
+                        <div class="fader__head">
+                            <svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round'><circle cx='12' cy='12' r='4.2'/><path d='M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6'/></svg>
+                            <span class="fader__label">背景</span>
+                        </div>
+                        <div class="fader__body">
+                            <input type="range" id="rack-bg-power" min="0" max="100" value="100" aria-label="背景整体强度">
+                        </div>
+                    </div>
+
+                    <!-- 中:插入按钮 -->
+                    <button class="holo-btn" id="rack-insert" title="插入选中的光盘" aria-label="插入选中的光盘">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="9.6" r="5.6"></circle>
+                            <circle cx="12" cy="9.6" r="1.7"></circle>
+                            <path d="M12 17 V21.4 M9.8 19.2 L12 21.4 L14.2 19.2"></path>
+                        </svg>
+                    </button>
+
+                    <!-- 下:星云整体可见度 -->
+                    <div class="fader fader--nebula">
+                        <div class="fader__body">
+                            <input type="range" id="rack-neb-power" min="0" max="100" value="100" aria-label="星云整体可见度">
+                        </div>
+                        <div class="fader__head">
+                            <svg viewBox='0 0 24 24' fill='currentColor'><path d='M12 2.6l2 6.6 6.6 2-6.6 2-2 6.6-2-6.6-6.6-2 6.6-2z'/></svg>
+                            <span class="fader__label">星云</span>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="rack-slider rack-slider-bottom">
-                <span class="rack-slider-label">星云</span>
-                <div class="rack-slider-track">
-                    <input type="range" id="rack-neb-power" min="0" max="100" value="100" aria-label="星云整体可见度">
-                </div>
-            </div>
 
-<div class="wheel" id="wheel">
+            <div class="wheel" id="wheel">
                 {{- range site.Params.intro.panels }}
-                <button class="cd" data-panel="{{ .key }}" aria-label="主题:{{ .title }}">
+                <button class="cd" data-panel="{{ .key }}" data-title="{{ .title }}" data-caption="{{ .caption }}" aria-label="主题:{{ .title }}">
                     <span class="cd-disc">
                         <span class="cd-face">
                             <span class="cd-label">{{ .title }}</span>
