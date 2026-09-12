@@ -7,7 +7,7 @@
 {{- $star := site.Params.intro.solar | default dict -}}
 <div class="solar{{ with $star.bg }} has-bg{{ end }}" data-solar="{{ .key }}">
     {{- with $star.bg }}
-    <div class="solar-art" style="background-image:url(&#39;{{ . }}&#39;)" aria-hidden="true"></div>
+    <div class="solar-art" style="background-image:url(&#39;{{ . }}&#39;);--bg-dim:{{ $star.bg_dim | default 0.45 }}" aria-hidden="true"></div>
     {{- end }}
     <div class="solar-sky" aria-hidden="true"></div>
     <div class="solar-neb" aria-hidden="true"></div>
@@ -24,7 +24,7 @@
 
     {{- range $i, $p := .items }}
     <div class="solar-node solar-node--{{ $p.kind | default "rocky" }}{{ if $p.tex }} has-tex{{ end }}{{ if $p.ring }} has-ring{{ end }}"
-        data-code="{{ $p.code }}" data-x="{{ $p.x }}" data-y="{{ $p.y }}" data-w="{{ $p.w | default 0.12 }}"
+        data-code="{{ $p.code }}" data-tex="{{ $p.tex }}" data-x="{{ $p.x }}" data-y="{{ $p.y }}" data-w="{{ $p.w | default 0.12 }}"
         data-rot="{{ $p.rot | default 0 }}" data-depth="{{ $p.depth | default 0.7 }}">
         <div class="solar-body">
             <button type="button" class="solar-planet" data-magnetic aria-label="{{ $p.title }}:{{ $p.text }}">
