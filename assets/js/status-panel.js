@@ -83,19 +83,27 @@
     wctx.lineTo(w, mid);
     wctx.stroke();
 
-    /* 波形:低频越强越明显 */
+    /* 波形:低频越强越明显(画两遍 —— 粗而淡的一遍充当微弱辉光,不用 CSS filter)*/
     if (amp < 0.02) return;
-    wctx.strokeStyle = "rgba(234, 243, 255, " + (0.35 + amp * 0.5).toFixed(3) + ")";
-    wctx.lineWidth = 1.2;
-    wctx.beginPath();
-    for (var x = 0; x <= w; x += 2) {
-      var t = x / w;
-      var env = Math.sin(Math.PI * t);                       /* 两端收窄 */
-      var y = mid + Math.sin(t * Math.PI * 6 + phase) * (h * 0.42) * amp * env
-                  + Math.sin(t * Math.PI * 17 - phase * 1.7) * (h * 0.12) * amp * env;
-      if (x === 0) wctx.moveTo(x, y); else wctx.lineTo(x, y);
+    function wavePath() {
+      wctx.beginPath();
+      for (var x = 0; x <= w; x += 2) {
+        var t = x / w;
+        var env = Math.sin(Math.PI * t);
+        var y = mid + Math.sin(t * Math.PI * 6 + phase) * (h * 0.42) * amp * env
+                    + Math.sin(t * Math.PI * 17 - phase * 1.7) * (h * 0.12) * amp * env;
+        if (x === 0) wctx.moveTo(x, y); else wctx.lineTo(x, y);
+      }
+      wctx.stroke();
     }
-    wctx.stroke();
+    wctx.save();
+    wctx.strokeStyle = "rgba(234, 243, 255, " + (0.10 + amp * 0.16).toFixed(3) + ")";
+    wctx.lineWidth = 4;
+    wavePath();
+    wctx.restore();
+    wctx.strokeStyle = "rgba(234, 243, 255, " + (0.38 + amp * 0.5).toFixed(3) + ")";
+    wctx.lineWidth = 1.2;
+    wavePath();
   }
   requestAnimationFrame(frame);
 })();

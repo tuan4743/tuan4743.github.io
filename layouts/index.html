@@ -126,6 +126,7 @@
                  两根滑条的滑块头是图标(亮度 / 星云),上方还有图标+文字提示
                  尺寸位置全部是 holo.css 顶部 .holo 里的变量 -->
             <div class="holo" id="holo" aria-hidden="true">
+                <canvas class="song-ring__rays" id="song-ring-rays" aria-hidden="true"></canvas>
                 <svg viewBox="0 0 420 400" preserveAspectRatio="none">
                     <path class="holo-halo" d="M105 0 L81 40 L27 40 L14 61 L14 100 L28 108 L28 268 L14 275 L14 320 L0 328"></path>
                     <path class="holo-line" d="M105 0 L81 40 L27 40 L14 61 L14 100 L28 108 L28 268 L14 275 L14 320 L0 328"></path>
@@ -136,6 +137,17 @@
                 <canvas class="holo-reticle" id="holo-reticle" aria-hidden="true"></canvas>
                 <!-- 光驱上方的状态面板(延续 HUD 风格)-->
                 <div class="drive-status" id="drive-status">
+                    <svg class="drive-status__frame" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <path d="M2 2 H38 M46 2 H62 M70 2 H98 M98 10 V34 M98 44 V62 M98 72 V98 M98 98 H70 M60 98 H40 M30 98 H2 M2 90 V68 M2 58 V40 M2 30 V2"></path>
+                        <path class="node" d="M2 2 h-2 v2 M2 2 v2 h2" transform="translate(2,2) scale(1)"></path>
+                        <path class="node" d="M98 2 h2 v2 M98 2 v2 h-2"></path>
+                        <path class="node" d="M2 98 h-2 v-2 M2 98 v-2 h2"></path>
+                        <path class="node" d="M98 98 h2 v-2 M98 98 v-2 h-2"></path>
+                        <circle class="node" cx="2" cy="2" r="0.8"></circle>
+                        <circle class="node" cx="98" cy="2" r="0.8"></circle>
+                        <circle class="node" cx="2" cy="98" r="0.8"></circle>
+                        <circle class="node" cx="98" cy="98" r="0.8"></circle>
+                    </svg>
                     <div class="drive-status__row">
                         <span class="drive-status__k"><span class="drive-status__dot"></span>电源</span>
                         <span class="drive-status__v is-ok">正常</span>
@@ -164,10 +176,20 @@
                 <!-- 光驱下方的 3D 歌名光环(外圈歌名+歌手,内圈音量环)-->
                 <div class="song-ring" id="song-ring" aria-hidden="true">
                     <div class="song-ring__stage">
-                        <div class="song-ring__vol song-ring__vol--1"></div>
-                        <div class="song-ring__vol song-ring__vol--2"></div>
-                        <div class="song-ring__base"></div>
-                        <div class="song-ring__track" id="song-ring-track"></div>
+                        <!-- 最内环平面:两个音量环(射线连在 vol--2 上,所以这层不加倾角)-->
+                        <div class="song-ring__plane song-ring__plane--inner">
+                            <div class="song-ring__vol song-ring__vol--1"></div>
+                            <div class="song-ring__vol song-ring__vol--2"></div>
+                        </div>
+                        <!-- 中环平面:文字绕这一圈(带自己的倾角与自转)-->
+                        <div class="song-ring__plane song-ring__plane--mid">
+                            <div class="song-ring__midtext" id="song-ring-midtext"></div>
+                        </div>
+                        <!-- 外环平面:底圈 + 歌名文字(带自己的倾角与自转)-->
+                        <div class="song-ring__plane song-ring__plane--outer">
+                            <div class="song-ring__base"></div>
+                            <div class="song-ring__track" id="song-ring-track"></div>
+                        </div>
                     </div>
                 </div>
 

@@ -56,6 +56,22 @@
   }
   setTimeout(initFromSelected, 1200);
 
+
+  /* ---- 中环:写一遍的状态文字 ---- */
+  var midBox = document.getElementById("song-ring-midtext");
+  function buildMid(text) {
+    if (!midBox) return;
+    var chars = text.split("");
+    var n = chars.length;
+    var html = "";
+    chars.forEach(function (c, i) {
+      var ch = c.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+      html += '<span class="song-ring__midltr" style="--mi:' + i + ';--mn:' + n + '">' + (ch === " " ? "&nbsp;" : ch) + "</span>";
+    });
+    midBox.innerHTML = html;
+  }
+  setTimeout(function () { buildMid("链接确认 存储稳定"); }, 1400);
+
   /* 音量环:跟着 --cd-pulse / --cd-bass 缩放 */
   var holo = document.querySelector(".holo") || document.getElementById("rack");
   var v1 = ring.querySelector(".song-ring__vol--1");
@@ -76,6 +92,84 @@
     if (v2) v2.style.transform = "translate(-50%, -50%) scale(" + (base + cur * 0.22).toFixed(3) + ")";
     if (v1) v1.style.opacity = (0.5 + cur * 0.5).toFixed(2);
     if (v2) v2.style.opacity = (0.4 + cur * 0.6).toFixed(2);
+    /* 最外环也吃音频:轻微缩放 + 亮度 */
+    var gain = parseFloat(cs.getPropertyValue("--ring-outer-gain")) || 0.06;
+    var outerPlane = ring.querySelector(".song-ring__plane--outer");
+    if (outerPlane) outerPlane.style.setProperty("--ring-outer-scale", (1 + cur * gain).toFixed(4));
+    var outer = ring.querySelector(".song-ring__base");
+    if (outer) outer.style.borderColor = "rgba(234, 243, 255, " + (0.28 + cur * 0.35).toFixed(3) + ")";
+    drawRays(cur, cs);
+  }
+
+  /* ---- 最内环左右两端射出两道细线:与竖直方向成 --ring-line-angle,一直连到架子边 ---- */
+  var rays = document.getElementById("song-ring-rays");
+  var rctx = rays ? rays.getContext("2d") : null;
+  function drawRays(cur, cs) {
+    if (!rays || !rctx) return;
+    var rack = document.getElementById("rack");
+    if (!rack) return;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var W = rack.clientWidth, H = rack.clientHeight;
+    if (W < 2 || H < 2) return;
+    if (rays.width !== Math.round(W * dpr) || rays.height !== Math.round(H * dpr)) {
+      rays.width = Math.round(W * dpr);
+      rays.height = Math.round(H * dpr);
+    }
+    rctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    rctx.clearRect(0, 0, W, H);
+
+    /* 最内环 = .song-ring__vol--2(30%),圆心/半径直接从 DOM 量,永远对得上 */
+    var inner = ring.querySelector(".song-ring__vol--2");
+    if (!inner) return;
+    var rr = inner.getBoundingClientRect();
+    var box = ring.getBoundingClientRect();
+    var cx = rr.left - box.left + rr.width / 2;
+    var cy = rr.top - box.top + rr.height / 2;
+    var rad = rr.width / 2;
+    /* 光环盒子相对架子的偏移 */
+    var ox = box.left - rack.getBoundingClientRect().left;
+    var oy = box.top - rack.getBoundingClientRect().top;
+
+    var ang = (parseFloat(cs.getPropertyValue("--ring-line-angle")) || 30) * Math.PI / 180;
+    var col = (cs.getPropertyValue("--ring-line-color") || "rgba(234,243,255,0.35)").trim();
+
+    /* 左右两端点 */
+    var pts = [
+      { x: ox + cx - rad, y: oy + cy },     /* 左端 */
+      { x: ox + cx + rad, y: oy + cy }      /* 右端 */
+    ];
+    /* 左端往左下、右端往右下,与竖直方向成 ang,一直连到架子边 */
+    var dx = Math.tan(ang);
+    rctx.lineWidth = 1;
+    rctx.strokeStyle = col;
+    pts.forEach(function (pt, i) {
+      var dir = i === 0 ? -1 : 1;                       /* -1 左, +1 右 */
+      var tToSide = (dir < 0 ? pt.x : W - pt.x) / dx;   /* 走到左右边界 */
+      var tToBottom = (H - pt.y);                       /* 走到下边界 */
+      var t = Math.min(tToSide, tToBottom);
+      var ex = pt.x + dir * dx * t;
+      var ey = pt.y + t;
+      /* 主细线 */
+      rctx.beginPath();
+      rctx.moveTo(pt.x, pt.y);
+      rctx.lineTo(ex, ey);
+      rctx.stroke();
+      /* 微弱辉光:再描一遍更粗更淡的 */
+      rctx.save();
+      rctx.globalAlpha = 0.22 + cur * 0.25;
+      rctx.lineWidth = 3.5;
+      rctx.beginPath();
+      rctx.moveTo(pt.x, pt.y);
+      rctx.lineTo(ex, ey);
+      rctx.stroke();
+      rctx.restore();
+      rctx.lineWidth = 1;
+      /* 起点一个小节点 */
+      rctx.beginPath();
+      rctx.arc(pt.x, pt.y, 2, 0, Math.PI * 2);
+      rctx.fillStyle = "rgba(234, 243, 255, 0.8)";
+      rctx.fill();
+    });
   }
   requestAnimationFrame(frame);
 })();
