@@ -821,8 +821,22 @@
     if (cd3dApi) cd3dApi.setPaused(!open);
     /* 打开 CD 架(= 光驱拔出)= 屏幕黑掉,一直黑到插盘;
        回到主界面 = 先花屏 1.5 秒,再出画面 */
-    if (open) screenOff();
-    else screenBoot(undefined, onBootEnd);   /* 回到主界面:黑屏 loading → 本盘的动画 → 露出界面 */
+    if (open) {
+      screenOff();
+    } else {
+      /* 回到主界面:黑屏 loading → 本盘的动画 → 露出界面。
+         ★ 开机动画期间必须【一点音乐都没有】:
+           · 先把"选盘预览"掐掉(动画里就算换选也不许再切出歌来);
+           · 背景音乐不在这里起 —— 等动画播完那一刻再起(见下面的收尾回调)。
+         原来 leaveCdPage() 会在动画刚开播时把上一张盘的 BGM 拉起来,就是这个 bug */
+      if (cd3dApi && cd3dApi.setMusicPreview) cd3dApi.setMusicPreview(false);
+      screenBoot(undefined, function () {
+        /* 插入流程带了 onBootEnd(它自己会用刚插入的那张盘起 BGM)—— 别重复起,否则同一首会叠两条 */
+        if (onBootEnd) onBootEnd();
+        else if (cd3dApi && cd3dApi.audio && insertedKey) cd3dApi.audio.music.toBgm(insertedKey);
+        if (cd3dApi && cd3dApi.setMusicPreview) cd3dApi.setMusicPreview(true);
+      });
+    }
     if (open) {
       setTimeout(layout, 80);
       scheduleEject();                 /* 每次打开都重新弹出光驱 */

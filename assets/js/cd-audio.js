@@ -467,6 +467,7 @@ const decoded = new Map();   /* key → AudioBuffer(按 maxDecoded 限量)*/
 const loading = new Map();   /* key → Promise */
 let musicTimer = null;
 let musicGen = 0;      /* 代际:插入/停止会让"还没解码完的预览"作废,避免它盖掉背景音乐 */
+let bgmPending = null; /* 正在解码等待起播的 BGM key:并发调用 toBgm 时去重,免得同一首叠两条 */
 
 const BANDS = 64;              /* 频带数:够音频条一根一根各跳各的 */
 const lv = {
@@ -702,8 +703,12 @@ function toBgm(key) {
     }
     return;
   }
+  if (bgmPending === key) return;        /* 已经有一条在等解码了,别再起 */
+  bgmPending = key;
   loadMusic(key).then((buf) => {
+    if (bgmPending === key) bgmPending = null;
     if (!buf) return;
+    if (cur && cur.key === key) return;  /* 期间已经被别的调用起起来了 */
     const old = cur;
     cur = startSource(key, {
       offset: musicCfg.bgmRestartOnInsert ? 0 : startOf(key),
@@ -719,7 +724,11 @@ function toBgm(key) {
   });
 }
 
-/* 离开 CD 页(收起架子):结束预览;光驱里那张盘的背景音乐继续 */
+/* 离开 CD 页(收起架子):只结束预览 —— 【不在这里起背景音乐】
+   ★ 收起架子紧接着就是开机动画,而动画期间必须一点音乐都没有;
+     原来这里会把上一张盘的 BGM 立刻拉起来,于是 loading 一开播就有歌。
+     背景音乐改由 intro.js 在"动画播完"那一刻起(见 setOpen 的收尾回调)。
+   如果此刻放的本来就是背景音乐,那就不动它 */
 function leaveCdPage() {
   if (musicTimer) { clearTimeout(musicTimer); musicTimer = null; }
   mdbg.actions.push({ a: "leave", cur: cur && cur.key, mode: cur && cur.mode, at: Math.round(performance.now()) });
@@ -727,7 +736,6 @@ function leaveCdPage() {
   musicGen++;
   previewGen++;
   stopAll(musicCfg.fadeMs);
-  if (bgmKey) toBgm(bgmKey);
 }
 
 /* 频谱:level/bass/mid/treble + 32 段对数频带(0..1),可视化直接用 */
