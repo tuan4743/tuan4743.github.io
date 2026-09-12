@@ -450,6 +450,12 @@
       for (var sy = 0; sy < H; sy += 4) ctx.fillRect(0, sy, W, 1);
     }
 
+    /* 封面 + 警告行同时在场(不再"先图片后文字"分两段)*/
+    function coverPlusText() {
+      cover();
+      errorText();
+    }
+
     function cover() {
       if (_techImg && _techImg.complete && _techImg.naturalWidth) {
         /* 正方形封面:缩到纵向占屏幕一半,居中放,四周留出黑底 */
@@ -493,7 +499,7 @@
         var line = WARN_LINES[wi];
         var ly = H * (0.16 + wi * 0.13);
         /* 每条的速度不同,而且带一点错峰 */
-        var spd = 0.16 + (wi % 3) * 0.05;
+        var spd = 0.32 + (wi % 3) * 0.10;   /* 滚动速度 ×2 */
         var total2 = W + ctx.measureText(line).width + 40;
         var lx = W + 20 - ((_glitchEl * spd + wi * 150) % total2);
         var a = 0.85;
@@ -517,8 +523,9 @@
       total: HALF * 2 + REV,
       draw: function (el) {
         _glitchEl = el;
-        if (el < HALF) { corrupt(cover); return; }
-        if (el < HALF * 2) { corrupt(errorText); return; }
+        /* ★ 文字与图片同时在场:封面全程画,警告行从 35% 处叠上来(不再分两段)*/
+        if (el < HALF * 0.35) { corrupt(cover); return; }
+        if (el < HALF * 2) { corrupt(coverPlusText); return; }
         var p = clamp((el - HALF * 2) / REV, 0, 1);
         var bh = H / bands;
         for (var i = 0; i < bands; i++) {
@@ -527,6 +534,15 @@
           var dir = i % 2 ? 1 : -1;
           ctx.save();
           ctx.beginPath(); ctx.rect(0, i * bh, W, bh + 0.6); ctx.clip();
+          /* ★ 清除不是"直接消失":先整条染成紫色,再抽走 */
+          ctx.save();
+          ctx.globalAlpha = (1 - d) * 0.62;
+          ctx.fillStyle = "#7b2ff7";
+          ctx.fillRect(0, i * bh, W, bh + 0.6);
+          ctx.globalAlpha = (1 - d) * 0.45;
+          ctx.fillStyle = "#c46bff";
+          ctx.fillRect(0, i * bh + bh * 0.3, W, bh * 0.4);
+          ctx.restore();
           ctx.translate(dir * easeOutQuart(d) * (W * 1.25 + 200), 0);
           ctx.globalAlpha = 1 - d * 0.25;
           corrupt(errorText);

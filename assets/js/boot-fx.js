@@ -133,12 +133,16 @@
         if (inK <= 0 && outK <= 0) continue;
 
         var scale = 1 - outK;
+        /* 瓷砖本体:只要还在场上就画(与描边进度无关)*/
+        var tileA = 1 - outK;
+        /* 描边与亮点:跟着进场进度 */
         var alpha = inK * (1 - outK);
-        if (scale <= 0.01 || alpha <= 0.01) continue;
+        if (scale <= 0.01 || tileA <= 0.01) continue;
 
         ctx.save();
         ctx.translate(ox, oy);
         ctx.scale(scale, scale);
+        ctx.globalAlpha = tileA;
         /* 实心暗色蜂巢底 —— 范例里 fill="#171717",这是"结构感"的来源 */
         ctx.beginPath();
         for (var i = 0; i < 6; i++) {
@@ -147,8 +151,11 @@
           if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
         }
         ctx.closePath();
-        ctx.fillStyle = "rgba(23, 23, 23, " + (0.55 * alpha).toFixed(3) + ")";
+        /* ★ 精髓:每格是"实心暗色瓷砖",一开始就整片存在(范例的 fill #171717),
+           只有描边在画 —— 之前让它随 alpha 渐入,就又变成了飘着的空线框 */
+        ctx.fillStyle = "#171717";
         ctx.fill();
+        ctx.globalAlpha = 1;
         /* 描边"自己画一圈":只画前 inK 比例的那一段 */
         var per = 6;
         var seg = Math.max(0, Math.min(per, inK * per));
