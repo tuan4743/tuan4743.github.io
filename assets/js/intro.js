@@ -434,7 +434,10 @@
     } catch (e) {}
 
     var used = style || bootStyle || "hex";
-    var scene = window.CDBoot.create(used, staticCtx, W, H, accent, HEX);
+    /* 全息后期层:场景/loading 都画在离屏画布,再统一过一遍成像 */
+    var POST = window.CDBootPost || null;
+    var sceneCtx = POST ? POST.context(W, H) : staticCtx;
+    var scene = window.CDBoot.create(used, sceneCtx, W, H, accent, HEX);
     var tFull = HEX.load;                                  /* 进度读满 */
     var tFadeIn = tFull + HEX.hold;                        /* 停 0.5s 后开始淡出 */
     var tPanel = tFadeIn + HEX.fade;                       /* loading 淡完 → 交给 scene */
@@ -491,6 +494,7 @@
       if (el >= tEnd) {
         staticCtx.setTransform(1, 0, 0, 1, 0, 0);
         staticCtx.clearRect(0, 0, W, H);
+        if (POST) POST.reset();          /* 离屏也清掉,避免收尾时残留最后一帧 */
         staticWrap.classList.remove("is-black");
         staticWrap.classList.remove("is-on");
         bootRAF = 0;
@@ -513,6 +517,7 @@
       var holdBlack = tPanel + (scene.blackUntil || 0);
       if (!droppedBlack && el >= holdBlack) { staticWrap.classList.remove("is-black"); droppedBlack = true; }
       scene.draw(el - tPanel);
+      if (POST) POST.present(staticCtx, W, H, el, 1);   /* 过一遍全息成像:泛光/扫描线/暗角/噪点 */
       staticCtx.setLineDash([]);
       staticCtx.globalAlpha = 1;
       staticCtx.globalCompositeOperation = "source-over";
