@@ -300,14 +300,21 @@
         ctx.clearRect(0, 0, W, H);
 
         /* ---- 1. GLSL:整屏背景 + 云海 + 火车 ---- */
-        var gl = window.CDBootGlsl ? window.CDBootGlsl.render("train", URL, el / 1000 * 4.0, W, H, {
-          cloud: 1.35,          /* 云层密度:调大 = 更稀 */
-          hue: -3.14,           /* 色相旋转:橙红 → 蓝黑(负角,180 度)*/
+        /* ★ 性能:这个着色器有 8 层噪声 fbm × 3 层云,按全分辨率跑在 DPR1.5 下非常重。
+           云是柔和的,半分辨率完全看不出差别 —— 于是按 0.5 倍渲染,再平滑放大。
+           另外给一个分辨率上限,超宽屏也不会失控。 */
+        var gw = Math.round(W * 0.5), gh = Math.round(H * 0.5);
+        var CAP = 960;
+        if (gw > CAP) { gh = Math.round(gh * CAP / gw); gw = CAP; }
+        var gl = window.CDBootGlsl ? window.CDBootGlsl.render("train", URL, el / 1000 * 4.0, gw, gh, {
+          cloud: 1.62,          /* 云层密度:调大 = 更稀 */
+          hue: -3.14,           /* 色相旋转:橙红 → 蓝黑 */
           dark: 1.0
         }) : null;
 
         if (gl) {
-          ctx.drawImage(gl, 0, 0, W, H);
+          ctx.imageSmoothingEnabled = true;
+          ctx.drawImage(gl, 0, 0, gw, gh, 0, 0, W, H);
         } else {
           /* 着色器还没加载好(或编译失败)时的兜底:蓝黑渐变,不留白 */
           var g0 = ctx.createLinearGradient(0, 0, 0, H);
