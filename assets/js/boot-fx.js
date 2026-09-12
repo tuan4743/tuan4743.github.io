@@ -109,7 +109,11 @@
     var totalOut = T_OUT + 225 * 4;
     if (el > totalIn + totalOut + 200) return;
 
-    var R = Math.min(W, H) * 0.052;         /* 六边形半径 */
+    /* ★ 完全按范例的规格:
+       范例 viewBox 1000 宽、六边形宽 86.6 → 占屏宽 8.7%;
+       列距 86.5(1.732R)、行距 74.5(1.5R)。
+       之前用 min(W,H)*5.2% 导致格子又小又细,像蛛网。 */
+    var R = (W * 0.087) / 1.732;
     var hx = R * 1.732, hy = R * 1.5;
     var cols = Math.ceil(W / hx) + 2, rows = Math.ceil(H / hy) + 2;
     var cx0 = W / 2, cy0 = H / 2;
@@ -161,7 +165,7 @@
         var seg = Math.max(0, Math.min(per, inK * per));
         if (seg > 0.02) {
           ctx.strokeStyle = "rgba(127, 240, 255, " + (0.95 * alpha).toFixed(3) + ")";
-          ctx.lineWidth = 1.15;
+          ctx.lineWidth = Math.max(1, W * 0.0011);
           ctx.beginPath();
           var started = false;
           for (var k = 0; k <= per; k++) {
