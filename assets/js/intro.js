@@ -767,6 +767,8 @@
         sceneCtx.clearRect(0, 0, W, H);
       }
       scene.draw(el - tPanel);
+      /* 每张盘的标志性动作(画在离屏上,随后由后期层统一输出)*/
+      if (window.CDBootFx) window.CDBootFx.apply(used, sceneCtx, W, H, el - tPanel, { fillDone: (scene.blackUntil || 0) });
       if (POST) POST.present(staticCtx, W, H, el, 1);   /* 过一遍全息成像:泛光/扫描线/暗角/噪点 */
       staticCtx.setLineDash([]);
       staticCtx.globalAlpha = 1;

@@ -11,13 +11,14 @@
 {{- $introJs := resources.Get "js/intro.js" -}}
 {{- $bootJs := resources.Get "js/cd-boot.js" -}}
 {{- $bootPostJs := resources.Get "js/boot-post.js" -}}
+{{- $bootFxJs := resources.Get "js/boot-fx.js" -}}
 {{- $cd3dJs := resources.Get "js/cd3d.js" -}}
 {{- $audioJs := resources.Get "js/cd-audio.js" -}}
 {{- $fxJs := resources.Get "js/cd-fx.js" -}}
 {{- $paletteJs := resources.Get "js/theme-palette.js" -}}
 {{- $searchJs := resources.Get "js/header-search.js" -}}
 {{- $cursorJs := resources.Get "js/magnetic-cursor.js" -}}
-{{- range $name := slice "css/intro.css" "css/holo.css" "js/intro.js" "js/boot-post.js" "js/holo-reticle.js" "js/status-panel.js" "js/song-ring.js" "js/cd-boot.js" "js/cd3d.js" "js/cd-audio.js" "js/cd-fx.js" "js/theme-palette.js" "js/header-search.js" "js/magnetic-cursor.js" -}}
+{{- range $name := slice "css/intro.css" "css/holo.css" "js/intro.js" "js/boot-post.js" "js/boot-fx.js" "js/holo-reticle.js" "js/status-panel.js" "js/song-ring.js" "js/cd-boot.js" "js/cd3d.js" "js/cd-audio.js" "js/cd-fx.js" "js/theme-palette.js" "js/header-search.js" "js/magnetic-cursor.js" -}}
     {{- if not (resources.Get $name) -}}
         {{- warnf "缺少资源 assets/%s —— 该功能会被跳过(检查文件是否完整)" $name -}}
     {{- end -}}
@@ -30,6 +31,7 @@
 {{- with $introJs }}{{ $introJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $bootJs }}{{ $bootJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $bootPostJs }}{{ $bootPostJs = . | fingerprint "sha256" }}{{ end -}}
+{{- with $bootFxJs }}{{ $bootFxJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $cd3dJs }}{{ $cd3dJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $audioJs }}{{ $audioJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $fxJs }}{{ $fxJs = . | fingerprint "sha256" }}{{ end -}}
@@ -270,6 +272,7 @@
     {{ end }}{{ with $paletteJs }}<script defer src="{{ .RelPermalink }}"></script>
     {{ end }}{{ with $bootJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
     {{ with $bootPostJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
+    {{ with $bootFxJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
     {{ with $introJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
     {{ with $reticleJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
     {{ with $statusJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
