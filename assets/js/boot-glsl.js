@@ -99,7 +99,7 @@
   var srcCache = {};
   function loadSource(url) {
     if (srcCache[url]) return Promise.resolve(srcCache[url]);
-    return fetch(url, { cache: "force-cache" })
+    return fetch(url)   /* 网址已带指纹,按默认缓存即可;force-cache 会拿到旧版本 */
       .then(function (r) { return r.ok ? r.text() : Promise.reject(r.status); })
       .then(function (t) { srcCache[url] = t; return t; });
   }

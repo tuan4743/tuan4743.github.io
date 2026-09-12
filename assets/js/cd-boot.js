@@ -262,7 +262,9 @@
          · 末尾加色相旋转 + 冷色偏移 + 压暗 → 橙红变蓝黑
          · 雨与"出屏圆形清除"仍在 2D 层叠加(更好控制时机)
        渲染在离屏 WebGL 画布上,再 drawImage 到 2D 画布(与现有管线共存)。 */
-    var URL = "/shaders/train.glsl";
+    /* 优先用模板注入的带指纹网址(window.__SHADERS.train);
+       拿不到时退回固定路径(本地直接开文件等情况)*/
+    var URL = (window.__SHADERS && window.__SHADERS.train) || "/shaders/train.glsl";
     var TRAVEL = 3200;        /* 这一场的主体时长 */
     var WIPE = 1000;          /* 出屏后圆形清除用时 */
     var total = TRAVEL + WIPE + 120;

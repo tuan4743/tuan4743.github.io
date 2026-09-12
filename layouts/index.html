@@ -13,6 +13,7 @@
 {{- $bootPostJs := resources.Get "js/boot-post.js" -}}
 {{- $bootFxJs := resources.Get "js/boot-fx.js" -}}
 {{- $bootGlslJs := resources.Get "js/boot-glsl.js" -}}
+{{- $trainGlsl := resources.Get "shaders/train.glsl" -}}
 {{- $cd3dJs := resources.Get "js/cd3d.js" -}}
 {{- $audioJs := resources.Get "js/cd-audio.js" -}}
 {{- $fxJs := resources.Get "js/cd-fx.js" -}}
@@ -34,6 +35,7 @@
 {{- with $bootPostJs }}{{ $bootPostJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $bootFxJs }}{{ $bootFxJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $bootGlslJs }}{{ $bootGlslJs = . | fingerprint "sha256" }}{{ end -}}
+{{- with $trainGlsl }}{{ $trainGlsl = . | fingerprint "sha256" }}{{ end -}}
 {{- with $cd3dJs }}{{ $cd3dJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $audioJs }}{{ $audioJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $fxJs }}{{ $fxJs = . | fingerprint "sha256" }}{{ end -}}
@@ -44,6 +46,8 @@
 <link rel="stylesheet" href="{{ .RelPermalink }}">{{ end }}
 {{- with $holoCss }}
 <link rel="stylesheet" href="{{ .RelPermalink }}">{{ end }}
+<script>/* 着色器网址带内容指纹:着色器一改网址就变,浏览器不会拿到旧版本 */
+window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}" };</script>
 <script type="importmap">
     {
         "imports": {
