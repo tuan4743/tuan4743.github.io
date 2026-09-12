@@ -490,6 +490,51 @@
       staticCtx.textBaseline = "middle";
       staticCtx.globalAlpha = outA * (0.55 + 0.45 * Math.abs(Math.sin(el / 260)));
       staticCtx.fillText("LOADING  " + Math.round(p * 100) + "%", cx, cy + rr * 2.1);
+
+      /* ---------- 终端启动日志:逐行打出来 ---------- */
+      var LOG = [
+        "> OPTICAL BIOS  v1.4",
+        "> DRIVE SPIN-UP ............ OK",
+        "> MOUNTING DISC " + String(used || "").toUpperCase(),
+        "> READING SECTORS .......... 100%",
+        "> SIGNAL LOCK .............. STABLE",
+        "> READY"
+      ];
+      var typed = p * (LOG.length + 0.5);          /* 用同一个进度驱动行数 */
+      var lx = Math.round(W * 0.055), ly = Math.round(H * 0.075);
+      staticCtx.font = Math.round(Math.min(W, H) * 0.021) + "px ui-monospace, Consolas, monospace";
+      staticCtx.textAlign = "left";
+      staticCtx.textBaseline = "top";
+      for (var li = 0; li < LOG.length; li++) {
+        var reach = typed - li;
+        if (reach <= 0) break;
+        var isLast = (li === Math.min(LOG.length - 1, Math.floor(typed)));
+        staticCtx.globalAlpha = outA * Math.max(0.3, Math.min(1, reach)) *
+                                (isLast ? (0.55 + 0.45 * Math.abs(Math.sin(el / 150))) : 0.88);
+        staticCtx.fillStyle = (li === LOG.length - 1) ? "#7fe3c0" : "#9fd8e8";
+        /* 未打完的那一行:从左边一个个字符长出来 */
+        var txt = LOG[li];
+        if (reach < 1) txt = txt.slice(0, Math.max(1, Math.round(txt.length * reach)));
+        staticCtx.fillText(txt, lx, ly + li * Math.round(Math.min(W, H) * 0.028));
+      }
+
+      /* ---------- 环形进度:整圈里点亮 p 那一段 ---------- */
+      staticCtx.globalAlpha = outA;
+      staticCtx.save();
+      staticCtx.translate(cx, cy);
+      staticCtx.rotate(-Math.PI / 2);
+      staticCtx.lineWidth = Math.max(2, rr * 0.16);
+      staticCtx.strokeStyle = "rgba(160, 220, 240, 0.20)";
+      staticCtx.beginPath();
+      staticCtx.arc(0, 0, rr * 1.7, 0, Math.PI * 2);
+      staticCtx.stroke();
+      staticCtx.strokeStyle = "#7fe3c0";
+      staticCtx.beginPath();
+      staticCtx.arc(0, 0, rr * 1.7, 0, Math.PI * 2 * p);
+      staticCtx.stroke();
+      staticCtx.restore();
+      staticCtx.textAlign = "center";
+      staticCtx.textBaseline = "middle";
       staticCtx.globalAlpha = 1;
     }
 
