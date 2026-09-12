@@ -115,45 +115,64 @@ paginate = 10
 
     # 每颗行星 = 一张 HUD 卡片。size = 0~1(相对最大行星的大小,越大越靠右越"长大"),
     # ring = true 会画一圈星环。下面是占位文案,直接改。
+    # 机位说明(x / y 是相对面板宽高的比例,0~1;size 是相对最大星体的半径比例):
+    #   太阳(下面 [params.intro.solar])中心偏左上,直径约屏宽 1/3
+    #   类地行星 → 左下 · 中等体型
+    #   岩石行星(炎热地表)→ 左上 · 小体型(贴着太阳)
+    #   气态行星 → 中下略偏右 · 巨大体型 · 带星环
+    #   岩石行星(炎热地表)→ 右下角
+    #   黑洞 → 右上 · 最小
+    # depth = 视差深度(0~1.2,越大离镜头越近,鼠标移动时动得越多)
     [[params.intro.decks.growth]]
-      code = "P-01"
-      title = "起点"
-      text = "起点都长得差不多:什么都不懂,但什么都想试一下。"
+      code = "SS-01"
+      kind = "terrestrial"
+      title = "类地行星"
+      text = "有大气、有海洋,是这一带唯一能站人的地方 —— 大部分故事都在这种地方开始。"
+      x = 0.17
+      y = 0.80
+      size = 0.44
+      depth = 0.95
+
+    [[params.intro.decks.growth]]
+      code = "SS-02"
+      kind = "hot"
+      title = "岩石行星 · 灼热"
+      text = "离恒星太近,地表永远在白天。滚烫、干燥,任何柔软的东西都会被烤硬。"
+      x = 0.07
+      y = 0.20
       size = 0.26
+      depth = 0.55
 
     [[params.intro.decks.growth]]
-      code = "P-02"
-      title = "第一次摔"
-      text = "第一次把一件事做砸。疼的不是失败本身,是发现自己原来这么脆。"
-      size = 0.38
-
-    [[params.intro.decks.growth]]
-      code = "P-03"
-      title = "方法"
-      text = "后来明白:只靠热情撑不了多久,得攒出一套自己的办法。"
-      size = 0.50
-      ring = true
-
-    [[params.intro.decks.growth]]
-      code = "P-04"
-      title = "重复"
-      text = "把办法重复一百遍。枯燥,但只有重复过的东西才真的长在身上。"
-      size = 0.64
-
-    [[params.intro.decks.growth]]
-      code = "P-05"
-      title = "停滞"
-      text = "有一段时间怎么走都不动。那时最想放弃,也最接近想明白。"
-      size = 0.79
-
-    [[params.intro.decks.growth]]
-      code = "P-06"
-      title = "继续"
-      text = "现在也不敢说长大了。只是遇到事情时,比以前多了一点耐心。"
+      code = "SS-03"
+      kind = "gas"
+      title = "气态巨行星"
+      text = "没有地面可以落脚,只有一层比一层重的风。它很大,大到能替内圈挡下大部分撞击。"
+      x = 0.56
+      y = 0.80
       size = 1.0
       ring = true
+      depth = 1.15
 
+    [[params.intro.decks.growth]]
+      code = "SS-04"
+      kind = "hot"
+      title = "岩石行星 · 熔壳"
+      text = "外壳还没冷透,裂缝里流着橙色的河。年轻、暴烈,还没学会安静。"
+      x = 0.88
+      y = 0.82
+      size = 0.38
+      depth = 1.0
 
+    [[params.intro.decks.growth]]
+      code = "SS-05"
+      kind = "blackhole"
+      title = "黑洞"
+      text = "最小,也最重。它不发光,只能靠周围被拉歪的光看见它 —— 有些东西是这样被认出来的。"
+      x = 0.82
+      y = 0.22
+      size = 0.18
+      depth = 0.6
     [[params.intro.panels]]
       key = "growth"
       title = "成长"

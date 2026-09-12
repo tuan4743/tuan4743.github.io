@@ -1,24 +1,36 @@
-{{/* 第二张盘「成长」的主页内容:科幻风太阳系行星图
-     数据:hugo.toml 的 [[params.intro.decks.growth]] + [params.intro.solar]
+{{/* 第二张盘「成长」的主页内容:太空站视角的太阳系
+     数据:hugo.toml 的 [[params.intro.decks.growth]](每颗星体)+ [params.intro.solar](太阳)
      逻辑:assets/js/page-solar.js   样式:assets/css/pages.css 的 .solar
-     每颗行星 = 一个 .solar-node(星体 + HUD 卡片),位置由 JS 算:
-     宽屏沿黄道线排开、卡片上下交替并用细线连到星体边缘;窄屏变时间线 */}}
+     机位:x / y 是相对面板宽高的比例(0~1),size 是相对最大星体的半径比例,
+     构图描述见 JS 顶部注释;HUD 卡片要磁吸锁定才出现 */}}
 {{- $star := site.Params.intro.solar | default dict -}}
 <div class="solar" data-solar="{{ .key }}">
-    <svg class="solar-svg" aria-hidden="true" preserveAspectRatio="none"></svg>
+    <div class="solar-sky" aria-hidden="true"></div>
+    <div class="solar-neb" aria-hidden="true"></div>
+    <svg class="solar-svg" aria-hidden="true"></svg>
+    <div class="solar-hud" aria-hidden="true"></div>
+    <span class="solar-tag" aria-hidden="true">OBSERVATION DECK // SECTOR 02</span>
 
-    <div class="solar-node solar-node--star">
-        <span class="solar-star" aria-hidden="true"></span>
-        <div class="solar-star-label">
+    <div class="solar-node solar-node--star" data-x="0.30" data-y="0.36">
+        <span class="solar-sun" aria-hidden="true"></span>
+        <div class="solar-sun-label">
             <b>{{ $star.title | default "我" }}</b>
             <i>{{ $star.caption | default "SELF" }}</i>
         </div>
     </div>
 
     {{- range $i, $p := .items }}
-    <div class="solar-node" style="--i: {{ $i }}">
-        <span class="solar-planet{{ if $p.ring }} has-ring{{ end }}" style="--size: {{ $p.size | default 0.5 }}"
-            aria-hidden="true"></span>
+    <div class="solar-node solar-node--{{ $p.kind | default "rocky" }}{{ if $p.ring }} has-ring{{ end }}"
+        data-x="{{ $p.x }}" data-y="{{ $p.y }}" data-size="{{ $p.size | default 0.5 }}"
+        data-depth="{{ $p.depth | default 0.7 }}">
+        <div class="solar-body">
+            <button type="button" class="solar-planet" data-magnetic style="--i: {{ $i }}"
+                aria-label="{{ $p.title }}:{{ $p.text }}">
+                {{- if $p.ring }}<i class="solar-ring" aria-hidden="true"></i>{{ end }}
+                <i class="solar-shade" aria-hidden="true"></i>
+                {{- if $p.ring }}<i class="solar-ring solar-ring--front" aria-hidden="true"></i>{{ end }}
+            </button>
+        </div>
         <div class="solar-card">
             <span class="solar-code">{{ $p.code }}</span>
             <h3 class="solar-title">{{ $p.title }}</h3>

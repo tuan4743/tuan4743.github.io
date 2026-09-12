@@ -271,91 +271,153 @@
 }
 
 /* ============================================================
-   第二张:科幻风太阳系行星图(.solar)
-   布局坐标由 page-solar.js 算(宽屏沿黄道线排开、窄屏变时间线),
-   这里只管长相:恒星光晕、行星球体、轨道虚线、HUD 卡片、连线节点
+   第二张:太空站视角的太阳系(.solar)
+   ─────────────────────────────────────────────────────────────
+   构图由用户指定(太阳中心偏左上约占 1/3 屏 + 五颗星体的机位),
+   坐标由 page-solar.js 按面板尺寸算;这里只管长相:
+     · 星空底 + 星云辉光(视差最远的两层)
+     · 太阳:核心 + 光晕 + 缓慢自转的日冕
+     · 五类星体的"皮":类地 / 炎热岩石 / 气态(带环)/ 黑洞
+     · HUD 卡片 + 连线:只在磁吸锁定某颗星体时才出现
+   可调项:--pad(卡片离边框最小距离)、--cam-x/y(视差,JS 写)、--sun-r(太阳半径,JS 写)
    ============================================================ */
 .solar {
-    --solar-acc: var(--intro-accent);
-    --solar-line: var(--intro-border);
-    /* ★ 卡片宽度用 vw 而不是 %:卡片的父级 .solar-node 宽高都是 0
-       (它只是个定位锚点),百分比会解析成 0 → 卡片永远卡在最小值上 */
-    --card-w: clamp(172px, 16vw, 268px);
-    --solar-card-gap: clamp(30px, 4.6vh, 48px);
-    /* ↑ 星体边缘到卡片之间的距离(那条细线就走在这一段里)*/
+    --pad: clamp(16px, 2.4vw, 34px);
+    --cam-x: 0;
+    --cam-y: 0;
+    --sun-r: 150px;
     position: absolute;
     inset: 0;
     overflow: hidden;
+    cursor: crosshair;
+    background: radial-gradient(125% 95% at 30% 34%, #0c1a33 0%, #070c18 55%, #03050b 100%);
     user-select: none;
     -webkit-user-select: none;
     -webkit-tap-highlight-color: transparent;
 }
 
+/* ---------- 背景两层:星空(远) + 星云(更远) ---------- */
+.solar-sky,
+.solar-neb {
+    position: absolute;
+    inset: -12%;
+    pointer-events: none;
+}
+
+.solar-sky {
+    background-image:
+        radial-gradient(1.4px 1.4px at 24px 36px, rgba(255, 255, 255, 0.85), transparent 60%),
+        radial-gradient(1.1px 1.1px at 132px 96px, rgba(200, 230, 255, 0.7), transparent 60%),
+        radial-gradient(1.6px 1.6px at 216px 172px, rgba(255, 255, 255, 0.6), transparent 60%),
+        radial-gradient(1px 1px at 78px 208px, rgba(220, 240, 255, 0.55), transparent 60%);
+    background-size: 280px 280px, 340px 340px, 420px 420px, 260px 260px;
+    background-position:
+        calc(var(--cam-x) * -3px) calc(var(--cam-y) * -3px),
+        calc(var(--cam-x) * -5px) calc(var(--cam-y) * -4px),
+        calc(var(--cam-x) * -7px) calc(var(--cam-y) * -6px),
+        calc(var(--cam-x) * -9px) calc(var(--cam-y) * -8px);
+    opacity: 0.75;
+}
+
+.solar-neb {
+    background:
+        radial-gradient(46% 38% at 18% 26%, rgba(70, 120, 220, 0.20), transparent 70%),
+        radial-gradient(38% 32% at 82% 74%, rgba(150, 90, 220, 0.16), transparent 72%),
+        radial-gradient(60% 50% at 60% 50%, rgba(30, 80, 160, 0.10), transparent 76%);
+    transform: translate3d(calc(var(--cam-x) * -2px), calc(var(--cam-y) * -2px), 0);
+    animation: solar-breathe 26s ease-in-out infinite;
+}
+
+@keyframes solar-breathe {
+
+    0%,
+    100% {
+        opacity: 0.75;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
+/* ---------- 连线层(只有锁定某颗星体时才画东西)---------- */
 .solar-svg {
     position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
     pointer-events: none;
-}
-
-.solar-ecliptic {
-    fill: none;
-    stroke: color-mix(in srgb, var(--solar-acc) 26%, transparent);
-    stroke-width: 1;
-    stroke-dasharray: 2 6;
-}
-
-.solar-orbit {
-    fill: none;
-    stroke: var(--solar-line);
-    stroke-width: 1;
-    stroke-dasharray: 3 7;
-    opacity: 0.68;
+    overflow: visible;
 }
 
 .solar-lead {
     fill: none;
-    stroke: color-mix(in srgb, var(--solar-acc) 62%, transparent);
+    stroke: color-mix(in srgb, var(--intro-accent) 70%, transparent);
     stroke-width: 1;
 }
 
 .solar-node-dot {
-    fill: var(--solar-acc);
-    opacity: 0.9;
+    fill: var(--intro-accent);
 }
 
-.solar-node-dot.is-end {
-    opacity: 0.45;
-}
-
-/* ---------- 恒星 ---------- */
+/* ---------- 定位锚点:left/top = 星体中心(JS 给) ---------- */
 .solar-node {
     position: absolute;
     width: 0;
     height: 0;
-    /* left / top = 星体中心,由 JS 给 */
 }
 
-.solar-star {
+/* 视差:不同 --depth 的层反向平移一点,近的动得多 */
+.solar-body {
     position: absolute;
     left: 0;
     top: 0;
-    width: calc(var(--sr, 60px) * 2);
-    height: calc(var(--sr, 60px) * 2);
-    transform: translate(-50%, -50%);
-    border-radius: 50%;
-    background: radial-gradient(circle, #ffffff 0%, #dcf5ff 24%, #6cc8ff 50%, rgba(90, 185, 255, 0) 72%);
-    box-shadow: 0 0 56px rgba(120, 210, 255, 0.5), 0 0 130px rgba(90, 170, 255, 0.26);
+    width: 0;
+    height: 0;
+    transform: translate3d(calc(var(--cam-x) * var(--depth, 0.7) * -14px),
+            calc(var(--cam-y) * var(--depth, 0.7) * -14px), 0);
 }
 
-.solar-star::after {
+/* ---------- 太阳 ---------- */
+.solar-sun {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: calc(var(--sun-r) * 2);
+    height: calc(var(--sun-r) * 2);
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at 42% 40%, #ffffff 0%, #fff3c4 18%, #ffcf6b 38%, #ff9a3c 60%, rgba(255, 120, 40, 0) 74%),
+        radial-gradient(circle, #ffd98a 0%, rgba(255, 170, 60, 0) 62%);
+    box-shadow:
+        0 0 60px rgba(255, 186, 90, 0.55),
+        0 0 160px rgba(255, 150, 60, 0.32),
+        0 0 300px rgba(255, 130, 40, 0.18);
+    filter: none;
+    /* 光晕最外圈:缓慢呼吸 */
+    animation: solar-sun 7s ease-in-out infinite;
+}
+
+@keyframes solar-sun {
+
+    0%,
+    100% {
+        box-shadow: 0 0 60px rgba(255, 186, 90, 0.55), 0 0 160px rgba(255, 150, 60, 0.32), 0 0 300px rgba(255, 130, 40, 0.18);
+    }
+
+    50% {
+        box-shadow: 0 0 74px rgba(255, 196, 110, 0.62), 0 0 190px rgba(255, 158, 70, 0.38), 0 0 340px rgba(255, 136, 46, 0.22);
+    }
+}
+
+.solar-sun::after {
     content: "";
     position: absolute;
-    inset: -16%;
+    inset: -26%;
     border-radius: 50%;
-    border: 1px dashed rgba(190, 235, 255, 0.32);
-    animation: solar-spin 30s linear infinite;
+    border: 1px solid rgba(255, 206, 130, 0.22);
+    animation: solar-spin 60s linear infinite;
 }
 
 @keyframes solar-spin {
@@ -364,45 +426,72 @@
     }
 }
 
-.solar-star-label {
+.solar-sun-label {
     position: absolute;
     left: 0;
-    top: calc(var(--sr, 60px) + 14px);
+    top: calc(var(--sun-r) + 18px);
     transform: translateX(-50%);
     text-align: center;
     white-space: nowrap;
     pointer-events: none;
 }
 
-.solar-star-label b {
+.solar-sun-label b {
     display: block;
-    font-size: clamp(0.85rem, 1vw, 1.05rem);
-    letter-spacing: 0.16em;
-}
-
-.solar-star-label i {
-    display: block;
-    font-style: normal;
-    font-size: 0.7rem;
+    font-size: clamp(0.9rem, 1.05vw, 1.15rem);
     letter-spacing: 0.22em;
-    opacity: 0.55;
-    margin-top: 2px;
-    font-family: "Alpha Sector", ui-monospace, Consolas, monospace;
+    color: #ffe6b8;
 }
 
-/* ---------- 行星 ---------- */
+.solar-sun-label i {
+    display: block;
+    margin-top: 3px;
+    font-style: normal;
+    font-family: "Alpha Sector", ui-monospace, Consolas, monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.3em;
+    color: rgba(255, 226, 180, 0.55);
+}
+
+/* ---------- 星体本体 ---------- */
 .solar-planet {
     position: absolute;
     left: 0;
     top: 0;
+    width: calc(var(--r, 30px) * 2);
+    height: calc(var(--r, 30px) * 2);
+    padding: 0;
+    border: 0;
     border-radius: 50%;
-    background: radial-gradient(circle at 33% 30%, #eefaff, #86cee9 42%, #2f5f80 78%, #17293b 100%);
-    box-shadow: inset -2px -3px 8px rgba(0, 20, 40, 0.55), 0 0 20px rgba(120, 200, 255, 0.32);
-    transform: translate(-50%, -50%) scale(0.35);
+    transform: translate(-50%, -50%) scale(0.4);
     opacity: 0;
-    transition: transform 0.62s cubic-bezier(0.22, 0.9, 0.3, 1) calc(var(--i, 0) * 90ms),
-        opacity 0.5s ease calc(var(--i, 0) * 90ms),
-        box-shadow 0.3s ease;
+    cursor: pointer;
+    background: var(--skin, radial-gradient(circle at 34% 30%, #cfe9ff, #4a7fa8 55%, #17293b 100%));
+    box-shadow: 0 0 24px var(--glow, rgba(140, 200, 255, 0.28));
+    transition: transform 0.7s cubic-bezier(0.22, 0.9, 0.3, 1), opacity 0.5s ease, box-shadow 0.3s ease;
+}
+
+/* 立体感:高光 + 背光阴影,套在任何"皮"上都成立 */
+.solar-shade {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0) 44%),
+        radial-gradient(circle at 74% 76%, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0) 62%);
+    pointer-events: none;
+}
+
+/* 磁吸锁定的提示环 */
+.solar-planet::before {
+    content: "";
+    position: absolute;
+    inset: -14%;
+    border-radius: 50%;
+    border: 1px dashed color-mix(in srgb, var(--intro-accent) 70%, transparent);
+    opacity: 0;
+    transform: scale(0.86);
+    transition: opacity 0.28s ease, transform 0.28s ease;
 }
 
 .solar.is-live .solar-planet {
@@ -410,90 +499,183 @@
     transform: translate(-50%, -50%) scale(1);
 }
 
+.solar-node:hover .solar-planet,
 .solar-node.is-on .solar-planet,
-.solar-node:hover .solar-planet {
-    box-shadow: inset -2px -3px 8px rgba(0, 20, 40, 0.5), 0 0 30px rgba(150, 225, 255, 0.8);
+.solar-planet:focus-visible {
+    box-shadow: 0 0 34px var(--glow-strong, rgba(170, 225, 255, 0.75));
+    outline: none;
 }
 
-/* 星环:压扁的一圈,像土星那样 */
-.solar-planet.has-ring::after {
+.solar-node.is-on .solar-planet::before {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* —— 类地行星:蓝绿,带云带 —— */
+.solar-node--terrestrial .solar-planet {
+    --skin:
+        radial-gradient(circle at 62% 34%, rgba(255, 255, 255, 0.5) 0 6%, rgba(255, 255, 255, 0) 30%),
+        repeating-linear-gradient(102deg, rgba(255, 255, 255, 0.10) 0 6%, rgba(255, 255, 255, 0) 6% 16%),
+        radial-gradient(circle at 36% 30%, #9fe0ff 0%, #3f9ad4 24%, #1d6e9e 48%, #10405e 72%, #061a28 100%);
+    --glow: rgba(120, 200, 255, 0.35);
+    --glow-strong: rgba(150, 220, 255, 0.8);
+}
+
+/* —— 岩石行星(炎热地表)—— */
+.solar-node--hot .solar-planet {
+    --skin:
+        radial-gradient(circle at 30% 34%, rgba(255, 236, 190, 0.75) 0 5%, rgba(255, 236, 190, 0) 26%),
+        repeating-linear-gradient(74deg, rgba(90, 20, 0, 0.32) 0 4%, rgba(255, 160, 90, 0.12) 4% 11%),
+        radial-gradient(circle at 36% 30%, #ffe6b0 0%, #ff9d4a 22%, #d2541d 52%, #79260f 78%, #260a05 100%);
+    --glow: rgba(255, 150, 70, 0.4);
+    --glow-strong: rgba(255, 180, 100, 0.85);
+}
+
+/* —— 气态巨行星:条纹 + 环 —— */
+.solar-node--gas .solar-planet {
+    --skin:
+        repeating-linear-gradient(94deg, #f6e2b4 0 7%, #e0bd83 7% 13%, #c79b5f 13% 19%, #edd6a4 19% 26%, #d2a970 26% 33%),
+        radial-gradient(circle at 36% 30%, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0) 55%);
+    --glow: rgba(240, 210, 150, 0.4);
+    --glow-strong: rgba(255, 232, 180, 0.85);
+}
+
+/* —— 黑洞:黑心 + 吸积环 —— */
+.solar-node--blackhole .solar-planet {
+    --skin: radial-gradient(circle, #000000 0 52%, #05050b 60%, #1b1030 70%, #06030c 100%);
+    --glow: rgba(150, 110, 255, 0.5);
+    --glow-strong: rgba(190, 150, 255, 0.9);
+    box-shadow: 0 0 30px rgba(150, 110, 255, 0.5), 0 0 70px rgba(110, 80, 220, 0.25);
+}
+
+.solar-node--blackhole .solar-planet::after {
     content: "";
     position: absolute;
-    left: -42%;
-    right: -42%;
-    top: 22%;
-    bottom: 22%;
-    border: 1px solid rgba(185, 232, 255, 0.6);
+    inset: 26% -40%;
     border-radius: 50%;
-    transform: rotate(-16deg);
-    box-shadow: 0 0 10px rgba(150, 215, 255, 0.35);
+    border: 1.4px solid rgba(198, 160, 255, 0.85);
+    transform: rotate(-13deg);
+    box-shadow: 0 0 18px rgba(160, 120, 255, 0.6);
 }
 
-/* ---------- HUD 卡片 ---------- */
+/* —— 星环:一圈在后、半圈在前(土星那种穿过去的感觉)—— */
+.solar-ring {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 268%;
+    height: 92%;
+    transform: translate(-50%, -50%) rotate(-15deg);
+    border-radius: 50%;
+    border: 2px solid rgba(246, 226, 178, 0.75);
+    box-shadow: 0 0 20px rgba(236, 206, 140, 0.35), inset 0 0 16px rgba(236, 206, 140, 0.28);
+    pointer-events: none;
+}
+
+.solar-ring--front {
+    /* 只保留下半圈:上半圈被行星本体挡住 */
+    clip-path: polygon(-10% 52%, 110% 52%, 110% 120%, -10% 120%);
+    border-color: rgba(246, 226, 178, 0.62);
+}
+
+/* ============================================================
+   HUD 卡片:默认不显示,磁吸锁定才出现
+   ============================================================ */
 .solar-card {
     position: absolute;
     left: 0;
-    width: var(--card-w);
-    /* --cx 由 JS 给:靠边的行星把卡片往回收,免得顶出屏幕 */
-    transform: translateX(calc(-50% + var(--cx, 0px)));
-    padding: 10px 12px 12px;
+    top: 0;
+    width: clamp(190px, 17vw, 280px);
+    padding: 11px 13px 13px;
     border: 1px solid var(--intro-border);
-    border-left: 2px solid color-mix(in srgb, var(--solar-acc) 65%, transparent);
+    border-left: 2px solid color-mix(in srgb, var(--intro-accent) 70%, transparent);
     border-radius: 3px;
-    background: var(--intro-glass);
+    background: color-mix(in srgb, var(--theme, #06080f) 78%, transparent);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
     opacity: 0;
-    transition: opacity 0.5s ease calc(var(--i, 0) * 90ms + 80ms), border-color 0.25s ease, background 0.25s ease;
+    transform: translate3d(0, 0, 0);
+    pointer-events: none;
+    transition: opacity 0.22s ease;
+    will-change: transform, opacity;
 }
 
-.solar.is-live .solar-card {
+.solar-card.is-on {
     opacity: 1;
-}
-
-.solar-node.is-up .solar-card {
-    bottom: calc(var(--r, 12px) + var(--solar-card-gap));
-}
-
-.solar-node.is-down .solar-card {
-    top: calc(var(--r, 12px) + var(--solar-card-gap));
-}
-
-.solar-card.is-on,
-.solar-node:hover .solar-card {
-    border-color: color-mix(in srgb, var(--solar-acc) 55%, transparent);
-    background: color-mix(in srgb, var(--solar-acc) 8%, transparent);
 }
 
 .solar-code {
     display: inline-block;
     font-family: "Alpha Sector", ui-monospace, Consolas, monospace;
-    font-size: 0.72rem;
-    letter-spacing: 0.24em;
-    color: var(--solar-acc);
+    font-size: 0.7rem;
+    letter-spacing: 0.26em;
+    color: var(--intro-accent);
 }
 
 .solar-title {
-    font-size: clamp(1rem, 1.25vw, 1.32rem);
-    font-weight: 700;
     margin: 4px 0 6px;
-    letter-spacing: 0.02em;
+    font-size: clamp(0.98rem, 1.2vw, 1.25rem);
+    font-weight: 700;
+    letter-spacing: 0.03em;
 }
 
 .solar-text {
     color: var(--intro-dim);
-    font-size: clamp(0.8rem, 0.95vw, 0.98rem);
-    line-height: 1.8;
+    font-size: clamp(0.78rem, 0.92vw, 0.95rem);
+    line-height: 1.75;
 }
 
-/* ---------- 窄屏 / 矮屏:变成时间线(可以上下滚)---------- */
+/* ---------- 边角 HUD 装饰(太空站观察窗的感觉)---------- */
+.solar-hud {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.solar-hud::before,
+.solar-hud::after {
+    content: "";
+    position: absolute;
+    width: clamp(22px, 2.4vw, 42px);
+    height: clamp(22px, 2.4vw, 42px);
+    border: 1px solid color-mix(in srgb, var(--intro-accent) 34%, transparent);
+}
+
+.solar-hud::before {
+    left: var(--pad);
+    top: var(--pad);
+    border-right: 0;
+    border-bottom: 0;
+}
+
+.solar-hud::after {
+    right: var(--pad);
+    bottom: var(--pad);
+    border-left: 0;
+    border-top: 0;
+}
+
+.solar-tag {
+    position: absolute;
+    left: var(--pad);
+    bottom: var(--pad);
+    font-family: "Alpha Sector", ui-monospace, Consolas, monospace;
+    font-size: 0.66rem;
+    letter-spacing: 0.3em;
+    color: color-mix(in srgb, var(--intro-accent) 55%, transparent);
+}
+
+/* ============================================================
+   窄屏:竖排列表(卡片常显,星体缩成小图标,不玩视差)
+   ============================================================ */
 .solar.is-narrow {
     overflow-y: auto;
     overflow-x: hidden;
-    display: block;
-    padding: clamp(16px, 3vh, 34px) clamp(18px, 4vw, 34px);
-    -webkit-overflow-scrolling: touch;
+    cursor: default;
+    padding: clamp(16px, 3vh, 30px) clamp(16px, 4vw, 30px);
 }
 
-.solar.is-narrow .solar-svg {
+.solar.is-narrow .solar-svg,
+.solar.is-narrow .solar-neb {
     display: none;
 }
 
@@ -505,45 +687,54 @@
     height: auto;
     display: flex;
     align-items: flex-start;
-    gap: 16px;
-    padding: 12px 0;
-}
-
-.solar.is-narrow .solar-node--star {
-    align-items: center;
-    padding-bottom: 18px;
-    margin-bottom: 10px;
+    gap: 14px;
+    padding: 13px 0;
     border-bottom: 1px dashed var(--intro-border);
 }
 
-.solar.is-narrow .solar-star {
+.solar.is-narrow .solar-body {
     position: relative;
     left: auto;
     top: auto;
-    width: 34px !important;
-    height: 34px !important;
+    width: auto;
+    height: auto;
     transform: none;
     flex: 0 0 auto;
+    padding-top: 3px;
 }
 
-.solar.is-narrow .solar-star::after {
+.solar.is-narrow .solar-node--star {
+    padding-bottom: 18px;
+}
+
+.solar.is-narrow .solar-sun {
+    position: relative;
+    left: auto;
+    top: auto;
+    width: 38px !important;
+    height: 38px !important;
+    transform: none;
+}
+
+.solar.is-narrow .solar-sun::after {
     display: none;
 }
 
-.solar.is-narrow .solar-star-label {
+.solar.is-narrow .solar-sun-label {
     position: relative;
     left: auto;
     top: auto;
     transform: none;
     text-align: left;
+    padding-top: 4px;
 }
 
-.solar.is-narrow .solar-star-label b {
+.solar.is-narrow .solar-sun-label b,
+.solar.is-narrow .solar-sun-label i {
     display: inline-block;
 }
 
-.solar.is-narrow .solar-star-label i {
-    display: inline-block;
+.solar.is-narrow .solar-sun-label i {
     margin-left: 8px;
 }
 
@@ -551,38 +742,37 @@
     position: relative;
     left: auto;
     top: auto;
-    width: 14px !important;
-    height: 14px !important;
-    margin-top: 4px;
+    width: 26px !important;
+    height: 26px !important;
     transform: none;
     opacity: 1;
-    flex: 0 0 auto;
 }
 
-.solar.is-narrow .solar-planet.has-ring::after {
-    left: -30%;
-    right: -30%;
+.solar.is-narrow .solar-planet::before {
+    display: none;
+}
+
+.solar.is-narrow .solar-ring {
+    width: 150%;
+    height: 116%;
+    border-width: 1px;
 }
 
 .solar.is-narrow .solar-card {
     position: relative;
     left: auto;
+    top: auto;
     width: auto;
     flex: 1 1 auto;
     transform: none;
     opacity: 1;
     padding: 0;
     border: 0;
-    border-left: 0;
     background: none;
+    box-shadow: none;
+    pointer-events: auto;
 }
 
-.solar.is-narrow .solar-card::before {
-    content: "";
-    position: absolute;
-    left: -16px;
-    top: 12px;
-    width: 16px;
-    height: 1px;
-    background: color-mix(in srgb, var(--solar-acc) 55%, transparent);
+.solar.is-narrow .solar-hud {
+    display: none;
 }

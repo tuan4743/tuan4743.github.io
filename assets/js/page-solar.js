@@ -1,170 +1,204 @@
 /* ============================================================
-   第二张盘「成长」的主页内容:科幻风太阳系行星图(.solar,样式见 pages.css)
+   第二张盘「成长」的主页内容:太空站视角的太阳系(.solar,样式见 pages.css)
    ─────────────────────────────────────────────────────────────
-   布局(全部在 JS 里算,所以宽屏/窄屏/窗口大小变化都能自适应):
-     · 恒星在最左,行星沿"黄道线"向右依次排开,距离越远 = 数字越大
-     · 每颗行星画一圈属于它自己的椭圆轨道(以恒星为中心、压扁的透视感)
-     · 每颗行星挂一张 HUD 卡片(标题 + 正文),上下交替,避免互相压住
-     · 卡片与星体之间那条细线画在 SVG 里:从星体边缘起、到卡片边缘止,
-       两端各带一个小节点 —— 就是"用细线连到星体边缘"这个 HUD 味道
-   窄屏(W < 780):
-     · 切换成时间线样式(.is-narrow):轨道线隐藏,一行一颗行星 + 卡片,可以上下滚
-   动效:
-     · 选中这张盘时给容器加 .is-live,行星按 --i 依次弹出、卡片依次淡入
-       (纯 CSS transition + delay,不占 rAF)
+   构图(用户给的机位,位置都是面板宽高的比例,写在一个个 data-x / data-y 上):
+     · 太阳:中心偏左上,直径约屏宽的 1/3 —— 它是整幅图的视觉锚点
+     · 五颗星体按机位摆:类地(左下·中等)/ 岩石(左上·小·炎热)/
+       气态(中下偏右·巨大·带环)/ 岩石(右下·炎热)/ 黑洞(右上·最小)
+     · 每个星体的位置/半径都在 JS 里按容器尺寸算 → 窗口怎么变构图都不散
+   机位感(视差):
+     · 鼠标在面板上移动时,把位置写进 --cam-x / --cam-y(-1~1),
+       各层按自己的 --depth 反向平移一点 —— 远的动得少、近的动得多,
+       于是有"隔着观察窗往外看"的纵深。只有 mousemove 才写样式,不占 rAF
+   HUD 卡片(磁吸 combo):
+     · 星体本身就是磁吸光标的目标(带 data-magnetic),光标会锁上去
+     · 锁定(鼠标移入 / 键盘 focus / 触屏点一下)才显示卡片
+     · 卡片位置自动挑"空间更大的一侧",再夹在边框内(离边 ≥ --pad),
+       所以永远不会顶出屏幕;连线从星体边缘指向卡片中心,末端被卡片盖住
+   窄屏(W < 780):切成竖排列表,卡片常显,星体缩成小图标(不玩视差)
    ============================================================ */
 (function () {
   "use strict";
 
-  var NS = "http://www.w3.org/2000/svg";
-  var NARROW = 780;      /* 小于这个宽度就换成时间线排版 */
+  var NARROW = 780;      /* 小于这个宽度换成竖排列表 */
+  var GAP = 16;          /* 星体边缘到卡片之间的空隙 */
+  var CAM = 14;          /* 视差最大位移(px):乘以各层 --depth */
 
   function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
-  function num(el, name, dflt, lo, hi) {
-    var v = parseFloat(getComputedStyle(el).getPropertyValue(name));
-    return isFinite(v) && v >= lo && v <= hi ? v : dflt;
+  function num(el, name, dflt) {
+    var v = parseFloat(el.getAttribute(name));
+    return isFinite(v) ? v : dflt;
   }
   function mk(tag, attrs) {
-    var el = document.createElementNS(NS, tag);
+    var el = document.createElementNS("http://www.w3.org/2000/svg", tag);
     for (var k in attrs) el.setAttribute(k, attrs[k]);
     return el;
   }
 
   function build(root, key) {
-    var svg = root.querySelector(".solar-svg");
-    var starNode = root.querySelector(".solar-node--star");
+    var sun = root.querySelector(".solar-node--star");
+    var sunBall = sun ? sun.querySelector(".solar-sun") : null;
     var nodes = Array.prototype.slice.call(root.querySelectorAll(".solar-node:not(.solar-node--star)"));
-    var planets = nodes.map(function (n) { return n.querySelector(".solar-planet"); });
+    var balls = nodes.map(function (n) { return n.querySelector(".solar-planet"); });
     var cards = nodes.map(function (n) { return n.querySelector(".solar-card"); });
-    var active = false, touching = false;
+    var svg = root.querySelector(".solar-svg");
 
-    /* ---------- 交互:鼠标 / 触屏指到哪颗,哪颗和它的卡片一起亮 ---------- */
-    function focus(i) {
-      for (var k = 0; k < nodes.length; k++) {
-        nodes[k].classList.toggle("is-on", k === i);
-        if (cards[k]) cards[k].classList.toggle("is-on", k === i);
-      }
-    }
-    nodes.forEach(function (n, i) {
-      n.addEventListener("pointerenter", function (e) {
-        if (!active || e.pointerType === "touch") return;
-        focus(i);
-      });
-      n.addEventListener("pointerdown", function () { touching = true; focus(i); });
-      n.addEventListener("pointerleave", function (e) {
-        if (!active || e.pointerType === "touch") return;
-        focus(-1);
-      });
-    });
+    var active = false, onIndex = -1, geo = [], narrow = false;
 
-    /* ---------- 排版 ---------- */
-    var geo = [];
+    /* ---------------- 位置计算 ---------------- */
     function place() {
       var W = root.clientWidth, H = root.clientHeight;
       if (W < 2 || H < 2) return;
-      var narrow = W < NARROW;
+      narrow = W < NARROW;
       root.classList.toggle("is-narrow", narrow);
-      if (narrow) {
-        /* 窄屏:把所有内联几何都清掉,交给 CSS 流式排(卡片变成时间线,可以上下滚)*/
-        geo = [];
-        if (svg) { while (svg.firstChild) svg.removeChild(svg.firstChild); }
-        root.style.removeProperty("--sr");
-        [starNode].concat(nodes).forEach(function (n) {
-          if (!n) return;
-          n.style.removeProperty("left");
-          n.style.removeProperty("top");
-          n.style.removeProperty("--r");
-          n.style.removeProperty("--cx");
-        });
-        planets.forEach(function (p) { if (p) { p.style.removeProperty("width"); p.style.removeProperty("height"); } });
-        return;
+      if (svg) while (svg.firstChild) svg.removeChild(svg.firstChild);
+      onIndex = -1;
+
+      /* 太阳:中心偏左上,直径 ≈ 屏宽的 1/3 */
+      var sunX = 0.30 * W, sunY = 0.36 * H;
+      var sunR = 0.155 * W;
+      root.style.setProperty("--sun-r", sunR.toFixed(1) + "px");
+      if (sun) {
+        sun.style.left = sunX.toFixed(1) + "px";
+        sun.style.top = sunY.toFixed(1) + "px";
       }
 
-      var padX = clamp(W * 0.045, 20, 110);
-      var cy = H * 0.53;
-      var sr = clamp(H * 0.082, 22, 78);                       /* 恒星半径 */
-      var rMax = clamp(H * 0.036, 11, 30);                     /* 最大行星半径 */
-      var rMin = Math.max(5, rMax * 0.30);
-      var sX = padX + sr;
-      var n = nodes.length || 1;
-
-      /* 行星沿黄道线排开:第一颗离恒星 sr + 一段间距,最后一颗留出右边距 */
-      var gapFirst = clamp(W * 0.07, 54, 190);
-      var x0 = sX + sr + gapFirst;
-      var x1 = W - padX - clamp(W * 0.02, 16, 54);
-      if (x1 < x0 + 40) x1 = x0 + 40;
-
-      /* 恒星 */
-      root.style.setProperty("--sr", sr.toFixed(1) + "px");
-      starNode.style.left = sX.toFixed(1) + "px";
-      starNode.style.top = cy.toFixed(1) + "px";
-
-      var parts = [];
+      /* 星体:半径按"最大星体"的基准 × size(气态行星最大) */
+      var rBase = Math.min(W * 0.085, H * 0.13);
       geo = [];
       for (var i = 0; i < nodes.length; i++) {
-        var t = n > 1 ? i / (n - 1) : 0.5;
-        var x = x0 + (x1 - x0) * t;
-        var sz = num(planets[i], "--size", t, 0, 1);
-        var r = rMin + (rMax - rMin) * sz;
-        var up = i % 2 === 0;                                   /* 卡片上下交替 */
-        var off = (up ? 1 : -1) * clamp(W * 0.024, 16, 42);      /* 卡片再横向偏一点 → 连线成折线 */
-
-        nodes[i].style.left = x.toFixed(1) + "px";
-        nodes[i].style.top = cy.toFixed(1) + "px";
-        nodes[i].style.setProperty("--r", r.toFixed(1) + "px");
-        nodes[i].classList.toggle("is-up", up);          /* 卡片在上 / 在下(CSS 用它定位)*/
-        nodes[i].classList.toggle("is-down", !up);
-        planets[i].style.width = planets[i].style.height = (r * 2).toFixed(1) + "px";
-        var cxCard = placeCard(nodes[i], cards[i], x + off, W, padX);
-
-        /* 轨道:以恒星为中心、压扁的椭圆(只要右半边,不然整屏都是圈)*/
-        var rx = x - sX, ry = rx * 0.30;
-        parts.push(mk("ellipse", {
-          cx: sX.toFixed(1), cy: cy.toFixed(1), rx: rx.toFixed(1), ry: ry.toFixed(1),
-          "class": "solar-orbit"
-        }));
-        /* 连线:星体边缘 →(斜线)→ 拐点 →(横线)→ 卡片边缘,HUD 那种两段折线 */
-        var yA = up ? cy - r : cy + r;
-        var yB = up ? cy - r - 24 : cy + r + 24;
-        var kneeX = x + (cxCard - x) * 0.45;
-        parts.push(mk("path", {
-          d: "M" + x.toFixed(1) + " " + yA.toFixed(1) +
-            " L" + kneeX.toFixed(1) + " " + yB.toFixed(1) +
-            " L" + cxCard.toFixed(1) + " " + yB.toFixed(1),
-          "class": "solar-lead"
-        }));
-        parts.push(mk("circle", { cx: x.toFixed(1), cy: yA.toFixed(1), r: 2, "class": "solar-node-dot" }));
-        parts.push(mk("circle", { cx: cxCard.toFixed(1), cy: yB.toFixed(1), r: 1.6, "class": "solar-node-dot is-end" }));
-        geo.push({ x: x, r: r });
+        var n = nodes[i];
+        var x = clamp(num(n, "data-x", 0.5), 0, 1) * W;
+        var y = clamp(num(n, "data-y", 0.5), 0, 1) * H;
+        var r = rBase * clamp(num(n, "data-size", 0.5), 0.05, 1.4);
+        n.style.left = x.toFixed(1) + "px";
+        n.style.top = y.toFixed(1) + "px";
+        n.style.setProperty("--r", r.toFixed(1) + "px");
+        geo.push({ x: x, y: y, r: r });
       }
-
-      if (svg) {
-        while (svg.firstChild) svg.removeChild(svg.firstChild);
-        svg.setAttribute("viewBox", "0 0 " + W + " " + H);
-        /* 黄道线:恒星 → 最右 */
-        parts.unshift(mk("path", {
-          d: "M" + (sX + sr).toFixed(1) + " " + cy.toFixed(1) + " H" + (W - padX * 0.4).toFixed(1),
-          "class": "solar-ecliptic"
-        }));
-        /* 轨道画在行星下面,连线画在上面 */
-        parts.forEach(function (p) {
-          if (p.getAttribute("class") !== "solar-lead" && !/node-dot/.test(p.getAttribute("class"))) svg.appendChild(p);
-        });
-        parts.forEach(function (p) {
-          if (p.getAttribute("class") === "solar-lead" || /node-dot/.test(p.getAttribute("class"))) svg.appendChild(p);
-        });
-      }
+      if (onIndex >= 0) show(onIndex);
     }
 
-    /* 卡片挂在行星旁边(想让它中心落在 wantX);靠边的行星把卡片往回收,别顶出屏幕。
-       返回卡片真实中心 x —— 折线要用它算拐点 */
-    function placeCard(node, card, wantX, W, padX) {
-      var cw = card ? (card.offsetWidth || 200) : 200;
-      var half = cw / 2;
-      var cx = clamp(wantX, padX + half, W - padX - half);
-      if (node) node.style.setProperty("--cx", (cx - parseFloat(node.style.left || "0")).toFixed(1) + "px");
-      return cx;
+    /* 星体半径里还要加上环(气态行星的环比本体宽),卡片得躲开它 */
+    function outerR(i) {
+      var g = geo[i];
+      if (!g) return 0;
+      var ring = nodes[i].classList.contains("has-ring");
+      return g.r * (ring ? 1.45 : 1);
     }
+
+    /* ---------------- HUD 卡片:挑一侧 + 夹在边框内 ---------------- */
+    function show(i) {
+      var card = cards[i], g = geo[i];
+      if (!card || !g) return;
+      var W = root.clientWidth, H = root.clientHeight;
+      var pad = parseFloat(getComputedStyle(root).getPropertyValue("--pad")) || 20;
+      var w = card.offsetWidth || 240, h = card.offsetHeight || 120;
+      var R = outerR(i);
+
+      /* 哪边空间大就放哪边:先横后纵,取更大的那一块 */
+      var spaceR = W - (g.x + R), spaceL = g.x - R, spaceB = H - (g.y + R), spaceT = g.y - R;
+      var sides = [
+        { k: "right", v: spaceR - w },
+        { k: "left", v: spaceL - w },
+        { k: "above", v: spaceT - h },
+        { k: "below", v: spaceB - h }
+      ];
+      sides.sort(function (a, b) { return b.v - a.v; });
+      var side = sides[0].k;
+
+      var cx, cy;
+      if (side === "right") { cx = g.x + R + GAP; cy = g.y - h / 2; }
+      else if (side === "left") { cx = g.x - R - GAP - w; cy = g.y - h / 2; }
+      else if (side === "above") { cx = g.x - w / 2; cy = g.y - R - GAP - h; }
+      else { cx = g.x - w / 2; cy = g.y + R + GAP; }
+      /* 夹在边框内 —— 这一步保证卡片永远不越界 */
+      cx = clamp(cx, pad, Math.max(pad, W - pad - w));
+      cy = clamp(cy, pad, Math.max(pad, H - pad - h));
+      /* ★ 卡片是 .solar-node 的子元素,而 node 的原点就在星体中心 ——
+         所以 transform 要用"相对星体中心"的偏移,不能直接写面板坐标 */
+      card.style.transform = "translate3d(" + (cx - g.x).toFixed(1) + "px," + (cy - g.y).toFixed(1) + "px,0)";
+      card.classList.add("is-on");
+
+      /* 连线:星体边缘 → 卡片中心(末端被卡片盖住,看起来正好接在边上)*/
+      drawLine(i, cx + w / 2, cy + h / 2, R);
+    }
+
+    function drawLine(i, tx, ty, R) {
+      if (!svg) return;
+      var g = geo[i], W = root.clientWidth, H = root.clientHeight;
+      /* 起点要算上视差:星体本体被 --cam-* 平移过 */
+      var dx = -CAM * num(nodes[i], "data-depth", 0.7) * (parseFloat(root.style.getPropertyValue("--cam-x")) || 0);
+      var dy = -CAM * num(nodes[i], "data-depth", 0.7) * (parseFloat(root.style.getPropertyValue("--cam-y")) || 0);
+      var px = g.x + dx, py = g.y + dy;
+      var ax = tx - px, ay = ty - py;
+      var len = Math.max(1, Math.hypot(ax, ay));
+      var sx = px + (ax / len) * (R + 2), sy = py + (ay / len) * (R + 2);
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+      svg.appendChild(mk("path", {
+        d: "M" + sx.toFixed(1) + " " + sy.toFixed(1) + " L" + tx.toFixed(1) + " " + ty.toFixed(1),
+        "class": "solar-lead"
+      }));
+      svg.appendChild(mk("circle", { cx: sx.toFixed(1), cy: sy.toFixed(1), r: 2.2, "class": "solar-node-dot" }));
+    }
+
+    function hide(i) {
+      if (i >= 0 && cards[i]) cards[i].classList.remove("is-on");
+      if (svg) while (svg.firstChild) svg.removeChild(svg.firstChild);
+      if (onIndex === i) onIndex = -1;
+    }
+
+    function focus(i) {
+      if (onIndex === i) return;
+      if (onIndex >= 0) {
+        var old = onIndex;
+        if (cards[old]) cards[old].classList.remove("is-on");
+        nodes[old].classList.remove("is-on");
+      }
+      onIndex = i;
+      if (i < 0) { if (svg) while (svg.firstChild) svg.removeChild(svg.firstChild); return; }
+      nodes[i].classList.add("is-on");
+      show(i);
+    }
+
+    /* ---------------- 事件 ---------------- */
+    nodes.forEach(function (n, i) {
+      var ball = balls[i];
+      if (!ball) return;
+      ball.addEventListener("pointerenter", function (e) {
+        if (!active || e.pointerType === "touch") return;
+        focus(i);
+      });
+      ball.addEventListener("pointerleave", function (e) {
+        if (!active || e.pointerType === "touch") return;
+        focus(-1);
+      });
+      ball.addEventListener("focus", function () { if (active) focus(i); });
+      ball.addEventListener("blur", function () { if (active && onIndex === i) focus(-1); });
+      /* 触屏:点一下开、再点一下关(磁吸光标在触屏上本来就不启用)*/
+      ball.addEventListener("click", function (e) {
+        if (!active || e.pointerType !== "touch") return;
+        focus(onIndex === i ? -1 : i);
+      });
+    });
+
+    /* 视差:鼠标在面板上动 → 写 --cam-x / --cam-y(只有 mousemove 才写,不占 rAF)*/
+    root.addEventListener("pointermove", function (e) {
+      if (!active || narrow || e.pointerType === "touch") return;
+      var r = root.getBoundingClientRect();
+      var nx = clamp(((e.clientX - r.left) / r.width - 0.5) * 2, -1, 1);
+      var ny = clamp(((e.clientY - r.top) / r.height - 0.5) * 2, -1, 1);
+      root.style.setProperty("--cam-x", nx.toFixed(3));
+      root.style.setProperty("--cam-y", ny.toFixed(3));
+      if (onIndex >= 0) show(onIndex);        /* 星体动了,连线跟着重画 */
+    });
+
+    root.addEventListener("pointerleave", function () {
+      root.style.setProperty("--cam-x", "0");
+      root.style.setProperty("--cam-y", "0");
+      focus(-1);
+    });
 
     var raf = 0;
     function later() {
@@ -178,19 +212,23 @@
       activate: function (on) {
         active = on;
         if (on) {
-          place();                                   /* 显示出来才量得到尺寸 */
+          place();
           root.classList.remove("is-live");
-          /* 下一帧再加 is-live:让"依次弹出"的动画每次进来都重播 */
           requestAnimationFrame(function () { if (active) root.classList.add("is-live"); });
         } else {
           root.classList.remove("is-live");
           focus(-1);
-          touching = false;
+          root.style.setProperty("--cam-x", "0");
+          root.style.setProperty("--cam-y", "0");
         }
       },
       repaint: function () { place(); },
       state: function () {
-        return { key: key, active: active, narrow: root.classList.contains("is-narrow"), planets: geo.length };
+        return {
+          key: key, active: active, narrow: narrow,
+          bodies: geo.length, open: onIndex,
+          geo: geo.map(function (g) { return [Math.round(g.x), Math.round(g.y), Math.round(g.r)]; })
+        };
       }
     };
   }
