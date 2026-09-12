@@ -54,6 +54,46 @@
     grain = grainTiles[0];
   }
 
+  /* ===== 预烘焙:扫描线 + 暗角 + 噪声(每种噪声一张),每帧只 drawImage ===== */
+  var overlays = [];
+  var overlayW = 0, overlayH = 0, overlayIdx = 0, overlayAge = 0;
+
+  function buildOverlay(W, H) {
+    overlays = [];
+    for (var k = 0; k < 4; k++) {
+      var c = document.createElement("canvas");
+      c.width = W; c.height = H;
+      var g = c.getContext("2d");
+      /* ① 扫描线:每 3px 一条 */
+      g.fillStyle = "rgba(0, 0, 0, 0.16)";
+      for (var y = 0; y < H; y += 3) g.fillRect(0, y, 1 * W, 1);
+      /* ② 暗角 */
+      var vg = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.25, W / 2, H / 2, Math.max(W, H) * 0.72);
+      vg.addColorStop(0, "rgba(0,0,0,0)");
+      vg.addColorStop(1, "rgba(0,0,0,0.55)");
+      g.fillStyle = vg;
+      g.fillRect(0, 0, W, H);
+      /* ③ 噪声(4 张各用一份,轮换即为"闪动")*/
+      var n = document.createElement("canvas");
+      n.width = n.height = 128;
+      var ng = n.getContext("2d");
+      var img = ng.createImageData(128, 128);
+      for (var i = 0; i < img.data.length; i += 4) {
+        var v = 120 + Math.random() * 135;
+        img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+        img.data[i + 3] = 16;
+      }
+      ng.putImageData(img, 0, 0);
+      g.save();
+      g.globalAlpha = 0.5;
+      var pat = g.createPattern(n, "repeat");
+      if (pat) { g.fillStyle = pat; g.fillRect(0, 0, W, H); }
+      g.restore();
+      overlays.push(c);
+    }
+    overlayW = W; overlayH = H;
+  }
+
   /* 对外:拿到离屏 ctx 给场景画画 */
   function context(W, H) {
     ensure(W, H);
@@ -88,51 +128,12 @@
     ctx.drawImage(small, 0, 0, small.width, small.height, 0, 0, W, H);
     ctx.restore();
 
-    /* ③ 扫描线 */
-    ctx.save();
-    ctx.globalCompositeOperation = "source-over";
-    ctx.fillStyle = "rgba(0, 0, 0, 0.16)";
-    for (var y = 0; y < H; y += 3) ctx.fillRect(0, y, W, 1);
-    ctx.restore();
+    /* ③ 扫描线 + ④ 暗角 + ⑤ 噪声:全部来自预烘焙覆盖图(每帧 1 次 drawImage)*/
+    if (overlayW !== W || overlayH !== H || !overlays.length) buildOverlay(W, H);
+    overlayAge += 1;
+    if (overlayAge % 3 === 0) overlayIdx = (overlayIdx + 1) % overlays.length;
+    ctx.drawImage(overlays[overlayIdx], 0, 0, W, H);
 
-    /* ④ 滚动扫描带(一条缓慢下移的亮带 + 一条更亮的细线)*/
-    var bandY = ((el * 0.12) % (H + 200)) - 100;   /* 速度:0.06 → 0.12(快一倍)*/
-    ctx.save();
-    ctx.translate(0, bandY - 60);
-    /* 渐变只创建一次(依赖 W/H,不依赖位置),之后靠 translate 移动 —— 每帧重建渐变会明显掉帧 */
-    if (!bandGrad || bandGradW !== W) {
-      bandGrad = ctx.createLinearGradient(0, 0, 0, 120);
-      bandGrad.addColorStop(0, "rgba(255,255,255,0)");
-      bandGrad.addColorStop(0.5, "rgba(210,240,255," + (0.05 * s_).toFixed(3) + ")");
-      bandGrad.addColorStop(1, "rgba(255,255,255,0)");
-      bandGradW = W;
-    }
-    ctx.fillStyle = bandGrad;
-    ctx.fillRect(0, 0, W, 120);
-    ctx.fillStyle = "rgba(220,245,255," + (0.06 * s_).toFixed(3) + ")";
-    ctx.fillRect(0, 60, W, 1);
-    ctx.restore();
-
-    /* ⑤ 暗角(渐变缓存:尺寸不变就不重建)*/
-    if (!vigGrad || vigW !== W || vigH !== H) {
-      vigGrad = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.25, W / 2, H / 2, Math.max(W, H) * 0.72);
-      vigGrad.addColorStop(0, "rgba(0,0,0,0)");
-      vigGrad.addColorStop(1, "rgba(0,0,0,0.55)");
-      vigW = W; vigH = H;
-    }
-    ctx.fillStyle = vigGrad;
-    ctx.fillRect(0, 0, W, H);
-
-    /* ⑥ 噪点 + 闪动 */
-    grainAge += 1;
-    if (grainAge % 3 === 0) { grainIdx = (grainIdx + 1) % grainTiles.length; grain = grainTiles[grainIdx]; }
-    if (grain) {
-      ctx.save();
-      ctx.globalAlpha = 0.5 * s_;
-      var pat = ctx.createPattern(grain, "repeat");
-      if (pat) { ctx.fillStyle = pat; ctx.fillRect(0, 0, W, H); }
-      ctx.restore();
-    }
     var flick = 0.985 + Math.random() * 0.03;
     ctx.save();
     ctx.globalCompositeOperation = "source-over";

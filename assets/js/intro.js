@@ -502,12 +502,15 @@
       var C_CYAN = "#7ff0ff";                       /* 主色:霓虹青 */
       var C_ICE = "#bfe9ff";                        /* 冰蓝:次级文字 */
       var C_DIM = "rgba(127, 240, 255, 0.45)";
-      var C_ACC = IS_GLITCH ? "#ff5ce1" : "#7ff0ff"; /* 第四张:品红点缀 */
+      var C_ACC = IS_GLITCH ? "#ff3b30" : "#7ff0ff"; /* 第四张:红色(不用品红)*/
 
       function glowText(txt, x, y, color, blur, aber) {
         staticCtx.save();
-        staticCtx.shadowColor = color;
-        staticCtx.shadowBlur = blur;
+        /* ★ shadowBlur 很贵:blur<=0 时不画阴影,只留给关键元素(当前行/圆环/百分比)*/
+        if (blur > 0) {
+          staticCtx.shadowColor = color;
+          staticCtx.shadowBlur = blur;
+        }
         staticCtx.fillStyle = color;
         staticCtx.fillText(txt, x, y);
         /* 色差:左右各偏一点点,红/青通道错开 */
@@ -534,7 +537,7 @@
       /* ---- 逐步故障(第四张最明显)----
          pShow:显示用的进度 —— 在 STALL_A~STALL_B 之间卡住不动,之后猛冲完成
          glitchAmt:0→1,控制 RGB 分离幅度与报警色 */
-      var GLITCH_K = IS_GLITCH ? 1 : 0.25;          /* 其它盘也有一点点,但很轻 */
+      var GLITCH_K = IS_GLITCH ? 1 : 0;             /* 逐步故障只给第四张 */
       var STALL_A = 0.62, STALL_B = 0.80;
       var stalling = p > STALL_A && p < STALL_B;
       var pShow = p <= STALL_A ? p
@@ -562,7 +565,7 @@
         if (reach < 1) txt = txt.slice(0, Math.max(1, Math.round(txt.length * reach)));
         staticCtx.globalAlpha = outA * (isLast ? 0.72 + 0.28 * Math.abs(Math.sin(el / 150)) : 0.92);
         var col = (li === LOG.length - 1) ? C_ACC : (li === 2 ? C_CYAN : C_ICE);
-        glowText(txt, 0, li * lh, col, isLast ? 12 : 7, 0.6 + glitchAmt * 3.4);
+        glowText(txt, 0, li * lh, col, isLast ? 12 : 0, 0.6 + glitchAmt * 3.4);
 
         /* MOUNTING 这一行两侧各加一根进度条 */
         if (li === 2 && reach > 0.2) {
@@ -584,29 +587,44 @@
       }
       staticCtx.restore();
 
-      /* ---------- 右侧:无意义但不闲着的数据流 ---------- */
-      var seed = Math.floor(el / 90);                /* 每 90ms 换一批 */
+      /* ---------- 数据流(右侧 + 左下):按 90ms 缓存成图,每帧只贴一次 ---------- */
+      var seed = Math.floor(el / 90);
       function rnd(i) { var x = Math.sin(seed * 12.9898 + i * 78.233) * 43758.5453; return x - Math.floor(x); }
+      if (!window.__bootDataCv) {
+        window.__bootDataCv = document.createElement("canvas");
+        window.__bootDataSeed = -1;
+      }
+      var dcv = window.__bootDataCv;
+      if (dcv.width !== W || dcv.height !== H) { dcv.width = W; dcv.height = H; window.__bootDataSeed = -1; }
+      if (window.__bootDataSeed !== seed) {
+        window.__bootDataSeed = seed;
+        var dg = dcv.getContext("2d");
+        dg.setTransform(1, 0, 0, 1, 0, 0);
+        dg.clearRect(0, 0, W, H);
+        dg.font = Math.max(9, Math.round(fs2 * 0.72)) + "px \"Alpha Sector\", ui-monospace, Consolas, monospace";
+        dg.textBaseline = "top";
+        dg.textAlign = "right";
+        var di;
+        for (di = 0; di < 9; di++) {
+          var val;
+          if (di % 3 === 0) val = "0x" + Math.floor(rnd(di) * 65535).toString(16).toUpperCase().padStart(4, "0");
+          else if (di % 3 === 1) val = "SIG " + (95 + rnd(di) * 4.9).toFixed(1) + "%";
+          else val = "LAT " + (6 + rnd(di) * 9).toFixed(1) + "ms";
+          dg.globalAlpha = 0.35 + 0.35 * rnd(di + 40);
+          dg.fillStyle = di % 3 === 0 ? C_DIM : C_ICE;
+          dg.fillText(val, W * 0.955, H * 0.07 + di * lh);
+        }
+        dg.textAlign = "left";
+        for (var dj = 0; dj < 4; dj++) {
+          dg.globalAlpha = 0.3 + 0.3 * rnd(dj + 130);
+          dg.fillStyle = C_DIM;
+          dg.fillText("BUF 0x" + Math.floor(rnd(dj + 90) * 65535).toString(16).toUpperCase().padStart(4, "0"),
+                      W * 0.062, H - lh * (dj + 1.2) - 6);
+        }
+      }
       staticCtx.save();
-      staticCtx.font = Math.max(9, Math.round(fs2 * 0.72)) + "px \"Alpha Sector\", ui-monospace, Consolas, monospace";
-      staticCtx.textAlign = "right";
-      staticCtx.textBaseline = "top";
-      for (var di = 0; di < 9; di++) {
-        var val;
-        if (di % 3 === 0) val = "0x" + Math.floor(rnd(di) * 65535).toString(16).toUpperCase().padStart(4, "0");
-        else if (di % 3 === 1) val = "SIG " + (95 + rnd(di) * 4.9).toFixed(1) + "%";
-        else val = "LAT " + (6 + rnd(di) * 9).toFixed(1) + "ms";
-        staticCtx.globalAlpha = outA * (0.35 + 0.35 * rnd(di + 40));
-        glowText(val, W * 0.955, H * 0.07 + di * lh, di % 3 === 0 ? C_DIM : C_ICE, 5);
-      }
-      /* 左下角再来一小列 */
-      staticCtx.textAlign = "left";
-      for (var dj = 0; dj < 4; dj++) {
-        var v2 = "BUF 0x" + Math.floor(rnd(dj + 90) * 65535).toString(16).toUpperCase().padStart(4, "0");
-        staticCtx.globalAlpha = outA * (0.3 + 0.3 * rnd(dj + 130));
-        /* 从底边往上排,绝不会出屏 */
-        glowText(v2, W * 0.062, H - lh * (dj + 1.2) - 6, C_DIM, 4);
-      }
+      staticCtx.globalAlpha = outA;
+      staticCtx.drawImage(dcv, 0, 0);
       staticCtx.restore();
 
       /* ---------- 中央圆环:多层嵌套 + 虚线外圈 + 旋转刻度 + 雷达扫描 ---------- */
@@ -652,7 +670,7 @@
       var sweep = staticCtx.createConicGradient ? staticCtx.createConicGradient(0, 0, 0) : null;
       if (sweep) {
         sweep.addColorStop(0, "rgba(127,240,255,0)");
-        sweep.addColorStop(0.12, IS_GLITCH ? "rgba(255,92,225,0.55)" : "rgba(127,240,255,0.5)");
+        sweep.addColorStop(0.12, IS_GLITCH ? "rgba(255,59,48,0.6)" : "rgba(127,240,255,0.5)");
         sweep.addColorStop(0.25, "rgba(127,240,255,0)");
         sweep.addColorStop(1, "rgba(127,240,255,0)");
         staticCtx.fillStyle = sweep;
