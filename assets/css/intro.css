@@ -153,11 +153,12 @@ body.statusbar-hidden .statusbar-toggle svg {
     transform: rotate(180deg);
 }
 
-/* 屏幕内容布局:导航(header)固定于顶部,面板区占剩余 */
+/* 屏幕内容布局:面板区铺满整块屏幕可视区。
+   ★ 导航栏(statusbar)是浮在上面的覆盖层,不占布局 —— 否则收起导航后
+     顶上会留下一条空白带,内容不贴屏幕(内容页用 --page-top 自己让位)*/
 .intro-main {
-    position: relative;
-    flex: 1;
-    min-height: 0;
+    position: absolute;
+    inset: 0;
 }
 
 .intro-panel {
@@ -166,12 +167,17 @@ body.statusbar-hidden .statusbar-toggle svg {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 40px 48px;
+    /* 默认给顶部导航让位;导航收起后由 body.statusbar-hidden 收掉 */
+    padding: calc(var(--header-h, 60px) + 26px) 48px 40px;
     opacity: 0;
     visibility: hidden;
     transform: translateY(10px);
     transition: opacity 0.4s ease, transform 0.4s ease, visibility 0s linear 0.4s;
     overflow-y: auto;
+}
+
+body.statusbar-hidden .intro-panel {
+    padding-top: 40px;
 }
 
 .intro-panel.is-active {

@@ -11,12 +11,20 @@
    尺寸/节奏等可调项都写在各自那一段开头的变量里。
    ============================================================ */
 
-/* 有自定义内容的页面:去掉面板本来的居中内边距,让内容铺满屏幕可视区 */
+/* 有自定义内容的页面:去掉面板本来的居中内边距,内容用与开机动画同一块「可视窗」。
+   --page-top / --page-x / --page-b 就是那块窗的内边距:
+     · 导航显示时,顶部再让出导航高度(导航本身也在这圈 padding 里)
+     · 导航收起时,顶部只剩 --sp-t → 与开机动画的窗口完全重合,不留空带 */
 .intro-panel.is-page {
+    --page-top: calc(var(--sp-t, 13vh) + var(--header-h, 60px) + 8px);
     padding: 0;
     display: block;
     overflow: hidden;
     align-items: stretch;
+}
+
+body.statusbar-hidden .intro-panel.is-page {
+    --page-top: var(--sp-t, 13vh);
 }
 
 /* ============================================================
@@ -39,7 +47,7 @@
     /* ↑ 露出超过 62% → 完全不透明;两者之间平滑过渡 */
 
     position: absolute;
-    inset: 0;
+    inset: var(--page-top, 0px) var(--sp-x, 5vw) var(--sp-b, 7.5vh) var(--sp-x, 5vw);
     overflow: hidden;
     cursor: grab;
     touch-action: none;
@@ -287,7 +295,7 @@
     --cam-y: 0;
     --sun-r: 150px;
     position: absolute;
-    inset: 0;
+    inset: var(--page-top, 0px) var(--sp-x, 5vw) var(--sp-b, 7.5vh) var(--sp-x, 5vw);
     overflow: hidden;
     cursor: crosshair;
     background: radial-gradient(125% 95% at 30% 34%, #0c1a33 0%, #070c18 55%, #03050b 100%);
@@ -775,4 +783,34 @@
 
 .solar.is-narrow .solar-hud {
     display: none;
+}
+
+/* ---------- 整幅贴图模式(填了 params.intro.solar.image)----------
+   底图铺满,CSS 画的太阳/星体全部让位;
+   五个磁吸热区还在(看不见,但光标锁上去照样弹 HUD 卡片)*/
+.solar-art {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.solar.has-art {
+    background: #03050b;
+}
+
+.solar.has-art .solar-sky,
+.solar.has-art .solar-neb,
+.solar.has-art .solar-sun {
+    display: none;
+}
+
+/* 放在 .is-live 规则之后才能盖住 is-live 点亮的 opacity */
+.solar.has-art .solar-planet {
+    opacity: 0;
+}
+
+.solar.has-art .solar-planet:focus-visible::before {
+    opacity: 1;
 }

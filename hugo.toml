@@ -110,8 +110,12 @@ paginate = 10
     # ---- 第二张盘「成长」的主页内容:科幻风太阳系行星图 ----
     # 恒星(屏幕最左那颗)的标题 / 副标题
     [params.intro.solar]
-      title = "我"
-      caption = "SELF"
+      # 整幅贴图:自己画好一整张(太阳 + 五颗星体都在图里)之后,
+      # 把图放进 static/assets/pages/growth/ 并在这里写路径,例如
+      #   image = "/assets/pages/growth/bg.webp"
+      # 填了图:CSS 画的太阳/星体自动隐藏,只留五个看不见的磁吸热区
+      # (位置还是每颗的 x / y,照着你的图调一下就行)。留空则用 CSS 画的版本。
+      image = ""
 
     # 每颗行星 = 一张 HUD 卡片。size = 0~1(相对最大行星的大小,越大越靠右越"长大"),
     # ring = true 会画一圈星环。下面是占位文案,直接改。

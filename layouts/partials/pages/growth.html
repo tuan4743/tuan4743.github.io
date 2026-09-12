@@ -4,7 +4,12 @@
      机位:x / y 是相对面板宽高的比例(0~1),size 是相对最大星体的半径比例,
      构图描述见 JS 顶部注释;HUD 卡片要磁吸锁定才出现 */}}
 {{- $star := site.Params.intro.solar | default dict -}}
-<div class="solar" data-solar="{{ .key }}">
+{{- $art := $star.image -}}
+<div class="solar{{ with $art }} has-art{{ end }}" data-solar="{{ .key }}">
+    {{- with $art }}
+    {{/* 用户自己画的整幅贴图:填 params.intro.solar.image 就会出现 */}}
+    <div class="solar-art" style="background-image:url(&#39;{{ . }}&#39;)" aria-hidden="true"></div>
+    {{- end }}
     <div class="solar-sky" aria-hidden="true"></div>
     <div class="solar-neb" aria-hidden="true"></div>
     <svg class="solar-svg" aria-hidden="true"></svg>
@@ -13,10 +18,6 @@
 
     <div class="solar-node solar-node--star" data-x="0.30" data-y="0.36">
         <span class="solar-sun" aria-hidden="true"></span>
-        <div class="solar-sun-label">
-            <b>{{ $star.title | default "我" }}</b>
-            <i>{{ $star.caption | default "SELF" }}</i>
-        </div>
     </div>
 
     {{- range $i, $p := .items }}
