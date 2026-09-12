@@ -1,4 +1,21 @@
 /* ============================================================
+   字体:Alpha Sector(把字体文件放到 static/fonts/ 下即自动生效)
+     需要的文件(任意一个即可,优先 woff2):
+       static/fonts/AlphaSector.woff2
+       static/fonts/AlphaSector.ttf
+       static/fonts/AlphaSector.otf
+   说明:Alpha Sector 是拉丁/数字字体,不含中文字形 ——
+        中文会自动回退到下面字体栈里的中文字体,不会变成方框。
+   ============================================================ */
+@font-face {
+    font-family: "Alpha Sector";
+    src: url("/fonts/AlphaSector.woff2") format("woff2"),
+         url("/fonts/AlphaSector.ttf") format("truetype"),
+         url("/fonts/AlphaSector.otf") format("opentype");
+    font-display: swap;
+}
+
+/* ============================================================
    全息 UI —— 我们自己的方案(白细线 HUD)
    ┌──────────────────────────────────────────────────────────┐
    │ ★ 尺寸 / 位置 / 颜色 全部集中在下面 .holo 的变量里          │
@@ -8,6 +25,7 @@
    ============================================================ */
 
 .holo {
+    font-family: var(--ui-font-cjk);
     position: absolute;
     inset: 0;
     z-index: 9;
@@ -70,14 +88,14 @@
     --ring-x: 84%;                        /* 光环中心(架子宽百分比)*/
     --ring-y: 86%;                        /* 光环中心(架子高百分比)*/
     --ring-size: 260px;                   /* 外圈直径 */
-    --ring-tilt: 62deg;                   /* ★ 倾斜轴:0 = 正对屏幕,90 = 完全躺平 */
+    --ring-tilt: 76deg;                   /* ★ 倾斜轴:0 = 正对屏幕,90 = 完全躺平 */
     --ring-fs: 20px;                      /* 歌名字号 */
     --ring-ls: 0.1em;                    /* 字距 */
-    --ring-color: rgba(234, 243, 255, 0.85);
-    --ring-artist-color: rgba(234, 243, 255, 0.55);
-    --ring-base: rgba(234, 243, 255, 0.24);   /* 底部那圈底线 */
-    --ring-vol-1: rgba(234, 243, 255, 0.10);  /* 内圈音量环 1(已调淡)*/
-    --ring-vol-2: rgba(234, 243, 255, 0.055); /* 内圈音量环 2(已调淡)*/
+    --ring-color: rgba(140, 152, 246, 0.85);
+    --ring-artist-color: rgba(92, 251, 95, 0.55);
+    --ring-base: rgba(234, 243, 255, 0.34);   /* 底部那圈底线 */
+    --ring-vol-1: rgba(234, 243, 255, 0.22);  /* 内圈音量环 1(看清为准)*/
+    --ring-vol-2: rgba(234, 243, 255, 0.13);  /* 内圈音量环 2(看清为准)*/
     --ring-vol-scale: 0.6;                     /* 音量环基础缩放 */
     --ring-spin: 40s;                          /* 外环自转一圈用时 */
     --ring-spin-mid: 58s;                      /* ★ 中环自转一圈用时(故意和外环不同步)*/
@@ -85,10 +103,10 @@
     --ring-plane-mid: 28deg;                   /* ★ 中环额外的平面倾角
                                                   —— 最内环不加倾角,保持原平面(它连着射线)*/
     --ring-mid-k: 0.54;                        /* 中环半径系数(= vol--1 那一圈,直接复用,不再多画一个环)*/
-    --ring-mid-a: 0.5;                         /* ★ 中环透明度(比另外两环更淡) */
-    --ring-mid-fs: 10px;                       /* 中环文字字号 */
+    --ring-mid-a: 0.2;                         /* ★ 中环透明度(比另外两环更淡) */
+    --ring-mid-fs: 14px;                       /* 中环文字字号 */
     --ring-mid-ls: 0.22em;
-    --ring-mid-color: rgba(234, 243, 255, 0.8);
+    --ring-mid-color: rgba(234, 243, 255, 0.95);
     --ring-line-angle: 30deg;                  /* ★ 最内环射出的两道线,与竖直方向的夹角 */
     --ring-line-color: rgba(234, 243, 255, 0.35);
     --ring-outer-gain: 0.06;                   /* ★ 最外环的音频律动幅度 */                          /* 整环自转一圈用时(0s = 不转)*/
@@ -103,7 +121,10 @@
     --panel-bg: rgba(234, 243, 255, 0.02);       /* 几乎透明,和左侧背板一致 */
     --panel-dash: 18 7 5 6 30 9;                 /* ★ 断续节拍(和左侧同语言)*/
     --panel-node: 6px;                           /* ★ 四角节点尺寸 */
-    --panel-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Cascadia Mono", monospace;
+    /* ★ UI 字体栈:Alpha Sector 负责拉丁与数字,中文自动回退 */
+    --ui-font: "Alpha Sector", "Orbitron", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --ui-font-cjk: "Alpha Sector", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", ui-monospace, monospace;
+    --panel-mono: var(--ui-font);
     --panel-fs: 12px;                     /* 字号 */
     --panel-ls: 0.14em;                   /* 字距 */
     --panel-dot: 6px;                     /* 指示灯直径 */
@@ -206,6 +227,7 @@
 }
 
 .holo-title {
+    font-family: var(--ui-font-cjk);
     font-size: var(--title-size);
     font-weight: 500;
     letter-spacing: var(--title-ls);
@@ -554,6 +576,7 @@
 }
 
 .song-ring__midltr {
+    font-family: var(--ui-font-cjk);
     position: absolute;
     left: 50%;
     top: 50%;
@@ -591,6 +614,7 @@
 }
 
 .song-ring__ltr {
+    font-family: var(--ui-font);
     position: absolute;
     left: 50%;
     top: 50%;

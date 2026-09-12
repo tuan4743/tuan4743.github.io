@@ -193,7 +193,8 @@
   function select(i) {
     if (locked) return;
     if (i < 0 || i >= cds.length) return;
-    if (i === selIndex) { confirmTheme(); return; }
+    /* 点击已经选中的那张盘:不再插入(插入只走侧边按钮)*/
+    if (i === selIndex) return;
     selIndex = i;
     layout();
     if (cd3dApi) cd3dApi.setSelection(selIndex);
@@ -752,13 +753,12 @@
             var i = cdOrder.indexOf(key);
             if (i === -1) return;
             console.info("[cd3d] 点击 CD:", key);
-            /* 单击即选中并插入(无需点两次) */
+            /* 单击只负责选中,不再插入(插入只走侧边按钮)*/
             if (i !== selIndex) {
               selIndex = i;
               layout();
               cd3dApi.setSelection(i);
             }
-            confirmTheme();
           },
           onScroll: function (dir) { step(dir); }
         }).then(function (api) {
