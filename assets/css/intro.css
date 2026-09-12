@@ -370,8 +370,8 @@ body.statusbar-hidden .statusbar-toggle svg {
     width: max-content;
     max-width: var(--rack-text-w);
     overflow-wrap: break-word;
-    /* 让开折线:左 36 / 上 30 / 右 32 / 下 40 */
-    padding: 30px 32px 40px 36px;
+    /* 让开折线:左 40 / 上 34 / 右 38 / 下 38(面板做大后折线才有地方展开)*/
+    padding: 34px 38px 38px 40px;
 }
 
 .holo-frame {

@@ -115,28 +115,28 @@
                     <div class="rack-info-top">
                         <!-- 全息面板:这块 UI 的形状本身就是不规则折线多边形
                              (带缺口的斜角边 + 内圈斜切面 + 顶点节点),不是一个矩形外框 -->
-                        <svg class="holo-frame" viewBox="0 0 168 132" preserveAspectRatio="none" aria-hidden="true">
+                        <svg class="holo-frame" viewBox="0 0 190 150" preserveAspectRatio="none" aria-hidden="true">
                             <defs>
                                 <linearGradient id="holoFill" x1="0" y1="0" x2="0.7" y2="1">
-                                    <stop offset="0%" stop-color="currentColor" stop-opacity="0.18"></stop>
-                                    <stop offset="55%" stop-color="currentColor" stop-opacity="0.05"></stop>
-                                    <stop offset="100%" stop-color="currentColor" stop-opacity="0.12"></stop>
+                                    <stop offset="0%" stop-color="currentColor" stop-opacity="0.2"></stop>
+                                    <stop offset="55%" stop-color="currentColor" stop-opacity="0.06"></stop>
+                                    <stop offset="100%" stop-color="currentColor" stop-opacity="0.13"></stop>
                                 </linearGradient>
                             </defs>
-                            <!-- 面板本体:硬折线,带缺口、台阶和一个右凸台 -->
-                            <path class="holo-fill" d="M6 30 L24 9 L56 9 L64 2 L112 2 L120 12 L142 12 L156 26 L156 40 L167 50 L167 96 L150 106 L150 122 L98 122 L88 130 L32 130 L24 120 L8 120 L2 106 L2 44 Z"></path>
-                            <path class="holo-line" d="M6 30 L24 9 L56 9 L64 2 L112 2 L120 12 L142 12 L156 26 L156 40 L167 50 L167 96 L150 106 L150 122 L98 122 L88 130 L32 130 L24 120 L8 120 L2 106 L2 44 Z"></path>
-                            <!-- 内圈斜切面(低多边形投影感)-->
-                            <path class="holo-line holo-line-2" d="M6 30 L24 9 M64 2 L56 9 M120 12 L112 2 M156 26 L142 12 M156 40 L167 50 M167 96 L150 106 M150 122 L98 122 M88 130 L32 130 M8 120 L24 120 M2 106 L8 120 M2 44 L6 30"></path>
-                            <!-- 四周短斜线,只走边角不压文字 -->
-                            <path class="holo-line holo-line-3" d="M6 30 L26 32 M64 2 L62 16 M142 12 L132 24 M156 40 L142 44 M167 96 L154 94 M150 122 L148 108 M88 130 L86 116 M32 130 L34 118 M2 106 L16 102 M2 44 L16 48"></path>
-                            <circle class="holo-node" cx="6" cy="30" r="1.8"></circle>
-                            <circle class="holo-node" cx="64" cy="2" r="1.8"></circle>
-                            <circle class="holo-node" cx="156" cy="40" r="1.8"></circle>
-                            <circle class="holo-node" cx="167" cy="96" r="1.8"></circle>
-                            <circle class="holo-node" cx="88" cy="130" r="1.8"></circle>
-                            <circle class="holo-node" cx="2" cy="106" r="1.8"></circle>
-                            <circle class="holo-node" cx="2" cy="44" r="1.8"></circle>
+                            <!-- 面板本体:硬折线,带大切角 / 内凹缺口 / 凸台 -->
+                            <path class="holo-fill" d="M4 52 L34 11 L82 11 L96 1 L134 1 L148 16 L170 16 L186 38 L186 70 L170 84 L186 98 L186 118 L148 146 L46 146 L26 132 L4 132 L4 100 L18 86 L4 72 Z"></path>
+                            <path class="holo-line" d="M4 52 L34 11 L82 11 L96 1 L134 1 L148 16 L170 16 L186 38 L186 70 L170 84 L186 98 L186 118 L148 146 L46 146 L26 132 L4 132 L4 100 L18 86 L4 72 Z"></path>
+                            <!-- 内圈斜切面 -->
+                            <path class="holo-line holo-line-2" d="M4 52 L34 11 M96 1 L82 11 M134 1 L148 16 M186 38 L170 16 M186 70 L170 84 M186 118 L186 98 M148 146 L186 118 M46 146 L26 132 M4 132 L26 132 M4 100 L18 86 M4 72 L4 100 Z"></path>
+                            <!-- 边角短斜线(只走四周,不压文字)-->
+                            <path class="holo-line holo-line-3" d="M4 52 L30 54 M96 1 L94 18 M170 16 L158 30 M186 70 L170 70 M186 118 L168 114 M148 146 L146 130 M46 146 L48 132 M4 100 L20 96 M4 72 L20 76"></path>
+                            <circle class="holo-node" cx="4" cy="52" r="1.9"></circle>
+                            <circle class="holo-node" cx="96" cy="1" r="1.9"></circle>
+                            <circle class="holo-node" cx="186" cy="70" r="1.9"></circle>
+                            <circle class="holo-node" cx="186" cy="118" r="1.9"></circle>
+                            <circle class="holo-node" cx="46" cy="146" r="1.9"></circle>
+                            <circle class="holo-node" cx="4" cy="100" r="1.9"></circle>
+                            <circle class="holo-node" cx="18" cy="86" r="1.9"></circle>
                         </svg>
                         <h2 class="rack-theme">{{ .title }}</h2>
                         <p class="rack-caption">{{ .caption | default .text }}</p>
