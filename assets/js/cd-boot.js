@@ -145,6 +145,10 @@
 
     return {
       total: T.fill + T.hold + T.fall + 60,
+      /* ★ 黑屏要留到"贴满并开始下落"那一刻:
+         这段时间里页面仍被黑底盖着,emoji 一层层贴上去,
+         等铺满了再撤黑屏(而不是一接手就撤,那时还没盖住页面) */
+      blackUntil: T.fill + T.hold,
       draw: function (el) {
         for (var i = 0; i < pieces.length; i++) {
           var e = pieces[i];

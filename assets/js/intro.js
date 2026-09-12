@@ -443,7 +443,11 @@
     window.__bootLastAt = Math.round(t0);
     window.__bootStyle = used;
     window.__bootTotalMs = Math.round(tEnd);
-    window.__bootPhases = { full: tFull, holdEnd: tFadeIn, panel: tPanel, sceneEnd: tEnd };
+    window.__bootPhases = {
+      full: tFull, holdEnd: tFadeIn, panel: tPanel,
+      black: tPanel + (scene.blackUntil || 0),      /* 黑屏撤掉的时刻 */
+      sceneEnd: tEnd
+    };
     var droppedBlack = false;
 
     /* 共用的 loading(黑屏 + 转动的六边形 + 百分比)*/
@@ -503,8 +507,11 @@
         return;
       }
       /* 交给 scene 之后就不再铺全屏黑底:"谁盖住页面"由 scene 自己负责,
-         这样它才能一块一块地把页面露出来 */
-      if (!droppedBlack) { staticWrap.classList.remove("is-black"); droppedBlack = true; }
+         这样它才能一块一块地把页面露出来。
+         但若场景声明了 blackUntil(此刻它还没盖住页面),黑屏就再留一会儿 ——
+         否则铺满之前页面会从缝隙里透出来(emoji 场景正是如此) */
+      var holdBlack = tPanel + (scene.blackUntil || 0);
+      if (!droppedBlack && el >= holdBlack) { staticWrap.classList.remove("is-black"); droppedBlack = true; }
       scene.draw(el - tPanel);
       staticCtx.setLineDash([]);
       staticCtx.globalAlpha = 1;
