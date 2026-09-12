@@ -426,6 +426,10 @@
     var W = staticCv.width, H = staticCv.height;
     staticWrap.classList.add("is-on");        /* 画布可见(opacity:1)—— 少了这个,撤掉 is-black 后
                                                  opacity 会退回 0,整个动画就"看不见"了 */
+    /* 开工前把上一轮收尾留下的内联隐藏清掉,否则这次动画会看不见 */
+    staticWrap.style.opacity = "";
+    staticWrap.style.visibility = "";
+    staticWrap.style.transition = "";
     staticWrap.classList.add("is-black");     /* 起手:黑屏 + 不透明 */
     var accent = "#22d3ee";
     try {
@@ -495,6 +499,11 @@
         staticCtx.setTransform(1, 0, 0, 1, 0, 0);
         staticCtx.clearRect(0, 0, W, H);
         if (POST) POST.reset();          /* 离屏也清掉,避免收尾时残留最后一帧 */
+        /* 确定性收尾:不依赖"清画布"这一件事 ——
+           直接把这一层隐掉(内联样式优先级最高),彻底杜绝残留的泛光/扫描线/噪点 */
+        staticWrap.style.opacity = "0";
+        staticWrap.style.visibility = "hidden";
+        staticWrap.style.transition = "none";
         staticWrap.classList.remove("is-black");
         staticWrap.classList.remove("is-on");
         bootRAF = 0;
