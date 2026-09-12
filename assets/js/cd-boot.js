@@ -254,142 +254,193 @@
   }
 
   /* ================= 3. 水面 + 鱼群(迷茫) ================= */
-  function sceneWater(ctx, W, H, accent) {
-    loadWhale();
-    var RISE = 950, HOLD = 1500, EBB = 850;
-    var fish = [];
-    for (var i = 0; i < 10; i++) {
-      fish.push({
-        y: rand(0.12, 0.92),
-        r: rand(0.035, 0.085) * Math.min(W, H),
-        sp: rand(0.10, 0.26) * (Math.random() > 0.5 ? 1 : -1),
-        x: Math.random(),
-        ph: rand(0, 6.28),
-        hue: rand(0.48, 0.56),
-        boss: i === 0                       /* 第一条大鱼 = 写着站名的彩蛋鱼 */
-      });
-    }
-    fish[0].r *= 2.15;
-    fish[0].y = 0.62;                        /* 位置固定一点,保证在"水盖满"那段里看得见 */
-    fish[0].sp = 0.16;
-    /* DeepSeek 鲸鱼:横穿的时间固定在水盖满的那一段,保证一定看得到 */
-    var whale = { y: 0.4 };
+  function sceneWater(ctx, W, H) {
+    /* ======================= 像素火车驶过云海(迷茫) =======================
+       要点:云层密度低 / 蓝黑配色 / 雨自右上往左下 / 火车可驶出屏幕 /
+            出屏瞬间以圆扩散清除动画
+       实现:内部用 1/4 分辨率作画再放大(真像素风),云层用预生成的滚动条带(省性能) */
+    var S = 4;                                  /* 像素块大小 */
+    var w = Math.max(80, Math.round(W / S)), h = Math.max(60, Math.round(H / S));
+    if (!_cloudBuf || _cloudBuf.w !== w || _cloudBuf.h !== h) buildCloudStrip(w, h);
 
-    function level(el) {
-      if (el < RISE) return easeOutQuad(el / RISE) * 1.12;
-      if (el < RISE + HOLD) return 1.12;
-      return 1.12 * (1 - easeInOut(clamp((el - RISE - HOLD) / EBB, 0, 1)));
-    }
-    function surface(base, x, el) {
-      return base
-        + Math.sin(x / W * Math.PI * 6 + el / 620) * (7 + 9 * Math.min(1, Math.max(0, base) / H))
-        + Math.sin(x / W * Math.PI * 15 - el / 380) * 4
-        + Math.sin(x / W * Math.PI * 2.5 + el / 900) * 6;
-    }
-    /* 鱼:梭形身 + 尾鳍(没有背鳍了 —— 之前那个立起来的鳍看着像独角) */
-    function fishBody(x, y, r, wig, dir) {
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.scale(dir, 1);
-      ctx.beginPath();
-      ctx.moveTo(-r * 1.5, 0);
-      ctx.quadraticCurveTo(-r * 0.15, -r * 0.88, r * 1.15, 0);
-      ctx.quadraticCurveTo(-r * 0.15, r * 0.88, -r * 1.5, 0);
-      ctx.closePath();
-      ctx.fill();
-      ctx.beginPath();                                   /* 尾鳍(接头往身体里多伸一点,免得看着断开)*/
-      ctx.moveTo(-r * 1.15, 0);
-      ctx.lineTo(-r * 2.35, -r * (0.62 + wig));
-      ctx.lineTo(-r * 1.95, 0);
-      ctx.lineTo(-r * 2.35, r * (0.62 - wig));
-      ctx.closePath();
-      ctx.fill();
-      ctx.beginPath();                                   /* 眼睛 */
-      ctx.arc(r * 0.62, -r * 0.1, Math.max(1.1, r * 0.09), 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(4,22,31,0.85)";
-      ctx.fill();
-      ctx.restore();
+    var horizon = Math.round(h * 0.56);          /* 云海地平线 */
+    var TRAVEL = 2600;                           /* 火车横穿屏幕用时 */
+    var WIPE = 900;                              /* 出屏后圆形清除用时 */
+    var total = TRAVEL + WIPE + 120;
+
+    /* 火车 sprite:车头 + 两节车厢(全部用方块拼,放大后就是像素火车)*/
+    function drawTrain(g, ox, oy, t) {
+      var body = "#d7e6ff", dark = "#1b2233", win = "#8fd8ff", hot = "#ff9a3c";
+      function car(x, y, cw, ch) {
+        g.fillStyle = body; g.fillRect(x, y, cw, ch);
+        g.fillStyle = dark; g.fillRect(x, y + ch - 2, cw, 2);
+        g.fillStyle = win;
+        for (var k = 0; k + 3 <= cw - 4; k += 5) g.fillRect(x + 2 + k, y + 2, 3, 3);
+      }
+      /* 车头 */
+      g.fillStyle = dark; g.fillRect(ox + 1, oy + 3, 16, 8);
+      g.fillStyle = body; g.fillRect(ox + 2, oy + 4, 14, 6);
+      g.fillStyle = win; g.fillRect(ox + 3, oy + 5, 4, 3);
+      g.fillStyle = hot; g.fillRect(ox + 14, oy + 5, 2, 3);
+      /* 烟囱冒烟:随 t 往上飘 */
+      var smoke = (t / 260) % 1;
+      g.fillStyle = "rgba(200, 225, 255, " + (0.5 * (1 - smoke)).toFixed(2) + ")";
+      g.fillRect(ox + 4, oy + 1 - smoke * 6, 2, 2);
+      /* 车厢两节 */
+      car(ox + 20, oy + 4, 18, 7);
+      car(ox + 41, oy + 4, 16, 7);
+      /* 轮子 */
+      g.fillStyle = dark;
+      var wy = oy + 11;
+      [4, 12, 24, 34, 45, 53].forEach(function (dx) { g.fillRect(ox + dx, wy, 3, 2); });
+      /* 车头前方的灯柱(照亮前方的云)*/
+      var lg = g.createLinearGradient(ox + 16, oy + 6, ox + 60, oy + 14);
+      lg.addColorStop(0, "rgba(200, 235, 255, 0.30)");
+      lg.addColorStop(1, "rgba(200, 235, 255, 0)");
+      g.fillStyle = lg;
+      g.beginPath();
+      g.moveTo(ox + 16, oy + 6); g.lineTo(ox + 62, oy + 1); g.lineTo(ox + 62, oy + 15);
+      g.closePath(); g.fill();
     }
 
     return {
-      total: RISE + HOLD + EBB + 60,
+      total: total,
+      /* 起手就把黑屏撤掉:这一场自己铺满整屏(不依赖黑底)*/
+      blackUntil: 0,
       draw: function (el) {
-        var lv = level(el);
-        var base = H * (1 - lv);
-        var g = ctx.createLinearGradient(0, Math.min(base, 0), 0, H);
-        g.addColorStop(0, "#1d6b8c");
-        g.addColorStop(0.25, "#0d4460");
-        g.addColorStop(1, "#04141f");
-        ctx.beginPath();
-        ctx.moveTo(-20, H + 40);
-        for (var x = -20; x <= W + 20; x += 24) ctx.lineTo(x, surface(base, x, el));
-        ctx.lineTo(W + 20, H + 40);
-        ctx.closePath();
-        ctx.fillStyle = g;
-        ctx.fill();
+        /* ---- 1. 在低分辨率画布上作画 ---- */
+        var g = _cloudBuf.ctx;
+        g.setTransform(1, 0, 0, 1, 0, 0);
+        g.globalCompositeOperation = "source-over";
+        g.globalAlpha = 1;
+        g.clearRect(0, 0, w, h);
+
+        /* 天空:蓝黑渐变 */
+        var sky = g.createLinearGradient(0, 0, 0, horizon);
+        sky.addColorStop(0, "#060b18");
+        sky.addColorStop(0.55, "#0b1730");
+        sky.addColorStop(1, "#132444");
+        g.fillStyle = sky;
+        g.fillRect(0, 0, w, horizon + 2);
+
+        /* 星星(稀疏)*/
+        g.fillStyle = "rgba(200, 225, 255, 0.55)";
+        for (var si = 0; si < 46; si++) {
+          var sx = (si * 97) % w, sy = (si * 53) % Math.round(horizon * 0.75);
+          if ((si * 31) % 7 === 0) g.fillRect(sx, sy, 1, 1);
+        }
+
+        /* 云海:滚动条带(向左漂移)*/
+        var scroll = (el * 0.045) % _cloudBuf.stripW;
+        g.drawImage(_cloudBuf.strip, -scroll, horizon, _cloudBuf.stripW, h - horizon);
+        g.drawImage(_cloudBuf.strip, _cloudBuf.stripW - scroll, horizon, _cloudBuf.stripW, h - horizon);
+
+        /* 靠近地平线的一层薄雾,让云海和天空衔接 */
+        var haze = g.createLinearGradient(0, horizon - 6, 0, horizon + 14);
+        haze.addColorStop(0, "rgba(20, 40, 80, 0)");
+        haze.addColorStop(1, "rgba(12, 24, 48, 0.85)");
+        g.fillStyle = haze;
+        g.fillRect(0, horizon - 6, w, 20);
+
+        /* ---- 2. 火车:从左侧进、向右驶出屏幕 ---- */
+        var travel = Math.min(1, el / TRAVEL);
+        var tx = -70 + travel * (w + 140);            /* 走完全程即出屏 */
+        var bob = Math.round(Math.sin(el / 130) * 1);
+        drawTrain(g, Math.round(tx), Math.round(horizon - 4 + bob), el);
+
+        /* ---- 3. 雨:自右上往左下(斜向细线)*/
+        g.strokeStyle = "rgba(170, 215, 255, 0.5)";
+        g.lineWidth = 1;
+        for (var ri = 0; ri < 110; ri++) {
+          var seed = (ri * 2654435761) % 1000 / 1000;
+          var rv = ((ri * 40503) % 997) / 997;
+          var fall = (el * (0.55 + rv * 0.5)) % (h + 40);
+          var rx = (seed * w + fall * 0.42) % (w + 40) - 20;
+          var ry = (rv * h + fall) % (h + 40) - 20;
+          var len = 5 + rv * 7;
+          g.beginPath();
+          g.moveTo(rx, ry);
+          g.lineTo(rx - len * 0.42, ry + len);        /* 往左下 */
+          g.stroke();
+        }
+
+        /* ---- 4. 出屏瞬间:以出屏点为圆心扩散清除 ---- */
+        if (el > TRAVEL) {
+          var k = Math.min(1, (el - TRAVEL) / WIPE);
+          var cxp = w + 10, cyp = horizon - 4;         /* 出屏点的位置 */
+          var maxR = Math.hypot(w, h) * 1.25;
+          g.save();
+          g.globalCompositeOperation = "destination-out";
+          g.beginPath();
+          g.arc(cxp, cyp, k * maxR, 0, Math.PI * 2);
+          g.fillStyle = "rgba(0,0,0,1)";
+          g.fill();
+          g.restore();
+          /* 圆环的亮边,让"清除"这个动作看得见 */
+          g.save();
+          g.globalCompositeOperation = "lighter";
+          g.strokeStyle = "rgba(180, 230, 255, " + (0.75 * (1 - k)).toFixed(2) + ")";
+          g.lineWidth = 2;
+          g.beginPath();
+          g.arc(cxp, cyp, k * maxR, 0, Math.PI * 2);
+          g.stroke();
+          g.restore();
+        }
+
+        /* ---- 5. 放大到真实尺寸:关掉平滑 → 真像素风 ---- */
         ctx.save();
-        ctx.clip();
-        ctx.beginPath();
-        for (var x2 = -20; x2 <= W + 20; x2 += 24) {
-          if (x2 === -20) ctx.moveTo(x2, surface(base, x2, el)); else ctx.lineTo(x2, surface(base, x2, el));
-        }
-        ctx.strokeStyle = "rgba(190,240,255,0.55)";
-        ctx.lineWidth = 2.5;
-        ctx.stroke();
-        var t = el / 1000;
-        /* 小鱼 */
-        for (var i = 0; i < fish.length; i++) {
-          var f = fish[i];
-          var fx = ((f.x + f.sp * t) % 1.6 + 1.6) % 1.6 - 0.3;
-          var px = fx * W, py = f.y * H;
-          if (py < surface(base, px, el) + f.r * 0.4) continue;
-          ctx.globalAlpha = 0.9;
-          ctx.fillStyle = "hsl(" + Math.round(f.hue * 360) + " " + Math.round(45 + f.r * 2) + "% " + Math.round(58 + Math.sin(f.ph) * 12) + "%)";
-          fishBody(px, py, f.r, Math.sin(t * 7 + f.ph) * 0.55, f.sp > 0 ? 1 : -1);
-          if (f.boss) {                                      /* 彩蛋:大鱼身上写着站名 */
-            ctx.globalAlpha = 0.5;
-            ctx.fillStyle = "#04222f";
-            ctx.font = "700 " + Math.round(f.r * 0.42) + "px ui-monospace, Consolas, monospace";
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.save();
-            ctx.translate(px, py);
-            ctx.scale(f.sp > 0 ? 1 : -1, 1);
-            ctx.fillText("TUAGFEY", -f.r * 0.15, 0);
-            ctx.restore();
-          }
-        }
-        /* DeepSeek 鲸鱼(彩蛋):在"水盖满"那段时间里从左边横穿到右边 */
-        if (_whale) {
-          var wp = clamp((el - RISE * 0.55) / (HOLD * 0.95), 0, 1);
-          if (wp > 0 && wp < 1) {
-            var wr = Math.min(W, H) * 0.032;             /* 缩小五倍的小鲸鱼 */
-            var ww = wr * 2.4, wh = ww * (200 / 254);
-            var wpx = (-0.2 + wp * 1.4) * W;
-            var wpy = whale.y * H + Math.sin(t * 1.1) * 16;
-            if (wpy > surface(base, wpx, el) + wh * 0.5) {
-              ctx.save();
-              ctx.globalAlpha = 0.95;
-              ctx.translate(wpx, wpy);
-              ctx.rotate(Math.sin(t * 1.1) * 0.07);
-              ctx.drawImage(_whale, -ww / 2, -wh / 2, ww, wh);
-              ctx.restore();
-            }
-          }
-        }
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.globalCompositeOperation = "source-over";
         ctx.globalAlpha = 1;
-        for (var b = 0; b < 26; b++) {
-          var bx = ((b * 97 % 100) / 100) * W + Math.sin(t * 1.4 + b) * 14;
-          var by = H - ((t * (24 + b % 7 * 9) + b * 61) % (H + 60));
-          if (by < base) continue;
-          ctx.beginPath();
-          ctx.arc(bx, by, 1.6 + (b % 3), 0, Math.PI * 2);
-          ctx.fillStyle = "rgba(200,240,255,0.35)";
-          ctx.fill();
-        }
+        ctx.imageSmoothingEnabled = false;
+        ctx.clearRect(0, 0, W, H);
+        ctx.drawImage(_cloudBuf.buf, 0, 0, w, h, 0, 0, W, H);
         ctx.restore();
       }
     };
+  }
+
+  /* ---- 云海条带:只生成一次,之后滚动复用(密度低 → 阈值高)---- */
+  var _cloudBuf = null;
+  function buildCloudStrip(w, h) {
+    var stripW = w * 2;
+    var cv = document.createElement("canvas");
+    cv.width = stripW; cv.height = Math.max(8, h);
+    var g = cv.getContext("2d");
+    var low = Math.round(h * 0.56);                       /* 云海从地平线开始 */
+    var bandH = Math.max(6, h - low);
+    var img = g.createImageData(stripW, bandH);
+    var d = img.data;
+    function hash(x, y) {
+      var n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
+      return n - Math.floor(n);
+    }
+    function noise(x, y) {
+      var xi = Math.floor(x), yi = Math.floor(y);
+      var xf = x - xi, yf = y - yi;
+      var u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+      var a = hash(xi, yi), b = hash(xi + 1, yi), c = hash(xi, yi + 1), e = hash(xi + 1, yi + 1);
+      return a * (1 - u) * (1 - v) + b * u * (1 - v) + c * (1 - u) * v + e * u * v;
+    }
+    for (var y = 0; y < bandH; y++) {
+      var depth = y / bandH;                               /* 0 近地平线,1 最下面 */
+      for (var x = 0; x < stripW; x++) {
+        /* 两层噪声:fbm */
+        var n = noise(x * 0.045, y * 0.16) * 0.65 + noise(x * 0.11, y * 0.34) * 0.35;
+        /* 密度低:阈值抬高;越往下越密(形成"云海"的纵深)*/
+        var th = 0.62 - depth * 0.20;
+        var v = Math.max(0, (n - th) / (1 - th));
+        var shade = Math.min(1, v * (0.55 + depth * 0.75));
+        var i = (y * stripW + x) * 4;
+        var r = Math.round(38 + 168 * shade);
+        var gg = Math.round(62 + 178 * shade);
+        var b = Math.round(104 + 150 * shade);
+        d[i] = Math.max(r, 10); d[i + 1] = Math.max(gg, 16); d[i + 2] = Math.max(b, 34);
+        d[i + 3] = Math.round(255 * Math.min(1, shade * 1.5));
+      }
+    }
+    g.putImageData(img, 0, 0);
+    _cloudBuf = { buf: cv, ctx: cv.getContext("2d"), strip: cv, stripW: stripW, w: w, h: h };
   }
 
   /* ================= 4. 故障(技术) =================

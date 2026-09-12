@@ -212,7 +212,8 @@
     rgbSplit(ctx, W, H, 1.2, 0.18);
   }
 
-  var MAP = { emoji: fxEmoji, hex: fxHex, water: fxWater, glitch: fxGlitch, fractal: fxFractal };
+  /* water 已换成"像素火车驶过云海"场景,自带雨与圆形清除,这里不再叠加水波 */
+  var MAP = { emoji: fxEmoji, hex: fxHex, glitch: fxGlitch, fractal: fxFractal };
 
   window.CDBootFx = {
     apply: function (name, ctx, W, H, el, info) {
