@@ -403,22 +403,33 @@
   function sceneGlitch(ctx, W, H, accent) {
     loadTechCover();
     var HALF = 1150, REV = 900;
-    var word = "WARING!!!DISK ERROR!!!";
+    var _glitchEl = 0;   /* 当前时间:绘制回调里要用 */
+    /* 改成"多条小字从右侧滚出":像系统在刷错误日志 */
+    var WARN_LINES = [
+      "E: SECTOR 0x3F2A UNREADABLE",
+      "E: TRACK 04 CHECKSUM MISMATCH",
+      "W: RETRY 3/5 ... FAILED",
+      "E: DISK ERROR 0x0C1D",
+      "W: FALLBACK TO PARITY",
+      "E: HEAD REALIGN REQUIRED"
+    ];
     var bands = 22;
 
     function corrupt(drawWhat) {
       ctx.fillStyle = "#05070c";
       ctx.fillRect(0, 0, W, H);
       /* 随机横向条带错位 */
-      var step = 24;
+      /* 横线:只做"局部的一小段",又细又淡 ——
+         之前是整屏宽的实心条,所以看着很劣质 */
+      var step = 34;
       for (var y = 0; y < H; y += step) {
-        if (Math.random() > 0.45) continue;
-        var off = (Math.random() - 0.5) * 90;
+        if (Math.random() > 0.34) continue;
+        var segW = W * rand(0.12, 0.42);                 /* 局部宽度 */
+        var segX = Math.random() * (W - segW);
         ctx.save();
-        ctx.beginPath(); ctx.rect(0, y, W, step - 2); ctx.clip();
-        ctx.globalAlpha = rand(0.05, 0.2);
+        ctx.globalAlpha = rand(0.03, 0.09);              /* 更淡 */
         ctx.fillStyle = Math.random() > 0.5 ? accent : "#ff2d55";
-        ctx.fillRect(off, y, W, step - 2);
+        ctx.fillRect(segX + (Math.random() - 0.5) * 40, y + rand(4, step - 6), segW, 1);   /* 细到 1px */
         ctx.restore();
       }
       ctx.globalAlpha = 1;
@@ -466,33 +477,46 @@
     }
 
     function errorText() {
-      var big = Math.round(Math.min(W / (word.length * 0.62), H * 0.24));
+      var big = Math.round(Math.min(W * 0.06, H * 0.18));   /* 多条小字用不到大字,保留一个安全值 */
       var jx = (Math.random() - 0.5) * big * 0.22, jy = (Math.random() - 0.5) * big * 0.14;
       var lw = Math.max(2, big * 0.07);
       ctx.font = "900 " + big + "px Impact, 'Arial Black', sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.lineJoin = "round";
-      /* 红蓝分离的描边重影 */
-      ctx.globalCompositeOperation = "screen";
-      ctx.lineWidth = lw;
-      ctx.strokeStyle = "#ff0033";
-      ctx.strokeText(word, W / 2 + jx + big * 0.035, H / 2 + jy);
-      ctx.strokeStyle = "#0066ff";
-      ctx.strokeText(word, W / 2 + jx - big * 0.035, H / 2 + jy);
-      ctx.globalCompositeOperation = "source-over";
-      /* 正体:红色描边 + 深色内填 */
-      ctx.lineWidth = lw;
-      ctx.strokeStyle = "#ff2d4d";
-      ctx.strokeText(word, W / 2 + jx, H / 2 + jy);
-      ctx.fillStyle = "#0a0d14";
-      ctx.fillText(word, W / 2 + jx, H / 2 + jy);
+      /* 多条小字,自右向左滚动划出;每条有自己的速度与纵向位置 */
+      var fs3 = Math.max(11, Math.round(Math.min(W, H) * 0.026));
+      ctx.font = fs3 + "px \"Alpha Sector\", ui-monospace, Menlo, Consolas, monospace";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      for (var wi = 0; wi < WARN_LINES.length; wi++) {
+        var line = WARN_LINES[wi];
+        var ly = H * (0.16 + wi * 0.13);
+        /* 每条的速度不同,而且带一点错峰 */
+        var spd = 0.16 + (wi % 3) * 0.05;
+        var total2 = W + ctx.measureText(line).width + 40;
+        var lx = W + 20 - ((_glitchEl * spd + wi * 150) % total2);
+        var a = 0.85;
+        /* 红蓝分离的描边重影(幅度小一点,别糊) */
+        ctx.globalCompositeOperation = "screen";
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = a * 0.55;
+        ctx.strokeStyle = "#ff0033";
+        ctx.strokeText(line, lx + 2.2, ly);
+        ctx.strokeStyle = "#0066ff";
+        ctx.strokeText(line, lx - 2.2, ly);
+        ctx.globalCompositeOperation = "source-over";
+        ctx.globalAlpha = a;
+        ctx.fillStyle = "#ffe9ec";
+        ctx.fillText(line, lx, ly);
+      }
       ctx.globalAlpha = 1;
     }
 
     return {
       total: HALF * 2 + REV,
       draw: function (el) {
+        _glitchEl = el;
         if (el < HALF) { corrupt(cover); return; }
         if (el < HALF * 2) { corrupt(errorText); return; }
         var p = clamp((el - HALF * 2) / REV, 0, 1);

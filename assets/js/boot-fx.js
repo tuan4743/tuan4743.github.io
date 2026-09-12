@@ -93,6 +93,13 @@
 
   /* ---------- hex:六边形网格扫掠点亮 + 电路光点沿边走 ---------- */
   function fxHex(ctx, W, H, el) {
+    /* 只由本特效作画:先清屏 —— 否则会和场景自带的六边形动画叠成'两个矩阵' */
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = "source-over";
+    ctx.clearRect(0, 0, W, H);
+    ctx.restore();
     /* ---- 时间轴(照着范例的手感重排)----
        0.00 ~ 0.75s  逐格"自己画一圈" + 淡入   (随机顺序,每格 2ms stagger)
        0.55 ~ 1.55s  从中心向外塌缩 scale→0    (每格 4ms stagger,与上一段重叠)
