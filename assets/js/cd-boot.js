@@ -255,147 +255,91 @@
 
   /* ================= 3. 水面 + 鱼群(迷茫) ================= */
   function sceneWater(ctx, W, H) {
-    /* ======================= 像素火车驶过云海(迷茫) =======================
-       要点:云层密度低 / 蓝黑配色 / 雨自右上往左下 / 火车可驶出屏幕 /
-            出屏瞬间以圆扩散清除动画
-       实现:内部用 1/4 分辨率作画再放大(真像素风),云层用预生成的滚动条带(省性能) */
-    var S = 4;                                  /* 像素块大小 */
-    var w = Math.max(80, Math.round(W / S)), h = Math.max(60, Math.round(H / S));
-    if (!_cloudBuf || _cloudBuf.w !== w || _cloudBuf.h !== h) buildCloudStrip(w, h);
-
-    var horizon = Math.round(h * 0.56);          /* 云海地平线 */
-    var TRAVEL = 2600;                           /* 火车横穿屏幕用时 */
-    var WIPE = 900;                              /* 出屏后圆形清除用时 */
+    /* ================= 迷茫:像素火车驶过云海(真 GLSL) =================
+       着色器来自用户提供的 Shadertoy 源码(train.glsl),做了四处改造:
+         · 云层密度参数化 uCloud(越大云越稀)
+         · 去掉 Shadertoy 的 iChannel1 图像输入
+         · 末尾加色相旋转 + 冷色偏移 + 压暗 → 橙红变蓝黑
+         · 雨与"出屏圆形清除"仍在 2D 层叠加(更好控制时机)
+       渲染在离屏 WebGL 画布上,再 drawImage 到 2D 画布(与现有管线共存)。 */
+    var URL = "/shaders/train.glsl";
+    var TRAVEL = 3200;        /* 这一场的主体时长 */
+    var WIPE = 1000;          /* 出屏后圆形清除用时 */
     var total = TRAVEL + WIPE + 120;
+    if (window.CDBootGlsl) window.CDBootGlsl.preload("train", URL);
 
-    /* 火车 sprite:车头 + 两节车厢(全部用方块拼,放大后就是像素火车)*/
-    function drawTrain(g, ox, oy, t) {
-      var body = "#d7e6ff", dark = "#1b2233", win = "#8fd8ff", hot = "#ff9a3c";
-      function car(x, y, cw, ch) {
-        g.fillStyle = body; g.fillRect(x, y, cw, ch);
-        g.fillStyle = dark; g.fillRect(x, y + ch - 2, cw, 2);
-        g.fillStyle = win;
-        for (var k = 0; k + 3 <= cw - 4; k += 5) g.fillRect(x + 2 + k, y + 2, 3, 3);
+    /* 雨:自右上往左下 */
+    function drawRain(g, el) {
+      g.save();
+      g.strokeStyle = "rgba(170, 215, 255, 0.42)";
+      g.lineWidth = 1;
+      for (var ri = 0; ri < 120; ri++) {
+        var seed = ((ri * 2654435761) % 1000) / 1000;
+        var rv = ((ri * 40503) % 997) / 997;
+        var fall = (el * (0.5 + rv * 0.45)) % (H + 60);
+        var rx = (seed * W + fall * 0.45) % (W + 60) - 30;
+        var ry = (rv * H + fall) % (H + 60) - 30;
+        var len = 6 + rv * 9;
+        g.beginPath();
+        g.moveTo(rx, ry);
+        g.lineTo(rx - len * 0.45, ry + len);      /* 往左下 */
+        g.stroke();
       }
-      /* 车头 */
-      g.fillStyle = dark; g.fillRect(ox + 1, oy + 3, 16, 8);
-      g.fillStyle = body; g.fillRect(ox + 2, oy + 4, 14, 6);
-      g.fillStyle = win; g.fillRect(ox + 3, oy + 5, 4, 3);
-      g.fillStyle = hot; g.fillRect(ox + 14, oy + 5, 2, 3);
-      /* 烟囱冒烟:随 t 往上飘 */
-      var smoke = (t / 260) % 1;
-      g.fillStyle = "rgba(200, 225, 255, " + (0.5 * (1 - smoke)).toFixed(2) + ")";
-      g.fillRect(ox + 4, oy + 1 - smoke * 6, 2, 2);
-      /* 车厢两节 */
-      car(ox + 20, oy + 4, 18, 7);
-      car(ox + 41, oy + 4, 16, 7);
-      /* 轮子 */
-      g.fillStyle = dark;
-      var wy = oy + 11;
-      [4, 12, 24, 34, 45, 53].forEach(function (dx) { g.fillRect(ox + dx, wy, 3, 2); });
-      /* 车头前方的灯柱(照亮前方的云)*/
-      var lg = g.createLinearGradient(ox + 16, oy + 6, ox + 60, oy + 14);
-      lg.addColorStop(0, "rgba(200, 235, 255, 0.30)");
-      lg.addColorStop(1, "rgba(200, 235, 255, 0)");
-      g.fillStyle = lg;
-      g.beginPath();
-      g.moveTo(ox + 16, oy + 6); g.lineTo(ox + 62, oy + 1); g.lineTo(ox + 62, oy + 15);
-      g.closePath(); g.fill();
+      g.restore();
     }
 
     return {
       total: total,
-      /* 起手就把黑屏撤掉:这一场自己铺满整屏(不依赖黑底)*/
       blackUntil: 0,
       draw: function (el) {
-        /* ---- 1. 在低分辨率画布上作画 ---- */
-        var g = _cloudBuf.ctx;
-        g.setTransform(1, 0, 0, 1, 0, 0);
-        g.globalCompositeOperation = "source-over";
-        g.globalAlpha = 1;
-        g.clearRect(0, 0, w, h);
-
-        /* 天空:蓝黑渐变 */
-        var sky = g.createLinearGradient(0, 0, 0, horizon);
-        sky.addColorStop(0, "#060b18");
-        sky.addColorStop(0.55, "#0b1730");
-        sky.addColorStop(1, "#132444");
-        g.fillStyle = sky;
-        g.fillRect(0, 0, w, horizon + 2);
-
-        /* 星星(稀疏)*/
-        g.fillStyle = "rgba(200, 225, 255, 0.55)";
-        for (var si = 0; si < 46; si++) {
-          var sx = (si * 97) % w, sy = (si * 53) % Math.round(horizon * 0.75);
-          if ((si * 31) % 7 === 0) g.fillRect(sx, sy, 1, 1);
-        }
-
-        /* 云海:滚动条带(向左漂移)*/
-        var scroll = (el * 0.045) % _cloudBuf.stripW;
-        g.drawImage(_cloudBuf.strip, -scroll, horizon, _cloudBuf.stripW, h - horizon);
-        g.drawImage(_cloudBuf.strip, _cloudBuf.stripW - scroll, horizon, _cloudBuf.stripW, h - horizon);
-
-        /* 靠近地平线的一层薄雾,让云海和天空衔接 */
-        var haze = g.createLinearGradient(0, horizon - 6, 0, horizon + 14);
-        haze.addColorStop(0, "rgba(20, 40, 80, 0)");
-        haze.addColorStop(1, "rgba(12, 24, 48, 0.85)");
-        g.fillStyle = haze;
-        g.fillRect(0, horizon - 6, w, 20);
-
-        /* ---- 2. 火车:从左侧进、向右驶出屏幕 ---- */
-        var travel = Math.min(1, el / TRAVEL);
-        var tx = -70 + travel * (w + 140);            /* 走完全程即出屏 */
-        var bob = Math.round(Math.sin(el / 130) * 1);
-        drawTrain(g, Math.round(tx), Math.round(horizon - 4 + bob), el);
-
-        /* ---- 3. 雨:自右上往左下(斜向细线)*/
-        g.strokeStyle = "rgba(170, 215, 255, 0.5)";
-        g.lineWidth = 1;
-        for (var ri = 0; ri < 110; ri++) {
-          var seed = (ri * 2654435761) % 1000 / 1000;
-          var rv = ((ri * 40503) % 997) / 997;
-          var fall = (el * (0.55 + rv * 0.5)) % (h + 40);
-          var rx = (seed * w + fall * 0.42) % (w + 40) - 20;
-          var ry = (rv * h + fall) % (h + 40) - 20;
-          var len = 5 + rv * 7;
-          g.beginPath();
-          g.moveTo(rx, ry);
-          g.lineTo(rx - len * 0.42, ry + len);        /* 往左下 */
-          g.stroke();
-        }
-
-        /* ---- 4. 出屏瞬间:以出屏点为圆心扩散清除 ---- */
-        if (el > TRAVEL) {
-          var k = Math.min(1, (el - TRAVEL) / WIPE);
-          var cxp = w + 10, cyp = horizon - 4;         /* 出屏点的位置 */
-          var maxR = Math.hypot(w, h) * 1.25;
-          g.save();
-          g.globalCompositeOperation = "destination-out";
-          g.beginPath();
-          g.arc(cxp, cyp, k * maxR, 0, Math.PI * 2);
-          g.fillStyle = "rgba(0,0,0,1)";
-          g.fill();
-          g.restore();
-          /* 圆环的亮边,让"清除"这个动作看得见 */
-          g.save();
-          g.globalCompositeOperation = "lighter";
-          g.strokeStyle = "rgba(180, 230, 255, " + (0.75 * (1 - k)).toFixed(2) + ")";
-          g.lineWidth = 2;
-          g.beginPath();
-          g.arc(cxp, cyp, k * maxR, 0, Math.PI * 2);
-          g.stroke();
-          g.restore();
-        }
-
-        /* ---- 5. 放大到真实尺寸:关掉平滑 → 真像素风 ---- */
-        ctx.save();
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.globalCompositeOperation = "source-over";
         ctx.globalAlpha = 1;
-        ctx.imageSmoothingEnabled = false;
         ctx.clearRect(0, 0, W, H);
-        ctx.drawImage(_cloudBuf.buf, 0, 0, w, h, 0, 0, W, H);
-        ctx.restore();
+
+        /* ---- 1. GLSL:整屏背景 + 云海 + 火车 ---- */
+        var gl = window.CDBootGlsl ? window.CDBootGlsl.render("train", URL, el / 1000 * 4.0, W, H, {
+          cloud: 1.35,          /* 云层密度:调大 = 更稀 */
+          hue: -3.14,           /* 色相旋转:橙红 → 蓝黑(负角,180 度)*/
+          dark: 1.0
+        }) : null;
+
+        if (gl) {
+          ctx.drawImage(gl, 0, 0, W, H);
+        } else {
+          /* 着色器还没加载好(或编译失败)时的兜底:蓝黑渐变,不留白 */
+          var g0 = ctx.createLinearGradient(0, 0, 0, H);
+          g0.addColorStop(0, "#05080f");
+          g0.addColorStop(0.6, "#0a1428");
+          g0.addColorStop(1, "#132444");
+          ctx.fillStyle = g0;
+          ctx.fillRect(0, 0, W, H);
+        }
+
+        /* ---- 2. 雨 ---- */
+        drawRain(ctx, el);
+
+        /* ---- 3. 出屏瞬间:以出屏点为圆心扩散清除 ---- */
+        if (el > TRAVEL) {
+          var k = Math.min(1, (el - TRAVEL) / WIPE);
+          var cxp = W + 12, cyp = H * 0.42;
+          var maxR = Math.hypot(W, H) * 1.3;
+          ctx.save();
+          ctx.globalCompositeOperation = "destination-out";
+          ctx.beginPath();
+          ctx.arc(cxp, cyp, k * maxR, 0, Math.PI * 2);
+          ctx.fillStyle = "#000";
+          ctx.fill();
+          ctx.restore();
+          ctx.save();
+          ctx.globalCompositeOperation = "lighter";
+          ctx.strokeStyle = "rgba(180, 230, 255, " + (0.8 * (1 - k)).toFixed(2) + ")";
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.arc(cxp, cyp, k * maxR, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
       }
     };
   }
