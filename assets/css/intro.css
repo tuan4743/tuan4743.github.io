@@ -276,8 +276,8 @@ body.statusbar-hidden .statusbar-toggle svg {
     --neb-3: rgba(64, 34, 84, 0.30);        /* 星云雾 3:下方,品红紫 */
     --neb-4: rgba(14, 18, 44, 0.28);        /* 中心那团:偏中性 */
     --star-alpha: 0.74;                     /* 星点整体强度 */
-    --grid-alpha: 0.5;                      /* 网格整体强度 */
-    --grid-line: rgba(58, 186, 168, 0.11);  /* 网格线颜色(青绿) */
+    --grid-alpha: 0.42;                      /* 网格整体强度 */
+    --grid-line: rgba(58, 186, 168, 0.075);  /* 网格线颜色(青绿) */
     --glow-alpha: 3;                        /* 盘周围光晕强度(第三层) */
     /* ★ 光晕位置:默认跟着盘走,这里可以再偏移 / 缩放
        glow-dx/glow-dy 是相对"盘心"的像素偏移(负数是往左/往上),想整体挪就直接调这两个
@@ -730,13 +730,12 @@ body.scene-open .hub {
     100% { opacity: 0; transform: translateX(-56px) scale(0.98); }
 }
 
-/* ---------- 背景:主题色菱形平铺(参考《冰与火之舞》铺面编辑器)---------- */
+/* ---------- 背景:菱形平铺(已退役,留个开关备用)----------
+   注意:这一段以前是"活的",会把 background-size 压成 --bg-tile 并平铺 ——
+   换成星云之后它把雾切成了 208px 的方块。现在整条规则注释掉,
+   想回菱形再把 background-image 交给 intro.js 的 diamondBg() 注入即可。 */
+/*
 .rack-bg {
-    position: absolute;
-    inset: 0;
-    z-index: 0;                /* 在特效背景画布(1)和 3D 画布之下 */
-    pointer-events: none;
-    border-radius: inherit;
     background-repeat: repeat;
     background-size: var(--bg-tile) var(--bg-tile);
     animation: rack-bg-scroll var(--bg-scroll, 26s) linear infinite;
@@ -746,6 +745,7 @@ body.scene-open .hub {
     from { background-position: 0 0; }
     to { background-position: var(--bg-tile) var(--bg-tile); }
 }
+*/
 
 /* ---------- 背景三层(从远到近)----------
    z-index 说明:.wheel 里的 3D 画布是 position:absolute 且 z-index:auto,
@@ -798,18 +798,18 @@ body.scene-open .hub {
     z-index: 0;
     opacity: var(--grid-alpha, 0.5);
     background-image:
-        repeating-linear-gradient(0deg, var(--grid-line) 0px, var(--grid-line) 1px, transparent 1px, transparent 46px),
-        repeating-linear-gradient(90deg, var(--grid-line) 0px, var(--grid-line) 1px, transparent 1px, transparent 46px);
-    transform-origin: 50% 78%;
-    transform: perspective(760px) rotateX(58deg) scale(1.85);
-    -webkit-mask-image: radial-gradient(58% 46% at 46% 58%, #000 0%, rgba(0, 0, 0, 0.55) 46%, transparent 78%);
-    mask-image: radial-gradient(58% 46% at 46% 58%, #000 0%, rgba(0, 0, 0, 0.55) 46%, transparent 78%);
+        repeating-linear-gradient(0deg, var(--grid-line) 0px, var(--grid-line) 1px, transparent 1px, transparent 26px),
+        repeating-linear-gradient(90deg, var(--grid-line) 0px, var(--grid-line) 1px, transparent 1px, transparent 26px);
+    /* 雷达网格:平的,不做透视 —— 一旦加 rotateX,线条会被拉开成大片色块 */
+    transform: none;
+    -webkit-mask-image: radial-gradient(44% 34% at 42% 60%, #000 0%, rgba(0, 0, 0, 0.5) 42%, transparent 76%);
+    mask-image: radial-gradient(44% 34% at 42% 60%, #000 0%, rgba(0, 0, 0, 0.5) 42%, transparent 76%);
     animation: rack-grid-drift 14s linear infinite;
 }
 
 @keyframes rack-grid-drift {
     from { background-position: 0 0, 0 0; }
-    to { background-position: 0 46px, 0 0; }
+    to { background-position: 0 26px, 0 0; }
 }
 
 /* 3. 最近层:盘周围的雾化光晕 —— 位置/半径跟盘走,颜色跟主题色,强度跟音乐 */
