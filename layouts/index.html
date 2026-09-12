@@ -21,7 +21,9 @@
 {{- $paletteJs := resources.Get "js/theme-palette.js" -}}
 {{- $searchJs := resources.Get "js/header-search.js" -}}
 {{- $cursorJs := resources.Get "js/magnetic-cursor.js" -}}
-{{- range $name := slice "css/intro.css" "css/holo.css" "js/intro.js" "js/boot-post.js" "js/boot-fx.js" "js/boot-glsl.js" "js/holo-reticle.js" "js/status-panel.js" "js/song-ring.js" "js/cd-boot.js" "js/cd3d.js" "js/cd-audio.js" "js/cd-fx.js" "js/theme-palette.js" "js/header-search.js" "js/magnetic-cursor.js" -}}
+{{- $pagesCss := resources.Get "css/pages.css" -}}
+{{- $deckJs := resources.Get "js/page-deck.js" -}}
+{{- range $name := slice "css/intro.css" "css/holo.css" "js/intro.js" "js/boot-post.js" "js/boot-fx.js" "js/boot-glsl.js" "js/holo-reticle.js" "js/status-panel.js" "js/song-ring.js" "js/cd-boot.js" "js/cd3d.js" "js/cd-audio.js" "js/cd-fx.js" "js/theme-palette.js" "js/header-search.js" "js/magnetic-cursor.js" "css/pages.css" "js/page-deck.js" -}}
     {{- if not (resources.Get $name) -}}
         {{- warnf "缺少资源 assets/%s —— 该功能会被跳过(检查文件是否完整)" $name -}}
     {{- end -}}
@@ -44,9 +46,13 @@
 {{- with $paletteJs }}{{ $paletteJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $searchJs }}{{ $searchJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $cursorJs }}{{ $cursorJs = . | fingerprint "sha256" }}{{ end -}}
+{{- with $pagesCss }}{{ $pagesCss = . | fingerprint "sha256" }}{{ end -}}
+{{- with $deckJs }}{{ $deckJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $introCss }}
 <link rel="stylesheet" href="{{ .RelPermalink }}">{{ end }}
 {{- with $holoCss }}
+<link rel="stylesheet" href="{{ .RelPermalink }}">{{ end }}
+{{- with $pagesCss }}
 <link rel="stylesheet" href="{{ .RelPermalink }}">{{ end }}
 <script>/* 着色器网址带内容指纹:着色器一改网址就变,浏览器不会拿到旧版本 */
 window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}", snow: "{{ with $snowGlsl }}{{ .RelPermalink }}{{ end }}" };</script>
@@ -91,13 +97,50 @@ window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}",
             </div>
 
             <main class="intro-main">
+                {{- $decks := or site.Params.intro.decks (dict) }}
                 {{- range $i, $p := site.Params.intro.panels }}
-                <section class="intro-panel{{ if eq $i 0 }} is-active{{ end }}" data-panel="{{ $p.key }}">
+                {{- $deck := index $decks $p.key }}
+                <section class="intro-panel{{ if eq $i 0 }} is-active{{ end }}{{ if $deck }} is-deck{{ end }}"
+                    data-panel="{{ $p.key }}">
+                    {{- if $deck }}
+                    {{/* 这张盘有自己的主页内容(hugo.toml 的 params.intro.decks.<key>)——
+                         第一张「自我」就是下面的滑动分页 */}}
+                    <div class="deck" data-deck="{{ $p.key }}">
+                        <div class="deck-progress" aria-hidden="true"><i></i></div>
+                        <div class="deck-track">
+                            {{- range $j, $s := $deck }}
+                            <article class="deck-slide">
+                                <div class="deck-copy">
+                                    <span class="deck-idx">{{ printf "%02d" (add $j 1) }}<i>/</i>{{ printf "%02d" (len $deck) }}</span>
+                                    <h2 class="deck-title">{{ $s.title }}</h2>
+                                    <div class="deck-text">{{ $s.text }}</div>
+                                </div>
+                                <figure class="deck-media">
+                                    {{- with $s.image }}
+                                    <img src="{{ . }}" alt="{{ $s.title }}" loading="lazy" decoding="async">
+                                    {{- else }}
+                                    <span class="deck-media__ph" aria-hidden="true"><b>{{ printf "%02d" (add $j 1) }}</b><i>图片位</i></span>
+                                    {{- end }}
+                                    {{- with $s.caption }}<figcaption>{{ . }}</figcaption>{{ end }}
+                                </figure>
+                            </article>
+                            {{- end }}
+                        </div>
+                        <div class="deck-dots">
+                            {{- range $j, $s := $deck }}
+                            <button class="deck-dot{{ if eq $j 0 }} is-on{{ end }}" data-goto="{{ $j }}"
+                                aria-label="第 {{ add $j 1 }} 页"></button>
+                            {{- end }}
+                        </div>
+                        <span class="deck-hint" aria-hidden="true">SCROLL / DRAG</span>
+                    </div>
+                    {{- else }}
                     <div class="panel-inner">
                         <span class="panel-kicker">SERIES 0{{ add $i 1 }} // {{ $p.tagline }}</span>
                         <h1 class="panel-title">{{ $p.title }}</h1>
                         <div class="panel-text">{{ $p.text }}</div>
                     </div>
+                    {{- end }}
                 </section>
                 {{- end }}
             </main>
@@ -282,6 +325,7 @@ window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}",
     {{ with $bootPostJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
     {{ with $bootFxJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
     {{ with $bootGlslJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
+    {{ with $deckJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
     {{ with $introJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
     {{ with $reticleJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
     {{ with $statusJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}

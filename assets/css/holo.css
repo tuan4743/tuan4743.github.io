@@ -11,18 +11,13 @@
 @font-face {
     font-family: "Pixel CN";
     /* HYPixel 9px 是 9px 原生像素字体;下面留了几个备选名,改文件名不用改代码顺序 */
-    src: url("/fonts/HYPixel9pxJ-2.ttf") format("truetype"),
-         url("/fonts/HYPixel9pxJ-2.woff2") format("woff2"),
-         url("/fonts/PixelCN.woff2") format("woff2"),
-         url("/fonts/PixelCN.ttf") format("truetype");
+    src: url("/fonts/HYPixel9pxJ-2.ttf") format("truetype");
     font-display: swap;
 }
 
 @font-face {
     font-family: "Alpha Sector";
-    src: url("/fonts/AlphaSector.woff2") format("woff2"),
-         url("/fonts/AlphaSector.ttf") format("truetype"),
-         url("/fonts/AlphaSector.otf") format("opentype");
+    src: url("/fonts/AlphaSector.otf") format("opentype");
     font-display: swap;
 }
 

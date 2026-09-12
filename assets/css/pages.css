@@ -1,0 +1,264 @@
+/* ============================================================
+   每张 CD 对应的"主页内容"页(在显示器屏幕上显示的那一页)
+   ─────────────────────────────────────────────────────────────
+   已经实现:
+     第一张 自我  → 滑动分页 .deck(逻辑见 page-deck.js)
+   规划中:
+     第二张 成长  → 科幻风太阳系行星图 + HUD 标签
+     第三张 迷茫  → 微平台跳跃小游戏(死亡 → HUD 选择 → 获得能力)
+     第四张 技术  → 项目卡片横向滚动 + 长条文本框 + GitHub/X/WeChat
+     第五张 未来  → 待定
+   尺寸/节奏等可调项都写在各自那一段开头的变量里。
+   ============================================================ */
+
+/* 有自定义内容的页面:去掉面板本来的居中内边距,让内容铺满屏幕可视区 */
+.intro-panel.is-deck {
+    padding: 0;
+    display: block;
+    overflow: hidden;
+    align-items: stretch;
+}
+
+/* ============================================================
+   第一张:滑动分页(.deck)
+   两侧是"标题+正文"和"图片",奇数页图片在右、偶数页在左
+   ============================================================ */
+.deck {
+    --deck-pad-y: clamp(18px, 4vh, 46px);
+    --deck-pad-x: clamp(22px, 4.4vw, 68px);
+    --deck-gap: clamp(20px, 4vw, 66px);
+    --deck-media: clamp(190px, 33%, 400px);
+    --deck-damp: 0.16;
+    /* ↑ 滑动阻尼:每帧向目标推进的比例(越小越"重",page-deck.js 会读它)*/
+    --deck-fade: 0.82;
+    /* ↑ 淡入淡出范围:离屏幕中心超过 0.82 个屏高就完全淡掉 */
+    --deck-shift: 18px;
+    /* ↑ 淡出时额外下移多少 */
+
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.deck.is-drag {
+    cursor: grabbing;
+}
+
+.deck-track {
+    will-change: transform;
+}
+
+.deck-slide {
+    --k: 1;
+    /* ↑ 由 JS 每帧写入:离屏幕中心越近越接近 1 */
+    box-sizing: border-box;
+    min-height: 100%;
+    /* ↑ 真正的"一页一屏"由 JS 写成 min-height: <屏高>px(见 page-deck.js:
+       百分比在 auto 高度的父级上解析不出来)*/
+    display: flex;
+    align-items: center;
+    gap: var(--deck-gap);
+    padding: var(--deck-pad-y) var(--deck-pad-x);
+    opacity: var(--k);
+    transform: translateY(calc((1 - var(--k)) * var(--deck-shift)));
+}
+
+/* 图片左右交替 */
+.deck-slide:nth-child(even) {
+    flex-direction: row-reverse;
+}
+
+/* ---------- 左侧:标题 + 正文 ---------- */
+.deck-copy {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.deck-idx {
+    display: inline-block;
+    font-family: "Alpha Sector", ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-size: 0.8rem;
+    letter-spacing: 0.24em;
+    color: var(--intro-accent);
+}
+
+.deck-idx i {
+    font-style: normal;
+    opacity: 0.42;
+    margin: 0 0.35em;
+}
+
+.deck-title {
+    font-size: clamp(1.45rem, 3.1vw, 2.5rem);
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    margin: 12px 0 14px;
+}
+
+.deck-text {
+    color: var(--intro-dim);
+    font-size: clamp(0.88rem, 1.15vw, 1.02rem);
+    line-height: 1.95;
+    max-width: 44ch;
+    white-space: pre-line;
+}
+
+/* ---------- 右侧:图片 ---------- */
+.deck-media {
+    flex: 0 0 var(--deck-media);
+    margin: 0;
+    position: relative;
+    aspect-ratio: 4 / 3;
+    max-height: 100%;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid var(--intro-border);
+    background: var(--intro-glass);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+}
+
+.deck-media img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* 没有图片时的占位块:留着"图片位"的位置,不会塌掉 */
+.deck-media__ph {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: var(--intro-dim);
+    background-image:
+        linear-gradient(to right, var(--intro-border) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--intro-border) 1px, transparent 1px);
+    background-size: 34px 34px, 34px 34px;
+}
+
+.deck-media__ph b {
+    font-family: "Alpha Sector", ui-monospace, Consolas, monospace;
+    font-size: clamp(1.8rem, 4vw, 3rem);
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    opacity: 0.5;
+}
+
+.deck-media__ph i {
+    font-style: normal;
+    font-size: 0.74rem;
+    letter-spacing: 0.34em;
+    opacity: 0.55;
+}
+
+.deck-media figcaption {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 8px 12px;
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    color: #fff;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.55), transparent);
+}
+
+/* ---------- 顶部进度条 / 底部页码点 / 提示 ---------- */
+.deck-progress {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 2px;
+    background: var(--intro-border);
+}
+
+.deck-progress>i {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: var(--intro-accent);
+    box-shadow: 0 0 12px var(--intro-accent);
+}
+
+.deck-dots {
+    position: absolute;
+    left: 50%;
+    bottom: clamp(10px, 2.2vh, 24px);
+    transform: translateX(-50%);
+    display: flex;
+    gap: 9px;
+}
+
+.deck-dot {
+    width: 22px;
+    height: 3px;
+    padding: 0;
+    border: 0;
+    border-radius: 2px;
+    background: var(--intro-border);
+    cursor: pointer;
+    transition: background 0.25s ease, box-shadow 0.25s ease, width 0.25s ease;
+}
+
+.deck-dot:hover {
+    background: var(--intro-dim);
+}
+
+.deck-dot.is-on {
+    width: 34px;
+    background: var(--intro-accent);
+    box-shadow: 0 0 12px var(--intro-accent);
+}
+
+.deck-hint {
+    position: absolute;
+    right: var(--deck-pad-x);
+    bottom: clamp(10px, 2.2vh, 24px);
+    font-family: "Alpha Sector", ui-monospace, Consolas, monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.2em;
+    color: var(--intro-dim);
+    opacity: 0.75;
+    transition: opacity 0.5s ease;
+    pointer-events: none;
+}
+
+.deck.is-touched .deck-hint {
+    opacity: 0;
+}
+
+/* 窄屏 / 矮屏:改成上下排(图文不再左右分栏)*/
+@media (max-width: 760px), (max-height: 520px) {
+    .deck-slide,
+    .deck-slide:nth-child(even) {
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: center;
+        gap: 16px;
+    }
+
+    .deck-media {
+        flex: 0 0 auto;
+        width: 100%;
+        max-height: 32vh;
+        aspect-ratio: 16 / 10;
+    }
+
+    .deck-text {
+        max-width: none;
+    }
+
+    .deck-hint {
+        display: none;
+    }
+}

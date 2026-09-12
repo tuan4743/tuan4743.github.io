@@ -220,6 +220,8 @@
     panels.forEach(function (p) {
       p.classList.toggle("is-active", p.getAttribute("data-panel") === key);
     });
+    /* 通知"每张盘自己的主页内容"模块(见 page-deck.js):只有当前这张盘会被激活 */
+    if (window.CDPages && window.CDPages.activate) window.CDPages.activate(key);
   }
 
   /* 插入某张盘后,把"架位中心/选中项"挪到最近的仍在架上的盘(避免整排跳位) */

@@ -73,6 +73,39 @@ paginate = 10
       bg = "#efc243"          # CD 架背景色(跟随"当前选中的盘");文字自动取其反色 #103dbc
       song = "emomomo"
       artist = "RAS"
+    # ---- 第一张盘「自我」的主页内容:滑动分页(实现见 assets/js/page-deck.js)----
+    # 每页 = 标题 + 正文 +(可选)图片;奇数页图片在右、偶数页在左,自动交替。
+    # 正文里的换行会原样显示(pages.css 用了 white-space: pre-line)。
+    # 图片:放进 static/assets/pages/self/,这里写 "/assets/pages/self/01.webp";
+    #       image 留空 = 显示占位块(带"图片位"字样),方便先看排版。
+    # 下面的文字是占位文案,直接改这里就行。
+    [[params.intro.decks.self]]
+      title = "我是谁"
+      text = """所有的故事都从这个问题开始。
+
+我不太会回答它,所以选择把它写下来 —— 写下来的东西,会慢慢变成答案的一部分。"""
+      image = ""
+
+    [[params.intro.decks.self]]
+      title = "两面镜子"
+      text = """一面是别人眼里的我,一面是我以为的我。
+
+两张脸长得并不一样。中间的差值,大概就是需要慢慢补上的部分。"""
+      image = ""
+
+    [[params.intro.decks.self]]
+      title = "把自己拆开看"
+      text = """情绪、习惯、偏好 —— 原本以为理所当然的东西,拆开之后才发现各有来路。
+
+看清来路,才知道哪些可以留着,哪些可以换掉。"""
+      image = ""
+
+    [[params.intro.decks.self]]
+      title = "还没写完"
+      text = """这份自我认知不会有"完成"的那一天。
+
+它更像一个持续更新的页面:过一段时间回来看,总会觉得上一版有点陌生。"""
+      image = ""
 
     [[params.intro.panels]]
       key = "growth"
