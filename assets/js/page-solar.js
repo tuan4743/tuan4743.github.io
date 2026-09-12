@@ -1,21 +1,17 @@
 /* ============================================================
-   第二张盘「成长」的主页内容:太空站视角的太阳系(.solar,样式见 pages.css)
+   第二张盘「成长」的主页内容:太空站视角(用户贴图版)
    ─────────────────────────────────────────────────────────────
-   构图(用户给的机位,位置都是面板宽高的比例,写在一个个 data-x / data-y 上):
-     · 太阳:中心偏左上,直径约屏宽的 1/3 —— 它是整幅图的视觉锚点
-     · 五颗星体按机位摆:类地(左下·中等)/ 岩石(左上·小·炎热)/
-       气态(中下偏右·巨大·带环)/ 岩石(右下·炎热)/ 黑洞(右上·最小)
-     · 每个星体的位置/半径都在 JS 里按容器尺寸算 → 窗口怎么变构图都不散
-   机位感(视差):
-     · 鼠标在面板上移动时,把位置写进 --cam-x / --cam-y(-1~1),
-       各层按自己的 --depth 反向平移一点 —— 远的动得少、近的动得多,
-       于是有"隔着观察窗往外看"的纵深。只有 mousemove 才写样式,不占 rAF
-   HUD 卡片(磁吸 combo):
-     · 星体本身就是磁吸光标的目标(带 data-magnetic),光标会锁上去
-     · 锁定(鼠标移入 / 键盘 focus / 触屏点一下)才显示卡片
-     · 卡片位置自动挑"空间更大的一侧",再夹在边框内(离边 ≥ --pad),
-       所以永远不会顶出屏幕;连线从星体边缘指向卡片中心,末端被卡片盖住
-   窄屏(W < 780):切成竖排列表,卡片常显,星体缩成小图标(不玩视差)
+   素材:static/planet/(用户提供,已自动裁掉透明边距 → 元素尺寸就是可见尺寸)
+     宇宙背景      → params.intro.solar.bg
+     蓝巨星(恒星)→ params.intro.solar.sun
+     五颗行星贴图  → 每颗的 tex
+   构图:x / y 是星体中心相对面板宽高的比例;w 是【宽度占面板宽的比例】
+     (贴图版本用"宽度比例"最好调:写成 0.12 就是面板宽的 12%)
+     五颗按用户要求【从左到右】排列:寒冷 → 炎热 → 类地 → 黑洞 → 气态
+   向阳面:用户画的时候统一朝左上,所以五颗都排在恒星的右下方;
+     个别对不上的可以用每颗的 rot(度)把贴图转一下
+   微调接口:网址后面加 ?tune → 出现滑条面板(位置/大小/旋转),
+     调完点"复制 TOML",把结果贴回 hugo.toml 即可
    ============================================================ */
 (function () {
   "use strict";
@@ -25,7 +21,7 @@
   var CAM = 14;          /* 视差最大位移(px):乘以各层 --depth */
 
   function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
-  function num(el, name, dflt) {
+  function attrNum(el, name, dflt) {
     var v = parseFloat(el.getAttribute(name));
     return isFinite(v) ? v : dflt;
   }
@@ -40,10 +36,28 @@
     var sunBall = sun ? sun.querySelector(".solar-sun") : null;
     var nodes = Array.prototype.slice.call(root.querySelectorAll(".solar-node:not(.solar-node--star)"));
     var balls = nodes.map(function (n) { return n.querySelector(".solar-planet"); });
+    var imgs = nodes.map(function (n) { return n.querySelector(".solar-tex"); });
     var cards = nodes.map(function (n) { return n.querySelector(".solar-card"); });
     var svg = root.querySelector(".solar-svg");
 
+    /* ---------- 可调参数:data-* 打底,?tune 面板的覆盖优先 ---------- */
+    var TUNE = window.__solarTune || (window.__solarTune = {});
+    function cfgOf(node, kind) {
+      var id = node.getAttribute("data-code") || "";
+      var base = {
+        x: attrNum(node, "data-x", 0.5),
+        y: attrNum(node, "data-y", 0.5),
+        w: attrNum(node, "data-w", 0.12),
+        rot: attrNum(node, "data-rot", 0),
+        depth: attrNum(node, "data-depth", 0.7)
+      };
+      var t = TUNE[id];
+      if (t) for (var k in t) if (isFinite(t[k])) base[k] = t[k];
+      return base;
+    }
+
     var active = false, onIndex = -1, geo = [], narrow = false;
+    var sunCfg = null;
 
     /* ---------------- 位置计算 ---------------- */
     function place() {
@@ -54,40 +68,51 @@
       if (svg) while (svg.firstChild) svg.removeChild(svg.firstChild);
       onIndex = -1;
 
-      /* 太阳:中心偏左上,直径 ≈ 屏宽的 1/3 */
-      var sunX = 0.30 * W, sunY = 0.36 * H;
-      var sunR = 0.155 * W;
-      root.style.setProperty("--sun-r", sunR.toFixed(1) + "px");
+      /* 恒星:位置 + 宽度比例(默认 0.26 面板宽) */
+      sunCfg = {
+        x: attrNum(sun, "data-x", 0.19),
+        y: attrNum(sun, "data-y", 0.34),
+        w: attrNum(sun, "data-w", 0.26)
+      };
+      var st = TUNE.__sun;
+      if (st) for (var k in st) if (isFinite(st[k])) sunCfg[k] = st[k];
       if (sun) {
-        sun.style.left = sunX.toFixed(1) + "px";
-        sun.style.top = sunY.toFixed(1) + "px";
+        sun.style.left = (sunCfg.x * W).toFixed(1) + "px";
+        sun.style.top = (sunCfg.y * H).toFixed(1) + "px";
       }
+      if (sunBall) sunBall.style.width = (sunCfg.w * W).toFixed(1) + "px";
+      root.style.setProperty("--sun-w", (sunCfg.w * W).toFixed(1) + "px");
 
-      /* 星体:半径按"最大星体"的基准 × size(气态行星最大) */
-      var rBase = Math.min(W * 0.085, H * 0.13);
       geo = [];
       for (var i = 0; i < nodes.length; i++) {
         var n = nodes[i];
-        var x = clamp(num(n, "data-x", 0.5), 0, 1) * W;
-        var y = clamp(num(n, "data-y", 0.5), 0, 1) * H;
-        var r = rBase * clamp(num(n, "data-size", 0.5), 0.05, 1.4);
-        n.style.left = x.toFixed(1) + "px";
-        n.style.top = y.toFixed(1) + "px";
-        n.style.setProperty("--r", r.toFixed(1) + "px");
-        geo.push({ x: x, y: y, r: r });
+        var c = cfgOf(n, i);
+        var w = Math.max(8, c.w * W);
+        n.style.left = (c.x * W).toFixed(1) + "px";
+        n.style.top = (c.y * H).toFixed(1) + "px";
+        n.style.setProperty("--w", w.toFixed(1) + "px");
+        n.style.setProperty("--depth", c.depth);
+        if (imgs[i]) imgs[i].style.transform = c.rot ? "rotate(" + c.rot + "deg)" : "";
+        if (balls[i]) balls[i].style.transform = c.rot ? "rotate(" + c.rot + "deg)" : "";
+        /* 半径按落位后的真实盒子算(贴图是高是扁都能用) */
+        var r = balls[i] ? balls[i].getBoundingClientRect() : null;
+        geo.push({
+          x: c.x * W, y: c.y * H,
+          r: r ? r.width / 2 : w / 2,
+          rh: r ? r.height / 2 : w / 2
+        });
       }
-      if (onIndex >= 0) show(onIndex);
     }
 
-    /* 星体半径里还要加上环(气态行星的环比本体宽),卡片得躲开它 */
+    /* 卡片躲开"星体外接圆"(扁的贴图按高度算,免得卡片压到图上)*/
     function outerR(i) {
       var g = geo[i];
       if (!g) return 0;
       var ring = nodes[i].classList.contains("has-ring");
-      return g.r * (ring ? 1.45 : 1);
+      return Math.max(g.r, g.rh) * (ring ? 1.2 : 1);
     }
 
-    /* ---------------- HUD 卡片:挑一侧 + 夹在边框内 ---------------- */
+    /* ---------------- HUD 卡片 ---------------- */
     function show(i) {
       var card = cards[i], g = geo[i];
       if (!card || !g) return;
@@ -95,42 +120,35 @@
       var pad = parseFloat(getComputedStyle(root).getPropertyValue("--pad")) || 20;
       var w = card.offsetWidth || 240, h = card.offsetHeight || 120;
       var R = outerR(i);
-
-      /* 哪边空间大就放哪边:先横后纵,取更大的那一块 */
-      var spaceR = W - (g.x + R), spaceL = g.x - R, spaceB = H - (g.y + R), spaceT = g.y - R;
       var sides = [
-        { k: "right", v: spaceR - w },
-        { k: "left", v: spaceL - w },
-        { k: "above", v: spaceT - h },
-        { k: "below", v: spaceB - h }
+        { k: "right", v: W - (g.x + R) - w },
+        { k: "left", v: (g.x - R) - w },
+        { k: "above", v: (g.y - R) - h },
+        { k: "below", v: H - (g.y + R) - h }
       ];
       sides.sort(function (a, b) { return b.v - a.v; });
-      var side = sides[0].k;
-
       var cx, cy;
-      if (side === "right") { cx = g.x + R + GAP; cy = g.y - h / 2; }
-      else if (side === "left") { cx = g.x - R - GAP - w; cy = g.y - h / 2; }
-      else if (side === "above") { cx = g.x - w / 2; cy = g.y - R - GAP - h; }
-      else { cx = g.x - w / 2; cy = g.y + R + GAP; }
-      /* 夹在边框内 —— 这一步保证卡片永远不越界 */
+      switch (sides[0].k) {
+        case "right": cx = g.x + R + GAP; cy = g.y - h / 2; break;
+        case "left": cx = g.x - R - GAP - w; cy = g.y - h / 2; break;
+        case "above": cx = g.x - w / 2; cy = g.y - R - GAP - h; break;
+        default: cx = g.x - w / 2; cy = g.y + R + GAP;
+      }
       cx = clamp(cx, pad, Math.max(pad, W - pad - w));
       cy = clamp(cy, pad, Math.max(pad, H - pad - h));
-      /* ★ 卡片是 .solar-node 的子元素,而 node 的原点就在星体中心 ——
-         所以 transform 要用"相对星体中心"的偏移,不能直接写面板坐标 */
+      /* 卡片是 .solar-node 的子元素,node 原点就在星体中心 → 用相对偏移 */
       card.style.transform = "translate3d(" + (cx - g.x).toFixed(1) + "px," + (cy - g.y).toFixed(1) + "px,0)";
       card.classList.add("is-on");
-
-      /* 连线:星体边缘 → 卡片中心(末端被卡片盖住,看起来正好接在边上)*/
       drawLine(i, cx + w / 2, cy + h / 2, R);
     }
 
     function drawLine(i, tx, ty, R) {
       if (!svg) return;
       var g = geo[i], W = root.clientWidth, H = root.clientHeight;
-      /* 起点要算上视差:星体本体被 --cam-* 平移过 */
-      var dx = -CAM * num(nodes[i], "data-depth", 0.7) * (parseFloat(root.style.getPropertyValue("--cam-x")) || 0);
-      var dy = -CAM * num(nodes[i], "data-depth", 0.7) * (parseFloat(root.style.getPropertyValue("--cam-y")) || 0);
-      var px = g.x + dx, py = g.y + dy;
+      var d = attrNum(nodes[i], "data-depth", 0.7);
+      var camx = parseFloat(root.style.getPropertyValue("--cam-x")) || 0;
+      var camy = parseFloat(root.style.getPropertyValue("--cam-y")) || 0;
+      var px = g.x - CAM * d * camx, py = g.y - CAM * d * camy;
       var ax = tx - px, ay = ty - py;
       var len = Math.max(1, Math.hypot(ax, ay));
       var sx = px + (ax / len) * (R + 2), sy = py + (ay / len) * (R + 2);
@@ -143,18 +161,11 @@
       svg.appendChild(mk("circle", { cx: sx.toFixed(1), cy: sy.toFixed(1), r: 2.2, "class": "solar-node-dot" }));
     }
 
-    function hide(i) {
-      if (i >= 0 && cards[i]) cards[i].classList.remove("is-on");
-      if (svg) while (svg.firstChild) svg.removeChild(svg.firstChild);
-      if (onIndex === i) onIndex = -1;
-    }
-
     function focus(i) {
       if (onIndex === i) return;
       if (onIndex >= 0) {
-        var old = onIndex;
-        if (cards[old]) cards[old].classList.remove("is-on");
-        nodes[old].classList.remove("is-on");
+        if (cards[onIndex]) cards[onIndex].classList.remove("is-on");
+        nodes[onIndex].classList.remove("is-on");
       }
       onIndex = i;
       if (i < 0) { if (svg) while (svg.firstChild) svg.removeChild(svg.firstChild); return; }
@@ -176,14 +187,12 @@
       });
       ball.addEventListener("focus", function () { if (active) focus(i); });
       ball.addEventListener("blur", function () { if (active && onIndex === i) focus(-1); });
-      /* 触屏:点一下开、再点一下关(磁吸光标在触屏上本来就不启用)*/
       ball.addEventListener("click", function (e) {
         if (!active || e.pointerType !== "touch") return;
         focus(onIndex === i ? -1 : i);
       });
     });
 
-    /* 视差:鼠标在面板上动 → 写 --cam-x / --cam-y(只有 mousemove 才写,不占 rAF)*/
     root.addEventListener("pointermove", function (e) {
       if (!active || narrow || e.pointerType === "touch") return;
       var r = root.getBoundingClientRect();
@@ -191,13 +200,18 @@
       var ny = clamp(((e.clientY - r.top) / r.height - 0.5) * 2, -1, 1);
       root.style.setProperty("--cam-x", nx.toFixed(3));
       root.style.setProperty("--cam-y", ny.toFixed(3));
-      if (onIndex >= 0) show(onIndex);        /* 星体动了,连线跟着重画 */
+      if (onIndex >= 0) show(onIndex);
     });
-
     root.addEventListener("pointerleave", function () {
       root.style.setProperty("--cam-x", "0");
       root.style.setProperty("--cam-y", "0");
       focus(-1);
+    });
+
+    /* 贴图加载完尺寸才准 → 重排一次(宽高比是图片自带的,不用手填)*/
+    imgs.forEach(function (im) {
+      if (!im) return;
+      if (!im.complete) im.addEventListener("load", function () { if (active) place(); }, { once: true });
     });
 
     var raf = 0;
@@ -208,7 +222,9 @@
 
     place();
 
-    return {
+    var api = {
+      root: root, nodes: nodes, cfgOf: cfgOf, place: place, sunNode: sun,
+      key: key,
       activate: function (on) {
         active = on;
         if (on) {
@@ -227,10 +243,12 @@
         return {
           key: key, active: active, narrow: narrow,
           bodies: geo.length, open: onIndex,
-          geo: geo.map(function (g) { return [Math.round(g.x), Math.round(g.y), Math.round(g.r)]; })
+          sun: sunCfg,
+          geo: geo.map(function (g) { return [Math.round(g.x), Math.round(g.y), Math.round(g.r * 2)]; })
         };
       }
     };
+    return api;
   }
 
   if (window.CDPages && window.CDPages.register) window.CDPages.register("solar", build);

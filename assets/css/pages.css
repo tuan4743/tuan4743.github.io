@@ -466,8 +466,10 @@ body.statusbar-hidden .intro-panel.is-page {
     position: absolute;
     left: 0;
     top: 0;
-    width: calc(var(--r, 30px) * 2);
-    height: calc(var(--r, 30px) * 2);
+    /* ★ 贴图版按 --w 定宽(JS 按面板宽 × w 算出来);CSS 版回落到 --r 那套 */
+    width: var(--w, calc(var(--r, 30px) * 2));
+    height: auto;
+    min-height: var(--r, 0);
     padding: 0;
     border: 0;
     border-radius: 50%;
@@ -813,4 +815,167 @@ body.statusbar-hidden .intro-panel.is-page {
 
 .solar.has-art .solar-planet:focus-visible::before {
     opacity: 1;
+}
+
+/* ---------- 用户贴图版 ---------- */
+/* 贴图已裁掉透明边距 → 元素的宽就是可见宽度,size 调起来所见即所得 */
+.solar-tex {
+    display: block;
+    width: 100%;
+    height: auto;
+    pointer-events: none;
+    transform-origin: 50% 50%;
+    filter: drop-shadow(0 0 18px rgba(120, 180, 255, 0.22));
+}
+
+/* 有贴图时,CSS 画的那套皮肤/星环/高光全部让位 */
+.solar-node.has-tex .solar-planet {
+    background: none;
+    box-shadow: none;
+}
+
+.solar-node.has-tex .solar-shade,
+.solar-node.has-tex .solar-ring {
+    display: none;
+}
+
+/* 锁定时给贴图描一圈(不改变大小)*/
+.solar-node.has-tex.is-on .solar-tex {
+    filter: drop-shadow(0 0 10px color-mix(in srgb, var(--intro-accent) 70%, transparent))
+        drop-shadow(0 0 26px color-mix(in srgb, var(--intro-accent) 40%, transparent));
+}
+
+/* 恒星贴图:自己带光晕,这里只补一层柔光垫在后面 */
+.solar-sun.has-tex {
+    background: none;
+    box-shadow: none;
+}
+
+.solar-sun.has-tex::before {
+    content: "";
+    position: absolute;
+    inset: -38%;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(150, 205, 255, 0.34) 0%, rgba(110, 170, 255, 0.16) 42%, rgba(90, 140, 255, 0) 72%);
+    pointer-events: none;
+}
+
+.solar-sun.has-tex::after {
+    display: none;
+}
+
+.solar-sun-img {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: auto;
+    pointer-events: none;
+}
+
+/* 有背景图时,星空/星云让位 */
+.solar.has-bg .solar-sky,
+.solar.has-bg .solar-neb {
+    display: none;
+}
+
+/* ---------- ?tune 微调面板 ---------- */
+.solar-tune {
+    position: fixed;
+    right: 12px;
+    top: 12px;
+    z-index: 9999;
+    width: min(420px, 92vw);
+    max-height: 94vh;
+    overflow: auto;
+    padding: 10px 12px 12px;
+    border: 1px solid rgba(127, 240, 255, 0.35);
+    border-radius: 6px;
+    background: rgba(6, 10, 18, 0.92);
+    color: #dff6ff;
+    font: 12px/1.5 ui-monospace, Consolas, monospace;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
+}
+
+.solar-tune__head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.solar-tune__head b {
+    color: #7ff0ff;
+}
+
+.solar-tune__head span {
+    flex: 1;
+    opacity: 0.55;
+    font-size: 11px;
+}
+
+.solar-tune__btn {
+    padding: 2px 8px;
+    border: 1px solid rgba(127, 240, 255, 0.4);
+    border-radius: 4px;
+    background: transparent;
+    color: #7ff0ff;
+    cursor: pointer;
+    font: inherit;
+}
+
+.solar-tune__row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 0;
+    border-top: 1px dashed rgba(127, 240, 255, 0.16);
+    flex-wrap: wrap;
+}
+
+.solar-tune__row>b {
+    width: 118px;
+    color: #9fe8ff;
+    font-weight: 600;
+}
+
+.solar-tune__row label {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    opacity: 0.9;
+}
+
+.solar-tune__row i {
+    font-style: normal;
+    opacity: 0.6;
+}
+
+.solar-tune__row input[type=range] {
+    width: 62px;
+}
+
+.solar-tune__row .val {
+    width: 38px;
+    text-decoration: none;
+    opacity: 0.8;
+}
+
+.solar-tune__out {
+    width: 100%;
+    margin-top: 8px;
+    padding: 6px;
+    border: 1px solid rgba(127, 240, 255, 0.25);
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.35);
+    color: #bfefff;
+    font: 11px/1.5 ui-monospace, Consolas, monospace;
+}
+/* 贴图版:不画虚线环,锁定直接用贴图外发光 */
+.solar-node.has-tex .solar-planet::before {
+    display: none;
+}
+
+/* 贴图版的行星按钮不做圆形裁切 */
+.solar-node.has-tex .solar-planet {
+    border-radius: 0;
 }
