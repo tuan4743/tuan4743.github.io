@@ -1,22 +1,36 @@
 /* 渲染层:Phaser 4 只做"画"和"收输入",所有判定都来自 sim/。
  * 风格:本站的 holo / 显示器语言 —— 深底、青色描边、细网格、发光圆环、等宽字。
  *
- * 这一版先不引入任何贴图:全部用 Graphics 画(矩形 + 描边 + 圆环),
- * 好处是"能立刻跑起来验证手感",美术细化放后面单独一轮。
+ * 这一版修的三件大事(都是用户实测反馈):
+ *   ① 【上下翻转】世界坐标 y 向上,而 Phaser 相机 y 向下 —— 所有 y 现在统一过 Y() 转换,
+ *      于是"下落"看着是下落、尖刺朝上、地面在底部;
+ *   ② 【画面太大】可见宽度从 17.8 块放大到 36 块(VIEW_W_BLOCKS 一个常量就能再调);
+ *   ③ 【按拍子走】铺面是按 onset 放的,所以画面的时间轴【由音乐驱动】:
+ *      每帧读 audio.currentTime,模拟推进到对应的那一帧;复活时把音乐 seek 到存档点的时间。
  */
 
 import Phaser from 'phaser';
-import { generateLevel, type Level } from './sim/level.ts';
+import { generateLevel, tOfX, type Level } from './sim/level.ts';
 import { World, botThink, type RunState } from './sim/world.ts';
 import { fingerprint } from './sim/replay.ts';
-import { P, U, ROWS } from './sim/constants.ts';
+import { P, U, ROWS, Y_TIME_SCALE } from './sim/constants.ts';
 
 const HL = '#7ff0ff';
 /* 每段一个强调色:网格、地面、门的颜色都跟着走,一眼知道跑到第几段 */
 const PAL = [0x7ff0ff, 0xffe17a, 0xa0ffd0, 0xc6a0ff, 0xff9fd0];
 const HLD = 0x7ff0ff;
 const WARN = 0xff9a6b;
+/** 可见宽度(块)。★用户反馈"画面特别大,整体缩小一倍":从 17.8 块 → 36 块。想再调就改这一条 */
+const VIEW_W_BLOCKS = 36;
 const LEVEL: Level = generateLevel({ seed: 20260913 });
+
+/* 跳环 / 弹簧的配色(和游戏里的常识一致:黄=跳,粉=小跳,蓝=翻重力,绿=翻重力+跳) */
+const ORB_COL: Record<string, number> = {
+  yellow: 0xffe17a, pink: 0xff9fd0, red: 0xff8a8a, blue: 0x9fd8ff, green: 0xa0ffd0,
+};
+const PAD_COL: Record<string, number> = {
+  yellow: 0xffe17a, pink: 0xff9fd0, red: 0xff8a8a, blue: 0x9fd8ff, purple: 0xc6a0ff,
+};
 
 /** 当前所在段落的名字(只是给 HUD 看的,不影响判定) */
 function segOf(x: number): string {
@@ -39,16 +53,21 @@ class Scene extends Phaser.Scene {
   audioErr = '';                    // play() 失败的原因(验收要看)
   botStates: RunState[] = [];
   fp = '';
+  botMode = false;
   botStarted = false;
-  started = false;
+  baseTick = 0;                     // 这一条命的起点在音乐时间轴上的帧号(复活时跟着存档点走)
+  airT = 0;                         // 空中停留了多久(给方块自转用)
+  labels: Phaser.GameObjects.Text[] = [];
 
-  /** 第一次交互:开跑 */
+  /** 第一次交互:开跑(音乐和模拟同时从 0 开始 —— 铺面贴着音乐,不能有"准备时间") */
   startRun() {
     if (this.started) return;
     this.started = true;
     this.world = new World(LEVEL);
+    this.baseTick = 0;
     this.prevY = 0;
     this.acc = 0;
+    this.airT = 0;
     if (!this.audio) {
       const a = document.createElement('audio');
       a.src = LEVEL.song;
@@ -63,29 +82,45 @@ class Scene extends Phaser.Scene {
     this.g = this.add.graphics();
     this.keys = this.input.keyboard!.addKeys('SPACE,UP,W,R') as Record<string, Phaser.Input.Keyboard.Key>;
     this.cameras.main.setBackgroundColor('#05070d');
-    // 让 10 行正好铺满画布高度
-    const zoom = this.scale.height / (ROWS * U);
-    this.cameras.main.setZoom(zoom);
+    this.cameras.main.setZoom(this.zoomOf());
     const el = document.getElementById('gd-hud');
     if (el) el.addEventListener('click', () => { this.started = true; });
     window.addEventListener('keydown', () => this.startRun(), { once: true });
     window.addEventListener('pointerdown', () => this.startRun(), { once: true });
+    /* 段落名做成场上的水印(以前只画了个空框,字根本没出来) */
+    for (const sg of LEVEL.segments) {
+      if (!sg.label) continue;
+      const t = this.add.text(sg.from * U + 13 * U, 0, sg.label, {
+        fontFamily: 'ui-monospace, Consolas, monospace',
+        fontSize: '30px', color: HL,
+      });
+      t.setOrigin(0, 0.5).setAlpha(0.22);
+      this.labels.push(t);
+    }
   }
 
-  update(_t: number, dtMs: number) {
-    // 固定步长:每 1/60 秒推进一帧,最多补 5 帧(切标签回来不会瞬移)
-    this.expose();
-    if (!this.started) { this.draw(); return; }        // 没开跑:画面停在起点,音乐也不响
-    this.acc += Math.min(dtMs / 1000, 0.5);
-    const step = 1 / 60;
-    let n = 0;
-    while (this.acc >= step && n < 5) {
-      this.acc -= step; n++;
-      /* 输入只来自按键 —— 之前把"点过画面"也当成按住,结果玩家一路自动连跳。
-         botMode 给验收用:让机器人接管输入,在真实页面里跑完整关。 */
-      const hold = this.botMode ? botThink(this.world)
+  /** 可见宽度 = VIEW_W_BLOCKS 块 */
+  zoomOf() {
+    return 1280 / (VIEW_W_BLOCKS * U);
+  }
+
+  /** 推进 n 帧模拟(输入按当前模式取:机器人 / 键盘) */
+  pump(n: number) {
+    for (let i = 0; i < n; i++) {
+      const w0 = this.world;
+      if (w0.dead && (this.botMode || w0.deadT >= P.deadPause)) {
+        const wasX = w0.checkX;
+        w0.respawn();
+        /* ★ 复活要跟着存档点走:音乐 seek 到那个位置,后面每一拍才对得上 */
+        this.baseTick = Math.floor(tOfX(LEVEL, wasX) * 60);
+        this.airT = 0;
+        if (!this.botMode && this.audio && !this.audio.paused) {
+          try { this.audio.currentTime = tOfX(LEVEL, wasX); } catch { /* seek 失败就继续放 */ }
+        }
+      }
+      const hold = this.botMode ? botThink(w0)
         : !!(this.keys.SPACE?.isDown || this.keys.UP?.isDown || this.keys.W?.isDown);
-      if (this.keys.R?.isDown) { this.world.reset(0, 'cube'); }
+      if (this.keys.R?.isDown) { w0.reset(0, 'cube'); this.baseTick = 0; }
       if (this.botMode && !this.botStarted) {       // 开机器人 = 从干净的一局开始,方便和 Node 侧对指纹
         this.botStarted = true;
         this.started = true;
@@ -93,17 +128,40 @@ class Scene extends Phaser.Scene {
         this.botStates = [];
         this.fp = '';
         this.prevY = 0;
+        this.airT = 0;
+        this.baseTick = 0;
+        continue;
       }
-      const w0 = this.world;
-      if (w0.dead && (this.botMode || w0.deadT >= P.deadPause)) {
-        w0.respawn();
-        if (this.audio && !this.audio.paused) this.audio.currentTime = 0;   // 重来 = 音乐也回开头
-      }   // 机器人模式立刻复活,和 Node 侧一致     // 死后短暂停顿再从存档点重来
       this.prevY = w0.y;
+      const wasGround = w0.onGround;
       w0.frame(hold);
+      this.airT = w0.onGround ? 0 : (wasGround ? 0 : this.airT + 1 / 60);
       if (this.botMode) {
         this.botStates.push(w0.state);
         if (w0.done && !this.fp) this.fp = fingerprint(this.botStates);
+      }
+      if (w0.done) break;
+    }
+  }
+
+  update(_t: number, dtMs: number) {
+    this.expose();
+    if (!this.started) { this.draw(); return; }        // 没开跑:画面停在起点,音乐也不响
+    if (this.botMode) {
+      this.pump(8);                                    // 机器人验收:加速跑完(物理仍是定点步长)
+    } else {
+      const a = this.audio;
+      const live = !!a && !a.paused && isFinite(a.duration) && a.duration > 0;
+      const step = 1 / 60;
+      if (live) {
+        /* ★ 由音乐驱动:画面里的障碍正好落在它对应的那一拍上 */
+        const target = Math.max(0, Math.floor(a!.currentTime * 60) - this.baseTick);
+        let n = 0;
+        while (this.world.tick < target && n < 8) { this.pump(1); n++; }
+      } else {
+        this.acc += Math.min(dtMs / 1000, 0.5);
+        let n = 0;
+        while (this.acc >= step && n < 5) { this.acc -= step; this.pump(1); n++; }
       }
     }
     const w = this.world;
@@ -116,8 +174,6 @@ class Scene extends Phaser.Scene {
     this.draw();
     const hud = document.getElementById('gd-hud');
     if (hud) {
-      /* HUD 拼装:形态 · 段落 · 进度 · 尝试 · 状态 · fps · 音乐
-         (之前段落名插进了 fps 那一段里,拼出来成了 "·  · 51 · ♪ 0.2s fps" —— 顺手理干净) */
       const parts = [
         w.mode === 'ship' ? '飞机' : '方块',
         segOf(w.x) || '',
@@ -145,134 +201,207 @@ class Scene extends Phaser.Scene {
   draw() {
     const g = this.g, w = this.world, cam = this.cameras.main;
     /* ★ 真正的病根在【viewport】:create() 时父容器还没量到尺寸,相机的 viewport 被定成
-       320×180(恰好四分之一),渲染就被裁在左上角一小块里 —— 只改 setSize 没用,得设 viewport。
-       只做一次,且不去读可能有兼容问题的属性(上一版读 cam.viewport.width 直接把页面搞崩了)。 */
+       320×180(恰好四分之一),渲染就被裁在左上角一小块里 —— 只改 setSize 没用,得设 viewport。 */
     if (!this.fixed) {
       this.fixed = true;
       cam.setViewport(0, 0, 1280, 720);
       cam.setSize(1280, 720);
-      cam.setZoom(720 / (ROWS * U));
+      cam.setZoom(this.zoomOf());
     }
-    /* ★ 两个坑(都是验收截图抓出来的):
-       ① 绘制范围必须用【相机自己的尺寸】,用 this.scale.* 会和实际视口对不上,画出来只有一小块;
-       ② 世界是 y 向上的,而屏幕 y 向下 —— 把相机 scrollY 设成 -ROWS*U,地面就落在屏幕底部。 */
     const bx = w.x / U;
     const seg = LEVEL.segments.find((sg) => bx >= sg.from && bx < sg.to) || LEVEL.segments[0];
     const tint = PAL[LEVEL.segments.indexOf(seg) % PAL.length];
     const vw = cam.width / cam.zoom, vh = cam.height / cam.zoom;
     const x0 = this.camX - vw / 2, x1 = x0 + vw;
-    const y0 = ROWS * U / 2 - vh / 2, y1 = y0 + vh;
+    /* ★ 绘图空间:y 向下,地面在 ROWS*U 处 —— 世界坐标过来一律走它,整幅画就不会再倒过来 */
+    const Y = (wy: number) => ROWS * U - wy;
+    const dy0 = ROWS * U / 2 - vh / 2, dy1 = dy0 + vh;
+    const groundY = Y(0), ceilY = Y(ROWS * U);
+    const tick = this.world.tick;
     g.clear();
 
-    // 场地网格(每块一条细线)—— 本站的"观察窗"感
+    /* 场地之外压暗(10 行的场地只占屏幕中间一半,压暗之后一眼知道哪里是"跑道") */
+    g.fillStyle(0x03050a, 0.55);
+    g.fillRect(x0, dy0, vw, Math.max(0, groundY + U - dy0));
+    g.fillRect(x0, ceilY - U, vw, Math.max(0, dy1 - (ceilY - U)));
+
+    // 场地网格(每块一条细线)
     g.lineStyle(1, tint, 0.09);
-    for (let bx = Math.floor(x0 / U); bx <= x1 / U; bx++) g.lineBetween(bx * U, y0, bx * U, y1);
-    for (let r = 0; r <= ROWS; r++) g.lineBetween(x0, r * U, x1, r * U);
+    for (let gx = Math.floor(x0 / U); gx <= x1 / U; gx++) g.lineBetween(gx * U, dy0, gx * U, dy1);
+    for (let r = 0; r <= ROWS; r++) g.lineBetween(x0, Y(r * U), x1, Y(r * U));
+    // 地面线与天花板线(跑道的上下边)
+    g.lineStyle(2, tint, 0.55).lineBetween(x0, groundY, x1, groundY);
+    g.lineStyle(1, tint, 0.28).lineBetween(x0, ceilY, x1, ceilY);
 
     // 物件
     for (const o of LEVEL.objects) {
-      const bx = o.b * U, by = o.r * U, bw = o.w * U, bh = o.h * U;
-      if (bx + bw < x0 || bx > x1) continue;
+      const obx = o.b * U, obw = o.w * U, obh = o.h * U;
+      const oTop = Y((o.r + o.h) * U);          // 格子上边(绘图空间)
+      const oBot = Y(o.r * U);                  // 格子下边
+      if (obx + obw < x0 || obx > x1) continue;
       switch (o.kind) {
         case 'platform':
           if (o.r < 0) {
             /* 地面:厚条 + 顶部亮线 + 斜纹(和平台、方块一眼分开) */
-            g.fillStyle(tint, 0.13).fillRect(bx, by, bw, bh);
-            g.lineStyle(2, tint, 0.85).lineBetween(bx, by + 2, bx + bw, by + 2);
+            g.fillStyle(tint, 0.13).fillRect(obx, oTop, obw, obh);
+            g.lineStyle(2, tint, 0.9).lineBetween(obx, oTop + 1, obx + obw, oTop + 1);
             g.lineStyle(1, tint, 0.22);
-            for (let hx = bx + 10; hx < bx + bw; hx += 18) g.lineBetween(hx, by + 4, hx - 6, by + bh - 2);
+            for (let hx = obx + 10; hx < obx + obw; hx += 18) g.lineBetween(hx, oTop + 4, hx - 6, oTop + obh - 2);
           } else {
-            /* 平台:薄板(只占上半格)+ 两端小竖线,像可踩的踏板 */
+            /* 平台:薄板贴在格子顶面(碰撞面就是顶面),两端小竖线 */
             const th = U * 0.34;
-            g.fillStyle(tint, 0.16).fillRect(bx, by, bw, th);
-            g.lineStyle(2, tint, 0.8).strokeRect(bx + 1, by + 1, bw - 2, th - 2);
+            g.fillStyle(tint, 0.18).fillRect(obx, oTop, obw, th);
+            g.lineStyle(2, tint, 0.8).strokeRect(obx + 1, oTop + 1, obw - 2, th - 2);
           }
           break;
         case 'block': {
-          /* 方块:实心 + 右上缺角,和地面/平台都不同 */
-          g.fillStyle(tint, 0.20).fillRect(bx, by, bw, bh);
-          g.lineStyle(2, tint, 0.85).strokeRect(bx + 1, by + 1, bw - 2, bh - 2);
-          g.fillStyle(tint, 0.55).fillTriangle(bx + bw, by + bh, bx + bw - 9, by + bh, bx + bw, by + bh - 9);
+          /* 方块:实心 + 顶部高光 + 右上缺角,和地面/平台都不同 */
+          g.fillStyle(tint, 0.20).fillRect(obx, oTop, obw, obh);
+          g.lineStyle(2, tint, 0.85).strokeRect(obx + 1, oTop + 1, obw - 2, obh - 2);
+          g.fillStyle(tint, 0.6).fillRect(obx + 3, oTop + 3, obw - 6, 2);
+          g.fillStyle(tint, 0.55).fillTriangle(obx + obw, oTop, obx + obw - 9, oTop, obx + obw, oTop + 9);
           break;
         }
         case 'spike':
-          g.fillStyle(WARN, 0.9);
+          /* 尖刺:底边在格子下沿、尖朝上;亮描边 + 暗填充,一眼看出是"要跳过去"的东西 */
           for (let k = 0; k < o.w; k++) {
-            g.fillTriangle(bx + k * U, by, bx + k * U + U / 2, by + U * 0.88, bx + k * U + U, by);
+            const sx = obx + k * U;
+            g.fillStyle(0x2a1408, 0.95).fillTriangle(sx + 2, oBot, sx + U / 2, oBot - U * 0.9, sx + U - 2, oBot);
+            g.lineStyle(2, WARN, 0.95);
+            g.beginPath();
+            g.moveTo(sx + 2, oBot); g.lineTo(sx + U / 2, oBot - U * 0.9); g.lineTo(sx + U - 2, oBot);
+            g.strokePath();
           }
           break;
+        case 'pad': {
+          /* 弹簧(跳板):底座 + 两层朝上的箭形 —— 不用猜它会不会弹你 */
+          const col = PAD_COL[o.pad ?? 'yellow'] ?? 0xffe17a;
+          g.fillStyle(col, 0.22).fillRect(obx + 1, oBot - U * 0.95, obw - 2, U * 0.95);
+          g.fillStyle(col, 0.95).fillRect(obx + 2, oBot - 7, obw - 4, 7);
+          g.lineStyle(3, col, 0.95);
+          for (let i = 0; i < 2; i++) {
+            const yy = oBot - 11 - i * 9;
+            g.beginPath();
+            g.moveTo(obx + 6, yy); g.lineTo(obx + U / 2, yy - 8); g.lineTo(obx + obw - 6, yy);
+            g.strokePath();
+          }
+          break;
+        }
+        case 'orb': {
+          /* 跳环:外圈 + 内圈 + 中间一个符号(黄=上箭头 / 蓝=翻重力 / 粉=小箭头) */
+          const col = ORB_COL[o.orb ?? 'yellow'] ?? 0xffe17a;
+          const ccx = obx + U / 2, ccy = Y(o.r * U + U / 2);
+          const pulse = 0.5 + 0.5 * Math.sin(tick * 0.08);
+          g.fillStyle(col, 0.10 + 0.06 * pulse).fillCircle(ccx, ccy, U * 0.62);
+          g.lineStyle(3, col, 0.95).strokeCircle(ccx, ccy, U * 0.44);
+          g.lineStyle(1, col, 0.35 + 0.3 * pulse).strokeCircle(ccx, ccy, U * 0.66);
+          g.lineStyle(3, col, 0.95);
+          if (o.orb === 'blue' || o.orb === 'green') {          // 翻重力:上下双箭头
+            g.beginPath();
+            g.moveTo(ccx - 6, ccy - 4); g.lineTo(ccx, ccy - 9); g.lineTo(ccx + 6, ccy - 4);
+            g.moveTo(ccx - 6, ccy + 4); g.lineTo(ccx, ccy + 9); g.lineTo(ccx + 6, ccy + 4);
+            g.strokePath();
+          } else {                                              // 跳:上箭头
+            const h = o.orb === 'pink' ? 6 : 10;
+            g.beginPath();
+            g.moveTo(ccx - 7, ccy + h / 2); g.lineTo(ccx, ccy - h); g.lineTo(ccx + 7, ccy + h / 2);
+            g.strokePath();
+          }
+          break;
+        }
+        case 'pit': {
+          /* 坑:地板断口 —— 深色缺口 + 两侧锯齿断崖(以前这里画了个半圆警示灯,完全看不出是坑) */
+          const depth = U * 2.4;
+          g.fillStyle(0x000000, 0.75).fillRect(obx, oBot - depth + U, obw, depth);
+          g.fillStyle(0x05070d, 0.9).fillRect(obx, oBot - depth + U, obw, 6);
+          g.lineStyle(2, WARN, 0.8);
+          g.beginPath();
+          g.moveTo(obx, oBot); g.lineTo(obx, oBot + U * 0.9); g.lineTo(obx + 7, oBot + U * 1.5); g.lineTo(obx, oBot + U * 2.1);
+          g.moveTo(obx + obw, oBot); g.lineTo(obx + obw, oBot + U * 0.9); g.lineTo(obx + obw - 7, oBot + U * 1.5); g.lineTo(obx + obw, oBot + U * 2.1);
+          g.strokePath();
+          break;
+        }
         case 'portal': {
-          const cx2 = bx + U / 2, cy2 = by + U / 2;
-          g.lineStyle(3, 0xffe17a, 0.95).strokeCircle(cx2, cy2, U * 0.95);
-          g.lineStyle(1, 0xffe17a, 0.45).strokeCircle(cx2, cy2, U * 0.74);
-          g.fillStyle(0xffe17a, 0.12).fillCircle(cx2, cy2, U * 0.74);
+          const ccx = obx + U / 2, ccy = Y(o.r * U + U / 2);
+          g.lineStyle(3, 0xffe17a, 0.95).strokeCircle(ccx, ccy, U * 0.95);
+          g.lineStyle(1, 0xffe17a, 0.45).strokeCircle(ccx, ccy, U * 0.74);
+          g.fillStyle(0xffe17a, 0.12).fillCircle(ccx, ccy, U * 0.74);
           /* 环里画目标形态:方块 = 小方,飞机 = 小三角(不用猜这个环切什么) */
           if (o.to === 'ship') {
             g.fillStyle(0xffe17a, 0.95);
-            g.fillTriangle(cx2 + 7, cy2, cx2 - 5, cy2 - 6, cx2 - 5, cy2 + 6);
+            g.fillTriangle(ccx + 7, ccy, ccx - 5, ccy - 6, ccx - 5, ccy + 6);
           } else {
-            g.fillStyle(0xffe17a, 0.95).fillRect(cx2 - 6, cy2 - 6, 12, 12);
+            g.fillStyle(0xffe17a, 0.95).fillRect(ccx - 6, ccy - 6, 12, 12);
           }
           break;
         }
         case 'check':
-          g.lineStyle(2, 0xffcc66, 0.9).lineBetween(bx + U * 0.2, by + U, bx + U * 0.2, by - U * 0.1);
-          g.fillStyle(0xffcc66, 0.9).fillTriangle(bx + U * 0.2, by - U * 0.1, bx + U * 1.05, by + U * 0.15, bx + U * 0.2, by + U * 0.4);
+          g.lineStyle(2, 0xffcc66, 0.9).lineBetween(obx + U * 0.2, oBot, obx + U * 0.2, oTop - U * 0.1);
+          g.fillStyle(0xffcc66, 0.9).fillTriangle(obx + U * 0.2, oTop - U * 0.1, obx + U * 1.05, oTop + U * 0.15, obx + U * 0.2, oTop + U * 0.4);
           break;
         case 'speed': {
-          const cy3 = by + U / 2;
+          const ccy = Y(o.r * U + U / 2);
           g.lineStyle(3, 0x9fd8ff, 0.9);
           g.beginPath();
-          g.moveTo(bx + 6, cy3 - 8); g.lineTo(bx + 15, cy3); g.lineTo(bx + 6, cy3 + 8);
-          g.moveTo(bx + 16, cy3 - 8); g.lineTo(bx + 25, cy3); g.lineTo(bx + 16, cy3 + 8);
+          g.moveTo(obx + 6, ccy - 8); g.lineTo(obx + 15, ccy); g.lineTo(obx + 6, ccy + 8);
+          g.moveTo(obx + 16, ccy - 8); g.lineTo(obx + 25, ccy); g.lineTo(obx + 16, ccy + 8);
           g.strokePath();
           break;
         }
         case 'gravity':
-          g.fillStyle(0xc6a0ff, 0.9).fillTriangle(bx, by + U * 0.8, bx + U / 2, by, bx + U, by + U * 0.8);
+          g.fillStyle(0xc6a0ff, 0.9).fillTriangle(obx, oTop, obx + U / 2, oBot, obx + U, oTop);
           break;
         case 'deco':
-          if (o.deco === 'text') {
-            g.lineStyle(1, HLD, 0.25).strokeRect(bx, by, bw, bh);
-          } else {
-            g.fillStyle(0xffe9a8, 0.10).fillCircle(bx + bw / 2, by + bh / 2, bw * 1.6);
-          }
+          if (o.deco === 'light') g.fillStyle(0xffe9a8, 0.10).fillCircle(obx + obw / 2, Y(o.r * U + U / 2), obw * 1.6);
           break;
       }
     }
 
-    // 玩家:方块 = 描边正方形,飞机 = 三角(按 vy 倾斜)
+    // 玩家:方块 = 描边正方形(空中自转 90°),飞机 = 三角(按 vy 倾斜)
     const py = this.prevY + (w.y - this.prevY) * Math.min(1, this.acc * 60);   // 渲染插值
-    const cx = w.x + P.box / 2, cy = py + P.box / 2;
+    const cxw = w.x + P.box / 2, cyw = py + P.box / 2;
     if (w.mode === 'ship') {
-      /* 手动画三角:Phaser 4 里没有 Phaser.Geom.Point(v3 的写法会直接抛错,
-         一进飞机形态整个 update 就崩 —— 验收抓到的) */
-      const rot = Math.max(-0.55, Math.min(0.55, -w.vy / P.shipVyMax * 0.55));
+      /* 手动画三角:Phaser 4 里没有 Phaser.Geom.Point(v3 的写法会直接抛错) */
+      const rot = Math.max(-0.55, Math.min(0.55, w.vy / P.shipVyMax * 0.55));
       const s = Math.sin(rot), c = Math.cos(rot);
-      const px = (a: number, b: number) => cx + a * c - b * s;
-      const py2 = (a: number, b: number) => cy + a * s + b * c;
+      const vx2 = (a: number, b: number) => cxw + a * c - b * s;
+      const vy2 = (a: number, b: number) => Y(cyw + a * s + b * c);
       g.fillStyle(w.dead ? 0xff9a6b : 0xe2f6ff, 0.95);
       g.beginPath();
-      g.moveTo(px(P.box * 0.6, 0), py2(P.box * 0.6, 0));
-      g.lineTo(px(-P.box * 0.45, -P.box * 0.3), py2(-P.box * 0.45, -P.box * 0.3));
-      g.lineTo(px(-P.box * 0.45, P.box * 0.3), py2(-P.box * 0.45, P.box * 0.3));
+      g.moveTo(vx2(P.box * 0.6, 0), vy2(P.box * 0.6, 0));
+      g.lineTo(vx2(-P.box * 0.45, -P.box * 0.3), vy2(-P.box * 0.45, -P.box * 0.3));
+      g.lineTo(vx2(-P.box * 0.45, P.box * 0.3), vy2(-P.box * 0.45, P.box * 0.3));
       g.closePath();
       g.fillPath();
     } else {
-      g.fillStyle(w.dead ? 0xff9a6b : 0xe2f6ff, 0.96)
-        .fillRect(cx - P.box / 2, cy - P.box / 2, P.box, P.box);
-      g.lineStyle(2, HLD, 0.9).strokeRect(cx - P.box / 2 + 1, cy - P.box / 2 + 1, P.box - 2, P.box - 2);
+      /* 方块在空中转 90°(原版手感):用滞空时间当旋转进度 */
+      const spin = Math.min(1, this.airT / (2 * P.jump / (P.gravity * Y_TIME_SCALE) / 60)) * (Math.PI / 2);
+      const s = Math.sin(spin), c = Math.cos(spin);
+      const pts: Array<[number, number]> = [[-P.box / 2, -P.box / 2], [P.box / 2, -P.box / 2], [P.box / 2, P.box / 2], [-P.box / 2, P.box / 2]];
+      g.fillStyle(w.dead ? 0xff9a6b : 0xe2f6ff, 0.96);
+      g.beginPath();
+      pts.forEach(([a, b], i) => {
+        const px2 = cxw + a * c - b * s, py2 = Y(cyw + a * s + b * c);
+        if (i === 0) g.moveTo(px2, py2); else g.lineTo(px2, py2);
+      });
+      g.closePath();
+      g.fillPath();
+      g.lineStyle(2, w.dead ? 0xff9a6b : HLD, 0.9);
+      g.strokePath();
     }
     // 判定内框(自己看得见,方便调手感)
-    g.lineStyle(1, 0xffffff, 0.35).strokeRect(w.x + P.innerOff, py + P.innerOff, P.inner, P.inner);
+    g.lineStyle(1, 0xffffff, 0.28).strokeRect(w.x + P.innerOff, Y(py + P.innerOff + P.inner), P.inner, P.inner);
 
     // 终点
     const endX = LEVEL.length * U;
     if (endX > x0 && endX < x1) {
-      g.lineStyle(3, HLD, 0.8).lineBetween(endX, 0, endX, ROWS * U);
+      g.lineStyle(3, HLD, 0.8).lineBetween(endX, groundY, endX, ceilY);
     }
-    // 出屏提示:死了就压一层暗红
-    if (w.dead) g.fillStyle(0xff6b5a, 0.10).fillRect(x0, 0, x1 - x0, ROWS * U);
+    // 死了就压一层暗红
+    if (w.dead) g.fillStyle(0xff6b5a, 0.10).fillRect(x0, dy0, vw, dy1 - dy0);
+
+    // 段落水印跟着场地高度放
+    for (const t of this.labels) t.setY(Y(7.5 * U));
   }
 }
 
@@ -292,8 +421,7 @@ export function boot(target: string | HTMLCanvasElement) {
       height: 720,
     },
     scene: [Scene],
-    /* ★ 截图要靠它:WebGL 默认不保留绘制缓冲,自动化截图会抓到"半张帧"
-       (之前一直以为画面只画了左边四分之一,查了半天尺寸,其实是截图的问题) */
+    /* ★ 截图要靠它:WebGL 默认不保留绘制缓冲,自动化截图会抓到"半张帧" */
     render: { preserveDrawingBuffer: true },
     audio: { noAudio: true },     // 音乐由页面层的音频模块负责(和站点共用)
   });

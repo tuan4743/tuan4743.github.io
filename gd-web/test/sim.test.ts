@@ -11,8 +11,8 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-import { P, U, ROWS, JUMP_SPAN_BLOCKS, JUMP_AIRTIME_S } from '../src/sim/constants.ts';
-import { generateLevel, tightestGap, type Level, type Segment } from '../src/sim/level.ts';
+import { P, U, ROWS, JUMP_SPAN_BLOCKS, JUMP_AIRTIME_S, arcSpan, PAD, ORB } from '../src/sim/constants.ts';
+import { generateLevel, tightestGap, tOfX, countKinds, type Level, type Segment } from '../src/sim/level.ts';
 import { World, botThink } from '../src/sim/world.ts';
 import { recordBot, replay, fingerprint } from '../src/sim/replay.ts';
 
@@ -32,11 +32,13 @@ function solo(objects: Level['objects'], extra: Partial<Level> = {}): Level {
 }
 
 /* ---------------- ① 常量表自检 ---------------- */
-test('常量表:一跳峰值约 2.17 块,滞空约 0.39 秒(和原作"跳两块"一致)', () => {
+test('常量表:一跳峰值 2.17 块、滞空 0.43 秒、跨 4.49 块(和原作"跳两块"一致)', () => {
   const peak = (P.jump * P.jump) / (2 * P.gravity) / U;
   assert.ok(Math.abs(peak - 2.17) < 0.05, '解析峰值 = ' + peak.toFixed(3) + ' 块');
-  assert.ok(Math.abs(JUMP_AIRTIME_S - 0.389) < 0.01, '滞空 = ' + JUMP_AIRTIME_S.toFixed(3) + ' 秒');
-  assert.ok(JUMP_SPAN_BLOCKS > 4.2 && JUMP_SPAN_BLOCKS < 4.8, '一跳跨 ' + JUMP_SPAN_BLOCKS.toFixed(2) + ' 块');
+  /* 滞空是 0.432 秒而不是 2v/g/60 = 0.389 —— 因为原作 y 轴按 dt×0.9 积分(见 constants 的
+     Y_TIME_SCALE),时间轴拉长 11%,但峰值不变;水平跨距因此是 4.49 块。 */
+  assert.ok(Math.abs(JUMP_AIRTIME_S - 0.432) < 0.015, '滞空 = ' + JUMP_AIRTIME_S.toFixed(3) + ' 秒');
+  assert.ok(JUMP_SPAN_BLOCKS > 4.3 && JUMP_SPAN_BLOCKS < 4.7, '一跳跨 ' + JUMP_SPAN_BLOCKS.toFixed(2) + ' 块');
 
   // 模拟出来的峰值也要对得上(证明定点步长没有把手感跑偏)
   const w = new World(solo([]));
@@ -150,22 +152,135 @@ test('飞机:按住上升、松手下落', () => {
   assert.ok(up.y < start + 1.2 * U, "松手后不该继续爬升(起点 " + (start / U).toFixed(2) + " 块)");
 });
 
-/* ---------------- ③ 自动铺面 ---------------- */
-test('自动铺面:障碍最小间距不小于一跳的距离(不会生成必死关)', () => {
+/* ---------------- ③ 弹簧 / 跳环(用户点名要的玩法) ---------------- */
+test('弹簧:碰到就弹,不用按任何键(峰值约 3.9 块,比普通起跳高一倍)', () => {
+  const lv = solo([
+    { kind: 'platform', b: 0, r: -1, w: 90, h: 1 },
+    { kind: 'pad', b: 20, r: 0, w: 1, h: 1, pad: 'yellow' },
+  ]);
+  const w = new World(lv);
+  let peak = 0;
+  for (let i = 0; i < 60 * 6 && !w.dead; i++) { w.frame(false); peak = Math.max(peak, w.y); }
+  assert.equal(w.dead, false, '弹簧不该致死');
+  assert.ok(peak / U > 3.4, '完全不按键也应该被弹起来,实测峰值 ' + (peak / U).toFixed(2) + ' 块');
+  assert.ok(w.x > 26 * U, '应该被弹过弹簧,x = ' + (w.x / U).toFixed(1));
+});
+
+test('弹簧连:一整段"零输入"也能过去 —— 连续鼓点直接交给弹簧,人不用打', () => {
+  const span = arcSpan(PAD.yellow.v, 1);
+  const pads = [10, 10 + span, 10 + 2 * span];
+  const objects: Level['objects'] = [{ kind: 'platform', b: 0, r: -1, w: 120, h: 1 }];
+  for (const b of pads) {
+    objects.push({ kind: 'pad', b, r: 0, w: 1, h: 1, pad: 'yellow' });
+    /* 弹簧弧线【最高点】下方摆两根刺:玩家此刻离地 3.9 块,踩不到 —— 纯白送的鼓点。
+       用最高点而不是窗口边缘,是为了不受数值误差影响。 */
+    objects.push({ kind: 'spike', b: b - 0.6 + span / 2 - 0.6, r: 0, w: 1, h: 1 });
+    objects.push({ kind: 'spike', b: b - 0.6 + span / 2 + 0.6, r: 0, w: 1, h: 1 });
+  }
+  const w = new World(solo(objects));
+  for (let i = 0; i < 60 * 4 && !w.dead; i++) w.frame(false);      // 一次都没按
+  assert.equal(w.dead, false, '零输入不该死(死在第 ' + (w.x / U).toFixed(1) + ' 块)');
+  assert.ok(w.x / U > pads[2] + 2, '应该被三根弹簧一路弹过去,x = ' + (w.x / U).toFixed(1) + ' / 最后一根在 ' + pads[2].toFixed(1));
+});
+
+test('跳环:要一次【新的按键】才生效 —— 按住不放串不起环(原作口径)', () => {
+  const mk = () => new World(solo([
+    { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
+    { kind: 'orb', b: 20, r: 2, w: 1, h: 1, orb: 'yellow' },
+  ]));
+  const place = (w: World) => { w.x = 20 * U - 12; w.y = 2 * U; w.vy = 0; w.onGround = false; };
+
+  /* ① 一直按住:第一次"按"会被空中用掉……这里玩家从空中开始,所以第一帧就是新的一下 → 环生效。
+        于是换个更贴近实战的比法:先按一下(消耗掉),再按住不放 → 环不该生效。 */
+  const held = mk();
+  place(held);
+  held.frame(true);                       // 这一次按下被环用掉
+  const vyAfterRing = held.vy;
+  assert.ok(vyAfterRing > ORB.yellow.v * 0.8, '第一次按就该吃到环,vy = ' + vyAfterRing.toFixed(2));
+  /* 环只能用一次:同一个环不会再触发 */
+  place(held);
+  const before = held.vy;
+  held.frame(true);
+  assert.ok(Math.abs(held.vy - before) < 0.9, '同一个环不该反复触发,vy ' + before.toFixed(2) + ' → ' + held.vy.toFixed(2));
+
+  /* ② 不按:环当没看见,自由落体 */
+  const idle = mk();
+  place(idle);
+  for (let i = 0; i < 8; i++) idle.frame(false);
+  assert.ok(idle.vy < 0, '不按 → 应该在下落,vy = ' + idle.vy.toFixed(2));
+
+  /* ③ 松一帧再按 = 新的一下 → 生效(这正是 botThink 的做法) */
+  const repress = mk();
+  place(repress);
+  repress.frame(false);
+  repress.frame(true);
+  repress.frame(true);
+  assert.ok(repress.vy > ORB.yellow.v * 0.8, '松一帧再按应该拿到新的一下,vy = ' + repress.vy.toFixed(2));
+});
+
+test('蓝环:翻转重力 —— 之后是"往上掉"', () => {
+  const lv = solo([
+    { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
+    { kind: 'orb', b: 20, r: 2, w: 1, h: 1, orb: 'blue' },
+  ]);
+  const w = new World(lv);
+  w.x = 20 * U - 12; w.y = 2 * U; w.vy = 0; w.onGround = false;
+  for (let i = 0; i < 3; i++) w.frame(true);
+  assert.equal(w.gdir, -1, '蓝环应该把重力翻过来');
+  const y0 = w.y;
+  for (let i = 0; i < 40; i++) w.frame(false);
+  assert.ok(w.y > y0, '重力翻过来之后应该往上"掉",y ' + (y0 / U).toFixed(2) + ' → ' + (w.y / U).toFixed(2));
+});
+
+/* ---------------- ④ 自动铺面 ---------------- */
+test('自动铺面:两次"出手"之间留够落地的余量(不会生成必死关)', () => {
   for (const seed of [1, 7, 20260913, 424242]) {
     const lv = generateLevel({ seed });
     const gap = tightestGap(lv);
-    assert.ok(gap >= P.minGapBlocks - 1e-9, 'seed ' + seed + ' 的最小间距 ' + gap.toFixed(2) + ' 块 < ' + P.minGapBlocks);
+    /* 铺面现在按 onset 走,间距由图案几何决定(见 level.ts):一次出手之后必然有一段落地的量,
+       所以"两次出手"最近也不会重叠。真正的地基还是下面的机器人 0 死亡。 */
+    assert.ok(gap >= 1.4, 'seed ' + seed + ' 的最小间距 ' + gap.toFixed(2) + ' 块 —— 太挤了');
   }
+});
+
+test('自动铺面:障碍真的落在鼓点上(不是"每 6 块放一个")', () => {
+  const lv = generateLevel({ seed: 20260913 });
+  const beats = lv.beats!;
+  assert.ok(beats && beats.length > 500, '应该带着采音数据');
+  let onBeat = 0, total = 0;
+  for (const o of lv.objects) {
+    /* 环是"弧线上的第二段",故意不吸到 beat 上(按一次键就同时触发跳和环),所以不算它 */
+    if (!(o.kind === 'spike' || o.kind === 'pad' || o.kind === 'pit')) continue;
+    const t = tOfX(lv, o.b);
+    let near = Infinity;
+    for (const b of beats) { const d = Math.abs(b - t); if (d < near) near = d; }
+    total++;
+    if (near < 0.12) onBeat++;
+  }
+  const ratio = onBeat / total;
+  assert.ok(total > 250, '地面物件太少,铺面不够密:' + total);
+  assert.ok(ratio > 0.8, '只有 ' + (ratio * 100).toFixed(1) + '% 的障碍踩在鼓点上(需要 > 80%)');
+});
+
+test('自动铺面:用上了弹簧与跳环,而且长度贴着歌曲时长', () => {
+  const lv = generateLevel({ seed: 20260913 });
+  const c = countKinds(lv);
+  assert.ok((c['pad:yellow'] ?? 0) >= 30, '弹簧太少:' + JSON.stringify(c));
+  assert.ok((c['orb:yellow'] ?? 0) >= 12, '跳环太少:' + JSON.stringify(c));
+  assert.ok((c['spike'] ?? 0) >= 150, '尖刺太少:' + JSON.stringify(c));
+  assert.ok(lv.objects.length > 450, '物件总数太少:' + lv.objects.length);
+  const end = tOfX(lv, lv.length);
+  assert.ok(Math.abs(end - 156.76) < 0.3, '关卡结束时间 ' + end.toFixed(2) + 's 应该贴着歌曲时长 156.76s');
 });
 
 test('自动铺面:每个段落都有对应形态的圆环与速度门', () => {
   const lv = generateLevel({ seed: 20260913 });
   for (const sg of lv.segments) {
-    const portal = lv.objects.find((o) => o.kind === 'portal' && Math.abs(o.b - (sg.from + 2)) < 0.001);
-    assert.ok(portal, sg.label + ' 段首应有圆环');
-    assert.equal(portal!.to, sg.mode, sg.label + ' 的圆环应切成 ' + sg.mode);
-    assert.ok(lv.objects.some((o) => o.kind === 'speed' && Math.abs(o.b - (sg.from + 6)) < 0.001), sg.label + ' 段首应有速度门');
+    const portal = lv.objects.find((o) => o.kind === 'portal' && Math.abs(o.b - (sg.from + 0.25)) < 0.001);
+    assert.ok(portal, (sg.label || sg.mode) + ' 段首应有圆环');
+    assert.equal(portal!.to, sg.mode, (sg.label || sg.mode) + ' 的圆环应切成 ' + sg.mode);
+    assert.ok(lv.objects.some((o) => o.kind === 'speed' && Math.abs(o.b - sg.from) < 0.001),
+      (sg.label || sg.mode) + ' 段首应有速度门(而且必须在段首【正好】的位置,否则 x(t) 对不上节拍)');
   }
 });
 
