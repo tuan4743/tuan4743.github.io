@@ -89,7 +89,7 @@
 
     /* ---------------- 玩家 / 局面 ---------------- */
     var S = null, echoes = [], attempts = 0, deaths = 0, reached = false, sayT = 0, flash = 0, hudT = 0;
-    var camX = 0, deadT = 0, dead = false, respawnT = 0, echoFired = 0, orbCd = 0;
+    var camX = 0, deadT = 0, dead = false, respawnT = 0, echoFired = 0, orbCd = 0, cumX = [];
     var keys = { jump: 0, shield: 0 };
     var prevJump = 0, shieldT = 0, shieldCd = 0, stateT = 0, segNow = -1, tapArmed = null, tapArmedT = 0, tapMiss = 0;
     var ghostTrail = [], trail = [];
@@ -103,7 +103,15 @@
       shieldT = 0; shieldCd = 0;
     }
 
-    function t2x(t) { return (t - chart.lead) * CFG.SPEED; }
+    /* ★ x 由"按段积分"得到:每段可以有自己的速度,时间轴仍严格对齐音频 */
+    function xAt(t) {
+      if (!segs.length) return (t - chart.lead) * CFG.SPEED;
+      var k = 0;
+      for (var i = 0; i < segs.length; i++) if (t >= segs[i].t) k = i;
+      if (t < segs[0].t) return (t - chart.lead) * segs[0].speed;
+      return cumX[k] + (t - segs[k].t) * segs[k].speed;
+    }
+    function t2x(t) { return xAt(t); }
     function xOf(it) { return t2x(it.t) + (CFG.OFF[it.type] || 0); }
     function nearestBeat(t) {
       if (!beatT.length) return 0;
@@ -118,6 +126,15 @@
          → 当场撞死(整首自动播放跑出来的)。铺面在段边界本来留了 1.2 拍的空档 */
       for (var i = 0; i < segs.length; i++) if (t >= segs[i].t) k = i;
       return k;
+    }
+    /* 地面缺口:玩家中心落进去就不吃地板(掉下去 = 死)*/
+    function inHole(cx) {
+      for (var i = 0; i < items.length; i++) {
+        var o = items[i];
+        if (o.type !== "hole") continue;
+        if (cx > o.x && cx < o.x2) return true;
+      }
+      return false;
     }
     function itemsNear(x0, x1) {
       var out = [];
@@ -182,10 +199,30 @@
     }
 
     function prepare() {
-      segs = (chart.segments || []).map(function (s, i) { return { t: s.t, mode: s.mode || "cube", ability: s.ability || "", i: i }; });
+      segs = (chart.segments || []).map(function (s, i) {
+        return {
+          t: s.t, mode: s.mode || "cube", ability: s.ability || "", i: i,
+          speed: s.speed || chart.speed || CFG.SPEED,          /* 每段可以有自己的移速 */
+          check: (s.check != null ? s.check : s.t)             /* 每段的存档点(默认段起点)*/
+        };
+      });
+      /* 累计 x 表:xAt(t) = 前面各段各自速度积分 + 本段内插 */
+      cumX = [];
+      for (var si2 = 0; si2 < segs.length; si2++) {
+        if (si2 === 0) cumX[0] = Math.max(0, (segs[0].t - chart.lead)) * segs[0].speed;
+        else cumX[si2] = cumX[si2 - 1] + (segs[si2].t - segs[si2 - 1].t) * segs[si2 - 1].speed;
+      }
       items = (chart.items && chart.items.length ? chart.items : draft(chart, beats)).map(function (it) {
         var o = { t: it.t, row: it.row | 0, type: it.type, w: it.w || 1, h: it.h || 1, orb: it.orb || "yellow" };
-        o.x = xOf(o); o.x2 = o.x + (o.type === "orb" || o.type === "gravity" ? 1 : o.w);
+        o.x = xOf(o);
+        if (o.type === "rail") {                       /* 斜轨:两端点都是时间 */
+          o.t2 = it.t2 != null ? it.t2 : o.t + 0.7;
+          o.row2 = it.row2 != null ? it.row2 : o.row;
+          o.x2 = t2x(o.t2);
+        } else {
+          o.x2 = o.x + (o.type === "orb" || o.type === "gravity" ? 1 : o.w);
+        }
+        if (o.x2 < o.x) { var sw = o.x; o.x = o.x2; o.x2 = sw; var sw2 = o.row, sw3 = o.row2; o.row = sw3 == null ? o.row : sw3; if (sw2 != null) o.row2 = sw2; }
         return o;
       }).sort(function (a, b) { return a.x - b.x; });
       ready = true;
@@ -299,7 +336,7 @@
       attempts++;
       /* ★ 回到【本段存档点】(用户要求:不要回退几秒 —— 那样会一直在同一处反复死)*/
       var si = Math.max(0, segAt(S.t));
-      var t = Math.max(chart.lead, segs[si].t - 0.15);
+      var t = Math.max(chart.lead, segs[si].check - 0.15);   /* 每段自己的存档点 */
       resetPlayer(0, 1);
       if (MODE_STEP.dry) S.t = t; else { S.t = t; audioStart(t); }
       segNow = -1;
@@ -371,8 +408,9 @@
         S.vy -= CFG.GRAV * gdir * dt;
         S.y += S.vy * dt;
         S.air = S.onGround ? 0 : S.air;
+        var overHole = inHole(S.x + CFG.PW / 2);
         if (gdir > 0) {
-          if (S.y <= 0) { S.y = 0; S.vy = 0; S.air = 0; if (!S.onGround) S.rot = 0; S.onGround = true; }
+          if (S.y <= 0 && !overHole) { S.y = 0; S.vy = 0; S.air = 0; if (!S.onGround) S.rot = 0; S.onGround = true; }
           else S.onGround = false;
         } else {
           if (S.y + CFG.PH >= CFG.ROWS) { S.y = CFG.ROWS - CFG.PH; S.vy = 0; S.air = 0; if (!S.onGround) S.rot = 0; S.onGround = true; }
@@ -404,6 +442,15 @@
       for (var j = 0; j < near.length; j++) {
         var o = near[j];
         if (o.type === "orb" || o.type === "gravity") continue;
+        if (o.type === "hole") continue;                       /* 坑洞不是实体,靠地板判定 */
+        if (o.type === "rail") {                               /* 斜轨:算中心到轨道的距离 */
+          var cxr = S.x + CFG.PW / 2, cyr = S.y + CFG.PH / 2;
+          if (cxr < o.x - 0.2 || cxr > o.x2 + 0.2) continue;
+          var k2 = (o.x2 - o.x) > 0.01 ? (cxr - o.x) / (o.x2 - o.x) : 0;
+          var ry = (o.row + 0.5) + ((o.row2 + 0.5) - (o.row + 0.5)) * k2;
+          if (Math.abs(cyr - ry) < 0.30 + CFG.PH / 2) { if (shieldT > 0) continue; die("rail", o); return; }
+          continue;
+        }
         var x = o.x, w = o.x2 - o.x, y = o.row, h = o.h || 1;
         if (o.type === "spike") { x += w * 0.18; w *= 0.64; y += 0; h = 0.72; }
         if (hit(w, h, x, y)) {
@@ -498,6 +545,20 @@
           ctx2d.lineWidth = 3; ctx2d.globalAlpha = o.done ? 0.25 : 0.95;
           ctx2d.beginPath(); ctx2d.arc(x + V.ppb * 0.5, cy2, cr, 0, Math.PI * 2); ctx2d.stroke();
           ctx2d.globalAlpha = 1;
+        } else if (o.type === "hole") {
+          ctx2d.fillStyle = COL.bg;
+          ctx2d.fillRect(x, H2S(1), w, V.ppb * 1.2);           /* 把地板涂掉 = 缺口 */
+          ctx2d.strokeStyle = COL.warn; ctx2d.globalAlpha = 0.8; ctx2d.lineWidth = 2;
+          ctx2d.beginPath(); ctx2d.moveTo(x, H2S(0)); ctx2d.lineTo(x, H2S(0) + V.ppb * 0.5); ctx2d.stroke();
+          ctx2d.beginPath(); ctx2d.moveTo(x + w, H2S(0)); ctx2d.lineTo(x + w, H2S(0) + V.ppb * 0.5); ctx2d.stroke();
+          ctx2d.globalAlpha = 1; ctx2d.lineWidth = 1;
+        } else if (o.type === "rail") {
+          ctx2d.strokeStyle = COL.accent; ctx2d.globalAlpha = 0.9; ctx2d.lineWidth = 3;
+          ctx2d.beginPath();
+          ctx2d.moveTo(x, H2S(o.row + 0.5));
+          ctx2d.lineTo(W2S(o.x2), H2S(o.row2 + 0.5));
+          ctx2d.stroke();
+          ctx2d.globalAlpha = 1; ctx2d.lineWidth = 1;
         } else if (o.type === "gravity") {
           var arm = (tapArmed === o);
           ctx2d.fillStyle = arm ? "#ffffff" : COL.accent;
@@ -724,7 +785,8 @@
       var best = null;
       for (var k = 0; k < items.length; k++) {
         var o = items[k];
-        if (o.type === "orb" || o.type === "gravity" || o.done) continue;
+        if (o.type === "orb" || o.type === "gravity" || o.done || o.type === "rail") continue;
+        /* 坑洞当成"要跳过去的东西" */
         if (o.x2 < S.x - 0.5 || o.x > S.x + 10) continue;
         if (!best || o.x < best.x) best = o;
       }
@@ -838,7 +900,7 @@
       /* 编辑器要的原始数据(波形 / 节拍 / 段落 / 采音参数)*/
       data: function () {
         return {
-          chart: chart, beats: beatT.slice(), period: period, offset: offset, dur: dur,
+          chart: chart, beats: beatT.slice(), period: period, offset: offset, dur: dur, segs: segs,
           env: (window.__lostEnv || []), envStep: (window.__lostEnvStep || 0),
           items: items.map(function (it) { return { t: it.t, row: it.row, type: it.type, w: it.w, orb: it.orb }; })
         };

@@ -22,7 +22,9 @@
     { k: "orb", n: "跳点", c: "#ffe17a" },
     { k: "gravity", n: "重力", c: "#c6a0ff" },
     { k: "shield", n: "护盾", c: "#7ff0c0" },
-    { k: "echo", n: "回响", c: "#a0f0ff" }
+    { k: "echo", n: "回响", c: "#a0f0ff" },
+    { k: "rail", n: "斜轨", c: "#6ee7ff" },
+    { k: "hole", n: "坑洞", c: "#ffb36b" }
   ];
   var ROW_H = 22, WAVE_H = 76, RULER_H = 18;
 
@@ -52,7 +54,8 @@
     var items = [], nextId = 1;
     function loadItems(list) {
       items = (list || []).map(function (it) {
-        return { id: nextId++, t: it.t, row: it.row | 0, type: it.type, w: it.w || 1, h: it.h || 1, orb: it.orb || "yellow" };
+        return { id: nextId++, t: it.t, row: it.row | 0, type: it.type, w: it.w || 1, h: it.h || 1, orb: it.orb || "yellow",
+          t2: it.t2, row2: it.row2 };
       });
     }
     loadItems(E.chart.items && E.chart.items.length ? E.chart.items : api.dev.draft());
@@ -82,6 +85,28 @@
     [["onset", "吸附 onset"], ["grid", "吸附 8 分格"], ["off", "不吸附"]].forEach(function (p) { var o = el("option", null, p[1]); o.value = p[0]; snapSel.appendChild(o); });
     snapSel.addEventListener("change", function () { E.snap = snapSel.value; });
     bar.appendChild(snapSel);
+    /* ---- 段:选段 → 移速 / 存档点 ---- */
+    var segSel = el("select", "lost-ed__sel");
+    (E.chart.segments || []).forEach(function (s, i) { var o = el("option", null, "ST-0" + (i + 1) + " " + (s.mode || "")); o.value = String(i); segSel.appendChild(o); });
+    bar.appendChild(el("i", "lost-ed__tag", "段"));
+    bar.appendChild(segSel);
+    var spdIn = el("input", "lost-ed__num"); spdIn.type = "number"; spdIn.step = "0.5"; spdIn.min = "3"; spdIn.max = "24";
+    var chkIn = el("input", "lost-ed__num"); chkIn.type = "number"; chkIn.step = "0.1";
+    bar.appendChild(el("i", "lost-ed__tag", "移速"));
+    bar.appendChild(spdIn);
+    bar.appendChild(el("i", "lost-ed__tag", "存档点"));
+    bar.appendChild(chkIn);
+    function segNow() { return E.chart.segments[+segSel.value] || E.chart.segments[0]; }
+    function syncSeg() {
+      var s = segNow();
+      if (!s) return;
+      spdIn.value = String(s.speed || E.chart.speed || 10.4);
+      chkIn.value = String(+(s.check != null ? s.check : s.t).toFixed(2));
+    }
+    segSel.addEventListener("change", function () { syncSeg(); draw(); });
+    spdIn.addEventListener("change", function () { var s = segNow(); s.speed = clamp(parseFloat(spdIn.value) || 10.4, 3, 24); E.dirty = true; E.status = "ST-0" + (+segSel.value + 1) + " 移速 " + s.speed + " 块/秒"; syncBar(); });
+    chkIn.addEventListener("change", function () { var s = segNow(); s.check = snapT(clamp(parseFloat(chkIn.value) || s.t, s.t, E.dur)); chkIn.value = String(s.check); E.dirty = true; E.status = "ST-0" + (+segSel.value + 1) + " 存档点 " + s.check + "s"; syncBar(); draw(); });
+    syncSeg();
     var playBtn = btn("▶ 播放", function () { togglePlay(); });
     b2 = playBtn;
     btn("试玩", function () { applyAll(); api.preview(E.t); E.playing = true; playBtn.textContent = "⏸ 暂停"; });
@@ -280,6 +305,15 @@
         var iw = Math.max(3, (it.w || 1) * (E.zoom * 0.34));
         var T = TYPES.filter(function (q) { return q.k === it.type; })[0] || TYPES[0];
         ctx.fillStyle = T.c;
+        if (it.type === "rail") {
+          var rax = t2x(it.t), ray = row2y(it.row);
+          var rbx = t2x(it.t2 != null ? it.t2 : it.t + E.period * 2), rby = row2y(it.row2 != null ? it.row2 : it.row);
+          ctx.globalAlpha = 0.95; ctx.strokeStyle = T.c; ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.moveTo(rax, ray); ctx.lineTo(rbx, rby); ctx.stroke(); ctx.lineWidth = 1;
+          if (E.sel === it.id) { ctx.fillStyle = "#ffffff"; ctx.fillRect(rax - 4, ray - 4, 8, 8); ctx.fillRect(rbx - 4, rby - 4, 8, 8); }
+          ctx.globalAlpha = 1;
+          continue;
+        }
         ctx.globalAlpha = it.type === "block" || it.type === "spike" ? 0.85 : 0.6;
         var bh = Math.max(3, (it.h || 1) * rowH() * 0.72);
         ctx.fillRect(ix - iw / 2, iy - bh / 2, iw, bh);
@@ -294,6 +328,17 @@
           ctx.lineWidth = 1;
         }
       }
+      /* 存档点小旗 */
+      (E.chart.segments || []).forEach(function (s, i) {
+        var ct = (s.check != null ? s.check : s.t);
+        var cx2 = t2x(ct);
+        if (cx2 < -20 || cx2 > V.w + 20) return;
+        ctx.strokeStyle = "rgba(255,225,122,0.9)";
+        ctx.beginPath(); ctx.moveTo(cx2, gridTop()); ctx.lineTo(cx2, gridTop() + 14); ctx.stroke();
+        ctx.fillStyle = "rgba(255,225,122,0.9)";
+        ctx.beginPath(); ctx.moveTo(cx2, gridTop()); ctx.lineTo(cx2 + 11, gridTop() + 4); ctx.lineTo(cx2, gridTop() + 8);
+        ctx.closePath(); ctx.fill();
+      });
       /* 播放头 */
       var px = t2x(E.t);
       ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2;
@@ -313,6 +358,17 @@
       return { x: ix - iw / 2, y: iy - ih / 2, w: iw, h: ih, cx: ix, cy: iy };
     }
     /* 命中尺寸手柄:右边 = 改宽,上边 = 改高(只有选中的物件有手柄)*/
+    /* 斜轨两端的端点手柄(先于普通命中判断)*/
+    function hitRailEnd(x, y) {
+      if (E.sel == null) return null;
+      var it = items.filter(function (q) { return q.id === E.sel && q.type === "rail"; })[0];
+      if (!it) return null;
+      var ax = t2x(it.t), ay = row2y(it.row);
+      var bx = t2x(it.t2 != null ? it.t2 : it.t + E.period * 2), by = row2y(it.row2 != null ? it.row2 : it.row);
+      if (Math.hypot(x - ax, y - ay) <= 9) return { it: it, k: "railA" };
+      if (Math.hypot(x - bx, y - by) <= 9) return { it: it, k: "railB" };
+      return null;
+    }
     function hitHandle(x, y) {
       if (E.sel == null) return null;
       var it = items.filter(function (q) { return q.id === E.sel; })[0];
@@ -341,7 +397,7 @@
         return;
       }
       if (p.y > V.h - WAVE_H) { seek(x2t(p.x)); return; }   /* 点波形 = 播放头跳过去,音频也跳 */
-      var hd = hitHandle(p.x, p.y);
+      var hd = hitRailEnd(p.x, p.y) || hitHandle(p.x, p.y);
       if (hd) { E.resize = hd; try { cv.setPointerCapture(ev.pointerId); } catch (err) {} draw(); return; }
       if (hitIt) {
         E.sel = hitIt.id; E.drag = { it: hitIt, dx: p.x - t2x(hitIt.t) };
@@ -349,6 +405,8 @@
       } else {
         /* 空白处:按当前类型放一个 */
         var nt = { id: nextId++, t: snapT(x2t(p.x)), row: y2row(p.y), type: E.type, w: 1, orb: E.orb };
+        if (E.type === "rail") { nt.t2 = snapT(nt.t + E.period * 2); nt.row2 = clamp(nt.row + 2, 0, 9); }
+        if (E.type === "hole") { nt.row = 0; nt.w = 2; }
         items.push(nt); E.sel = nt.id; E.row = nt.row; E.dirty = true;
         E.status = "放了 " + nt.type + " @ " + nt.t + "s / 行 " + nt.row + "(共 " + items.length + ")";
         syncBar();
@@ -358,6 +416,14 @@
     cv.addEventListener("pointermove", function (ev) {
       var ph = pos(ev);
       if (E.resize) {
+        /* 斜轨端点 */
+        if (E.resize.k === "railA" || E.resize.k === "railB") {
+          var itR = E.resize.it;
+          if (E.resize.k === "railA") { itR.t = snapT(x2t(ph.x)); itR.row = y2row(ph.y); }
+          else { itR.t2 = snapT(x2t(ph.x)); itR.row2 = y2row(ph.y); }
+          E.status = "斜轨端点 " + (E.resize.k === "railA" ? "A" : "B") + " → " + (E.resize.k === "railA" ? itR.t : itR.t2) + "s / 行 " + (E.resize.k === "railA" ? itR.row : itR.row2);
+          E.dirty = true; syncBar(); draw(); return;
+        }
         /* 改尺寸:0.5 块一档 */
         var b0 = boxOf(E.resize.it);
         if (E.resize.k === "w") {
@@ -460,6 +526,7 @@
       ch.items = items.slice().sort(function (a, b) { return a.t - b.t; }).map(function (it) {
         var o = { t: +(+it.t).toFixed(4), row: it.row, type: it.type, w: it.w || 1 };
         if ((it.h || 1) !== 1) o.h = it.h;
+        if (it.type === "rail") { o.t2 = +(+it.t2).toFixed(4); o.row2 = it.row2; }
         if (it.type === "orb") o.orb = it.orb || "yellow";
         return o;
       });
