@@ -1,0 +1,62 @@
+{
+  "_format": {
+    "说明": "第三张盘「迷茫」的铺面(Geometry Dash 式音乐关卡)。这个文件既是游戏读的数据,也是 ?chart 编辑器读写的数据。",
+    "时间轴": "一切用【秒】对齐 BGM(lost.mp3)。t 就是音频时间轴上的位置 —— 游戏时钟 = 音频时钟,所以天生同步。",
+    "节拍来源": "lost-beats.json(GDForge 那套采音:onset 包络 + 动态百分位峰值 + 最小间隔)。这首曲子 172.27 BPM、8 分音符槽 174.1ms、844 个 onset。",
+    "坐标": "row = 轨道行,0 = 地面那一行,往上递增;1 行 = 1 个方块的高度。",
+    "items.type": {
+      "block": "实心方块(撞到就死)",
+      "spike": "尖刺(撞到就死;只能跳过去)",
+      "orb": "跳点(在拍点点击触发一次跳;orb 字段 = yellow/pink/blue,力度不同)",
+      "gate": "上下轨道口(切换重力时用)",
+      "shield": "护盾补给点(点了补一层护盾)",
+      "echo": "回响点(死了以后残影留在这里,下一轮同一拍自动触发二段跳)"
+    },
+    "segments": "四段 = 四个存档点 = 四种变形/能力,分段时刻 t 是这一段的起点;line 是那段的旁白(第三人称「他」)",
+    "编辑器": "浏览器打开 https://tuagfey.com/?chart(或 Alt+E):按拍吸附放置/删除/拖动,导出这份 JSON 直接替换本文件"
+  },
+  "key": "lost",
+  "song": "/assets/cd/music/lost.mp3",
+  "beats": "/assets/cd/lost-beats.json",
+  "bpm": 172.27,
+  "period": 0.3482993,
+  "offset": 0.0946858,
+  "duration": 156.761,
+  "speed": 6.6,
+  "rows": 10,
+  "segments": [
+    {
+      "t": 3.117,
+      "mode": "cube",
+      "theme": "复盘",
+      "form": "回响方块",
+      "ability": "echo",
+      "line": "他掉下去过很多次。第四次,他在半空里又蹬了一下 —— 原来脚下不一定非要有东西。"
+    },
+    {
+      "t": 40.792,
+      "mode": "plane",
+      "theme": "求助",
+      "form": "飞机",
+      "ability": "plane",
+      "line": "有人告诉他别硬扛。他试着把身体放平,顺着风斜着走 —— 原来路可以是斜的。"
+    },
+    {
+      "t": 78.379,
+      "mode": "shield",
+      "theme": "呼吸",
+      "form": "护盾形态",
+      "ability": "shield",
+      "line": "他学会了停下来吸气。有些疼是可以挡在外面的,只要他先承认自己在怕。"
+    },
+    {
+      "t": 115.966,
+      "mode": "gravity",
+      "theme": "继续",
+      "form": "重力箭头",
+      "ability": "gravity",
+      "line": "上下的区别忽然不重要了。他不再问该往哪走,只管接着走。"
+    }
+  ],
+  "items": []
+}

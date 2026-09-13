@@ -26,8 +26,9 @@
 {{- $solarJs := resources.Get "js/page-solar.js" -}}
 {{- $solarTuneJs := resources.Get "js/page-solar-tune.js" -}}
 {{- $lostJs := resources.Get "js/page-lost.js" -}}
+{{- $beatJs := resources.Get "js/gd-beat.js" -}}
 {{- $pagesJs := resources.Get "js/pages.js" -}}
-{{- range $name := slice "css/intro.css" "css/holo.css" "js/intro.js" "js/boot-post.js" "js/boot-fx.js" "js/boot-glsl.js" "js/holo-reticle.js" "js/status-panel.js" "js/song-ring.js" "js/cd-boot.js" "js/cd3d.js" "js/cd-audio.js" "js/cd-fx.js" "js/theme-palette.js" "js/header-search.js" "js/magnetic-cursor.js" "css/pages.css" "js/pages.js" "js/page-deck.js" "js/page-solar.js" "js/page-solar-tune.js" "js/page-lost.js" -}}
+{{- range $name := slice "css/intro.css" "css/holo.css" "js/intro.js" "js/boot-post.js" "js/boot-fx.js" "js/boot-glsl.js" "js/holo-reticle.js" "js/status-panel.js" "js/song-ring.js" "js/cd-boot.js" "js/cd3d.js" "js/cd-audio.js" "js/cd-fx.js" "js/theme-palette.js" "js/header-search.js" "js/magnetic-cursor.js" "css/pages.css" "js/pages.js" "js/page-deck.js" "js/page-solar.js" "js/page-solar-tune.js" "js/page-lost.js" "js/gd-beat.js" -}}
     {{- if not (resources.Get $name) -}}
         {{- warnf "缺少资源 assets/%s —— 该功能会被跳过(检查文件是否完整)" $name -}}
     {{- end -}}
@@ -55,6 +56,7 @@
 {{- with $solarJs }}{{ $solarJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $solarTuneJs }}{{ $solarTuneJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $lostJs }}{{ $lostJs = . | fingerprint "sha256" }}{{ end -}}
+{{- with $beatJs }}{{ $beatJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $pagesJs }}{{ $pagesJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $introCss }}
 <link rel="stylesheet" href="{{ .RelPermalink }}">{{ end }}
@@ -318,6 +320,7 @@ window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}",
     {{ with $solarJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
     {{ with $solarTuneJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
     {{ with $lostJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
+    {{ with $beatJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
     {{ with $introJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
     {{ with $reticleJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
     {{ with $statusJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
