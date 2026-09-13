@@ -1056,16 +1056,16 @@
        实测视频背景不是纯黑,而是一层很淡的灰蓝 —— screen 混合会把它原样叠上来,
        所以太阳周围会出现一个淡淡的【矩形】。contrast 把暗部压到 0,亮部几乎不动。
        注意别压太狠:太狠会在光晕上切出新的台阶(--sun-key 可调)*/
-    --sun-key: 1.35;
+    --sun-key: 2;      /* 薄雾压制:实测 2.0 时画框那层灰彻底没了,再大就压暗光晕 */
     filter: contrast(var(--sun-key)) saturate(1.04);
-    /* ★ 抠图第三招:遮罩实心只到球体边缘(0.98 倍),羽化一路拉到 2.2 倍 ——
-       这样连视频画面自己的上下边(约 1.08 倍球半径)也落在淡出区里,不留矩形硬边 */
-    --sun-mask-x: 57%;   /* 外缘半径 ÷ 元素宽(≈2.2 倍球半径)*/
-    --sun-mask-y: 101%;  /* 外缘半径 ÷ 元素高 */
-    --sun-mask: 45%;     /* 实心部分占外缘的比例(≈0.98 倍球半径)*/
-    -webkit-mask-image: radial-gradient(ellipse var(--sun-mask-x) var(--sun-mask-y) at 50% 50%,
+    /* ★ 抠图第三招:遮罩 =【正圆】(用 px 半径,挂在 --sun-w 上,跟着太阳缩放)。
+       实心半径 ≈ 1.36 倍球半径(横向光晕多留一点),淡出终点 ≈ 2.0 倍球半径;
+       那层灰蓝薄雾不靠遮罩、只靠上面的 contrast 压平 */
+    --sun-mask-r: 0.52;   /* 外缘半径 ÷ 元素宽(元素宽 = 球体直径 ÷ 0.52)*/
+    --sun-mask: 68%;      /* 实心部分占外缘的比例(≈1.36 倍球半径)*/
+    -webkit-mask-image: radial-gradient(circle calc(var(--sun-w, 400px) * var(--sun-mask-r)) at 50% 50%,
             #000 var(--sun-mask), transparent 100%);
-    mask-image: radial-gradient(ellipse var(--sun-mask-x) var(--sun-mask-y) at 50% 50%,
+    mask-image: radial-gradient(circle calc(var(--sun-w, 400px) * var(--sun-mask-r)) at 50% 50%,
             #000 var(--sun-mask), transparent 100%);
 }
 
