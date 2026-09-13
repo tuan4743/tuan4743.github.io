@@ -133,7 +133,7 @@
       var rows = ch.rows || CFG.ROWS, P = ch.period || period;
       function push(t, row, type, w, orb) {
         if (t < ch.lead + P * 2 || t > ch.duration - 0.6) return;
-        out.push({ t: +t.toFixed(4), row: row, type: type, w: w || 1, orb: orb });
+        out.push({ t: +t.toFixed(4), row: row, type: type, w: w || 1, h: 1, orb: orb });
       }
       for (var si = 0; si < ch.segments.length; si++) {
         var sg = ch.segments[si];
@@ -184,7 +184,7 @@
     function prepare() {
       segs = (chart.segments || []).map(function (s, i) { return { t: s.t, mode: s.mode || "cube", ability: s.ability || "", i: i }; });
       items = (chart.items && chart.items.length ? chart.items : draft(chart, beats)).map(function (it) {
-        var o = { t: it.t, row: it.row | 0, type: it.type, w: it.w || 1, orb: it.orb || "yellow" };
+        var o = { t: it.t, row: it.row | 0, type: it.type, w: it.w || 1, h: it.h || 1, orb: it.orb || "yellow" };
         o.x = xOf(o); o.x2 = o.x + (o.type === "orb" || o.type === "gravity" ? 1 : o.w);
         return o;
       }).sort(function (a, b) { return a.x - b.x; });
@@ -404,7 +404,7 @@
       for (var j = 0; j < near.length; j++) {
         var o = near[j];
         if (o.type === "orb" || o.type === "gravity") continue;
-        var x = o.x, w = o.x2 - o.x, y = o.row, h = 1;
+        var x = o.x, w = o.x2 - o.x, y = o.row, h = o.h || 1;
         if (o.type === "spike") { x += w * 0.18; w *= 0.64; y += 0; h = 0.72; }
         if (hit(w, h, x, y)) {
           if (shieldT > 0) { flash = 0.15; continue; }   /* 盾挡着,直接穿过去 */
@@ -478,9 +478,9 @@
         var x = W2S(o.x), w = (o.x2 - o.x) * V.ppb, y = H2S(o.row + 1), h = V.ppb;
         if (o.type === "block") {
           ctx2d.fillStyle = "rgba(226,246,255,0.16)";
-          ctx2d.fillRect(x, y, w, h);
+          ctx2d.fillRect(x, H2S(o.row + (o.h || 1)), w, (o.h || 1) * V.ppb);
           ctx2d.strokeStyle = COL.accent; ctx2d.globalAlpha = 0.75; ctx2d.lineWidth = 2;
-          ctx2d.strokeRect(x + 1, y + 1, w - 2, h - 2);
+          ctx2d.strokeRect(x + 1, H2S(o.row + (o.h || 1)) + 1, w - 2, (o.h || 1) * V.ppb - 2);
           ctx2d.globalAlpha = 1;
         } else if (o.type === "spike") {
           ctx2d.fillStyle = COL.warn; ctx2d.globalAlpha = 0.9;

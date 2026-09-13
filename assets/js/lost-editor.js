@@ -45,13 +45,14 @@
       open: false, chart: JSON.parse(JSON.stringify(D.chart)), beats: D.beats.slice(),
       period: D.period, offset: D.offset, dur: D.dur, env: D.env || [], envStep: D.envStep || 0,
       type: "block", orb: "yellow", row: 0, snap: "onset", zoom: 150, scroll: 0,
-      sel: null, drag: null, playing: false, t: 0, dirty: false, status: "", beatsInfo: null
+      sel: null, drag: null, resize: null, playing: false, t: 0, dirty: false, status: "", beatsInfo: null,
+      A: { ctx: null, buf: null, src: null, gain: null, offset: 0, startCtx: 0, err: "" }
     };
     /* 编辑用的物件表(带 id,方便选中/拖动)*/
     var items = [], nextId = 1;
     function loadItems(list) {
       items = (list || []).map(function (it) {
-        return { id: nextId++, t: it.t, row: it.row | 0, type: it.type, w: it.w || 1, orb: it.orb || "yellow" };
+        return { id: nextId++, t: it.t, row: it.row | 0, type: it.type, w: it.w || 1, h: it.h || 1, orb: it.orb || "yellow" };
       });
     }
     loadItems(E.chart.items && E.chart.items.length ? E.chart.items : api.dev.draft());
@@ -82,6 +83,7 @@
     snapSel.addEventListener("change", function () { E.snap = snapSel.value; });
     bar.appendChild(snapSel);
     var playBtn = btn("▶ 播放", function () { togglePlay(); });
+    b2 = playBtn;
     btn("试玩", function () { applyAll(); api.preview(E.t); E.playing = true; playBtn.textContent = "⏸ 暂停"; });
     btn("自动铺一版", function () {
       if (!window.confirm("用节拍重新自动铺一版?当前铺面会被替换(可以先导出)")) return;
@@ -133,6 +135,40 @@
 
     function syncBar() { rowIn.value = String(E.row); typeSel.value = E.type; status.textContent = E.status; }
     syncBar();
+
+    /* ---------------- 音频(时间轴的主人)----------------
+       编辑器自己播这首 mp3:播放头 = 音频时钟,拖波形即 seek(音频跟着跳)。
+       这样"看到的那条线"就是"听到的那一刻",铺面对的就是音乐本身 */
+    function audioInit() {
+      if (E.A.ctx || E.A.buf || E.A.err) return;
+      if (!window.GDBeat) { E.A.err = "no GDBeat"; return; }
+      window.GDBeat.decode(E.chart.song).then(function (r) {
+        E.A.ctx = r.ctx; E.A.buf = r.buffer;
+        E.A.gain = E.A.ctx.createGain();
+        var v = 1;
+        try { if (window.__cdAudio && window.__cdAudio.getVolume) v = window.__cdAudio.getVolume(); } catch (err) {}
+        E.A.gain.gain.value = Math.max(0.05, Math.min(1, v)) * 0.9;
+        E.A.gain.connect(E.A.ctx.destination);
+        if (E.playing) audioStart(E.t);
+      }).catch(function (err) { E.A.err = (err && err.message) || "音频加载失败"; });
+    }
+    function audioStop() { if (E.A.src) { try { E.A.src.stop(); } catch (err) {} E.A.src = null; } }
+    function audioStart(at) {
+      if (!E.A.ctx || !E.A.buf) return;
+      audioStop();
+      try { E.A.ctx.resume(); } catch (err) {}
+      E.A.src = E.A.ctx.createBufferSource();
+      E.A.src.buffer = E.A.buf; E.A.src.connect(E.A.gain);
+      E.A.offset = clamp(at, 0, Math.max(0, E.A.buf.duration - 0.05));
+      E.A.startCtx = E.A.ctx.currentTime + 0.02;
+      E.A.src.start(E.A.startCtx, E.A.offset);
+    }
+    /* 拖动播放头/点波形 → 音频跟着定位 */
+    function seek(t) {
+      E.t = clamp(t, 0, E.dur);
+      if (E.playing) audioStart(E.t);
+      draw();
+    }
 
     /* ---------------- 坐标换算 ---------------- */
     var V = { w: 0, h: 0, dpr: 1 };
@@ -245,9 +281,18 @@
         var T = TYPES.filter(function (q) { return q.k === it.type; })[0] || TYPES[0];
         ctx.fillStyle = T.c;
         ctx.globalAlpha = it.type === "block" || it.type === "spike" ? 0.85 : 0.6;
-        ctx.fillRect(ix - iw / 2, iy - rowH() * 0.36, iw, rowH() * 0.72);
+        var bh = Math.max(3, (it.h || 1) * rowH() * 0.72);
+        ctx.fillRect(ix - iw / 2, iy - bh / 2, iw, bh);
         ctx.globalAlpha = 1;
-        if (isel) { ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; ctx.strokeRect(ix - iw / 2 - 1, iy - rowH() * 0.36 - 1, iw + 2, rowH() * 0.72 + 2); ctx.lineWidth = 1; }
+        if (isel) {
+          var bb = boxOf(it);
+          ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2;
+          ctx.strokeRect(bb.x - 1, bb.y - 1, bb.w + 2, bb.h + 2);
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(bb.x + bb.w - 3, bb.cy - 4, 6, 8);      /* 右边手柄:宽 */
+          ctx.fillRect(bb.cx - 4, bb.y - 3, 8, 6);             /* 上边手柄:高 */
+          ctx.lineWidth = 1;
+        }
       }
       /* 播放头 */
       var px = t2x(E.t);
@@ -261,12 +306,26 @@
     function rulerY() { return 12; }
 
     /* ---------------- 交互 ---------------- */
+    function boxOf(it) {
+      var ix = t2x(it.t), iy = row2y(it.row);
+      var iw = Math.max(6, (it.w || 1) * (E.zoom * 0.34));
+      var ih = Math.max(6, (it.h || 1) * rowH() * 0.72);
+      return { x: ix - iw / 2, y: iy - ih / 2, w: iw, h: ih, cx: ix, cy: iy };
+    }
+    /* 命中尺寸手柄:右边 = 改宽,上边 = 改高(只有选中的物件有手柄)*/
+    function hitHandle(x, y) {
+      if (E.sel == null) return null;
+      var it = items.filter(function (q) { return q.id === E.sel; })[0];
+      if (!it) return null;
+      var b = boxOf(it);
+      if (x >= b.x + b.w - 5 && x <= b.x + b.w + 7 && Math.abs(y - b.cy) <= b.h / 2 + 4) return { it: it, k: "w" };
+      if (y >= b.y - 7 && y <= b.y + 5 && Math.abs(x - b.cx) <= b.w / 2 + 4) return { it: it, k: "h" };
+      return null;
+    }
     function hit(x, y) {
       for (var i = items.length - 1; i >= 0; i--) {
-        var it = items[i];
-        var ix = t2x(it.t), iy = row2y(it.row);
-        var iw = Math.max(6, (it.w || 1) * (E.zoom * 0.34));
-        if (Math.abs(x - ix) <= iw / 2 + 3 && Math.abs(y - iy) <= rowH() * 0.5 + 2) return it;
+        var b = boxOf(items[i]);
+        if (Math.abs(x - b.cx) <= b.w / 2 + 3 && Math.abs(y - b.cy) <= b.h / 2 + 3) return items[i];
       }
       return null;
     }
@@ -281,7 +340,9 @@
         if (hitIt) { items.splice(items.indexOf(hitIt), 1); E.dirty = true; E.status = "删掉 1 个(共 " + items.length + ")"; syncBar(); draw(); }
         return;
       }
-      if (p.y > V.h - WAVE_H) { E.t = clamp(x2t(p.x), 0, E.dur); draw(); return; }   /* 点波形 = 挪播放头 */
+      if (p.y > V.h - WAVE_H) { seek(x2t(p.x)); return; }   /* 点波形 = 播放头跳过去,音频也跳 */
+      var hd = hitHandle(p.x, p.y);
+      if (hd) { E.resize = hd; try { cv.setPointerCapture(ev.pointerId); } catch (err) {} draw(); return; }
       if (hitIt) {
         E.sel = hitIt.id; E.drag = { it: hitIt, dx: p.x - t2x(hitIt.t) };
         try { cv.setPointerCapture(ev.pointerId); } catch (err) {}   /* 合成的 PointerEvent 没有真指针,捕获会抛错 */
@@ -295,15 +356,31 @@
       draw();
     });
     cv.addEventListener("pointermove", function (ev) {
+      var ph = pos(ev);
+      if (E.resize) {
+        /* 改尺寸:0.5 块一档 */
+        var b0 = boxOf(E.resize.it);
+        if (E.resize.k === "w") {
+          var w = Math.max(0.5, Math.round(((ph.x - b0.x) / (E.zoom * 0.34)) * 2) / 2);
+          E.resize.it.w = w;
+          E.status = "宽 " + w + " 块";
+        } else {
+          var rowTop = y2row(ph.y) + 1;
+          var h2 = Math.max(0.5, Math.round((rowTop - E.resize.it.row) * 2) / 2);
+          E.resize.it.h = h2;
+          E.status = "高 " + h2 + " 块";
+        }
+        E.dirty = true; syncBar(); draw(); return;
+      }
       if (!E.drag) return;
-      var p = pos(ev);
+      var p = ph;
       E.drag.it.t = snapT(x2t(p.x - E.drag.dx));
       E.drag.it.row = y2row(p.y);
       E.dirty = true;
       E.status = "拖到 " + E.drag.it.t + "s / 行 " + E.drag.it.row;
       syncBar(); draw();
     });
-    cv.addEventListener("pointerup", function () { E.drag = null; });
+    cv.addEventListener("pointerup", function () { E.drag = null; E.resize = null; draw(); });
     cv.addEventListener("wheel", function (ev) {
       ev.preventDefault();
       if (ev.shiftKey) {
@@ -340,18 +417,22 @@
       E.playing = !E.playing;
       var b = bar.querySelectorAll(".lost-ed__btn")[0];
       if (b) b.textContent = E.playing ? "⏸ 暂停" : "▶ 播放";
-      if (E.playing) { playT = performance.now(); requestAnimationFrame(tickPlay); }
+      if (E.playing) { audioInit(); audioStart(E.t); playT = performance.now(); requestAnimationFrame(tickPlay); }
+      else audioStop();
     }
     function tickPlay() {
       if (!E.playing || !E.open) return;
       var now = performance.now();
-      E.t = clamp(E.t + (now - playT) / 1000, 0, E.dur);
+      /* ★ 播放头以音频时钟为准(音频还没解好时退回墙钟)*/
+      if (E.A.src && E.A.ctx) E.t = clamp(E.A.offset + (E.A.ctx.currentTime - E.A.startCtx), 0, E.dur);
+      else E.t = clamp(E.t + (now - playT) / 1000, 0, E.dur);
       playT = now;
-      /* 播放头跟着走出屏幕就滚一下 */
       if (t2x(E.t) > V.w * 0.8) E.scroll = clamp(E.t - V.w * 0.2 / E.zoom, 0, Math.max(0, E.dur - 1));
+      if (E.t >= E.dur - 0.02) { E.playing = false; audioStop(); if (b2) b2.textContent = "▶ 播放"; return; }
       draw();
       requestAnimationFrame(tickPlay);
     }
+    var b2 = null;
 
     /* ---------------- 采音 ---------------- */
     function recount(percentile, minSep, mode, out) {
@@ -378,6 +459,7 @@
       ch.period = E.period; ch.offset = E.offset; ch.duration = E.dur;
       ch.items = items.slice().sort(function (a, b) { return a.t - b.t; }).map(function (it) {
         var o = { t: +(+it.t).toFixed(4), row: it.row, type: it.type, w: it.w || 1 };
+        if ((it.h || 1) !== 1) o.h = it.h;
         if (it.type === "orb") o.orb = it.orb || "yellow";
         return o;
       });
