@@ -189,6 +189,8 @@
         period = b.period || chart.period || 0.3483;
         offset = b.offset || chart.offset || 0;
         dur = b.duration || chart.duration || 156;
+        window.__lostEnv = b.env || [];
+        window.__lostEnvStep = b.envStep || 0;
         CFG.SPEED = chart.speed || CFG.SPEED;
         CFG.ROWS = chart.rows || CFG.ROWS;
         chart.lead = chart.lead == null ? CFG.LEAD : chart.lead;
@@ -296,7 +298,7 @@
 
     /* ---------------- 推进 ---------------- */
     function step(dt) {
-      if (!ready) return;
+      if (!ready || ED) return;
       if (reached) return;
       if (dead) {
         deadT += dt;
@@ -594,6 +596,7 @@
 
     /* ---------------- 循环 ---------------- */
     var active = false, raf = 0, last = 0, acc = 0, frozen = false, paused = false;
+    var ED = false;                 /* 铺面编辑器开着 → 不推进仿真 */
     function frame(now) {
       raf = 0;
       if (!active) return;
@@ -691,6 +694,47 @@
         }
       },
       repaint: function () { resize(); camX = (S ? S.x : 0) - (V.w / V.ppb) * CFG.VIEW; },
+      /* ---------- 铺面编辑器用的接口 ---------- */
+      editorOpen: function (on) {
+        ED = !!on;
+        if (on) { audioStop(); keys.jump = 0; keys.shield = 0; }
+        else if (active && !MODE_STEP.dry) audioStart(S ? S.t : 0);
+        return ED;
+      },
+      /* 编辑器里改了铺面 → 立刻套进来(节拍不用重算)*/
+      applyChart: function (ch) {
+        if (!ch || !ch.segments) return -1;
+        chart = ch; chart.lead = chart.lead == null ? CFG.LEAD : chart.lead;
+        chart.duration = dur; chart.period = period; chart.rows = chart.rows || CFG.ROWS;
+        prepare();
+        return items.length;
+      },
+      /* 编辑器重新采音之后,把新节拍也交给游戏(否则编辑器吸附新节拍、
+         游戏判定用旧节拍,两边就不同步了)*/
+      applyBeats: function (bs, p, off, d, env, envStep) {
+        if (bs && bs.length) { beats = bs.slice(); beatT = bs.slice(); }
+        if (p) period = p;
+        if (off != null) offset = off;
+        if (d) dur = d;
+        if (env) { window.__lostEnv = env; window.__lostEnvStep = envStep || 0; }
+        return beatT.length;
+      },
+      /* 从某一刻试玩:先关掉编辑暂停,再定位 */
+      preview: function (t) {
+        ED = false;
+        resetPlayer(0, 1); S.t = clamp(t, 0, dur - 1); S.x = t2x(S.t); segNow = segAt(S.t);
+        items.forEach(function (it) { it.done = false; });
+        if (active && !MODE_STEP.dry) audioStart(S.t);
+        return S.t;
+      },
+      /* 编辑器要的原始数据(波形 / 节拍 / 段落 / 采音参数)*/
+      data: function () {
+        return {
+          chart: chart, beats: beatT.slice(), period: period, offset: offset, dur: dur,
+          env: (window.__lostEnv || []), envStep: (window.__lostEnvStep || 0),
+          items: items.map(function (it) { return { t: it.t, row: it.row, type: it.type, w: it.w, orb: it.orb }; })
+        };
+      },
       state: function () {
         return {
           key: key, active: active, ready: ready, err: loadErr || A.err,
