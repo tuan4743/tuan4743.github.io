@@ -18,6 +18,13 @@ const HLD = 0x7ff0ff;
 const WARN = 0xff9a6b;
 const LEVEL: Level = generateLevel({ seed: 20260913 });
 
+/** 当前所在段落的名字(只是给 HUD 看的,不影响判定) */
+function segOf(x: number): string {
+  const b = x / U;
+  const sg = LEVEL.segments.find((s) => b >= s.from && b < s.to);
+  return sg ? (sg.label || sg.mode) : '';
+}
+
 class Scene extends Phaser.Scene {
   world = new World(LEVEL);
   g!: Phaser.GameObjects.Graphics;
@@ -110,7 +117,7 @@ class Scene extends Phaser.Scene {
     const hud = document.getElementById('gd-hud');
     if (hud) {
       hud.textContent =
-        (w.mode === 'ship' ? '飞机' : '方块') + ' · ' + Math.round(w.progress * 100) + '%' +
+        (w.mode === 'ship' ? '飞机' : '方块') + ' · ' + (segOf(w.x) || '') + ' · ' + Math.round(w.progress * 100) + '%' +
         ' · 尝试 ' + String(w.attempts).padStart(2, '0') +
         ' · ' + (w.dead ? '摔了(R 重来)' : '') + ' · ' + Math.round(this.fps) + (this.audio && !this.audio.paused ? ' · ♪ ' + this.audio.currentTime.toFixed(1) + 's' : ' · 按一下开始') + ' fps';
     }
