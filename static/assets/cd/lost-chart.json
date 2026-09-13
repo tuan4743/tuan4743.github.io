@@ -26,7 +26,7 @@
   "rows": 10,
   "lead": 3.0,
   "segments": [
-    { "t": 3.117, "mode": "cube", "ability": "echo" },
+    { "t": 3.117, "mode": "cube", "ability": "jump" },
     { "t": 40.792, "mode": "plane", "ability": "plane" },
     { "t": 78.379, "mode": "cube", "ability": "shield" },
     { "t": 115.966, "mode": "cube", "ability": "gravity" }

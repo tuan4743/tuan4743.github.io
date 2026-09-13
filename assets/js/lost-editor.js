@@ -457,9 +457,20 @@
         if (tries++ < 60) setTimeout(wait, 250);
       })();
     }
+    /* ★ 快捷键保护:只认【纯 Alt+E】——
+       Ctrl+E / Cmd+E / Shift+Alt+E 这些是浏览器的快捷键(搜索栏、开发者工具…),
+       一律放行,不 preventDefault、也不开编辑器;
+       再要求当前确实停在第三张盘上,不然在别的页面按也会弹出来 */
     window.addEventListener("keydown", function (ev) {
-      if (ev.altKey && (ev.key === "e" || ev.key === "E")) { ev.preventDefault(); toggle(); }
-    });
+      if (!(ev.altKey && !ev.ctrlKey && !ev.metaKey && !ev.shiftKey)) return;
+      if (ev.key !== "e" && ev.key !== "E" && ev.code !== "KeyE") return;
+      var panel = document.querySelector('[data-panel="lost"]');
+      if (!panel || !panel.classList.contains("is-active")) return;
+      if (ev.repeat) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      toggle();
+    }, true);
     window.__lostEditor = { toggle: toggle, ensure: ensure };
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);

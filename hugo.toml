@@ -230,9 +230,9 @@ paginate = 10
       code = "ST-01"
       ability = "echo"
       theme = "复盘"
-      key = "TAP"
-      title = "回响方块"
-      text = "死亡或失误后,在同一拍留下残影;下一轮走到那一拍,自动补一次二段跳。"
+      key = "TAP ×2"
+      title = "二段跳"
+      text = "空中再点一次,可以再蹬一下。死了会在那一拍留个残影,下一轮那一拍自动替你蹬。"
       line = "他掉下去过很多次。第四次,他在半空里又蹬了一下 —— 原来脚下不一定非要有东西。"
 
     [[params.intro.decks.lost]]

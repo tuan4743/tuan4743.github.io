@@ -114,7 +114,9 @@
     function beatTime(i) { return beatT[clamp(i, 0, beatT.length - 1)] || 0; }
     function segAt(t) {
       var k = 0;
-      for (var i = 0; i < segs.length; i++) if (t >= segs[i].t - CFG.LEAD * 0.5) k = i;
+      /* ★ 严格按段落起点切换:原来提前 0.8 秒,结果上一段的柱子还在、形态已经换了
+         → 当场撞死(整首自动播放跑出来的)。铺面在段边界本来留了 1.2 拍的空档 */
+      for (var i = 0; i < segs.length; i++) if (t >= segs[i].t) k = i;
       return k;
     }
     function itemsNear(x0, x1) {
@@ -258,6 +260,8 @@
         return;
       }
       if (S.onGround) { jumpNow(1); return; }
+      /* ★ 第一个能力:二段跳(ST-01 复盘)—— 空中再点一次就能再蹬一下 */
+      if (S.air < 2) { S.air = 2; jumpNow(0.95); flash = 0.35; return; }
       /* 空中:看脚下有没有跳点 */
       for (var i = 0; i < items.length; i++) {
         var it = items[i];
@@ -368,10 +372,10 @@
         S.y += S.vy * dt;
         S.air = S.onGround ? 0 : S.air;
         if (gdir > 0) {
-          if (S.y <= 0) { S.y = 0; S.vy = 0; if (!S.onGround) S.rot = 0; S.onGround = true; }
+          if (S.y <= 0) { S.y = 0; S.vy = 0; S.air = 0; if (!S.onGround) S.rot = 0; S.onGround = true; }
           else S.onGround = false;
         } else {
-          if (S.y + CFG.PH >= CFG.ROWS) { S.y = CFG.ROWS - CFG.PH; S.vy = 0; if (!S.onGround) S.rot = 0; S.onGround = true; }
+          if (S.y + CFG.PH >= CFG.ROWS) { S.y = CFG.ROWS - CFG.PH; S.vy = 0; S.air = 0; if (!S.onGround) S.rot = 0; S.onGround = true; }
           else S.onGround = false;
         }
         if (!S.onGround) S.rot += dt * 5.2 * (gdir > 0 ? 1 : -1);
@@ -729,7 +733,9 @@
       var d = bx - (S.x + CFG.PW);
       if (best.w >= 3) { if (d < 7) shieldNow(); return; }     /* 宽障碍:举盾顶过去 */
       /* 在"跨得过整块"的那段窗口里点:太早点不着、太晚落地时还在障碍里 */
-      if (S.onGround && S.x >= bx - 2.0 && S.x <= bx - 1.15) tap();
+      if (S.onGround && S.x >= bx - 2.0 && S.x <= bx - 1.15) { tap(); return; }
+      /* 已经在空中、前面还有障碍且正在下落 → 用二段跳补一下 */
+      if (!S.onGround && S.air < 2 && S.vy < 1 && S.x < bx - 0.4 && S.x > bx - 3.4) tap();
     }
     function retry() {
       attempts = 0; deaths = 0; echoes = []; reached = false;
