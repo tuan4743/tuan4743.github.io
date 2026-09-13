@@ -23,7 +23,8 @@ import { LOST_BEATS, type BeatData } from './beats.ts';
 export type Mode = 'cube' | 'ship' | 'ball' | 'ufo' | 'wave' | 'robot' | 'spider';
 export type ObjKind =
   | 'block'      // 实心方块:踩上面能站,撞侧面死
-  | 'spike'      // 尖刺:碰到就死
+  | 'spike'      // 尖刺:碰到就死(h 决定大小:0.5 = 小刺,1.0 = 普通,1.5 = 大刺)
+  | 'saw'        // 锯片:整格吃人的旋转圆锯
   | 'platform'   // 可踩平台:只从上面接住,不致死
   | 'check'      // 存档点:跨过就更新重来位置
   | 'portal'     // 圆环:切换形态

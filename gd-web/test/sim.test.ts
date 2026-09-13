@@ -300,6 +300,52 @@ test('蜘蛛:点一下传到对面(地板 ↔ 天花板),并翻重力', () => {
   assert.ok(w.y / U < 1, '应该回到地面上(y=' + (w.y / U).toFixed(2) + ' 块)');
 });
 
+/* ---------------- ③c 物件补全:刺的档位 / 锯片 / 黑环 ---------------- */
+test('小刺与大刺:判定高度跟着 h 走(小刺 0.5、大刺 1.5)', () => {
+  const mk = (h: number) => new World(solo([
+    { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
+    { kind: 'spike', b: 20, r: 0, w: 1, h },
+  ]));
+  const small = mk(0.5);
+  const hSmall = small.hazards[0].y1 - small.hazards[0].y0;
+  const big = mk(1.5);
+  const hBig = big.hazards[0].y1 - big.hazards[0].y0;
+  assert.ok(Math.abs(hSmall - 0.35 * U) < 0.01, '小刺判定高 ' + (hSmall / U).toFixed(2) + ' 块(应 0.35)');
+  assert.ok(Math.abs(hBig - 1.05 * U) < 0.01, '大刺判定高 ' + (hBig / U).toFixed(2) + ' 块(应 1.05)');
+  /* 大刺跳不过去(一跳峰值 2.17 块,内框够得着 1.05 块的大刺),小刺一跳就过 */
+  const run = (w: World) => { for (let i = 0; i < 300 && !w.dead && w.x < 30 * U; i++) w.frame(i > 60 && i < 70); return w; };
+  assert.equal(run(mk(0.5)).dead, false, '小刺应该跳得过去');
+  assert.equal(run(mk(1.5)).dead, true, '大刺一跳是过不去的(它就是拿来封路的)');
+});
+
+test('锯片:整格吃人 —— 从旁边跑过去会死,从下面钻过去没事', () => {
+  const low = new World(solo([
+    { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
+    { kind: 'saw', b: 20, r: 0, w: 1, h: 1 },
+  ]));
+  for (let i = 0; i < 300 && !low.dead; i++) low.frame(false);
+  assert.equal(low.dead, true, '贴着地面撞上锯片应该死');
+
+  const hi = new World(solo([
+    { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
+    { kind: 'saw', b: 20, r: 3, w: 1, h: 1 },     // 吊在高处
+  ]));
+  for (let i = 0; i < 300 && !hi.dead && hi.x < 30 * U; i++) hi.frame(false);
+  assert.equal(hi.dead, false, '从下面跑过去不该死(锯片只在它自己那格里吃人)');
+  assert.ok(hi.x > 25 * U, '应该跑过去了');
+});
+
+test('黑环(冲刺):不管当前速度,直接把垂直速度设成 15 并朝重力方向', () => {
+  const lv = solo([
+    { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
+    { kind: 'orb', b: 20, r: 2, w: 1, h: 1, orb: 'black' },
+  ]);
+  const w = new World(lv);
+  w.x = 20 * U - 12; w.y = 2 * U; w.vy = 6; w.onGround = false;   // 本来在往上飞
+  w.frame(true);
+  assert.ok(Math.abs(w.vy + ORB.black.v) < 1.2, '黑环应该把速度设成朝下的 15,实测 vy=' + w.vy.toFixed(2));
+});
+
 /* ---------------- ④ 自动铺面 ---------------- */
 test('自动铺面:两次"出手"之间留够落地的余量(不会生成必死关)', () => {
   for (const seed of [1, 7, 20260913, 424242]) {

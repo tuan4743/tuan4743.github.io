@@ -65,8 +65,16 @@ export class World {
         case 'block': this.solids.push(b); break;
         case 'platform': this.floors.push(b); break;
         case 'spike': {
+          /* ★ 判定高度 = 0.7 × 物件高度:于是"小刺 / 大刺"只是 h 不同(1.0 / 0.5 / 1.5),
+             碰撞盒自动跟着变 —— 不用为每种刺再写一套判定 */
           const inset = (1 - P.spikeHitScale) / 2 * (o.w * U);
-          this.hazards.push({ x0: b.x0 + inset, x1: b.x1 - inset, y0: b.y0, y1: b.y0 + 0.7 * U, o });
+          this.hazards.push({ x0: b.x0 + inset, x1: b.x1 - inset, y0: b.y0, y1: b.y0 + 0.7 * o.h * U, o });
+          break;
+        }
+        case 'saw': {
+          /* 锯片:整格都吃人(只往里收一点,免得"看着没碰到就死") */
+          const inset = 0.14 * (o.w * U);
+          this.hazards.push({ x0: b.x0 + inset, x1: b.x1 - inset, y0: b.y0 + inset, y1: b.y1 - inset, o });
           break;
         }
         case 'portal': this.portals.push(b); break;
@@ -348,13 +356,15 @@ export class World {
    *  ★ 用【绝对赋值】而不是叠加:于是弹簧连的每一跳几何完全一样,
    *    玩家被第一根弹簧弹起来之后,会自动落进下一根弹簧 —— 这就是"弹簧连不用出手"的原理。
    *  ★ 重力的翻转时机分两种(反编译口径):蓝的"先给速度再翻",绿的"先翻再给速度"。 */
-  private applyTrigger(spec: { v: number; flip: 'none' | 'before' | 'after' }, consumePress = false) {
+  private applyTrigger(spec: { v: number; flip: 'none' | 'before' | 'after' | 'dash' }, consumePress = false) {
     if (spec.flip === 'before') {
       this.vy = spec.v * this.gdir;                     // 按【旧】重力方向给速度
       if (this.mode === 'cube') this.gdir = -this.gdir; // 然后才翻重力
     } else if (spec.flip === 'after') {
       if (this.mode === 'cube') this.gdir = -this.gdir; // 先翻重力
       this.vy = spec.v * this.gdir;                     // 再按【新】重力方向给速度
+    } else if (spec.flip === 'dash') {
+      this.vy = -spec.v * this.gdir;                    // 冲刺环:朝重力方向砸下去(常重力下 -15)
     } else {
       this.vy = spec.v * this.gdir;
     }

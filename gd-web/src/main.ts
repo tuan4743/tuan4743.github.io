@@ -26,7 +26,7 @@ const LEVEL: Level = generateLevel({ seed: 20260913 });
 
 /* 跳环 / 弹簧的配色(和游戏里的常识一致:黄=跳,粉=小跳,蓝=翻重力,绿=翻重力+跳) */
 const ORB_COL: Record<string, number> = {
-  yellow: 0xffe17a, pink: 0xff9fd0, red: 0xff8a8a, blue: 0x9fd8ff, green: 0xa0ffd0,
+  yellow: 0xffe17a, pink: 0xff9fd0, red: 0xff8a8a, blue: 0x9fd8ff, green: 0xa0ffd0, black: 0xb9a7ff,
 };
 const PAD_COL: Record<string, number> = {
   yellow: 0xffe17a, pink: 0xff9fd0, red: 0xff8a8a, blue: 0x9fd8ff, purple: 0xc6a0ff,
@@ -430,16 +430,34 @@ class Scene extends Phaser.Scene {
           break;
         }
         case 'spike':
-          /* 尖刺:底边在格子下沿、尖朝上;亮描边 + 暗填充,一眼看出是"要跳过去"的东西 */
+          /* 尖刺:底边在格子下沿、尖朝上;高度按 o.h 缩放(小刺 0.5 / 大刺 1.5) */
           for (let k = 0; k < o.w; k++) {
-            const sx = obx + k * U;
-            g.fillStyle(0x2a1408, 0.95).fillTriangle(sx + 2, oBot, sx + U / 2, oBot - U * 0.9, sx + U - 2, oBot);
+            const sx = obx + k * U, tip = oBot - U * 0.9 * o.h;
+            g.fillStyle(0x2a1408, 0.95).fillTriangle(sx + 2, oBot, sx + U / 2, tip, sx + U - 2, oBot);
             g.lineStyle(2, WARN, 0.95);
             g.beginPath();
-            g.moveTo(sx + 2, oBot); g.lineTo(sx + U / 2, oBot - U * 0.9); g.lineTo(sx + U - 2, oBot);
+            g.moveTo(sx + 2, oBot); g.lineTo(sx + U / 2, tip); g.lineTo(sx + U - 2, oBot);
             g.strokePath();
           }
           break;
+        case 'saw': {
+          /* 锯片:一个带齿的圆锯,按时间转(纯视觉,判定是整格) */
+          const scx = obx + obw / 2, scy = oBot - obh / 2;
+          const r = Math.min(obw, obh) * 0.42;
+          const spin = tick * 0.12;
+          g.fillStyle(0x2a1408, 0.9).fillCircle(scx, scy, r);
+          g.lineStyle(2, WARN, 0.95).strokeCircle(scx, scy, r);
+          for (let k = 0; k < 8; k++) {
+            const a = spin + k * Math.PI / 4;
+            g.fillStyle(WARN, 0.9).fillTriangle(
+              scx + Math.cos(a) * r, scy + Math.sin(a) * r,
+              scx + Math.cos(a + 0.28) * r * 1.35, scy + Math.sin(a + 0.28) * r * 1.35,
+              scx + Math.cos(a - 0.28) * r * 1.35, scy + Math.sin(a - 0.28) * r * 1.35,
+            );
+          }
+          g.fillStyle(0x05070d, 1).fillCircle(scx, scy, r * 0.3);
+          break;
+        }
         case 'pad': {
           /* 弹簧(跳板):底座 + 两层朝上的箭形 —— 不用猜它会不会弹你 */
           const col = PAD_COL[o.pad ?? 'yellow'] ?? 0xffe17a;
@@ -467,6 +485,11 @@ class Scene extends Phaser.Scene {
             g.beginPath();
             g.moveTo(ccx - 6, ccy - 4); g.lineTo(ccx, ccy - 9); g.lineTo(ccx + 6, ccy - 4);
             g.moveTo(ccx - 6, ccy + 4); g.lineTo(ccx, ccy + 9); g.lineTo(ccx + 6, ccy + 4);
+            g.strokePath();
+          } else if (o.orb === 'black') {                       // 冲刺:向下的双箭头(它把人往下"砸")
+            g.beginPath();
+            g.moveTo(ccx - 7, ccy - 6); g.lineTo(ccx, ccy + 1); g.lineTo(ccx + 7, ccy - 6);
+            g.moveTo(ccx - 7, ccy + 1); g.lineTo(ccx, ccy + 8); g.lineTo(ccx + 7, ccy + 1);
             g.strokePath();
           } else {                                              // 跳:上箭头
             const h = o.orb === 'pink' ? 6 : 10;

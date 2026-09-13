@@ -83,9 +83,9 @@ export function vxOf(speedIdx: number): number {
  * 出处:GD 2.2081 的 IDA 反编译(PlayerObject::ringJump / bumpPlayer / propellPlayer /
  *      GJBaseGameLayer::getBumpMod),数值都是"赋值给 yVelocity 的绝对速度"。
  */
-export type OrbKind = 'yellow' | 'pink' | 'red' | 'blue' | 'green';
+export type OrbKind = 'yellow' | 'pink' | 'red' | 'blue' | 'green' | 'black';
 export type PadKind = 'yellow' | 'pink' | 'red' | 'blue' | 'purple';
-export type FlipWhen = 'none' | 'before' | 'after';
+export type FlipWhen = 'none' | 'before' | 'after' | 'dash';
 
 export const ORB: Record<OrbKind, { v: number; flip: FlipWhen; note: string }> = {
   yellow: { v: 11.1800318, flip: 'none', note: '[GDOpenGD] = jumpPower,原版黄环就是"空中再来一跳"(×1.0)' },
@@ -93,6 +93,7 @@ export const ORB: Record<OrbKind, { v: number; flip: FlipWhen; note: string }> =
   red: { v: 15.428, flip: 'none', note: '[GDOpenGD] ×1.38,大跳' },
   blue: { v: 8.9442, flip: 'before', note: '[GDOpenGD] ×0.8,按旧重力方向给速度后再翻重力' },
   green: { v: 11.1800318, flip: 'after', note: '[GDOpenGD] ×1.0,先翻重力再按新重力方向给速度' },
+  black: { v: 15, flip: 'dash', note: '[GDOpenGD] 冲刺环:把速度设成 15 并【朝重力方向】砸下去(常重力下是 -15),不看 jumpPower' },
 };
 
 export const PAD: Record<PadKind, { v: number; flip: FlipWhen; note: string }> = {
