@@ -112,6 +112,8 @@
       return cumX[k] + (t - segs[k].t) * segs[k].speed;
     }
     function t2x(t) { return xAt(t); }
+    /* 关卡起点:铺面想把第一段设到 0 也允许(以前被 chart.lead=3.0 顶住)*/
+    function levelStart() { return segs.length ? Math.min(chart.lead, segs[0].t) : chart.lead; }
     function xOf(it) { return t2x(it.t) + (CFG.OFF[it.type] || 0); }
     function nearestBeat(t) {
       if (!beatT.length) return 0;
