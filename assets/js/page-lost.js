@@ -342,6 +342,8 @@
     }
     function respawn() {
       attempts++;
+      /* ★ 复活时圆环/跳点也要刷新(用户报的:重开或复活后圆环还是暗的)*/
+      for (var ri = 0; ri < items.length; ri++) { items[ri].done = false; items[ri].used = false; }
       /* ★ 回到【本段存档点】(用户要求:不要回退几秒 —— 那样会一直在同一处反复死)*/
       var si = Math.max(0, segAt(S.t));
       var t = Math.max(levelStart(), segs[si].check - 0.15);   /* 允许 0 */   /* 每段自己的存档点 */
@@ -383,7 +385,10 @@
       var si = segAt(t);
       var seg = segs[si];
       if (seg.mode !== mode) {
-        mode = seg.mode; S.modeIsPlane = (mode === "plane");
+        /* ★ 形态切换交给圆环:段落只在【第一段】给个初始形态,
+           否则会变成"固定地方自动切",用户放的圆环就成了摆设 */
+        var wantMode = (si === 0) ? (seg.mode || "cube") : mode;
+        mode = wantMode; S.modeIsPlane = (mode === "plane");
         /* 变形瞬间给个安全的落点:方块 → 飞机 时直接切到走廊中间
            (从地面上起飞、又刚好没按住,第一帧就撞地死了 —— 验收抓到的);
            飞机 → 方块 时干净落地 */
@@ -411,7 +416,8 @@
         /* ★ 用户要的:恒定 45° 自动移动,默认向上;点一下(空格)翻成向下,再点翻回 */
         S.vy = (S.planeUp === false ? -CFG.SPEED : CFG.SPEED);
         S.y += S.vy * dt;
-        S.rot = keys.jump ? -0.785 : 0.785;
+        /* ★ 贴图要跟实际方向一致:向上飞时机头朝上(负角),向下时机头朝下 */
+        S.rot = (S.planeUp === false) ? 0.785 : -0.785;
         if (S.y < 0 || S.y + CFG.PH > CFG.ROWS) { die("rail"); return; }
       } else {
         S.vy -= CFG.GRAV * gdir * dt;
@@ -465,7 +471,8 @@
         if (po.type !== "portal" || po.used) continue;
         if (S.x + CFG.PW < po.x) continue;
         po.used = true;
-        mode = po.to || "plane"; S.modeIsPlane = (mode === "plane");
+        /* ★ 圆环 = 切换:飞机形态碰到 → 变回方块;方块形态碰到 → 变飞机 */
+        mode = (mode === "plane") ? "cube" : "plane"; S.modeIsPlane = (mode === "plane");
         if (mode === "plane") { S.planeUp = true; S.vy = 0; }
         else { S.vy = 0; gdir = 1; S.y = 0; S.onGround = true; }
         flash = 0.6;
@@ -796,7 +803,12 @@
       if (e.key === "r" || e.key === "R") { if (down) retry(); return; }
       if (e.key === "s" || e.key === "S" || e.key === "Shift") { if (down && !keys.shield) { keys.shield = 1; shieldNow(); } else if (!down) keys.shield = 0; return; }
       if (e.repeat) return;
-      if (down && (e.key === " " || e.key === "ArrowUp" || e.key === "w" || e.key === "W" || e.key === "Enter")) { keys.jump = 1; tap(); }
+      if (down && (e.key === " " || e.key === "ArrowUp" || e.key === "w" || e.key === "W" || e.key === "Enter")) {
+        keys.jump = 1;
+        /* ★ 飞机形态:按下就立刻翻方向(随按随切,不受 tap() 里那些守卫限制)*/
+        if (S && S.modeIsPlane && !dead && ready) { S.planeUp = (S.planeUp === false); flash = 0.25; }
+        else tap();
+      }
       else if (!down && (e.key === " " || e.key === "ArrowUp" || e.key === "w" || e.key === "W" || e.key === "Enter")) keys.jump = 0;
     }
     var kd = function (e) { onKey(e, true); }, ku = function (e) { onKey(e, false); };
@@ -896,7 +908,8 @@
       attempts = 0; deaths = 0; echoes = []; reached = false;
       if (endEl) endEl.classList.remove("is-on");
       segNow = -1; resetPlayer(0, 1);
-      S.t = chart.lead; S.x = t2x(S.t);
+      /* ★ 起点用 levelStart():铺面把第一段设到 0 时,游戏就该从 0 开始 */
+      S.t = levelStart(); S.x = t2x(S.t);
       items.forEach(function (it) { it.done = false; });
       if (!MODE_STEP.dry) audioStart(S.t);
       say(TXT.intro, 5);
@@ -1019,7 +1032,7 @@
         seek: function (t) {
           resetPlayer(0, 1); S.t = t; S.x = t2x(t); segNow = segAt(t);
           phase = "play";   /* ★ 推演用:上一条用例死过也不会把后面的挡掉 */
-          items.forEach(function (it) { it.done = false; });
+          items.forEach(function (it) { it.done = false; it.used = false; });
           audioStop();
           return this.snapshot();
         },
