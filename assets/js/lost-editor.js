@@ -24,7 +24,11 @@
     { k: "shield", n: "护盾", c: "#7ff0c0" },
     { k: "echo", n: "回响", c: "#a0f0ff" },
     { k: "rail", n: "斜轨", c: "#6ee7ff" },
-    { k: "hole", n: "坑洞", c: "#ffb36b" }
+    { k: "hole", n: "坑洞", c: "#ffb36b" },
+    { k: "platform", n: "平台(可踩)", c: "#b8e986" },
+    { k: "ground", n: "地面", c: "#9fb8d0" },
+    { k: "decoText", n: "文字", c: "#ffffff" },
+    { k: "decoLight", n: "光源", c: "#ffe9a8" }
   ];
   var ROW_H = 22, WAVE_H = 76, RULER_H = 18;
 
@@ -55,7 +59,7 @@
     function loadItems(list) {
       items = (list || []).map(function (it) {
         return { id: nextId++, t: it.t, row: it.row | 0, type: it.type, w: it.w || 1, h: it.h || 1, orb: it.orb || "yellow",
-          t2: it.t2, row2: it.row2 };
+          t2: it.t2, row2: it.row2, text: it.text || "", deco: it.deco || "" };
       });
     }
     loadItems(E.chart.items && E.chart.items.length ? E.chart.items : api.dev.draft());
@@ -91,7 +95,10 @@
     bar.appendChild(el("i", "lost-ed__tag", "段"));
     bar.appendChild(segSel);
     var spdIn = el("input", "lost-ed__num"); spdIn.type = "number"; spdIn.step = "0.5"; spdIn.min = "3"; spdIn.max = "24";
-    var chkIn = el("input", "lost-ed__num"); chkIn.type = "number"; chkIn.step = "0.1";
+    var segTIn = el("input", "lost-ed__num"); segTIn.type = "number"; segTIn.step = "0.1"; segTIn.min = "0";
+    var chkIn = el("input", "lost-ed__num"); chkIn.type = "number"; chkIn.step = "0.1"; chkIn.min = "0";
+    bar.appendChild(el("i", "lost-ed__tag", "起点"));
+    bar.appendChild(segTIn);
     bar.appendChild(el("i", "lost-ed__tag", "移速"));
     bar.appendChild(spdIn);
     bar.appendChild(el("i", "lost-ed__tag", "存档点"));
@@ -100,13 +107,30 @@
     function syncSeg() {
       var s = segNow();
       if (!s) return;
+      segTIn.value = String(+s.t.toFixed(2));
       spdIn.value = String(s.speed || E.chart.speed || 10.4);
       chkIn.value = String(+(s.check != null ? s.check : s.t).toFixed(2));
+      if (E.pendingText != null) txtIn.value = E.pendingText;
     }
     segSel.addEventListener("change", function () { syncSeg(); draw(); });
+    segTIn.addEventListener("change", function () {
+      var s = segNow();
+      var v = clamp(parseFloat(segTIn.value) || 0, 0, E.dur - 1);   /* ★ 允许 0:第一段可以就设在开头 */
+      s.t = v; if (s.check == null || s.check < v) s.check = v;
+      E.dirty = true; E.status = "段起点改成 " + v + "s"; syncBar(); draw();
+    });
     spdIn.addEventListener("change", function () { var s = segNow(); s.speed = clamp(parseFloat(spdIn.value) || 10.4, 3, 24); E.dirty = true; E.status = "ST-0" + (+segSel.value + 1) + " 移速 " + s.speed + " 块/秒"; syncBar(); });
     chkIn.addEventListener("change", function () { var s = segNow(); s.check = snapT(clamp(parseFloat(chkIn.value) || s.t, s.t, E.dur)); chkIn.value = String(s.check); E.dirty = true; E.status = "ST-0" + (+segSel.value + 1) + " 存档点 " + s.check + "s"; syncBar(); draw(); });
     syncSeg();
+    /* ---- 装饰文字内容 ---- */
+    var txtIn = el("input", "lost-ed__txt"); txtIn.type = "text"; txtIn.placeholder = "装饰文字";
+    bar.appendChild(el("i", "lost-ed__tag", "文字"));
+    bar.appendChild(txtIn);
+    txtIn.addEventListener("change", function () {
+      var it = items.filter(function (q) { return q.id === E.sel; })[0];
+      if (it) { it.text = txtIn.value; it.type = "deco"; it.deco = "text"; E.dirty = true; E.status = "文字改成 " + txtIn.value; syncBar(); draw(); }
+      else { E.pendingText = txtIn.value; }
+    });
     var playBtn = btn("▶ 播放", function () { togglePlay(); });
     b2 = playBtn;
     btn("试玩", function () { applyAll(); api.preview(E.t); E.playing = true; playBtn.textContent = "⏸ 暂停"; });
@@ -212,6 +236,13 @@
         return +(E.offset + k * (E.period / 2)).toFixed(3);
       }
       for (i = 0; i < E.beats.length; i++) { var d = Math.abs(E.beats[i] - t); if (d < bd) { bd = d; best = E.beats[i]; } }
+      /* ★ 第一个 onset 之前(曲子开头那段静音)没有 onset 可吸 → 退回等比网格,
+         这样 t 从 0 附近也能放东西,不用非等 3.22 秒 */
+      if (E.beats.length && t < E.beats[0] - 1e-6) {
+        var gk = Math.round((t - E.offset) / (E.period / 2));
+        var gt = E.offset + gk * (E.period / 2);
+        if (Math.abs(gt - t) <= bd) return +Math.max(0, gt).toFixed(4);
+      }
       return +best.toFixed(4);
     }
     function resize() {
@@ -305,6 +336,21 @@
         var iw = Math.max(3, (it.w || 1) * (E.zoom * 0.34));
         var T = TYPES.filter(function (q) { return q.k === it.type; })[0] || TYPES[0];
         ctx.fillStyle = T.c;
+        if (it.type === "deco") {
+          if ((it.deco || "light") === "text") {
+            ctx.globalAlpha = 0.9; ctx.fillStyle = "#ffffff";
+            ctx.font = "600 12px ui-monospace, Consolas, monospace";
+            ctx.fillText(it.text || "(文字)", ix, iy);
+            ctx.globalAlpha = 1;
+          } else {
+            var lr2 = Math.max(6, (it.w || 2) * (E.zoom * 0.34));
+            var lg2 = ctx.createRadialGradient(ix, iy, 0, ix, iy, lr2);
+            lg2.addColorStop(0, "rgba(255,233,168,0.55)");
+            lg2.addColorStop(1, "rgba(255,233,168,0)");
+            ctx.fillStyle = lg2; ctx.fillRect(ix - lr2, iy - lr2, lr2 * 2, lr2 * 2);
+          }
+          continue;
+        }
         if (it.type === "rail") {
           var rax = t2x(it.t), ray = row2y(it.row);
           var rbx = t2x(it.t2 != null ? it.t2 : it.t + E.period * 2), rby = row2y(it.row2 != null ? it.row2 : it.row);
@@ -407,6 +453,10 @@
         var nt = { id: nextId++, t: snapT(x2t(p.x)), row: y2row(p.y), type: E.type, w: 1, orb: E.orb };
         if (E.type === "rail") { nt.t2 = snapT(nt.t + E.period * 2); nt.row2 = clamp(nt.row + 2, 0, 9); }
         if (E.type === "hole") { nt.row = 0; nt.w = 2; }
+        if (E.type === "platform") { nt.w = 3; nt.h = 1; }
+        if (E.type === "ground") { nt.w = 4; nt.h = 1; }
+        if (E.type === "decoText") { nt.type = "deco"; nt.deco = "text"; nt.w = 2; nt.text = (E.pendingText || ""); }
+        if (E.type === "decoLight") { nt.type = "deco"; nt.deco = "light"; nt.w = 2; }
         items.push(nt); E.sel = nt.id; E.row = nt.row; E.dirty = true;
         E.status = "放了 " + nt.type + " @ " + nt.t + "s / 行 " + nt.row + "(共 " + items.length + ")";
         syncBar();
@@ -527,6 +577,7 @@
         var o = { t: +(+it.t).toFixed(4), row: it.row, type: it.type, w: it.w || 1 };
         if ((it.h || 1) !== 1) o.h = it.h;
         if (it.type === "rail") { o.t2 = +(+it.t2).toFixed(4); o.row2 = it.row2; }
+        if (it.type === "deco") { o.deco = it.deco || "light"; if (it.text) o.text = it.text; }
         if (it.type === "orb") o.orb = it.orb || "yellow";
         return o;
       });

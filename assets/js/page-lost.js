@@ -336,7 +336,7 @@
       attempts++;
       /* ★ 回到【本段存档点】(用户要求:不要回退几秒 —— 那样会一直在同一处反复死)*/
       var si = Math.max(0, segAt(S.t));
-      var t = Math.max(chart.lead, segs[si].check - 0.15);   /* 每段自己的存档点 */
+      var t = Math.max(levelStart(), segs[si].check - 0.15);   /* 允许 0 */   /* 每段自己的存档点 */
       resetPlayer(0, 1);
       if (MODE_STEP.dry) S.t = t; else { S.t = t; audioStart(t); }
       segNow = -1;
