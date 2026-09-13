@@ -1,0 +1,55 @@
+{{/* 第三张盘「迷茫」的主页内容:迷你平台跳跃(死一次 → 长一样本事)
+     数据:hugo.toml 的 [params.intro.lost](文案)+ [[params.intro.decks.lost]](四样能力)
+     逻辑:assets/js/page-lost.js(关卡结构/物理/能力都在那里,这里只有壳与 HUD)
+     视角:旁白是第三人称「他」——他过不去的地方,就是他缺的东西
+     HUD 语言沿用第二张盘那套(等宽小字 + 强调色 + 直角卡片)*/}}
+{{- $cfg := site.Params.intro.lost | default dict -}}
+<div class="lost" data-lost="{{ .key }}"
+    data-intro="{{ $cfg.intro | default "" }}" data-ending="{{ $cfg.ending | default "" }}"
+    data-goal="{{ $cfg.goal | default "终点" }}" data-restart="{{ $cfg.restart | default "按 R 再来一次" }}">
+    <div class="lost-stage">
+        <canvas class="lost-cv" aria-hidden="true"></canvas>
+        <div class="lost-veil" aria-hidden="true"></div>
+    </div>
+
+    <div class="lost-top">
+        <span class="lost-code">{{ $cfg.code | default "LV-00" }}</span>
+        <span class="lost-tries">尝试 <b class="lost-deaths">00</b></span>
+    </div>
+
+    {{/* 旁白:一句话,淡入淡出 */}}
+    <div class="lost-say" aria-live="polite"><span class="lost-say-tx">{{ $cfg.intro | default "" }}</span></div>
+
+    {{/* 能力栏:默认全是 ???,死了才亮一个 —— 这就是这一页的"进度条" */}}
+    <ul class="lost-skills">
+        {{- range $i, $s := .items }}
+        <li class="lost-skill is-locked" data-skill="{{ $s.ability }}" data-line="{{ $s.line }}">
+            <span class="lost-skill-code">{{ $s.code }}</span>
+            <span class="lost-skill-name">{{ $s.title }}</span>
+            <span class="lost-skill-unknown" aria-hidden="true">???</span>
+            <span class="lost-skill-key">{{ $s.key }}</span>
+            <span class="lost-skill-tx">{{ $s.text }}</span>
+        </li>
+        {{- end }}
+    </ul>
+
+    <div class="lost-hint">← → 移动 · SPACE 跳 · S 护盾 · SHIFT 慢动作 · E 桥 · R 重来</div>
+
+    {{/* 窄屏(没有键盘):底部一排触摸键 */}}
+    <div class="lost-touch" role="group" aria-label="操作">
+        <button type="button" class="lost-btn" data-k="left" aria-label="向左">◀</button>
+        <button type="button" class="lost-btn" data-k="right" aria-label="向右">▶</button>
+        <button type="button" class="lost-btn lost-btn--wide" data-k="jump" aria-label="跳">跳</button>
+        <button type="button" class="lost-btn" data-k="shield" aria-label="护盾">盾</button>
+        <button type="button" class="lost-btn" data-k="slow" aria-label="慢动作">慢</button>
+        <button type="button" class="lost-btn" data-k="bridge" aria-label="桥">桥</button>
+        <button type="button" class="lost-btn lost-btn--ghost" data-k="restart" aria-label="重来">↻</button>
+    </div>
+
+    {{/* 走到终点才出现 */}}
+    <div class="lost-end" aria-hidden="true">
+        <b class="lost-end-title">{{ $cfg.goal | default "终点" }}</b>
+        <span class="lost-end-tx">{{ $cfg.ending | default "" }}</span>
+        <em class="lost-end-restart">{{ $cfg.restart | default "按 R 再来一次" }}</em>
+    </div>
+</div>

@@ -210,6 +210,52 @@ paginate = 10
       song = "WATER"
       artist = "A-39/初音未来"
 
+    # ---- 第三张盘「迷茫」的主页内容:迷你平台跳跃(死一次,长一样本事) ----
+    # 关卡结构在 assets/js/page-lost.js 顶部的 LV 里(每段过不去 → 必死 → 解锁一样能力)
+    # 这里只管文案:开场白 / 四样能力的名字与解锁台词 / 终点那句话
+    [params.intro.lost]
+      code = "LV-00 // ENDLESS CORRIDOR"      # 左上角那行小字
+      intro = "他站在起点。前面很长,他还不知道自己缺什么。"
+      # 开场先说一句,然后每解锁一样能力说一句(ability 要和下面的 items 对上)
+      # 台词都是第三人称「他」——这一张盘的旁白视角
+      ending = "尽头没有答案。他只是走了很久,然后站到了这里 —— 这样也已经够了。"
+      goal = "终点"
+      restart = "按 R 再来一次"
+
+    # 四样能力(解锁顺序 = 关卡顺序):二段跳 → 护盾 → 慢动作 → 桥
+    # ability 是内部名字(JS 用),不要改;title/key/text/line 随便改
+    [[params.intro.decks.lost]]
+      code = "SK-01"
+      ability = "jump"
+      key = "SPACE ×2"
+      title = "二段跳"
+      text = "在半空里再蹬一下。"
+      line = "他掉下去过很多次。第四次,他在半空里又蹬了一下 —— 原来脚下不一定非要有东西。"
+
+    [[params.intro.decks.lost]]
+      code = "SK-02"
+      ability = "shield"
+      key = "S"
+      title = "护盾"
+      text = "按住:挡住一切,但走得更慢,而且撑不久。"
+      line = "他学会了不硬碰。有些疼是可以绕开的,只要他先承认自己在怕。"
+
+    [[params.intro.decks.lost]]
+      code = "SK-03"
+      ability = "slow"
+      key = "SHIFT"
+      title = "慢动作"
+      text = "按住:世界慢下来,他还照常走。"
+      line = "世界一直很快。他第一次让它慢下来,才看清自己原来一直在赶什么。"
+
+    [[params.intro.decks.lost]]
+      code = "SK-04"
+      ability = "bridge"
+      key = "E"
+      title = "桥"
+      text = "在空中按:脚边临时长出一小块落脚的地方。"
+      line = "有些地方没有路。他不再等了,自己铺了一段。"
+
     [[params.intro.panels]]
       key = "tech"
       title = "技术"

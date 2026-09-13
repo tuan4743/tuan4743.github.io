@@ -1151,6 +1151,332 @@
 .solar.is-drag {
     user-select: none;
 }
+
+/* ============================================================
+   第三张盘「迷茫」:迷你平台跳跃
+   ─────────────────────────────────────────────────────────────
+   语言沿用第二张盘那套 HUD(等宽小字 + 强调色 + 直角边 + 角标),
+   画面本体是 canvas(见 page-lost.js),这里只管叠在上面的 HUD
+   ★ 这一层不要用 filter / backdrop-filter:开机后期的后期处理层
+     要求内容层保持干净(第二张盘的黑框就是栽在这上面)
+   ============================================================ */
+.lost {
+    /* ★ 自己带一份边距变量:不要依赖 .screen 上的 --pad ——
+       那是第二张盘的旋钮,而且一旦取不到值,calc(var(--pad) + 22px) 整条会失效,
+       HUD 会掉到左上角叠在关卡编号上(验收截图里看到的)*/
+    --pad: 20px;
+    /* ★ 这一页自带一套【固定深色】配色:游戏画面不该跟着站点的浅色主题变白 ——
+       浅色主题下 canvas 底色和 HUD 卡片都会变浅,字直接看不见(实机截图里看到的)。
+       写在 .lost 上,canvas 读到的就是这几支变量,连 HUD 一起保持一致 */
+    --theme: #06080f;
+    --intro-accent: #7ff0ff;
+    --intro-dim: rgba(226, 242, 255, 0.62);
+    --intro-border: rgba(127, 240, 255, 0.24);
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    background: var(--theme, #05070d);
+    color: #e8f6ff;
+    font-family: "Alpha Sector", ui-monospace, Consolas, monospace;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+}
+
+.lost-stage {
+    position: absolute;
+    inset: 0;
+}
+
+.lost-cv {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* 慢动作时压一层冷色(纯渐变,不用滤镜)*/
+.lost-veil {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.28s ease;
+    background:
+        radial-gradient(120% 90% at 50% 50%, rgba(0, 0, 0, 0) 40%, rgba(60, 190, 255, 0.16) 100%),
+        linear-gradient(0deg, rgba(60, 190, 255, 0.07), rgba(60, 190, 255, 0.07));
+}
+
+.lost-veil.is-on {
+    opacity: 1;
+}
+
+/* ---------- 顶部:关卡编号 + 尝试次数 + 进度 ---------- */
+.lost-top {
+    position: absolute;
+    left: var(--pad);
+    right: var(--pad);
+    /* 让开顶上的站点状态栏:和内容页统一用 --page-top(取不到就当 0)*/
+    top: calc(var(--page-top, 0px) + var(--pad));
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    pointer-events: none;
+    font-size: 0.68rem;
+    letter-spacing: 0.22em;
+}
+
+.lost-code {
+    position: relative;
+    padding-bottom: 7px;
+    color: color-mix(in srgb, var(--intro-accent) 72%, transparent);
+}
+
+/* 进度:一条随他走了多远的细线 */
+.lost-code::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: var(--p, 0%);
+    height: 2px;
+    background: var(--intro-accent);
+    opacity: 0.75;
+    transition: width 0.25s linear;
+}
+
+.lost-tries {
+    color: var(--intro-dim);
+}
+
+.lost-tries b {
+    color: var(--intro-accent);
+    font-weight: 700;
+}
+
+/* ---------- 旁白:一句话,淡入淡出 ---------- */
+.lost-say {
+    position: absolute;
+    left: 50%;
+    top: calc(var(--page-top, 0px) + var(--pad) + 34px);
+    width: min(760px, 78%);
+    transform: translate(-50%, -6px);
+    text-align: center;
+    font-family: inherit;
+    font-size: clamp(0.82rem, 1.05vw, 1.02rem);
+    line-height: 1.85;
+    letter-spacing: 0.06em;
+    color: #dff2ff;
+    text-shadow: 0 2px 18px rgba(0, 0, 0, 0.85);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.45s ease, transform 0.45s ease;
+}
+
+.lost-say.is-on {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}
+
+/* ---------- 能力栏:全是 ??? ,死一次亮一个 ---------- */
+.lost-skills {
+    position: absolute;
+    left: var(--pad);
+    bottom: calc(var(--pad) + 22px);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 6px;
+    pointer-events: none;
+}
+
+.lost-skill {
+    display: grid;
+    grid-template-columns: 46px 66px 78px 1fr;
+    align-items: center;
+    gap: 8px;
+    width: min(560px, 62vw);
+    padding: 5px 9px;
+    border: 1px solid var(--intro-border);
+    border-left: 2px solid color-mix(in srgb, var(--intro-accent) 70%, transparent);
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--theme, #06080f) 74%, transparent);
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    transition: opacity 0.3s ease, border-color 0.3s ease, background 0.3s ease;
+}
+
+.lost-skill-code {
+    color: color-mix(in srgb, var(--intro-accent) 60%, transparent);
+}
+
+.lost-skill-name {
+    color: #eaf8ff;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+}
+
+.lost-skill-unknown {
+    color: color-mix(in srgb, var(--intro-dim) 70%, transparent);
+    letter-spacing: 0.3em;
+}
+
+.lost-skill-key {
+    color: var(--intro-accent);
+    font-size: 0.62rem;
+    opacity: 0.85;
+}
+
+.lost-skill-tx {
+    color: var(--intro-dim);
+    font-size: 0.64rem;
+    letter-spacing: 0.02em;
+}
+
+/* 未解锁:整体压暗,名字换成 ??? */
+.lost-skill.is-locked {
+    opacity: 0.4;
+    border-left-color: color-mix(in srgb, var(--intro-dim) 45%, transparent);
+}
+
+.lost-skill.is-locked .lost-skill-name,
+.lost-skill.is-locked .lost-skill-tx,
+.lost-skill.is-locked .lost-skill-key {
+    display: none;
+}
+
+.lost-skill:not(.is-locked) .lost-skill-unknown {
+    display: none;
+}
+
+/* 刚解锁的那一条闪一下 */
+.lost-skill.is-on {
+    background: color-mix(in srgb, var(--intro-accent) 9%, color-mix(in srgb, var(--theme, #06080f) 74%, transparent));
+}
+
+/* ---------- 操作提示 / 触摸键 ---------- */
+.lost-hint {
+    position: absolute;
+    right: var(--pad);
+    bottom: var(--pad);
+    font-size: 0.64rem;
+    letter-spacing: 0.16em;
+    color: color-mix(in srgb, var(--intro-accent) 50%, transparent);
+    pointer-events: none;
+}
+
+.lost-touch {
+    position: absolute;
+    left: 50%;
+    bottom: calc(var(--pad) - 4px);
+    transform: translateX(-50%);
+    display: none;
+    gap: 6px;
+}
+
+.lost-btn {
+    min-width: 46px;
+    height: 40px;
+    padding: 0 10px;
+    border: 1px solid color-mix(in srgb, var(--intro-accent) 45%, transparent);
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--theme, #06080f) 72%, transparent);
+    color: var(--intro-accent);
+    font: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+    touch-action: none;
+}
+
+.lost-btn:active {
+    background: color-mix(in srgb, var(--intro-accent) 22%, transparent);
+    color: #ffffff;
+}
+
+.lost-btn--wide {
+    min-width: 62px;
+}
+
+.lost-btn--ghost {
+    opacity: 0.7;
+}
+
+/* ---------- 终点 ---------- */
+.lost-end {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: min(620px, 76%);
+    transform: translate(-50%, -46%);
+    padding: 18px 22px 20px;
+    border: 1px solid var(--intro-border);
+    border-left: 2px solid color-mix(in srgb, var(--intro-accent) 70%, transparent);
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--theme, #06080f) 86%, transparent);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+    text-align: left;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.lost-end.is-on {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+}
+
+.lost-end-title {
+    display: block;
+    font-size: 0.7rem;
+    letter-spacing: 0.34em;
+    color: var(--intro-accent);
+}
+
+.lost-end-tx {
+    display: block;
+    margin: 8px 0 10px;
+    font-family: inherit;
+    font-size: clamp(0.86rem, 1.1vw, 1.05rem);
+    line-height: 1.9;
+    color: #e6f6ff;
+}
+
+.lost-end-restart {
+    font-style: normal;
+    font-size: 0.66rem;
+    letter-spacing: 0.2em;
+    color: var(--intro-dim);
+}
+
+/* ---------- 窄屏:换成触摸键,能力栏只留名字 ---------- */
+@media (max-width: 780px) {
+    .lost-hint {
+        display: none;
+    }
+
+    .lost-touch {
+        display: flex;
+    }
+
+    .lost-say {
+        width: 86%;
+        font-size: 0.8rem;
+    }
+
+    .lost-skill {
+        grid-template-columns: 40px 60px 1fr;
+        width: 74vw;
+    }
+
+    .lost-skill-tx {
+        display: none;
+    }
+
+    .lost-skills {
+        bottom: calc(var(--pad) + 52px);
+    }
+}
 /* ---------- CD 架打开 = 屏幕黑屏:内容页整页隐藏 ----------
    ★ 太阳的 <video> 带 mix-blend-mode,会被提升成独立合成层,
      在个别浏览器上能盖到黑屏之上(层级关系没错,是合成层的锅)。
