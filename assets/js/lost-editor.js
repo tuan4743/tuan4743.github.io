@@ -34,7 +34,7 @@
     { k: "decoText", n: "文字", c: "#ffffff" },
     { k: "decoLight", n: "光源", c: "#ffe9a8" },
     { k: "portal", n: "圆环(切形态)", c: "#ffe17a" },
-    { k: "check", n: "存档点", c: "#ffcc66" }
+    { k: "check", n: "子存档点(段内)", c: "#ffcc66" }
   ];
   var ROW_H = 22, WAVE_H = 76, RULER_H = 18;
 
@@ -83,7 +83,7 @@
     function itemsOf(ch) { return (ch && ch.items && ch.items.length) ? ch.items : api.dev.draft(); }
     /* force=true 时即使"不脏"也写(导出/导入之后)*/
     function saveDraft(force) {
-      if (!E.open) return;
+      if (!E.chart) return;
       if (!force && !E.dirty) return;            /* 只有真改动过才写盘 */
       try {
         var now = Date.now();
@@ -96,6 +96,14 @@
       if (!E.open || draftTimer) return;
       draftTimer = window.setTimeout(function () { draftTimer = 0; saveDraft(); }, 700);
     }
+    /* 关编辑器 / 离开页面时,把还攒着的那次立刻写掉 ——
+       否则"放完东西马上刷新"就等于没存(实地验收里就是这么复现的) */
+    function flushDraft() {
+      if (draftTimer) { window.clearTimeout(draftTimer); draftTimer = 0; }
+      saveDraft();
+    }
+    window.addEventListener("beforeunload", flushDraft);
+    window.addEventListener("pagehide", flushDraft);
     function loadDraft() {
       try {
         var raw = window.localStorage.getItem(DRAFT_KEY);
@@ -641,8 +649,9 @@
         if (E.type === "decoLight") { nt.type = "deco"; nt.deco = "light"; nt.w = 2; }
         if (E.type === "portal") { nt.w = 2; nt.to = "plane"; }
         items.push(nt); E.sel = nt.id; E.row = nt.row; E.dirty = true;
-        if (nt.type !== "rail") E.status = "放了 " + nt.type + " @ " + nt.t + "s / 行 " + nt.row + "(共 " + items.length + ")";
-        else E.status = E.status + "(共 " + items.length + " 件)";   /* 斜轨保留上面那句"从第几行到第几行"*/
+        /* ★ 子存档点不在状态栏写字(用户要求:它算段内存档点,不用报告)*/
+        if (nt.type === "rail") E.status = E.status + "(共 " + items.length + " 件)";   /* 斜轨保留"从第几行到第几行"*/
+        else if (nt.type !== "check") E.status = "放了 " + nt.type + " @ " + nt.t + "s / 行 " + nt.row + "(共 " + items.length + ")";
         syncBar();
       }
       draw();
@@ -903,6 +912,7 @@
     }
     function close() {
       if (!E.open) return;
+      flushDraft();                      /* 关之前先把草稿写掉(用户会直接刷新)*/
       E.open = false;
       wrap.style.display = "none";
       api.editorOpen(false);

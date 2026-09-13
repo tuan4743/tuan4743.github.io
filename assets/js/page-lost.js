@@ -264,6 +264,10 @@
         CFG.ROWS = chart.rows || CFG.ROWS;
         chart.lead = chart.lead == null ? CFG.LEAD : chart.lead;
         chart.duration = dur; chart.period = period; chart.rows = CFG.ROWS;
+        /* ★ 编辑器存了本地草稿就用草稿(用户报的"新加的存档点不会生效":
+           草稿只在编辑器里,游戏还在读仓库那份)。草稿只存在你自己的浏览器里,
+           别人的页面照旧读仓库铺面 */
+        draftUsed = loadDraftChart();
         prepare();
         return true;
       }).catch(function (e) { loadErr = (e && e.message) || "加载失败"; return false; });
@@ -360,6 +364,11 @@
       say("他在 " + (beatTime(bi)).toFixed(2) + "s 那一拍摔了。下一轮,那一拍会替他蹬一下。", 4.5);
       if (deathsEl) deathsEl.textContent = pad2(deaths);
     }
+    /* 开局提醒:现在跑的是本地草稿(编辑器里改的那份),不是仓库铺面 */
+    function draftNotice() {
+      if (!draftUsed) return;
+      say("本地草稿:" + items.length + " 件 —— 现在跑的是你在编辑器里改的铺面(导出后才进仓库)。", 5);
+    }
     function respawn() {
       attempts++;
       /* ★ 复活时圆环/跳点也要刷新(用户报的:重开或复活后圆环还是暗的)*/
@@ -386,6 +395,25 @@
       var sg = segs[segAt(t)] || {};
       if (!sg.mode) return;
       mode = sg.mode; S.modeIsPlane = (mode === "plane");
+    }
+    /* ★ 本地草稿(编辑器写的 localStorage):有就用它当铺面 */
+    var draftUsed = false;
+    function loadDraftChart() {
+      try {
+        var raw = window.localStorage.getItem("lost-chart-draft");
+        if (!raw) return false;
+        var dr = JSON.parse(raw);
+        if (!dr || !dr.chart || !dr.chart.segments || !dr.chart.segments.length) return false;
+        chart = dr.chart;
+        if (chart.period) period = chart.period;
+        if (chart.offset != null) offset = chart.offset;
+        if (chart.duration) dur = chart.duration;
+        CFG.SPEED = chart.speed || CFG.SPEED;
+        CFG.ROWS = chart.rows || CFG.ROWS;
+        chart.lead = chart.lead == null ? CFG.LEAD : chart.lead;
+        chart.duration = dur; chart.period = period; chart.rows = CFG.ROWS;
+        return true;
+      } catch (e) { return false; }
     }
     function nowT() { return S ? S.t : 0; }
 
@@ -1022,6 +1050,7 @@
       modeSeg = -1; applySegMode(0);
       if (!MODE_STEP.dry) audioStart(S.t);
       say(TXT.intro, 5);
+      draftNotice();
       if (deathsEl) deathsEl.textContent = "00";
     }
 
@@ -1130,7 +1159,7 @@
           phase: phase, auto: auto, echoN: echoes.length,
           dead: dead, deaths: deaths, attempts: attempts, reached: reached,
           shieldT: +shieldT.toFixed(2), shieldCd: +shieldCd.toFixed(2),
-          paused: !!paused, frozen: !!frozen,
+          paused: !!paused, frozen: !!frozen, draft: draftUsed,
           checkT: checkT == null ? null : +checkT.toFixed(3),
           audioAt: MODE_STEP.dry ? null : audioNow(),
           echoes: echoes.map(function (e) { return { beat: e.beat, t: +e.t.toFixed(3), fired: e.fired }; }),
