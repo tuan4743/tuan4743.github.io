@@ -1268,6 +1268,13 @@
        那是第二张盘的旋钮,而且一旦取不到值,calc(var(--pad) + 22px) 整条会失效,
        HUD 会掉到左上角叠在关卡编号上(验收截图里看到的)*/
     --pad: 20px;
+    /* ★ 画面落在屏幕【可视区】里(和 .screen-static 一样的 inset),不要糊满整块屏 ——
+       之前 inset:0,游戏直接铺到金属边框下面去了(用户报的第一条 bug)。
+       --page-top 在这里归零:HUD 的定位基准改成游戏自己这块盒子 */
+    --page-top: 0px;
+    position: absolute;
+    inset: var(--sp-t, 0px) var(--sp-x, 0px) var(--sp-b, 0px);
+    border-radius: 12px;
     /* ★ 这一页自带一套【固定深色】配色:游戏画面不该跟着站点的浅色主题变白 ——
        浅色主题下 canvas 底色和 HUD 卡片都会变浅,字直接看不见(实机截图里看到的)。
        写在 .lost 上,canvas 读到的就是这几支变量,连 HUD 一起保持一致 */
@@ -1275,8 +1282,6 @@
     --intro-accent: #7ff0ff;
     --intro-dim: rgba(226, 242, 255, 0.62);
     --intro-border: rgba(127, 240, 255, 0.24);
-    position: absolute;
-    inset: 0;
     overflow: hidden;
     background: var(--theme, #05070d);
     color: #e8f6ff;
@@ -1658,4 +1663,110 @@
      黑屏状态下这一页本来就不该显示,直接隐藏最稳。*/
 body.scene-open .intro-panel.is-page {
     visibility: hidden;
+}
+/* ---------- 开始菜单 / 死亡菜单(默认都藏着,靠 .lost.is-menu/.is-dead 显示)---------- */
+.lost-menu,
+.lost-dead {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    text-align: center;
+    background: radial-gradient(120% 90% at 50% 45%, rgba(6, 10, 18, 0.72), rgba(3, 5, 10, 0.93));
+    backdrop-filter: none;
+}
+
+.lost.is-menu .lost-menu,
+.lost.is-dead .lost-dead {
+    display: flex;
+}
+
+.lost-menu__title {
+    font-size: clamp(1.1rem, 1.6vw, 1.5rem);
+    letter-spacing: 0.34em;
+    color: var(--intro-accent);
+}
+
+.lost-menu__sub {
+    font-size: 0.72rem;
+    letter-spacing: 0.2em;
+    color: var(--intro-dim);
+}
+
+.lost-menu__segs {
+    display: grid;
+    gap: 5px;
+    margin: 6px 0 2px;
+    padding: 0;
+    list-style: none;
+    font-size: 0.7rem;
+}
+
+.lost-menu__segs li {
+    display: grid;
+    grid-template-columns: 54px 92px 96px;
+    gap: 10px;
+    padding: 4px 12px;
+    border: 1px solid var(--intro-border);
+    border-left: 2px solid color-mix(in srgb, var(--intro-accent) 70%, transparent);
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--theme) 74%, transparent);
+    text-align: left;
+}
+
+.lost-menu__segs b {
+    color: #ffffff;
+    letter-spacing: 0.2em;
+}
+
+.lost-menu__segs span {
+    color: var(--intro-accent);
+}
+
+.lost-menu__segs i {
+    font-style: normal;
+    color: var(--intro-dim);
+}
+
+.lost-menu__btns,
+.lost-dead__btns {
+    display: flex;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.lost-btn--start {
+    min-width: 130px;
+    height: 48px;
+    font-size: 0.95rem;
+    letter-spacing: 0.34em;
+}
+
+/* 自动播放按钮按下去是"开着"的状态 */
+.lost-btn.is-on {
+    background: color-mix(in srgb, var(--intro-accent) 30%, transparent);
+    color: #ffffff;
+    border-color: var(--intro-accent);
+}
+
+.lost-menu__hint {
+    font-size: 0.64rem;
+    letter-spacing: 0.14em;
+    color: color-mix(in srgb, var(--intro-accent) 55%, transparent);
+}
+
+.lost-dead__title {
+    font-size: 1.05rem;
+    letter-spacing: 0.3em;
+    color: #ff9a8c;
+}
+
+.lost-dead__at {
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    color: var(--intro-dim);
 }

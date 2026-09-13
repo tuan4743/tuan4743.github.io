@@ -52,6 +52,33 @@
         <button type="button" class="lost-btn lost-btn--ghost" data-k="restart" aria-label="重来">↻</button>
     </div>
 
+    {{/* 开始菜单:不点「开始」什么都不跑 —— 插入 CD 的时候还在播开机动画,
+         更不该已经开始跳了(用户报的 bug)*/}}
+    <div class="lost-menu">
+        <b class="lost-menu__title">{{ $cfg.code | default "LV-01" }}</b>
+        <span class="lost-menu__sub">几何冲刺式音乐关卡 · 172 BPM · 按拍点击</span>
+        <ol class="lost-menu__segs">
+            {{- range $s := .items }}
+            <li><b>{{ $s.theme }}</b><span>{{ $s.title }}</span><i>{{ $s.key }}</i></li>
+            {{- end }}
+        </ol>
+        <div class="lost-menu__btns">
+            <button type="button" class="lost-btn lost-btn--start" data-act="start">开 始</button>
+            <button type="button" class="lost-btn" data-act="auto" data-where="menu">自动播放</button>
+        </div>
+        <span class="lost-menu__hint">TAP / 空格 = 跳 · S = 护盾 · R = 重来 · Alt+E = 铺面编辑器</span>
+    </div>
+
+    {{/* 死亡菜单:不自动复活,让玩家选(继续 / 自动播放 / 退出)*/}}
+    <div class="lost-dead">
+        <b class="lost-dead__title">又摔了</b>
+        <span class="lost-dead__at"></span>
+        <div class="lost-dead__btns">
+            <button type="button" class="lost-btn" data-act="resume">继续</button>
+            <button type="button" class="lost-btn" data-act="auto" data-where="dead">自动播放</button>
+            <button type="button" class="lost-btn lost-btn--ghost" data-act="quit">退出</button>
+        </div>
+    </div>
     <div class="lost-end" aria-hidden="true">
         <b class="lost-end-title">{{ $cfg.goal | default "终点" }}</b>
         <span class="lost-end-tx">{{ $cfg.ending | default "" }}</span>

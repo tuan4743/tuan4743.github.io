@@ -24,7 +24,9 @@
     SPEED: 10.4,        /* 块/秒:GD 常速 311.58 units/s ÷ 30 units/块 */
     ROWS: 10,           /* 轨道行数(0 = 地面)*/
     GRAV: 200,          /* 方块重力(块/s²)*/
-    JUMP: 30,           /* 起跳初速度 → 跳高 2.25 块、跳远 3.1 块 */
+    JUMP: 34,           /* 起跳初速度 → 跳高 2.9 块、跳远 3.5 块。
+                           原来是 30(跳远 3.12 块):跨 1 块高的障碍只有 0.046 秒容错(约 8% 拍)
+                           —— 人类基本打不过、自动播放机器人也一头撞死,所以抬到 34 */
     ORB_Y: 1.12, ORB_P: 0.82,   /* 跳点力度(黄/粉)*/
     SHIELD_T: 2.0, SHIELD_CD: 5.0,
     TAP_WIN: 0.20,      /* 拍点点击窗口(秒,±)*/
@@ -60,6 +62,9 @@
     var endEl = root.querySelector(".lost-end");
     var veil = root.querySelector(".lost-veil");
     var beatDots = Array.prototype.slice.call(root.querySelectorAll(".lost-beat i"));
+    var menuAuto = root.querySelector('[data-act="auto"][data-where="menu"]');
+    var deadAuto = root.querySelector('[data-act="auto"][data-where="dead"]');
+    var deadAt = root.querySelector(".lost-dead__at");
     var segEls = Array.prototype.slice.call(root.querySelectorAll(".lost-skill"));
 
     var TXT = {
@@ -131,8 +136,13 @@
       for (var si = 0; si < ch.segments.length; si++) {
         var sg = ch.segments[si];
         var end = (si + 1 < ch.segments.length) ? ch.segments[si + 1].t : ch.duration;
+        /* ★ 用【均匀节拍格】而不是 onset 列表:onset 里混着 16 分与切分,
+           相邻两个可能只差 0.21 秒(2.2 块)—— 一跳 3.54 块落不下来,就成了必死关。
+           一拍 = period ≈ 3.62 块,各段规则再按整数拍取用 */
         var list = [];
-        for (i = 0; i < bs.length; i++) if (bs[i] > sg.t + P * 1.6 && bs[i] < end - P * 1.2) list.push(bs[i]);
+        var step = P;
+        var first = Math.ceil((sg.t + P * 1.2) / step) * step;
+        for (var tt = first; tt < end - P * 1.2; tt += step) list.push(+tt.toFixed(4));
         if (sg.mode === "plane") {
           /* 上下轨道各一条,中间留 3 行缝,每 2 拍换一次缝的位置 */
           for (i = 0; i < list.length; i += 2) {
@@ -157,9 +167,10 @@
           /* 方块段:踩 4 分音符(隔一拍)放障碍,偶尔给个跳点 */
           for (i = 0; i < list.length; i += 2) {
             var r = rnd();
+            /* ★ 方块段一律 w=1:一跳只跨 3.12 块,w=2 的方块是【跳不过去】的 ——
+               用户说"全是bug"里就有这种必死关(验收里量出来的)*/
             if (r < 0.55) push(list[i], 0, "spike", 1);
-            else if (r < 0.85) push(list[i], 0, "block", 1);
-            else { push(list[i], 0, "block", 2); }
+            else push(list[i], 0, "block", 1);
             if (rnd() < 0.18 && i + 1 < list.length) push(list[i + 1], 2, "orb", 1, rnd() < 0.6 ? "yellow" : "pink");
           }
         }
@@ -275,19 +286,16 @@
          死在障碍上时最近的一拍已经过去,按它补跳会晚 2 块(点查抓到的)。*/
       var et = item && item.t != null ? item.t : beatTime(nearestBeat(nowT()));
       var bi = nearestBeat(et);
-      echoes.push({ beat: bi, t: et, y: S.y, x: S.x, at: attempts, ghost: ghostTrail.slice(-24) });
-      if (echoes.length > 12) echoes.shift();
+      /* ★ 只留最后一次死亡的那个位置(用户要求:残影别攒一堆)*/
+      echoes = [{ beat: bi, t: et, y: S.y, x: S.x, at: attempts, ghost: ghostTrail.slice(-24) }];
       say("他在 " + (beatTime(bi)).toFixed(2) + "s 那一拍摔了。下一轮,那一拍会替他蹬一下。", 4.5);
       if (deathsEl) deathsEl.textContent = pad2(deaths);
     }
     function respawn() {
       attempts++;
-      var b = nearestBeat(S.t);
-      var back = Math.max(0, b - CFG.REWIND_BEATS);
-      var t = beatTime(back);
-      var s = segs[Math.max(0, segAt(t))];
-      if (t < s.t) t = s.t;
-      t = Math.max(chart.lead, t);
+      /* ★ 回到【本段存档点】(用户要求:不要回退几秒 —— 那样会一直在同一处反复死)*/
+      var si = Math.max(0, segAt(S.t));
+      var t = Math.max(chart.lead, segs[si].t - 0.15);
       resetPlayer(0, 1);
       if (MODE_STEP.dry) S.t = t; else { S.t = t; audioStart(t); }
       segNow = -1;
@@ -299,10 +307,15 @@
     /* ---------------- 推进 ---------------- */
     function step(dt) {
       if (!ready || ED) return;
+      if (phase !== "play") return;          /* 没点开始 / 停在死亡菜单 → 什么都不推进 */
       if (reached) return;
       if (dead) {
         deadT += dt;
-        if (deadT >= CFG.DEAD_PAUSE) respawn();
+        /* ★ 死了不再自动复活:等玩家在死亡菜单里选(继续 / 自动播放 / 退出)*/
+        if (deadT >= CFG.DEAD_PAUSE && phase === "play") {
+          setPhase("dead");
+          audioStop();
+        }
         return;
       }
       /* 时间:真实播放时以音频时钟为准,推演时按 dt 累加 */
@@ -336,6 +349,7 @@
         segEls.forEach(function (el, i2) { el.classList.toggle("is-locked", i2 > si); el.classList.toggle("is-on", i2 === si); });
         stateT = 4;
       }
+      if (auto) autoThink();                 /* 自动播放:机器人接管点击 */
       if (shieldT > 0) { shieldT -= dt; if (shieldT <= 0) { shieldT = 0; shieldCd = CFG.SHIELD_CD; } }
       else if (shieldCd > 0) shieldCd = Math.max(0, shieldCd - dt);
       if (flash > 0) flash = Math.max(0, flash - dt * 1.8);
@@ -597,6 +611,8 @@
     /* ---------------- 循环 ---------------- */
     var active = false, raf = 0, last = 0, acc = 0, frozen = false, paused = false;
     var ED = false;                 /* 铺面编辑器开着 → 不推进仿真 */
+    var phase = "menu";             /* menu(开始菜单)/ play / dead(死亡菜单)/ end */
+    var auto = false;               /* 自动播放 */
     function frame(now) {
       raf = 0;
       if (!active) return;
@@ -642,6 +658,79 @@
         b.addEventListener("pointercancel", function () { keys.jump = 0; });
       });
     }
+    /* ---------------- 阶段切换(开始菜单 / 死亡菜单)---------------- */
+    function setPhase(p2) {
+      phase = p2;
+      root.classList.toggle("is-menu", phase === "menu");
+      root.classList.toggle("is-dead", phase === "dead");
+      if (menuAuto) menuAuto.classList.toggle("is-on", auto);
+      if (deadAuto) deadAuto.classList.toggle("is-on", auto);
+      if (deadAt) deadAt.textContent = "摔在第 " + (nearestBeat(S ? S.t : 0) + 1) + " 拍(" + (S ? S.t.toFixed(1) : "0") + "s) · 从 ST-0" + (Math.max(0, segAt(S ? S.t : 0)) + 1) + " 存档点重来";
+    }
+    function startRun() {
+      auto = auto || false;
+      retry();
+      audioInit();
+      if (!MODE_STEP.dry) audioStart(S.t);
+      setPhase("play");
+    }
+    function quitToMenu() {
+      audioStop();
+      setPhase("menu");
+    }
+    function resumeRun() {
+      respawn();
+      if (!MODE_STEP.dry) audioStart(S.t);
+      setPhase("play");
+    }
+    function toggleAuto() {
+      auto = !auto;
+      if (phase === "dead") resumeRun();          /* 在死亡菜单里点自动播放 = 开机器人并继续 */
+      else if (phase === "menu") startRun();
+      else setPhase(phase);
+    }
+    /* ★ 自动播放:看前方最近的障碍决定"点 / 举盾 / 踩拍翻重力",飞机段朝空档中间飞 */
+    function autoThink() {
+      if (mode === "plane") {
+        var want = null;
+        for (var i = 0; i < items.length; i++) {
+          var it = items[i];
+          if (it.type !== "block") continue;
+          if (it.x2 < S.x - 1 || it.x > S.x + 12) continue;
+          if (!want || it.x < want.x) want = it;
+        }
+        var target = 4.5;
+        if (want) {
+          /* 这一列的障碍摆在哪几行 → 找连续空档的中间 */
+          var rowsAt = [];
+          for (var j = 0; j < items.length; j++) if (Math.abs(items[j].x - want.x) < 0.6) rowsAt.push(items[j].row);
+          var bestGap = null;
+          for (var r0 = 0; r0 <= CFG.ROWS - 3; r0++) {
+            var okGap = true;
+            for (var r1 = r0; r1 < r0 + 3; r1++) if (rowsAt.indexOf(r1) >= 0) okGap = false;
+            if (okGap && (bestGap === null || Math.abs(r0 + 1 - S.y) < Math.abs(bestGap + 1 - S.y))) bestGap = r0;
+          }
+          if (bestGap !== null) target = bestGap + 1;
+        }
+        keys.jump = (S.y < target - 0.15) ? 1 : 0;
+        return;
+      }
+      /* 重力箭头:窗口一开就踩拍点 */
+      if (tapArmed) { tap(); return; }
+      var best = null;
+      for (var k = 0; k < items.length; k++) {
+        var o = items[k];
+        if (o.type === "orb" || o.type === "gravity" || o.done) continue;
+        if (o.x2 < S.x - 0.5 || o.x > S.x + 10) continue;
+        if (!best || o.x < best.x) best = o;
+      }
+      if (!best) return;
+      var bx = best.x + (best.type === "spike" ? 0.18 : 0);   /* 尖刺的判定框比格子窄 */
+      var d = bx - (S.x + CFG.PW);
+      if (best.w >= 3) { if (d < 7) shieldNow(); return; }     /* 宽障碍:举盾顶过去 */
+      /* 在"跨得过整块"的那段窗口里点:太早点不着、太晚落地时还在障碍里 */
+      if (S.onGround && S.x >= bx - 2.0 && S.x <= bx - 1.15) tap();
+    }
     function retry() {
       attempts = 0; deaths = 0; echoes = []; reached = false;
       if (endEl) endEl.classList.remove("is-on");
@@ -667,8 +756,18 @@
     window.addEventListener("pointerup", onUp);
     if (cv) cv.addEventListener("contextmenu", function (e) { e.preventDefault(); });
     bindTouch();
+    Array.prototype.slice.call(root.querySelectorAll("[data-act]")).forEach(function (b) {
+      b.addEventListener("click", function (ev) {
+        ev.stopPropagation();
+        var act = b.getAttribute("data-act");
+        if (act === "start") startRun();
+        else if (act === "resume") resumeRun();
+        else if (act === "quit") quitToMenu();
+        else if (act === "auto") toggleAuto();
+      });
+    });
     resetPlayer(0, 1);
-    S.t = 0;
+    S.t = chart && chart.lead ? chart.lead : 0;
     load();
 
     return {
@@ -676,8 +775,10 @@
       activate: function (on) {
         active = !!on;
         if (on) {
-          if (!ready) load().then(function () { if (active) { retry(); audioInit(); } });
-          else { retry(); audioInit(); }
+          /* ★ 选中这张盘只显示开始菜单:不点「开始」不播音乐、不推进(插入 CD 时还在播开机动画)*/
+          if (!ready) load().then(function () { if (active) { S.t = chart.lead || 0; S.x = t2x(S.t); setPhase("menu"); } });
+          else setPhase("menu");
+          audioStop();
           if (!raf) { last = 0; acc = 0; raf = requestAnimationFrame(frame); }
           resize(); readColors();
           window.addEventListener("keydown", kd);
@@ -686,6 +787,7 @@
           /* 这一页自己管路关音乐的时间轴 → 让站点的 BGM 让位,免得同一首叠两遍 */
           try { if (window.__cdAudio && window.__cdAudio.music) window.__cdAudio.music.stop(); } catch (e) {}
         } else {
+          phase = "menu";
           window.removeEventListener("keydown", kd);
           window.removeEventListener("keyup", ku);
           keys.jump = 0; keys.shield = 0;
@@ -740,6 +842,7 @@
           key: key, active: active, ready: ready, err: loadErr || A.err,
           t: S ? +S.t.toFixed(3) : 0, x: S ? +S.x.toFixed(2) : 0, y: S ? +S.y.toFixed(2) : 0,
           mode: mode, gdir: gdir, onGround: S ? S.onGround : false,
+          phase: phase, auto: auto, echoN: echoes.length,
           dead: dead, deaths: deaths, attempts: attempts, reached: reached,
           shieldT: +shieldT.toFixed(2), shieldCd: +shieldCd.toFixed(2),
           echoes: echoes.map(function (e) { return { beat: e.beat, t: +e.t.toFixed(3), fired: e.fired }; }),
@@ -760,6 +863,12 @@
         },
         y: function (v, gy) { dead = false; deadT = 0; S.y = v; S.vy = 0; S.onGround = false; if (gy) gdir = gy; return this.snapshot(); },
         tap: function () { tap(); return this.snapshot(); },
+        start: function () { startRun(); return this.snapshot(); },
+        resume: function () { resumeRun(); return this.snapshot(); },
+        quit: function () { quitToMenu(); return this.snapshot(); },
+        setAuto: function (on) { auto = !!on; setPhase(phase); return this.snapshot(); },
+        /* 推演时跳过"死在菜单里等玩家"的那一段 */
+        stepMenu: function () { if (phase === "dead") resumeRun(); return this.snapshot(); },
         shield: function () { shieldNow(); return this.snapshot(); },
         hold: function (on) { keys.jump = on ? 1 : 0; return this.snapshot(); },
         advance: function (sec) {
@@ -782,6 +891,7 @@
           return {
             t: +S.t.toFixed(3), x: +S.x.toFixed(2), y: +S.y.toFixed(2), vy: +S.vy.toFixed(2),
             dead: dead, onGround: S.onGround, mode: mode, gdir: gdir, beat: nearestBeat(S.t),
+            phase: phase, auto: auto,
             deaths: deaths, attempts: attempts, reached: reached,
             shieldT: +shieldT.toFixed(2), shieldCd: +shieldCd.toFixed(2)
           };
