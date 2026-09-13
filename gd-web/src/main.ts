@@ -32,6 +32,23 @@ const PAD_COL: Record<string, number> = {
   yellow: 0xffe17a, pink: 0xff9fd0, red: 0xff8a8a, blue: 0x9fd8ff, purple: 0xc6a0ff,
 };
 
+/** 终末之诗:通关之后向上滚动的文本。
+ *  ★ 内容留白给用户填 —— 一行一个字符串,空字符串 = 空行(段落间隔)。
+ *    滚动速度按行算,按住空格(或点住画面)会加速。 */
+const POEM: string[] = [
+  '',
+  '(终末之诗 · 内容待填)',
+  '',
+  '把要放的文字填进 src/main.ts 里的 POEM 数组,',
+  '一行一个字符串,空字符串表示空行。',
+  '',
+];
+
+/** 彩蛋解锁标记(localStorage):CD 页面靠它显示"切换游玩模式"按钮 */
+const EASTER_KEY = 'tuagfey-gd-easter';
+const POEM_SPEED = 26;      // 滚动速度(世界单位/秒,约每秒 0.7 行)
+const POEM_LINE_H = 36;     // 一行占多高(用来判断滚完了没有)
+
 /** 调试用:按 1~7 现场换形态,方便一个个试手感(1 方块 2 飞机 3 球 4 UFO 5 波浪 6 机器人 7 蜘蛛) */
 const MODE_ORDER: Mode[] = ['cube', 'ship', 'ball', 'ufo', 'wave', 'robot', 'spider'];
 /** HUD 里的形态名 */
@@ -48,7 +65,7 @@ function segOf(x: number): string {
 
 /** 界面阶段。★ 以前"任何按键/点击"都会开跑,于是面板一加载、加载动画还在放,游戏就开始了 ——
  *  现在只有"明确的确认键(空格/上/W)或点画布"才开始,死亡/通关也会停下来等人。 */
-type Phase = 'idle' | 'running' | 'dead' | 'done';
+type Phase = 'idle' | 'running' | 'dead' | 'done' | 'poem';
 
 class Scene extends Phaser.Scene {
   world = new World(LEVEL);
@@ -80,6 +97,9 @@ class Scene extends Phaser.Scene {
   private modeLatch = 0;            // 数字键 1~7:调试用的现场换形态
   uiTitle!: Phaser.GameObjects.Text;
   uiHint!: Phaser.GameObjects.Text;
+  poemText!: Phaser.GameObjects.Text;
+  poemT = 0;                       // 终末之诗滚了多久(秒)
+  egg = false;                     // 彩蛋窗口是否已弹出
 
   /** 第一次确认:开跑(音乐和模拟同时从 0 开始 —— 铺面贴着音乐,不能有"准备时间") */
   startRun() {
@@ -110,6 +130,11 @@ class Scene extends Phaser.Scene {
   }
 
   private pauseMusic() { if (this.audio && !this.audio.paused) this.audio.pause(); }
+
+  /** 彩蛋解锁:写进 localStorage,CD 页面据此显示「切换游玩模式」按钮 */
+  private unlockEaster() {
+    try { localStorage.setItem(EASTER_KEY, '1'); } catch { /* 无痕模式就算了 */ }
+  }
 
   /** 从存档点重来(死亡界面按确认) */
   retry() {
@@ -153,16 +178,8 @@ class Scene extends Phaser.Scene {
     const ui = { fontFamily: 'ui-monospace, Consolas, monospace', align: 'center' as const };
     this.uiTitle = this.add.text(0, 0, '', { ...ui, fontSize: '44px', color: '#e2f6ff' }).setOrigin(0.5).setDepth(20).setVisible(false);
     this.uiHint = this.add.text(0, 0, '', { ...ui, fontSize: '24px', color: HL }).setOrigin(0.5).setDepth(20).setVisible(false);
-    /* 段落名与功能块(text 物件)都做成场上的文字 */
-    for (const sg of LEVEL.segments) {
-      if (!sg.label) continue;
-      const t = this.add.text(sg.from * U + 13 * U, 0, sg.label, {
-        fontFamily: 'ui-monospace, Consolas, monospace',
-        fontSize: '30px', color: HL,
-      });
-      t.setOrigin(0, 0.5).setAlpha(0.22);
-      this.labels.push(t);
-    }
+    this.poemText = this.add.text(0, 0, POEM.join('\n'), { ...ui, fontSize: '26px', color: '#e2f6ff', lineSpacing: 10 }).setOrigin(0.5, 0).setDepth(19).setVisible(false);
+    /* 功能块(text 物件)做成场上的文字(旧版那种段落旁白水印已删) */
     for (const o of LEVEL.objects) {
       if (o.kind !== 'text' || !o.text) continue;
       const t = this.add.text(o.b * U, 0, o.text, {
@@ -238,7 +255,7 @@ class Scene extends Phaser.Scene {
         if (w0.done && !this.fp) this.fp = fingerprint(this.botStates);
       }
       if (w0.done) {
-        if (!this.botMode) { this.phase = 'done'; this.pauseMusic(); }
+        if (!this.botMode) { this.phase = 'poem'; this.poemT = 0; this.egg = false; this.pauseMusic(); }
         break;
       }
     }
@@ -275,6 +292,16 @@ class Scene extends Phaser.Scene {
         if (restart) this.restartFromZero();
         else if (confirm) this.retry();
       }
+      this.followCamera(); this.draw(); this.paintUi(); return;
+    }
+    if (this.phase === 'poem') {
+      /* 终末之诗:向上滚,按住空格(或点住画面)加速到 3 倍 */
+      const fast = !!(this.keys.SPACE?.isDown || this.keys.UP?.isDown || this.keys.W?.isDown);
+      this.poemT += (dtMs / 1000) * (fast ? 3 : 1);
+      const camVH = this.cameras.main.height / this.cameras.main.zoom;
+      const total = POEM.length * POEM_LINE_H + camVH;      // 从屏幕下方一直滚到完全出去
+      if (!this.egg && this.poemT * POEM_SPEED > total) { this.egg = true; this.unlockEaster(); }
+      if (this.egg && confirm) { this.phase = 'idle'; this.egg = false; this.poemT = 0; }
       this.followCamera(); this.draw(); this.paintUi(); return;
     }
     if (this.phase === 'done') {
@@ -336,13 +363,30 @@ class Scene extends Phaser.Scene {
     cam.centerOn(this.camX, ROWS * U / 2);
   }
 
-  /** 三个界面(开场 / 死亡 / 通关)的文字:位置跟着相机取景走 */
+  /** 三个界面(开场 / 死亡 / 通关)+ 终末之诗 + 彩蛋窗口:位置跟着相机取景走 */
   private paintUi() {
     const cam = this.cameras.main;
     const vw = cam.width / cam.zoom;
+    const vh = cam.height / cam.zoom;
     const ux = Math.max(vw / 2, this.camX);
     const uy = ROWS * U / 2;
     const w = this.world;
+    /* 终末之诗:单独一条长文本,从取景下方向上滚 */
+    const inPoem = this.phase === 'poem';
+    this.poemText.setVisible(inPoem);
+    if (inPoem) {
+      this.uiTitle.setVisible(this.egg);
+      this.uiHint.setVisible(this.egg);
+      const poemLines = POEM.length * POEM_LINE_H;
+      this.poemText.setPosition(ux, uy + vh / 2 + poemLines - this.poemT * POEM_SPEED);
+      if (this.egg) {
+        this.uiTitle.setText('彩蛋已解锁');
+        this.uiHint.setText('可前往 CD 页面查看(左下角会多出一个按钮)\n按空格 / 点一下 回到开头');
+        this.uiTitle.setPosition(ux, uy - 26);
+        this.uiHint.setPosition(ux, uy + 34);
+      }
+      return;
+    }
     const show = this.phase !== 'running';
     this.uiTitle.setVisible(show);
     this.uiHint.setVisible(show);

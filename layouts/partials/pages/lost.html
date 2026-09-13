@@ -1,6 +1,7 @@
 {{/* 第三张盘「迷茫」:几何冲刺式关卡(新引擎,Phaser 4 + 纯 TS 定点模拟)
-     玩法:跑、跳、形态(方块/飞机)、尖刺与方块侧面致死、平台单向接住、坑掉落致死、
-           圆环切形态、速度门、存档点;关卡由「按段落与形态自动铺面」生成,不追求采音
+     玩法:七种形态(方块/飞机/球/UFO/波浪/机器人/蜘蛛)、跳环与弹簧、尖刺/锯片/坑、
+           形态门/速度门/重力门/尺寸门/双向传送门、触发器(move/color/pulse)、存档点
+     关卡:按采音 onset 自动铺面(用户后续会自己写铺面,见 .gmd 导入)
      视觉:本站显示器 + holo 科技风(不使用原作美术)
      引擎:gd-web/(源码在仓库里,构建产物是 static/assets/gd/gd.js)
      参考:OpenGD(关卡格式与数据结构)、camila314/gdp(GD 物理反编译)*/}}
@@ -17,18 +18,7 @@
         </div>
     </div>
 
-    <ul class="lost-skills">
-        {{- range $i, $s := .items }}
-        <li class="lost-skill" data-skill="{{ $s.ability }}" data-theme="{{ $s.theme }}"
-            data-form="{{ $s.title }}" data-key="{{ $s.key }}" data-line="{{ $s.line }}">
-            <span class="lost-skill-code">{{ $s.code }}</span>
-            <span class="lost-skill-theme">{{ $s.theme }}</span>
-            <span class="lost-skill-name">{{ $s.title }}</span>
-            <span class="lost-skill-key">{{ $s.key }}</span>
-            <span class="lost-skill-tx">{{ $s.text }}</span>
-        </li>
-        {{- end }}
-    </ul>
+    {{/* 旧版自研工程的能力图例(二段跳/护盾形态/重力箭头…)已删:那是上一版遗留的旁白体系 */}}
 
     <p class="lost-wip__ref">参考:
         <a href="https://github.com/Open-GD/OpenGD" target="_blank" rel="noopener noreferrer">OpenGD</a>(关卡格式与数据结构)、
