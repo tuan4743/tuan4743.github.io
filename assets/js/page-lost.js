@@ -213,7 +213,8 @@
         else cumX[si2] = cumX[si2 - 1] + (segs[si2].t - segs[si2 - 1].t) * segs[si2 - 1].speed;
       }
       items = (chart.items && chart.items.length ? chart.items : draft(chart, beats)).map(function (it) {
-        var o = { t: it.t, row: it.row | 0, type: it.type, w: it.w || 1, h: it.h || 1, orb: it.orb || "yellow" };
+        var o = { t: it.t, row: it.row | 0, type: it.type, w: it.w || 1, h: it.h || 1, orb: it.orb || "yellow",
+          text: it.text || "", deco: it.deco || "" };
         o.x = xOf(o);
         if (o.type === "rail") {                       /* 斜轨:两端点都是时间 */
           o.t2 = it.t2 != null ? it.t2 : o.t + 0.7;
@@ -417,6 +418,22 @@
           else S.onGround = false;
         }
         if (!S.onGround) S.rot += dt * 5.2 * (gdir > 0 ? 1 : -1);
+        /* ★ 可踩实体(平台/地面)= 单向地板:
+           下落时脚底穿过台面就接住,站在上面时每帧把脚底按回台面;不做横向阻挡
+           (x = f(t) 是时间驱动的,推不回去),也永不致死 */
+        var supportY = null;
+        for (var si3 = 0; si3 < items.length; si3++) {
+          var pl = items[si3];
+          if (pl.type !== "platform" && pl.type !== "ground") continue;
+          if (S.x + CFG.PW <= pl.x || S.x >= pl.x2) continue;
+          var top = pl.row + (pl.h || 1);
+          if (S.y + CFG.PH >= top - 0.05 && S.y + CFG.PH <= top + 1.0) {
+            if (supportY === null || top > supportY) supportY = top;
+          }
+        }
+        if (supportY !== null && S.vy <= 0.01) {
+          S.y = supportY - CFG.PH; S.vy = 0; S.air = 0; S.onGround = true;
+        }
         /* ★ 掉出世界就该死:几何冲刺版重写时把它弄丢了,站在坑洞上会一直往下掉、永远不死 */
         if (S.y < -2.5) { die("fall"); return; }
       }
@@ -445,6 +462,8 @@
         var o = near[j];
         if (o.type === "orb" || o.type === "gravity") continue;
         if (o.type === "hole") continue;                       /* 坑洞不是实体,靠地板判定 */
+        if (o.type === "deco") continue;                       /* ★ 装饰物纯视觉,不参与碰撞 */
+        if (o.type === "platform" || o.type === "ground") continue;   /* ★ 可踩实体交给地板式处理,永不致死 */
         if (o.type === "rail") {                               /* 斜轨:算中心到轨道的距离 */
           var cxr = S.x + CFG.PW / 2, cyr = S.y + CFG.PH / 2;
           if (cxr < o.x - 0.2 || cxr > o.x2 + 0.2) continue;
@@ -547,6 +566,26 @@
           ctx2d.lineWidth = 3; ctx2d.globalAlpha = o.done ? 0.25 : 0.95;
           ctx2d.beginPath(); ctx2d.arc(x + V.ppb * 0.5, cy2, cr, 0, Math.PI * 2); ctx2d.stroke();
           ctx2d.globalAlpha = 1;
+        } else if (o.type === "platform" || o.type === "ground") {
+          ctx2d.fillStyle = "rgba(184,233,134,0.20)";
+          ctx2d.fillRect(x, H2S(o.row + (o.h || 1)), w, (o.h || 1) * V.ppb);
+          ctx2d.strokeStyle = "rgba(184,233,134,0.9)"; ctx2d.globalAlpha = 0.9; ctx2d.lineWidth = 2;
+          ctx2d.strokeRect(x, H2S(o.row + (o.h || 1)), w, (o.h || 1) * V.ppb);
+          ctx2d.globalAlpha = 1; ctx2d.lineWidth = 1;
+        } else if (o.type === "deco") {
+          if (o.deco === "text") {
+            ctx2d.fillStyle = COL.accent; ctx2d.globalAlpha = 0.85;
+            ctx2d.font = "600 " + Math.round(V.ppb * 0.7) + "px ui-monospace, Consolas, monospace";
+            ctx2d.fillText(o.text || "", x, H2S(o.row + 0.5));
+            ctx2d.globalAlpha = 1;
+          } else {
+            var lr = V.ppb * (o.w || 2);
+            var lg = ctx2d.createRadialGradient(x, H2S(o.row + 0.5), 0, x, H2S(o.row + 0.5), lr);
+            lg.addColorStop(0, "rgba(255,240,200,0.45)");
+            lg.addColorStop(1, "rgba(255,240,200,0)");
+            ctx2d.fillStyle = lg;
+            ctx2d.fillRect(x - lr, H2S(o.row + 0.5) - lr, lr * 2, lr * 2);
+          }
         } else if (o.type === "hole") {
           ctx2d.fillStyle = COL.bg;
           ctx2d.fillRect(x, H2S(1), w, V.ppb * 1.2);           /* 把地板涂掉 = 缺口 */
@@ -788,6 +827,7 @@
       for (var k = 0; k < items.length; k++) {
         var o = items[k];
         if (o.type === "orb" || o.type === "gravity" || o.done || o.type === "rail") continue;
+        if (o.type === "platform" || o.type === "ground" || o.type === "deco") continue;
         /* 坑洞当成"要跳过去的东西" */
         if (o.x2 < S.x - 0.5 || o.x > S.x + 10) continue;
         if (!best || o.x < best.x) best = o;
@@ -927,6 +967,7 @@
         retry: retry,
         seek: function (t) {
           resetPlayer(0, 1); S.t = t; S.x = t2x(t); segNow = segAt(t);
+          phase = "play";   /* ★ 推演用:上一条用例死过也不会把后面的挡掉 */
           items.forEach(function (it) { it.done = false; });
           audioStop();
           return this.snapshot();
