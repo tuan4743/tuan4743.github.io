@@ -12,20 +12,18 @@
    ============================================================ */
 
 /* 有自定义内容的页面:去掉面板本来的居中内边距,内容用与开机动画同一块「可视窗」。
-   --page-top / --page-x / --page-b 就是那块窗的内边距:
-     · 导航显示时,顶部再让出导航高度(导航本身也在这圈 padding 里)
-     · 导航收起时,顶部只剩 --sp-t → 与开机动画的窗口完全重合,不留空带 */
+   --page-top / --page-x / --page-b 就是那块窗的内边距。
+   ★ 导航栏是浮在上面的覆盖层,内容【不给它让位】——
+     所以展开/收起导航时画面一点都不动(之前展开导航会往下缩)*/
 .intro-panel.is-page {
-    --page-top: calc(var(--sp-t, 13vh) + var(--header-h, 60px) + 8px);
+    --page-top: var(--sp-t, 13vh);
     padding: 0;
     display: block;
     overflow: hidden;
     align-items: stretch;
 }
 
-body.statusbar-hidden .intro-panel.is-page {
-    --page-top: var(--sp-t, 13vh);
-}
+/* 导航收起/展开都不影响内容位置 → 这条规则不再需要 */
 
 /* ============================================================
    第一张:滑动分页(.deck)
@@ -292,12 +290,15 @@ body.statusbar-hidden .intro-panel.is-page {
 .solar {
     --pad: clamp(16px, 2.4vw, 34px);
     --cam-x: 0;
-    --cam-y: 0;
-    --sun-r: 150px;
+    --cam-y: 0px;              /* 摄像机位移(px),JS 写 */
+    --cam-max: 0.06;           /* 拖动的最大范围 = 面板尺寸的比例 */
+    --cam-tau: 110;            /* 拖动阻尼时间常数(ms),越小越跟手 */
+    --cam-par: 8;              /* 鼠标视差最大位移(px)*/
+    --sun-w: 220px;            /* 恒星宽度,JS 写 */
     position: absolute;
     inset: var(--page-top, 0px) var(--sp-x, 5vw) var(--sp-b, 7.5vh) var(--sp-x, 5vw);
     overflow: hidden;
-    cursor: crosshair;
+    cursor: grab;
     background: radial-gradient(125% 95% at 30% 34%, #0c1a33 0%, #070c18 55%, #03050b 100%);
     user-select: none;
     -webkit-user-select: none;
@@ -320,10 +321,10 @@ body.statusbar-hidden .intro-panel.is-page {
         radial-gradient(1px 1px at 78px 208px, rgba(220, 240, 255, 0.55), transparent 60%);
     background-size: 280px 280px, 340px 340px, 420px 420px, 260px 260px;
     background-position:
-        calc(var(--cam-x) * -3px) calc(var(--cam-y) * -3px),
-        calc(var(--cam-x) * -5px) calc(var(--cam-y) * -4px),
-        calc(var(--cam-x) * -7px) calc(var(--cam-y) * -6px),
-        calc(var(--cam-x) * -9px) calc(var(--cam-y) * -8px);
+        calc(var(--cam-x) * -0.18) calc(var(--cam-y) * -0.18),
+        calc(var(--cam-x) * -0.26) calc(var(--cam-y) * -0.22),
+        calc(var(--cam-x) * -0.34) calc(var(--cam-y) * -0.3),
+        calc(var(--cam-x) * -0.42) calc(var(--cam-y) * -0.38);
     opacity: 0.75;
 }
 
@@ -332,7 +333,7 @@ body.statusbar-hidden .intro-panel.is-page {
         radial-gradient(46% 38% at 18% 26%, rgba(70, 120, 220, 0.20), transparent 70%),
         radial-gradient(38% 32% at 82% 74%, rgba(150, 90, 220, 0.16), transparent 72%),
         radial-gradient(60% 50% at 60% 50%, rgba(30, 80, 160, 0.10), transparent 76%);
-    transform: translate3d(calc(var(--cam-x) * -2px), calc(var(--cam-y) * -2px), 0);
+    transform: translate3d(calc(var(--cam-x) * -0.12), calc(var(--cam-y) * -0.12), 0);
     animation: solar-breathe 26s ease-in-out infinite;
 }
 
@@ -382,8 +383,8 @@ body.statusbar-hidden .intro-panel.is-page {
     top: 0;
     width: 0;
     height: 0;
-    transform: translate3d(calc(var(--cam-x) * var(--depth, 0.7) * -14px),
-            calc(var(--cam-y) * var(--depth, 0.7) * -14px), 0);
+    transform: translate3d(calc(var(--cam-x) * var(--depth, 0.7)),
+            calc(var(--cam-y) * var(--depth, 0.7)), 0);
 }
 
 /* ---------- 太阳 ---------- */
@@ -391,8 +392,10 @@ body.statusbar-hidden .intro-panel.is-page {
     position: absolute;
     left: 0;
     top: 0;
-    width: calc(var(--sun-r) * 2);
-    height: calc(var(--sun-r) * 2);
+    /* ★ 宽度用 JS 写的 --sun-w;高度交给 aspect-ratio —— 之前用的是已废弃的
+       --sun-r(150px),把外框压成 300px 高、贴图却 374,视觉中心偏下 37px */
+    width: var(--sun-w, 220px);
+    aspect-ratio: 1;
     transform: translate(-50%, -50%);
     border-radius: 50%;
     background:
@@ -1002,5 +1005,46 @@ body.statusbar-hidden .intro-panel.is-page {
 /* 贴图版:关掉 CSS 画的一切装饰(虚线锁定环 ::before / 黑洞吸积环 ::after)*/
 .solar-node.has-tex .solar-planet::before,
 .solar-node.has-tex .solar-planet::after {
+    display: none;
+}
+
+/* ---------- 摄像机拖动 ---------- */
+.solar.is-drag {
+    cursor: grabbing;
+}
+
+/* 光标旁边那行小字:DRAG / 按住时 RELEASE */
+.solar-drag {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 6;
+    padding: 2px 7px;
+    border: 1px solid color-mix(in srgb, var(--intro-accent) 45%, transparent);
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--theme, #05070d) 72%, transparent);
+    color: var(--intro-accent);
+    font-family: "Alpha Sector", ui-monospace, Consolas, monospace;
+    font-size: 10px;
+    line-height: 1.5;
+    letter-spacing: 0.24em;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+
+.solar.is-cursor .solar-drag {
+    opacity: 0.85;
+}
+
+.solar.is-drag .solar-drag {
+    opacity: 1;
+    border-color: color-mix(in srgb, var(--intro-accent) 85%, transparent);
+    color: #ffffff;
+}
+
+/* 窄屏不玩拖动 */
+.solar.is-narrow .solar-drag {
     display: none;
 }

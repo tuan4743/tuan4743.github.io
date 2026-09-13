@@ -167,8 +167,8 @@ body.statusbar-hidden .statusbar-toggle svg {
     display: flex;
     align-items: center;
     justify-content: center;
-    /* 默认给顶部导航让位;导航收起后由 body.statusbar-hidden 收掉 */
-    padding: calc(var(--header-h, 60px) + 26px) 48px 40px;
+    /* 导航栏浮在上面,不留位:面板内边距固定 */
+    padding: 26px 48px 40px;
     opacity: 0;
     visibility: hidden;
     transform: translateY(10px);
@@ -176,9 +176,6 @@ body.statusbar-hidden .statusbar-toggle svg {
     overflow-y: auto;
 }
 
-body.statusbar-hidden .intro-panel {
-    padding-top: 40px;
-}
 
 .intro-panel.is-active {
     visibility: visible;

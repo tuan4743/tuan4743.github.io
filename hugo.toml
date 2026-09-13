@@ -114,8 +114,8 @@ paginate = 10
       bg = "/planet/bg.jpg"            # 宇宙背景(1440×715,正好是可视窗比例)
       bg_dim = 0.45                    # 背景暗化:0 = 原样,1 = 全黑(只看暗化遮罩)
       sun = "/planet/sun.webp"         # 蓝巨星
-      sun_x = 0.26                     # 恒星中心 x(面板宽的比例)
-      sun_y = 0.3                     # 恒星中心 y
+      sun_x = 0.28                     # 恒星中心 x(面板宽的比例)
+      sun_y = 0.28                    # 恒星中心 y
       sun_w = 0.26                     # 恒星宽度占面板宽的比例(想更大就调这里)
 
     # 五颗行星【从左到右】:寒冷 → 炎热 → 类地 → 黑洞 → 气态
@@ -142,10 +142,10 @@ paginate = 10
       title = "寒冷行星"
       text = "整颗星球都在冰点以下,连风都是硬的。它在最外侧,离光最远,也最安静。"
       tex = "/planet/cold.webp"
-      x = 0.40
-      y = 0.58
-      w = 0.12
-      depth = 0.95
+      x = 0.05
+      y = 0.62
+      w = 0.06
+      depth = 3.0
 
     [[params.intro.decks.growth]]
       code = "SS-02"
@@ -153,10 +153,10 @@ paginate = 10
       title = "炎热行星"
       text = "地表被烤成锈红色,大气薄得留不住热。太靠近光的地方,往往长不出柔软的东西。"
       tex = "/planet/hot.webp"
-      x = 0.54
-      y = 0.78
-      w = 0.11
-      depth = 1.0
+      x = 0.1
+      y = 0.86
+      w = 0.02
+      depth = 0.2
 
     [[params.intro.decks.growth]]
       code = "SS-03"
@@ -164,10 +164,10 @@ paginate = 10
       title = "类地行星"
       text = "有海、有云、有大气层。岩石上那道巨大的裂痕是很久以前留下的,现在长满了安静。"
       tex = "/planet/earth.webp"
-      x = 0.66
-      y = 0.60
-      w = 0.13
-      depth = 1.1
+      x = 0.56
+      y = 0.70
+      w = 0.04
+      depth = 0.5
 
     [[params.intro.decks.growth]]
       code = "SS-04"
@@ -175,10 +175,10 @@ paginate = 10
       title = "黑洞"
       text = "不发光,只能靠被它拉弯的光看见。最小、最重,也最难绕开 —— 有些东西是这样被认出来的。"
       tex = "/planet/blackhole.webp"
-      x = 0.78
-      y = 0.38
-      w = 0.14
-      depth = 0.6
+      x = 0.68
+      y = 0.14
+      w = 0.02
+      depth = 0.1
 
     [[params.intro.decks.growth]]
       code = "SS-05"
@@ -187,9 +187,9 @@ paginate = 10
       text = "没有地面可以落脚,只有一层比一层重的风。它很大,大到能替内圈挡下大部分撞击。"
       tex = "/planet/gas.webp"
       x = 0.85
-      y = 0.78
-      w = 0.24
-      depth = 1.15
+      y = 0.68
+      w = 0.16
+      depth = 1.5
     [[params.intro.panels]]
       key = "lost"
       title = "迷茫"
