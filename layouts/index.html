@@ -282,7 +282,7 @@ window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}",
 
             <div class="wheel" id="wheel">
                 {{- range site.Params.intro.panels }}
-                <button class="cd" data-panel="{{ .key }}" data-song="{{ .song }}" data-artist="{{ .artist }}" data-title="{{ .title }}" data-caption="{{ .caption }}" aria-label="主题:{{ .title }}">
+                <button class="cd" data-panel="{{ .key }}" data-song="{{ .song }}" data-artist="{{ .artist }}" data-title="{{ .title }}" data-caption="{{ .caption }}"{{ if .no_bgm }} data-bgm="0"{{ end }} aria-label="主题:{{ .title }}">
                     <span class="cd-disc">
                         <span class="cd-face">
                             <span class="cd-label">{{ .title }}</span>

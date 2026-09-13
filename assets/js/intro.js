@@ -275,7 +275,14 @@
       /* 回到主界面。音乐要等动画彻底放完才开始 —— 开机时是"静音通电"的 */
       try { window.dispatchEvent(new CustomEvent("cd-busy", { detail: false })); } catch (e) {}
       setOpen(false, function () {
-        if (cd3dApi && cd3dApi.audio) cd3dApi.audio.music.toBgm(key);
+        /* ★ 这张盘如果声明了 no_bgm(CD 按钮上有 data-bgm="0"),插入后就【不】自动起站点 BGM:
+           第三张盘的音乐由游戏自己播放、第四张盘按要求关掉 */
+        var cdBtn = document.querySelector('.cd[data-panel="' + key + '"]');
+        var noBgm = !!(cdBtn && cdBtn.getAttribute("data-bgm") === "0")
+          || key === "lost" || key === "tech";
+        /* 第三张盘(迷茫):音乐由游戏自己播放(铺面时钟要跟音频走),站点别再放一遍;
+           第四张盘(技术):按用户要求关掉。其它盘想关就在 hugo.toml 里写 no_bgm = true */
+        if (!noBgm && cd3dApi && cd3dApi.audio) cd3dApi.audio.music.toBgm(key);
         if (cd3dApi && cd3dApi.setMusicPreview) cd3dApi.setMusicPreview(true);
       });
       /* 可视化等镜头平移完再开 */
