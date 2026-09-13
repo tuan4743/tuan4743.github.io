@@ -91,7 +91,7 @@
     var S = null, echoes = [], attempts = 0, deaths = 0, reached = false, sayT = 0, flash = 0, hudT = 0;
     var camX = 0, deadT = 0, dead = false, respawnT = 0, echoFired = 0, orbCd = 0, cumX = [];
     var keys = { jump: 0, shield: 0 };
-    var prevJump = 0, shieldT = 0, shieldCd = 0, stateT = 0, segNow = -1, tapArmed = null, tapArmedT = 0, tapMiss = 0;
+    var prevJump = 0, shieldT = 0, shieldCd = 0, stateT = 0, segNow = -1, modeSeg = -1, tapArmed = null, tapArmedT = 0, tapMiss = 0;
     var ghostTrail = [], trail = [];
 
     function resetPlayer(y, g) {
@@ -348,6 +348,10 @@
       var si = Math.max(0, segAt(S.t));
       var t = Math.max(levelStart(), segs[si].check - 0.15);   /* 允许 0 */   /* 每段自己的存档点 */
       resetPlayer(0, 1);
+      /* ★ 复活:同一帧就把形态恢复成"刚进入这一段"的样子
+         (圆环状态已在上面的循环里刷新;这一段必须放在 si 算出来之后)*/
+      modeSeg = -1; applySegMode(si);
+      if (mode === "plane") { S.planeUp = true; S.vy = 0; }
       if (MODE_STEP.dry) S.t = t; else { S.t = t; audioStart(t); }
       segNow = -1;
     }
@@ -355,6 +359,37 @@
 
     function nowT() { return S ? S.t : 0; }
 
+    /* ---------------- 形态(段落初始 / 圆环切换)----------------
+       段落声明的是"这一段从什么形态开始"(编辑器里每段的 mode 字段),换段时套用一次;
+       段内想要变形就用【圆环】,圆环切出来的形态会一直保持到下一次换段。
+       ★ 要害:套用形态必须"换段时才做",不能写成"当前形态和段落声明不一致就纠正" ——
+         那样圆环刚切完就被按回去,用户报的"圆环跟没修一样"就是这个 */
+    function applySegMode(si) {
+      var sg = segs[si] || {};
+      if (sg.mode) mode = sg.mode;      /* 段落没声明就沿用当前形态 */
+      S.modeIsPlane = (mode === "plane");
+      return mode;
+    }
+    /* ---------------- 圆环 = 切形态 ----------------
+       方块 → 飞机 / 飞机 → 方块。两处调用(独立扫描 + 碰撞扫描)都靠 used 保证只切一次。
+       ★ 把这个动作抽成函数,是因为散的写法容易被别的逻辑覆盖:段落块原来用
+         "段落声明的形态" 每帧纠正 mode,圆环刚切完就被按回去(用户报"跟没修一样")*/
+    function portalSwap(o) {
+      if (!o || o.used) return false;
+      if (S.x + CFG.PW < o.x) return false;
+      o.used = true;
+      mode = (mode === "plane") ? "cube" : "plane"; S.modeIsPlane = (mode === "plane");
+      if (mode === "plane") {
+        S.planeUp = true; S.vy = 0;
+        /* 贴着地面/天花板切进飞机形态会当场撞死 —— 先挪到走廊中间 */
+        if (S.y < 0.6 || S.y + CFG.PH > CFG.ROWS - 0.6) S.y = (CFG.ROWS - CFG.PH) / 2;
+      } else {
+        gdir = 1; S.vy = 0; S.y = 0; S.onGround = true;
+      }
+      flash = 0.6; stateT = 4;
+      say(mode === "plane" ? "圆环:他成了飞机,斜着往上飞。" : "圆环:他落回方块,重新踩地面。", 2.4);
+      return true;
+    }
     /* ---------------- 推进 ---------------- */
     function step(dt) {
       if (!ready || ED) return;
@@ -383,18 +418,23 @@
       /* 段落 / 形态:形态每帧都从段落推(seek、推演跳时间也不会错),
          但只有【真的换了形态】才动他的运动状态 —— 否则刚起跳就被第一帧清零 */
       var si = segAt(t);
-      var seg = segs[si];
-      if (seg.mode !== mode) {
-        /* ★ 形态切换交给圆环:段落只在【第一段】给个初始形态,
-           否则会变成"固定地方自动切",用户放的圆环就成了摆设 */
-        var wantMode = (si === 0) ? (seg.mode || "cube") : mode;
-        mode = wantMode; S.modeIsPlane = (mode === "plane");
-        /* 变形瞬间给个安全的落点:方块 → 飞机 时直接切到走廊中间
-           (从地面上起飞、又刚好没按住,第一帧就撞地死了 —— 验收抓到的);
-           飞机 → 方块 时干净落地 */
-        if (mode === "plane") { S.y = (CFG.ROWS - CFG.PH) / 2; S.vy = 0; S.onGround = false; S.planeUp = true; }
-        else { gdir = 1; S.vy = 0; S.y = 0; S.onGround = true; }
-        stateT = 4;
+      var seg = segs[si] || {};
+      /* ★ 形态:换段时套用本段声明的初始形态(编辑器里每段的 mode)。
+         段内由【圆环】切换,切出来的形态保持到下一次换段 —— 不在这里做"纠正"。
+         原来是 if (seg.mode !== mode) —— 圆环刚把形态切成飞机,下一帧这里就按
+         段落声明的 cube 按回去,所以圆环"跟没修一样"(隔离用例复现过)*/
+      if (si !== modeSeg) {
+        modeSeg = si;
+        var wasMode = mode;
+        applySegMode(si);
+        if (mode !== wasMode) {
+          /* 变形瞬间给个安全的落点:方块 → 飞机 时直接切到走廊中间
+             (从地面上起飞、又刚好没按住,第一帧就撞地死了 —— 验收抓到的);
+             飞机 → 方块 时干净落地 */
+          if (mode === "plane") { S.y = (CFG.ROWS - CFG.PH) / 2; S.vy = 0; S.onGround = false; S.planeUp = true; }
+          else { gdir = 1; S.vy = 0; S.y = 0; S.onGround = true; }
+          stateT = 4;
+        }
       }
       if (si !== segNow) {
         segNow = si;
@@ -465,17 +505,11 @@
           say("那一拍,上一轮的他替你蹬了一下。", 2.6);
         }
       }
-      /* ★ 圆环传送门:跨过去就切形态 */
+      /* ★ 圆环传送门:跨过去就切形态(碰撞扫描里也调一次,靠 used 保证只切一次)*/
       for (var pi = 0; pi < items.length; pi++) {
         var po = items[pi];
-        if (po.type !== "portal" || po.used) continue;
-        if (S.x + CFG.PW < po.x) continue;
-        po.used = true;
-        /* ★ 圆环 = 切换:飞机形态碰到 → 变回方块;方块形态碰到 → 变飞机 */
-        mode = (mode === "plane") ? "cube" : "plane"; S.modeIsPlane = (mode === "plane");
-        if (mode === "plane") { S.planeUp = true; S.vy = 0; }
-        else { S.vy = 0; gdir = 1; S.y = 0; S.onGround = true; }
-        flash = 0.6;
+        if (po.type !== "portal") continue;
+        if (portalSwap(po)) break;
       }
       /* 重力箭头进入点击窗口 */
       for (var i = 0; i < items.length; i++) {
@@ -492,7 +526,10 @@
         if (o.type === "hole") continue;                       /* 坑洞不是实体,靠地板判定 */
         if (o.type === "deco") continue;                       /* ★ 装饰物纯视觉,不参与碰撞 */
         if (o.type === "platform" || o.type === "ground") continue;   /* ★ 可踩实体交给地板式处理,永不致死 */
-        if (o.type === "portal") continue;                            /* 圆环传送门不致死 */
+        if (o.type === "portal") {
+          /* ★ 圆环:交给 portalSwap(切形态 + 刷新状态都在里面)*/
+          portalSwap(o); continue;
+        }
         if (o.type === "rail") {                               /* 斜轨:算中心到轨道的距离 */
           var cxr = S.x + CFG.PW / 2, cyr = S.y + CFG.PH / 2;
           if (cxr < o.x - 0.2 || cxr > o.x2 + 0.2) continue;
@@ -604,27 +641,25 @@
           ctx2d.beginPath(); ctx2d.arc(x + V.ppb * 0.5, H2S(o.row + 0.5), pr * 0.8, 0, Math.PI * 2); ctx2d.fill();
           ctx2d.globalAlpha = 1; ctx2d.lineWidth = 1;
         } else if (o.type === "platform" || o.type === "ground") {
-          /* ★ 砖块材质:颜色和方块一致(用户要求),只把纹理画成砖缝 */
+          /* ★ 砖块材质:颜色和方块一致(用户要求),纹理画成砖缝。
+             横缝按行切,竖缝逐行错半块(running bond)。
+             原来是"每列一条半高竖线",一格高的时候活像尺子上的刻度(用户截图:像尺子)*/
           var by0 = H2S(o.row + (o.h || 1)), bh0 = (o.h || 1) * V.ppb;
           ctx2d.fillStyle = "rgba(226,246,255,0.16)";
           ctx2d.fillRect(x, by0, w, bh0);
           ctx2d.strokeStyle = COL.accent; ctx2d.globalAlpha = 0.75; ctx2d.lineWidth = 2;
           ctx2d.strokeRect(x + 1, by0 + 1, w - 2, bh0 - 2);
-          ctx2d.globalAlpha = 0.35; ctx2d.lineWidth = 1;
-          var rows = Math.max(1, Math.round((o.h || 1)));
-          for (var br = 1; br < rows; br++) {
-            var byy = by0 + (bh0 * br) / rows;
-            ctx2d.beginPath(); ctx2d.moveTo(x, byy); ctx2d.lineTo(x + w, byy); ctx2d.stroke();
-          }
-          var cols = Math.max(1, Math.round(o.x2 - o.x));
-          for (var bc = 0; bc < cols; bc++) {
-            var bxx = x + (w * (bc + 0.5)) / cols;
-            for (var br2 = 0; br2 < rows; br2++) {
-              var seg = bh0 / rows, y1 = by0 + seg * br2, y2 = y1 + seg;
-              ctx2d.beginPath();
-              ctx2d.moveTo(bxx, br2 % 2 ? y1 : y1 + seg * 0.5);
-              ctx2d.lineTo(bxx, br2 % 2 ? y2 - seg * 0.5 : y2);
-              ctx2d.stroke();
+          /* 平台 = 半砖(砖只有地面的一半宽),一眼能和地面区分开 */
+          var bRows = Math.max(1, Math.round(o.h || 1));
+          var bH = bh0 / bRows;
+          var bW = V.ppb * (o.type === "platform" ? 0.5 : 1);
+          ctx2d.globalAlpha = 0.3; ctx2d.lineWidth = 1;
+          for (var bR = 0; bR < bRows; bR++) {
+            var by1 = by0 + bH * bR, by2 = by1 + bH;
+            if (bR > 0) { ctx2d.beginPath(); ctx2d.moveTo(x, by1); ctx2d.lineTo(x + w, by1); ctx2d.stroke(); }
+            var vx0 = x + (bR % 2 ? bW * 0.5 : 0) + bW;
+            for (var vx = vx0; vx < x + w - 1.5; vx += bW) {
+              ctx2d.beginPath(); ctx2d.moveTo(vx, by1 + 1.5); ctx2d.lineTo(vx, by2 - 1.5); ctx2d.stroke();
             }
           }
           ctx2d.globalAlpha = 1; ctx2d.lineWidth = 1;
@@ -881,7 +916,10 @@
           }
           if (bestGap !== null) target = bestGap + 1;
         }
-        keys.jump = (S.y < target - 0.15) ? 1 : 0;
+        /* ★ 飞机方向由 planeUp 决定(按一下翻一次),不是"按住跳" —— 这里直接对准目标高度。
+           之前机器人用 keys.jump,结果一路顶到天花板:整首自动播放 61 次全死在 y=9.14 */
+        S.planeUp = (S.y < target - 0.15);
+        keys.jump = 0;
         return;
       }
       /* 重力箭头:窗口一开就踩拍点 */
@@ -910,7 +948,8 @@
       segNow = -1; resetPlayer(0, 1);
       /* ★ 起点用 levelStart():铺面把第一段设到 0 时,游戏就该从 0 开始 */
       S.t = levelStart(); S.x = t2x(S.t);
-      items.forEach(function (it) { it.done = false; });
+      items.forEach(function (it) { it.done = false; it.used = false; });
+      modeSeg = -1; applySegMode(0);
       if (!MODE_STEP.dry) audioStart(S.t);
       say(TXT.intro, 5);
       if (deathsEl) deathsEl.textContent = "00";
@@ -998,8 +1037,8 @@
       /* 从某一刻试玩:先关掉编辑暂停,再定位 */
       preview: function (t) {
         ED = false;
-        resetPlayer(0, 1); S.t = clamp(t, 0, dur - 1); S.x = t2x(S.t); segNow = segAt(S.t);
-        items.forEach(function (it) { it.done = false; });
+        resetPlayer(0, 1); S.t = clamp(t, 0, dur - 1); S.x = t2x(S.t); segNow = segAt(S.t); modeSeg = -1;
+        items.forEach(function (it) { it.done = false; it.used = false; });
         if (active && !MODE_STEP.dry) audioStart(S.t);
         return S.t;
       },
@@ -1019,6 +1058,8 @@
           phase: phase, auto: auto, echoN: echoes.length,
           dead: dead, deaths: deaths, attempts: attempts, reached: reached,
           shieldT: +shieldT.toFixed(2), shieldCd: +shieldCd.toFixed(2),
+          paused: !!paused, frozen: !!frozen,
+          audioAt: MODE_STEP.dry ? null : audioNow(),
           echoes: echoes.map(function (e) { return { beat: e.beat, t: +e.t.toFixed(3), fired: e.fired }; }),
           items: items.length, segs: segs.length, bpm: +(60 / period).toFixed(2),
           beat: nearestBeat(S ? S.t : 0), armed: tapArmed ? +tapArmed.t.toFixed(3) : null,
@@ -1030,7 +1071,7 @@
         dry: function (on) { MODE_STEP.dry = on !== false; audioStop(); return MODE_STEP.dry; },
         retry: retry,
         seek: function (t) {
-          resetPlayer(0, 1); S.t = t; S.x = t2x(t); segNow = segAt(t);
+          resetPlayer(0, 1); S.t = t; S.x = t2x(t); segNow = segAt(t); modeSeg = -1;
           phase = "play";   /* ★ 推演用:上一条用例死过也不会把后面的挡掉 */
           items.forEach(function (it) { it.done = false; it.used = false; });
           audioStop();
@@ -1062,21 +1103,36 @@
         echo: function () { return echoes.map(function (e) { return { beat: e.beat, t: +e.t.toFixed(3), at: e.at, fired: e.fired }; }); },
         draft: function () { return draft(chart, beats); },
         chart: function () { return { segments: segs, items: items.length, speed: CFG.SPEED, rows: CFG.ROWS, lead: chart.lead }; },
-        /* 排查用:把 rail/hole 换算出来的几何打出来 */
+        /* 排查用:rail/hole 换算出来的几何 */
         probe: function () {
           return items.filter(function (o) { return o.type === "rail" || o.type === "hole"; }).map(function (o) {
             return { type: o.type, t: o.t, row: o.row, w: o.w, t2: o.t2, row2: o.row2,
               x: +o.x.toFixed(2), x2: +o.x2.toFixed(2) };
           });
         },
-        /* 玩家当前的碰撞盒中心(排查用)*/
-        me: function () { return { x: +(S.x + CFG.PW / 2).toFixed(2), y: +(S.y + CFG.PH / 2).toFixed(2), mode: mode }; },
-        /* 排查用:把 rail/hole 换算出来的几何打出来 */
-        probe: function () {
-          return items.filter(function (o) { return o.type === "rail" || o.type === "hole"; }).map(function (o) {
-            return { type: o.type, t: o.t, row: o.row, w: o.w, t2: o.t2, row2: o.row2, x: +o.x.toFixed(2), x2: +o.x2.toFixed(2) };
+        /* 排查用:【全部】物件 —— 圆环"没生效"这类问题,先看它在不在表里、x2 有没有值 */
+        items: function () {
+          return items.map(function (o) {
+            return { type: o.type, t: o.t, row: o.row, w: o.w, h: o.h, x: +o.x.toFixed(2),
+              x2: +o.x2.toFixed(2), used: !!o.used, done: !!o.done };
           });
         },
+        /* 直接设定形态(隔离用例要测"飞机碰到圆环变回方块",得先处于飞机形态)。
+           modeSeg 一起对齐 —— 否则下一次 step 会被第一段的初始形态按回去 */
+        mode: function (m) {
+          mode = (m === "plane") ? "plane" : "cube"; S.modeIsPlane = (mode === "plane");
+          modeSeg = segAt(S.t); S.planeUp = true; S.vy = 0;
+          if (mode === "cube") { gdir = 1; S.y = 0; S.onGround = true; }
+          return this.snapshot();
+        },
+        /* 真实按键路径(隔离用例用):直接喂给 onKey,连"空格翻飞机方向"这种分支一起测 */
+        key: function (k, down, repeat) {
+          onKey({ key: k, repeat: !!repeat, target: null, preventDefault: function () {} }, down !== false);
+          return this.snapshot();
+        },
+        /* 飞机形态现在朝上还是朝下(排查贴图/方向用)*/
+        planeUp: function () { return S.planeUp !== false; },
+        /* 玩家当前的碰撞盒中心(排查用)*/
         me: function () { return { x: +(S.x + CFG.PW / 2).toFixed(2), y: +(S.y + CFG.PH / 2).toFixed(2), mode: mode }; },
         snapshot: function () {
 
