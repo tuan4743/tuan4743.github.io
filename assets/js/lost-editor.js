@@ -23,7 +23,8 @@
     { k: "gravity", n: "重力", c: "#c6a0ff" },
     { k: "shield", n: "护盾", c: "#7ff0c0" },
     { k: "echo", n: "回响", c: "#a0f0ff" },
-    { k: "rail", n: "斜轨", c: "#6ee7ff" },
+    { k: "railUp", n: "斜轨↗ 45°", c: "#6ee7ff", t: "rail", dir: 1 },
+    { k: "railDown", n: "斜轨↘ 45°", c: "#6ee7ff", t: "rail", dir: -1 },
     { k: "hole", n: "坑洞", c: "#ffb36b" },
     { k: "platform", n: "平台(可踩)", c: "#b8e986" },
     { k: "ground", n: "地面", c: "#9fb8d0" },
@@ -59,8 +60,10 @@
     var items = [], nextId = 1;
     function loadItems(list) {
       items = (list || []).map(function (it) {
-        return { id: nextId++, t: it.t, row: it.row | 0, type: it.type, w: it.w || 1, h: it.h || 1, orb: it.orb || "yellow",
+        var o = { id: nextId++, t: it.t, row: it.row | 0, type: it.type, w: it.w || 1, h: it.h || 1, orb: it.orb || "yellow",
           t2: it.t2, row2: it.row2, text: it.text || "", deco: it.deco || "" };
+        if (o.type === "rail") railFit(o);     /* ★ 斜轨一律归一到 45°(用户:不需要自定义角度)*/
+        return o;
       });
     }
     loadItems(E.chart.items && E.chart.items.length ? E.chart.items : api.dev.draft());
@@ -431,7 +434,7 @@
         var iy = row2y(it.row);                       /* 行的中心:装饰物/光源用 */
         var bb = boxOf(it);                           /* ★ 和游戏同一个盒子 */
         var ix = bb.x, iw = bb.w;
-        var T = TYPES.filter(function (q) { return q.k === it.type; })[0] || TYPES[0];
+        var T = TYPES.filter(function (q) { return q.k === it.type || q.t === it.type; })[0] || TYPES[0];
         ctx.fillStyle = T.c;
         if (it.type === "deco") {
           if ((it.deco || "light") === "text") {
@@ -503,6 +506,27 @@
       var iy = yTopOf(it.row, it.h);
       return { x: ix, y: iy, w: iw, h: ih, cx: ix + iw / 2, cy: iy + ih / 2 };
     }
+    /* ---------------- 斜轨(固定 45°)----------------
+       ★ 45° = 世界坐标里 |Δ行| = |Δ块|;长度用"几行"表示(横竖相等)。
+         原来两端点能拖成任意角度、而且拖完 t2/row2 和长度对不上  */
+    function railDir(it) { return (it.row2 != null && it.row2 < it.row) ? -1 : 1; }
+    function railLen(it) { return Math.max(1, Math.abs((it.row2 != null ? it.row2 : it.row + 1) - it.row)); }
+    function railFit(it) {                       /* 把长度限制在这一行能放下的范围里 */
+      var d = railDir(it), len = clamp(railLen(it), 1, d > 0 ? 9 - clamp(it.row, 0, 9) : clamp(it.row, 0, 9));
+      it.row = clamp(it.row, 0, 9);
+      it.row2 = it.row + d * len;
+      it.t2 = +tOfX(xAt(it.t) + d * len).toFixed(4);      /* 45°:横向也走 len 块 */
+      return it;
+    }
+    function railSeg(it) {
+      return { ax: t2x(it.t), ay: row2y(it.row),
+        bx: t2x(it.t2 != null ? it.t2 : it.t), by: row2y(it.row2 != null ? it.row2 : it.row) };
+    }
+    function distToSeg(px, py, ax, ay, bx, by) {
+      var dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
+      var k = L > 0 ? clamp(((px - ax) * dx + (py - ay) * dy) / L, 0, 1) : 0;
+      return Math.hypot(px - (ax + dx * k), py - (ay + dy * k));
+    }
     /* 命中尺寸手柄:右边 = 改宽,上边 = 改高(只有选中的物件有手柄)*/
     /* 斜轨两端的端点手柄(先于普通命中判断)*/
     function hitRailEnd(x, y) {
@@ -518,7 +542,7 @@
     function hitHandle(x, y) {
       if (E.sel == null) return null;
       var it = items.filter(function (q) { return q.id === E.sel; })[0];
-      if (!it) return null;
+      if (!it || it.type === "rail") return null;      /* 斜轨只有两端手柄,没有 w/h */
       var b = boxOf(it);
       if (x >= b.x + b.w - 5 && x <= b.x + b.w + 7 && Math.abs(y - b.cy) <= b.h / 2 + 4) return { it: it, k: "w" };
       if (y >= b.y - 7 && y <= b.y + 5 && Math.abs(x - b.cx) <= b.w / 2 + 4) return { it: it, k: "h" };
@@ -526,8 +550,15 @@
     }
     function hit(x, y) {
       for (var i = items.length - 1; i >= 0; i--) {
-        var b = boxOf(items[i]);
-        if (Math.abs(x - b.cx) <= b.w / 2 + 3 && Math.abs(y - b.cy) <= b.h / 2 + 3) return items[i];
+        var it = items[i];
+        if (it.type === "rail") {
+          /* ★ 点到线段的距离:整条斜线都能点中(原来只有起点那一小块能点到 → 选不中、删不掉、拖不动)*/
+          var g = railSeg(it);
+          if (distToSeg(x, y, g.ax, g.ay, g.bx, g.by) <= 8) return it;
+          continue;
+        }
+        var b = boxOf(it);
+        if (Math.abs(x - b.cx) <= b.w / 2 + 3 && Math.abs(y - b.cy) <= b.h / 2 + 3) return it;
       }
       return null;
     }
@@ -546,12 +577,25 @@
       var hd = hitRailEnd(p.x, p.y) || hitHandle(p.x, p.y);
       if (hd) { E.resize = hd; try { cv.setPointerCapture(ev.pointerId); } catch (err) {} draw(); return; }
       if (hitIt) {
-        E.sel = hitIt.id; E.drag = { it: hitIt, dx: p.x - t2x(hitIt.t) };
+        E.sel = hitIt.id;
+        E.drag = { it: hitIt, dx: p.x - t2x(hitIt.t), y0: p.y, row0: hitIt.row, rowAtY0: y2row(p.y) };
+        if (hitIt.type === "rail") {            /* 斜轨:抓住哪一点,平移时就保持那个抓点 */
+          E.drag.grabT = x2t(p.x) - hitIt.t;
+          E.drag.grabRow = y2row(p.y) - hitIt.row;
+        }
         try { cv.setPointerCapture(ev.pointerId); } catch (err) {}   /* 合成的 PointerEvent 没有真指针,捕获会抛错 */
       } else {
         /* 空白处:按当前类型放一个 */
         var nt = { id: nextId++, t: snapT(x2t(p.x), p.x), row: y2row(p.y), type: E.type, w: 1, orb: E.orb };
-        if (E.type === "rail") { nt.t2 = snapT(nt.t + E.period * 2); nt.row2 = clamp(nt.row + 2, 0, 9); }
+        var TT = TYPES.filter(function (q) { return q.k === E.type; })[0];
+        if (TT && TT.t) nt.type = TT.t;                    /* 「斜轨↗/↘」落到铺面里都是 rail */
+        if (nt.type === "rail") {
+          /* ★ 固定 45°:默认 3 行(横竖各 3 块),方向由选的是↗还是↘决定 */
+          var rd = (TT && TT.dir) || 1, rl = 3;
+          nt.row = rd > 0 ? clamp(y2row(p.y), 0, 9 - rl) : clamp(y2row(p.y), rl, 9);
+          nt.row2 = nt.row + rd * rl;
+          nt.t2 = +tOfX(xAt(nt.t) + rd * rl).toFixed(4);
+        }
         if (E.type === "hole") { nt.row = 0; nt.w = 2; }
         if (E.type === "platform") { nt.w = 3; nt.h = 1; }
         if (E.type === "ground") { nt.w = 4; nt.h = 1; }
@@ -570,9 +614,21 @@
         /* 斜轨端点 */
         if (E.resize.k === "railA" || E.resize.k === "railB") {
           var itR = E.resize.it;
-          if (E.resize.k === "railA") { itR.t = snapT(x2t(ph.x), ph.x); itR.row = y2row(ph.y); }
-          else { itR.t2 = snapT(x2t(ph.x), ph.x); itR.row2 = y2row(ph.y); }
-          E.status = "斜轨端点 " + (E.resize.k === "railA" ? "A" : "B") + " → " + (E.resize.k === "railA" ? itR.t : itR.t2) + "s / 行 " + (E.resize.k === "railA" ? itR.row : itR.row2);
+          if (E.resize.k === "railA") {
+            /* ★ A 点随便放,但长度不变、B 点跟着保持 45° */
+            var dA = railDir(itR), lenA = railLen(itR);
+            itR.t = snapT(x2t(ph.x), ph.x);
+            itR.row = dA > 0 ? clamp(y2row(ph.y), 0, 9 - lenA) : clamp(y2row(ph.y), lenA, 9);
+            itR.row2 = itR.row + dA * lenA;
+            itR.t2 = +tOfX(xAt(itR.t) + dA * lenA).toFixed(4);
+          } else {
+            /* ★ B 点只能沿 45° 线走 = 就是拖长度 */
+            var dB = railDir(itR);
+            var lenB = clamp(Math.abs(y2row(ph.y) - itR.row), 1, dB > 0 ? 9 - itR.row : itR.row);
+            itR.row2 = itR.row + dB * lenB;
+            itR.t2 = +tOfX(xAt(itR.t) + dB * lenB).toFixed(4);
+          }
+          E.status = "斜轨 " + (E.resize.k === "railA" ? "A 点" : "长度") + " → 行 " + itR.row + "~" + itR.row2 + "(" + railLen(itR) + " 行长,45°)";
           E.dirty = true; syncBar(); draw(); return;
         }
         /* 改尺寸:0.5 块一档 */
@@ -591,6 +647,21 @@
       }
       if (!E.drag) return;
       var p = ph;
+      if (E.drag.it.type === "rail") {
+        /* ★ 整根斜轨一起平移:横轴、纵轴都能动,长度和 45° 不变 */
+        var itR3 = E.drag.it, dR = railDir(itR3), lenR = railLen(itR3);
+        var tNew = x2t(p.x) - E.drag.grabT;                 /* A 点应该落在的时刻 */
+        var pxA = (xAt(tNew) - E.scroll) * E.zoom;          /* 它在屏幕上的位置(软吸附按像素判远近)*/
+        itR3.t = snapT(tNew, pxA);
+        var wantRow = y2row(p.y) - E.drag.grabRow;
+        itR3.row = dR > 0 ? clamp(wantRow, 0, 9 - lenR) : clamp(wantRow, lenR, 9);
+        itR3.row2 = itR3.row + dR * lenR;
+        itR3.t2 = +tOfX(xAt(itR3.t) + dR * lenR).toFixed(4);
+        E.dirty = true;
+        E.status = "斜轨平移到 " + itR3.t.toFixed(2) + "s / 行 " + itR3.row + "~" + itR3.row2 + "(45°、" + lenR + " 行长)";
+        syncBar(); draw();
+        return;
+      }
       var dragPx = p.x - E.drag.dx;                 /* 被拖物件的左边缘在屏幕上的位置 */
       E.drag.it.t = snapT(x2t(dragPx), dragPx);
       E.drag.it.row = y2row(p.y);
@@ -680,7 +751,7 @@
       ch.items = items.slice().sort(function (a, b) { return a.t - b.t; }).map(function (it) {
         var o = { t: +(+it.t).toFixed(4), row: it.row, type: it.type, w: it.w || 1 };
         if ((it.h || 1) !== 1) o.h = it.h;
-        if (it.type === "rail") { o.t2 = +(+it.t2).toFixed(4); o.row2 = it.row2; }
+        if (it.type === "rail") { railFit(it); o.t2 = +(+it.t2).toFixed(4); o.row2 = it.row2; }
         if (it.type === "deco") { o.deco = it.deco || "light"; if (it.text) o.text = it.text; }
         if (it.type === "portal") o.to = it.to || "plane";
         if (it.type === "orb") o.orb = it.orb || "yellow";
@@ -803,6 +874,13 @@
        这样就能直接和游戏里 dev.items() 的 x/x2/row 对比,验证"编辑器所见 = 游戏所得" */
     function probe() {
       return items.map(function (it) {
+        if (it.type === "rail") {
+          var g = railSeg(it);
+          return { t: it.t, type: it.type, row: it.row, h: 1, w: 1, t2: it.t2, row2: it.row2,
+            px0: +g.ax.toFixed(2), px1: +g.bx.toFixed(2), py0: +g.ay.toFixed(2), py1: +g.by.toFixed(2),
+            wx0: +(E.scroll + g.ax / E.zoom).toFixed(3), wx1: +(E.scroll + g.bx / E.zoom).toFixed(3),
+            wy0: +(10 - (g.ay - gridTop()) / rowH()).toFixed(3), wy1: +(10 - (g.by - gridTop()) / rowH()).toFixed(3) };
+        }
         var b = boxOf(it);
         return { t: it.t, type: it.type, row: it.row, h: it.h || 1, w: it.w || 1,
           px0: +b.x.toFixed(2), px1: +(b.x + b.w).toFixed(2), py0: +b.y.toFixed(2), py1: +(b.y + b.h).toFixed(2),
