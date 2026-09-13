@@ -12,6 +12,8 @@ import { fingerprint } from './sim/replay.ts';
 import { P, U, ROWS } from './sim/constants.ts';
 
 const HL = '#7ff0ff';
+/* 每段一个强调色:网格、地面、门的颜色都跟着走,一眼知道跑到第几段 */
+const PAL = [0x7ff0ff, 0xffe17a, 0xa0ffd0, 0xc6a0ff, 0xff9fd0];
 const HLD = 0x7ff0ff;
 const WARN = 0xff9a6b;
 const LEVEL: Level = generateLevel({ seed: 20260913 });
@@ -138,13 +140,16 @@ class Scene extends Phaser.Scene {
     /* ★ 两个坑(都是验收截图抓出来的):
        ① 绘制范围必须用【相机自己的尺寸】,用 this.scale.* 会和实际视口对不上,画出来只有一小块;
        ② 世界是 y 向上的,而屏幕 y 向下 —— 把相机 scrollY 设成 -ROWS*U,地面就落在屏幕底部。 */
+    const bx = w.x / U;
+    const seg = LEVEL.segments.find((sg) => bx >= sg.from && bx < sg.to) || LEVEL.segments[0];
+    const tint = PAL[LEVEL.segments.indexOf(seg) % PAL.length];
     const vw = cam.width / cam.zoom, vh = cam.height / cam.zoom;
     const x0 = this.camX - vw / 2, x1 = x0 + vw;
     const y0 = ROWS * U / 2 - vh / 2, y1 = y0 + vh;
     g.clear();
 
     // 场地网格(每块一条细线)—— 本站的"观察窗"感
-    g.lineStyle(1, HLD, 0.06);
+    g.lineStyle(1, tint, 0.09);
     for (let bx = Math.floor(x0 / U); bx <= x1 / U; bx++) g.lineBetween(bx * U, y0, bx * U, y1);
     for (let r = 0; r <= ROWS; r++) g.lineBetween(x0, r * U, x1, r * U);
 
@@ -154,30 +159,59 @@ class Scene extends Phaser.Scene {
       if (bx + bw < x0 || bx > x1) continue;
       switch (o.kind) {
         case 'platform':
-          g.fillStyle(HLD, 0.10).fillRect(bx, by, bw, bh);
-          g.lineStyle(2, HLD, 0.75).strokeRect(bx + 1, by + 1, bw - 2, bh - 2);
+          if (o.r < 0) {
+            /* 地面:厚条 + 顶部亮线 + 斜纹(和平台、方块一眼分开) */
+            g.fillStyle(tint, 0.13).fillRect(bx, by, bw, bh);
+            g.lineStyle(2, tint, 0.85).lineBetween(bx, by + 2, bx + bw, by + 2);
+            g.lineStyle(1, tint, 0.22);
+            for (let hx = bx + 10; hx < bx + bw; hx += 18) g.lineBetween(hx, by + 4, hx - 6, by + bh - 2);
+          } else {
+            /* 平台:薄板(只占上半格)+ 两端小竖线,像可踩的踏板 */
+            const th = U * 0.34;
+            g.fillStyle(tint, 0.16).fillRect(bx, by, bw, th);
+            g.lineStyle(2, tint, 0.8).strokeRect(bx + 1, by + 1, bw - 2, th - 2);
+          }
           break;
-        case 'block':
-          g.fillStyle(HLD, 0.16).fillRect(bx, by, bw, bh);
-          g.lineStyle(2, HLD, 0.75).strokeRect(bx + 1, by + 1, bw - 2, bh - 2);
+        case 'block': {
+          /* 方块:实心 + 右上缺角,和地面/平台都不同 */
+          g.fillStyle(tint, 0.20).fillRect(bx, by, bw, bh);
+          g.lineStyle(2, tint, 0.85).strokeRect(bx + 1, by + 1, bw - 2, bh - 2);
+          g.fillStyle(tint, 0.55).fillTriangle(bx + bw, by + bh, bx + bw - 9, by + bh, bx + bw, by + bh - 9);
           break;
+        }
         case 'spike':
           g.fillStyle(WARN, 0.9);
           for (let k = 0; k < o.w; k++) {
             g.fillTriangle(bx + k * U, by, bx + k * U + U / 2, by + U * 0.88, bx + k * U + U, by);
           }
           break;
-        case 'portal':
-          g.lineStyle(3, 0xffe17a, 0.95).strokeCircle(bx + U / 2, by + U / 2, U * 0.95);
-          g.fillStyle(0xffe17a, 0.14).fillCircle(bx + U / 2, by + U / 2, U * 0.8);
+        case 'portal': {
+          const cx2 = bx + U / 2, cy2 = by + U / 2;
+          g.lineStyle(3, 0xffe17a, 0.95).strokeCircle(cx2, cy2, U * 0.95);
+          g.lineStyle(1, 0xffe17a, 0.45).strokeCircle(cx2, cy2, U * 0.74);
+          g.fillStyle(0xffe17a, 0.12).fillCircle(cx2, cy2, U * 0.74);
+          /* 环里画目标形态:方块 = 小方,飞机 = 小三角(不用猜这个环切什么) */
+          if (o.to === 'ship') {
+            g.fillStyle(0xffe17a, 0.95);
+            g.fillTriangle(cx2 + 7, cy2, cx2 - 5, cy2 - 6, cx2 - 5, cy2 + 6);
+          } else {
+            g.fillStyle(0xffe17a, 0.95).fillRect(cx2 - 6, cy2 - 6, 12, 12);
+          }
           break;
+        }
         case 'check':
           g.lineStyle(2, 0xffcc66, 0.9).lineBetween(bx + U * 0.2, by + U, bx + U * 0.2, by - U * 0.1);
           g.fillStyle(0xffcc66, 0.9).fillTriangle(bx + U * 0.2, by - U * 0.1, bx + U * 1.05, by + U * 0.15, bx + U * 0.2, by + U * 0.4);
           break;
-        case 'speed':
-          g.lineStyle(2, 0x9fd8ff, 0.9).strokeRect(bx + 2, by + 2, bw - 4, bh - 4);
+        case 'speed': {
+          const cy3 = by + U / 2;
+          g.lineStyle(3, 0x9fd8ff, 0.9);
+          g.beginPath();
+          g.moveTo(bx + 6, cy3 - 8); g.lineTo(bx + 15, cy3); g.lineTo(bx + 6, cy3 + 8);
+          g.moveTo(bx + 16, cy3 - 8); g.lineTo(bx + 25, cy3); g.lineTo(bx + 16, cy3 + 8);
+          g.strokePath();
           break;
+        }
         case 'gravity':
           g.fillStyle(0xc6a0ff, 0.9).fillTriangle(bx, by + U * 0.8, bx + U / 2, by, bx + U, by + U * 0.8);
           break;

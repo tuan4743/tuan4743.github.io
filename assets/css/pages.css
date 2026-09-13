@@ -1728,3 +1728,7 @@ html[data-gd="mobile"] .gd-mobile-note span {
     line-height: 1.9;
     color: color-mix(in srgb, var(--intro-accent) 55%, transparent);
 }
+
+/* 第三张盘:舞台给底部四段图例留位置,别再和画布压在一起 */
+.lost.is-game .lost-stage { inset: 0 0 104px 0; }
+.lost.is-game .lost-skills { position: absolute; left: 0; right: 0; bottom: 10px; z-index: 2; margin: 0; }
