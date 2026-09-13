@@ -1,0 +1,17 @@
+{
+  "name": "gd-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "第三张盘:GD 玩法骨架 + 本站科技风。sim/ 是零依赖的纯 TS 定点模拟核心,render/ 是 Phaser 4 适配层。",
+  "scripts": {
+    "test": "node --test test/",
+    "build": "vite build",
+    "dev": "vite"
+  },
+  "devDependencies": {
+    "phaser": "4.2.1",
+    "typescript": "5.9.2",
+    "vite": "7.1.5"
+  }
+}
