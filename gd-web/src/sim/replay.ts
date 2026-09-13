@@ -61,6 +61,7 @@ export function fingerprint(states: RunState[]): string {
     push(q(s.x)); push(q(s.y)); push(q(s.vy));
     push(s.mode === 'ship' ? 1 : 0); push(s.gdir); push(s.speed);
     push(s.dead ? 1 : 0); push(s.done ? 1 : 0); push(s.attempts); push(q(s.checkX));
+    push(q(s.moved ?? 0));        // 移动平台/触发器动到哪儿了,也算进指纹
   }
   return ('00000000' + h.toString(16)).slice(-8);
 }

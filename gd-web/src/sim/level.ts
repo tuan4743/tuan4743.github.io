@@ -34,8 +34,11 @@ export type ObjKind =
   | 'pad'        // 弹簧/跳板:碰到就生效,不用按键(黄/粉/红=弹起,蓝/紫=翻重力)
   | 'force'      // 力场:人进到里面就被推(现在只做垂直方向,口径见 P.forceNote)
   | 'text'       // 功能块:显示字母/符号,做关卡内提示用(纯视觉)
+  | 'trigger'    // 触发器:玩家越过它的 x 时,对【分组】里的物件做事(move/rotate/color/pulse)
   | 'pit'        // 坑:地板断口(纯标记,地板在生成时跳过这一段)
   | 'deco';      // 装饰(文字/光源,纯视觉)
+
+export type TriggerKind = 'move' | 'rotate' | 'color' | 'pulse';
 
 export interface Obj {
   kind: ObjKind;
@@ -50,6 +53,15 @@ export interface Obj {
   fy?: number;      // force:垂直加速度(单位/帧²,正 = 往上推)。正数大于 gravity 就是"上升气流"
   text?: string;    // text:显示什么字(功能块)
   size?: number;    // text:字号缩放
+  groups?: number[];   // ★ 所属分组:触发器靠它挑目标(一个物件可以在多个组里)
+  trigger?: TriggerKind; // trigger:哪种触发器
+  dx?: number; dy?: number;  // move:位移(块)
+  deg?: number;              // rotate:转多少度
+  dur?: number;              // move/rotate/pulse:时长(秒);0 = 瞬移(原版的"立即到位")
+  ease?: 'linear' | 'sine';
+  loop?: boolean;            // 到位之后再走回去(往复)—— 移动平台最常见的形态
+  color?: number;            // color/pulse:颜色
+  hold?: boolean;            // pulse:闪完是否留色
   need?: boolean;   // 这个物件需要玩家出手(跳/按环)才过得去 —— 只有它进"间距"约束
   deco?: 'text' | 'light';
 }

@@ -379,6 +379,69 @@ test('功能块(text):纯视觉物件,不影响判定', () => {
   assert.equal(lv.objects.filter((o) => o.kind === 'text').length, 1);
 });
 
+/* ---------------- ③d 触发器:分组 + move / rotate / color / pulse ---------------- */
+test('move 触发器:越过它就推【分组】里的物件,而且是逐帧确定的', () => {
+  const lv = solo([
+    { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
+    { kind: 'spike', b: 30, r: 0, w: 1, h: 1, groups: [7] },              // 被推的刺
+    { kind: 'trigger', b: 10, r: 0, w: 1, h: 1, trigger: 'move', groups: [7], dy: 3, dur: 0.5 },
+  ]);
+  const a = new World(lv);
+  const spikeA = a.hazards[0];
+  const y0 = spikeA.y1;
+  while (a.x / U < 10.5) a.frame(false);               // 越过触发器
+  assert.ok(a.x / U > 10, '先要走过触发器');
+  for (let i = 0; i < 10; i++) a.frame(false);
+  assert.ok(spikeA.y1 > y0 + 20, '刺应该已经在被推了(判定盒真的动了),y1 ' + (y0 / U).toFixed(2) + ' → ' + (spikeA.y1 / U).toFixed(2));
+  const mid = a.state.moved;
+  assert.ok(mid > 0, '指纹里的"移动量"此时应该非 0(实测 ' + mid + ')');
+  for (let i = 0; i < 40; i++) a.frame(false);
+  assert.ok(spikeA.y1 > y0 + 3 * U - 1, '0.5 秒之后应该到位(+3 块),y1=' + (spikeA.y1 / U).toFixed(2));
+  assert.notEqual(a.state.moved, mid, '到位之后的移动量和中途不一样');
+
+  /* 同一卷输入跑两遍,移动过程也必须逐帧一致 */
+  const b = new World(lv);
+  const ys: number[] = [];
+  for (let i = 0; i < 200; i++) { b.frame(false); ys.push(b.hazards[0].y1); }
+  const c = new World(lv);
+  for (let i = 0; i < 200; i++) {
+    c.frame(false);
+    assert.equal(c.hazards[0].y1, ys[i], '第 ' + i + ' 帧的物件位置应该一模一样');
+  }
+});
+
+test('move 触发器(loop):往复移动,到位会走回来', () => {
+  const lv = solo([
+    { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
+    { kind: 'block', b: 30, r: 0, w: 2, h: 1, groups: [3] },
+    { kind: 'trigger', b: 10, r: 0, w: 1, h: 1, trigger: 'move', groups: [3], dy: 4, dur: 0.5, loop: true },
+  ]);
+  const w = new World(lv);
+  const blk = w.solids[0];
+  const y0 = blk.y1;
+  while (w.x / U < 11) w.frame(false);
+  let peak = y0, low = y0;
+  for (let i = 0; i < 240; i++) { w.frame(false); peak = Math.max(peak, blk.y1); low = Math.min(low, blk.y1); }
+  assert.ok(peak > y0 + 3 * U, '应该被推上去过(峰值 +' + ((peak - y0) / U).toFixed(2) + ' 块)');
+  assert.ok(low < y0 + 0.5 * U, '往复应该真的走回来过(最低 ' + ((low - y0) / U).toFixed(2) + ' 块)');
+});
+
+test('color / pulse 触发器:改全局色与闪光', () => {
+  const lv = solo([
+    { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
+    { kind: 'trigger', b: 10, r: 0, w: 1, h: 1, trigger: 'color', color: 0xff0000 },
+    { kind: 'trigger', b: 20, r: 0, w: 1, h: 1, trigger: 'pulse', color: 0x00ff00 },
+  ]);
+  const w = new World(lv);
+  assert.equal(w.tint, null, '一开始没有额外颜色');
+  while (w.x / U < 12) w.frame(false);
+  assert.equal(w.tint, 0xff0000, 'color 触发器应该换掉全局色');
+  while (w.x / U < 20.5) w.frame(false);
+  assert.ok(w.flash > 0.2, 'pulse 触发器应该让画面闪一下(实测强度 ' + w.flash.toFixed(2) + ')');
+  for (let i = 0; i < 30; i++) w.frame(false);
+  assert.equal(w.flash, 0, '闪一下之后要衰减干净');
+});
+
 /* ---------------- ④ 自动铺面 ---------------- */
 test('自动铺面:两次"出手"之间留够落地的余量(不会生成必死关)', () => {
   for (const seed of [1, 7, 20260913, 424242]) {

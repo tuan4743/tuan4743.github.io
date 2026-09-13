@@ -383,7 +383,8 @@ class Scene extends Phaser.Scene {
     }
     const bx = w.x / U;
     const seg = LEVEL.segments.find((sg) => bx >= sg.from && bx < sg.to) || LEVEL.segments[0];
-    const tint = PAL[LEVEL.segments.indexOf(seg) % PAL.length];
+    /* color 触发器可以整体换色(它压过段落配色) */
+    const tint = w.tint != null ? w.tint : PAL[LEVEL.segments.indexOf(seg) % PAL.length];
     const vw = cam.width / cam.zoom, vh = cam.height / cam.zoom;
     const x0 = this.camX - vw / 2, x1 = x0 + vw;
     /* ★ 绘图空间:y 向下,地面在 ROWS*U 处 —— 世界坐标过来一律走它,整幅画就不会再倒过来 */
@@ -413,10 +414,13 @@ class Scene extends Phaser.Scene {
 
     // 物件
     for (const o of LEVEL.objects) {
-      const obx = o.b * U, obw = o.w * U, obh = o.h * U;
-      const oTop = Y((o.r + o.h) * U);          // 格子上边(绘图空间)
-      const oBot = Y(o.r * U);                  // 格子下边
+      /* ★ 会动的东西(触发器推的)按运行时偏移画;判定盒在 sim 里已经同步过了 */
+      const off = w.offsetOf(o);
+      const obx = (o.b + off.dx) * U, obw = o.w * U, obh = o.h * U;
+      const oTop = Y((o.r + o.h + off.dy) * U);   // 格子上边(绘图空间)
+      const oBot = Y((o.r + off.dy) * U);         // 格子下边
       if (obx + obw < x0 || obx > x1) continue;
+      if (o.kind === 'trigger') continue;         // 触发器是个逻辑物件,不画
       switch (o.kind) {
         case 'platform':
           if (o.r < 0) {
@@ -668,6 +672,8 @@ class Scene extends Phaser.Scene {
     }
     // 死了就压一层暗红
     if (w.dead) g.fillStyle(0xff6b5a, 0.10).fillRect(x0, dy0, vw, dy1 - dy0);
+    /* pulse 触发器:全屏闪一下 */
+    if (w.flash > 0) g.fillStyle(w.tint ?? 0xffffff, 0.34 * w.flash).fillRect(x0, dy0, vw, dy1 - dy0);
     /* 开场 / 死亡 / 通关界面:半透明面板(文字是 Text 对象,这里只画底板) */
     if (this.phase !== 'running') {
       const px = Math.max(vw / 2, this.camX), py = ROWS * U / 2;

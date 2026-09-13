@@ -14,9 +14,31 @@ export interface RunState {
   tick: number; x: number; y: number; vy: number; onGround: boolean;
   mode: Mode; gdir: number; speed: number; dead: boolean; done: boolean;
   attempts: number; checkX: number; progress: number;
+  /** 会动的物件(移动平台之类)当前偏移的合计 —— 指纹用它把"动的东西"也算进去 */
+  moved?: number;
 }
 
 interface Box { x0: number; x1: number; y0: number; y1: number; o: Obj }
+
+/** 会被触发器推动的物件:记下它的判定盒与"原始坐标",每帧按偏移重写 */
+interface Movable {
+  o: Obj;
+  box: Box | null;
+  bx0: number; bx1: number; by0: number; by1: number;
+  dx: number; dy: number;
+}
+
+/** 一次触发产生的动画(位移 / 往返) */
+interface Anim {
+  ms: Movable[];
+  from: Array<{ dx: number; dy: number }>;
+  dx: number; dy: number;
+  t: number; dur: number;           // 帧数
+  ease: 'linear' | 'sine';
+  loop: boolean;
+  dir: number;                      // loop 用:1 去 / −1 回
+  rest: number;                     // loop 用:到位之后停几帧
+}
 
 const SUB = 4;                 // 每帧 4 个子步
 const FRAME = 1 / 60;
@@ -34,6 +56,15 @@ export class World {
   readonly pads: Box[] = [];        // 弹簧:碰到就生效,不用手
   readonly forces: Box[] = [];      // 力场:人在里面就被推
   readonly pits: Box[] = [];        // 坑(纯标记,给机器人判"脚下有没有地板"用)
+  readonly triggers: Box[] = [];    // 触发器:越过它的 x 就开火
+  /* ★ 会动的东西:带 groups 的物件都在这里,触发器改的是它们的【运行时偏移】,
+     判定表里的 Box 每帧跟着偏移重写 —— 于是"移动平台/移动尖刺"对判定是真的移动了。 */
+  readonly movables: Movable[] = [];
+  private byGroup = new Map<number, Movable[]>();
+  private anims: Anim[] = [];
+  tint: number | null = null;       // color 触发器改的全局色
+  tintGround = false;               // true = 只染地面
+  flash = 0;                        // pulse 触发器:全屏闪一下,1 → 0
   readonly decos: Obj[] = [];
 
   tick = 0;
@@ -57,6 +88,7 @@ export class World {
   private armedGravs = new Set<Box>();
   private armedOrbs = new Set<Box>();
   private armedPads = new Set<Box>();
+  private armedTriggers = new Set<Box>();
 
   constructor(level: Level, startX = 0) {
     this.level = level;
@@ -86,10 +118,99 @@ export class World {
         case 'pad': this.pads.push(b); break;
         case 'force': this.forces.push(b); break;
         case 'pit': this.pits.push(b); break;
+        case 'trigger': this.triggers.push(b); break;
         case 'deco': this.decos.push(o); break;
       }
     }
     this.reset(startX, 'cube');
+    /* ---- 分组:给每个带 groups 的物件记一份"可动"记录,并把它的判定盒挂上去 ---- */
+    const boxOf = new Map<Obj, Box>();
+    for (const list of [this.solids, this.floors, this.hazards, this.orbs, this.pads, this.forces, this.pits]) {
+      for (const b of list) if (!boxOf.has(b.o)) boxOf.set(b.o, b);
+    }
+    for (const o of level.objects) {
+      if (!o.groups || !o.groups.length) continue;
+      const box = boxOf.get(o) ?? null;
+      const m: Movable = {
+        o, box,
+        bx0: box ? box.x0 : o.b * U, bx1: box ? box.x1 : (o.b + o.w) * U,
+        by0: box ? box.y0 : o.r * U, by1: box ? box.y1 : (o.r + o.h) * U,
+        dx: 0, dy: 0,
+      };
+      this.movables.push(m);
+      for (const g of o.groups) {
+        const arr = this.byGroup.get(g);
+        if (arr) arr.push(m); else this.byGroup.set(g, [m]);
+      }
+    }
+  }
+
+  /** 物件现在的运行时偏移(渲染层按它画;判定盒已经跟着偏移走过了) */
+  offsetOf(o: Obj): { dx: number; dy: number } {
+    for (const m of this.movables) if (m.o === o) return { dx: m.dx, dy: m.dy };
+    return { dx: 0, dy: 0 };
+  }
+
+  /** 把当前偏移写回判定盒(带 h 缩放的刺也只用加偏移,不用重算) */
+  private syncBoxes() {
+    for (const m of this.movables) {
+      const b = m.box;
+      if (!b) continue;
+      b.x0 = m.bx0 + m.dx * U; b.x1 = m.bx1 + m.dx * U;
+      b.y0 = m.by0 + m.dy * U; b.y1 = m.by1 + m.dy * U;
+    }
+  }
+
+  /** 触发器开火:按类型给目标分组排一段动画 / 改全局状态 */
+  private fire(o: Obj) {
+    const gs = o.groups ?? [];
+    const targets: Movable[] = [];
+    for (const g of gs) for (const m of this.byGroup.get(g) ?? []) if (!targets.includes(m)) targets.push(m);
+    const durF = Math.max(1, Math.round((o.dur ?? 0) * 60));
+    if (o.trigger === 'move' && targets.length) {
+      this.anims.push({
+        ms: targets, from: targets.map((m) => ({ dx: m.dx, dy: m.dy })),
+        dx: o.dx ?? 0, dy: o.dy ?? 0, t: 0, dur: durF,
+        ease: o.ease ?? 'sine', loop: !!o.loop, dir: 1, rest: 0,
+      });
+    } else if (o.trigger === 'color') {
+      this.tint = o.color ?? null;
+      this.tintGround = (o.dx ?? 0) > 0;         // dx>0 当作"只染地面"(省一个字段,口径写在文档里)
+    } else if (o.trigger === 'pulse') {
+      this.flash = 1;
+      if (o.color != null) this.tint = o.color;
+    }
+    /* rotate 只影响画法(判定是轴对齐盒),这里不做几何;颜色/闪烁见上 */
+  }
+
+  /** 每帧推进动画(定点:按帧走,所以回放仍然逐帧一致) */
+  private stepAnims() {
+    if (this.flash > 0) this.flash = Math.max(0, this.flash - 0.08);
+    if (!this.anims.length) return;
+    const keep: Anim[] = [];
+    let moved = false;
+    for (const a of this.anims) {
+      if (a.dur <= 0) {                                  // 瞬时到位(dur = 0)
+        for (let i = 0; i < a.ms.length; i++) { a.ms[i].dx = a.from[i].dx + a.dx; a.ms[i].dy = a.from[i].dy + a.dy; }
+        moved = true;
+        continue;
+      }
+      if (a.rest > 0) { a.rest--; keep.push(a); continue; }
+      a.t += 1;
+      const p = Math.min(1, a.t / a.dur);
+      const k = a.ease === 'sine' ? (1 - Math.cos(Math.PI * p)) / 2 : p;
+      const kk = a.dir > 0 ? k : 1 - k;                   // 往回走的那一趟用 1−k
+      for (let i = 0; i < a.ms.length; i++) {
+        a.ms[i].dx = a.from[i].dx + a.dx * kk;
+        a.ms[i].dy = a.from[i].dy + a.dy * kk;
+      }
+      moved = true;
+      if (p >= 1) {
+        if (a.loop) { a.dir = -a.dir; a.t = 0; a.rest = 20; keep.push(a); }   // 往复:到位停 1/3 秒再走回去
+      } else keep.push(a);
+    }
+    this.anims = keep;
+    if (moved) this.syncBoxes();
   }
 
   /** 速度(单位/帧)—— 速度门给的是"速度值 × 倍率",不是直接的每帧位移 */
@@ -109,6 +230,14 @@ export class World {
     this.pressFresh = false; this.prevHold = false;
     this.armedChecks.clear(); this.armedPortals.clear(); this.armedSpeeds.clear(); this.armedGravs.clear();
     this.armedOrbs.clear(); this.armedPads.clear();
+    this.armedTriggers.clear();
+    /* 重来 = 会动的东西回到原位、颜色与闪烁清空(和原作"重开一局"一致) */
+    this.anims = [];
+    this.flash = 0;
+    this.tint = null;
+    this.tintGround = false;
+    for (const m of this.movables) { m.dx = 0; m.dy = 0; }
+    this.syncBoxes();
   }
 
   /** 死后重来:回到最近跨过的存档点(没有就用关卡起点) */
@@ -135,6 +264,7 @@ export class World {
     if (hold && !this.prevHold) this.pressFresh = true;
     this.prevHold = hold;
     if (this.dead || this.done) { this.deadT += FRAME; return; }
+    this.stepAnims();                      // ★ 先让会动的东西动完,再跑物理(判定盒已同步)
     for (let i = 0; i < SUB; i++) this.substep(FRAME / SUB, hold);
     this.tick++;
   }
@@ -313,6 +443,12 @@ export class World {
       this.gdir = -this.gdir;
       this.vy = 0;
     }
+    for (const b of this.triggers) {
+      if (this.armedTriggers.has(b)) continue;
+      if (prevX + P.box <= b.x0 || this.x >= b.x1) continue;
+      this.armedTriggers.add(b);
+      this.fire(b.o);
+    }
     for (const b of this.checks) {
       if (this.armedChecks.has(b)) continue;
       if (prevX + P.box <= b.x0 || this.x >= b.x1) continue;
@@ -393,7 +529,15 @@ export class World {
       tick: this.tick, x: this.x, y: this.y, vy: this.vy, onGround: this.onGround,
       mode: this.mode, gdir: this.gdir, speed: this.speedIdx, dead: this.dead, done: this.done,
       attempts: this.attempts, checkX: this.checkX, progress: this.progress,
+      moved: this.movedHash(),
     };
+  }
+
+  /** 会动的物件当前偏移的量化合计(进指纹用:证明"移动的东西"也是逐帧确定的) */
+  private movedHash(): number {
+    let h = 0;
+    for (const m of this.movables) h += Math.round((m.dx + m.dy * 7.13) * 1e4);
+    return h / 1e4;
   }
 }
 
