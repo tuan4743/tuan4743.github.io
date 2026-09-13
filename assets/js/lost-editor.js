@@ -28,7 +28,8 @@
     { k: "platform", n: "平台(可踩)", c: "#b8e986" },
     { k: "ground", n: "地面", c: "#9fb8d0" },
     { k: "decoText", n: "文字", c: "#ffffff" },
-    { k: "decoLight", n: "光源", c: "#ffe9a8" }
+    { k: "decoLight", n: "光源", c: "#ffe9a8" },
+    { k: "portal", n: "圆环(切形态)", c: "#ffe17a" }
   ];
   var ROW_H = 22, WAVE_H = 76, RULER_H = 18;
 
@@ -120,7 +121,7 @@
       E.dirty = true; E.status = "段起点改成 " + v + "s"; syncBar(); draw();
     });
     spdIn.addEventListener("change", function () { var s = segNow(); s.speed = clamp(parseFloat(spdIn.value) || 10.4, 3, 24); E.dirty = true; E.status = "ST-0" + (+segSel.value + 1) + " 移速 " + s.speed + " 块/秒"; syncBar(); });
-    chkIn.addEventListener("change", function () { var s = segNow(); s.check = snapT(clamp(parseFloat(chkIn.value) || s.t, s.t, E.dur)); chkIn.value = String(s.check); E.dirty = true; E.status = "ST-0" + (+segSel.value + 1) + " 存档点 " + s.check + "s"; syncBar(); draw(); });
+    chkIn.addEventListener("change", function () { var s = segNow(); s.check = snapT(clamp(parseFloat(chkIn.value) || s.t, 0, E.dur));   /* ★ 下限 0:第一个存档点可以调到 0 */ chkIn.value = String(s.check); E.dirty = true; E.status = "ST-0" + (+segSel.value + 1) + " 存档点 " + s.check + "s"; syncBar(); draw(); });
     syncSeg();
     /* ---- 装饰文字内容 ---- */
     var txtIn = el("input", "lost-ed__txt"); txtIn.type = "text"; txtIn.placeholder = "装饰文字";
@@ -457,6 +458,7 @@
         if (E.type === "ground") { nt.w = 4; nt.h = 1; }
         if (E.type === "decoText") { nt.type = "deco"; nt.deco = "text"; nt.w = 2; nt.text = (E.pendingText || ""); }
         if (E.type === "decoLight") { nt.type = "deco"; nt.deco = "light"; nt.w = 2; }
+        if (E.type === "portal") { nt.w = 2; nt.to = "plane"; }
         items.push(nt); E.sel = nt.id; E.row = nt.row; E.dirty = true;
         E.status = "放了 " + nt.type + " @ " + nt.t + "s / 行 " + nt.row + "(共 " + items.length + ")";
         syncBar();
@@ -578,6 +580,7 @@
         if ((it.h || 1) !== 1) o.h = it.h;
         if (it.type === "rail") { o.t2 = +(+it.t2).toFixed(4); o.row2 = it.row2; }
         if (it.type === "deco") { o.deco = it.deco || "light"; if (it.text) o.text = it.text; }
+        if (it.type === "portal") o.to = it.to || "plane";
         if (it.type === "orb") o.orb = it.orb || "yellow";
         return o;
       });

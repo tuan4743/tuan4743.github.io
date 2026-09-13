@@ -162,7 +162,7 @@
            一拍 = period ≈ 3.62 块,各段规则再按整数拍取用 */
         var list = [];
         var step = P;
-        var first = Math.ceil((sg.t + P * 1.2) / step) * step;
+        var first = Math.ceil((sg.t + P * 4) / step) * step;   /* ★ 每段开头留 4 拍准备时间 */
         for (var tt = first; tt < end - P * 1.2; tt += step) list.push(+tt.toFixed(4));
         if (sg.mode === "plane") {
           /* 上下轨道各一条,中间留 3 行缝,每 2 拍换一次缝的位置 */
@@ -218,6 +218,7 @@
         var o = { t: it.t, row: it.row | 0, type: it.type, w: it.w || 1, h: it.h || 1, orb: it.orb || "yellow",
           text: it.text || "", deco: it.deco || "" };
         o.x = xOf(o);
+        if (o.type === "portal") { o.to = it.to || "plane"; }
         if (o.type === "rail") {                       /* 斜轨:两端点都是时间 */
           o.t2 = it.t2 != null ? it.t2 : o.t + 0.7;
           o.row2 = it.row2 != null ? it.row2 : o.row;
@@ -293,7 +294,9 @@
       S.onGround = false; S.air++;
     }
     function tap() {
-      if (!ready || dead || reached || S.modeIsPlane) return;
+      if (!ready || dead || reached) return;
+      /* 飞机形态:点一下 = 把 45° 的方向翻过来 */
+      if (S.modeIsPlane) { S.planeUp = (S.planeUp === false); flash = 0.25; return; }
       /* 拍点上的重力箭头优先 */
       if (tapArmed && Math.abs(nowT() - tapArmed.t) <= CFG.TAP_WIN) {
         gdir = -gdir; S.vy = 0; flash = 0.6;
@@ -384,7 +387,7 @@
         /* 变形瞬间给个安全的落点:方块 → 飞机 时直接切到走廊中间
            (从地面上起飞、又刚好没按住,第一帧就撞地死了 —— 验收抓到的);
            飞机 → 方块 时干净落地 */
-        if (mode === "plane") { S.y = (CFG.ROWS - CFG.PH) / 2; S.vy = 0; S.onGround = false; }
+        if (mode === "plane") { S.y = (CFG.ROWS - CFG.PH) / 2; S.vy = 0; S.onGround = false; S.planeUp = true; }
         else { gdir = 1; S.vy = 0; S.y = 0; S.onGround = true; }
         stateT = 4;
       }
@@ -405,7 +408,8 @@
       /* 物理:x 由时间推导(世界按时间滚),这样倒带/推演之后位置和时间永远对得上 */
       S.x = t2x(t);
       if (mode === "plane") {
-        S.vy = keys.jump ? CFG.SPEED : -CFG.SPEED;
+        /* ★ 用户要的:恒定 45° 自动移动,默认向上;点一下(空格)翻成向下,再点翻回 */
+        S.vy = (S.planeUp === false ? -CFG.SPEED : CFG.SPEED);
         S.y += S.vy * dt;
         S.rot = keys.jump ? -0.785 : 0.785;
         if (S.y < 0 || S.y + CFG.PH > CFG.ROWS) { die("rail"); return; }
@@ -455,6 +459,17 @@
           say("那一拍,上一轮的他替你蹬了一下。", 2.6);
         }
       }
+      /* ★ 圆环传送门:跨过去就切形态 */
+      for (var pi = 0; pi < items.length; pi++) {
+        var po = items[pi];
+        if (po.type !== "portal" || po.used) continue;
+        if (S.x + CFG.PW < po.x) continue;
+        po.used = true;
+        mode = po.to || "plane"; S.modeIsPlane = (mode === "plane");
+        if (mode === "plane") { S.planeUp = true; S.vy = 0; }
+        else { S.vy = 0; gdir = 1; S.y = 0; S.onGround = true; }
+        flash = 0.6;
+      }
       /* 重力箭头进入点击窗口 */
       for (var i = 0; i < items.length; i++) {
         var it = items[i];
@@ -470,6 +485,7 @@
         if (o.type === "hole") continue;                       /* 坑洞不是实体,靠地板判定 */
         if (o.type === "deco") continue;                       /* ★ 装饰物纯视觉,不参与碰撞 */
         if (o.type === "platform" || o.type === "ground") continue;   /* ★ 可踩实体交给地板式处理,永不致死 */
+        if (o.type === "portal") continue;                            /* 圆环传送门不致死 */
         if (o.type === "rail") {                               /* 斜轨:算中心到轨道的距离 */
           var cxr = S.x + CFG.PW / 2, cyr = S.y + CFG.PH / 2;
           if (cxr < o.x - 0.2 || cxr > o.x2 + 0.2) continue;
@@ -572,6 +588,14 @@
           ctx2d.lineWidth = 3; ctx2d.globalAlpha = o.done ? 0.25 : 0.95;
           ctx2d.beginPath(); ctx2d.arc(x + V.ppb * 0.5, cy2, cr, 0, Math.PI * 2); ctx2d.stroke();
           ctx2d.globalAlpha = 1;
+        } else if (o.type === "portal") {
+          var pr = V.ppb * 0.9;
+          ctx2d.strokeStyle = o.used ? "rgba(226,246,255,0.35)" : "#ffe17a";
+          ctx2d.lineWidth = 3; ctx2d.globalAlpha = 0.95;
+          ctx2d.beginPath(); ctx2d.arc(x + V.ppb * 0.5, H2S(o.row + 0.5), pr, 0, Math.PI * 2); ctx2d.stroke();
+          ctx2d.globalAlpha = 0.22; ctx2d.fillStyle = "#ffe17a";
+          ctx2d.beginPath(); ctx2d.arc(x + V.ppb * 0.5, H2S(o.row + 0.5), pr * 0.8, 0, Math.PI * 2); ctx2d.fill();
+          ctx2d.globalAlpha = 1; ctx2d.lineWidth = 1;
         } else if (o.type === "platform" || o.type === "ground") {
           /* ★ 砖块材质:颜色和方块一致(用户要求),只把纹理画成砖缝 */
           var by0 = H2S(o.row + (o.h || 1)), bh0 = (o.h || 1) * V.ppb;
