@@ -33,7 +33,8 @@
     { k: "ground", n: "地面", c: "#9fb8d0" },
     { k: "decoText", n: "文字", c: "#ffffff" },
     { k: "decoLight", n: "光源", c: "#ffe9a8" },
-    { k: "portal", n: "圆环(切形态)", c: "#ffe17a" }
+    { k: "portal", n: "圆环(切形态)", c: "#ffe17a" },
+    { k: "check", n: "存档点", c: "#ffcc66" }
   ];
   var ROW_H = 22, WAVE_H = 76, RULER_H = 18;
 
@@ -131,7 +132,7 @@
     bar.appendChild(snapSel);
     /* ---- 段:选段 → 移速 / 存档点 ---- */
     var segSel = el("select", "lost-ed__sel");
-    (E.chart.segments || []).forEach(function (s, i) { var o = el("option", null, "ST-0" + (i + 1) + " " + (s.mode || "")); o.value = String(i); segSel.appendChild(o); });
+    (E.chart.segments || []).forEach(function (s, i) { var o = el("option", null, "ST-0" + (i + 1) + (i === 0 ? " 开场 " + (s.mode || "cube") : "")); o.value = String(i); segSel.appendChild(o); });
     bar.appendChild(el("i", "lost-ed__tag", "段"));
     bar.appendChild(segSel);
     var spdIn = el("input", "lost-ed__num"); spdIn.type = "number"; spdIn.step = "0.5"; spdIn.min = "3"; spdIn.max = "24";
@@ -377,7 +378,7 @@
         ctx.beginPath(); ctx.moveTo(x0, 0); ctx.lineTo(x0, V.h); ctx.stroke();
         ctx.fillStyle = "rgba(226,246,255,0.75)";
         ctx.font = "600 11px ui-monospace, Consolas, monospace";
-        ctx.fillText("ST-0" + (s + 1) + " " + (segs[s].mode || "") + "/" + (segs[s].ability || ""), x0 + 6, rulerY());
+        ctx.fillText("ST-0" + (s + 1) + (s === 0 ? " 开场:" + (segs[s].mode || "cube") : "") + (segs[s].ability ? " / " + segs[s].ability : ""), x0 + 6, rulerY());
       }
       /* 8 分格 + onset 节拍线 */
       var step = Math.max(1, Math.round((E.period / 2) / (1 / (E.zoom / 1000)) / 1000 * 1000));
@@ -464,9 +465,26 @@
           ctx.globalAlpha = 1;
           continue;
         }
-        ctx.globalAlpha = it.type === "block" || it.type === "spike" ? 0.85 : 0.6;
-        ctx.fillRect(bb.x, bb.y, bb.w, bb.h);
-        ctx.globalAlpha = 1;
+        if (it.type === "check") {
+          /* ★ 存档点:旗杆 + 三角旗(和游戏里长得一样,尺寸都按"块"算)*/
+          var cy0 = yBotOf(it.row);
+          ctx.globalAlpha = 0.95; ctx.strokeStyle = T.c; ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(bb.x + E.zoom * 0.2, cy0);
+          ctx.lineTo(bb.x + E.zoom * 0.2, cy0 - E.zoom * 1.1);
+          ctx.stroke();
+          ctx.fillStyle = T.c;
+          ctx.beginPath();
+          ctx.moveTo(bb.x + E.zoom * 0.2, cy0 - E.zoom * 1.1);
+          ctx.lineTo(bb.x + E.zoom * 1.05, cy0 - E.zoom * 0.85);
+          ctx.lineTo(bb.x + E.zoom * 0.2, cy0 - E.zoom * 0.6);
+          ctx.closePath(); ctx.fill();
+          ctx.globalAlpha = 1; ctx.lineWidth = 1;
+        } else {
+          ctx.globalAlpha = it.type === "block" || it.type === "spike" ? 0.85 : 0.6;
+          ctx.fillRect(bb.x, bb.y, bb.w, bb.h);
+          ctx.globalAlpha = 1;
+        }
         if (isel) {
           var bb = boxOf(it);
           ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2;

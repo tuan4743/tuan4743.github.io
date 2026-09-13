@@ -176,6 +176,10 @@
         var first = Math.ceil((sg.t + P * 4) / step) * step;   /* ★ 每段开头留 4 拍准备时间 */
         for (var tt = first; tt < end - P * 1.2; tt += step) list.push(+tt.toFixed(4));
         if (sg.mode === "plane") {
+          /* ★ 形态只由【圆环】切换,所以自动铺面得自己放两个圆环:
+             段首 方块→飞机、段尾 飞机→方块。不这样的话,这一段的走廊会被当成方块段,必死 */
+          out.push({ t: +Math.max(ch.lead + P * 2, sg.t + P * 0.5).toFixed(4), row: 4, type: "portal", w: 2, h: 1 });
+          out.push({ t: +(end - P * 0.6).toFixed(4), row: 4, type: "portal", w: 2, h: 1 });
           /* 上下轨道各一条,中间留 3 行缝,每 2 拍换一次缝的位置 */
           for (i = 0; i < list.length; i += 2) {
             /* 头两个用居中留缝(3~4 行):变形进场时他正好在走廊中间,不能被夹死 */
@@ -360,30 +364,45 @@
       attempts++;
       /* ★ 复活时圆环/跳点也要刷新(用户报的:重开或复活后圆环还是暗的)*/
       for (var ri = 0; ri < items.length; ri++) { items[ri].done = false; items[ri].used = false; }
-      /* ★ 回到【本段存档点】(用户要求:不要回退几秒 —— 那样会一直在同一处反复死)*/
+      /* ★ 重来位置:取"本段存档点"和"最近跨过的存档点物件"里更靠后的那个
+         (用户要求:不要回退几秒 —— 那样会一直在同一处反复死)*/
       var si = Math.max(0, segAt(S.t));
-      var t = Math.max(levelStart(), segs[si].check - 0.15);   /* 允许 0 */   /* 每段自己的存档点 */
+      var segT = Math.max(levelStart(), segs[si].check - 0.15);   /* 允许 0 */   /* 每段自己的存档点 */
+      var useCp = (checkT != null && checkT > segT);
+      var t = useCp ? checkT + 0.01 : segT;
       resetPlayer(0, 1);
-      /* ★ 复活:同一帧就把形态恢复成"刚进入这一段"的样子
-         (圆环状态已在上面的循环里刷新;这一段必须放在 si 算出来之后)*/
-      modeSeg = -1; applySegMode(si);
+      /* ★ 复活:同一帧把形态恢复 —— 从存档点物件回来就用它记的形态,
+         否则用"刚进入这一段时"的形态(圆环状态已在上面的循环里刷新)*/
+      if (useCp && checkMode) { mode = checkMode; S.modeIsPlane = (mode === "plane"); }
+      else { modeSeg = -1; applySegMode(si); }
       if (mode === "plane") { S.planeUp = true; S.vy = 0; }
       if (MODE_STEP.dry) S.t = t; else { S.t = t; audioStart(t); }
       segNow = -1;
     }
     var MODE_STEP = { dry: false };
 
+    /* ★ 调试/试玩"从某一刻开始跑"时,按该段声明的形态起步(真实游玩只由圆环决定形态)*/
+    function modeHintAt(t) {
+      var sg = segs[segAt(t)] || {};
+      if (!sg.mode) return;
+      mode = sg.mode; S.modeIsPlane = (mode === "plane");
+    }
     function nowT() { return S ? S.t : 0; }
 
-    /* ---------------- 形态(段落初始 / 圆环切换)----------------
-       段落声明的是"这一段从什么形态开始"(编辑器里每段的 mode 字段),换段时套用一次;
-       段内想要变形就用【圆环】,圆环切出来的形态会一直保持到下一次换段。
-       ★ 要害:套用形态必须"换段时才做",不能写成"当前形态和段落声明不一致就纠正" ——
-         那样圆环刚切完就被按回去,用户报的"圆环跟没修一样"就是这个 */
+    /* ★【存档点】物件:跨过去就把"下次从哪重来"挪到那儿,并记住当时的形态。
+       优先于"每段的存档点"(取两者里更靠后的那个) */
+    var checkT = null, checkMode = null;
+
+    /* ---------------- 形态(开场形态 / 圆环切换)----------------
+       ★ 形态【只由圆环】切换。段落的 mode 字段现在只表示"开场形态",而且只有【第一段】
+         有效 —— 用户报的"到达第二个存档点自动变成飞机"就是旧行为:换段时按段落声明的
+         mode 强行变形。想在关卡中途变形,就在那儿放一个【圆环】。
+       段的进入形态记在 segEnterMode 里:复活回到某段存档点时恢复"刚进入这一段"的样子。 */
+    var segEnterMode = [];
     function applySegMode(si) {
-      var sg = segs[si] || {};
-      if (sg.mode) mode = sg.mode;      /* 段落没声明就沿用当前形态 */
+      if (si === 0 && segs[0] && segs[0].mode) mode = segs[0].mode;    /* 其它段一律沿用当前形态 */
       S.modeIsPlane = (mode === "plane");
+      segEnterMode[si] = mode;
       return mode;
     }
     /* ---------------- 圆环 = 切形态 ----------------
@@ -393,6 +412,7 @@
     function portalSwap(o) {
       if (!o || o.used) return false;
       if (S.x + CFG.PW < o.x) return false;
+      if (S.x > o.x2) return false;      /* ★ 已经在它右边了 = 没跨过去(复活点落在圆环右侧时不再被切形态)*/
       o.used = true;
       mode = (mode === "plane") ? "cube" : "plane"; S.modeIsPlane = (mode === "plane");
       if (mode === "plane") {
@@ -435,10 +455,8 @@
          但只有【真的换了形态】才动他的运动状态 —— 否则刚起跳就被第一帧清零 */
       var si = segAt(t);
       var seg = segs[si] || {};
-      /* ★ 形态:换段时套用本段声明的初始形态(编辑器里每段的 mode)。
-         段内由【圆环】切换,切出来的形态保持到下一次换段 —— 不在这里做"纠正"。
-         原来是 if (seg.mode !== mode) —— 圆环刚把形态切成飞机,下一帧这里就按
-         段落声明的 cube 按回去,所以圆环"跟没修一样"(隔离用例复现过)*/
+      /* ★ 形态:换段【不】改形态(形态只由圆环决定),只记住"进入这一段时是什么形态",
+         留给复活用。用户报的"到达第二个存档点自动变成飞机"就是这里原来会按段落声明变形。 */
       if (si !== modeSeg) {
         modeSeg = si;
         var wasMode = mode;
@@ -521,6 +539,17 @@
           say("那一拍,上一轮的他替你蹬了一下。", 2.6);
         }
       }
+      /* ★ 存档点:跨过去就记住(用户要的"添加存档点"功能)*/
+      for (var ci = 0; ci < items.length; ci++) {
+        var co = items[ci];
+        if (co.type !== "check" || co.done) continue;
+        if (S.x + CFG.PW < co.x) continue;
+        if (S.x > co.x2) continue;        /* ★ 已经在它右边了 = 没跨过去 */
+        co.done = true;
+        checkT = co.t; checkMode = mode;
+        flash = 0.35;
+        say("存档点:他又往前挪了一小步。", 2);
+      }
       /* ★ 圆环传送门:跨过去就切形态(碰撞扫描里也调一次,靠 used 保证只切一次)*/
       for (var pi = 0; pi < items.length; pi++) {
         var po = items[pi];
@@ -541,6 +570,7 @@
         if (o.type === "orb" || o.type === "gravity") continue;
         if (o.type === "hole") continue;                       /* 坑洞不是实体,靠地板判定 */
         if (o.type === "deco") continue;                       /* ★ 装饰物纯视觉,不参与碰撞 */
+        if (o.type === "check") continue;                      /* ★ 存档点纯标记,不参与碰撞 */
         if (o.type === "platform" || o.type === "ground") continue;   /* ★ 可踩实体交给地板式处理,永不致死 */
         if (o.type === "portal") {
           /* ★ 圆环:交给 portalSwap(切形态 + 刷新状态都在里面)*/
@@ -648,6 +678,19 @@
           ctx2d.lineWidth = 3; ctx2d.globalAlpha = o.done ? 0.25 : 0.95;
           ctx2d.beginPath(); ctx2d.arc(x + V.ppb * 0.5, cy2, cr, 0, Math.PI * 2); ctx2d.stroke();
           ctx2d.globalAlpha = 1;
+        } else if (o.type === "check") {
+          /* 存档点:一根旗杆 + 三角旗;跨过之后变暗 */
+          var fy = H2S(o.row);
+          ctx2d.strokeStyle = o.done ? "rgba(255,225,122,0.4)" : "#ffe17a";
+          ctx2d.globalAlpha = 0.95; ctx2d.lineWidth = 2;
+          ctx2d.beginPath(); ctx2d.moveTo(x + V.ppb * 0.2, fy); ctx2d.lineTo(x + V.ppb * 0.2, fy - V.ppb * 1.1); ctx2d.stroke();
+          ctx2d.fillStyle = o.done ? "rgba(255,225,122,0.35)" : "#ffe17a";
+          ctx2d.beginPath();
+          ctx2d.moveTo(x + V.ppb * 0.2, fy - V.ppb * 1.1);
+          ctx2d.lineTo(x + V.ppb * 1.05, fy - V.ppb * 0.85);
+          ctx2d.lineTo(x + V.ppb * 0.2, fy - V.ppb * 0.6);
+          ctx2d.closePath(); ctx2d.fill();
+          ctx2d.globalAlpha = 1; ctx2d.lineWidth = 1;
         } else if (o.type === "portal") {
           var pr = V.ppb * 0.9;
           ctx2d.strokeStyle = o.used ? "rgba(226,246,255,0.35)" : "#ffe17a";
@@ -975,6 +1018,7 @@
       /* ★ 起点用 levelStart():铺面把第一段设到 0 时,游戏就该从 0 开始 */
       S.t = levelStart(); S.x = t2x(S.t);
       items.forEach(function (it) { it.done = false; it.used = false; });
+      checkT = null; checkMode = null;                 /* ★ 重开 = 存档点也清空 */
       modeSeg = -1; applySegMode(0);
       if (!MODE_STEP.dry) audioStart(S.t);
       say(TXT.intro, 5);
@@ -1064,6 +1108,8 @@
       preview: function (t) {
         ED = false;
         resetPlayer(0, 1); S.t = clamp(t, 0, dur - 1); S.x = t2x(S.t); segNow = segAt(S.t); modeSeg = -1;
+        checkT = null; checkMode = null;
+        modeHintAt(S.t);
         items.forEach(function (it) { it.done = false; it.used = false; });
         if (active && !MODE_STEP.dry) audioStart(S.t);
         return S.t;
@@ -1085,6 +1131,7 @@
           dead: dead, deaths: deaths, attempts: attempts, reached: reached,
           shieldT: +shieldT.toFixed(2), shieldCd: +shieldCd.toFixed(2),
           paused: !!paused, frozen: !!frozen,
+          checkT: checkT == null ? null : +checkT.toFixed(3),
           audioAt: MODE_STEP.dry ? null : audioNow(),
           echoes: echoes.map(function (e) { return { beat: e.beat, t: +e.t.toFixed(3), fired: e.fired }; }),
           items: items.length, segs: segs.length, bpm: +(60 / period).toFixed(2),
@@ -1098,6 +1145,8 @@
         retry: retry,
         seek: function (t) {
           resetPlayer(0, 1); S.t = t; S.x = t2x(t); segNow = segAt(t); modeSeg = -1;
+          checkT = null; checkMode = null;             /* 推演定位:存档点状态也从头来 */
+          modeHintAt(t);
           phase = "play";   /* ★ 推演用:上一条用例死过也不会把后面的挡掉 */
           items.forEach(function (it) { it.done = false; it.used = false; });
           audioStop();
