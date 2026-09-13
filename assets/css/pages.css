@@ -1732,3 +1732,18 @@ html[data-gd="mobile"] .gd-mobile-note span {
 /* 第三张盘:舞台给底部四段图例留位置,别再和画布压在一起 */
 .lost.is-game .lost-stage { inset: 0 0 104px 0; }
 .lost.is-game .lost-skills { position: absolute; left: 0; right: 0; bottom: 10px; z-index: 2; margin: 0; }
+
+/* 第三张盘:HUD(进度 / 段落 / 尝试 / fps / 音乐时间)—— 引擎每帧更新它 */
+.lost-hud {
+    position: absolute;
+    left: 10px;
+    top: 8px;
+    z-index: 3;
+    font-size: 0.64rem;
+    letter-spacing: 0.1em;
+    color: color-mix(in srgb, var(--intro-accent) 72%, transparent);
+    text-shadow: 0 0 8px color-mix(in srgb, var(--intro-accent) 35%, transparent);
+    pointer-events: none;
+}
+
+.lost-hud.is-dead { color: #ff9a8c; }
