@@ -556,6 +556,23 @@ class Scene extends Phaser.Scene {
         case 'gravity':
           g.fillStyle(0xc6a0ff, 0.9).fillTriangle(obx, oTop, obx + U / 2, oBot, obx + U, oTop);
           break;
+        case 'teleport': {
+          /* 传送门:紫色漩涡(配对的两个门一眼能对上) */
+          const tcx = obx + U / 2, tcy = Y(o.r * U + U / 2);
+          const tcol = 0xc6a0ff;
+          const spinT = tick * 0.06;
+          g.lineStyle(3, tcol, 0.95).strokeCircle(tcx, tcy, U * 0.95);
+          g.fillStyle(tcol, 0.12).fillCircle(tcx, tcy, U * 0.95);
+          g.lineStyle(2, tcol, 0.8);
+          for (let k = 0; k < 3; k++) {
+            const a0 = spinT + k * (Math.PI * 2 / 3);
+            g.beginPath();
+            g.arc(tcx, tcy, U * 0.35 + k * 6, a0, a0 + 1.6, false);
+            g.strokePath();
+          }
+          g.fillStyle(tcol, 0.95).fillCircle(tcx, tcy, 4);
+          break;
+        }
         case 'force': {
           /* 力场:半透明带 + 一排箭头(往上推就是朝上的箭头) */
           const up = (o.fy ?? 0) >= 0;

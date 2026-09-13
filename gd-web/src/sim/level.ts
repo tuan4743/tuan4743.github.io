@@ -33,6 +33,7 @@ export type ObjKind =
   | 'orb'        // 空中跳环:要一次【新的按键】才生效(黄=跳/粉=小跳/红=大跳/蓝=翻重力/绿=翻重力+跳/黑=冲刺)
   | 'pad'        // 弹簧/跳板:碰到就生效,不用按键(黄/粉/红=弹起,蓝/紫=翻重力)
   | 'force'      // 力场:人进到里面就被推(现在只做垂直方向,口径见 P.forceNote)
+  | 'teleport'   // 传送门:和【同频道】的另一个门配对,跨过去就被送过去(双向)
   | 'size'       // 尺寸门:迷你(默认)/ 放大(mini:false)
   | 'text'       // 功能块:显示字母/符号,做关卡内提示用(纯视觉)
   | 'trigger'    // 触发器:玩家越过它的 x 时,对【分组】里的物件做事(move/rotate/color/pulse)
@@ -54,6 +55,7 @@ export interface Obj {
   fy?: number;      // force:垂直加速度(单位/帧²,正 = 往上推)。正数大于 gravity 就是"上升气流"
   text?: string;    // text:显示什么字(功能块)
   size?: number;    // text:字号缩放
+  channel?: number; // teleport:频道号(同频道的两个门配对,默认 0)
   groups?: number[];   // ★ 所属分组:触发器靠它挑目标(一个物件可以在多个组里)
   trigger?: TriggerKind; // trigger:哪种触发器
   dx?: number; dy?: number;  // move:位移(块)

@@ -58,6 +58,7 @@ export class World {
   readonly pits: Box[] = [];        // 坑(纯标记,给机器人判"脚下有没有地板"用)
   readonly triggers: Box[] = [];    // 触发器:越过它的 x 就开火
   readonly sizes: Box[] = [];       // 尺寸门:迷你 / 放大
+  readonly teleports: Box[] = [];   // 传送门:同频道两个配对
   /* ★ 会动的东西:带 groups 的物件都在这里,触发器改的是它们的【运行时偏移】,
      判定表里的 Box 每帧跟着偏移重写 —— 于是"移动平台/移动尖刺"对判定是真的移动了。 */
   readonly movables: Movable[] = [];
@@ -122,6 +123,7 @@ export class World {
         case 'pit': this.pits.push(b); break;
         case 'trigger': this.triggers.push(b); break;
         case 'size': this.sizes.push(b); break;
+        case 'teleport': this.teleports.push(b); break;
         case 'deco': this.decos.push(o); break;
       }
     }
@@ -462,6 +464,20 @@ export class World {
       this.armedTriggers.add(b);
       this.fire(b.o);
     }
+    /* --- 传送门:同频道的两个门配对,跨过任意一个就被送到另一个(双向) ---
+     * ★ 目的地也要标成"已跨越",否则出来之后立刻又跨一次,人会在两个门之间来回弹。
+     * 速度、形态、体积都保留(原作也是"人从另一个门里原样出来")。 */
+    for (const b of this.teleports) {
+      if (this.armedPortals.has(b)) continue;
+      if (prevX + this.box <= b.x0 || this.x >= b.x1) continue;
+      this.armedPortals.add(b);
+      const dst = this.partnerOf(b);
+      if (!dst) continue;
+      this.armedPortals.add(dst);
+      this.x = dst.x0;
+      if (this.y + this.box > ROWS * U) this.y = ROWS * U - this.box;
+      if (this.y < 0) this.y = 0;
+    }
     for (const b of this.sizes) {
       if (this.armedSizes.has(b)) continue;
       if (prevX + this.box <= b.x0 || this.x >= b.x1) continue;
@@ -523,6 +539,15 @@ export class World {
   }
 
   private die() { if (!this.dead) { this.dead = true; this.deadT = 0; } }
+
+  /** 同频道里"下一个"传送门 = 配对的那一个(同频道多于两个就依次串起来) */
+  private partnerOf(b: Box): Box | null {
+    const ch = b.o.channel ?? 0;
+    const same = this.teleports.filter((t) => (t.o.channel ?? 0) === ch);
+    if (same.length < 2) return null;
+    const i = same.indexOf(b);
+    return same[(i + 1) % same.length];
+  }
 
   /** 迷你时跳环/弹簧的力度 ×0.8(反编译口径:普通跳环 ×0.8、弹簧力度 ×0.8) */
   private triggerScale() { return this.mini ? P.miniTriggerMul : 1; }

@@ -490,6 +490,25 @@ test('放大门:迷你之后能变回普通身材', () => {
   assert.ok(Math.abs(w.box - P.box) < 1e-6, '外框回到 ' + P.box);
 });
 
+/* ---------------- ③f 双向传送门 ---------------- */
+test('双向传送门:跨过去就被送到配对的另一个门,而且不会在两个门之间来回弹', () => {
+  const lv = solo([
+    { kind: 'platform', b: 0, r: -1, w: 200, h: 1 },
+    { kind: 'teleport', b: 20, r: 4, w: 1, h: 1, channel: 1 },
+    { kind: 'teleport', b: 45, r: 4, w: 1, h: 1, channel: 1 },
+  ], { length: 300 });
+  const w = new World(lv);
+  while (w.x / U < 19) w.frame(false);
+  assert.ok(w.x / U < 20, '还没跨过第一个门(x=' + (w.x / U).toFixed(1) + ')');
+  for (let i = 0; i < 30 && w.x / U < 40; i++) w.frame(false);
+  assert.ok(w.x / U >= 45 && w.x / U < 50, '跨过第一个门之后应该出现在第二个门那里(现在 x=' + (w.x / U).toFixed(1) + ')');
+  /* 关键:别在两边来回弹(传送过去之后不能马上又被送回来) */
+  const x1 = w.x;
+  for (let i = 0; i < 60; i++) w.frame(false);
+  assert.ok(w.x > x1 && w.x / U < 70, '应该继续往右跑,而不是被弹回去(现在 x=' + (w.x / U).toFixed(1) + ')');
+  assert.equal(w.dead, false, '传送不该致死');
+});
+
 /* ---------------- ④ 自动铺面 ---------------- */
 test('自动铺面:两次"出手"之间留够落地的余量(不会生成必死关)', () => {
   for (const seed of [1, 7, 20260913, 424242]) {
