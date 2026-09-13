@@ -51,7 +51,7 @@
     var E = {
       open: false, chart: JSON.parse(JSON.stringify(D.chart)), beats: D.beats.slice(),
       period: D.period, offset: D.offset, dur: D.dur, env: D.env || [], envStep: D.envStep || 0,
-      type: "block", orb: "yellow", row: 0, snap: "onset", zoom: 150, scroll: 0,
+      type: "block", orb: "yellow", row: 0, snap: "onset", zoom: 26, scroll: 0,
       sel: null, drag: null, resize: null, playing: false, t: 0, dirty: false, status: "", beatsInfo: null,
       A: { ctx: null, buf: null, src: null, gain: null, offset: 0, startCtx: 0, err: "" }
     };
@@ -225,9 +225,39 @@
     function gridTop() { return RULER_H; }
     function gridH() { return V.h - WAVE_H - RULER_H; }
     function rowH() { return gridH() / 10; }
-    function t2x(t) { return (t - E.scroll) * E.zoom; }
-    function x2t(x) { return x / E.zoom + E.scroll; }
-    function row2y(r) { return gridTop() + (9 - r + 0.5) * rowH(); }
+    /* ★ 横轴 = 游戏世界里的"块",不是秒:x = xAt(t) —— 和游戏里 xOf() 同一套分段积分。
+       原来这里是 (t - scroll) * zoom(秒→像素),同一块 w=6 的地面:编辑器画成约 2 秒长,
+       游戏里只有 6/10.4 ≈ 0.58 秒;而且物件按 t 【居中】画、游戏是以 t 为【左边缘】。
+       位置和长度就是这么对不上的(用户报的"地面不准")。 */
+    function segSpeedOf(s) { return (s && s.speed) || E.chart.speed || 10.4; }
+    function xAt(t) {
+      var sg = E.chart.segments || [], lead = E.chart.lead || 0, i, k = 0;
+      if (!sg.length) return (t - lead) * (E.chart.speed || 10.4);
+      var cum = [Math.max(0, sg[0].t - lead) * segSpeedOf(sg[0])];
+      for (i = 1; i < sg.length; i++) cum[i] = cum[i - 1] + (sg[i].t - sg[i - 1].t) * segSpeedOf(sg[i - 1]);
+      for (i = 0; i < sg.length; i++) if (t >= sg[i].t) k = i;
+      if (t < sg[0].t) return (t - lead) * segSpeedOf(sg[0]);
+      return cum[k] + (t - sg[k].t) * segSpeedOf(sg[k]);
+    }
+    function tOfX(x) {                       /* 块 → 时间(段内线性,反查) */
+      var sg = E.chart.segments || [], lead = E.chart.lead || 0, i;
+      if (!sg.length) return x / (E.chart.speed || 10.4) + lead;
+      for (i = sg.length - 1; i >= 0; i--) {
+        var x0 = xAt(sg[i].t);
+        if (x >= x0 - 1e-9) return sg[i].t + (x - x0) / segSpeedOf(sg[i]);
+      }
+      return lead + x / segSpeedOf(sg[0]);
+    }
+    function t2x(t) { return (xAt(t) - E.scroll) * E.zoom; }     /* 时间 → 屏幕 x */
+    function pxOf(t) { return t2x(t); }
+    function x2t(px) { return tOfX(px / E.zoom + E.scroll); }     /* 屏幕 x → 时间 */
+    function maxScrollX() { return Math.max(xAt(0), xAt(E.dur) - V.w / E.zoom); }
+    /* ★ 行与像素:世界里 row 是【底边】(游戏里矩形占 [row, row+h],脚踩在 row+h)
+       —— 编辑器必须一样,否则竖着也对不上 */
+    function yPx(wy) { return gridTop() + (10 - wy) * rowH(); }
+    function yTopOf(row, h) { return yPx(row + (h || 1)); }
+    function yBotOf(row) { return yPx(row); }
+    function row2y(r) { return yPx(r + 0.5); }                     /* 行的中心 */
     function y2row(y) { return clamp(9 - Math.floor((y - gridTop()) / rowH()), 0, 9); }
     function snapT(t) {
       if (E.snap === "off") return +t.toFixed(3);
@@ -282,7 +312,7 @@
       /* 8 分格 + onset 节拍线 */
       var step = Math.max(1, Math.round((E.period / 2) / (1 / (E.zoom / 1000)) / 1000 * 1000));
       ctx.strokeStyle = "rgba(127,240,255,0.08)";
-      var tA = E.scroll, tB = x2t(V.w);
+      var tA = x2t(0), tB = x2t(V.w);
       for (var tt = Math.floor((tA - E.offset) / (E.period / 2)) * (E.period / 2) + E.offset; tt < tB; tt += E.period / 2) {
         var x = t2x(tt);
         if (x < 0 || x > V.w) continue;
@@ -333,18 +363,21 @@
       /* 物件 */
       for (var i = 0; i < items.length; i++) {
         var it = items[i];
-        var ix = t2x(it.t), iy = row2y(it.row), isel = E.sel === it.id;
-        var iw = Math.max(3, (it.w || 1) * (E.zoom * 0.34));
+        var isel = E.sel === it.id;
+        var iy = row2y(it.row);                       /* 行的中心:装饰物/光源用 */
+        var bb = boxOf(it);                           /* ★ 和游戏同一个盒子 */
+        var ix = bb.x, iw = bb.w;
         var T = TYPES.filter(function (q) { return q.k === it.type; })[0] || TYPES[0];
         ctx.fillStyle = T.c;
         if (it.type === "deco") {
           if ((it.deco || "light") === "text") {
             ctx.globalAlpha = 0.9; ctx.fillStyle = "#ffffff";
-            ctx.font = "600 " + Math.max(10, Math.round((it.h || 1) * 12)) + "px ui-monospace, Consolas, monospace";
-            ctx.fillText(it.text || "(文字)", ix, iy);
+            /* 游戏里:字号 = 块高 × ppb,基线贴在【这一行的底边】—— 这里一样 */
+            ctx.font = "600 " + Math.max(9, Math.round(E.zoom * (it.h || 0.7))) + "px ui-monospace, Consolas, monospace";
+            ctx.fillText(it.text || "(文字)", ix, yBotOf(it.row));
             ctx.globalAlpha = 1;
           } else {
-            var lr2 = Math.max(6, (it.w || 2) * (E.zoom * 0.34));
+            var lr2 = Math.max(6, (it.w || 2) * E.zoom);
             var lg2 = ctx.createRadialGradient(ix, iy, 0, ix, iy, lr2);
             lg2.addColorStop(0, "rgba(255,233,168,0.55)");
             lg2.addColorStop(1, "rgba(255,233,168,0)");
@@ -362,8 +395,7 @@
           continue;
         }
         ctx.globalAlpha = it.type === "block" || it.type === "spike" ? 0.85 : 0.6;
-        var bh = Math.max(3, (it.h || 1) * rowH() * 0.72);
-        ctx.fillRect(ix - iw / 2, iy - bh / 2, iw, bh);
+        ctx.fillRect(bb.x, bb.y, bb.w, bb.h);
         ctx.globalAlpha = 1;
         if (isel) {
           var bb = boxOf(it);
@@ -399,10 +431,12 @@
 
     /* ---------------- 交互 ---------------- */
     function boxOf(it) {
-      var ix = t2x(it.t), iy = row2y(it.row);
-      var iw = Math.max(6, (it.w || 1) * (E.zoom * 0.34));
-      var ih = Math.max(6, (it.h || 1) * rowH() * 0.72);
-      return { x: ix - iw / 2, y: iy - ih / 2, w: iw, h: ih, cx: ix, cy: iy };
+      /* ★ 和游戏同一个盒子:左边缘 = t 处的世界 x,宽度 = w 块,底边 = 第 row 行 */
+      var ix = t2x(it.t);
+      var iw = Math.max(6, (it.w || 1) * E.zoom);
+      var ih = Math.max(6, (it.h || 1) * rowH());
+      var iy = yTopOf(it.row, it.h);
+      return { x: ix, y: iy, w: iw, h: ih, cx: ix + iw / 2, cy: iy + ih / 2 };
     }
     /* 命中尺寸手柄:右边 = 改宽,上边 = 改高(只有选中的物件有手柄)*/
     /* 斜轨两端的端点手柄(先于普通命中判断)*/
@@ -479,12 +513,12 @@
         /* 改尺寸:0.5 块一档 */
         var b0 = boxOf(E.resize.it);
         if (E.resize.k === "w") {
-          var w = Math.max(0.5, Math.round(((ph.x - b0.x) / (E.zoom * 0.34)) * 2) / 2);
+          var w = Math.max(0.5, Math.round(((ph.x - b0.x) / E.zoom) * 2) / 2);
           E.resize.it.w = w;
           E.status = "宽 " + w + " 块";
         } else {
-          var rowTop = y2row(ph.y) + 1;
-          var h2 = Math.max(0.5, Math.round((rowTop - E.resize.it.row) * 2) / 2);
+          /* ★ 从这一行的【底边】往上量:高 = 几块,整数(游戏里 h 就是占几行)*/
+          var h2 = clamp(Math.round((yBotOf(E.resize.it.row) - ph.y) / rowH()), 1, 10 - E.resize.it.row);
           E.resize.it.h = h2;
           E.status = "高 " + h2 + " 块";
         }
@@ -502,11 +536,12 @@
     cv.addEventListener("wheel", function (ev) {
       ev.preventDefault();
       if (ev.shiftKey) {
-        var p = pos(ev), tAt = x2t(p.x);
-        E.zoom = clamp(E.zoom * (ev.deltaY < 0 ? 1.18 : 0.85), 12, 1600);
-        E.scroll = tAt - p.x / E.zoom;
+        var p = pos(ev);
+        var bx = p.x / E.zoom + E.scroll;                 /* 鼠标底下那一块,缩放前后不动 */
+        E.zoom = clamp(E.zoom * (ev.deltaY < 0 ? 1.18 : 0.85), 6, 220);
+        E.scroll = bx - p.x / E.zoom;
       } else {
-        E.scroll = clamp(E.scroll + ev.deltaY / E.zoom * 0.5, 0, Math.max(0, E.dur - 1));
+        E.scroll = clamp(E.scroll + ev.deltaY / E.zoom * 0.5, xAt(0), maxScrollX());
       }
       draw();
     }, { passive: false });
@@ -545,7 +580,7 @@
       if (E.A.src && E.A.ctx) E.t = clamp(E.A.offset + (E.A.ctx.currentTime - E.A.startCtx), 0, E.dur);
       else E.t = clamp(E.t + (now - playT) / 1000, 0, E.dur);
       playT = now;
-      if (t2x(E.t) > V.w * 0.8) E.scroll = clamp(E.t - V.w * 0.2 / E.zoom, 0, Math.max(0, E.dur - 1));
+      if (t2x(E.t) > V.w * 0.8) E.scroll = clamp(xAt(E.t) - V.w * 0.2 / E.zoom, xAt(0), maxScrollX());
       if (E.t >= E.dur - 0.02) { E.playing = false; audioStop(); if (b2) b2.textContent = "▶ 播放"; return; }
       draw();
       requestAnimationFrame(tickPlay);
@@ -639,7 +674,18 @@
     }
     wrap.style.display = "none";
 
-    return { open: open, close: close, toggle: function () { E.open ? close() : open(); }, isOpen: function () { return E.open; }, E: E, items: function () { return items; }, curChart: curChart, apply: applyAll, data: function () { return api.data(); } };
+    /* ★ 验收用:列出编辑器【画出来】的每个盒子,并换算回世界块(px → 块)。
+       这样就能直接和游戏里 dev.items() 的 x/x2/row 对比,验证"编辑器所见 = 游戏所得" */
+    function probe() {
+      return items.map(function (it) {
+        var b = boxOf(it);
+        return { t: it.t, type: it.type, row: it.row, h: it.h || 1, w: it.w || 1,
+          px0: +b.x.toFixed(2), px1: +(b.x + b.w).toFixed(2), py0: +b.y.toFixed(2), py1: +(b.y + b.h).toFixed(2),
+          wx0: +(E.scroll + b.x / E.zoom).toFixed(3), wx1: +(E.scroll + (b.x + b.w) / E.zoom).toFixed(3),
+          wy0: +(10 - (b.y + b.h - gridTop()) / rowH()).toFixed(3), wy1: +(10 - (b.y - gridTop()) / rowH()).toFixed(3) };
+      });
+    }
+    return { open: open, close: close, toggle: function () { E.open ? close() : open(); }, isOpen: function () { return E.open; }, E: E, items: function () { return items; }, curChart: curChart, apply: applyAll, probe: probe, pxOf: pxOf, xAt: xAt, data: function () { return api.data(); } };
   }
 
   /* ---------------- 入口:?chart / Alt+E ---------------- */

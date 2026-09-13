@@ -35,7 +35,10 @@
     LEAD: 1.6,          /* 开段/复活的准备拍(音频留一点前奏)*/
     PW: 0.9, PH: 0.9,   /* 他的碰撞盒(块)*/
     /* 物件"落点"偏移:障碍放在对应拍的后面一点,这样【踩着拍点点击】正好跳过去 */
-    OFF: { block: 2.0, spike: 2.0, orb: 1.0, gravity: 0.0, shield: 1.0 },
+    /* ★ 每类物件的额外偏移:一律 0 —— 编辑器画在哪,游戏里就必须在哪。
+       原来是 方块/尖刺 +2 块、跳点/护盾 +1 块,编辑器并不知道这些偏移,
+       于是"编辑器摆的位置"和"实际玩到的位置"差了两块(用户报的地面/物件不准)*/
+    OFF: { block: 0, spike: 0, orb: 0, gravity: 0, shield: 0 },
     VIEW: 0.30          /* 他在屏幕上的横向位置 */
   };
 
@@ -122,6 +125,14 @@
       return (t - beatT[lo] <= beatT[hi] - t) ? lo : hi;
     }
     function beatTime(i) { return beatT[clamp(i, 0, beatT.length - 1)] || 0; }
+    /* ★ 不晚于 t 的最近一拍(回响要用它:补跳必须赶在撞击之前)*/
+    function beatNear(t) {
+      if (!beatT.length) return 0;
+      if (t <= beatT[0]) return 0;
+      var lo = 0, hi = beatT.length - 1, mid;
+      while (hi - lo > 1) { mid = (lo + hi) >> 1; if (beatT[mid] < t) lo = mid; else hi = mid; }
+      return (beatT[hi] - t < 0.02) ? hi : lo;
+    }
     function segAt(t) {
       var k = 0;
       /* ★ 严格按段落起点切换:原来提前 0.8 秒,结果上一段的柱子还在、形态已经换了
@@ -333,10 +344,15 @@
       /* ★ 回响:残影留在【撞到的那个物件所属的拍】上,下一轮同一拍自动补一次二段跳。
          必须是物件的拍、不是"死亡时刻最近的一拍":障碍放在"拍点 + 2 块"处,
          死在障碍上时最近的一拍已经过去,按它补跳会晚 2 块(点查抓到的)。*/
-      var et = item && item.t != null ? item.t : beatTime(nearestBeat(nowT()));
-      var bi = nearestBeat(et);
+      var et = item && item.t != null ? item.t : nowT();
+      var bi = beatNear(et);
+      /* ★ 补跳落在【不晚于物件的那一拍】,而且至少比物件提前 0.12 秒:
+         撞击判定是"盒子边缘先碰上",比物件的 t 早约 0.09 秒 ——
+         原来取"最近的一拍"(可能晚于撞击),补跳就晚了 0.1 秒,人已经死了(验收 vy=null)。
+         空中时间 ≈0.38 秒,提前 0.12~0.35 秒起跳都跨得过去 */
+      var eT = Math.min(beatTime(bi), et - 0.12);
       /* ★ 只留最后一次死亡的那个位置(用户要求:残影别攒一堆)*/
-      echoes = [{ beat: bi, t: et, y: S.y, x: S.x, at: attempts, ghost: ghostTrail.slice(-24) }];
+      echoes = [{ beat: bi, t: eT, y: S.y, x: S.x, at: attempts, ghost: ghostTrail.slice(-24) }];
       say("他在 " + (beatTime(bi)).toFixed(2) + "s 那一拍摔了。下一轮,那一拍会替他蹬一下。", 4.5);
       if (deathsEl) deathsEl.textContent = pad2(deaths);
     }
@@ -642,23 +658,33 @@
           ctx2d.globalAlpha = 1; ctx2d.lineWidth = 1;
         } else if (o.type === "platform" || o.type === "ground") {
           /* ★ 砖块材质:颜色和方块一致(用户要求),纹理画成砖缝。
-             横缝按行切,竖缝逐行错半块(running bond)。
-             原来是"每列一条半高竖线",一格高的时候活像尺子上的刻度(用户截图:像尺子)*/
+             ★ 平台 = 半砖(石板):只在【顶面】占半块厚,脚正好踩在顶面上 ——
+               一眼就能和地面的整砖墙区分开(用户:平台还是整砖,不是半砖)
+             ★ 声明范围(编辑器里拖出来的那个盒子)用虚线淡标:编辑器所见 = 游戏所得 */
           var by0 = H2S(o.row + (o.h || 1)), bh0 = (o.h || 1) * V.ppb;
-          ctx2d.fillStyle = "rgba(226,246,255,0.16)";
-          ctx2d.fillRect(x, by0, w, bh0);
-          ctx2d.strokeStyle = COL.accent; ctx2d.globalAlpha = 0.75; ctx2d.lineWidth = 2;
-          ctx2d.strokeRect(x + 1, by0 + 1, w - 2, bh0 - 2);
-          /* 平台 = 半砖(砖只有地面的一半宽),一眼能和地面区分开 */
-          var bRows = Math.max(1, Math.round(o.h || 1));
-          var bH = bh0 / bRows;
-          var bW = V.ppb * (o.type === "platform" ? 0.5 : 1);
-          ctx2d.globalAlpha = 0.3; ctx2d.lineWidth = 1;
-          for (var bR = 0; bR < bRows; bR++) {
+          var isPlat = (o.type === "platform");
+          var slabH = isPlat ? Math.max(4, V.ppb * 0.5) : bh0;
+          ctx2d.fillStyle = isPlat ? "rgba(226,246,255,0.26)" : "rgba(226,246,255,0.16)";
+          ctx2d.fillRect(x, by0, w, slabH);
+          ctx2d.strokeStyle = COL.accent;
+          ctx2d.globalAlpha = isPlat ? 0.95 : 0.75; ctx2d.lineWidth = 2;
+          ctx2d.strokeRect(x + 1, by0 + 1, w - 2, slabH - 2);
+          if (isPlat && bh0 > slabH + 3) {
+            ctx2d.globalAlpha = 0.3; ctx2d.lineWidth = 1;
+            ctx2d.setLineDash([4, 4]);
+            ctx2d.strokeRect(x + 0.5, by0 + 0.5, w - 1, bh0 - 1);
+            ctx2d.setLineDash([]);
+          }
+          /* 砖缝:横缝按行切、竖缝逐行错半块(running bond);平台用半块的小砖 */
+          var brickW = V.ppb * (isPlat ? 0.5 : 1);
+          var bCourses = Math.max(1, Math.round(slabH / (isPlat ? V.ppb * 0.5 : V.ppb)));
+          var bH = slabH / bCourses;
+          ctx2d.globalAlpha = isPlat ? 0.45 : 0.3; ctx2d.lineWidth = 1;
+          for (var bR = 0; bR < bCourses; bR++) {
             var by1 = by0 + bH * bR, by2 = by1 + bH;
             if (bR > 0) { ctx2d.beginPath(); ctx2d.moveTo(x, by1); ctx2d.lineTo(x + w, by1); ctx2d.stroke(); }
-            var vx0 = x + (bR % 2 ? bW * 0.5 : 0) + bW;
-            for (var vx = vx0; vx < x + w - 1.5; vx += bW) {
+            var vx0 = x + (bR % 2 ? brickW * 0.5 : 0) + brickW;
+            for (var vx = vx0; vx < x + w - 1.5; vx += brickW) {
               ctx2d.beginPath(); ctx2d.moveTo(vx, by1 + 1.5); ctx2d.lineTo(vx, by2 - 1.5); ctx2d.stroke();
             }
           }
