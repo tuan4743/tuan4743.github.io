@@ -217,7 +217,15 @@
     function seek(t) {
       E.t = clamp(t, 0, E.dur);
       if (E.playing) audioStart(E.t);
+      followPlay(false);
       draw();
+    }
+    /* ★ 让播放头留在视野里(往右跑出去、往左跑出去都跟)。
+       原来只处理"右边跑出去"这一种:从后面往回跳一下,播放头就跑到屏幕外,想在那儿放东西也看不见 */
+    function followPlay(force) {
+      if (!V.w) return;
+      var px = t2x(E.t);
+      if (force || px > V.w * 0.7 || px < V.w * 0.15) E.scroll = clamp(xAt(E.t) - (V.w * 0.25) / E.zoom, xAt(0), maxScrollX());
     }
 
     /* ---------------- 坐标换算 ---------------- */
@@ -259,7 +267,16 @@
     function yBotOf(row) { return yPx(row); }
     function row2y(r) { return yPx(r + 0.5); }                     /* 行的中心 */
     function y2row(y) { return clamp(9 - Math.floor((y - gridTop()) / rowH()), 0, 9); }
-    function snapT(t) {
+    /* ★ 软吸附:传了 px 就"靠得近才吸"(8 像素以内),否则按你点的位置放。
+       原来是不管多远都吸 —— onset 网格一格约 50 像素,点哪儿都被拉走,
+       用户反馈"位置不能随意摆放" */
+    function snapT(t, px) {
+      var cand = snapNear(t);
+      if (px == null) return cand;
+      if (E.snap === "off") return +t.toFixed(3);
+      return Math.abs(pxOf(cand) - px) <= 8 ? cand : +t.toFixed(3);
+    }
+    function snapNear(t) {
       if (E.snap === "off") return +t.toFixed(3);
       var best = t, bd = 1e9, i;
       if (E.snap === "grid") {
@@ -485,7 +502,7 @@
         try { cv.setPointerCapture(ev.pointerId); } catch (err) {}   /* 合成的 PointerEvent 没有真指针,捕获会抛错 */
       } else {
         /* 空白处:按当前类型放一个 */
-        var nt = { id: nextId++, t: snapT(x2t(p.x)), row: y2row(p.y), type: E.type, w: 1, orb: E.orb };
+        var nt = { id: nextId++, t: snapT(x2t(p.x), p.x), row: y2row(p.y), type: E.type, w: 1, orb: E.orb };
         if (E.type === "rail") { nt.t2 = snapT(nt.t + E.period * 2); nt.row2 = clamp(nt.row + 2, 0, 9); }
         if (E.type === "hole") { nt.row = 0; nt.w = 2; }
         if (E.type === "platform") { nt.w = 3; nt.h = 1; }
@@ -505,8 +522,8 @@
         /* 斜轨端点 */
         if (E.resize.k === "railA" || E.resize.k === "railB") {
           var itR = E.resize.it;
-          if (E.resize.k === "railA") { itR.t = snapT(x2t(ph.x)); itR.row = y2row(ph.y); }
-          else { itR.t2 = snapT(x2t(ph.x)); itR.row2 = y2row(ph.y); }
+          if (E.resize.k === "railA") { itR.t = snapT(x2t(ph.x), ph.x); itR.row = y2row(ph.y); }
+          else { itR.t2 = snapT(x2t(ph.x), ph.x); itR.row2 = y2row(ph.y); }
           E.status = "斜轨端点 " + (E.resize.k === "railA" ? "A" : "B") + " → " + (E.resize.k === "railA" ? itR.t : itR.t2) + "s / 行 " + (E.resize.k === "railA" ? itR.row : itR.row2);
           E.dirty = true; syncBar(); draw(); return;
         }
@@ -526,7 +543,8 @@
       }
       if (!E.drag) return;
       var p = ph;
-      E.drag.it.t = snapT(x2t(p.x - E.drag.dx));
+      var dragPx = p.x - E.drag.dx;                 /* 被拖物件的左边缘在屏幕上的位置 */
+      E.drag.it.t = snapT(x2t(dragPx), dragPx);
       E.drag.it.row = y2row(p.y);
       E.dirty = true;
       E.status = "拖到 " + E.drag.it.t + "s / 行 " + E.drag.it.row;
@@ -541,7 +559,8 @@
         E.zoom = clamp(E.zoom * (ev.deltaY < 0 ? 1.18 : 0.85), 6, 220);
         E.scroll = bx - p.x / E.zoom;
       } else {
-        E.scroll = clamp(E.scroll + ev.deltaY / E.zoom * 0.5, xAt(0), maxScrollX());
+        /* ★ 一格滚轮 ≈ 视野的 1/4:原来按"像素/块"算,一格才挪 10 像素,压根走不动 */
+        E.scroll = clamp(E.scroll + (ev.deltaY / 100) * (V.w / Math.max(1, E.zoom)) * 0.25, xAt(0), maxScrollX());
       }
       draw();
     }, { passive: false });
@@ -580,7 +599,7 @@
       if (E.A.src && E.A.ctx) E.t = clamp(E.A.offset + (E.A.ctx.currentTime - E.A.startCtx), 0, E.dur);
       else E.t = clamp(E.t + (now - playT) / 1000, 0, E.dur);
       playT = now;
-      if (t2x(E.t) > V.w * 0.8) E.scroll = clamp(xAt(E.t) - V.w * 0.2 / E.zoom, xAt(0), maxScrollX());
+      followPlay(false);
       if (E.t >= E.dur - 0.02) { E.playing = false; audioStop(); if (b2) b2.textContent = "▶ 播放"; return; }
       draw();
       requestAnimationFrame(tickPlay);
@@ -665,6 +684,7 @@
       E.status = "编辑中;游戏已暂停 —— 点「试玩」从播放头开始跑";
       syncBar();
       resize();
+      followPlay(true);            /* ★ 打开时视野落在播放头附近(默认就在 0 秒那一段)*/
     }
     function close() {
       if (!E.open) return;
@@ -685,7 +705,7 @@
           wy0: +(10 - (b.y + b.h - gridTop()) / rowH()).toFixed(3), wy1: +(10 - (b.y - gridTop()) / rowH()).toFixed(3) };
       });
     }
-    return { open: open, close: close, toggle: function () { E.open ? close() : open(); }, isOpen: function () { return E.open; }, E: E, items: function () { return items; }, curChart: curChart, apply: applyAll, probe: probe, pxOf: pxOf, xAt: xAt, data: function () { return api.data(); } };
+    return { open: open, close: close, toggle: function () { E.open ? close() : open(); }, isOpen: function () { return E.open; }, E: E, items: function () { return items; }, curChart: curChart, apply: applyAll, probe: probe, pxOf: pxOf, xAt: xAt, tOfX: tOfX, x2t: x2t, data: function () { return api.data(); } };
   }
 
   /* ---------------- 入口:?chart / Alt+E ---------------- */
