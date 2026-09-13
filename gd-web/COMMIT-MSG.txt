@@ -1,31 +1,21 @@
-﻿feat(第三张): Phaser 4 渲染层接上模拟核心(画幅仍有问题,下一轮修)
+﻿fix(第三张): 修好画幅 —— 用相机 API 取景,不再手搓 scroll
 
-这一轮把 sim/ 接到了 Phaser 4:预览页能跑,机器人能在真实浏览器里跑完整关。
-但【画面只画在画布左上角一小块】的问题没解决,如实记在下面留给下一轮。
+根因(量出来的):我按 scrollX/scrollY 自己算可视范围,而相机真实的可视世界矩形是
+worldView {x:570, y:-90, 533x300} —— 画的区域和看的区域只重叠一部分,
+所以画面看着像"只画了左边一条"。前两轮试的 Scale.RESIZE/FIT/NONE、
+相机 setSize/setViewport 都不是病根。
 
-新增 gd-web/:
-- src/main.ts   Phaser 4 场景:固定步长驱动 sim、相机跟随、科技风绘制
-                (网格 / 方块 / 尖刺 / 圆环 / 存档点 / 速度门 / 光源 / 玩家方块与飞机三角)
-- index.html    预览页(1280x720,左上 HUD、左下操作提示)
-- vite.config.ts 普通 Vite 构建(以后再加单文件 IIFE 给博客用)
-- tools/verify/gd-web-check.mjs 浏览器端验收
+改法:
+- update: cam.centerOn(camX, ROWS*U/2),横向让玩家落在左侧 22% 处,纵向固定居中于场地
+- draw:  绘制范围用 camX ± vw/2 与场地高度自己算(不读 worldView,避免一帧延迟)
+- 机器人模式立刻复活,和 Node 侧 recordBot 的策略一致
 
-验收 gd-web-check 7/7:
-- 画布起来(1280x720),关卡 1080 块 / 398 物件
-- 不按键会撞死并自动从存档点重来(x 7.9 块,尝试 3 次)
-- 机器人接管:浏览器里跑完整关,进度 100%,耗时 88.8 秒,这一趟 0 死亡
-- 帧率:无头 + 软件渲染 43~59 fps(真实 GPU 会高得多)
-- 首包 gzip 374.2 KB(原始 1657 KB),在 400 KB 预算内
-- 全程 0 报错
+证据:
+- 量:worldView 现在是 {x:191, y:0, w:533, h:300} —— 正好是关卡高度,地面落在屏幕底部
+- 看:.tmp/gd-web.png 满屏网格 + 终点线 + 玩家方块(含判定内框的调试描边)
+- gd-web-check 6/7:画布 1280x720、不按键会撞死并自动重来、机器人在浏览器里跑完整关
+  (进度 100%,89.4 秒)、46 fps(软件渲染)、首包 374.3 KB gzip、0 报错
 
-过程中修掉的真 bug:
-1. 把点过画面当成按住 -> 玩家一路自动连跳(改成只认按键)
-2. 死后没人调用 respawn -> 卡在死亡状态(加了 deadPause 后自动重来)
-3. Phaser 4 没有 Phaser.Geom.Point(v3 写法)-> 一进飞机形态 update 就抛错、游戏卡在 30%
-4. 地面画在屏幕顶部(世界 y 向上 / 屏幕 y 向下)-> 相机 scrollY 设为 -ROWS*U
-5. 绘制范围用了 scale.* 而不是相机尺寸 -> 改成相机自己的 width/height
-
-未解决(下一轮第一件事):画布 1280x720、scale、zoom(2.4)、相机 size/viewport 全都量对了,
-但只画在约 440x640 的区域里。试过 Scale.RESIZE/FIT/NONE 与相机 setSize/setViewport 都没解决。
-下一步:用 scrollFactor(0) 画一个贴屏幕边框的红框,先分清是世界->屏幕映射还是 canvas 缩放的问题;
-若还不行就完全接管 canvas(自己建 canvas 传给 Phaser config,不让 Scale 管理器插手)。
+仍未解决(下一轮):
+机器人这一趟在浏览器里死了 1 次,而同一关在 Node 里 0 次 —— 两边驱动方式
+(逐帧喂输入 vs 一帧补多步)应该完全一致,需要查清这处分岔。

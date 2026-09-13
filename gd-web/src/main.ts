@@ -23,6 +23,7 @@ class Scene extends Phaser.Scene {
   prevY = 0;
   fps = 0;
   fixed = false;
+  camX = 0;
   started = false;
 
   create() {
@@ -50,14 +51,16 @@ class Scene extends Phaser.Scene {
         : !!(this.keys.SPACE?.isDown || this.keys.UP?.isDown || this.keys.W?.isDown);
       if (this.keys.R?.isDown) { this.world.reset(0, 'cube'); }
       const w0 = this.world;
-      if (w0.dead && w0.deadT >= P.deadPause) w0.respawn();     // 死后短暂停顿再从存档点重来
+      if (w0.dead && (this.botMode || w0.deadT >= P.deadPause)) w0.respawn();   // 机器人模式立刻复活,和 Node 侧一致     // 死后短暂停顿再从存档点重来
       this.prevY = w0.y;
       w0.frame(hold);
     }
     const w = this.world;
-    // 相机:玩家落在视口左侧 28% 处,只往前不后退;纵向由 draw() 里按关卡高度固定
-    const viewW = this.cameras.main.width / this.cameras.main.zoom;
-    this.cameras.main.scrollX = Math.max(0, w.x - viewW * 0.28);
+    /* 取景交给相机 API:横向让玩家落在左侧 22% 处,纵向固定居中于场地 */
+    const cam = this.cameras.main;
+    const vw = cam.width / cam.zoom;
+    this.camX = Math.max(vw / 2, w.x + vw * 0.22);
+    cam.centerOn(this.camX, ROWS * U / 2);
     this.fps = this.game.loop.actualFps;
     this.draw();
     const hud = document.getElementById('gd-hud');
@@ -84,9 +87,9 @@ class Scene extends Phaser.Scene {
     /* ★ 两个坑(都是验收截图抓出来的):
        ① 绘制范围必须用【相机自己的尺寸】,用 this.scale.* 会和实际视口对不上,画出来只有一小块;
        ② 世界是 y 向上的,而屏幕 y 向下 —— 把相机 scrollY 设成 -ROWS*U,地面就落在屏幕底部。 */
-    cam.setScroll(cam.scrollX, -ROWS * U);
     const vw = cam.width / cam.zoom, vh = cam.height / cam.zoom;
-    const x0 = cam.scrollX, x1 = x0 + vw, y0 = -ROWS * U, y1 = y0 + vh;
+    const x0 = this.camX - vw / 2, x1 = x0 + vw;
+    const y0 = ROWS * U / 2 - vh / 2, y1 = y0 + vh;
     g.clear();
 
     // 场地网格(每块一条细线)—— 本站的"观察窗"感
