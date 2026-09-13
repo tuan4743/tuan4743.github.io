@@ -1,25 +1,38 @@
 /* ============================================================
-   第二张盘「成长」的主页内容:太空站视角(贴图版)
+   第二张盘「成长」的主页内容:太空站视角(贴图版 + 视频恒星)
    ─────────────────────────────────────────────────────────────
-   素材:static/planet/ —— 宇宙背景 / 蓝巨星 / 五颗行星(已自动裁掉透明边距)
-   数据:hugo.toml:[params.intro.solar](背景+恒星)+ [[params.intro.decks.growth]](五颗行星)
-        x / y = 星体中心(面板宽高的比例) w = 宽度占面板宽的比例
-        rot = 贴图旋转  depth = 纵深(视差与拖动时移动多少,越大越近)
-   微调面板:Alt+T(或 ?tune)—— 滑条 + 数字框,能直接生成 TOML
+   素材:static/planet/ —— 宇宙背景 / 蓝巨星(可换成 mp4 视频)/ 五颗行星
+   数据:hugo.toml:[params.intro.solar](背景+恒星)+ [[params.intro.decks.growth]]
+        x / y = 星体中心  w = 宽度占面板宽的比例  rot = 贴图旋转
+        depth = 纵深(越小越远):决定它随摄像机怎么动、透视缩放多少
+   微调面板:Alt+T(或 ?tune)
    ─────────────────────────────────────────────────────────────
-   摄像机:
-     · 鼠标移动 → 轻微视差(近的动得多、远的动得少)
-     · 按住拖动 → 整个视角平移,范围有限(--cam-max,默认面板尺寸的 6%),
-       松手后停在原地;位移带阻尼(时间常数 --cam-tau,默认 110ms)
-     · 光标旁小字提示:DRAG,按住时变 RELEASE
+   摄像机(拖动 = 转动视角,不是平移):
+     · 横向拖 → 绕竖直轴 yaw 旋转;纵向拖 → pitch
+       → 离画面中心越远的东西转得越多,近的还会跟着放大/缩小(透视),
+         所以看起来是绕着场景转,而不是整块平移
+     · 限位:--cam-yaw / --cam-pitch(弧度)
+     · 阻尼:--cam-tau(ms);松手【停在原地】,不回中
+     · 太阳 depth 默认 0.02 → 转视角时它只轻微动一点点,不再像贴死的图
+     · 鼠标移动不再驱动视角(已去掉)
+   光子特效:
+     · 独立 canvas ~70 个光子随机明灭(淡入→淡出→换地方再来),
+       跟随摄像机做远景视差;只在选中这张盘时跑
    ============================================================ */
 (function () {
   "use strict";
 
-  var NARROW = 780;      /* 小于这个宽度换成竖排列表 */
-  var GAP = 16;          /* 星体边缘到卡片之间的空隙 */
-  var PAR = 8;           /* 鼠标视差最大位移(px)*/
-  var CLICK_TOL = 6;     /* 拖动超过这么多像素就不算点击(触屏用)*/
+  var NARROW = 780;
+  var GAP = 16;
+  var CLICK_TOL = 6;
+  var ORBIT = 0.00095;     /* 每像素拖动 = 多少弧度(约 0.054°/px)*/
+  var PITCH_K = 0.45;      /* 纵向拖动 → pitch 的比例 */
+  var BASE = 0.30;         /* 运动系数=1 时的最大横向位移(面板宽的比例)*/
+  var BASY = 0.22;         /* 纵向同理(面板高的比例)*/
+  var SCALE_K = 0.95;      /* 旋转感:离画面中心越远,缩放变化越大 */
+  /* 运动系数:太阳 depth 0.02 → 0.066(只轻微动);行星 depth 3 → 0.96 */
+  function motion(d) { return 0.06 + 0.30 * (isFinite(d) ? d : 0.7); }
+  var PHOTONS = 70;        /* 背景光子数量 */
 
   function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
   function attrNum(el, name, dflt) {
@@ -38,6 +51,7 @@
 
   function build(root, key) {
     var sun = root.querySelector(".solar-node--star");
+    var sunVideo = root.querySelector(".solar-sun-video");
     var nodes = Array.prototype.slice.call(root.querySelectorAll(".solar-node:not(.solar-node--star)"));
     var balls = nodes.map(function (n) { return n.querySelector(".solar-planet"); });
     var imgs = nodes.map(function (n) { return n.querySelector(".solar-tex"); });
@@ -48,10 +62,8 @@
     function cfgOf(node) {
       var id = node.getAttribute("data-code") || "";
       var base = {
-        x: attrNum(node, "data-x", 0.5),
-        y: attrNum(node, "data-y", 0.5),
-        w: attrNum(node, "data-w", 0.12),
-        rot: attrNum(node, "data-rot", 0),
+        x: attrNum(node, "data-x", 0.5), y: attrNum(node, "data-y", 0.5),
+        w: attrNum(node, "data-w", 0.12), rot: attrNum(node, "data-rot", 0),
         depth: attrNum(node, "data-depth", 0.7)
       };
       var t = TUNE[id];
@@ -61,34 +73,133 @@
 
     var active = false, onIndex = -1, geo = [], narrow = false, sunCfg = null;
 
-    /* ---------- 摄像机状态 ---------- */
-    var cam = { x: 0, y: 0, tx: 0, ty: 0, drag: false, px: 0, py: 0, bx: 0, by: 0, moved: 0 };
+    /* ---------------- 摄像机状态 ---------------- */
+    var cam = { yaw: 0, pitch: 0, yawT: 0, pitchT: 0, drag: false, px: 0, py: 0, bx: 0, by: 0, moved: 0, dx: 0, dy: 0 };
     var camRaf = 0, camLast = 0;
-    var camMax = 0.06, camTau = 110;
+    var yawMax = 0.16, pitchMax = 0.10, camTau = 110;
 
-    function maxX() { return camMax * root.clientWidth; }
-    function maxY() { return camMax * root.clientHeight; }
+    /* 投影:静止时精确等于原构图(dx=dy=0, s=1)*/
+    function project(g, W, H) {
+      var bx = g.x - W * 0.5, by = g.y - H * 0.5;
+      var sx = Math.sin(cam.yaw), sy = Math.sin(cam.pitch);
+      var m = motion(g.depth);
+      var dx = -sx * BASE * W * m;
+      var dy = -sy * BASY * H * m;
+      /* 透视:离画面中心越远,缩放变化越大 → 转视角时整体像在绕着一个点转 */
+      var s = 1 + (bx / W) * sx * SCALE_K + (by / H) * sy * SCALE_K * 0.6;
+      return { dx: dx, dy: dy, s: Math.max(0.5, Math.min(2, s)) };
+    }
 
     function applyCam() {
-      root.style.setProperty("--cam-x", cam.x.toFixed(2) + "px");
-      root.style.setProperty("--cam-y", cam.y.toFixed(2) + "px");
-      if (onIndex >= 0) show(onIndex);          /* 星体动了,连线跟着重画 */
+      var W = root.clientWidth, H = root.clientHeight;
+      if (W < 2) return;
+      var i, p;
+      /* 画面中心的位移(给背景层当作远景平移量)*/
+      p = project({ x: W * 0.5, y: H * 0.5, depth: 0.06 }, W, H);
+      cam.dx = p.dx; cam.dy = p.dy;
+      root.style.setProperty("--cam-x", p.dx.toFixed(2) + "px");
+      root.style.setProperty("--cam-y", p.dy.toFixed(2) + "px");
+      if (sun && geo.sun) {
+        p = project(geo.sun, W, H);
+        sun.style.setProperty("--cam-dx", p.dx.toFixed(2) + "px");
+        sun.style.setProperty("--cam-dy", p.dy.toFixed(2) + "px");
+        sun.style.setProperty("--cam-s", p.s.toFixed(4));
+      }
+      for (i = 0; i < nodes.length; i++) {
+        if (!geo[i]) continue;
+        p = project(geo[i], W, H);
+        geo[i].dx = p.dx; geo[i].dy = p.dy; geo[i].s = p.s;
+        nodes[i].style.setProperty("--cam-dx", p.dx.toFixed(2) + "px");
+        nodes[i].style.setProperty("--cam-dy", p.dy.toFixed(2) + "px");
+        nodes[i].style.setProperty("--cam-s", p.s.toFixed(4));
+      }
+      if (onIndex >= 0) show(onIndex);
     }
     function camFrame(now) {
       camRaf = 0;
       var dt = Math.min(64, Math.max(1, now - camLast));
       camLast = now;
       var a = 1 - Math.exp(-dt / camTau);
-      var dx = cam.tx - cam.x, dy = cam.ty - cam.y;
-      if (Math.abs(dx) < 0.25 && Math.abs(dy) < 0.25) { cam.x = cam.tx; cam.y = cam.ty; }
-      else { cam.x += dx * a; cam.y += dy * a; }
+      var dy = cam.yawT - cam.yaw, dp = cam.pitchT - cam.pitch;
+      if (Math.abs(dy) < 1e-5 && Math.abs(dp) < 1e-5) { cam.yaw = cam.yawT; cam.pitch = cam.pitchT; }
+      else { cam.yaw += dy * a; cam.pitch += dp * a; }
       applyCam();
-      if (cam.x !== cam.tx || cam.y !== cam.ty) camRaf = requestAnimationFrame(camFrame);
+      if (cam.yaw !== cam.yawT || cam.pitch !== cam.pitchT) camRaf = requestAnimationFrame(camFrame);
     }
     function kickCam() { if (!camRaf && active) { camLast = performance.now(); camRaf = requestAnimationFrame(camFrame); } }
     function stopCam() { if (camRaf) { cancelAnimationFrame(camRaf); camRaf = 0; } }
 
-    /* ---------- 位置计算 ---------- */
+    /* ---------------- 背景光子 ---------------- */
+    var phCv = null, phCtx = null, phSprite = null, ph = [], phRaf = 0, phLast = 0;
+    function newPhoton(rand) {
+      return {
+        x: Math.random(), y: Math.random(),
+        r: 1.2 + Math.random() * 5.5,
+        depth: 0.06 + Math.random() * 0.4,
+        dur: 1600 + Math.random() * 2600,
+        t: rand ? -Math.random() * 2600 : -Math.random() * 500,
+        drift: (Math.random() - 0.5) * 0.00004
+      };
+    }
+    function photonInit() {
+      phCv = document.createElement("canvas");
+      phCv.className = "solar-photons";
+      phCv.setAttribute("aria-hidden", "true");
+      root.insertBefore(phCv, root.firstChild.nextSibling);
+      phCtx = phCv.getContext("2d");
+      var R = 32;                                  /* 预渲染一颗光子,之后只 drawImage */
+      phSprite = document.createElement("canvas");
+      phSprite.width = phSprite.height = R * 2;
+      var g = phSprite.getContext("2d");
+      var grd = g.createRadialGradient(R, R, 0, R, R, R);
+      grd.addColorStop(0, "rgba(216, 242, 255, 1)");
+      grd.addColorStop(0.35, "rgba(170, 220, 255, 0.5)");
+      grd.addColorStop(1, "rgba(140, 200, 255, 0)");
+      g.fillStyle = grd;
+      g.beginPath();
+      g.arc(R, R, R, 0, Math.PI * 2);
+      g.fill();
+      for (var i = 0; i < PHOTONS; i++) ph.push(newPhoton(true));
+    }
+    function photonFrame(now) {
+      phRaf = 0;
+      if (!active || narrow || !phCtx) return;
+      var dt = phLast ? Math.min(80, now - phLast) : 16;
+      phLast = now;
+      var W = root.clientWidth, H = root.clientHeight;
+      var dpr = Math.min(2, window.devicePixelRatio || 1);
+      if (phCv.width !== Math.round(W * dpr) || phCv.height !== Math.round(H * dpr)) {
+        phCv.width = Math.round(W * dpr);
+        phCv.height = Math.round(H * dpr);
+      }
+      phCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      phCtx.clearRect(0, 0, W, H);
+      phCtx.globalCompositeOperation = "lighter";
+      for (var i = 0; i < ph.length; i++) {
+        var p = ph[i];
+        p.t += dt;
+        if (p.t > p.dur) { ph[i] = newPhoton(false); p = ph[i]; }
+        if (p.t < 0) continue;
+        var a = Math.sin(Math.PI * (p.t / p.dur));      /* 淡入 → 淡出 */
+        if (a <= 0.01) continue;
+        var px = (p.x + p.drift * p.t) * W + cam.dx * p.depth;
+        var py = p.y * H + cam.dy * p.depth;
+        var rr = p.r * (1 + 0.25 * Math.sin(p.t / 700 + i));
+        phCtx.globalAlpha = Math.min(1, a * 0.85);
+        phCtx.drawImage(phSprite, px - rr * 2, py - rr * 2, rr * 4, rr * 4);
+      }
+      phCtx.globalAlpha = 1;
+      phCtx.globalCompositeOperation = "source-over";
+      phRaf = requestAnimationFrame(photonFrame);
+    }
+    function photonStart() {
+      if (narrow) return;
+      if (!phCv) photonInit();
+      if (!phRaf) { phLast = 0; phRaf = requestAnimationFrame(photonFrame); }
+    }
+    function photonStop() { if (phRaf) { cancelAnimationFrame(phRaf); phRaf = 0; } }
+
+    /* ---------------- 位置计算 ---------------- */
     function place() {
       var W = root.clientWidth, H = root.clientHeight;
       if (W < 2 || H < 2) return;
@@ -96,13 +207,13 @@
       root.classList.toggle("is-narrow", narrow);
       if (svg) while (svg.firstChild) svg.removeChild(svg.firstChild);
       onIndex = -1;
-      camMax = cssNum(root, "--cam-max", 0.06, 0, 0.4);
+      yawMax = cssNum(root, "--cam-yaw", 0.16, 0, 1);
+      pitchMax = cssNum(root, "--cam-pitch", 0.10, 0, 1);
       camTau = cssNum(root, "--cam-tau", 110, 10, 900);
 
       sunCfg = {
-        x: attrNum(sun, "data-x", 0.19),
-        y: attrNum(sun, "data-y", 0.34),
-        w: attrNum(sun, "data-w", 0.26)
+        x: attrNum(sun, "data-x", 0.19), y: attrNum(sun, "data-y", 0.34),
+        w: attrNum(sun, "data-w", 0.26), depth: attrNum(sun, "data-depth", 0.02)
       };
       var st = TUNE.__sun;
       if (st) for (var k in st) if (isFinite(st[k])) sunCfg[k] = st[k];
@@ -111,8 +222,8 @@
         sun.style.top = (sunCfg.y * H).toFixed(1) + "px";
       }
       root.style.setProperty("--sun-w", (sunCfg.w * W).toFixed(1) + "px");
+      geo.sun = { x: sunCfg.x * W, y: sunCfg.y * H, depth: sunCfg.depth, r: sunCfg.w * W / 2, rh: sunCfg.w * W / 2 };
 
-      geo = [];
       for (var i = 0; i < nodes.length; i++) {
         var n = nodes[i];
         var c = cfgOf(n);
@@ -120,34 +231,27 @@
         n.style.left = (c.x * W).toFixed(1) + "px";
         n.style.top = (c.y * H).toFixed(1) + "px";
         n.style.setProperty("--w", w.toFixed(1) + "px");
-        n.style.setProperty("--depth", c.depth);
         var rot = c.rot ? "rotate(" + c.rot + "deg)" : "";
         if (imgs[i]) imgs[i].style.transform = rot;
         if (balls[i]) balls[i].style.transform = rot;
         var r = balls[i] ? balls[i].getBoundingClientRect() : null;
-        geo.push({
+        geo[i] = {
           x: c.x * W, y: c.y * H, depth: c.depth,
           r: r ? r.width / 2 : w / 2, rh: r ? r.height / 2 : w / 2
-        });
+        };
       }
       applyCam();
     }
 
-    function outerR(i) {
-      var g = geo[i];
-      if (!g) return 0;
-      return Math.max(g.r, g.rh);
-    }
-
-    /* ---------- HUD 卡片 ---------- */
+    /* ---------------- HUD 卡片 ---------------- */
     function show(i) {
       var card = cards[i], g = geo[i];
       if (!card || !g) return;
       var W = root.clientWidth, H = root.clientHeight;
       var pad = cssNum(root, "--pad", 20, 0, 200);
       var w = card.offsetWidth || 240, h = card.offsetHeight || 120;
-      var R = outerR(i);
-      var cx = g.x + cam.x * g.depth, cy = g.y + cam.y * g.depth;
+      var R = Math.max(g.r, g.rh) * (g.s || 1);
+      var cx = g.x + (g.dx || 0), cy = g.y + (g.dy || 0);
       var sides = [
         { k: "right", v: W - (cx + R) - w },
         { k: "left", v: (cx - R) - w },
@@ -166,12 +270,8 @@
       ly = clamp(ly, pad, Math.max(pad, H - pad - h));
       card.style.transform = "translate3d(" + (lx - g.x).toFixed(1) + "px," + (ly - g.y).toFixed(1) + "px,0)";
       card.classList.add("is-on");
-      drawLine(i, lx + w / 2, ly + h / 2, R, cx, cy);
-    }
-
-    function drawLine(i, tx, ty, R, cx, cy) {
       if (!svg) return;
-      var W = root.clientWidth, H = root.clientHeight;
+      var tx = lx + w / 2, ty = ly + h / 2;
       var ax = tx - cx, ay = ty - cy;
       var len = Math.max(1, Math.hypot(ax, ay));
       var sx = cx + (ax / len) * (R + 2), sy = cy + (ay / len) * (R + 2);
@@ -196,9 +296,7 @@
       show(i);
     }
 
-    /* ---------- 光标旁的小字提示 ----------
-       幂等:万一这个 root 被 build 两次(脚本重复加载之类),先把上一次留下的清掉 ——
-       否则会存在两个 .solar-drag,取到的那个永远是 DRAG */
+    /* ---------------- 光标小字提示 ---------------- */
     var stale = root.querySelectorAll(".solar-drag");
     for (var si = 0; si < stale.length; si++) stale[si].remove();
     var hint = document.createElement("span");
@@ -211,7 +309,7 @@
     function hintOn(on) { root.classList.toggle("is-cursor", !!on); }
     function hintText(t) { hint.textContent = t; }
 
-    /* ---------- 事件 ---------- */
+    /* ---------------- 事件 ---------------- */
     nodes.forEach(function (n, i) {
       var ball = balls[i];
       if (!ball) return;
@@ -232,12 +330,11 @@
     });
 
     function onDown(e) {
-      if (!active || narrow) return;
-      if (e.button) return;                       /* 只认左键 / 触摸 */
+      if (!active || narrow || e.button) return;
       cam.drag = true;
       cam.moved = 0;
       cam.px = e.clientX; cam.py = e.clientY;
-      cam.bx = cam.tx; cam.by = cam.ty;
+      cam.bx = cam.yawT; cam.by = cam.pitchT;
       root.classList.add("is-drag");
       if (e.pointerType !== "touch") { hintText("RELEASE"); moveHint(e); hintOn(true); }
       focus(-1);
@@ -248,18 +345,10 @@
       if (cam.drag) {
         var dx = e.clientX - cam.px, dy = e.clientY - cam.py;
         cam.moved += Math.abs(dx) + Math.abs(dy);
-        cam.tx = clamp(cam.bx + dx * 1.1, -maxX(), maxX());
-        cam.ty = clamp(cam.by + dy * 1.1, -maxY(), maxY());
+        /* ★ 拖动 = 转视角:横向给 yaw、纵向给 pitch(抓住画面的手感,带限位)*/
+        cam.yawT = clamp(cam.bx - dx * ORBIT, -yawMax, yawMax);
+        cam.pitchT = clamp(cam.by - dy * ORBIT * PITCH_K, -pitchMax, pitchMax);
         kickCam();
-      } else if (!narrow && e.pointerType !== "touch") {
-        /* 不按时:轻微视差(直接给值,省一次 rAF */
-        var r = root.getBoundingClientRect();
-        var nx = clamp(((e.clientX - r.left) / r.width - 0.5) * 2, -1, 1);
-        var ny = clamp(((e.clientY - r.top) / r.height - 0.5) * 2, -1, 1);
-        cam.x = cam.tx = -nx * PAR;
-        cam.y = cam.ty = -ny * PAR;
-        stopCam();
-        applyCam();
       }
       if (e.pointerType !== "touch") { moveHint(e); hintOn(true); }
     }
@@ -276,18 +365,13 @@
     root.addEventListener("pointermove", onMove);
     root.addEventListener("pointerup", onUp);
     root.addEventListener("pointercancel", onUp);
-    root.addEventListener("pointerleave", function () {
-      hintOn(false);
-      if (cam.drag) return;
-      cam.x = cam.tx = 0;
-      cam.y = cam.ty = 0;
-      applyCam();
-      focus(-1);
-    });
+    /* ★ 指针移出只收小字:视角停在原地,不回中、也不再有"跟随鼠标"的视差 */
+    root.addEventListener("pointerleave", function () { hintOn(false); });
 
     imgs.forEach(function (im) {
       if (im && !im.complete) im.addEventListener("load", function () { if (active) place(); }, { once: true });
     });
+    if (sunVideo) sunVideo.muted = true;      /* 保险:绝不出声 */
 
     return {
       root: root, nodes: nodes, cfgOf: cfgOf, place: place, sunNode: sun,
@@ -298,29 +382,34 @@
           place();
           root.classList.remove("is-live");
           requestAnimationFrame(function () { if (active) root.classList.add("is-live"); });
+          photonStart();
+          if (sunVideo) { try { sunVideo.play(); } catch (e) {} }
         } else {
           root.classList.remove("is-live");
           root.classList.remove("is-drag");
           root.classList.remove("is-cursor");
           focus(-1);
           hintText("DRAG");
-          cam.x = cam.tx = 0; cam.y = cam.ty = 0; cam.drag = false;
+          cam.yaw = cam.yawT = 0; cam.pitch = cam.pitchT = 0; cam.drag = false;
           stopCam();
           applyCam();
+          photonStop();
+          if (sunVideo) { try { sunVideo.pause(); } catch (e) {} }
         }
       },
-      repaint: function () { place(); },
+      repaint: function () { place(); if (active) photonStart(); },
       state: function () {
         return {
-          key: key, active: active, narrow: narrow,
-          bodies: geo.length, open: onIndex,
+          key: key, active: active, narrow: narrow, bodies: geo.length, open: onIndex,
           cam: {
-            x: +cam.x.toFixed(1), y: +cam.y.toFixed(1),
-            tx: +cam.tx.toFixed(1), ty: +cam.ty.toFixed(1),
-            drag: cam.drag, max: +maxX().toFixed(1)
+            yaw: +cam.yaw.toFixed(4), pitch: +cam.pitch.toFixed(4),
+            yawT: +cam.yawT.toFixed(4), pitchT: +cam.pitchT.toFixed(4),
+            drag: cam.drag, yawMax: yawMax, pitchMax: pitchMax,
+            dx: +cam.dx.toFixed(1), dy: +cam.dy.toFixed(1)
           },
+          photons: ph.length,
           sun: sunCfg,
-          geo: geo.map(function (g) { return [Math.round(g.x), Math.round(g.y), Math.round(g.r * 2)]; })
+          geo: geo.filter(Boolean).map(function (g) { return [Math.round(g.x), Math.round(g.y), Math.round(g.r * 2)]; })
         };
       }
     };

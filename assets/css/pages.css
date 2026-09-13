@@ -382,8 +382,15 @@
     top: 0;
     width: 0;
     height: 0;
-    transform: translate3d(calc(var(--cam-x) * var(--depth, 0.7)),
-            calc(var(--cam-y) * var(--depth, 0.7)), 0);
+    /* 摄像机投影后的位移 + 透视缩放,全由 JS 算好写在这三个变量上 */
+    transform: translate3d(var(--cam-dx, 0px), var(--cam-dy, 0px), 0) scale(var(--cam-s, 1));
+    transform-origin: 50% 50%;
+}
+
+/* 恒星同样跟着视角动(默认 depth 只有 0.02 → 只轻微动一点点)*/
+.solar-node--star {
+    transform: translate3d(var(--cam-dx, 0px), var(--cam-dy, 0px), 0) scale(var(--cam-s, 1));
+    transform-origin: 50% 50%;
 }
 
 /* ---------- 太阳 ---------- */
@@ -1013,4 +1020,44 @@
 /* 窄屏不玩拖动 */
 .solar.is-narrow .solar-drag {
     display: none;
+}
+
+/* ---------- 背景光子(独立 canvas,只在选中这张盘时跑)---------- */
+.solar-photons {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.solar.is-narrow .solar-photons {
+    display: none;
+}
+
+/* ---------- 恒星用视频(mp4/webm)时 ---------- */
+.solar-sun.has-video {
+    aspect-ratio: auto;          /* 尺寸由视频自己的宽高比决定 */
+    background: none;
+    box-shadow: none;
+    animation: none;
+}
+
+.solar-sun-video {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 0;
+    pointer-events: none;
+}
+
+/* 视频恒星也不加光圈(用户要求保持素材原样)*/
+.solar-sun.has-video::before,
+.solar-sun.has-video::after {
+    display: none;
+}
+
+/* 拖动时禁用文字选中,免得拖出一片蓝 */
+.solar.is-drag {
+    user-select: none;
 }

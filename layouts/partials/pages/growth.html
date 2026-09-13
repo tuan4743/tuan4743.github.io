@@ -15,10 +15,21 @@
     <div class="solar-hud" aria-hidden="true"></div>
     <span class="solar-tag" aria-hidden="true">OBSERVATION DECK // SECTOR 02</span>
 
+    {{- $sunIsVideo := false -}}
+    {{- with $star.sun }}{{ if or (strings.HasSuffix . ".mp4") (strings.HasSuffix . ".webm") (strings.HasSuffix . ".mov") }}{{ $sunIsVideo = true }}{{ end }}{{ end -}}
     <div class="solar-node solar-node--star" data-x="{{ $star.sun_x | default 0.19 }}"
-        data-y="{{ $star.sun_y | default 0.34 }}" data-w="{{ $star.sun_w | default 0.26 }}">
-        <span class="solar-sun{{ with $star.sun }} has-tex{{ end }}" aria-hidden="true">
-            {{- with $star.sun }}<img class="solar-sun-img" src="{{ . }}" alt="" decoding="async">{{ end }}
+        data-y="{{ $star.sun_y | default 0.34 }}" data-w="{{ $star.sun_w | default 0.26 }}"
+        data-depth="{{ $star.sun_depth | default 0.02 }}">
+        <span class="solar-sun{{ with $star.sun }} {{ if $sunIsVideo }}has-video{{ else }}has-tex{{ end }}{{ end }}" aria-hidden="true">
+            {{- with $star.sun }}
+            {{- if $sunIsVideo }}
+            {{/* 静音 + 自动循环:不会导入视频里的声音 */}}
+            <video class="solar-sun-video" src="{{ . }}" autoplay muted loop playsinline preload="auto"
+                disablepictureinpicture aria-hidden="true"></video>
+            {{- else }}
+            <img class="solar-sun-img" src="{{ . }}" alt="" decoding="async">
+            {{- end }}
+            {{- end }}
         </span>
     </div>
 
