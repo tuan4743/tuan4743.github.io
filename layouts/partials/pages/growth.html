@@ -21,8 +21,8 @@
         data-y="{{ $star.sun_y | default 0.34 }}" data-w="{{ $star.sun_w | default 0.26 }}"
         data-depth="{{ $star.sun_depth | default 0.02 }}"
         data-sphere="{{ $star.sun_sphere | default 0.52 }}">
-        <span class="solar-sun{{ with $star.sun }} {{ if $sunIsVideo }}has-video{{ else }}has-tex{{ end }}{{ end }}" aria-hidden="true">
-            {{- with $star.sun }}
+        {{- with $star.sun }}
+        <span class="solar-sun {{ if $sunIsVideo }}has-video{{ else }}has-tex{{ end }}" aria-hidden="true">
             {{- if $sunIsVideo }}
             {{/* 静音 + 自动循环:不会导入视频里的声音 */}}
             <video class="solar-sun-video" src="{{ . }}" autoplay muted loop playsinline preload="auto"
@@ -30,8 +30,19 @@
             {{- else }}
             <img class="solar-sun-img" src="{{ . }}" alt="" decoding="async">
             {{- end }}
-            {{- end }}
         </span>
+        {{/* 恒星也能磁吸/点中:一颗完全透明的按钮,尺寸 = 球体直径(JS 写 --sun-hit)。
+             ★ 必须放在视频【后面】(= 画在视频上面):.solar-sun 会把指针全吃掉,
+               放在下面根本收不到 hover。它自己透明、无外发光,所以不会改变太阳的样子;
+               它画在视频之上 → 不进视频的混合背景板,screen 抠图完全不受影响。*/}}
+        <button type="button" class="solar-planet solar-planet--star" data-magnetic
+            aria-label="{{ $star.sun_title | default "恒星" }}:{{ $star.sun_text | default "" }}"></button>
+        <div class="solar-card solar-card--star">
+            <span class="solar-code">{{ $star.sun_code | default "SS-00" }}</span>
+            <h3 class="solar-title">{{ $star.sun_title | default "恒星" }}</h3>
+            <div class="solar-text">{{ $star.sun_text | default "" }}</div>
+        </div>
+        {{- end }}
     </div>
 
     {{- range $i, $p := .items }}

@@ -120,6 +120,11 @@ paginate = 10
       sun_depth = 0.002                 # 恒星纵深:极小 → 转视角时只轻微动一点点
       sun_sphere = 0.48                # 视频里球体占画面宽的比例(实测 sun.mp4 = 0.52)
                                        # 用视频时,元素会按 1/这个值 放大,所以 sun_w 仍是"球体宽度"
+      # 恒星自己的 HUD 卡片:和五颗行星同一套样式、同一套避边框规则。
+      # 鼠标移到恒星上(或触屏点一下)才出现;太阳本体一个像素都不动
+      sun_code = "SS-00"
+      sun_title = "蓝巨星"
+      sun_text = "整张星图里唯一自己在发光的东西。其余五颗都只是反光 —— 成长大概就是从这里开始的。"
       # sun 也可以直接填视频(放在 static/planet/,例如 "/planet/sun.mp4"),
       # 会自动用 <video muted autoplay loop playsinline> 播放 —— 不会导入声音
 

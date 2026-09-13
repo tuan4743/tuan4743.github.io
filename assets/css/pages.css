@@ -1083,6 +1083,70 @@
     display: none;
 }
 
+/* ============================================================
+   恒星自己的 HUD(和五颗行星同一套卡片、同一套避边框规则)
+   ─────────────────────────────────────────────────────────────
+   ★ 命中按钮画在视频【上面】(DOM 里排在 .solar-sun 之后),理由有三:
+     1) .solar-sun 那一层会把指针全吃掉,放在下面根本收不到 hover;
+     2) 它全透明、无背景、无外发光 —— 太阳本身一个像素都不改
+        (任何发光都会落进视频的混合背景板,等于偷偷改了太阳的样子);
+     3) 画在上面 = 不进视频的 screen 混合背景板,抠图效果完全不受影响。
+   ★ 命中范围 = 球体直径 × 1.16(JS 按 sun_w 算好写进 --sun-hit,最小 56px)
+   ============================================================ */
+.solar-planet--star {
+    width: var(--sun-hit, 0px);
+    height: var(--sun-hit, 0px);
+    min-height: 0;
+    background: none;
+    border-radius: 50%;
+    box-shadow: none;
+    /* 摄像机位移/缩放跟视频共用同一套变量 → 卡片连线永远指着球心 */
+    transform: translate(-50%, -50%) translate3d(var(--cam-dx, 0px), var(--cam-dy, 0px), 0) scale(var(--cam-s, 1));
+    transform-origin: 50% 50%;
+}
+
+/* ★ 必须排在 .solar.is-live .solar-planet 之后:
+   那套规则带着自己的 transform,会盖掉上面的摄像机变量 */
+.solar.is-live .solar-planet--star {
+    opacity: 1;
+    transform: translate(-50%, -50%) translate3d(var(--cam-dx, 0px), var(--cam-dy, 0px), 0) scale(var(--cam-s, 1));
+}
+
+/* 恒星锁定/悬停:不要外发光(会渗进太阳的光晕里)*/
+.solar-node--star:hover .solar-planet--star,
+.solar-node--star.is-on .solar-planet--star,
+.solar-planet--star:focus-visible {
+    box-shadow: none;
+    outline: none;
+}
+
+/* 锁定环:虚线圆环,画在视频下面 → 被 screen 混合提亮,看起来就是光晕上浮起一圈 */
+.solar-planet--star::before {
+    inset: -2%;
+}
+
+/* 窄屏:卡片常显,恒星缩成 38px 小图标,命中按钮不需要 */
+.solar.is-narrow .solar-planet--star {
+    display: none;
+}
+
+/* 窄屏修正:38px 的小方框里再按 (-50%,-50%) 平移会跑偏到框外 */
+.solar.is-narrow .solar-sun-video,
+.solar.is-narrow .solar-sun-img {
+    position: relative;
+    left: auto;
+    top: auto;
+    width: 38px;
+    height: 38px;
+    object-fit: contain;
+    transform: none;
+}
+
+/* 拖动时整屏都该是抓手:星体上的 cursor:pointer 会盖掉它 */
+.solar.is-drag .solar-planet {
+    cursor: grabbing;
+}
+
 /* 拖动时禁用文字选中,免得拖出一片蓝 */
 .solar.is-drag {
     user-select: none;
