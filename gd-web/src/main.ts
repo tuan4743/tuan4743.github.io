@@ -116,10 +116,19 @@ class Scene extends Phaser.Scene {
     this.draw();
     const hud = document.getElementById('gd-hud');
     if (hud) {
-      hud.textContent =
-        (w.mode === 'ship' ? '飞机' : '方块') + ' · ' + (segOf(w.x) || '') + ' · ' + Math.round(w.progress * 100) + '%' +
-        ' · 尝试 ' + String(w.attempts).padStart(2, '0') +
-        ' · ' + (w.dead ? '摔了(R 重来)' : '') + ' · ' + Math.round(this.fps) + (this.audio && !this.audio.paused ? ' · ♪ ' + this.audio.currentTime.toFixed(1) + 's' : ' · 按一下开始') + ' fps';
+      /* HUD 拼装:形态 · 段落 · 进度 · 尝试 · 状态 · fps · 音乐
+         (之前段落名插进了 fps 那一段里,拼出来成了 "·  · 51 · ♪ 0.2s fps" —— 顺手理干净) */
+      const parts = [
+        w.mode === 'ship' ? '飞机' : '方块',
+        segOf(w.x) || '',
+        Math.round(w.progress * 100) + '%',
+        '尝试 ' + String(w.attempts).padStart(2, '0'),
+      ];
+      if (w.dead) parts.push('摔了 · 从存档点重来');
+      parts.push(Math.round(this.fps) + ' fps');
+      parts.push(this.audio && !this.audio.paused ? '♪ ' + this.audio.currentTime.toFixed(1) + 's' : '按一下开始');
+      hud.textContent = parts.filter(Boolean).join(' · ');
+      hud.classList.toggle('is-dead', w.dead);
     }
     this.expose();
   }
