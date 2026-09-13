@@ -1759,6 +1759,43 @@ body.scene-open .intro-panel.is-page {
     color: color-mix(in srgb, var(--intro-accent) 55%, transparent);
 }
 
+/* 开始菜单里的说明:这一版手搓到这里为止,后续用开源项目 OpenGD 重做
+   (★ 别用 ch 单位:这个面板的字号是 rem 系的,ch 在某些字体加载状态下算出来是 0,
+      整段会被压成一列一个字 —— 实测踩过) */
+.lost-menu__note {
+    flex: 0 0 auto;
+    width: auto;
+    max-width: min(620px, 90%);
+    margin: 6px 0 0;
+    font-size: 0.66rem;
+    line-height: 1.85;
+    letter-spacing: 0.06em;
+    text-align: center;
+    color: color-mix(in srgb, var(--intro-accent) 45%, transparent);
+    border-top: 1px solid color-mix(in srgb, var(--intro-accent) 18%, transparent);
+    padding-top: 10px;
+}
+
+.lost-menu__note b {
+    font-weight: 600;
+    color: color-mix(in srgb, var(--intro-accent) 80%, #ffffff);
+}
+
+.lost-menu__repo {
+    display: inline-block;
+    margin-top: 2px;
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    color: var(--intro-accent);
+    text-decoration: none;
+    border-bottom: 1px solid color-mix(in srgb, var(--intro-accent) 45%, transparent);
+}
+
+.lost-menu__repo:hover {
+    color: #ffffff;
+    border-bottom-color: #ffffff;
+}
+
 .lost-dead__title {
     font-size: 1.05rem;
     letter-spacing: 0.3em;

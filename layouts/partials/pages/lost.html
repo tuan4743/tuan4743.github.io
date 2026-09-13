@@ -67,6 +67,13 @@
             <button type="button" class="lost-btn" data-act="auto" data-where="menu">自动播放</button>
         </div>
         <span class="lost-menu__hint">TAP / 空格 = 跳 · S = 护盾 · R = 重来 · Alt+E = 铺面编辑器</span>
+        {{/* 这一版是从零手搓的实验,到此为止;后续改用开源项目 OpenGD 重做 —— 在开始菜单里说清楚并给出仓库链接 */}}
+        <p class="lost-menu__note">
+            这一版是从零手搓的实验:采音只踩个大概,机制也只还原了一小部分 ——
+            继续往上加东西,修 bug 的成本只会越来越高。所以到此为止,换一条路:
+            用开源项目 <b>OpenGD</b>(基于 cocos2d-x 4.0 的 Geometry Dash 开源实现)重做。
+            <a class="lost-menu__repo" href="https://github.com/Open-GD/OpenGD" target="_blank" rel="noopener noreferrer">仓库:github.com/Open-GD/OpenGD ↗</a>
+        </p>
     </div>
 
     {{/* 死亡菜单:不自动复活,让玩家选(继续 / 自动播放 / 退出)*/}}
