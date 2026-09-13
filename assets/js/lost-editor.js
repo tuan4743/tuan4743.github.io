@@ -66,6 +66,39 @@
     loadItems(E.chart.items && E.chart.items.length ? E.chart.items : api.dev.draft());
     E.status = (E.chart.items && E.chart.items.length) ? "已载入铺面 " + items.length + " 个物件" : "铺面是空的 → 已用节拍自动铺了一版草稿";
 
+    /* ---------------- 本地草稿 ----------------
+       ★ 用户报的:"导出后刷新界面就打不开了,整张铺白做"。
+         原来的导出只是把 JSON 塞进一个隐藏文本框 + 复制剪贴板,既没有文件也没有本地保存,
+         一刷新全没了;导入在框是空的时候还会【自动填入当前铺面】再导进去 —— 看着成功其实白做。
+         现在:改动即存草稿,打开编辑器自动恢复,导出会真的下载文件 */
+    var DRAFT_KEY = "lost-chart-draft";
+    var draftTimer = 0;
+    function itemsOf(ch) { return (ch && ch.items && ch.items.length) ? ch.items : api.dev.draft(); }
+    /* force=true 时即使"不脏"也写(导出/导入之后)*/
+    function saveDraft(force) {
+      if (!E.open) return;
+      if (!force && !E.dirty) return;            /* 只有真改动过才写盘 */
+      try {
+        var now = Date.now();
+        window.localStorage.setItem(DRAFT_KEY, JSON.stringify({ v: 1, at: now, chart: curChart() }));
+        E.draftAt = now;
+        E.dirty = false;
+      } catch (e) { E.status = "草稿存不进浏览器存储:" + ((e && e.message) || e); }
+    }
+    function queueDraft() {                       /* 改动很频繁,攒 700ms 再写一次 */
+      if (!E.open || draftTimer) return;
+      draftTimer = window.setTimeout(function () { draftTimer = 0; saveDraft(); }, 700);
+    }
+    function loadDraft() {
+      try {
+        var raw = window.localStorage.getItem(DRAFT_KEY);
+        if (!raw) return null;
+        var d = JSON.parse(raw);
+        return (d && d.chart && d.chart.segments && d.chart.segments.length) ? d : null;
+      } catch (e) { return null; }
+    }
+    function dropDraft() { try { window.localStorage.removeItem(DRAFT_KEY); } catch (e) {} E.draftAt = 0; }
+
     /* ---------------- DOM ---------------- */
     var wrap = el("div", "lost-ed");
     var bar = el("div", "lost-ed__bar");
@@ -143,9 +176,23 @@
     btn("套用", function () { applyAll(); });
     btn("导出", function () { exportJson(); });
     btn("导入", function () { importJson(); });
+    btn("清草稿", function () { resetFromRepo(); });
     btn("关闭", function () { close(); });
     bar.appendChild(status);
     wrap.appendChild(bar);
+    /* ★ 导入:真的选一个 .json 文件(以前只能靠隐藏文本框,刷新后框是空的就没法导)*/
+    var fileIn = el("input", "lost-ed__file");
+    fileIn.type = "file"; fileIn.accept = ".json,application/json";
+    fileIn.style.display = "none";
+    wrap.appendChild(fileIn);
+    fileIn.addEventListener("change", function () {
+      var f = fileIn.files && fileIn.files[0];
+      if (!f) return;
+      var fr = new FileReader();
+      fr.onload = function () { doImport(String(fr.result), f.name); fileIn.value = ""; };
+      fr.onerror = function () { E.status = "读文件失败:" + f.name; syncBar(); };
+      fr.readAsText(f);
+    });
 
     /* 采音参数面板 */
     var tone = el("div", "lost-ed__tone");
@@ -443,6 +490,7 @@
       ctx.fillStyle = "rgba(226,246,255,0.85)";
       ctx.font = "600 11px ui-monospace, Consolas, monospace";
       ctx.fillText(E.t.toFixed(3) + "s", px + 4, V.h - 8);
+      queueDraft();               /* ★ 每次重画都排一次存草稿(700ms 合并)*/
     }
     function rulerY() { return 12; }
 
@@ -649,39 +697,96 @@
       return ch;
     }
     function exportJson() {
+      var ch = applyAll();
+      var txt = JSON.stringify(ch, null, 1);
       jsonBox.style.display = "block";
-      jsonBox.value = JSON.stringify(applyAll(), null, 1);
-      jsonBox.select();
-      try { document.execCommand("copy"); E.status = "已套用并复制 JSON 到剪贴板;也可以手动复制这里的内容"; } catch (e) { E.status = "已套用;JSON 在下面的框里,手动复制"; }
+      jsonBox.value = txt;
+      var fname = "lost-chart.json";
+      try {
+        /* ★ 真的下载一个文件:只复制到剪贴板太容易丢(用户就是"导出后刷新,整张白做")*/
+        var blob = new Blob([txt], { type: "application/json" });
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = fname;
+        document.body.appendChild(a);
+        a.click();
+        window.setTimeout(function () { URL.revokeObjectURL(a.href); if (a.parentNode) a.parentNode.removeChild(a); }, 3000);
+        E.status = "已导出 " + fname + "(" + items.length + " 件):放进 static/assets/cd/ 覆盖同名文件,再推上去;本地草稿也存了";
+      } catch (e) {
+        try { jsonBox.select(); document.execCommand("copy"); E.status = "已复制 JSON 到剪贴板(下载不可用);本地草稿也存了"; }
+        catch (e2) { E.status = "JSON 在下面的框里,手动复制;本地草稿也存了"; }
+      }
+      saveDraft(true);
       syncBar();
     }
+    /* 点「导入」:框里有内容就导框里的,框是空的就直接弹选文件 ——
+       绝不"自动填入当前铺面"假装成功(那是白做的根源)*/
     function importJson() {
       jsonBox.style.display = "block";
-      jsonBox.value = jsonBox.value || JSON.stringify(curChart(), null, 1);
-      if (!window.confirm("把下面框里的 JSON 当铺面载入?(会替换当前编辑内容)")) return;
+      var txt = (jsonBox.value || "").trim();
+      if (txt) { doImport(txt, "文本框"); return; }
+      E.status = "请选一个铺面 .json 文件(或把 JSON 粘到下面的框里再点导入)";
+      syncBar();
+      try { fileIn.click(); } catch (e) { E.status = "这个浏览器不让自动弹选择框,请把 JSON 粘到下面的框里"; syncBar(); }
+    }
+    function doImport(text, src) {
+      var ch;
       try {
-        var ch = JSON.parse(jsonBox.value);
-        if (!ch.segments) throw new Error("缺少 segments");
+        ch = JSON.parse(text);
+        if (!ch || !ch.segments || !ch.segments.length) throw new Error("不是铺面 JSON(缺少 segments)");
+      } catch (err) {
+        E.status = "导入失败:" + ((err && err.message) || err);
+        syncBar(); draw();
+        return;
+      }
+      if (!window.confirm("载入" + (src ? "「" + src + "」" : "") + "的铺面?共 " + ((ch.items || []).length) + " 件,会替换当前编辑内容(当前草稿会被覆盖)")) return;
+      E.chart = ch;
+      if (ch.period) E.period = ch.period;
+      if (ch.offset != null) E.offset = ch.offset;
+      if (ch.duration) E.dur = ch.duration;
+      loadItems(itemsOf(ch));
+      applyAll();
+      saveDraft(true);
+      jsonBox.value = "";
+      E.status = "已导入 " + items.length + " 个物件(来源:" + (src || "文本") + ")";
+      syncBar(); draw();
+    }
+    /* 丢掉本地草稿,回到仓库里的 static/assets/cd/lost-chart.json */
+    function resetFromRepo() {
+      if (!window.confirm("丢掉本地草稿,载入仓库里的铺面?")) return;
+      dropDraft();
+      fetch("/assets/cd/lost-chart.json", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (ch) {
         E.chart = ch;
         if (ch.period) E.period = ch.period;
         if (ch.offset != null) E.offset = ch.offset;
         if (ch.duration) E.dur = ch.duration;
-        loadItems(ch.items || []);
+        loadItems(itemsOf(ch));
         applyAll();
-        E.status = "已载入 " + items.length + " 个物件";
-      } catch (err) { E.status = "导入失败:" + ((err && err.message) || err); }
-      syncBar(); draw();
+        E.status = "已清掉草稿,载入仓库铺面:" + items.length + " 件";
+        syncBar(); draw();
+      })["catch"](function (e) { E.status = "取仓库铺面失败:" + ((e && e.message) || e); syncBar(); });
     }
-
     /* ---------------- 开关 ---------------- */
     function open() {
       if (E.open) return;
       E.open = true;
       var a2 = api.data();
       if (a2 && a2.chart) { E.chart = JSON.parse(JSON.stringify(a2.chart)); if (a2.beats) E.beats = a2.beats.slice(); }
+      loadItems(itemsOf(E.chart));
       wrap.style.display = "block";
       api.editorOpen(true);
       E.status = "编辑中;游戏已暂停 —— 点「试玩」从播放头开始跑";
+      /* ★ 有本地草稿就先恢复(刷新/关页面都不再丢)*/
+      var d = loadDraft();
+      if (d) {
+        E.chart = d.chart;
+        if (d.chart.period) E.period = d.chart.period;
+        if (d.chart.offset != null) E.offset = d.chart.offset;
+        if (d.chart.duration) E.dur = d.chart.duration;
+        loadItems(itemsOf(d.chart));
+        E.draftAt = d.at;
+        E.status = "已恢复上次的草稿:" + items.length + " 件(" + new Date(d.at).toLocaleString() + ")。要仓库版点「清草稿」;改完点「导出」下载铺面文件";
+      }
       syncBar();
       resize();
       followPlay(true);            /* ★ 打开时视野落在播放头附近(默认就在 0 秒那一段)*/
