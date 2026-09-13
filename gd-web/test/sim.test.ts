@@ -15,6 +15,9 @@ import { P, U, ROWS, JUMP_SPAN_BLOCKS, JUMP_AIRTIME_S, arcSpan, PAD, ORB } from 
 import { generateLevel, tightestGap, tOfX, countKinds, type Level, type Segment } from '../src/sim/level.ts';
 import { World, botThink } from '../src/sim/world.ts';
 import { recordBot, replay, fingerprint } from '../src/sim/replay.ts';
+import { decodeGmd, encodeGmdText, parseGmdText } from '../src/sim/gmd.ts';
+import { coverage, formatReport } from '../src/sim/gdmap.ts';
+import { gzipSync, gunzipSync } from 'node:zlib';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -588,7 +591,50 @@ test('回放:换一卷输入(或换一关)指纹就不同 —— 指纹真的在
   assert.notEqual(fingerprint(recordBot(other, 60 * 900).states), fingerprint(rec.states), '换了关卡指纹应该变');
 });
 
-/* ---------------- ⑤ 架构约束:核心不许依赖引擎/浏览器 ---------------- */
+/* ---------------- ⑤ .gmd 解码 + ID 映射表 ---------------- */
+test('.gmd:编出来的关卡能原样解回来(物件数、坐标、翻转、分组都不丢)', async () => {
+  const src = {
+    name: '测试关 名字里有空格',
+    objectCount: 0, header: {}, song: 'x.mp3', songOffset: 0,
+    objects: [
+      { id: 1, x: 30, y: 0, flipY: false, flipX: false, rot: 0, scale: 1, groups: [], raw: [] },
+      { id: 8, x: 90, y: 0, flipY: true, flipX: false, rot: 0, scale: 1, groups: [7], raw: [] },
+      { id: 1400, x: 120, y: 60, flipY: false, flipX: true, rot: 90, scale: 1, groups: [7, 9], raw: [] },
+    ],
+  };
+  const text = encodeGmdText(src);
+  const back = parseGmdText(text);
+  assert.equal(back.name, src.name, '关卡名应该能原样读回来');
+  assert.equal(back.song, 'x.mp3', '歌曲名也应该在');
+  assert.equal(back.objects.length, 3, '物件数:实 ' + back.objects.length);
+  assert.equal(back.objectCount, 3, '头部声明的物件数:' + back.objectCount);
+  assert.deepEqual(back.objects.map((o) => [o.id, o.x, o.y]), [[1, 30, 0], [8, 90, 0], [1400, 120, 60]]);
+  assert.equal(back.objects[1].flipY, true, '翻转要保住');
+  assert.deepEqual(back.objects[2].groups, [7, 9], '分组要保住(触发器就靠它)');
+  /* 走一遍真正的解码路径(base64 + 解压由调用方注入,这里用一个假装"压缩过"的 inflate) */
+  const gz = gzipSync(Buffer.from(text, 'utf8'));
+  const dec = await decodeGmd(gz.toString('base64'), async (b) => gunzipSync(Buffer.from(b)).toString('utf8'));
+  assert.equal(dec.objects.length, 3, 'base64 → 解压 → 解析 也要对');
+  assert.equal(dec.objects[0].id, 1);
+});
+
+test('ID 映射表:认识的算进覆盖率,不认识的按"缺什么"归类', () => {
+  const objects = [
+    { id: 1 }, { id: 1 }, { id: 1 }, { id: 8 },
+    { id: 999 }, { id: 1400 }, { id: 1401 }, { id: 41 }, { id: 41 }, { id: 41 },
+  ];
+  const r = coverage(objects);
+  assert.equal(r.total, 10);
+  assert.equal(r.known, 4, '认得 4 个(3 个方块 + 1 个刺),实测 ' + r.known);
+  assert.equal(r.unknown, 6);
+  assert.equal(r.byKind['block'], 3);
+  assert.equal(r.byKind['spike'], 1);
+  assert.ok(r.gaps['trigger'] >= 2, '1000+ 应该被归到触发器(实测 ' + JSON.stringify(r.gaps) + ')');
+  assert.ok(/物件总数 10/.test(formatReport(r)), '报告要能排成文字');
+});
+
+/* ---------------- ⑥ 架构约束 ---------------- */
+/* ---------------- ⑥ 架构约束:核心不许依赖引擎/浏览器 ---------------- */
 test('模拟核心零依赖:src/sim 里不许出现 phaser / window / document', () => {
   const dir = join(HERE, '..', 'src', 'sim');
   for (const f of readdirSync(dir)) {
