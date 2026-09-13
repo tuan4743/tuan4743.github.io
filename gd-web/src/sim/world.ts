@@ -48,6 +48,8 @@ export class World {
   pressFresh = false;
   /** 上一帧是否按着(botThink 要靠它凑出"松一帧再按"的新按键) */
   prevHold = false;
+  /** 机器人"抵消重力"已经撑了多久(秒) */
+  floatT = 0;
   private armedChecks = new Set<Box>();
   private armedPortals = new Set<Box>();
   private armedSpeeds = new Set<Box>();
@@ -140,19 +142,58 @@ export class World {
       this.vy = Math.max(-P.shipVyMax, Math.min(P.shipVyMax, this.vy));
       this.y += this.vy * sY;
       if (this.y < 0 || this.y + P.box > ROWS * U) { this.die(); return; }
-    } else {
-      /* 方块:按住且在落地状态就起跳 —— 按住不放 = 落地自动连跳(原作手感)。
-         起跳会消耗掉这次按键,所以"按着不放"串不起跳环(和原作一致)。 */
-      if (hold && this.onGround) { this.vy = P.jump * this.gdir; this.onGround = false; this.pressFresh = false; }
+    } else if (this.mode === 'wave') {
+      /* 波浪:垂直速度【每步直接赋值】= ±水平速度 → 永远 45°(反编译口径,y 轴不夹)
+         —— 这形态没有重力,按住就往上、松开就往下。 */
+      this.vy = (hold ? 1 : -1) * this.vx;
+      this.y += this.vy * sY;
+      if (this.y < 0 || this.y + P.box > ROWS * U) { this.die(); return; }
+    } else if (this.mode === 'ufo') {
+      /* UFO:点一下给一个上冲,平时往下掉;在 GD 里它和飞机共用那套飞行夹取(上 8 / 下 -6.4) */
+      if (hold && this.pressFresh) { this.vy = P.ufoImpulse; this.pressFresh = false; }
+      this.vy -= P.gravity * sY;
+      this.vy = Math.max(P.flyDownMax, Math.min(P.flyUpMax, this.vy));
+      this.y += this.vy * sY;
+      if (this.y < 0 || this.y + P.box > ROWS * U) { this.die(); return; }
+    } else if (this.mode === 'ball') {
+      /* 球:重力 ×0.6;点一下【翻重力】并把垂直速度 ×0.6(反编译口径) */
+      if (hold && this.pressFresh) { this.gdir = -this.gdir; this.vy *= P.ballFlipVelMul; this.pressFresh = false; }
+      this.vy -= P.gravity * P.ballGravityMul * this.gdir * sY;
+      if (this.vy * this.gdir < 0) this.vy = Math.max(-P.vyMax, Math.min(P.vyMax, this.vy));
+      this.y += this.vy * sY;
+    } else if (this.mode === 'spider') {
+      /* 蜘蛛:点一下【传送到对面】再翻重力(反编译:搜索带厚度 = 体积 ×8) */
+      if (hold && this.pressFresh) { this.spiderJump(); this.pressFresh = false; }
       this.vy -= P.gravity * this.gdir * sY;
+      if (this.vy * this.gdir < 0) this.vy = Math.max(-P.vyMax, Math.min(P.vyMax, this.vy));
+      this.y += this.vy * sY;
+    } else {
+      /* 方块 / 机器人:按住且在落地状态就起跳 —— 按住不放 = 落地自动连跳(原作手感)。
+         起跳会消耗掉这次按键,所以"按着不放"串不起跳环(和原作一致)。
+         机器人起跳只有普通的一半,但按住不放可以"抵消重力"一段时间(浮着走)。 */
+      if (hold && this.onGround) {
+        const power = this.mode === 'robot' ? P.jump * P.robotJumpMul : P.jump;
+        this.vy = power * this.gdir;
+        this.onGround = false;
+        this.pressFresh = false;
+        if (this.mode === 'robot') this.floatT = 0;
+      }
+      if (this.mode === 'robot') {
+        this.floatT += FRAME / 4;                       // 每次子步推进(4 步 = 一帧)
+        const floating = hold && !this.onGround && this.floatT < P.robotFloat;
+        if (!floating) this.vy -= P.gravity * this.gdir * sY;   // 浮着的时候重力被抵消
+      } else {
+        this.vy -= P.gravity * this.gdir * sY;
+      }
       /* ★ 终端速度只夹【下落】方向(原作在 falling 分支里夹):
          所以黄弹簧的 16 能原样生效,峰值才有 4.45 块,而不是被夹到 3.9 */
       if (this.vy * this.gdir < 0) this.vy = Math.max(-P.vyMax, Math.min(P.vyMax, this.vy));
       this.y += this.vy * sY;
     }
 
-    /* --- 踩实体:顺着重力方向接住(正重力踩上面;反重力贴天花板与方块底面) --- */
-    if (this.mode === 'cube') {
+    /* --- 踩实体:顺着重力方向接住(正重力踩上面;反重力贴天花板与方块底面) ---
+     * 方块 / 球 / 机器人 / 蜘蛛都走这段;飞机、UFO、波浪是"飞行类",碰到即死。 */
+    if (this.mode !== 'ship' && this.mode !== 'ufo' && this.mode !== 'wave') {
       const boxTop = this.y + P.box, prevTop = prevY + P.box;
       let support: number | null = null;
       if (this.gdir > 0) {
@@ -259,6 +300,46 @@ export class World {
 
     if (this.x >= this.level.length * U) { this.done = true; }
     void prevVy;
+  }
+
+  /** 蜘蛛点一下:在"当前重力的反方向"那个带子里找最近的一层地面/方块底面,传送过去再翻重力 */
+  private spiderJump() {
+    const band = P.spiderBand * U;
+    const top = () => this.y + P.box;
+    let best: number | null = null;
+    if (this.gdir > 0) {
+      /* 正重力:往【上】找最近的底面(方块底 / 平台底 / 场地顶) */
+      best = ROWS * U;
+      for (const s of this.solids) {
+        if (this.x + P.box <= s.x0 || this.x >= s.x1) continue;
+        if (s.y0 < top() + 1) continue;
+        if (best === null || s.y0 < best) best = s.y0;
+      }
+      for (const f of this.floors) {
+        if (this.x + P.box <= f.x0 || this.x >= f.x1) continue;
+        if (f.y0 < top() + 1) continue;
+        if (best === null || f.y0 < best) best = f.y0;
+      }
+      this.y = best - P.box;
+    } else {
+      /* 反重力:往【下】找最近的顶面 */
+      best = 0;
+      for (const s of this.solids) {
+        if (this.x + P.box <= s.x0 || this.x >= s.x1) continue;
+        if (s.y1 > this.y - 1) continue;
+        if (best === null || s.y1 > best) best = s.y1;
+      }
+      for (const f of this.floors) {
+        if (this.x + P.box <= f.x0 || this.x >= f.x1) continue;
+        if (f.y1 > this.y - 1) continue;
+        if (best === null || f.y1 > best) best = f.y1;
+      }
+      this.y = best;
+    }
+    void band;
+    this.gdir = -this.gdir;
+    this.vy = -P.spiderVel * this.gdir;      // 极小的一点速度,方向朝"新的上方"
+    this.onGround = true;
   }
 
   private die() { if (!this.dead) { this.dead = true; this.deadT = 0; } }

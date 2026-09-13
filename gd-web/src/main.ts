@@ -10,7 +10,7 @@
  */
 
 import Phaser from 'phaser';
-import { generateLevel, tOfX, type Level } from './sim/level.ts';
+import { generateLevel, tOfX, type Level, type Mode } from './sim/level.ts';
 import { World, botThink, type RunState } from './sim/world.ts';
 import { fingerprint } from './sim/replay.ts';
 import { P, U, ROWS, Y_TIME_SCALE } from './sim/constants.ts';
@@ -30,6 +30,13 @@ const ORB_COL: Record<string, number> = {
 };
 const PAD_COL: Record<string, number> = {
   yellow: 0xffe17a, pink: 0xff9fd0, red: 0xff8a8a, blue: 0x9fd8ff, purple: 0xc6a0ff,
+};
+
+/** 调试用:按 1~7 现场换形态,方便一个个试手感(1 方块 2 飞机 3 球 4 UFO 5 波浪 6 机器人 7 蜘蛛) */
+const MODE_ORDER: Mode[] = ['cube', 'ship', 'ball', 'ufo', 'wave', 'robot', 'spider'];
+/** HUD 里的形态名 */
+const MODE_NAME: Record<string, string> = {
+  cube: '方块', ship: '飞机', ball: '球', ufo: 'UFO', wave: '波浪', robot: '机器人', spider: '蜘蛛',
 };
 
 /** 当前所在段落的名字(只是给 HUD 看的,不影响判定) */
@@ -70,6 +77,7 @@ class Scene extends Phaser.Scene {
   private restartPressed = false;
   private confirmLatch = false;     // 真实的 keydown 事件(比"每帧查 isDown"可靠:极短的一下也收得到)
   private restartLatch = false;
+  private modeLatch = 0;            // 数字键 1~7:调试用的现场换形态
   uiTitle!: Phaser.GameObjects.Text;
   uiHint!: Phaser.GameObjects.Text;
 
@@ -135,10 +143,12 @@ class Scene extends Phaser.Scene {
     this.cameras.main.setZoom(this.zoomOf());
     /* ★ 只在【画布上】点才算确认 —— 以前监听 window,点导航、点 CD 面板都会顺手把游戏开起来 */
     this.input.on('pointerdown', () => { this.clicked = true; });
-    /* 空格 / 上 / W 才算"确认",其它按键一概不理(以前任何按键都会开跑) */
+    /* 空格 / 上 / W 才算"确认",其它按键一概不理(以前任何按键都会开跑);
+       数字键 1~7 是调试用的"现场换形态" */
     window.addEventListener('keydown', (ev: KeyboardEvent) => {
       if (ev.code === 'Space' || ev.code === 'ArrowUp' || ev.code === 'KeyW') this.confirmLatch = true;
       if (ev.code === 'KeyR') this.restartLatch = true;
+      if (/^Digit[1-7]$/.test(ev.code)) this.modeLatch = Number(ev.code.slice(5));
     });
     const ui = { fontFamily: 'ui-monospace, Consolas, monospace', align: 'center' as const };
     this.uiTitle = this.add.text(0, 0, '', { ...ui, fontSize: '44px', color: '#e2f6ff' }).setOrigin(0.5).setDepth(20).setVisible(false);
@@ -231,6 +241,17 @@ class Scene extends Phaser.Scene {
     const confirm = this.confirmDown();
     const restart = this.restartPressed;
     if (this.botMode && this.phase !== 'running') { this.phase = 'running'; this.started = true; }
+    /* 调试:数字键现场换形态(1 方块 2 飞机 3 球 4 UFO 5 波浪 6 机器人 7 蜘蛛) */
+    if (this.modeLatch) {
+      const m = MODE_ORDER[this.modeLatch - 1];
+      if (m) {
+        this.world.mode = m;
+        this.world.gdir = 1;
+        this.world.vy = 0;
+        this.world.y = Math.max(0, Math.min(this.world.y, ROWS * U - P.box));
+      }
+      this.modeLatch = 0;
+    }
 
     if (this.phase === 'idle') {
       if (confirm) this.startRun();
@@ -281,7 +302,7 @@ class Scene extends Phaser.Scene {
     if (!hud) return;
     const w = this.world;
     const parts = [
-      w.mode === 'ship' ? '飞机' : '方块',
+      MODE_NAME[w.mode] ?? w.mode,
       segOf(w.x) || '',
       Math.round(w.progress * 100) + '%',
       '尝试 ' + String(w.attempts).padStart(2, '0'),
@@ -519,6 +540,59 @@ class Scene extends Phaser.Scene {
       g.lineTo(vx2(-P.box * 0.45, P.box * 0.3), vy2(-P.box * 0.45, P.box * 0.3));
       g.closePath();
       g.fillPath();
+    } else if (w.mode === 'ball') {
+      /* 球:一个圆 + 里面一条随滚动转的线(不然看不出它在滚) */
+      const r = P.box * 0.5;
+      g.fillStyle(w.dead ? 0xff9a6b : 0xe2f6ff, 0.96).fillCircle(cxw, Y(cyw), r);
+      g.lineStyle(2, HLD, 0.9).strokeCircle(cxw, Y(cyw), r);
+      const ang = w.x / U * 1.2;
+      g.lineStyle(2, HLD, 0.75).lineBetween(
+        cxw - Math.cos(ang) * r * 0.65, Y(cyw) - Math.sin(ang) * r * 0.65,
+        cxw + Math.cos(ang) * r * 0.65, Y(cyw) + Math.sin(ang) * r * 0.65,
+      );
+    } else if (w.mode === 'ufo') {
+      /* UFO:一个圆顶 + 一条底盘 */
+      const base = Y(cyw - P.box * 0.35);
+      g.fillStyle(w.dead ? 0xff9a6b : 0xe2f6ff, 0.95);
+      g.beginPath();
+      g.moveTo(cxw - P.box * 0.5, base);
+      g.lineTo(cxw, Y(cyw + P.box * 0.55));
+      g.lineTo(cxw + P.box * 0.5, base);
+      g.closePath();
+      g.fillPath();
+      g.fillStyle(HLD, 0.9).fillRect(cxw - P.box * 0.62, base, P.box * 1.24, 4);
+    } else if (w.mode === 'wave') {
+      /* 波浪:一枚小飞镖,朝当前运动方向 */
+      const dirw = w.vy >= 0 ? 1 : -1;
+      g.fillStyle(w.dead ? 0xff9a6b : 0xe2f6ff, 0.95);
+      g.beginPath();
+      g.moveTo(cxw + 11, Y(cyw + dirw * 11));
+      g.lineTo(cxw - 9, Y(cyw - dirw * 9));
+      g.lineTo(cxw - 3, Y(cyw + dirw * 3));
+      g.closePath();
+      g.fillPath();
+      g.lineStyle(2, HLD, 0.85);
+      g.strokePath();
+    } else if (w.mode === 'robot') {
+      /* 机器人:比方块高一点 + 一条面罩线 + 两条腿 */
+      const hw = P.box * 0.42, hh = P.box * 0.72;
+      const rtop = Y(cyw + hh), rbot = Y(cyw - hh);
+      g.fillStyle(w.dead ? 0xff9a6b : 0xe2f6ff, 0.96).fillRect(cxw - hw, rtop, hw * 2, rbot - rtop);
+      g.lineStyle(2, HLD, 0.9).strokeRect(cxw - hw, rtop, hw * 2, rbot - rtop);
+      g.fillStyle(HLD, 0.9).fillRect(cxw - hw + 3, rtop + 4, hw * 2 - 6, 3);
+      g.lineStyle(3, HLD, 0.9);
+      g.lineBetween(cxw - hw * 0.6, rbot, cxw - hw * 0.6, rbot + 6);
+      g.lineBetween(cxw + hw * 0.6, rbot, cxw + hw * 0.6, rbot + 6);
+    } else if (w.mode === 'spider') {
+      /* 蜘蛛:方块 + 四条短腿 */
+      const sw = P.box * 0.42;
+      g.fillStyle(w.dead ? 0xff9a6b : 0xe2f6ff, 0.96).fillRect(cxw - sw, Y(cyw + sw), sw * 2, sw * 2);
+      g.lineStyle(2, HLD, 0.9).strokeRect(cxw - sw, Y(cyw + sw), sw * 2, sw * 2);
+      g.lineStyle(2, HLD, 0.85);
+      for (const sx of [-1, 1]) {
+        g.lineBetween(cxw + sx * sw, Y(cyw + sw * 0.5), cxw + sx * (sw + 7), Y(cyw + sw * 0.5) - 8);
+        g.lineBetween(cxw + sx * sw, Y(cyw - sw * 0.5), cxw + sx * (sw + 7), Y(cyw - sw * 0.5) + 8);
+      }
     } else {
       /* 方块在空中转 90°(原版手感):用滞空时间当旋转进度 */
       const spin = Math.min(1, this.airT / (2 * P.jump / (P.gravity * Y_TIME_SCALE) / 60)) * (Math.PI / 2);

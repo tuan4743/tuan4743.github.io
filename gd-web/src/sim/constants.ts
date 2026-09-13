@@ -41,6 +41,18 @@ export const P = {
   shipVyMax: 8.0,             // [GDOpenGD] 飞机速度上限(反编译里上 8 / 下 -6.4,这里先对称)
   shipRotMax: 0.55,           // [自定] 贴图最大倾角(弧度),科技风里用
 
+  /* ---- 数值:其它形态(口径同 §docs/gd-physics-triggers.md)---- */
+  ballGravityMul: 0.6,        // [GDOpenGD] 球(以及蜘蛛/摇摆)的重力倍率
+  ballFlipVelMul: 0.6,        // [GDOpenGD] 球点一下:翻重力 + 垂直速度 ×0.6
+  ufoImpulse: 7.0,            // [待核] UFO 点一下的上冲。反编译里没找到"离散冲量"那条路径
+                              //   (只有 UFO 环的 ±7.0),这里按社区口径取 7.0
+  flyUpMax: 8.0,              // [GDOpenGD] 飞行类(UFO)的上限
+  flyDownMax: -6.4,           // [GDOpenGD] 飞行类的下坠上限
+  robotJumpMul: 0.5,          // [GDOpenGD] 机器人起跳 = 0.5 × jumpPower ≈ 5.59
+  robotFloat: 0.27,           // [GDOpenGD] 按住时"抵消自身的重力"能维持多久(秒)≈ m_accelerationOrSpeed 走满 1.5
+  spiderVel: 1.0,             // [GDOpenGD] 蜘蛛传送落地后的那一小点速度(∓1 每帧)
+  spiderBand: 8,              // [GDOpenGD] 蜘蛛搜索带的厚度 = m_vehicleSize × 8(块)
+
   /* ---- 数值:碰撞盒 ---- */
   box: 30,                    // [GDOpenGD] 玩家外框 30×30
   inner: 7.5,                 // [GDOpenGD] 判定用内框只有 7.5×7.5(所以"看着撞上却没死")

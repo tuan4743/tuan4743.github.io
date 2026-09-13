@@ -232,6 +232,74 @@ test('蓝环:翻转重力 —— 之后是"往上掉"', () => {
   assert.ok(w.y > y0, '重力翻过来之后应该往上"掉",y ' + (y0 / U).toFixed(2) + ' → ' + (w.y / U).toFixed(2));
 });
 
+/* ---------------- ③b 其它形态(球 / UFO / 波浪 / 机器人 / 蜘蛛) ---------------- */
+const floor60 = { kind: 'platform' as const, b: 0, r: -1, w: 60, h: 1 };
+
+test('球:点一下翻重力、重力只有 0.6 倍,而且会贴着天花板跑', () => {
+  const w = new World(solo([floor60]));
+  w.mode = 'ball'; w.y = 6 * U; w.onGround = false;
+  for (let i = 0; i < 20; i++) w.frame(false);
+  const fall = -w.vy;
+  const cubeFall = P.gravity * 20;                       // 方块同样帧数掉出来的速度
+  assert.ok(Math.abs(fall - cubeFall * P.ballGravityMul) < 2, '球的重力应该约 0.6 倍(20 帧后 vy=' + (-fall).toFixed(1) + ',方块同帧约 ' + cubeFall.toFixed(1) + ')');
+  w.frame(true);                                          // 点一下 → 翻重力
+  assert.equal(w.gdir, -1, '球点一下应该翻重力');
+  for (let i = 0; i < 90 && !w.dead; i++) w.frame(false);
+  assert.equal(w.dead, false, '翻重力之后不该摔死');
+  assert.ok(Math.abs(w.y - (ROWS * U - P.box)) < 0.5, '球应该贴到天花板上,y=' + (w.y / U).toFixed(2) + ' 块');
+});
+
+test('UFO:点一下给一次上冲,松手会掉;上下限是 8 / -6.4', () => {
+  const w = new World(solo([floor60]));
+  w.mode = 'ufo'; w.y = 2 * U; w.onGround = false;
+  w.frame(true);
+  assert.ok(w.vy > 5, '点一下应该有明显上冲,vy=' + w.vy.toFixed(1));
+  let peak = w.y;
+  for (let i = 0; i < 30; i++) { w.frame(false); peak = Math.max(peak, w.y); }
+  assert.ok(peak > 2 * U + 20, '按完之后应该继续往上滑一段(峰值 ' + (peak / U).toFixed(2) + ' 块)');
+  assert.ok(w.vy < 0, '然后转为下坠(vy=' + w.vy.toFixed(2) + ')');
+  const w2 = new World(solo([floor60]));
+  w2.mode = 'ufo'; w2.y = 8 * U; w2.onGround = false;
+  for (let i = 0; i < 60; i++) w2.frame(false);
+  assert.ok(w2.vy >= P.flyDownMax - 1e-6, '下坠不该超过 ' + P.flyDownMax + '(实际 ' + w2.vy.toFixed(2) + ')');
+});
+
+test('波浪:按住就上、松开就下,而且永远是 45 度(垂直速度 = 水平速度)', () => {
+  const w = new World(solo([floor60]));
+  w.mode = 'wave'; w.y = 3 * U; w.onGround = false;
+  for (let i = 0; i < 4; i++) w.frame(true);
+  assert.ok(Math.abs(w.vy - w.vx) < 1e-6, '按住时 vy 应该正好等于 vx(45°),vy=' + w.vy.toFixed(3) + ' vx=' + w.vx.toFixed(3));
+  const yTop = w.y;
+  for (let i = 0; i < 6; i++) w.frame(false);
+  assert.ok(Math.abs(w.vy + w.vx) < 1e-6, '松开时 vy = −vx');
+  assert.ok(w.y < yTop, '松开应该往下走');
+});
+
+test('机器人:起跳只有方块的一半,但按住不放能"浮"一段(抵消自身重力)', () => {
+  const mk = () => { const w = new World(solo([floor60])); w.mode = 'robot'; return w; };
+  const tap = mk();
+  let peakTap = 0;
+  for (let i = 0; i < 60; i++) { tap.frame(i < 1); peakTap = Math.max(peakTap, tap.y); }
+  const hold = mk();
+  let peakHold = 0;
+  for (let i = 0; i < 60; i++) { hold.frame(true); peakHold = Math.max(peakHold, hold.y); }
+  assert.ok(peakTap / U > 0.4 && peakTap / U < 0.85, '机器人轻点峰值约 0.5~0.8 块(实测 ' + (peakTap / U).toFixed(2) + ')');
+  assert.ok(peakHold > peakTap * 1.6, '按住应该浮得更高(轻点 ' + (peakTap / U).toFixed(2) + ' 块 → 按住 ' + (peakHold / U).toFixed(2) + ' 块)');
+});
+
+test('蜘蛛:点一下传到对面(地板 ↔ 天花板),并翻重力', () => {
+  const w = new World(solo([floor60, { kind: 'platform', b: 0, r: 6, w: 60, h: 1 }]));
+  w.mode = 'spider';
+  for (let i = 0; i < 10; i++) w.frame(false);
+  w.frame(true);
+  assert.equal(w.gdir, -1, '蜘蛛点一下应该翻重力');
+  assert.ok(w.y / U > 4, '应该被传到上面那层(y=' + (w.y / U).toFixed(2) + ' 块)');
+  w.frame(false);
+  w.frame(true);
+  assert.equal(w.gdir, 1, '再点一下应该翻回来');
+  assert.ok(w.y / U < 1, '应该回到地面上(y=' + (w.y / U).toFixed(2) + ' 块)');
+});
+
 /* ---------------- ④ 自动铺面 ---------------- */
 test('自动铺面:两次"出手"之间留够落地的余量(不会生成必死关)', () => {
   for (const seed of [1, 7, 20260913, 424242]) {

@@ -20,7 +20,7 @@ import {
 } from './constants.ts';
 import { LOST_BEATS, type BeatData } from './beats.ts';
 
-export type Mode = 'cube' | 'ship';
+export type Mode = 'cube' | 'ship' | 'ball' | 'ufo' | 'wave' | 'robot' | 'spider';
 export type ObjKind =
   | 'block'      // 实心方块:踩上面能站,撞侧面死
   | 'spike'      // 尖刺:碰到就死
