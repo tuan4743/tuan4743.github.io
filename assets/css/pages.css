@@ -285,8 +285,7 @@
      · 太阳:核心 + 光晕 + 缓慢自转的日冕
      · 五类星体的"皮":类地 / 炎热岩石 / 气态(带环)/ 黑洞
      · HUD 卡片 + 连线:只在磁吸锁定某颗星体时才出现
-   可调项:--pad(卡片离边框最小距离)、--cam-x/y(视差,JS 写)、--sun-r(太阳半径,JS 写)
-   ============================================================ */
+   可调项:--pad(卡片离边框最小距离)、--cam-x/y(视差,JS 写)、   ============================================================ */
 .solar {
     --pad: clamp(16px, 2.4vw, 34px);
     --cam-x: 0;
@@ -388,12 +387,13 @@
 }
 
 /* ---------- 太阳 ---------- */
+/* 尺寸:宽度由 JS 写进 --sun-w,高度用 aspect-ratio 保持正方形。
+   ★ 之前这里用的是 --sun-r(150px 的旧变量),把外框压成 300px 高、
+     而贴图是 374 见方 → 图比框高、视觉中心偏下,看着就像贴图没生效 */
 .solar-sun {
     position: absolute;
     left: 0;
     top: 0;
-    /* ★ 宽度用 JS 写的 --sun-w;高度交给 aspect-ratio —— 之前用的是已废弃的
-       --sun-r(150px),把外框压成 300px 高、贴图却 374,视觉中心偏下 37px */
     width: var(--sun-w, 220px);
     aspect-ratio: 1;
     transform: translate(-50%, -50%);
@@ -405,10 +405,9 @@
         0 0 60px rgba(255, 186, 90, 0.55),
         0 0 160px rgba(255, 150, 60, 0.32),
         0 0 300px rgba(255, 130, 40, 0.18);
-    filter: none;
-    /* 光晕最外圈:缓慢呼吸 */
     animation: solar-sun 7s ease-in-out infinite;
 }
+
 
 @keyframes solar-sun {
 
@@ -437,32 +436,11 @@
     }
 }
 
-.solar-sun-label {
-    position: absolute;
-    left: 0;
-    top: calc(var(--sun-r) + 18px);
-    transform: translateX(-50%);
-    text-align: center;
-    white-space: nowrap;
-    pointer-events: none;
-}
 
-.solar-sun-label b {
-    display: block;
-    font-size: clamp(0.9rem, 1.05vw, 1.15rem);
-    letter-spacing: 0.22em;
-    color: #ffe6b8;
-}
 
-.solar-sun-label i {
-    display: block;
-    margin-top: 3px;
-    font-style: normal;
-    font-family: "Alpha Sector", ui-monospace, Consolas, monospace;
-    font-size: 0.68rem;
-    letter-spacing: 0.3em;
-    color: rgba(255, 226, 180, 0.55);
-}
+
+
+
 
 /* ---------- 星体本体 ---------- */
 .solar-planet {
@@ -733,23 +711,11 @@
     display: none;
 }
 
-.solar.is-narrow .solar-sun-label {
-    position: relative;
-    left: auto;
-    top: auto;
-    transform: none;
-    text-align: left;
-    padding-top: 4px;
-}
 
-.solar.is-narrow .solar-sun-label b,
-.solar.is-narrow .solar-sun-label i {
-    display: inline-block;
-}
 
-.solar.is-narrow .solar-sun-label i {
-    margin-left: 8px;
-}
+
+
+
 
 .solar.is-narrow .solar-planet {
     position: relative;
