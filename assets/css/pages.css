@@ -1578,85 +1578,6 @@
     opacity: 0.7;
 }
 
-/* ---------- 终点 ---------- */
-.lost-end {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    width: min(620px, 76%);
-    transform: translate(-50%, -46%);
-    padding: 18px 22px 20px;
-    border: 1px solid var(--intro-border);
-    border-left: 2px solid color-mix(in srgb, var(--intro-accent) 70%, transparent);
-    border-radius: 4px;
-    background: color-mix(in srgb, var(--theme, #06080f) 86%, transparent);
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
-    text-align: left;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.6s ease, transform 0.6s ease;
-}
-
-.lost-end.is-on {
-    opacity: 1;
-    transform: translate(-50%, -50%);
-}
-
-.lost-end-title {
-    display: block;
-    font-size: 0.7rem;
-    letter-spacing: 0.34em;
-    color: var(--intro-accent);
-}
-
-.lost-end-tx {
-    display: block;
-    margin: 8px 0 10px;
-    font-family: inherit;
-    font-size: clamp(0.86rem, 1.1vw, 1.05rem);
-    line-height: 1.9;
-    color: #e6f6ff;
-}
-
-.lost-end-restart {
-    font-style: normal;
-    font-size: 0.66rem;
-    letter-spacing: 0.2em;
-    color: var(--intro-dim);
-}
-
-/* ---------- 窄屏:换成触摸键,能力栏只留名字 ---------- */
-@media (max-width: 780px) {
-    .lost-hint {
-        display: none;
-    }
-
-    .lost-touch {
-        display: flex;
-    }
-
-    .lost-say {
-        width: 86%;
-        font-size: 0.8rem;
-    }
-
-    .lost-skill {
-        grid-template-columns: 40px 42px 56px 1fr;
-        width: 76vw;
-    }
-
-    .lost-skill-key {
-        display: none;
-    }
-
-    .lost-skill-tx {
-        display: none;
-    }
-
-    .lost-skills {
-        bottom: calc(var(--pad) + 52px);
-    }
-}
 /* ---------- CD 架打开 = 屏幕黑屏:内容页整页隐藏 ----------
    ★ 太阳的 <video> 带 mix-blend-mode,会被提升成独立合成层,
      在个别浏览器上能盖到黑屏之上(层级关系没错,是合成层的锅)。
@@ -1664,146 +1585,93 @@
 body.scene-open .intro-panel.is-page {
     visibility: hidden;
 }
-/* ---------- 开始菜单 / 死亡菜单(默认都藏着,靠 .lost.is-menu/.is-dead 显示)---------- */
-.lost-menu,
-.lost-dead {
-    position: absolute;
-    inset: 0;
-    z-index: 20;
-    display: none;
+
+/* ---------- 第三张盘:施工中卡片(旧游戏已归档到 tag lost-from-scratch)---------- */
+.lost.is-wip {
+    display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 14px;
+    gap: 18px;
     text-align: center;
-    background: radial-gradient(120% 90% at 50% 45%, rgba(6, 10, 18, 0.72), rgba(3, 5, 10, 0.93));
-    backdrop-filter: none;
 }
 
-.lost.is-menu .lost-menu,
-.lost.is-dead .lost-dead {
-    display: flex;
-}
-
-.lost-menu__title {
-    font-size: clamp(1.1rem, 1.6vw, 1.5rem);
-    letter-spacing: 0.34em;
-    color: var(--intro-accent);
-}
-
-.lost-menu__sub {
-    font-size: 0.72rem;
-    letter-spacing: 0.2em;
-    color: var(--intro-dim);
-}
-
-.lost-menu__segs {
-    display: grid;
-    gap: 5px;
-    margin: 6px 0 2px;
-    padding: 0;
-    list-style: none;
-    font-size: 0.7rem;
-}
-
-.lost-menu__segs li {
-    display: grid;
-    grid-template-columns: 54px 92px 96px;
-    gap: 10px;
-    padding: 4px 12px;
-    border: 1px solid var(--intro-border);
-    border-left: 2px solid color-mix(in srgb, var(--intro-accent) 70%, transparent);
-    border-radius: 3px;
-    background: color-mix(in srgb, var(--theme) 74%, transparent);
+.lost-wip {
+    flex: 0 0 auto;
+    width: auto;
+    max-width: min(680px, 92%);
+    padding: 18px 22px 16px;
+    border: 1px solid color-mix(in srgb, var(--intro-accent) 26%, transparent);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--intro-accent) 6%, transparent);
     text-align: left;
 }
 
-.lost-menu__segs b {
-    color: #ffffff;
-    letter-spacing: 0.2em;
-}
-
-.lost-menu__segs span {
+.lost-wip__title {
+    display: block;
+    font-size: 0.86rem;
+    letter-spacing: 0.24em;
     color: var(--intro-accent);
+    margin-bottom: 10px;
 }
 
-.lost-menu__segs i {
-    font-style: normal;
-    color: var(--intro-dim);
+.lost-wip__lead {
+    margin: 0 0 10px;
+    font-size: 0.72rem;
+    line-height: 1.9;
+    color: color-mix(in srgb, var(--intro-accent) 62%, transparent);
 }
 
-.lost-menu__btns,
-.lost-dead__btns {
-    display: flex;
-    gap: 10px;
-    margin-top: 4px;
-}
-
-.lost-btn--start {
-    min-width: 130px;
-    height: 48px;
-    font-size: 0.95rem;
-    letter-spacing: 0.34em;
-}
-
-/* 自动播放按钮按下去是"开着"的状态 */
-.lost-btn.is-on {
-    background: color-mix(in srgb, var(--intro-accent) 30%, transparent);
+.lost-wip__lead code {
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--intro-accent) 12%, transparent);
     color: #ffffff;
-    border-color: var(--intro-accent);
 }
 
-.lost-menu__hint {
-    font-size: 0.64rem;
-    letter-spacing: 0.14em;
-    color: color-mix(in srgb, var(--intro-accent) 55%, transparent);
+.lost-wip__list {
+    margin: 0;
+    padding: 0 0 0 2px;
+    list-style: none;
+    display: grid;
+    gap: 7px;
 }
 
-/* 开始菜单里的说明:这一版手搓到这里为止,后续用开源项目 OpenGD 重做
-   (★ 别用 ch 单位:这个面板的字号是 rem 系的,ch 在某些字体加载状态下算出来是 0,
-      整段会被压成一列一个字 —— 实测踩过) */
-.lost-menu__note {
-    flex: 0 0 auto;
-    width: auto;
-    max-width: min(620px, 90%);
-    margin: 6px 0 0;
-    font-size: 0.66rem;
+.lost-wip__list li {
+    font-size: 0.7rem;
     line-height: 1.85;
-    letter-spacing: 0.06em;
-    text-align: center;
-    color: color-mix(in srgb, var(--intro-accent) 45%, transparent);
-    border-top: 1px solid color-mix(in srgb, var(--intro-accent) 18%, transparent);
-    padding-top: 10px;
+    color: color-mix(in srgb, var(--intro-accent) 52%, transparent);
 }
 
-.lost-menu__note b {
-    font-weight: 600;
-    color: color-mix(in srgb, var(--intro-accent) 80%, #ffffff);
-}
-
-.lost-menu__repo {
+.lost-wip__list b {
     display: inline-block;
-    margin-top: 2px;
-    font-size: 0.68rem;
-    letter-spacing: 0.08em;
+    min-width: 3.2em;
+    margin-right: 6px;
+    font-weight: 600;
+    color: color-mix(in srgb, var(--intro-accent) 88%, #ffffff);
+}
+
+.lost-wip__list em {
+    font-style: normal;
+    color: color-mix(in srgb, var(--intro-accent) 78%, #ffffff);
+}
+
+.lost-wip__ref {
+    margin: 12px 0 0;
+    padding-top: 10px;
+    font-size: 0.66rem;
+    line-height: 1.9;
+    color: color-mix(in srgb, var(--intro-accent) 45%, transparent);
+    border-top: 1px solid color-mix(in srgb, var(--intro-accent) 16%, transparent);
+}
+
+.lost-wip__ref a {
     color: var(--intro-accent);
     text-decoration: none;
     border-bottom: 1px solid color-mix(in srgb, var(--intro-accent) 45%, transparent);
 }
 
-.lost-menu__repo:hover {
+.lost-wip__ref a:hover {
     color: #ffffff;
     border-bottom-color: #ffffff;
-}
-
-.lost-dead__title {
-    font-size: 1.05rem;
-    letter-spacing: 0.3em;
-    color: #ff9a8c;
-}
-
-.lost-dead__at {
-    font-size: 0.72rem;
-    letter-spacing: 0.12em;
-    color: var(--intro-dim);
 }

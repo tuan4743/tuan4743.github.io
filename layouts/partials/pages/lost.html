@@ -1,94 +1,50 @@
-{{/* 第三张盘「迷茫」的主页内容:几何冲刺式音乐关卡
-     数据:static/assets/cd/lost-chart.json(铺面)+ lost-beats.json(采音)
-           hugo.toml [params.intro.lost](文案)+ [[params.intro.decks.lost]](四段的字)
-     逻辑:assets/js/page-lost.js;铺面编辑器:?chart 或 Alt+E(assets/js/lost-editor.js)
-     玩法:自动向右跑 + 按拍点击(跳/翻转重力/触发跳点),死亡把音乐倒回几拍重来;
-           四段四种变形 —— 复盘·回响方块 / 求助·飞机 / 呼吸·护盾形态 / 继续·重力箭头
-     旁白:第三人称「他」,每段一句(和上一版一样保留)*/}}
+{{/* 第三张盘「迷茫」
+     旧的自研关卡已归档(仓库 tag:lost-from-scratch),现在按新方案重做:
+       · 玩法:复刻几何冲刺的骨架(跑 / 跳 / 形态 / 速度门 / 重力门 / 存档点)
+       · 视觉:沿用本站的显示器 + holo 科技风(不使用原作美术 —— 那是 RobTop 的版权物)
+       · 关卡:按段落与形态【自动铺面】生成;不追求采音(原作本身也没有严格的采音标准)
+       · 技术:Phaser 4 渲染 + 纯 TypeScript 定点模拟核心(可回放测试,首包目标 < 400 KB)
+     参考:OpenGD(关卡格式与数据结构)、camila314/gdp(GD 物理反编译)
+     文案:hugo.toml [params.intro.lost] 与 [[params.intro.decks.lost]](四段的字)*/}}
 {{- $cfg := site.Params.intro.lost | default dict -}}
-<div class="lost" data-lost="{{ .key }}"
-    data-chart="{{ $cfg.chart | default "/assets/cd/lost-chart.json" }}"
-    data-intro="{{ $cfg.intro | default "" }}" data-ending="{{ $cfg.ending | default "" }}"
-    data-goal="{{ $cfg.goal | default "终点" }}" data-restart="{{ $cfg.restart | default "按 R 再来一次" }}">
+<div class="lost is-wip" data-lost="{{ .key }}">
     <div class="lost-stage">
         <canvas class="lost-cv" aria-hidden="true"></canvas>
         <div class="lost-veil" aria-hidden="true"></div>
     </div>
 
-    <div class="lost-top">
-        <span class="lost-code">{{ $cfg.code | default "LV-01" }}</span>
-        <span class="lost-clock">0:00.0</span>
-        <span class="lost-tries">尝试 <b class="lost-deaths">00</b></span>
-    </div>
+    <div class="lost-say" aria-live="polite"><span class="lost-say-tx">{{ $cfg.wip | default "第三张盘正在重做。" }}</span></div>
 
-    {{/* 拍点指示:四个点,跟着 1/4 拍闪 —— 不看波形也知道自己在哪一拍 */}}
-    <div class="lost-beat" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-
-    <div class="lost-say" aria-live="polite"><span class="lost-say-tx">{{ $cfg.intro | default "" }}</span></div>
-
-    {{/* 四段:没走到的显示 ???(和上一版一样,算是这一页的进度条)*/}}
+    {{/* 四段能力:新引擎会按这四条来铺面 */}}
     <ul class="lost-skills">
         {{- range $i, $s := .items }}
-        <li class="lost-skill is-locked" data-skill="{{ $s.ability }}" data-theme="{{ $s.theme }}"
+        <li class="lost-skill" data-skill="{{ $s.ability }}" data-theme="{{ $s.theme }}"
             data-form="{{ $s.title }}" data-key="{{ $s.key }}" data-line="{{ $s.line }}">
             <span class="lost-skill-code">{{ $s.code }}</span>
             <span class="lost-skill-theme">{{ $s.theme }}</span>
             <span class="lost-skill-name">{{ $s.title }}</span>
-            <span class="lost-skill-unknown" aria-hidden="true">???</span>
             <span class="lost-skill-key">{{ $s.key }}</span>
             <span class="lost-skill-tx">{{ $s.text }}</span>
         </li>
         {{- end }}
     </ul>
 
-    <div class="lost-state" aria-hidden="true"><b class="lost-state-mode">方块</b><span class="lost-state-tx">按拍点击</span></div>
-
-    <div class="lost-hint">TAP 跳 · S 护盾 · R 重来 · Alt+E 铺面编辑器</div>
-
-    {{/* 窄屏:一个大 TAP 区 + 盾 */}}
-    <div class="lost-touch" role="group" aria-label="操作">
-        <button type="button" class="lost-btn lost-btn--tap" data-k="jump" aria-label="点击">TAP</button>
-        <button type="button" class="lost-btn" data-k="shield" aria-label="护盾">盾</button>
-        <button type="button" class="lost-btn lost-btn--ghost" data-k="restart" aria-label="重来">↻</button>
-    </div>
-
-    {{/* 开始菜单:不点「开始」什么都不跑 —— 插入 CD 的时候还在播开机动画,
-         更不该已经开始跳了(用户报的 bug)*/}}
-    <div class="lost-menu">
-        <b class="lost-menu__title">{{ $cfg.code | default "LV-01" }}</b>
-        <span class="lost-menu__sub">几何冲刺式音乐关卡 · 172 BPM · 按拍点击</span>
-        <ol class="lost-menu__segs">
-            {{- range $s := .items }}
-            <li><b>{{ $s.theme }}</b><span>{{ $s.title }}</span><i>{{ $s.key }}</i></li>
-            {{- end }}
-        </ol>
-        <div class="lost-menu__btns">
-            <button type="button" class="lost-btn lost-btn--start" data-act="start">开 始</button>
-            <button type="button" class="lost-btn" data-act="auto" data-where="menu">自动播放</button>
-        </div>
-        <span class="lost-menu__hint">TAP / 空格 = 跳 · S = 护盾 · R = 重来 · Alt+E = 铺面编辑器</span>
-        {{/* 这一版是从零手搓的实验,到此为止;后续改用开源项目 OpenGD 重做 —— 在开始菜单里说清楚并给出仓库链接 */}}
-        <p class="lost-menu__note">
-            这一版是从零手搓的实验:采音只踩个大概,机制也只还原了一小部分 ——
-            继续往上加东西,修 bug 的成本只会越来越高。所以到此为止,换一条路:
-            用开源项目 <b>OpenGD</b>(基于 cocos2d-x 4.0 的 Geometry Dash 开源实现)重做。
-            <a class="lost-menu__repo" href="https://github.com/Open-GD/OpenGD" target="_blank" rel="noopener noreferrer">仓库:github.com/Open-GD/OpenGD ↗</a>
+    <div class="lost-wip">
+        <b class="lost-wip__title">施工中 · 第三张盘</b>
+        <p class="lost-wip__lead">旧的自研关卡已归档(仓库 tag <code>lost-from-scratch</code>,随时能翻回来)。现在按新方案重做:</p>
+        <ul class="lost-wip__list">
+            <li><b>玩法</b>复刻几何冲刺的骨架:跑、跳、多段形态、速度门、重力门、存档点</li>
+            <li><b>视觉</b>沿用本站的显示器 / holo 科技风,<em>不用原作美术</em>(那是 RobTop 的版权物)</li>
+            <li><b>关卡</b>按段落与形态<em>自动铺面</em>生成 —— 不追求采音,原作本身也没有严格的采音标准</li>
+            <li><b>技术</b>Phaser 4 渲染 + 纯 TypeScript 定点模拟核心(可录回放测试;首包目标 &lt; 400 KB)</li>
+        </ul>
+        <p class="lost-wip__ref">参考:
+            <a href="https://github.com/Open-GD/OpenGD" target="_blank" rel="noopener noreferrer">OpenGD</a>(关卡格式与数据结构)、
+            <a href="https://github.com/camila314/gdp" target="_blank" rel="noopener noreferrer">camila314/gdp</a>(GD 物理函数反编译)。
+            想玩原作的话,RobTop 官方已经出了网页版(也是用 Phaser 做的):
+            <a href="https://geometrydash.com/game" target="_blank" rel="noopener noreferrer">geometrydash.com/game</a>
         </p>
     </div>
 
-    {{/* 死亡菜单:不自动复活,让玩家选(继续 / 自动播放 / 退出)*/}}
-    <div class="lost-dead">
-        <b class="lost-dead__title">又摔了</b>
-        <span class="lost-dead__at"></span>
-        <div class="lost-dead__btns">
-            <button type="button" class="lost-btn" data-act="resume">继续</button>
-            <button type="button" class="lost-btn" data-act="auto" data-where="dead">自动播放</button>
-            <button type="button" class="lost-btn lost-btn--ghost" data-act="quit">退出</button>
-        </div>
-    </div>
-    <div class="lost-end" aria-hidden="true">
-        <b class="lost-end-title">{{ $cfg.goal | default "终点" }}</b>
-        <span class="lost-end-tx">{{ $cfg.ending | default "" }}</span>
-        <em class="lost-end-restart">{{ $cfg.restart | default "按 R 再来一次" }}</em>
-    </div>
+    <div class="lost-hint">桌面端专用 · 手机端会单独给一个"请用 PC 打开"的提示页</div>
 </div>
