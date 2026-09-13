@@ -39,6 +39,10 @@ function segOf(x: number): string {
   return sg ? (sg.label || sg.mode) : '';
 }
 
+/** 界面阶段。★ 以前"任何按键/点击"都会开跑,于是面板一加载、加载动画还在放,游戏就开始了 ——
+ *  现在只有"明确的确认键(空格/上/W)或点画布"才开始,死亡/通关也会停下来等人。 */
+type Phase = 'idle' | 'running' | 'dead' | 'done';
+
 class Scene extends Phaser.Scene {
   world = new World(LEVEL);
   g!: Phaser.GameObjects.Graphics;
@@ -49,7 +53,7 @@ class Scene extends Phaser.Scene {
   fixed = false;
   camX = 0;
   audio: HTMLAudioElement | null = null;
-  started = false;                  // 起跑闸门:第一次按键/点击才开跑
+  started = false;                  // 起跑闸门:按了确认键才开跑
   audioErr = '';                    // play() 失败的原因(验收要看)
   botStates: RunState[] = [];
   fp = '';
@@ -58,16 +62,28 @@ class Scene extends Phaser.Scene {
   baseTick = 0;                     // 这一条命的起点在音乐时间轴上的帧号(复活时跟着存档点走)
   airT = 0;                         // 空中停留了多久(给方块自转用)
   labels: Phaser.GameObjects.Text[] = [];
+  phase: Phase = 'idle';
+  deathT = 0;                       // 死亡后过了多久(先停一拍再出菜单)
+  clicked = false;                  // 画布上被点过一下
+  private prevHeld = false;         // 上一帧有没有按着确认键(用来算"按下"的边沿)
+  private prevR = false;
+  private restartPressed = false;
+  private confirmLatch = false;     // 真实的 keydown 事件(比"每帧查 isDown"可靠:极短的一下也收得到)
+  private restartLatch = false;
+  uiTitle!: Phaser.GameObjects.Text;
+  uiHint!: Phaser.GameObjects.Text;
 
-  /** 第一次交互:开跑(音乐和模拟同时从 0 开始 —— 铺面贴着音乐,不能有"准备时间") */
+  /** 第一次确认:开跑(音乐和模拟同时从 0 开始 —— 铺面贴着音乐,不能有"准备时间") */
   startRun() {
-    if (this.started) return;
+    if (this.phase !== 'idle') return;
+    this.phase = 'running';
     this.started = true;
     this.world = new World(LEVEL);
     this.baseTick = 0;
     this.prevY = 0;
     this.acc = 0;
     this.airT = 0;
+    this.deathT = 0;
     if (!this.audio) {
       const a = document.createElement('audio');
       a.src = LEVEL.song;
@@ -75,7 +91,41 @@ class Scene extends Phaser.Scene {
       a.volume = 0.85;
       this.audio = a;
     }
-    this.audio.play().catch((e) => { this.audioErr = String((e && e.message) || e); });   // 失败原因留着,别静默吞
+    this.playMusicAt(0);
+  }
+
+  private playMusicAt(t: number) {
+    const a = this.audio;
+    if (!a) return;
+    try { a.currentTime = t; } catch { /* seek 失败就从头放 */ }
+    a.play().catch((e) => { this.audioErr = String((e && e.message) || e); });   // 失败原因留着,别静默吞
+  }
+
+  private pauseMusic() { if (this.audio && !this.audio.paused) this.audio.pause(); }
+
+  /** 从存档点重来(死亡界面按确认) */
+  retry() {
+    const w = this.world;
+    w.respawn();
+    this.baseTick = Math.floor(tOfX(LEVEL, w.checkX) * 60);
+    this.airT = 0;
+    this.acc = 0;
+    this.deathT = 0;
+    this.prevY = w.y;
+    this.phase = 'running';
+    this.playMusicAt(tOfX(LEVEL, w.checkX));
+  }
+
+  /** 从头来(R 键,死亡界面与通关界面都能用) */
+  restartFromZero() {
+    this.world.reset(0, 'cube');
+    this.baseTick = 0;
+    this.airT = 0;
+    this.acc = 0;
+    this.deathT = 0;
+    this.prevY = 0;
+    this.phase = 'running';
+    this.playMusicAt(0);
   }
 
   create() {
@@ -83,10 +133,16 @@ class Scene extends Phaser.Scene {
     this.keys = this.input.keyboard!.addKeys('SPACE,UP,W,R') as Record<string, Phaser.Input.Keyboard.Key>;
     this.cameras.main.setBackgroundColor('#05070d');
     this.cameras.main.setZoom(this.zoomOf());
-    const el = document.getElementById('gd-hud');
-    if (el) el.addEventListener('click', () => { this.started = true; });
-    window.addEventListener('keydown', () => this.startRun(), { once: true });
-    window.addEventListener('pointerdown', () => this.startRun(), { once: true });
+    /* ★ 只在【画布上】点才算确认 —— 以前监听 window,点导航、点 CD 面板都会顺手把游戏开起来 */
+    this.input.on('pointerdown', () => { this.clicked = true; });
+    /* 空格 / 上 / W 才算"确认",其它按键一概不理(以前任何按键都会开跑) */
+    window.addEventListener('keydown', (ev: KeyboardEvent) => {
+      if (ev.code === 'Space' || ev.code === 'ArrowUp' || ev.code === 'KeyW') this.confirmLatch = true;
+      if (ev.code === 'KeyR') this.restartLatch = true;
+    });
+    const ui = { fontFamily: 'ui-monospace, Consolas, monospace', align: 'center' as const };
+    this.uiTitle = this.add.text(0, 0, '', { ...ui, fontSize: '44px', color: '#e2f6ff' }).setOrigin(0.5).setDepth(20).setVisible(false);
+    this.uiHint = this.add.text(0, 0, '', { ...ui, fontSize: '24px', color: HL }).setOrigin(0.5).setDepth(20).setVisible(false);
     /* 段落名做成场上的水印(以前只画了个空框,字根本没出来) */
     for (const sg of LEVEL.segments) {
       if (!sg.label) continue;
@@ -99,6 +155,24 @@ class Scene extends Phaser.Scene {
     }
   }
 
+  /** 这一帧有没有"确认"输入(空格 / 上 / W / 在画布上点一下)。
+   *  ★ 用"自己记上一帧"的边沿判定,不用 Phaser.Input.Keyboard.JustDown ——
+   *    实测在这个页面里 JustDown 收不到(按键的 isDown 是好的),于是按空格开不了局。 */
+  private confirmDown(): boolean {
+    const k = this.keys;
+    const held = !!(k.SPACE?.isDown || k.UP?.isDown || k.W?.isDown);
+    const edge = held && !this.prevHeld;
+    const rEdge = (!!k.R?.isDown && !this.prevR) || this.restartLatch;
+    this.prevHeld = held;
+    this.prevR = !!k.R?.isDown;
+    this.restartPressed = rEdge;
+    this.restartLatch = false;
+    if (this.confirmLatch) { this.confirmLatch = false; this.clicked = false; return true; }
+    if (edge) { this.clicked = false; return true; }
+    if (this.clicked) { this.clicked = false; return true; }
+    return false;
+  }
+
   /** 可见宽度 = VIEW_W_BLOCKS 块 */
   zoomOf() {
     return 1280 / (VIEW_W_BLOCKS * U);
@@ -108,19 +182,22 @@ class Scene extends Phaser.Scene {
   pump(n: number) {
     for (let i = 0; i < n; i++) {
       const w0 = this.world;
-      if (w0.dead && (this.botMode || w0.deadT >= P.deadPause)) {
-        const wasX = w0.checkX;
-        w0.respawn();
-        /* ★ 复活要跟着存档点走:音乐 seek 到那个位置,后面每一拍才对得上 */
-        this.baseTick = Math.floor(tOfX(LEVEL, wasX) * 60);
-        this.airT = 0;
-        if (!this.botMode && this.audio && !this.audio.paused) {
-          try { this.audio.currentTime = tOfX(LEVEL, wasX); } catch { /* seek 失败就继续放 */ }
+      if (w0.dead) {
+        if (this.botMode) {
+          /* 机器人验收:立刻复活,和 Node 侧一致 */
+          const wasX = w0.checkX;
+          w0.respawn();
+          this.baseTick = Math.floor(tOfX(LEVEL, wasX) * 60);
+          this.airT = 0;
+        } else {
+          this.phase = 'dead';                  // 真人:停下来出死亡界面,不再自动复活
+          this.deathT = 0;
+          this.pauseMusic();
+          return;
         }
       }
       const hold = this.botMode ? botThink(w0)
         : !!(this.keys.SPACE?.isDown || this.keys.UP?.isDown || this.keys.W?.isDown);
-      if (this.keys.R?.isDown) { w0.reset(0, 'cube'); this.baseTick = 0; }
       if (this.botMode && !this.botStarted) {       // 开机器人 = 从干净的一局开始,方便和 Node 侧对指纹
         this.botStarted = true;
         this.started = true;
@@ -133,20 +210,47 @@ class Scene extends Phaser.Scene {
         continue;
       }
       this.prevY = w0.y;
-      const wasGround = w0.onGround;
       w0.frame(hold);
-      this.airT = w0.onGround ? 0 : (wasGround ? 0 : this.airT + 1 / 60);
+      this.airT = w0.onGround ? 0 : this.airT + 1 / 60;
       if (this.botMode) {
         this.botStates.push(w0.state);
         if (w0.done && !this.fp) this.fp = fingerprint(this.botStates);
       }
-      if (w0.done) break;
+      if (w0.done) {
+        if (!this.botMode) { this.phase = 'done'; this.pauseMusic(); }
+        break;
+      }
     }
   }
 
   update(_t: number, dtMs: number) {
     this.expose();
-    if (!this.started) { this.draw(); return; }        // 没开跑:画面停在起点,音乐也不响
+    this.fps = this.game.loop.actualFps;
+    this.paintHud();
+    /* 确认键每帧只读一次(边沿判定要按帧消费) */
+    const confirm = this.confirmDown();
+    const restart = this.restartPressed;
+    if (this.botMode && this.phase !== 'running') { this.phase = 'running'; this.started = true; }
+
+    if (this.phase === 'idle') {
+      if (confirm) this.startRun();
+      this.followCamera(); this.draw(); this.paintUi(); return;
+    }
+    if (this.phase === 'dead') {
+      this.deathT += dtMs / 1000;
+      /* 停半拍再收输入,免得"死亡瞬间还按着的手"直接把菜单点掉 */
+      if (this.deathT > 0.35) {
+        if (restart) this.restartFromZero();
+        else if (confirm) this.retry();
+      }
+      this.followCamera(); this.draw(); this.paintUi(); return;
+    }
+    if (this.phase === 'done') {
+      this.deathT += dtMs / 1000;
+      if (restart || (this.deathT > 0.5 && confirm)) this.restartFromZero();
+      this.followCamera(); this.draw(); this.paintUi(); return;
+    }
+
     if (this.botMode) {
       this.pump(8);                                    // 机器人验收:加速跑完(物理仍是定点步长)
     } else {
@@ -164,29 +268,65 @@ class Scene extends Phaser.Scene {
         while (this.acc >= step && n < 5) { this.acc -= step; this.pump(1); n++; }
       }
     }
+    if (this.phase !== 'running') { this.followCamera(); this.draw(); this.paintUi(); return; }   // pump 里可能刚死/刚通关
+    this.followCamera();
+    this.draw();
+    this.paintUi();
+    this.expose();
+  }
+
+  /** HUD(DOM 里那条):每帧都刷 —— 以前只在"跑着"的分支里刷,死亡界面上的 HUD 是残留的旧值 */
+  private paintHud() {
+    const hud = document.getElementById('gd-hud');
+    if (!hud) return;
     const w = this.world;
-    /* 取景交给相机 API:横向让玩家落在左侧 22% 处,纵向固定居中于场地 */
+    const parts = [
+      w.mode === 'ship' ? '飞机' : '方块',
+      segOf(w.x) || '',
+      Math.round(w.progress * 100) + '%',
+      '尝试 ' + String(w.attempts).padStart(2, '0'),
+    ];
+    if (this.phase === 'dead') parts.push('摔了');
+    if (this.phase === 'idle') parts.push('按空格开始');
+    if (this.phase === 'done') parts.push('通关');
+    if (w.mode === 'ship') parts.push('按住 = 上升');
+    parts.push(Math.round(this.fps) + ' fps');
+    parts.push(this.audio && !this.audio.paused ? '♪ ' + this.audio.currentTime.toFixed(1) + 's' : '暂停');
+    hud.textContent = parts.filter(Boolean).join(' · ');
+    hud.classList.toggle('is-dead', this.phase === 'dead');
+  }
+
+  /** 取景:横向让玩家落在左侧 22% 处,纵向固定居中于场地(所有阶段都要跑,否则开场画面还停在左上角) */
+  private followCamera() {
     const cam = this.cameras.main;
     const vw = cam.width / cam.zoom;
-    this.camX = Math.max(vw / 2, w.x + vw * 0.22);
+    this.camX = Math.max(vw / 2, this.world.x + vw * 0.22);
     cam.centerOn(this.camX, ROWS * U / 2);
-    this.fps = this.game.loop.actualFps;
-    this.draw();
-    const hud = document.getElementById('gd-hud');
-    if (hud) {
-      const parts = [
-        w.mode === 'ship' ? '飞机' : '方块',
-        segOf(w.x) || '',
-        Math.round(w.progress * 100) + '%',
-        '尝试 ' + String(w.attempts).padStart(2, '0'),
-      ];
-      if (w.dead) parts.push('摔了 · 从存档点重来');
-      parts.push(Math.round(this.fps) + ' fps');
-      parts.push(this.audio && !this.audio.paused ? '♪ ' + this.audio.currentTime.toFixed(1) + 's' : '按一下开始');
-      hud.textContent = parts.filter(Boolean).join(' · ');
-      hud.classList.toggle('is-dead', w.dead);
+  }
+
+  /** 三个界面(开场 / 死亡 / 通关)的文字:位置跟着相机取景走 */
+  private paintUi() {
+    const cam = this.cameras.main;
+    const vw = cam.width / cam.zoom;
+    const ux = Math.max(vw / 2, this.camX);
+    const uy = ROWS * U / 2;
+    const w = this.world;
+    const show = this.phase !== 'running';
+    this.uiTitle.setVisible(show);
+    this.uiHint.setVisible(show);
+    if (!show) return;
+    if (this.phase === 'idle') {
+      this.uiTitle.setText('第三张盘 · 迷茫');
+      this.uiHint.setText('按 空格 开始(也可以点一下画面)\n按住 = 连跳 · 弹簧碰到就弹、不用按 · 跳环要按一下 · R = 重来');
+    } else if (this.phase === 'dead') {
+      this.uiTitle.setText('摔了 · ' + Math.round(w.progress * 100) + '%');
+      this.uiHint.setText('空格 / 点一下 = 从上一处存档点(' + Math.round(tOfX(LEVEL, w.checkX) / tOfX(LEVEL, LEVEL.length) * 100) + '% 处)重来 · R = 从头开始');
+    } else {
+      this.uiTitle.setText('通关 · ' + Math.round(w.progress * 100) + '%');
+      this.uiHint.setText('你跑完了这一张盘 · 按 R 再来一遍');
     }
-    this.expose();
+    this.uiTitle.setPosition(ux, uy - 26);
+    this.uiHint.setPosition(ux, uy + 34);
   }
 
   /** 对外暴露给验收脚本(每帧刷新,验收随时读到的都是当前状态) */
@@ -195,6 +335,7 @@ class Scene extends Phaser.Scene {
       world: this.world, scene: this, level: LEVEL,
       audio: this.audio ? { t: this.audio.currentTime, paused: this.audio.paused, duration: this.audio.duration || 0, err: this.audioErr, src: this.audio.src } : null,
       started: this.started,
+      phase: this.phase,
     };
   }
 
@@ -404,6 +545,13 @@ class Scene extends Phaser.Scene {
     }
     // 死了就压一层暗红
     if (w.dead) g.fillStyle(0xff6b5a, 0.10).fillRect(x0, dy0, vw, dy1 - dy0);
+    /* 开场 / 死亡 / 通关界面:半透明面板(文字是 Text 对象,这里只画底板) */
+    if (this.phase !== 'running') {
+      const px = Math.max(vw / 2, this.camX), py = ROWS * U / 2;
+      g.fillStyle(0x03050a, 0.82).fillRect(px - 470, py - 120, 940, 240);
+      g.lineStyle(2, HLD, 0.55).strokeRect(px - 470, py - 120, 940, 240);
+      g.lineStyle(1, HLD, 0.25).strokeRect(px - 462, py - 112, 924, 224);
+    }
 
     // 段落水印跟着场地高度放
     for (const t of this.labels) t.setY(Y(7.5 * U));

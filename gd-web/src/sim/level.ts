@@ -430,10 +430,15 @@ export function generateLevel(opts: {
   }
   if (floorFrom < length) push(objects, { kind: 'platform', b: floorFrom, r: -1, w: length - floorFrom, h: 1 });
 
-  /* 存档点:每段一个,放在"附近 8 块内没有危险"的位置(不会一复活就撞死) */
+  /* 存档点:关卡最开头一个(死了不至于"直接跳到下一段"),之后【每 120 块】一个 ——
+     摔一次最多重跑 120 块(约 11 秒),而不是"一口气退回上一段"。
+     位置必须【就近】找:以前的 findSafeX 只会往后扫,第一个存档点被弹簧连挡着,
+     一路扫到 40 块开外 —— 玩家在开头摔了,复活点却在前方,体验就是"开局没有存档点"。 */
+  push(objects, { kind: 'check', b: findSafeX(objects, 2, 6), r: 0, w: 1, h: 1 });
   for (const sg of segments) {
-    const near = Math.min(sg.from + 20, sg.to - 10);
-    push(objects, { kind: 'check', b: findSafeX(objects, near, 8), r: 0, w: 1, h: 1 });
+    for (let b = sg.from + 14; b < sg.to - 12; b += 120) {
+      push(objects, { kind: 'check', b: findSafeX(objects, b, 6), r: 0, w: 1, h: 1 });
+    }
   }
 
   push(objects, { kind: 'deco', b: length - 8, r: 0, w: 1, h: 1, deco: 'light' });
@@ -450,13 +455,16 @@ export function generateLevel(opts: {
   };
 }
 
-/** 在 near 附近找一处"左右 margin 块内没有任何危险"的落点(给存档点用) */
+/** 在 near 附近找一处"左右 margin 块内没有任何危险"的落点(给存档点用)。
+ *  ★ 前后都扫,而且**先往后只扫一小段**:存档点必须落在它该在的地方附近,
+ *    否则"复活点跑到玩家前面去"比没有存档点还糟。 */
 export function findSafeX(objects: Obj[], near: number, margin: number): number {
   const bad = (x: number) => objects.some((o) =>
     (o.kind === 'spike' || o.kind === 'block' || o.kind === 'orb' || o.kind === 'pit' || o.kind === 'pad') &&
     x + margin > o.b && x - margin < o.b + o.w);
-  for (let d = 0; d < 40; d += 0.5) {
+  for (let d = 0; d <= 14; d += 0.5) {
     if (!bad(near + d)) return near + d;
+    if (d > 0 && !bad(near - d)) return near - d;
   }
   return near;
 }
