@@ -32,6 +32,7 @@ export class World {
   readonly checks: Box[] = [];
   readonly orbs: Box[] = [];        // 跳环:要玩家按(按住也算)才生效
   readonly pads: Box[] = [];        // 弹簧:碰到就生效,不用手
+  readonly forces: Box[] = [];      // 力场:人在里面就被推
   readonly pits: Box[] = [];        // 坑(纯标记,给机器人判"脚下有没有地板"用)
   readonly decos: Obj[] = [];
 
@@ -83,6 +84,7 @@ export class World {
         case 'check': this.checks.push(b); break;
         case 'orb': this.orbs.push(b); break;
         case 'pad': this.pads.push(b); break;
+        case 'force': this.forces.push(b); break;
         case 'pit': this.pits.push(b); break;
         case 'deco': this.decos.push(o); break;
       }
@@ -249,6 +251,19 @@ export class World {
       const inn = this.inner();
       for (const hz of this.hazards) {
         if (inn.x1 > hz.x0 && inn.x0 < hz.x1 && inn.y1 > hz.y0 && inn.y0 < hz.y1) { this.die(); return; }
+      }
+    }
+
+    /* --- 力场:人进到里面就被推(垂直方向;正的 fy 大于 gravity 就是"上升气流") ---
+     * 口径:GD 2.2 的力场本质是"改重力",反编译里那套倍率是
+     * 飞机 0.47 / UFO 0.58 / 摇摆 0.4 / 球+蜘蛛 0.6 / 机器人 0.9 / 方块 1.0。
+     * 我们这里先做最直接的一种:给一个垂直加速度,叠加在重力之上。 */
+    if (this.forces.length) {
+      const inn = this.inner();
+      for (const b of this.forces) {
+        if (inn.x1 <= b.x0 || inn.x0 >= b.x1 || inn.y1 <= b.y0 || inn.y0 >= b.y1) continue;
+        this.vy += (b.o.fy ?? 0) * sY;
+        break;
       }
     }
 

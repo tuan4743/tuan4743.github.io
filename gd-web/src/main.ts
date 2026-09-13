@@ -153,7 +153,7 @@ class Scene extends Phaser.Scene {
     const ui = { fontFamily: 'ui-monospace, Consolas, monospace', align: 'center' as const };
     this.uiTitle = this.add.text(0, 0, '', { ...ui, fontSize: '44px', color: '#e2f6ff' }).setOrigin(0.5).setDepth(20).setVisible(false);
     this.uiHint = this.add.text(0, 0, '', { ...ui, fontSize: '24px', color: HL }).setOrigin(0.5).setDepth(20).setVisible(false);
-    /* 段落名做成场上的水印(以前只画了个空框,字根本没出来) */
+    /* 段落名与功能块(text 物件)都做成场上的文字 */
     for (const sg of LEVEL.segments) {
       if (!sg.label) continue;
       const t = this.add.text(sg.from * U + 13 * U, 0, sg.label, {
@@ -161,6 +161,17 @@ class Scene extends Phaser.Scene {
         fontSize: '30px', color: HL,
       });
       t.setOrigin(0, 0.5).setAlpha(0.22);
+      this.labels.push(t);
+    }
+    for (const o of LEVEL.objects) {
+      if (o.kind !== 'text' || !o.text) continue;
+      const t = this.add.text(o.b * U, 0, o.text, {
+        fontFamily: 'ui-monospace, Consolas, monospace',
+        fontSize: Math.round(30 * (o.size ?? 1)) + 'px', color: '#e2f6ff',
+      });
+      t.setOrigin(0.5, 0.5).setAlpha(0.95);
+      t.setData('isText', true);
+      t.setY(ROWS * U - (o.r + 0.5) * U);          // 功能块自己定在它那一格
       this.labels.push(t);
     }
   }
@@ -541,6 +552,21 @@ class Scene extends Phaser.Scene {
         case 'gravity':
           g.fillStyle(0xc6a0ff, 0.9).fillTriangle(obx, oTop, obx + U / 2, oBot, obx + U, oTop);
           break;
+        case 'force': {
+          /* 力场:半透明带 + 一排箭头(往上推就是朝上的箭头) */
+          const up = (o.fy ?? 0) >= 0;
+          g.fillStyle(up ? 0xa0ffd0 : 0xff9fd0, 0.10).fillRect(obx, oTop, obw, oBot - oTop);
+          g.lineStyle(1, up ? 0xa0ffd0 : 0xff9fd0, 0.45).strokeRect(obx + 1, oTop + 1, obw - 2, oBot - oTop - 2);
+          g.lineStyle(2, up ? 0xa0ffd0 : 0xff9fd0, 0.7);
+          const step = 26, drift = (tick * 1.6) % step;
+          for (let yy = oBot - step + drift; yy > oTop; yy -= step) {
+            g.beginPath();
+            if (up) { g.moveTo(obx + obw / 2 - 7, yy + 7); g.lineTo(obx + obw / 2, yy - 3); g.lineTo(obx + obw / 2 + 7, yy + 7); }
+            else { g.moveTo(obx + obw / 2 - 7, yy - 3); g.lineTo(obx + obw / 2, yy + 7); g.lineTo(obx + obw / 2 + 7, yy - 3); }
+            g.strokePath();
+          }
+          break;
+        }
         case 'deco':
           if (o.deco === 'light') g.fillStyle(0xffe9a8, 0.10).fillCircle(obx + obw / 2, Y(o.r * U + U / 2), obw * 1.6);
           break;
@@ -651,7 +677,10 @@ class Scene extends Phaser.Scene {
     }
 
     // 段落水印跟着场地高度放
-    for (const t of this.labels) t.setY(Y(7.5 * U));
+    for (const t of this.labels) {
+      if (t.getData('isText')) continue;
+      t.setY(Y(7.5 * U));
+    }
   }
 }
 

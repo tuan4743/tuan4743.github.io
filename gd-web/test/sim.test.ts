@@ -346,6 +346,39 @@ test('黑环(冲刺):不管当前速度,直接把垂直速度设成 15 并朝重
   assert.ok(Math.abs(w.vy + ORB.black.v) < 1.2, '黑环应该把速度设成朝下的 15,实测 vy=' + w.vy.toFixed(2));
 });
 
+test('力场:人进到里面会被推 —— 往上推得比重力狠就能托住人', () => {
+  /* fy = +2.0 单位/帧² 大于重力 0.958 → 在力场里应该被托着往上走 */
+  const lift = new World(solo([
+    { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
+    { kind: 'force', b: 16, r: 0, w: 6, h: 6, fy: 2.0 },
+  ]));
+  let maxY = 0;
+  for (let i = 0; i < 60 * 6 && !lift.dead; i++) { lift.frame(false); maxY = Math.max(maxY, lift.y); }
+  assert.equal(lift.dead, false, '力场里不该死(它是往上托的)');
+  assert.ok(maxY / U > 3, '上升气流应该把人托到高处,实测峰值 ' + (maxY / U).toFixed(2) + ' 块');
+
+  /* 反过来的力场(往下压)会把人按在地上 */
+  const push = new World(solo([
+    { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
+    { kind: 'force', b: 16, r: 0, w: 6, h: 6, fy: -4.0 },
+  ]));
+  for (let i = 0; i < 60 * 6 && !push.dead; i++) push.frame(i > 100 && i < 140);   // 跳一下试试
+  assert.equal(push.dead, false, '向下压的力场不该致死');
+  assert.ok(push.y < 0.2 * U, '被压着应该起不来,实测 y=' + (push.y / U).toFixed(2) + ' 块');
+});
+
+test('功能块(text):纯视觉物件,不影响判定', () => {
+  const lv = solo([
+    { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
+    { kind: 'text', b: 10, r: 5, w: 2, h: 1, text: '按住 = 连跳' },
+  ]);
+  const w = new World(lv);
+  for (let i = 0; i < 300 && !w.dead && w.x < 30 * U; i++) w.frame(false);
+  assert.equal(w.dead, false, '功能块不该致死不挡路');
+  assert.equal(w.decos.length >= 0, true);
+  assert.equal(lv.objects.filter((o) => o.kind === 'text').length, 1);
+});
+
 /* ---------------- ④ 自动铺面 ---------------- */
 test('自动铺面:两次"出手"之间留够落地的余量(不会生成必死关)', () => {
   for (const seed of [1, 7, 20260913, 424242]) {

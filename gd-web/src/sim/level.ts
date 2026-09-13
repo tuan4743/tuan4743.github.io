@@ -30,8 +30,10 @@ export type ObjKind =
   | 'portal'     // 圆环:切换形态
   | 'speed'      // 速度门
   | 'gravity'    // 重力门
-  | 'orb'        // 空中跳环:要一次【新的按键】才生效(黄=跳/粉=小跳/红=大跳/蓝=翻重力/绿=翻重力+跳)
-  | 'pad'        // 弹簧/跳板:碰到就生效,不用按键(黄/粉/红=弹起,蓝=翻重力)
+  | 'orb'        // 空中跳环:要一次【新的按键】才生效(黄=跳/粉=小跳/红=大跳/蓝=翻重力/绿=翻重力+跳/黑=冲刺)
+  | 'pad'        // 弹簧/跳板:碰到就生效,不用按键(黄/粉/红=弹起,蓝/紫=翻重力)
+  | 'force'      // 力场:人进到里面就被推(现在只做垂直方向,口径见 P.forceNote)
+  | 'text'       // 功能块:显示字母/符号,做关卡内提示用(纯视觉)
   | 'pit'        // 坑:地板断口(纯标记,地板在生成时跳过这一段)
   | 'deco';      // 装饰(文字/光源,纯视觉)
 
@@ -45,9 +47,11 @@ export interface Obj {
   speed?: number;   // speed:速度档(0..4)
   orb?: OrbKind;    // orb:是哪种环
   pad?: PadKind;    // pad:是哪种弹簧
+  fy?: number;      // force:垂直加速度(单位/帧²,正 = 往上推)。正数大于 gravity 就是"上升气流"
+  text?: string;    // text:显示什么字(功能块)
+  size?: number;    // text:字号缩放
   need?: boolean;   // 这个物件需要玩家出手(跳/按环)才过得去 —— 只有它进"间距"约束
   deco?: 'text' | 'light';
-  text?: string;
 }
 
 export interface Segment {
