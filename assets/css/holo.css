@@ -673,7 +673,7 @@
        ──────────────────────────────────────────────────────────── */
     --gd-btn-x: 1.6%;
     --gd-btn-y: 2.4%;
-    --gd-btn-scale: 1;
+    --gd-btn-scale: 0.9;
     --gd-btn-track: .16em;
     --gd-btn-hint: block;
     --gd-ink: #eaf3ff;

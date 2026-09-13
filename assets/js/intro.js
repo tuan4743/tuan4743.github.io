@@ -217,6 +217,14 @@
   }
 
   function playPanel(key) {
+    /* ★ 游玩模式(左下角那个开关打开时):插入有铺面的盘不走展示页,
+       直接进第三张盘(游戏),并把这张盘对应的歌喂给引擎 —— 见 gd-mode-button.html
+       与 gd-web/src/embed.ts(window.__GD_SONG)。只保留加载动画,不另做载入页。 */
+    var song = window.GD_SONGS && window.GD_SONGS[key];
+    if (song && window.__gdPlayMode && window.__gdPlayMode()) {
+      window.__GD_SONG = song;
+      key = "lost";
+    }
     panels.forEach(function (p) {
       p.classList.toggle("is-active", p.getAttribute("data-panel") === key);
     });

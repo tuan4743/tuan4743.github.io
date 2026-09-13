@@ -112,6 +112,9 @@ class Scene extends Phaser.Scene {
     this.acc = 0;
     this.airT = 0;
     this.deathT = 0;
+    /* ★ 每局开始时再读一次页面指定的歌:换盘之后开跑就会用新歌 */
+    const forced = (window as unknown as { __GD_SONG?: string }).__GD_SONG;
+    if (forced && forced !== LEVEL.song) { LEVEL.song = forced; if (this.audio) this.audio.src = forced; }
     if (!this.audio) {
       const a = document.createElement('audio');
       a.src = LEVEL.song;
@@ -752,8 +755,9 @@ class Scene extends Phaser.Scene {
   }
 }
 
-export function boot(target: string | HTMLCanvasElement) {
+export function boot(target: string | HTMLCanvasElement, opts: { song?: string } = {}) {
   const useCanvas = typeof target !== 'string';
+  if (opts.song) LEVEL.song = opts.song;   // 游玩模式插盘时由页面指定这一局用哪首歌
   return new Phaser.Game({
     /* 传自己的 canvas 时,Phaser 4 要求显式 renderType(否则报 Must set explicit renderType in custom environment) */
     type: useCanvas ? Phaser.WEBGL : Phaser.AUTO,

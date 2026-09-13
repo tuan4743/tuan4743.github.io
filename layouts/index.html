@@ -99,7 +99,17 @@ window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}",
                 </svg>
             </button>
             <div class="statusbar" id="statusbar">
-                {{- partial "header.html" . }}
+                <script>
+        /* 每张盘对应的歌(游玩模式插盘时喂给游戏引擎;文件名与盘 key 同名,都在 assets/cd/music/)。
+           以后五张盘各写一份铺面时,把"盘 key → 铺面"的对应也放这里。 */
+        window.GD_SONGS = (function () {
+            var keys = ["lost", "self", "tech", "growth", "future"];
+            var out = {};
+            for (var i = 0; i < keys.length; i++) out[keys[i]] = "/assets/cd/music/" + keys[i] + ".mp3";
+            return out;
+        })();
+    </script>
+    {{- partial "header.html" . }}
             </div>
 
             <main class="intro-main">
