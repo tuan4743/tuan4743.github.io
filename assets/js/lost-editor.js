@@ -23,8 +23,11 @@
     { k: "gravity", n: "重力", c: "#c6a0ff" },
     { k: "shield", n: "护盾", c: "#7ff0c0" },
     { k: "echo", n: "回响", c: "#a0f0ff" },
-    { k: "railUp", n: "斜轨↗ 45°", c: "#6ee7ff", t: "rail", dir: 1 },
-    { k: "railDown", n: "斜轨↘ 45°", c: "#6ee7ff", t: "rail", dir: -1 },
+    /* ★ 斜轨固定 45°,而且自动接到上下边界:点哪一行,另一端就接到天花板或地面 */
+    { k: "railUpTop", n: "斜轨↗ 接上边", c: "#6ee7ff", t: "rail", dir: 1, anchor: "top" },
+    { k: "railUpBottom", n: "斜轨↗ 接下边", c: "#6ee7ff", t: "rail", dir: 1, anchor: "bottom" },
+    { k: "railDownBottom", n: "斜轨↘ 接下边", c: "#6ee7ff", t: "rail", dir: -1, anchor: "bottom" },
+    { k: "railDownTop", n: "斜轨↘ 接上边", c: "#6ee7ff", t: "rail", dir: -1, anchor: "top" },
     { k: "hole", n: "坑洞", c: "#ffb36b" },
     { k: "platform", n: "平台(可踩)", c: "#b8e986" },
     { k: "ground", n: "地面", c: "#9fb8d0" },
@@ -511,11 +514,24 @@
          原来两端点能拖成任意角度、而且拖完 t2/row2 和长度对不上  */
     function railDir(it) { return (it.row2 != null && it.row2 < it.row) ? -1 : 1; }
     function railLen(it) { return Math.max(1, Math.abs((it.row2 != null ? it.row2 : it.row + 1) - it.row)); }
-    function railFit(it) {                       /* 把长度限制在这一行能放下的范围里 */
-      var d = railDir(it), len = clamp(railLen(it), 1, d > 0 ? 9 - clamp(it.row, 0, 9) : clamp(it.row, 0, 9));
+    /* ★ 横向【永远向右】走 len 块,只有行号按方向走。
+       原来横向写成 d*len:↘ 轨的 x2 < x,游戏 prepare() 看见 x2 < x 会把两端对调 →
+       放下去是"向下",到游戏里变成"向上"(用户报的 bug)。 */
+    function railFit(it) {
+      var d = railDir(it), len = Math.max(1, Math.abs((it.row2 != null ? it.row2 : it.row + d) - it.row));
       it.row = clamp(it.row, 0, 9);
+      len = clamp(len, 1, d > 0 ? 9 - it.row : it.row);
       it.row2 = it.row + d * len;
-      it.t2 = +tOfX(xAt(it.t) + d * len).toFixed(4);      /* 45°:横向也走 len 块 */
+      it.t2 = +tOfX(xAt(it.t) + len).toFixed(4);
+      return it;
+    }
+    /* 端点都往右:len = |Δ行| = 横向块数 */
+    function railSet(it, aRow, bRow) {
+      it.row = clamp(aRow, 0, 9);
+      it.row2 = clamp(bRow, 0, 9);
+      if (it.row2 === it.row) it.row2 = it.row + (it.row < 9 ? 1 : -1);
+      var len = Math.abs(it.row2 - it.row);
+      it.t2 = +tOfX(xAt(it.t) + len).toFixed(4);
       return it;
     }
     function railSeg(it) {
@@ -590,11 +606,15 @@
         var TT = TYPES.filter(function (q) { return q.k === E.type; })[0];
         if (TT && TT.t) nt.type = TT.t;                    /* 「斜轨↗/↘」落到铺面里都是 rail */
         if (nt.type === "rail") {
-          /* ★ 固定 45°:默认 3 行(横竖各 3 块),方向由选的是↗还是↘决定 */
-          var rd = (TT && TT.dir) || 1, rl = 3;
-          nt.row = rd > 0 ? clamp(y2row(p.y), 0, 9 - rl) : clamp(y2row(p.y), rl, 9);
-          nt.row2 = nt.row + rd * rl;
-          nt.t2 = +tOfX(xAt(nt.t) + rd * rl).toFixed(4);
+          /* ★ 固定 45° + 自动接边界:点的那一行是"自由端",另一端接到天花板(9)或地面(0) */
+          var rd = (TT && TT.dir) || 1, anc = (TT && TT.anchor) || "top";
+          var cRow = y2row(p.y), aRow, bRow;
+          if (rd > 0) { if (anc === "top") { aRow = clamp(cRow, 0, 8); bRow = 9; } else { aRow = 0; bRow = clamp(cRow, 1, 9); } }
+          else { if (anc === "bottom") { aRow = clamp(cRow, 1, 9); bRow = 0; } else { aRow = 9; bRow = clamp(cRow, 0, 8); } }
+          railSet(nt, aRow, bRow);
+          nt.t2 = +(+nt.t2).toFixed(4);
+          E.status = "斜轨从第 " + nt.row + " 行到第 " + nt.row2 + " 行(" + Math.abs(nt.row2 - nt.row) + " 行长,45°," +
+            (anc === "top" ? "接天花板" : "接地面") + ")";
         }
         if (E.type === "hole") { nt.row = 0; nt.w = 2; }
         if (E.type === "platform") { nt.w = 3; nt.h = 1; }
@@ -603,7 +623,8 @@
         if (E.type === "decoLight") { nt.type = "deco"; nt.deco = "light"; nt.w = 2; }
         if (E.type === "portal") { nt.w = 2; nt.to = "plane"; }
         items.push(nt); E.sel = nt.id; E.row = nt.row; E.dirty = true;
-        E.status = "放了 " + nt.type + " @ " + nt.t + "s / 行 " + nt.row + "(共 " + items.length + ")";
+        if (nt.type !== "rail") E.status = "放了 " + nt.type + " @ " + nt.t + "s / 行 " + nt.row + "(共 " + items.length + ")";
+        else E.status = E.status + "(共 " + items.length + " 件)";   /* 斜轨保留上面那句"从第几行到第几行"*/
         syncBar();
       }
       draw();
@@ -620,13 +641,13 @@
             itR.t = snapT(x2t(ph.x), ph.x);
             itR.row = dA > 0 ? clamp(y2row(ph.y), 0, 9 - lenA) : clamp(y2row(ph.y), lenA, 9);
             itR.row2 = itR.row + dA * lenA;
-            itR.t2 = +tOfX(xAt(itR.t) + dA * lenA).toFixed(4);
+            itR.t2 = +tOfX(xAt(itR.t) + lenA).toFixed(4);
           } else {
             /* ★ B 点只能沿 45° 线走 = 就是拖长度 */
             var dB = railDir(itR);
             var lenB = clamp(Math.abs(y2row(ph.y) - itR.row), 1, dB > 0 ? 9 - itR.row : itR.row);
             itR.row2 = itR.row + dB * lenB;
-            itR.t2 = +tOfX(xAt(itR.t) + dB * lenB).toFixed(4);
+            itR.t2 = +tOfX(xAt(itR.t) + lenB).toFixed(4);
           }
           E.status = "斜轨 " + (E.resize.k === "railA" ? "A 点" : "长度") + " → 行 " + itR.row + "~" + itR.row2 + "(" + railLen(itR) + " 行长,45°)";
           E.dirty = true; syncBar(); draw(); return;
@@ -656,7 +677,7 @@
         var wantRow = y2row(p.y) - E.drag.grabRow;
         itR3.row = dR > 0 ? clamp(wantRow, 0, 9 - lenR) : clamp(wantRow, lenR, 9);
         itR3.row2 = itR3.row + dR * lenR;
-        itR3.t2 = +tOfX(xAt(itR3.t) + dR * lenR).toFixed(4);
+        itR3.t2 = +tOfX(xAt(itR3.t) + lenR).toFixed(4);
         E.dirty = true;
         E.status = "斜轨平移到 " + itR3.t.toFixed(2) + "s / 行 " + itR3.row + "~" + itR3.row2 + "(45°、" + lenR + " 行长)";
         syncBar(); draw();
