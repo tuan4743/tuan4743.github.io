@@ -7,7 +7,8 @@
 
 import Phaser from 'phaser';
 import { generateLevel, type Level } from './sim/level.ts';
-import { World, botThink } from './sim/world.ts';
+import { World, botThink, type RunState } from './sim/world.ts';
+import { fingerprint } from './sim/replay.ts';
 import { P, U, ROWS } from './sim/constants.ts';
 
 const HL = '#7ff0ff';
@@ -24,6 +25,9 @@ class Scene extends Phaser.Scene {
   fps = 0;
   fixed = false;
   camX = 0;
+  botStates: RunState[] = [];
+  fp = '';
+  botStarted = false;
   started = false;
 
   create() {
@@ -50,10 +54,21 @@ class Scene extends Phaser.Scene {
       const hold = this.botMode ? botThink(this.world)
         : !!(this.keys.SPACE?.isDown || this.keys.UP?.isDown || this.keys.W?.isDown);
       if (this.keys.R?.isDown) { this.world.reset(0, 'cube'); }
+      if (this.botMode && !this.botStarted) {       // 开机器人 = 从干净的一局开始,方便和 Node 侧对指纹
+        this.botStarted = true;
+        this.world = new World(LEVEL);
+        this.botStates = [];
+        this.fp = '';
+        this.prevY = 0;
+      }
       const w0 = this.world;
       if (w0.dead && (this.botMode || w0.deadT >= P.deadPause)) w0.respawn();   // 机器人模式立刻复活,和 Node 侧一致     // 死后短暂停顿再从存档点重来
       this.prevY = w0.y;
       w0.frame(hold);
+      if (this.botMode) {
+        this.botStates.push(w0.state);
+        if (w0.done && !this.fp) this.fp = fingerprint(this.botStates);
+      }
     }
     const w = this.world;
     /* 取景交给相机 API:横向让玩家落在左侧 22% 处,纵向固定居中于场地 */
