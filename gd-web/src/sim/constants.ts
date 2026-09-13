@@ -51,7 +51,9 @@ export const P = {
   robotJumpMul: 0.5,          // [GDOpenGD] 机器人起跳 = 0.5 × jumpPower ≈ 5.59
   robotFloat: 0.27,           // [GDOpenGD] 按住时"抵消自身的重力"能维持多久(秒)≈ m_accelerationOrSpeed 走满 1.5
   spiderVel: 1.0,             // [GDOpenGD] 蜘蛛传送落地后的那一小点速度(∓1 每帧)
-  spiderBand: 8,              // [GDOpenGD] 蜘蛛搜索带的厚度 = m_vehicleSize × 8(块)
+  spiderBand: 8,
+  miniSize: 0.6,             // [GDOpenGD] 迷你门的体积倍率(m_vehicleSize)
+  miniTriggerMul: 0.8,       // [GDOpenGD] 迷你时:所有普通跳环 ×0.8、弹簧力度 ×0.8              // [GDOpenGD] 蜘蛛搜索带的厚度 = m_vehicleSize × 8(块)
 
   /* ---- 数值:碰撞盒 ---- */
   box: 30,                    // [GDOpenGD] 玩家外框 30×30

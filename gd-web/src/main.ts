@@ -578,8 +578,9 @@ class Scene extends Phaser.Scene {
     }
 
     // 玩家:方块 = 描边正方形(空中自转 90°),飞机 = 三角(按 vy 倾斜)
+    const B = P.box * w.sizeMul;   // ★ 迷你门:人也要画小
     const py = this.prevY + (w.y - this.prevY) * Math.min(1, this.acc * 60);   // 渲染插值
-    const cxw = w.x + P.box / 2, cyw = py + P.box / 2;
+    const cxw = w.x + B / 2, cyw = py + B / 2;
     if (w.mode === 'ship') {
       /* 手动画三角:Phaser 4 里没有 Phaser.Geom.Point(v3 的写法会直接抛错) */
       const rot = Math.max(-0.55, Math.min(0.55, w.vy / P.shipVyMax * 0.55));
@@ -588,14 +589,14 @@ class Scene extends Phaser.Scene {
       const vy2 = (a: number, b: number) => Y(cyw + a * s + b * c);
       g.fillStyle(w.dead ? 0xff9a6b : 0xe2f6ff, 0.95);
       g.beginPath();
-      g.moveTo(vx2(P.box * 0.6, 0), vy2(P.box * 0.6, 0));
-      g.lineTo(vx2(-P.box * 0.45, -P.box * 0.3), vy2(-P.box * 0.45, -P.box * 0.3));
-      g.lineTo(vx2(-P.box * 0.45, P.box * 0.3), vy2(-P.box * 0.45, P.box * 0.3));
+      g.moveTo(vx2(B * 0.6, 0), vy2(B * 0.6, 0));
+      g.lineTo(vx2(-B * 0.45, -B * 0.3), vy2(-B * 0.45, -B * 0.3));
+      g.lineTo(vx2(-B * 0.45, B * 0.3), vy2(-B * 0.45, B * 0.3));
       g.closePath();
       g.fillPath();
     } else if (w.mode === 'ball') {
       /* 球:一个圆 + 里面一条随滚动转的线(不然看不出它在滚) */
-      const r = P.box * 0.5;
+      const r = B * 0.5;
       g.fillStyle(w.dead ? 0xff9a6b : 0xe2f6ff, 0.96).fillCircle(cxw, Y(cyw), r);
       g.lineStyle(2, HLD, 0.9).strokeCircle(cxw, Y(cyw), r);
       const ang = w.x / U * 1.2;
@@ -605,15 +606,15 @@ class Scene extends Phaser.Scene {
       );
     } else if (w.mode === 'ufo') {
       /* UFO:一个圆顶 + 一条底盘 */
-      const base = Y(cyw - P.box * 0.35);
+      const base = Y(cyw - B * 0.35);
       g.fillStyle(w.dead ? 0xff9a6b : 0xe2f6ff, 0.95);
       g.beginPath();
-      g.moveTo(cxw - P.box * 0.5, base);
-      g.lineTo(cxw, Y(cyw + P.box * 0.55));
-      g.lineTo(cxw + P.box * 0.5, base);
+      g.moveTo(cxw - B * 0.5, base);
+      g.lineTo(cxw, Y(cyw + B * 0.55));
+      g.lineTo(cxw + B * 0.5, base);
       g.closePath();
       g.fillPath();
-      g.fillStyle(HLD, 0.9).fillRect(cxw - P.box * 0.62, base, P.box * 1.24, 4);
+      g.fillStyle(HLD, 0.9).fillRect(cxw - B * 0.62, base, B * 1.24, 4);
     } else if (w.mode === 'wave') {
       /* 波浪:一枚小飞镖,朝当前运动方向 */
       const dirw = w.vy >= 0 ? 1 : -1;
@@ -628,7 +629,7 @@ class Scene extends Phaser.Scene {
       g.strokePath();
     } else if (w.mode === 'robot') {
       /* 机器人:比方块高一点 + 一条面罩线 + 两条腿 */
-      const hw = P.box * 0.42, hh = P.box * 0.72;
+      const hw = B * 0.42, hh = B * 0.72;
       const rtop = Y(cyw + hh), rbot = Y(cyw - hh);
       g.fillStyle(w.dead ? 0xff9a6b : 0xe2f6ff, 0.96).fillRect(cxw - hw, rtop, hw * 2, rbot - rtop);
       g.lineStyle(2, HLD, 0.9).strokeRect(cxw - hw, rtop, hw * 2, rbot - rtop);
@@ -638,7 +639,7 @@ class Scene extends Phaser.Scene {
       g.lineBetween(cxw + hw * 0.6, rbot, cxw + hw * 0.6, rbot + 6);
     } else if (w.mode === 'spider') {
       /* 蜘蛛:方块 + 四条短腿 */
-      const sw = P.box * 0.42;
+      const sw = B * 0.42;
       g.fillStyle(w.dead ? 0xff9a6b : 0xe2f6ff, 0.96).fillRect(cxw - sw, Y(cyw + sw), sw * 2, sw * 2);
       g.lineStyle(2, HLD, 0.9).strokeRect(cxw - sw, Y(cyw + sw), sw * 2, sw * 2);
       g.lineStyle(2, HLD, 0.85);
@@ -650,7 +651,7 @@ class Scene extends Phaser.Scene {
       /* 方块在空中转 90°(原版手感):用滞空时间当旋转进度 */
       const spin = Math.min(1, this.airT / (2 * P.jump / (P.gravity * Y_TIME_SCALE) / 60)) * (Math.PI / 2);
       const s = Math.sin(spin), c = Math.cos(spin);
-      const pts: Array<[number, number]> = [[-P.box / 2, -P.box / 2], [P.box / 2, -P.box / 2], [P.box / 2, P.box / 2], [-P.box / 2, P.box / 2]];
+      const pts: Array<[number, number]> = [[-B / 2, -B / 2], [B / 2, -B / 2], [B / 2, B / 2], [-B / 2, B / 2]];
       g.fillStyle(w.dead ? 0xff9a6b : 0xe2f6ff, 0.96);
       g.beginPath();
       pts.forEach(([a, b], i) => {
@@ -663,7 +664,7 @@ class Scene extends Phaser.Scene {
       g.strokePath();
     }
     // 判定内框(自己看得见,方便调手感)
-    g.lineStyle(1, 0xffffff, 0.28).strokeRect(w.x + P.innerOff, Y(py + P.innerOff + P.inner), P.inner, P.inner);
+    g.lineStyle(1, 0xffffff, 0.28).strokeRect(w.x + w.innerOff, Y(py + w.innerOff + w.innerSize), w.innerSize, w.innerSize);
 
     // 终点
     const endX = LEVEL.length * U;

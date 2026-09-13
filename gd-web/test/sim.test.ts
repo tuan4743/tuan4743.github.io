@@ -442,6 +442,54 @@ test('color / pulse 触发器:改全局色与闪光', () => {
   assert.equal(w.flash, 0, '闪一下之后要衰减干净');
 });
 
+/* ---------------- ③e 尺寸门(迷你 / 放大) ---------------- */
+test('迷你门:碰撞盒真的变小(0.6 倍),能钻过普通身材钻不过的缝', () => {
+  /* 地面到天花板吊块之间只留 0.65 块缝:普通方块(1 块)过不去,迷你(0.6 块)过得去 */
+  const mk = (withPortal: boolean) => solo([
+    { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
+    ...(withPortal ? [{ kind: 'size' as const, b: 10, r: 6, w: 1, h: 1 }] : []),
+    { kind: 'platform', b: 20, r: 1, w: 4, h: 1 },        // 吊在 1 块高的板 → 底下只剩 1 块
+  ]);
+  const normal = new World(mk(false));
+  assert.ok(Math.abs(normal.box - P.box) < 1e-6, '普通身材外框 = ' + normal.box);
+  const mini = new World(mk(true));
+  while (mini.x / U < 11) mini.frame(false);
+  assert.ok(mini.mini, '过了迷你门应该变迷你');
+  assert.ok(Math.abs(mini.box - P.box * P.miniSize) < 1e-6, '迷你外框应该 = ' + (P.box * P.miniSize) + ',实测 ' + mini.box);
+  assert.ok(Math.abs(mini.innerOff - P.innerOff * P.miniSize) < 1e-6, '内框偏移也要跟着缩(否则判定和身体对不上)');
+  /* 迷你时跳环力度 ×0.8 */
+  const lv = solo([
+    { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
+    { kind: 'size', b: 5, r: 6, w: 1, h: 1 },
+    { kind: 'orb', b: 30, r: 2, w: 1, h: 1, orb: 'yellow' },
+  ]);
+  const w = new World(lv);
+  while (w.x / U < 6) w.frame(false);
+  const full = new World(solo([
+    { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
+    { kind: 'orb', b: 30, r: 2, w: 1, h: 1, orb: 'yellow' },
+  ]));
+  full.x = 30 * U - 12; full.y = 2 * U; full.vy = 0; full.onGround = false;
+  full.frame(true);
+  w.x = 30 * U - 12; w.y = 2 * U; w.vy = 0; w.onGround = false;
+  w.frame(true);
+  assert.ok(Math.abs(w.vy - full.vy * P.miniTriggerMul) < 0.2, '迷你跳环力度应该是普通的 0.8 倍(迷你 ' + w.vy.toFixed(2) + ' vs 普通 ' + full.vy.toFixed(2) + ')');
+});
+
+test('放大门:迷你之后能变回普通身材', () => {
+  const lv = solo([
+    { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
+    { kind: 'size', b: 10, r: 6, w: 1, h: 1 },
+    { kind: 'size', b: 20, r: 6, w: 1, h: 1, mini: false },
+  ]);
+  const w = new World(lv);
+  while (w.x / U < 11) w.frame(false);
+  assert.ok(w.mini, '先变小');
+  while (w.x / U < 21) w.frame(false);
+  assert.equal(w.mini, false, '过了放大门应该变回来');
+  assert.ok(Math.abs(w.box - P.box) < 1e-6, '外框回到 ' + P.box);
+});
+
 /* ---------------- ④ 自动铺面 ---------------- */
 test('自动铺面:两次"出手"之间留够落地的余量(不会生成必死关)', () => {
   for (const seed of [1, 7, 20260913, 424242]) {
