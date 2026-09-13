@@ -221,17 +221,22 @@ class Scene extends Phaser.Scene {
     g.clear();
 
     /* 场地之外压暗(10 行的场地只占屏幕中间一半,压暗之后一眼知道哪里是"跑道") */
-    g.fillStyle(0x03050a, 0.55);
+    g.fillStyle(0x03050a, 0.72);
     g.fillRect(x0, dy0, vw, Math.max(0, groundY + U - dy0));
     g.fillRect(x0, ceilY - U, vw, Math.max(0, dy1 - (ceilY - U)));
+    /* 跑道本身给一层极淡的底色 + 上下边框,和"场地外"分开 */
+    g.fillStyle(tint, 0.025).fillRect(x0, ceilY, vw, groundY - ceilY);
 
     // 场地网格(每块一条细线)
     g.lineStyle(1, tint, 0.09);
     for (let gx = Math.floor(x0 / U); gx <= x1 / U; gx++) g.lineBetween(gx * U, dy0, gx * U, dy1);
     for (let r = 0; r <= ROWS; r++) g.lineBetween(x0, Y(r * U), x1, Y(r * U));
     // 地面线与天花板线(跑道的上下边)
-    g.lineStyle(2, tint, 0.55).lineBetween(x0, groundY, x1, groundY);
-    g.lineStyle(1, tint, 0.28).lineBetween(x0, ceilY, x1, ceilY);
+    g.lineStyle(2, tint, 0.6).lineBetween(x0, groundY, x1, groundY);
+    g.lineStyle(1, tint, 0.42).lineBetween(x0, ceilY, x1, ceilY);
+    /* 地面以下:几条越来越淡的横线,做出"地下"的厚度感 */
+    g.lineStyle(1, tint, 0.18);
+    for (let k = 1; k <= 4; k++) g.lineBetween(x0, groundY + k * 22, x1, groundY + k * 22);
 
     // 物件
     for (const o of LEVEL.objects) {
