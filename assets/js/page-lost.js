@@ -1,720 +1,745 @@
 /* ============================================================
-   第三张盘「迷茫」的主页内容:迷你平台跳跃
+   第三张盘「迷茫」的主页内容:几何冲刺式音乐关卡
    ─────────────────────────────────────────────────────────────
-   一句话设计:**他过不去的地方,就是他缺的东西。**
-     关卡被切成四段,每段只有一样本事能过:
-       ① 断崖(240px,单跳只能过 145px)      → 二段跳
-       ② 尖刺带(320px,二段跳也跨不过)        → 护盾(按住能挡尖的,但走得慢、撑不久)
-       ③ 高速锯(窗口只有几十毫秒)            → 慢动作(世界慢 2.9 倍,他只慢 1.6 倍)
-       ④ 深渊(420px,没有落脚点)              → 桥(空中按 E,脚下长出一小块,1.15 秒后消失)
-     死一次 → 按顺序解锁下一个能力 → 弹一句第三人称「他」的旁白。
-     (不按段落解锁而是按顺序解锁:万一谁手气好蒙过一段,下一次死照样补上,
-      不会出现"跳着解锁"或者永远拿不到的情况)
+   一句话:**他过不去的地方,就是他缺的东西。** 四段 = 四个存档点 = 四种变形:
+     ST-01 复盘 · 回响方块 —— 死亡/失误在那一拍留下残影,下一轮同拍【自动补一次二段跳】
+     ST-02 求助 · 飞机     —— 按住上升 / 松开下降,两边都是 45°(GD 原版那种浪)
+     ST-03 呼吸 · 护盾形态 —— 点击获得 2 秒护盾,冷却 5 秒
+     ST-04 继续 · 重力箭头 —— 在箭头那一拍点击,重力翻转(上下轨道互换)
 
-   数据:hugo.toml —— [params.intro.lost] 文案 + [[params.intro.decks.lost]] 四样能力
-   微调:所有手感数值都在下面 CONFIG 里(斜坡/重力/跳跃/燃料/桥的寿命…)
-   验收:tools/verify/lost-check.mjs(用 dev 钩子做确定性推演,不靠手速)
+   玩法骨架(几何冲刺那一套):
+     · 自动向右跑,速度固定(blocks/s);【点击只做一件事】—— 跳 / 触发跳点 / 翻转重力
+     · 游戏时钟 = 音频时钟(decode 好的 mp3 直接播),所以音乐与障碍天生同步;
+       死亡 → 把音乐倒回【死亡那一拍前 2 拍】重来(这就是"复盘")
+     · 铺面数据:static/assets/cd/lost-chart.json(秒对齐);
+       节拍:static/assets/cd/lost-beats.json(GDForge 那套采音,见 gd-beat.js)
+     · 铺面为空时会用 beats 自动铺一版草稿(dev.draft / ?chart 里也能重新生成)
+
+   验收:tools/verify/lost-gd-check.mjs(定步长推演,不靠手速)
    ============================================================ */
 (function () {
   "use strict";
 
-  /* ---------------- 手感数值(想改手感只动这里) ---------------- */
   var CFG = {
-    VW: 960, VH: 540,          /* 设计分辨率:画面按高度缩放,宽度随面板宽高比自然变化 */
-    GROUND: 380,               /* 地面顶面 y */
-    GRAV: 1500,                /* 重力 px/s² */
-    RUN: 215,                  /* 最大跑速 */
-    ACC: 1700, FRIC: 2000,     /* 加速度 / 摩擦 */
-    JUMP1: 470, JUMP2: 560,    /* 一段跳 / 二段跳的初速度
-                                  实测(按住跳、到最高点再蹬):
-                                    一段跳 ≈ 135px 远、73px 高
-                                    二段跳 ≈ 250px 远、178px 高
-                                  → 断崖 190px:单跳必掉(差 55px),二段跳富余 60px
-                                  → 尖刺带 320px、深渊 420px:二段跳也够不着(各有别的本事)*/
-    COYOTE: 0.09, BUFFER: 0.12,/* 土狼时间 / 起跳缓冲(让手感宽容) */
-    PW: 18, PH: 30,            /* 他的碰撞盒 */
-    SLOW_W: 0.28,              /* 慢动作:世界的时间倍率(慢 3.6 倍)*/
-    SLOW_P: 0.80,              /* 慢动作:他的时间倍率(只慢 1.25 倍 → 相对快 2.9 倍)
-                                  这两个数的比值就是"这个能力到底有多强":
-                                  世界 0.28 / 他 0.80 = 相对 2.9 倍。
-                                  锯那一段就是按这个比值配的:正常速度窗口 0.13s、
-                                  过锯要 0.30s(必死);慢下来窗口 0.45s、要 0.37s(过得去)*/
-    SH_MAX: 4.6, SH_DRAIN: 1, SH_FILL: 0.7, SH_SPEED: 0.55,  /* 护盾燃料 / 回复 / 减速
-                                   燃料要够"从尖刺带前就举着盾一路走过去"(320px ÷ 118px/s ≈ 2.7s,
-                                   再加上提前举盾的那一两秒 → 4.6s 才不至于"举早了就死")*/
-    BR_LIFE: 1.4, BR_CD: 0.18, BR_MAX: 2, BR_W: 56, BR_H: 10, /* 桥:寿命 / 冷却 / 同时存在数
-                                   实测:小跳+空中二段跳一次能过 183px,深渊 420px → 三次跳、两块桥,
-                                   每块要撑住"下一次落地"约 1s → 寿命给到 1.4s 才不紧张 */
-    DEAD_Y: 560,               /* 掉到这以下算死 */
-    RESPAWN: 0.85,             /* 死后停顿多久复活 */
-    STEP: 1 / 120,             /* 固定步长(物理确定性) */
-    CAM_K: 0.14                /* 镜头跟随阻尼 */
-  };
-
-  /* ---------------- 关卡(坐标 = 设计像素) ----------------
-     地面顶面 380;深渊就是地面上的缺口;goal 是终点那盏灯 */
-  var LV = {
-    w: 3720,
-    solids: [
-      /* 天花板:铺桥跳是可以越跳越高的,没有天花板他会跳到屏幕外面去,
-         也就从终点灯(0~380)头顶飞过去了 —— 验收里就是这么发现的 */
-      { x: 0, y: -60, w: 3720, h: 60 },
-      { x: 0, y: 380, w: 900, h: 220 },        /* ① 起点平台(断崖 900~1090,宽 190)*/
-      { x: 1090, y: 380, w: 1610, h: 220 },    /* ②③ 尖刺带与锯走廊同一条地面 1090~2700 */
-      { x: 3120, y: 380, w: 600, h: 220 }      /* ④ 深渊之后(深渊 2700~3120,宽 420)*/
-    ],
-    walls: [],
-    /* 崖边标记:只是画一条亮线提醒"到头了",【没有碰撞】——
-       之前这里放了两道 140px 的矮墙,结果他直接卡在墙前面过不去(验收抓到的)*/
-    edges: [900, 1090, 2700, 3120],
-    spikes: [
-      { x: 1420, y: 356, w: 320, h: 24 }       /* 尖刺带(护盾专用:320 > 二段跳能跨的 ~270)*/
-    ],
-    /* 高速锯:周期 0.45s。安全窗口(锯抬到最上面)= 周期的 37% ≈ 0.17s,
-       而"从他等到的地方穿过锯"要 0.30s → 正常速度必死;
-       慢动作下周期变 1.61s、窗口 0.6s,过锯只要 0.37s → 宽裕 */
-    saw: { x: 2230, y: 40, w: 46, h: 220, amp: 150, omega: 2 * Math.PI / 0.45 },
-    bridges: [],
-    checks: [
-      { x: 140 }, { x: 820 }, { x: 1140 }, { x: 1960 }, { x: 2640 }
-    ],
-    goal: { x: 3400, y: 0, w: 84, h: 380 }     /* 终点那盏灯:从屏幕顶一直垂到地面 ——
-                                                  他一路铺桥会越跳越高,矮门会被从头顶飞过去(验收抓到的)*/
+    SPEED: 10.4,        /* 块/秒:GD 常速 311.58 units/s ÷ 30 units/块 */
+    ROWS: 10,           /* 轨道行数(0 = 地面)*/
+    GRAV: 200,          /* 方块重力(块/s²)*/
+    JUMP: 30,           /* 起跳初速度 → 跳高 2.25 块、跳远 3.1 块 */
+    ORB_Y: 1.12, ORB_P: 0.82,   /* 跳点力度(黄/粉)*/
+    SHIELD_T: 2.0, SHIELD_CD: 5.0,
+    TAP_WIN: 0.20,      /* 拍点点击窗口(秒,±)*/
+    REWIND_BEATS: 2,    /* 死后倒退几拍重来 */
+    DEAD_PAUSE: 0.75,   /* 死了停多久再回到那一拍 */
+    LEAD: 1.6,          /* 开段/复活的准备拍(音频留一点前奏)*/
+    PW: 0.9, PH: 0.9,   /* 他的碰撞盒(块)*/
+    /* 物件"落点"偏移:障碍放在对应拍的后面一点,这样【踩着拍点点击】正好跳过去 */
+    OFF: { block: 2.0, spike: 2.0, orb: 1.0, gravity: 0.0, shield: 1.0 },
+    VIEW: 0.30          /* 他在屏幕上的横向位置 */
   };
 
   function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
   function pad2(n) { return (n < 10 ? "0" : "") + n; }
-  /* 背景浮尘:固定序列 → 每帧都一样(验收才能逐像素比对) */
-  var DUST = (function () {
-    var a = [], s = 12345;
-    for (var i = 0; i < 90; i++) {
-      s = (s * 1103515245 + 12345) & 0x7fffffff;
-      a.push({ x: (s % 10000) / 10000, y: ((s >> 7) % 10000) / 10000, r: 0.6 + ((s >> 3) % 100) / 90, k: 0.2 + ((s >> 11) % 100) / 160 });
-    }
-    return a;
-  })();
+  function prng(seed) { var s = seed >>> 0; return function () { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+  function fmtClock(t) {
+    t = Math.max(0, t);
+    var m = Math.floor(t / 60), s = t - m * 60;
+    return m + ":" + (s < 10 ? "0" : "") + s.toFixed(1);
+  }
 
   function build(root, key) {
     var cv = root.querySelector(".lost-cv");
-    var ctx = cv ? cv.getContext("2d") : null;
+    var ctx2d = cv ? cv.getContext("2d") : null;
     var sayEl = root.querySelector(".lost-say");
     var sayTx = root.querySelector(".lost-say-tx");
     var deathsEl = root.querySelector(".lost-deaths");
     var codeEl = root.querySelector(".lost-code");
+    var clockEl = root.querySelector(".lost-clock");
+    var stateEl = root.querySelector(".lost-state");
+    var stateMode = root.querySelector(".lost-state-mode");
+    var stateTx = root.querySelector(".lost-state-tx");
     var endEl = root.querySelector(".lost-end");
-    var skillEls = Array.prototype.slice.call(root.querySelectorAll(".lost-skill"));
     var veil = root.querySelector(".lost-veil");
-    var cvs = { w: 0, h: 0, scale: 1, dpr: 1 };
+    var beatDots = Array.prototype.slice.call(root.querySelectorAll(".lost-beat i"));
+    var segEls = Array.prototype.slice.call(root.querySelectorAll(".lost-skill"));
 
-    /* 文案:开场白 / 终点那句话 / 四样能力的解锁台词 */
     var TXT = {
-      intro: root.getAttribute("data-intro") || "",
+      intro: root.getAttribute("data-intro") || "他站在起点。",
       ending: root.getAttribute("data-ending") || "",
       restart: root.getAttribute("data-restart") || "按 R 再来一次",
-      goal: root.getAttribute("data-goal") || "终点"
+      chart: root.getAttribute("data-chart") || "/assets/cd/lost-chart.json"
     };
-    var SKILLS = skillEls.map(function (el) {
+    var SEGS = segEls.map(function (el) {
       return {
-        key: el.getAttribute("data-skill"),
-        line: el.getAttribute("data-line") || "",
-        el: el, name: (el.querySelector(".lost-skill-name") || {}).textContent || ""
+        ability: el.getAttribute("data-skill"), theme: el.getAttribute("data-theme") || "",
+        form: el.getAttribute("data-form") || "", key: el.getAttribute("data-key") || "",
+        line: el.getAttribute("data-line") || "", el: el
       };
     });
-    var ORDER = SKILLS.map(function (s) { return s.key; });
-    var skillOf = {};
-    SKILLS.forEach(function (s) { skillOf[s.key] = s; });
 
-    /* ---------------- 状态 ---------------- */
-    var active = false, frozen = false, raf = 0, last = 0;
-    var paused = false;                /* CD 架打开时也停 */
-    var skills = {}, keys = { left: 0, right: 0, jump: 0, shield: 0, slow: 0, bridge: 0 };
-    var prevJump = 0, prevBridge = 0;
-    var player = null, bridges = [], deaths = 0, tWorld = 0, cam = 0, camT = 0;
-    var reached = false, sayT = 0, flash = 0, dustT = 0, simT = 0;
-    var COL = { accent: "#7ff0ff", dim: "rgba(255,255,255,.45)", bg: "#05070d", warn: "#ff7a6b" };
+    /* ---------------- 数据 ---------------- */
+    var chart = null, beats = [], beatT = [], period = 0.3483, offset = 0.0947, dur = 156, ready = false, loadErr = "";
+    var items = [];                 /* 已按 x 排序:{t,row,type,w,orb,x,x2} */
+    var segs = [];                  /* {t, mode, ability, i} */
+    var mode = "cube", gdir = 1;    /* gdir: 1 = 重力向下,-1 = 向上 */
 
-    function resetPlayer(x) {
-      player = {
-        x: x, y: CFG.GROUND - CFG.PH, vx: 0, vy: 0, onGround: false,
-        jumps: 0, coyote: 0, buffer: 0, fuel: CFG.SH_MAX, brCd: 0, dead: false, deadT: 0,
-        face: 1, trail: [], squash: 0
-      };
+    /* ---------------- 玩家 / 局面 ---------------- */
+    var S = null, echoes = [], attempts = 0, deaths = 0, reached = false, sayT = 0, flash = 0, hudT = 0;
+    var camX = 0, deadT = 0, dead = false, respawnT = 0, echoFired = 0, orbCd = 0;
+    var keys = { jump: 0, shield: 0 };
+    var prevJump = 0, shieldT = 0, shieldCd = 0, stateT = 0, segNow = -1, tapArmed = null, tapArmedT = 0, tapMiss = 0;
+    var ghostTrail = [], trail = [];
+
+    function resetPlayer(y, g) {
+      S = { x: 0, y: y == null ? 0 : y, vy: 0, onGround: true, rot: 0, air: 0 };
+      gdir = g == null ? 1 : g;
+      dead = false; deadT = 0; echoFired = 0; orbCd = 0; trail = []; ghostTrail = [];
+      tapArmed = null; tapMiss = 0;
+      /* 一次新的尝试 = 护盾也重置(不然上一次用掉的冷却会带到这一轮)*/
+      shieldT = 0; shieldCd = 0;
     }
 
-    function reset() {
-      skills = {}; ORDER.forEach(function (k) { skills[k] = false; });
-      for (var kk in keys) keys[kk] = 0;
-      prevJump = 0; prevBridge = 0;
-      bridges = []; deaths = 0; tWorld = 0; reached = false; flash = 0;
-      resetPlayer(LV.checks[0].x);
-      cam = camT = camFor(player.x);
-      refreshSkills(); syncHud();
-      say(TXT.intro, 6);
-      if (endEl) endEl.classList.remove("is-on");
-      if (veil) veil.classList.remove("is-on");
+    function t2x(t) { return (t - chart.lead) * CFG.SPEED; }
+    function xOf(it) { return t2x(it.t) + (CFG.OFF[it.type] || 0); }
+    function nearestBeat(t) {
+      if (!beatT.length) return 0;
+      var lo = 0, hi = beatT.length - 1, mid;
+      while (hi - lo > 1) { mid = (lo + hi) >> 1; if (beatT[mid] < t) lo = mid; else hi = mid; }
+      return (t - beatT[lo] <= beatT[hi] - t) ? lo : hi;
+    }
+    function beatTime(i) { return beatT[clamp(i, 0, beatT.length - 1)] || 0; }
+    function segAt(t) {
+      var k = 0;
+      for (var i = 0; i < segs.length; i++) if (t >= segs[i].t - CFG.LEAD * 0.5) k = i;
+      return k;
+    }
+    function itemsNear(x0, x1) {
+      var out = [];
+      for (var i = 0; i < items.length; i++) { var it = items[i]; if (it.x2 >= x0 && it.x <= x1) out.push(it); }
+      return out;
     }
 
-    /* ---------------- 音效:不加音频(这一页没配乐需求),只用视觉反馈 ---------------- */
+    /* ---------------- 自动铺面(草稿)----------------
+       铺面为空时用它先铺一版能玩的东西;?chart 里也能"重新生成草稿"再手改。
+       规则按段:方块段踩 4 分音符放障碍、飞机段留 3 行缝、护盾段放长尖刺带、重力段换轨道 */
+    function draft(ch, bs) {
+      var out = [], rnd = prng(20260913), i, k, g;
+      var rows = ch.rows || CFG.ROWS, P = ch.period || period;
+      function push(t, row, type, w, orb) {
+        if (t < ch.lead + P * 2 || t > ch.duration - 0.6) return;
+        out.push({ t: +t.toFixed(4), row: row, type: type, w: w || 1, orb: orb });
+      }
+      for (var si = 0; si < ch.segments.length; si++) {
+        var sg = ch.segments[si];
+        var end = (si + 1 < ch.segments.length) ? ch.segments[si + 1].t : ch.duration;
+        var list = [];
+        for (i = 0; i < bs.length; i++) if (bs[i] > sg.t + P * 1.6 && bs[i] < end - P * 1.2) list.push(bs[i]);
+        if (sg.mode === "plane") {
+          /* 上下轨道各一条,中间留 3 行缝,每 2 拍换一次缝的位置 */
+          for (i = 0; i < list.length; i += 2) {
+            /* 头两个用居中留缝(3~4 行):变形进场时他正好在走廊中间,不能被夹死 */
+            g = (i < 4) ? 4 : (2 + Math.floor(rnd() * 5));
+            for (k = 0; k < g; k++) push(list[i], k, "block", 2);
+            for (k = g + 3; k < rows; k++) push(list[i], k, "block", 2);
+          }
+        } else if (sg.ability === "shield") {
+          /* 尖刺带:宽到跳不过去,只有盾能过去。
+             间隔按"盾 2s + 冷却 5s = 7 秒一轮"配:每 20 拍(≈7s)一段、宽 16 块(≈1.5s)
+             —— 放太密会出现"上一段刚用完盾、冷却还没好"的死局(验收抓到的)*/
+          for (i = 0; i < list.length; i += 20) push(list[i], 0, "spike", 13);   /* 13 块 ≈1.25s,给 2 秒盾留出余量 */
+        } else if (sg.ability === "gravity") {
+          /* 下轨道跑一段 → 拍点上翻重力 → 上轨道跑一段(障碍稀疏到能踩着跳过去)*/
+          for (i = 0; i < list.length; i++) {
+            if (i === 6 || i === 14) { push(list[i], 0, "gravity", 1); continue; }
+            var up = (i > 6 && i <= 14);                       /* 翻过来之后他贴在天花板上 */
+            if (i % 4 === 2 && i !== 6 && i !== 14) push(list[i], up ? rows - 1 : 0, "block", 1);
+          }
+        } else {
+          /* 方块段:踩 4 分音符(隔一拍)放障碍,偶尔给个跳点 */
+          for (i = 0; i < list.length; i += 2) {
+            var r = rnd();
+            if (r < 0.55) push(list[i], 0, "spike", 1);
+            else if (r < 0.85) push(list[i], 0, "block", 1);
+            else { push(list[i], 0, "block", 2); }
+            if (rnd() < 0.18 && i + 1 < list.length) push(list[i + 1], 2, "orb", 1, rnd() < 0.6 ? "yellow" : "pink");
+          }
+        }
+      }
+      out.sort(function (a, b) { return a.t - b.t; });
+      return out;
+    }
 
-    /* ---------------- 文本 / HUD ---------------- */
-    function say(text, hold) {
-      if (!sayEl) return;
-      if (text) { sayTx.textContent = text; sayEl.classList.add("is-on"); }
-      sayT = hold || 0;
-      if (!text) sayEl.classList.remove("is-on");
+    function prepare() {
+      segs = (chart.segments || []).map(function (s, i) { return { t: s.t, mode: s.mode || "cube", ability: s.ability || "", i: i }; });
+      items = (chart.items && chart.items.length ? chart.items : draft(chart, beats)).map(function (it) {
+        var o = { t: it.t, row: it.row | 0, type: it.type, w: it.w || 1, orb: it.orb || "yellow" };
+        o.x = xOf(o); o.x2 = o.x + (o.type === "orb" || o.type === "gravity" ? 1 : o.w);
+        return o;
+      }).sort(function (a, b) { return a.x - b.x; });
+      ready = true;
+      hud(true);
     }
-    function refreshSkills() {
-      SKILLS.forEach(function (s) {
-        s.el.classList.toggle("is-locked", !skills[s.key]);
-        s.el.classList.toggle("is-on", !!skills[s.key]);
-      });
+
+    function load() {
+      var p1 = fetch(TXT.chart).then(function (r) { return r.json(); });
+      var p2 = fetch("/assets/cd/lost-beats.json").then(function (r) { return r.json(); });
+      return Promise.all([p1, p2]).then(function (res) {
+        chart = res[0];
+        var b = res[1];
+        beats = b.beats || []; beatT = beats.slice();
+        period = b.period || chart.period || 0.3483;
+        offset = b.offset || chart.offset || 0;
+        dur = b.duration || chart.duration || 156;
+        CFG.SPEED = chart.speed || CFG.SPEED;
+        CFG.ROWS = chart.rows || CFG.ROWS;
+        chart.lead = chart.lead == null ? CFG.LEAD : chart.lead;
+        chart.duration = dur; chart.period = period; chart.rows = CFG.ROWS;
+        prepare();
+        return true;
+      }).catch(function (e) { loadErr = (e && e.message) || "加载失败"; return false; });
     }
-    function syncHud() {
+
+    /* ---------------- 音频(游戏自己的那条轨:能倒带、能对齐)---------------- */
+    var A = { ctx: null, buf: null, src: null, gain: null, offset: 0, startCtx: 0, on: false, err: "" };
+    function audioInit() {
+      if (A.ctx || A.buf || A.err) return;
+      if (!window.GDBeat) { A.err = "no GDBeat"; return; }
+      window.GDBeat.decode(chart.song).then(function (r) {
+        A.ctx = r.ctx; A.buf = r.buffer;
+        A.gain = A.ctx.createGain();
+        var v = 1;
+        try { if (window.__cdAudio && window.__cdAudio.getVolume) v = window.__cdAudio.getVolume(); } catch (e) {}
+        A.gain.gain.value = clamp(v, 0, 1) * 0.9;
+        A.gain.connect(A.ctx.destination);
+        if (A.on) audioStart(S ? S.t : 0);
+      }).catch(function (e) { A.err = (e && e.message) || "音频加载失败"; });
+    }
+    function audioStart(at) {
+      if (!A.ctx || !A.buf) return;
+      audioStop();
+      try { A.ctx.resume(); } catch (e) {}
+      A.src = A.ctx.createBufferSource();
+      A.src.buffer = A.buf; A.src.connect(A.gain);
+      A.offset = clamp(at, 0, Math.max(0, A.buf.duration - 0.05));
+      A.startCtx = A.ctx.currentTime + 0.02;
+      A.src.start(A.startCtx, A.offset);
+    }
+    function audioStop() { if (A.src) { try { A.src.stop(); } catch (e) {} A.src = null; } }
+    function audioNow() {
+      if (!A.src || !A.ctx) return null;
+      var t = A.offset + (A.ctx.currentTime - A.startCtx);
+      return t >= A.offset - 0.05 ? t : null;
+    }
+
+    /* ---------------- 动作 ---------------- */
+    function jumpNow(power) {
+      S.vy = CFG.JUMP * power * gdir;
+      S.onGround = false; S.air++;
+    }
+    function tap() {
+      if (!ready || dead || reached || S.modeIsPlane) return;
+      /* 拍点上的重力箭头优先 */
+      if (tapArmed && Math.abs(nowT() - tapArmed.t) <= CFG.TAP_WIN) {
+        gdir = -gdir; S.vy = 0; flash = 0.6;
+        say("重力翻了。", 1.2);
+        tapArmed.done = true; tapArmed = null;
+        return;
+      }
+      if (S.onGround) { jumpNow(1); return; }
+      /* 空中:看脚下有没有跳点 */
+      for (var i = 0; i < items.length; i++) {
+        var it = items[i];
+        if (it.type !== "orb" || it.done) continue;
+        if (S.x + CFG.PW < it.x - 0.4 || S.x > it.x2 + 0.4) continue;
+        if (S.y + CFG.PH < it.row - 0.6 || S.y > it.row + 1.6) continue;
+        it.done = true;
+        jumpNow(it.orb === "pink" ? CFG.ORB_P : CFG.ORB_Y);
+        flash = 0.4;
+        return;
+      }
+    }
+    function shieldNow() {
+      if (!ready || dead || shieldT > 0 || shieldCd > 0) return;
+      shieldT = CFG.SHIELD_T;
+      flash = 0.5;
+    }
+    function hit(w, h, x, y) {           /* 他的盒子 vs 一个矩形 */
+      return S.x < x + w && S.x + CFG.PW > x && S.y < y + h && S.y + CFG.PH > y;
+    }
+    function die(why, item) {
+      if (dead || reached) return;
+      dead = true; deadT = 0; deaths++; flash = 1;
+      /* ★ 回响:残影留在【撞到的那个物件所属的拍】上,下一轮同一拍自动补一次二段跳。
+         必须是物件的拍、不是"死亡时刻最近的一拍":障碍放在"拍点 + 2 块"处,
+         死在障碍上时最近的一拍已经过去,按它补跳会晚 2 块(点查抓到的)。*/
+      var et = item && item.t != null ? item.t : beatTime(nearestBeat(nowT()));
+      var bi = nearestBeat(et);
+      echoes.push({ beat: bi, t: et, y: S.y, x: S.x, at: attempts, ghost: ghostTrail.slice(-24) });
+      if (echoes.length > 12) echoes.shift();
+      say("他在 " + (beatTime(bi)).toFixed(2) + "s 那一拍摔了。下一轮,那一拍会替他蹬一下。", 4.5);
       if (deathsEl) deathsEl.textContent = pad2(deaths);
-      if (codeEl) codeEl.style.setProperty("--p", (clamp(player.x / LV.w, 0, 1) * 100).toFixed(1) + "%");
-    }
-    function nextLocked() {
-      for (var i = 0; i < ORDER.length; i++) if (!skills[ORDER[i]]) return skillOf[ORDER[i]];
-      return null;
-    }
-    function unlock(s) { skills[s.key] = true; refreshSkills(); }
-
-    /* ---------------- 死亡 / 复活 ---------------- */
-    function die() {
-      if (player.dead) return;
-      player.dead = true; player.deadT = 0; flash = 1;
-      deaths++;
-      if (deathsEl) deathsEl.textContent = pad2(deaths);
-      var nx = nextLocked();
-      if (nx) { unlock(nx); say(nx.line, 7); }
-      else say("他又掉下去了。这一次没有任何新东西长出来 —— 只能自己走过去。", 4.5);
-    }
-    function respawnX() {
-      var x = LV.checks[0].x;
-      for (var i = 0; i < LV.checks.length; i++) if (LV.checks[i].x <= player.x) x = LV.checks[i].x;
-      return x;
     }
     function respawn() {
-      var x = respawnX();
-      resetPlayer(x);
-      player.brCd = 0;
-      bridges.length = 0;
+      attempts++;
+      var b = nearestBeat(S.t);
+      var back = Math.max(0, b - CFG.REWIND_BEATS);
+      var t = beatTime(back);
+      var s = segs[Math.max(0, segAt(t))];
+      if (t < s.t) t = s.t;
+      t = Math.max(chart.lead, t);
+      resetPlayer(0, 1);
+      if (MODE_STEP.dry) S.t = t; else { S.t = t; audioStart(t); }
+      segNow = -1;
     }
+    var MODE_STEP = { dry: false };
 
-    /* ---------------- 物理 ---------------- */
-    function solidRects() { return LV.solids.concat(LV.walls); }
-    function hits(ax, ay, aw, ah, b) {
-      return ax < b.x + b.w && ax + aw > b.x && ay < b.y + b.h && ay + ah > b.y;
-    }
-    function playerBox(x, y) { return { x: x, y: y, w: CFG.PW, h: CFG.PH }; }
+    function nowT() { return S ? S.t : 0; }
 
-    function moveX(dt) {
-      player.x += player.vx * dt;
-      var b = playerBox(player.x, player.y), rs = solidRects();
-      for (var i = 0; i < rs.length; i++) {
-        var r = rs[i];
-        if (!hits(b.x, b.y, b.w, b.h, r)) continue;
-        if (player.vx > 0) player.x = r.x - CFG.PW; else if (player.vx < 0) player.x = r.x + r.w;
-        player.vx = 0; b = playerBox(player.x, player.y);
+    /* ---------------- 推进 ---------------- */
+    function step(dt) {
+      if (!ready) return;
+      if (reached) return;
+      if (dead) {
+        deadT += dt;
+        if (deadT >= CFG.DEAD_PAUSE) respawn();
+        return;
       }
-      player.x = clamp(player.x, 0, LV.w - CFG.PW);
-    }
-    function moveY(dt) {
-      var prevBottom = player.y + CFG.PH;
-      player.y += player.vy * dt;
-      var b = playerBox(player.x, player.y), rs = solidRects(), landed = false;
-      for (var i = 0; i < rs.length; i++) {
-        var r = rs[i];
-        if (!hits(b.x, b.y, b.w, b.h, r)) continue;
-        if (player.vy > 0) { player.y = r.y - CFG.PH; landed = true; }
-        else if (player.vy < 0) { player.y = r.y + r.h; }
-        player.vy = 0; b = playerBox(player.x, player.y);
+      /* 时间:真实播放时以音频时钟为准,推演时按 dt 累加 */
+      if (MODE_STEP.dry) S.t += dt;
+      else { var at = audioNow(); if (at != null) S.t = at; else S.t += dt; }
+      var t = S.t;
+      if (t >= dur - 0.4) {
+        reached = true;
+        if (endEl) { endEl.classList.add("is-on"); endEl.setAttribute("aria-hidden", "false"); }
+        say("", 0);
+        audioStop();
+        return;
       }
-      /* 桥:只从上面踩上去(单向) */
-      for (var j = 0; j < bridges.length; j++) {
-        var br = bridges[j];
-        if (player.vy <= 0) continue;
-        if (player.x + CFG.PW <= br.x || player.x >= br.x + br.w) continue;
-        if (prevBottom <= br.y + 1 && player.y + CFG.PH >= br.y) { player.y = br.y - CFG.PH; player.vy = 0; landed = true; }
+      /* 段落 / 形态:形态每帧都从段落推(seek、推演跳时间也不会错),
+         但只有【真的换了形态】才动他的运动状态 —— 否则刚起跳就被第一帧清零 */
+      var si = segAt(t);
+      var seg = segs[si];
+      if (seg.mode !== mode) {
+        mode = seg.mode; S.modeIsPlane = (mode === "plane");
+        /* 变形瞬间给个安全的落点:方块 → 飞机 时直接切到走廊中间
+           (从地面上起飞、又刚好没按住,第一帧就撞地死了 —— 验收抓到的);
+           飞机 → 方块 时干净落地 */
+        if (mode === "plane") { S.y = (CFG.ROWS - CFG.PH) / 2; S.vy = 0; S.onGround = false; }
+        else { gdir = 1; S.vy = 0; S.y = 0; S.onGround = true; }
+        stateT = 4;
       }
-      if (landed) {
-        if (!player.onGround) player.squash = 1;
-        player.onGround = true; player.jumps = 0; player.coyote = CFG.COYOTE;
+      if (si !== segNow) {
+        segNow = si;
+        var meta = SEGS[si] || {};
+        say(meta.line || ("第 " + (si + 1) + " 段"), 6);
+        segEls.forEach(function (el, i2) { el.classList.toggle("is-locked", i2 > si); el.classList.toggle("is-on", i2 === si); });
+        stateT = 4;
+      }
+      if (shieldT > 0) { shieldT -= dt; if (shieldT <= 0) { shieldT = 0; shieldCd = CFG.SHIELD_CD; } }
+      else if (shieldCd > 0) shieldCd = Math.max(0, shieldCd - dt);
+      if (flash > 0) flash = Math.max(0, flash - dt * 1.8);
+      if (sayT > 0) { sayT -= dt; if (sayT <= 0 && sayEl) sayEl.classList.remove("is-on"); }
+      if (stateT > 0) stateT -= dt;
+
+      /* 物理:x 由时间推导(世界按时间滚),这样倒带/推演之后位置和时间永远对得上 */
+      S.x = t2x(t);
+      if (mode === "plane") {
+        S.vy = keys.jump ? CFG.SPEED : -CFG.SPEED;
+        S.y += S.vy * dt;
+        S.rot = keys.jump ? -0.785 : 0.785;
+        if (S.y < 0 || S.y + CFG.PH > CFG.ROWS) { die("rail"); return; }
       } else {
-        player.onGround = false;
-        player.coyote = Math.max(0, player.coyote - dt);
+        S.vy -= CFG.GRAV * gdir * dt;
+        S.y += S.vy * dt;
+        S.air = S.onGround ? 0 : S.air;
+        if (gdir > 0) {
+          if (S.y <= 0) { S.y = 0; S.vy = 0; if (!S.onGround) S.rot = 0; S.onGround = true; }
+          else S.onGround = false;
+        } else {
+          if (S.y + CFG.PH >= CFG.ROWS) { S.y = CFG.ROWS - CFG.PH; S.vy = 0; if (!S.onGround) S.rot = 0; S.onGround = true; }
+          else S.onGround = false;
+        }
+        if (!S.onGround) S.rot += dt * 5.2 * (gdir > 0 ? 1 : -1);
       }
-    }
 
-    function placeBridge() {
-      if (bridges.length >= CFG.BR_MAX) bridges.shift();
-      bridges.push({ x: player.x + CFG.PW / 2 - CFG.BR_W / 2, y: player.y + CFG.PH + 2, w: CFG.BR_W, h: CFG.BR_H, life: CFG.BR_LIFE, born: 1 });
-      player.brCd = CFG.BR_CD;
-    }
-
-    function stepPlayer(dt) {
-      if (player.dead) { player.deadT += dt; return; }
-      var shieldOn = skills.shield && keys.shield > 0 && player.fuel > 0;
-      var dir = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
-      var maxv = CFG.RUN * (shieldOn ? CFG.SH_SPEED : 1);
-      if (dir) { player.vx += dir * CFG.ACC * dt; player.face = dir; }
-      else if (player.vx) player.vx -= Math.min(Math.abs(player.vx), CFG.FRIC * dt) * (player.vx > 0 ? 1 : -1);
-      player.vx = clamp(player.vx, -maxv, maxv);
-
-      /* 跳:落地重置 + 土狼时间 + 缓冲;第二次跳要解锁二段跳 */
-      if (keys.jump && !prevJump) player.buffer = CFG.BUFFER;
-      prevJump = keys.jump;
-      player.buffer = Math.max(0, player.buffer - dt);
-      if (player.buffer > 0) {
-        if (player.onGround || player.coyote > 0) {
-          player.vy = -CFG.JUMP1; player.jumps = 1; player.buffer = 0; player.coyote = 0; player.onGround = false;
-        } else if (skills.jump && player.jumps < 2) {
-          player.vy = -CFG.JUMP2; player.jumps = 2; player.buffer = 0;
-          player.trail.push({ x: player.x, y: player.y, a: 1, burst: 1 });
+      /* 回响:到那一拍自动补一次二段跳 */
+      for (var e = 0; e < echoes.length; e++) {
+        var ec = echoes[e];
+        if (ec.at === attempts || ec.fired === attempts) continue;
+        if (S.t >= ec.t && S.t - dt < ec.t) {
+          ec.fired = attempts;
+          jumpNow(0.95);
+          flash = 0.5;
+          say("那一拍,上一轮的他替你蹬了一下。", 2.6);
         }
       }
-      if (!keys.jump && player.vy < -120) player.vy += CFG.GRAV * 1.6 * dt;   /* 松手就矮一点(手感) */
-
-      player.vy = clamp(player.vy + CFG.GRAV * dt, -900, 900);
-
-      /* 护盾燃料 */
-      if (shieldOn) player.fuel = Math.max(0, player.fuel - CFG.SH_DRAIN * dt);
-      else player.fuel = Math.min(CFG.SH_MAX, player.fuel + CFG.SH_FILL * dt);
-
-      /* 桥:空中按一下 */
-      if (player.brCd > 0) player.brCd = Math.max(0, player.brCd - dt);
-      if (keys.bridge && !prevBridge && skills.bridge && !player.onGround && player.brCd <= 0) placeBridge();
-      prevBridge = keys.bridge;
-
-      moveX(dt); moveY(dt);
-
-      /* 记录拖影 */
-      player.squash = Math.max(0, player.squash - dt * 5);
-      if (player.trail.length < 26) player.trail.push({ x: player.x, y: player.y, a: 0.55 });
-      for (var i = player.trail.length - 1; i >= 0; i--) {
-        player.trail[i].a -= dt * (player.onGround ? 1.3 : 0.75);
-        if (player.trail[i].a <= 0) player.trail.splice(i, 1);
+      /* 重力箭头进入点击窗口 */
+      for (var i = 0; i < items.length; i++) {
+        var it = items[i];
+        if (it.type !== "gravity" || it.done) continue;
+        if (S.t >= it.t - CFG.TAP_WIN && S.t <= it.t + CFG.TAP_WIN) { if (!tapArmed) { tapArmed = it; tapMiss = 0; } }
+        else if (tapArmed === it) { tapArmed = null; tapMiss = 1; }
       }
-
-      /* 掉出世界 */
-      if (player.y > CFG.DEAD_Y) die();
-    }
-
-    function stepWorld(dt) {
-      if (!player.dead) {
-        /* 尖刺:护盾挡得住(挡尖的),别的挡不住 */
-        var shieldOn = skills.shield && keys.shield > 0 && player.fuel > 0;
-        var b = playerBox(player.x, player.y);
-        for (var i = 0; i < LV.spikes.length; i++) {
-          if (!hits(b.x, b.y, b.w, b.h, LV.spikes[i])) continue;
-          if (shieldOn) continue;                 /* 盾挡住了 */
-          die(); return;
-        }
-        /* 高速锯:盾不管用(它不尖,它快)—— 只有慢动作能给你窗口 */
-        var s = sawRect();
-        if (hits(b.x, b.y, b.w, b.h, s)) { die(); return; }
-        /* 终点 */
-        if (!reached && hits(b.x, b.y, b.w, b.h, LV.goal)) {
-          reached = true;
-          if (endEl) { endEl.classList.add("is-on"); endEl.setAttribute("aria-hidden", "false"); }
-          say("", 0);                       /* 结尾那句话交给终点面板说,旁白让位 */
+      /* 碰撞 */
+      var near = itemsNear(S.x - 3, S.x + 3);
+      for (var j = 0; j < near.length; j++) {
+        var o = near[j];
+        if (o.type === "orb" || o.type === "gravity") continue;
+        var x = o.x, w = o.x2 - o.x, y = o.row, h = 1;
+        if (o.type === "spike") { x += w * 0.18; w *= 0.64; y += 0; h = 0.72; }
+        if (hit(w, h, x, y)) {
+          if (shieldT > 0) { flash = 0.15; continue; }   /* 盾挡着,直接穿过去 */
+          die("hit", o); return;
         }
       }
-      /* 桥的寿命(跟着他的时间走:慢动作时桥也耐用) */
-      for (var j = bridges.length - 1; j >= 0; j--) {
-        bridges[j].life -= dt; bridges[j].born = Math.max(0, bridges[j].born - dt * 4);
-        if (bridges[j].life <= 0) bridges.splice(j, 1);
-      }
-    }
-    function sawRect() {
-      var s = LV.saw;
-      var y = s.y + s.amp * (0.5 + 0.5 * Math.sin(tWorld * s.omega));
-      return { x: s.x, y: y, w: s.w, h: s.h };
-    }
-
-    function step(dtReal) {
-      simT += dtReal;
-      var slow = !!(skills.slow && keys.slow > 0 && !reached);
-      var wdt = dtReal * (slow ? CFG.SLOW_W : 1);
-      var pdt = dtReal * (slow ? CFG.SLOW_P : 1);
-      tWorld += wdt;
-      stepPlayer(pdt);
-      if (player.dead && player.deadT > CFG.RESPAWN) respawn();
-      stepWorld(wdt);
-      /* 旁白计时(真实时间) */
-      if (sayT > 0) { sayT -= dtReal; if (sayT <= 0 && sayEl) sayEl.classList.remove("is-on"); }
-      /* 镜头 */
-      camT = camFor(player.x);
-      cam += (camT - cam) * Math.min(1, CFG.CAM_K * dtReal * 60);
-      dustT += dtReal;
-      flash = Math.max(0, flash - dtReal * 1.6);
-      if (veil) veil.classList.toggle("is-on", slow);
-    }
-    function visW() { return cvs.w ? cvs.w / cvs.scale : CFG.VW; }
-    function camFor(x) {
-      var half = visW() / 2, want = x + CFG.PW / 2 - half * 0.86;
-      return clamp(want, 0, Math.max(0, LV.w - visW()));
+      /* 拖影 */
+      if (trail.length < 40) trail.push({ x: S.x, y: S.y });
+      for (var g = trail.length - 1; g >= 0; g--) { trail[g].a = (trail[g].a == null ? 1 : trail[g].a) - dt * 1.6; if (trail[g].a <= 0) trail.splice(g, 1); }
+      ghostTrail.push({ x: S.x, y: S.y }); if (ghostTrail.length > 40) ghostTrail.shift();
     }
 
     /* ---------------- 画 ---------------- */
+    var V = { w: 0, h: 0, ppb: 20, dpr: 1 };
     function resize() {
-      if (!cv || !ctx) return;
+      if (!cv || !ctx2d) return;
       var r = root.getBoundingClientRect();
       var dpr = Math.min(2, window.devicePixelRatio || 1);
-      cvs.w = Math.max(2, Math.round(r.width));
-      cvs.h = Math.max(2, Math.round(r.height));
-      cvs.dpr = dpr;
-      cvs.scale = cvs.h / CFG.VH;
-      cv.width = Math.round(cvs.w * dpr);
-      cv.height = Math.round(cvs.h * dpr);
-      cv.style.width = cvs.w + "px";
-      cv.style.height = cvs.h + "px";
-      ctx.setTransform(dpr * cvs.scale, 0, 0, dpr * cvs.scale, 0, 0);
+      V.w = Math.max(2, Math.round(r.width)); V.h = Math.max(2, Math.round(r.height)); V.dpr = dpr;
+      V.ppb = V.h / (CFG.ROWS + 2);                    /* 一格方块多少像素 */
+      cv.width = Math.round(V.w * dpr); cv.height = Math.round(V.h * dpr);
+      cv.style.width = V.w + "px"; cv.style.height = V.h + "px";
+      ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
-
+    var COL = { accent: "#7ff0ff", bg: "#06080f", warn: "#ff7a6b", dim: "rgba(226,242,255,.62)" };
     function readColors() {
       var cs = getComputedStyle(root);
       var a = (cs.getPropertyValue("--intro-accent") || "").trim();
       var t = (cs.getPropertyValue("--theme") || "").trim();
-      var d = (cs.getPropertyValue("--intro-dim") || "").trim();
       if (a) COL.accent = a;
       if (t) COL.bg = t;
-      if (d) COL.dim = d;
     }
-
-    var VWv = 0, VHv = CFG.VH;
-    function draw() {
-      if (!ctx) return;
-      VWv = cvs.w / cvs.scale; VHv = CFG.VH;
-      ctx.save();
-      ctx.clearRect(0, 0, VWv, VHv);
-      /* 背景 */
-      ctx.fillStyle = COL.bg;
-      ctx.fillRect(0, 0, VWv, VHv);
-      drawDust();
-      drawGrid();
-      ctx.translate(-cam, 0);
-
-      drawSolids();
-      drawGoal();
-      drawSpikes();
-      drawSaw();
-      drawBridges();
-      drawPlayer();
-      ctx.restore();
-
-      drawVignette();
-      if (flash > 0) { ctx.fillStyle = "rgba(255,120,110," + (flash * 0.22).toFixed(3) + ")"; ctx.fillRect(0, 0, VWv, VHv); }
-      if (reached) { ctx.fillStyle = "rgba(0,0,0,0.42)"; ctx.fillRect(0, 0, VWv, VHv); }
-    }
-
-    function drawDust() {
-      ctx.save();
-      for (var i = 0; i < DUST.length; i++) {
-        var d = DUST[i];
-        var x = ((d.x * LV.w - cam * d.k) % (VWv + 40) + VWv + 40) % (VWv + 40) - 20;
-        var y = d.y * VHv;
-        var tw = 0.45 + 0.55 * Math.abs(Math.sin(dustT * 0.7 + i));
-        ctx.fillStyle = "rgba(255,255,255," + (0.05 + 0.09 * tw).toFixed(3) + ")";
-        ctx.fillRect(x, y, d.r, d.r);
+    function W2S(x) { return (x - camX) * V.ppb; }
+    function H2S(y) { return V.h - V.ppb - y * V.ppb; }   /* 行 0 = 地面线 */
+    var animT = 0;
+    function render(dt) {
+      if (!ctx2d || !ready) return;
+      animT += dt;
+      var t = S ? S.t : 0;
+      camX = (S ? S.x : 0) - (V.w / V.ppb) * CFG.VIEW;
+      ctx2d.clearRect(0, 0, V.w, V.h);
+      ctx2d.fillStyle = COL.bg;
+      ctx2d.fillRect(0, 0, V.w, V.h);
+      /* 背景网格(跟着世界滚)*/
+      var step = 4, x0 = Math.floor(camX / step) * step;
+      ctx2d.strokeStyle = "rgba(127,240,255,0.05)"; ctx2d.lineWidth = 1;
+      for (var gx = x0; gx < camX + V.w / V.ppb + step; gx += step) {
+        var px = W2S(gx);
+        ctx2d.beginPath(); ctx2d.moveTo(px, 0); ctx2d.lineTo(px, V.h); ctx2d.stroke();
       }
-      ctx.restore();
-    }
-    function drawGrid() {
-      ctx.save();
-      ctx.strokeStyle = "rgba(127,240,255,0.045)";
-      ctx.lineWidth = 1;
-      var step = 60, ox = -(cam % step);
-      for (var x = ox; x < VWv; x += step) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, VHv); ctx.stroke(); }
-      for (var y = 0; y < VHv; y += step) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(VWv, y); ctx.stroke(); }
-      ctx.restore();
-    }
-    function drawSolids() {
-      var rs = solidRects();
-      for (var i = 0; i < rs.length; i++) {
-        var r = rs[i];
-        if (r.x + r.w < cam - 40 || r.x > cam + VWv + 40) continue;
-        ctx.fillStyle = "rgba(10,16,26,0.92)";
-        ctx.fillRect(r.x, r.y, r.w, r.h);
-        ctx.fillStyle = COL.accent;
-        ctx.globalAlpha = 0.55;
-        ctx.fillRect(r.x, r.y, r.w, 2);          /* 台面亮边 */
-        ctx.globalAlpha = 0.12;                  /* 两道浅浅的纹理:让它看起来是"台子"而不是黑洞 */
-        ctx.fillRect(r.x, r.y + 7, r.w, 1);
-        ctx.globalAlpha = 0.06;
-        ctx.fillRect(r.x, r.y + 16, r.w, 1);
-        ctx.globalAlpha = 1;
+      for (var gy = 0; gy <= CFG.ROWS; gy += 2) {
+        var py = H2S(gy);
+        ctx2d.beginPath(); ctx2d.moveTo(0, py); ctx2d.lineTo(V.w, py); ctx2d.stroke();
       }
-      /* 崖边亮线(纯提示,没有碰撞)*/
-      ctx.save();
-      ctx.strokeStyle = COL.accent;
-      ctx.globalAlpha = 0.5;
-      ctx.lineWidth = 2;
-      for (var e = 0; e < LV.edges.length; e++) {
-        var x = LV.edges[e];
-        if (x < cam - 20 || x > cam + VWv + 20) continue;
-        ctx.beginPath(); ctx.moveTo(x, CFG.GROUND - 26); ctx.lineTo(x, CFG.GROUND + 130); ctx.stroke();
-      }
-      ctx.restore();
-    }
-    function drawSpikes() {
-      for (var i = 0; i < LV.spikes.length; i++) {
-        var s = LV.spikes[i];
-        if (s.x + s.w < cam - 40 || s.x > cam + VWv + 40) continue;
-        ctx.fillStyle = COL.warn;
-        ctx.globalAlpha = 0.85;
-        var n = Math.floor(s.w / 16);
-        for (var k = 0; k < n; k++) {
-          var x = s.x + k * 16;
-          ctx.beginPath();
-          ctx.moveTo(x, s.y + s.h); ctx.lineTo(x + 8, s.y); ctx.lineTo(x + 16, s.y + s.h);
-          ctx.closePath(); ctx.fill();
+      /* 拍点:地面线跟着拍闪 */
+      var ph = period > 0 ? ((t - offset) / period) : 0;
+      var phf = ph - Math.floor(ph);
+      var pulse = Math.pow(1 - phf, 3);
+      ctx2d.strokeStyle = COL.accent;
+      ctx2d.globalAlpha = 0.35 + 0.5 * pulse;
+      ctx2d.lineWidth = 2;
+      ctx2d.beginPath(); ctx2d.moveTo(0, H2S(0)); ctx2d.lineTo(V.w, H2S(0)); ctx2d.stroke();
+      ctx2d.globalAlpha = 0.18 + 0.3 * pulse;
+      ctx2d.beginPath(); ctx2d.moveTo(0, H2S(CFG.ROWS)); ctx2d.lineTo(V.w, H2S(CFG.ROWS)); ctx2d.stroke();
+      ctx2d.globalAlpha = 1;
+
+      /* 物件 */
+      var near = itemsNear(camX - 2, camX + V.w / V.ppb + 2);
+      for (var i = 0; i < near.length; i++) {
+        var o = near[i];
+        var x = W2S(o.x), w = (o.x2 - o.x) * V.ppb, y = H2S(o.row + 1), h = V.ppb;
+        if (o.type === "block") {
+          ctx2d.fillStyle = "rgba(226,246,255,0.16)";
+          ctx2d.fillRect(x, y, w, h);
+          ctx2d.strokeStyle = COL.accent; ctx2d.globalAlpha = 0.75; ctx2d.lineWidth = 2;
+          ctx2d.strokeRect(x + 1, y + 1, w - 2, h - 2);
+          ctx2d.globalAlpha = 1;
+        } else if (o.type === "spike") {
+          ctx2d.fillStyle = COL.warn; ctx2d.globalAlpha = 0.9;
+          var n = Math.max(1, Math.round((o.x2 - o.x)));
+          for (var k = 0; k < n; k++) {
+            var sx = x + k * V.ppb, sw = Math.min(V.ppb, w - k * V.ppb);
+            ctx2d.beginPath();
+            ctx2d.moveTo(sx, y + h); ctx2d.lineTo(sx + sw / 2, y + h * 0.12); ctx2d.lineTo(sx + sw, y + h);
+            ctx2d.closePath(); ctx2d.fill();
+          }
+          ctx2d.globalAlpha = 1;
+        } else if (o.type === "orb") {
+          var cy2 = H2S(o.row + 0.5), cr = V.ppb * 0.30 * (1 + 0.22 * Math.sin(animT * 6 + i));
+          ctx2d.strokeStyle = o.orb === "pink" ? "#ff9fd0" : "#ffe17a";
+          ctx2d.lineWidth = 3; ctx2d.globalAlpha = o.done ? 0.25 : 0.95;
+          ctx2d.beginPath(); ctx2d.arc(x + V.ppb * 0.5, cy2, cr, 0, Math.PI * 2); ctx2d.stroke();
+          ctx2d.globalAlpha = 1;
+        } else if (o.type === "gravity") {
+          var arm = (tapArmed === o);
+          ctx2d.fillStyle = arm ? "#ffffff" : COL.accent;
+          ctx2d.globalAlpha = arm ? 1 : 0.8;
+          var cy3 = H2S(o.row + 0.5);
+          ctx2d.beginPath();
+          ctx2d.moveTo(x + V.ppb * 0.15, cy3 + V.ppb * 0.35);
+          ctx2d.lineTo(x + V.ppb * 0.5, cy3 - V.ppb * 0.15);
+          ctx2d.lineTo(x + V.ppb * 0.85, cy3 + V.ppb * 0.35);
+          ctx2d.closePath(); ctx2d.fill();
+          ctx2d.beginPath();
+          ctx2d.moveTo(x + V.ppb * 0.15, cy3 + V.ppb * 0.75);
+          ctx2d.lineTo(x + V.ppb * 0.5, cy3 + V.ppb * 0.25);
+          ctx2d.lineTo(x + V.ppb * 0.85, cy3 + V.ppb * 0.75);
+          ctx2d.closePath(); ctx2d.fill();
+          ctx2d.globalAlpha = 1;
         }
-        ctx.globalAlpha = 0.5;
-        ctx.fillRect(s.x, s.y + s.h - 2, s.w, 2);
-        ctx.globalAlpha = 1;
       }
-    }
-    function drawSaw() {
-      var s = sawRect();
-      if (s.x + s.w < cam - 60 || s.x > cam + VWv + 60) return;
-      ctx.save();
-      ctx.shadowColor = COL.accent; ctx.shadowBlur = 18;
-      ctx.fillStyle = "rgba(210,245,255,0.92)";
-      ctx.fillRect(s.x, s.y, s.w, s.h);
-      ctx.restore();
-      /* 锯口 */
-      ctx.fillStyle = "rgba(10,16,26,0.95)";
-      for (var k = 0; k < 8; k++) ctx.fillRect(s.x - 4, s.y + 10 + k * 26, s.w + 8, 8);
-      ctx.strokeStyle = "rgba(127,240,255,0.7)"; ctx.lineWidth = 1;
-      ctx.strokeRect(s.x - 0.5, s.y - 0.5, s.w + 1, s.h + 1);
-    }
-    function drawBridges() {
-      for (var i = 0; i < bridges.length; i++) {
-        var b = bridges[i];
-        var a = clamp(b.life / CFG.BR_LIFE, 0, 1);
-        ctx.globalAlpha = 0.35 + 0.6 * a;
-        ctx.strokeStyle = COL.accent;
-        ctx.lineWidth = 2;
-        ctx.setLineDash([7, 5]);
-        ctx.strokeRect(b.x, b.y, b.w, b.h);
-        ctx.setLineDash([]);
-        ctx.fillStyle = COL.accent;
-        ctx.globalAlpha = 0.18 + 0.5 * a;
-        ctx.fillRect(b.x, b.y, b.w * a, b.h);
-        ctx.globalAlpha = 1;
+      /* 回响残影 */
+      for (var e = 0; e < echoes.length; e++) {
+        var ec = echoes[e];
+        if (Math.abs(t - ec.t) > 1.6) continue;
+        ctx2d.globalAlpha = 0.16;
+        for (var q = 0; q < ec.ghost.length; q++) {
+          var gq = ec.ghost[q];
+          ctx2d.fillStyle = COL.accent;
+          ctx2d.fillRect(W2S(gq.x), H2S(gq.y + 0.9), CFG.PW * V.ppb, CFG.PH * V.ppb);
+        }
+        ctx2d.globalAlpha = 0.9;
+        ctx2d.strokeStyle = COL.accent; ctx2d.lineWidth = 2;
+        ctx2d.strokeRect(W2S(ec.x), H2S(ec.y + 0.9), CFG.PW * V.ppb, CFG.PH * V.ppb);
+        ctx2d.globalAlpha = 1;
       }
-    }
-    function drawGoal() {
-      var g = LV.goal;
-      if (g.x + g.w < cam - 80 || g.x > cam + VWv + 80) return;
-      ctx.save();
-      ctx.strokeStyle = COL.accent; ctx.lineWidth = 2; ctx.globalAlpha = 0.9;
-      ctx.strokeRect(g.x + 0.5, g.y + 0.5, g.w - 1, g.h - 1);
-      ctx.globalAlpha = 0.16;
-      ctx.fillStyle = COL.accent;
-      ctx.fillRect(g.x, g.y, g.w, g.h);
-      ctx.globalAlpha = 0.5;
-      ctx.fillRect(g.x + g.w / 2 - 1, g.y + 14, 2, g.h - 28);
-      ctx.globalAlpha = 1;
-      ctx.restore();
-      ctx.fillStyle = COL.accent;
-      ctx.globalAlpha = 0.75;
-      ctx.font = "600 13px ui-monospace, Consolas, monospace";
-      ctx.fillText(TXT.goal, g.x + 4, g.y + 20);
-      ctx.globalAlpha = 1;
-    }
-    function drawPlayer() {
       /* 拖影 */
-      for (var i = 0; i < player.trail.length; i++) {
-        var t = player.trail[i];
-        ctx.globalAlpha = Math.max(0, t.a) * 0.30;
-        ctx.fillStyle = COL.accent;
-        if (t.burst) { ctx.globalAlpha = 0.5; ctx.fillRect(t.x - 10, t.y + 26, CFG.PW + 20, 2); }
-        ctx.fillRect(t.x + 3, t.y + 4, CFG.PW - 6, CFG.PH - 6);
+      for (var q2 = 0; q2 < trail.length; q2++) {
+        var tr = trail[q2];
+        ctx2d.globalAlpha = (tr.a == null ? 1 : tr.a) * 0.16;
+        ctx2d.fillStyle = COL.accent;
+        ctx2d.fillRect(W2S(tr.x), H2S(tr.y + 0.9), CFG.PW * V.ppb * 0.7, CFG.PH * V.ppb * 0.7);
       }
-      ctx.globalAlpha = 1;
-      if (player.dead) {
-        ctx.globalAlpha = Math.max(0, 1 - player.deadT * 1.4);
-        ctx.fillStyle = COL.warn;
-        ctx.fillRect(player.x, player.y, CFG.PW, CFG.PH);
-        ctx.globalAlpha = 1;
-        return;
+      ctx2d.globalAlpha = 1;
+      /* 他 */
+      if (S) {
+        var px = W2S(S.x), py = H2S(S.y + CFG.PH), pw = CFG.PW * V.ppb, phh = CFG.PH * V.ppb;
+        if (mode === "plane") {
+          ctx2d.save();
+          ctx2d.translate(px + pw / 2, py + phh / 2);
+          ctx2d.rotate(S.rot || 0);
+          ctx2d.fillStyle = "rgba(226,246,255,0.95)";
+          ctx2d.beginPath();
+          ctx2d.moveTo(-pw * 0.5, -phh * 0.32); ctx2d.lineTo(pw * 0.6, 0); ctx2d.lineTo(-pw * 0.5, phh * 0.32);
+          ctx2d.closePath(); ctx2d.fill();
+          ctx2d.restore();
+        } else {
+          ctx2d.save();
+          ctx2d.translate(px + pw / 2, py + phh / 2);
+          ctx2d.rotate(S.rot || 0);
+          ctx2d.fillStyle = dead ? COL.warn : "rgba(226,246,255,0.96)";
+          if (dead) ctx2d.globalAlpha = Math.max(0, 1 - deadT * 1.4);
+          ctx2d.fillRect(-pw / 2, -phh / 2, pw, phh);
+          ctx2d.strokeStyle = COL.accent; ctx2d.lineWidth = 2;
+          ctx2d.strokeRect(-pw / 2 + 1, -phh / 2 + 1, pw - 2, phh - 2);
+          ctx2d.restore();
+          ctx2d.globalAlpha = 1;
+        }
+        if (shieldT > 0) {
+          ctx2d.globalAlpha = 0.35 + 0.25 * Math.sin(animT * 8);
+          ctx2d.strokeStyle = COL.accent; ctx2d.lineWidth = 3;
+          ctx2d.beginPath(); ctx2d.arc(px + pw / 2, py + phh / 2, phh * 0.95, 0, Math.PI * 2); ctx2d.stroke();
+          ctx2d.globalAlpha = 1;
+        }
       }
-      var sq = player.squash * 4;
-      var h = CFG.PH * (1 - sq * 0.012), w = CFG.PW * (1 + sq * 0.02);
-      var y = player.y + (CFG.PH - h);
-      /* 护盾 */
-      var shieldOn = skills.shield && keys.shield > 0 && player.fuel > 0;
-      if (shieldOn) {
-        ctx.save();
-        ctx.globalAlpha = 0.30 + 0.22 * Math.sin(dustT * 6);
-        ctx.strokeStyle = COL.accent; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(player.x + CFG.PW / 2, player.y + CFG.PH / 2, CFG.PH * 0.95, 0, Math.PI * 2); ctx.stroke();
-        ctx.restore();
+      /* 死亡/护盾闪 */
+      if (flash > 0) {
+        ctx2d.fillStyle = "rgba(255,120,110," + (flash * 0.20).toFixed(3) + ")";
+        ctx2d.fillRect(0, 0, V.w, V.h);
       }
-      /* 身体 + 头 */
-      ctx.fillStyle = "rgba(226,246,255,0.95)";
-      ctx.fillRect(player.x, y + 9, w, h - 9);
-      ctx.beginPath();
-      ctx.arc(player.x + w / 2, y + 6, 6, 0, Math.PI * 2);
-      ctx.fill();
-      /* 朝向 */
-      ctx.fillStyle = COL.accent;
-      ctx.fillRect(player.x + (player.face > 0 ? w - 3 : 0), y + 4, 3, 4);
-      /* 二段跳可用时:脚下两小点 */
-      if (skills.jump && player.jumps < 2 && !player.onGround) {
-        ctx.globalAlpha = 0.5;
-        ctx.fillRect(player.x + 2, player.y + CFG.PH + 3, 4, 2);
-        ctx.fillRect(player.x + CFG.PW - 6, player.y + CFG.PH + 3, 4, 2);
-        ctx.globalAlpha = 1;
+      if (tapMiss > 0) {
+        ctx2d.fillStyle = "rgba(255,120,110,0.5)";
+        ctx2d.font = "600 14px ui-monospace, Consolas, monospace";
+        ctx2d.fillText("MISS", 24, V.h - 24);
       }
-    }
-    function drawVignette() {
-      var g = ctx.createRadialGradient(VWv / 2, VHv / 2, VHv * 0.32, VWv / 2, VHv / 2, VHv * 0.92);
-      g.addColorStop(0, "rgba(0,0,0,0)");
-      g.addColorStop(1, "rgba(0,0,0,0.55)");
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, VWv, VHv);
+      if (dead) { ctx2d.fillStyle = "rgba(0,0,0,0.35)"; ctx2d.fillRect(0, 0, V.w, V.h); }
     }
 
-    /* ---------------- 主循环 ---------------- */
+    /* ---------------- HUD ---------------- */
+    function say(text, hold) {
+      if (!sayEl) return;
+      if (text) { sayTx.textContent = text; sayEl.classList.add("is-on"); }
+      sayT = hold || 0;
+      if (!text) { sayEl.classList.remove("is-on"); sayT = 0; }
+    }
+    var lastMode = "";
+    function hud(force) {
+      if (!ready) return;
+      if (clockEl) clockEl.textContent = fmtClock(S ? S.t : 0);
+      if (deathsEl) deathsEl.textContent = pad2(deaths);
+      if (codeEl) codeEl.style.setProperty("--p", (clamp((S ? S.t : 0) / dur, 0, 1) * 100).toFixed(1) + "%");
+      var mt = mode === "plane" ? "飞机" : (gdir > 0 ? "方块" : "方块·反重力");
+      if (force || mt !== lastMode) { lastMode = mt; if (stateMode) stateMode.textContent = mt; }
+      if (stateTx) {
+        var tx = mode === "plane" ? "按住上升 · 松开下降(45°)"
+          : (shieldT > 0 ? "护盾 " + shieldT.toFixed(1) + "s"
+            : (shieldCd > 0 ? "护盾冷却 " + shieldCd.toFixed(1) + "s" : "TAP 跳"));
+        stateTx.textContent = tx;
+      }
+      if (veil) veil.classList.toggle("is-on", shieldT > 0);
+      if (beatDots.length === 4) {
+        var ph = period > 0 ? ((S ? S.t : 0) - offset) / period : 0;
+        var q = Math.floor((ph - Math.floor(ph)) * 4) % 4;
+        for (var i = 0; i < 4; i++) beatDots[i].classList.toggle("is-on", i === q);
+      }
+    }
+
+    /* ---------------- 循环 ---------------- */
+    var active = false, raf = 0, last = 0, acc = 0, frozen = false, paused = false;
     function frame(now) {
       raf = 0;
       if (!active) return;
       var dt = last ? Math.min(0.05, (now - last) / 1000) : 0;
       last = now;
-      if (dt > 0 && !paused && !frozen) {
-        /* 固定步长推进:物理确定性(验收脚本也用同一条路径)*/
+      if (dt > 0 && !frozen) {
         acc += dt;
         var guard = 0;
-        while (acc >= CFG.STEP && guard++ < 8) { step(CFG.STEP); acc -= CFG.STEP; }
+        while (acc >= 1 / 120 && guard++ < 8) { step(1 / 120); acc -= 1 / 120; }
       }
-      syncHudLight();
-      draw();
+      if (++hudT % 6 === 0) hud(false);
+      render(dt);
       raf = requestAnimationFrame(frame);
     }
-    var acc = 0;
-    var hudTick = 0;
-    function syncHudLight() { if (++hudTick % 12 === 0) syncHud(); }
 
     /* ---------------- 输入 ---------------- */
-    var KEYMAP = {
-      ArrowLeft: "left", a: "left", A: "left",
-      ArrowRight: "right", d: "right", D: "right",
-      ArrowUp: "jump", w: "jump", W: "jump", " ": "jump", Spacebar: "jump",
-      ArrowDown: "shield", s: "shield", S: "shield",
-      Shift: "slow", ShiftLeft: "slow", ShiftRight: "slow",
-      e: "bridge", E: "bridge",
-      r: "restart", R: "restart"
-    };
     function typing(e) {
-      var t = e.target;
-      if (!t) return false;
-      var tag = (t.tagName || "").toLowerCase();
-      return tag === "input" || tag === "textarea" || tag === "select" || t.isContentEditable;
+      var t = e.target, tag = t && t.tagName ? t.tagName.toLowerCase() : "";
+      return tag === "input" || tag === "textarea" || tag === "select" || (t && t.isContentEditable);
     }
     function onKey(e, down) {
       if (!active || typing(e)) return;
-      var k = KEYMAP[e.key];
-      if (!k) return;
-      if (/^Arrow|^ $/.test(e.key) || e.key === "Spacebar") e.preventDefault();
-      if (k === "restart") { if (down) reset(); return; }
-      keys[k] = down ? 1 : 0;
+      if (e.key === " " || e.key === "ArrowUp" || /^Arrow/.test(e.key)) e.preventDefault();
+      if (e.key === "r" || e.key === "R") { if (down) retry(); return; }
+      if (e.key === "s" || e.key === "S" || e.key === "Shift") { if (down && !keys.shield) { keys.shield = 1; shieldNow(); } else if (!down) keys.shield = 0; return; }
+      if (e.repeat) return;
+      if (down && (e.key === " " || e.key === "ArrowUp" || e.key === "w" || e.key === "W" || e.key === "Enter")) { keys.jump = 1; tap(); }
+      else if (!down && (e.key === " " || e.key === "ArrowUp" || e.key === "w" || e.key === "W" || e.key === "Enter")) keys.jump = 0;
     }
     var kd = function (e) { onKey(e, true); }, ku = function (e) { onKey(e, false); };
-    /* 触摸按钮 */
-    var btnOff = [];
+    function onDown(e) { if (!active) return; if (e.target && e.target.closest && e.target.closest(".lost-btn")) return; keys.jump = 1; tap(); }
+    function onUp() { keys.jump = 0; }
     function bindTouch() {
       Array.prototype.slice.call(root.querySelectorAll(".lost-btn")).forEach(function (b) {
         var k = b.getAttribute("data-k");
-        var set = function (on) { return function (ev) { ev.preventDefault(); if (k === "restart") { if (on) reset(); return; } keys[k] = on ? 1 : 0; }; };
-        var d = set(true), u = set(false);
-        b.addEventListener("pointerdown", d);
-        b.addEventListener("pointerup", u);
-        b.addEventListener("pointercancel", u);
-        b.addEventListener("pointerleave", u);
-        btnOff.push(function () { b.removeEventListener("pointerdown", d); b.removeEventListener("pointerup", u); b.removeEventListener("pointercancel", u); b.removeEventListener("pointerleave", u); });
+        b.addEventListener("pointerdown", function (ev) {
+          ev.preventDefault(); ev.stopPropagation();
+          if (k === "restart") { retry(); return; }
+          if (k === "shield") { shieldNow(); return; }
+          keys.jump = 1; tap();
+        });
+        b.addEventListener("pointerup", function (ev) { ev.preventDefault(); keys.jump = 0; });
+        b.addEventListener("pointercancel", function () { keys.jump = 0; });
       });
     }
+    function retry() {
+      attempts = 0; deaths = 0; echoes = []; reached = false;
+      if (endEl) endEl.classList.remove("is-on");
+      segNow = -1; resetPlayer(0, 1);
+      S.t = chart.lead; S.x = t2x(S.t);
+      items.forEach(function (it) { it.done = false; });
+      if (!MODE_STEP.dry) audioStart(S.t);
+      say(TXT.intro, 5);
+      if (deathsEl) deathsEl.textContent = "00";
+    }
 
-    /* ---------------- CD 架打开时暂停 ---------------- */
+    /* ---------------- 起停 ---------------- */
     var mo = null;
     function watchScene() {
       if (mo || !window.MutationObserver) return;
-      mo = new MutationObserver(function () { paused = document.body.classList.contains("scene-open"); });
+      mo = new MutationObserver(function () {
+        paused = document.body.classList.contains("scene-open");
+        if (paused) audioStop(); else if (active && !MODE_STEP.dry) audioStart(S ? S.t : 0);
+      });
       mo.observe(document.body, { attributes: true, attributeFilter: ["class"] });
     }
-
-    reset();
+    root.addEventListener("pointerdown", onDown);
+    window.addEventListener("pointerup", onUp);
+    if (cv) cv.addEventListener("contextmenu", function (e) { e.preventDefault(); });
     bindTouch();
+    resetPlayer(0, 1);
+    S.t = 0;
+    load();
+
     return {
+      ready: function () { return ready; },
       activate: function (on) {
         active = !!on;
         if (on) {
+          if (!ready) load().then(function () { if (active) { retry(); audioInit(); } });
+          else { retry(); audioInit(); }
           if (!raf) { last = 0; acc = 0; raf = requestAnimationFrame(frame); }
           resize(); readColors();
-          paused = document.body.classList.contains("scene-open");
           window.addEventListener("keydown", kd);
           window.addEventListener("keyup", ku);
           watchScene();
+          /* 这一页自己管路关音乐的时间轴 → 让站点的 BGM 让位,免得同一首叠两遍 */
+          try { if (window.__cdAudio && window.__cdAudio.music) window.__cdAudio.music.stop(); } catch (e) {}
         } else {
           window.removeEventListener("keydown", kd);
           window.removeEventListener("keyup", ku);
-          keys = { left: 0, right: 0, jump: 0, shoot: 0, shield: 0, slow: 0, bridge: 0 };
-          prevJump = 0; prevBridge = 0;
+          keys.jump = 0; keys.shield = 0;
+          audioStop();
           if (raf) { cancelAnimationFrame(raf); raf = 0; }
         }
       },
-      repaint: function () { resize(); cam = camT = camFor(player.x); if (active) draw(); },
+      repaint: function () { resize(); camX = (S ? S.x : 0) - (V.w / V.ppb) * CFG.VIEW; },
       state: function () {
         return {
-          key: key, active: active, paused: paused, reached: reached, deaths: deaths,
-          simT: +simT.toFixed(2),            /* 累计仿真时间(验收用:无头浏览器帧率太低时,靠它把"操作"和"帧率"分开看)*/
-          skills: JSON.parse(JSON.stringify(skills)),
-          x: Math.round(player.x), y: Math.round(player.y), vy: Math.round(player.vy),
-          onGround: player.onGround, jumps: player.jumps, fuel: +player.fuel.toFixed(2),
-          bridges: bridges.length, sawY: Math.round(sawRect().y),
-          say: sayEl && sayEl.classList.contains("is-on") ? sayTx.textContent : "",
-          locked: ORDER.filter(function (k) { return !skills[k]; }).length
+          key: key, active: active, ready: ready, err: loadErr || A.err,
+          t: S ? +S.t.toFixed(3) : 0, x: S ? +S.x.toFixed(2) : 0, y: S ? +S.y.toFixed(2) : 0,
+          mode: mode, gdir: gdir, onGround: S ? S.onGround : false,
+          dead: dead, deaths: deaths, attempts: attempts, reached: reached,
+          shieldT: +shieldT.toFixed(2), shieldCd: +shieldCd.toFixed(2),
+          echoes: echoes.map(function (e) { return { beat: e.beat, t: +e.t.toFixed(3), fired: e.fired }; }),
+          items: items.length, segs: segs.length, bpm: +(60 / period).toFixed(2),
+          beat: nearestBeat(S ? S.t : 0), armed: tapArmed ? +tapArmed.t.toFixed(3) : null,
+          say: sayEl && sayEl.classList.contains("is-on") ? sayTx.textContent : ""
         };
       },
-      /* ---- 验收专用:确定性推演(不依赖 rAF / 手速) ---- */
+      /* ---- 验收专用:定步长推演,不依赖 rAF 与音频 ---- */
       dev: {
-        reset: reset,
-        place: function (x, opts) {
-          opts = opts || {};
-          if (opts.skills) { skills = {}; ORDER.forEach(function (k) { skills[k] = opts.skills.indexOf(k) >= 0; }); refreshSkills(); }
-          /* 先松开所有键:不然上一个测试按住的键会漏到这一个测试里(验收踩过)*/
-          for (var kk in keys) keys[kk] = 0;
-          prevJump = 0; prevBridge = 0;
-          resetPlayer(x);
-          if (opts.deaths != null) { deaths = opts.deaths; if (deathsEl) deathsEl.textContent = pad2(deaths); }
-          bridges.length = 0; reached = false;
-          tWorld = opts.tWorld || 0;      /* 复位世界时间 → 锯的相位从零开始(验收可复现)*/
-          if (endEl) endEl.classList.remove("is-on");
-          cam = camT = camFor(player.x);
+        dry: function (on) { MODE_STEP.dry = on !== false; audioStop(); return MODE_STEP.dry; },
+        retry: retry,
+        seek: function (t) {
+          resetPlayer(0, 1); S.t = t; S.x = t2x(t); segNow = segAt(t);
+          items.forEach(function (it) { it.done = false; });
+          audioStop();
           return this.snapshot();
         },
-        press: function (k, on) { if (k in keys) keys[k] = on ? 1 : 0; return this.snapshot(); },
-        steer: function (o) { for (var k in o) if (k in keys) keys[k] = o[k] ? 1 : 0; return this.snapshot(); },
-        /* 推进 seconds 秒(固定步长,和主循环同一条 step)*/
-        advance: function (sec, o) {
-          if (o) this.steer(o);
+        y: function (v, gy) { dead = false; deadT = 0; S.y = v; S.vy = 0; S.onGround = false; if (gy) gdir = gy; return this.snapshot(); },
+        tap: function () { tap(); return this.snapshot(); },
+        shield: function () { shieldNow(); return this.snapshot(); },
+        hold: function (on) { keys.jump = on ? 1 : 0; return this.snapshot(); },
+        advance: function (sec) {
           frozen = true;
-          var n = Math.round(sec / CFG.STEP);
-          for (var i = 0; i < n; i++) step(CFG.STEP);
+          var n = Math.round(sec / (1 / 120));
+          for (var i = 0; i < n; i++) step(1 / 120);
           frozen = false;
           return this.snapshot();
         },
+        /* 推进到关卡时间 t(按拍走,方便"在第 N 拍点击"这种脚法)*/
+        to: function (t) {
+          var guard = 0;
+          while (S.t < t - 1e-6 && guard++ < 20000 && !dead && !reached) step(1 / 120);
+          return this.snapshot();
+        },
+        echo: function () { return echoes.map(function (e) { return { beat: e.beat, t: +e.t.toFixed(3), at: e.at, fired: e.fired }; }); },
+        draft: function () { return draft(chart, beats); },
+        chart: function () { return { segments: segs, items: items.length, speed: CFG.SPEED, rows: CFG.ROWS, lead: chart.lead }; },
         snapshot: function () {
           return {
-            x: +player.x.toFixed(1), y: +player.y.toFixed(1), dead: player.dead,
-            onGround: player.onGround, jumps: player.jumps, vy: Math.round(player.vy),
-            deaths: deaths, sawY: Math.round(sawRect().y),
-            skills: Object.keys(skills).filter(function (k) { return skills[k]; }),
-            reached: reached, bridges: bridges.length,
-            fuel: +player.fuel.toFixed(2), cam: +cam.toFixed(1)
+            t: +S.t.toFixed(3), x: +S.x.toFixed(2), y: +S.y.toFixed(2), vy: +S.vy.toFixed(2),
+            dead: dead, onGround: S.onGround, mode: mode, gdir: gdir, beat: nearestBeat(S.t),
+            deaths: deaths, attempts: attempts, reached: reached,
+            shieldT: +shieldT.toFixed(2), shieldCd: +shieldCd.toFixed(2)
           };
         }
       }

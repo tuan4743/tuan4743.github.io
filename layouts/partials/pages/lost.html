@@ -1,10 +1,13 @@
-{{/* 第三张盘「迷茫」的主页内容:迷你平台跳跃(死一次 → 长一样本事)
-     数据:hugo.toml 的 [params.intro.lost](文案)+ [[params.intro.decks.lost]](四样能力)
-     逻辑:assets/js/page-lost.js(关卡结构/物理/能力都在那里,这里只有壳与 HUD)
-     视角:旁白是第三人称「他」——他过不去的地方,就是他缺的东西
-     HUD 语言沿用第二张盘那套(等宽小字 + 强调色 + 直角卡片)*/}}
+{{/* 第三张盘「迷茫」的主页内容:几何冲刺式音乐关卡
+     数据:static/assets/cd/lost-chart.json(铺面)+ lost-beats.json(采音)
+           hugo.toml [params.intro.lost](文案)+ [[params.intro.decks.lost]](四段的字)
+     逻辑:assets/js/page-lost.js;铺面编辑器:?chart 或 Alt+E(assets/js/lost-editor.js)
+     玩法:自动向右跑 + 按拍点击(跳/翻转重力/触发跳点),死亡把音乐倒回几拍重来;
+           四段四种变形 —— 复盘·回响方块 / 求助·飞机 / 呼吸·护盾形态 / 继续·重力箭头
+     旁白:第三人称「他」,每段一句(和上一版一样保留)*/}}
 {{- $cfg := site.Params.intro.lost | default dict -}}
 <div class="lost" data-lost="{{ .key }}"
+    data-chart="{{ $cfg.chart | default "/assets/cd/lost-chart.json" }}"
     data-intro="{{ $cfg.intro | default "" }}" data-ending="{{ $cfg.ending | default "" }}"
     data-goal="{{ $cfg.goal | default "终点" }}" data-restart="{{ $cfg.restart | default "按 R 再来一次" }}">
     <div class="lost-stage">
@@ -13,18 +16,23 @@
     </div>
 
     <div class="lost-top">
-        <span class="lost-code">{{ $cfg.code | default "LV-00" }}</span>
+        <span class="lost-code">{{ $cfg.code | default "LV-01" }}</span>
+        <span class="lost-clock">0:00.0</span>
         <span class="lost-tries">尝试 <b class="lost-deaths">00</b></span>
     </div>
 
-    {{/* 旁白:一句话,淡入淡出 */}}
+    {{/* 拍点指示:四个点,跟着 1/4 拍闪 —— 不看波形也知道自己在哪一拍 */}}
+    <div class="lost-beat" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+
     <div class="lost-say" aria-live="polite"><span class="lost-say-tx">{{ $cfg.intro | default "" }}</span></div>
 
-    {{/* 能力栏:默认全是 ???,死了才亮一个 —— 这就是这一页的"进度条" */}}
+    {{/* 四段:没走到的显示 ???(和上一版一样,算是这一页的进度条)*/}}
     <ul class="lost-skills">
         {{- range $i, $s := .items }}
-        <li class="lost-skill is-locked" data-skill="{{ $s.ability }}" data-line="{{ $s.line }}">
+        <li class="lost-skill is-locked" data-skill="{{ $s.ability }}" data-theme="{{ $s.theme }}"
+            data-form="{{ $s.title }}" data-key="{{ $s.key }}" data-line="{{ $s.line }}">
             <span class="lost-skill-code">{{ $s.code }}</span>
+            <span class="lost-skill-theme">{{ $s.theme }}</span>
             <span class="lost-skill-name">{{ $s.title }}</span>
             <span class="lost-skill-unknown" aria-hidden="true">???</span>
             <span class="lost-skill-key">{{ $s.key }}</span>
@@ -33,20 +41,17 @@
         {{- end }}
     </ul>
 
-    <div class="lost-hint">← → 移动 · SPACE 跳 · S 护盾 · SHIFT 慢动作 · E 桥 · R 重来</div>
+    <div class="lost-state" aria-hidden="true"><b class="lost-state-mode">方块</b><span class="lost-state-tx">按拍点击</span></div>
 
-    {{/* 窄屏(没有键盘):底部一排触摸键 */}}
+    <div class="lost-hint">TAP 跳 · S 护盾 · R 重来 · Alt+E 铺面编辑器</div>
+
+    {{/* 窄屏:一个大 TAP 区 + 盾 */}}
     <div class="lost-touch" role="group" aria-label="操作">
-        <button type="button" class="lost-btn" data-k="left" aria-label="向左">◀</button>
-        <button type="button" class="lost-btn" data-k="right" aria-label="向右">▶</button>
-        <button type="button" class="lost-btn lost-btn--wide" data-k="jump" aria-label="跳">跳</button>
+        <button type="button" class="lost-btn lost-btn--tap" data-k="jump" aria-label="点击">TAP</button>
         <button type="button" class="lost-btn" data-k="shield" aria-label="护盾">盾</button>
-        <button type="button" class="lost-btn" data-k="slow" aria-label="慢动作">慢</button>
-        <button type="button" class="lost-btn" data-k="bridge" aria-label="桥">桥</button>
         <button type="button" class="lost-btn lost-btn--ghost" data-k="restart" aria-label="重来">↻</button>
     </div>
 
-    {{/* 走到终点才出现 */}}
     <div class="lost-end" aria-hidden="true">
         <b class="lost-end-title">{{ $cfg.goal | default "终点" }}</b>
         <span class="lost-end-tx">{{ $cfg.ending | default "" }}</span>

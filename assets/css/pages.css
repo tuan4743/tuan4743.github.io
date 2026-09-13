@@ -1293,10 +1293,10 @@
 
 .lost-skill {
     display: grid;
-    grid-template-columns: 46px 66px 78px 1fr;
+    grid-template-columns: 44px 46px 62px 78px 1fr;
     align-items: center;
     gap: 8px;
-    width: min(560px, 62vw);
+    width: min(620px, 66vw);
     padding: 5px 9px;
     border: 1px solid var(--intro-border);
     border-left: 2px solid color-mix(in srgb, var(--intro-accent) 70%, transparent);
@@ -1320,6 +1320,67 @@
 .lost-skill-unknown {
     color: color-mix(in srgb, var(--intro-dim) 70%, transparent);
     letter-spacing: 0.3em;
+}
+
+/* 主题(复盘/求助/呼吸/继续)—— 这一段的"名字"*/
+.lost-skill-theme {
+    color: #ffffff;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+}
+
+/* ---------- 时钟 / 拍点灯 / 当前状态(几何冲刺版的 HUD 补充)---------- */
+.lost-clock {
+    flex: 1 1 auto;
+    text-align: center;
+    color: color-mix(in srgb, var(--intro-accent) 78%, transparent);
+    letter-spacing: 0.18em;
+}
+
+/* 四个点 = 一拍里的四个 1/4 位置,跟着音乐转 */
+.lost-beat {
+    position: absolute;
+    left: 50%;
+    top: calc(var(--page-top, 0px) + var(--pad) + 22px);
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+}
+
+.lost-beat i {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--intro-accent) 30%, transparent);
+    transition: background 0.06s linear, transform 0.06s linear;
+}
+
+.lost-beat i.is-on {
+    background: var(--intro-accent);
+    transform: scale(1.5);
+}
+
+/* 当前形态 / 能力状态(右下角,和键盘提示同一风格)*/
+.lost-state {
+    position: absolute;
+    right: var(--pad);
+    bottom: calc(var(--pad) + 22px);
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+    pointer-events: none;
+}
+
+.lost-state b {
+    color: var(--intro-accent);
+    font-weight: 700;
+    letter-spacing: 0.2em;
+}
+
+.lost-state span {
+    color: var(--intro-dim);
 }
 
 .lost-skill-key {
@@ -1398,6 +1459,13 @@
     min-width: 62px;
 }
 
+/* 窄屏那个大 TAP:整块点 */
+.lost-btn--tap {
+    min-width: 150px;
+    font-size: 0.95rem;
+    letter-spacing: 0.3em;
+}
+
 .lost-btn--ghost {
     opacity: 0.7;
 }
@@ -1465,8 +1533,12 @@
     }
 
     .lost-skill {
-        grid-template-columns: 40px 60px 1fr;
-        width: 74vw;
+        grid-template-columns: 40px 42px 56px 1fr;
+        width: 76vw;
+    }
+
+    .lost-skill-key {
+        display: none;
     }
 
     .lost-skill-tx {

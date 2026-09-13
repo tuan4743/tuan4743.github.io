@@ -222,40 +222,45 @@ paginate = 10
       goal = "终点"
       restart = "按 R 再来一次"
 
-    # 四样能力(解锁顺序 = 关卡顺序):二段跳 → 护盾 → 慢动作 → 桥
-    # ability 是内部名字(JS 用),不要改;title/key/text/line 随便改
+    # 四段 = 四个存档点(几何冲刺式音乐关卡:「他过不去的地方,就是他缺的东西」)
+    # t/mode 在 static/assets/cd/lost-chart.json 里(铺面数据),这里只管"字":
+    #   theme 主题 / title 变形 / text 能力说明 / line 那段的旁白(第三人称「他」)
+    # ability 是内部名字(JS 用,要和铺面里的 ability 对上),不要改
     [[params.intro.decks.lost]]
-      code = "SK-01"
-      ability = "jump"
-      key = "SPACE ×2"
-      title = "二段跳"
-      text = "在半空里再蹬一下。"
+      code = "ST-01"
+      ability = "echo"
+      theme = "复盘"
+      key = "TAP"
+      title = "回响方块"
+      text = "死亡或失误后,在同一拍留下残影;下一轮走到那一拍,自动补一次二段跳。"
       line = "他掉下去过很多次。第四次,他在半空里又蹬了一下 —— 原来脚下不一定非要有东西。"
 
     [[params.intro.decks.lost]]
-      code = "SK-02"
+      code = "ST-02"
+      ability = "plane"
+      theme = "求助"
+      key = "按住 / 松开"
+      title = "飞机"
+      text = "按住就往上升,松开就往下走 —— 两边都是 45°。"
+      line = "有人告诉他别硬扛。他试着把身体放平,顺着风斜着走 —— 原来路可以是斜的。"
+
+    [[params.intro.decks.lost]]
+      code = "ST-03"
       ability = "shield"
-      key = "S"
-      title = "护盾"
-      text = "按住:挡住一切,但走得更慢,而且撑不久。"
-      line = "他学会了不硬碰。有些疼是可以绕开的,只要他先承认自己在怕。"
+      theme = "呼吸"
+      key = "S / 盾"
+      title = "护盾形态"
+      text = "点击获得一层护盾:2 秒内撞什么都没事,冷却 5 秒。"
+      line = "他学会了停下来吸气。有些疼是可以挡在外面的,只要他先承认自己在怕。"
 
     [[params.intro.decks.lost]]
-      code = "SK-03"
-      ability = "slow"
-      key = "SHIFT"
-      title = "慢动作"
-      text = "按住:世界慢下来,他还照常走。"
-      line = "世界一直很快。他第一次让它慢下来,才看清自己原来一直在赶什么。"
-
-    [[params.intro.decks.lost]]
-      code = "SK-04"
-      ability = "bridge"
-      key = "E"
-      title = "桥"
-      text = "在空中按:脚边临时长出一小块落脚的地方。"
-      line = "有些地方没有路。他不再等了,自己铺了一段。"
-
+      code = "ST-04"
+      ability = "gravity"
+      theme = "继续"
+      key = "拍点上 TAP"
+      title = "重力箭头"
+      text = "在箭头那一拍点击,重力翻过来 —— 上下两条轨道随你换。"
+      line = "上下的区别忽然不重要了。他不再问该往哪走,只管接着走。"
     [[params.intro.panels]]
       key = "tech"
       title = "技术"
