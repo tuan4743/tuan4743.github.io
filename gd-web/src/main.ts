@@ -226,10 +226,12 @@ class Scene extends Phaser.Scene {
   }
 }
 
-export function boot(parent: string) {
+export function boot(target: string | HTMLCanvasElement) {
+  const useCanvas = typeof target !== 'string';
   return new Phaser.Game({
-    type: Phaser.AUTO,
-    parent,
+    /* 传自己的 canvas 时,Phaser 4 要求显式 renderType(否则报 Must set explicit renderType in custom environment) */
+    type: useCanvas ? Phaser.WEBGL : Phaser.AUTO,
+    ...(useCanvas ? { canvas: target as HTMLCanvasElement } : { parent: target as string }),
     backgroundColor: '#05070d',
     /* ★ 用 NONE + 固定尺寸:之前用 FIT/RESIZE,Phaser 量出来的父容器宽度不对
        (相机视口被算成 320×720,画面只在左边一条里),干脆不让它去量 ——

@@ -1,21 +1,21 @@
-{{/* 第三张盘「迷茫」
-     旧的自研关卡已归档(仓库 tag:lost-from-scratch),现在按新方案重做:
-       · 玩法:复刻几何冲刺的骨架(跑 / 跳 / 形态 / 速度门 / 重力门 / 存档点)
-       · 视觉:沿用本站的显示器 + holo 科技风(不使用原作美术 —— 那是 RobTop 的版权物)
-       · 关卡:按段落与形态【自动铺面】生成;不追求采音(原作本身也没有严格的采音标准)
-       · 技术:Phaser 4 渲染 + 纯 TypeScript 定点模拟核心(可回放测试,首包目标 < 400 KB)
-     参考:OpenGD(关卡格式与数据结构)、camila314/gdp(GD 物理反编译)
-     文案:hugo.toml [params.intro.lost] 与 [[params.intro.decks.lost]](四段的字)*/}}
+{{/* 第三张盘「迷茫」:几何冲刺式关卡(新引擎,Phaser 4 + 纯 TS 定点模拟)
+     玩法:跑、跳、形态(方块/飞机)、尖刺与方块侧面致死、平台单向接住、坑掉落致死、
+           圆环切形态、速度门、存档点;关卡由「按段落与形态自动铺面」生成,不追求采音
+     视觉:本站显示器 + holo 科技风(不使用原作美术)
+     引擎:gd-web/(源码在仓库里,构建产物是 static/assets/gd/gd.js)
+     参考:OpenGD(关卡格式与数据结构)、camila314/gdp(GD 物理反编译)*/}}
 {{- $cfg := site.Params.intro.lost | default dict -}}
-<div class="lost is-wip" data-lost="{{ .key }}">
+<div class="lost is-game" data-lost="{{ .key }}">
     <div class="lost-stage">
-        <canvas class="lost-cv" aria-hidden="true"></canvas>
+        <canvas id="gd-canvas" class="lost-cv" width="1280" height="720" aria-label="几何冲刺式关卡"></canvas>
         <div class="lost-veil" aria-hidden="true"></div>
+        <div class="lost-tip">按一下开始 · 空格 / ↑ = 跳(飞机按住上升)· R = 重来</div>
+        <div class="gd-mobile-note">
+            <b>请用 PC 打开</b>
+            <span>这一页是给桌面浏览器做的:手机上显示器框和 CD 架都展不开。换台电脑再来。</span>
+        </div>
     </div>
 
-    <div class="lost-say" aria-live="polite"><span class="lost-say-tx">{{ $cfg.wip | default "第三张盘正在重做。" }}</span></div>
-
-    {{/* 四段能力:新引擎会按这四条来铺面 */}}
     <ul class="lost-skills">
         {{- range $i, $s := .items }}
         <li class="lost-skill" data-skill="{{ $s.ability }}" data-theme="{{ $s.theme }}"
@@ -29,22 +29,11 @@
         {{- end }}
     </ul>
 
-    <div class="lost-wip">
-        <b class="lost-wip__title">施工中 · 第三张盘</b>
-        <p class="lost-wip__lead">旧的自研关卡已归档(仓库 tag <code>lost-from-scratch</code>,随时能翻回来)。现在按新方案重做:</p>
-        <ul class="lost-wip__list">
-            <li><b>玩法</b>复刻几何冲刺的骨架:跑、跳、多段形态、速度门、重力门、存档点</li>
-            <li><b>视觉</b>沿用本站的显示器 / holo 科技风,<em>不用原作美术</em>(那是 RobTop 的版权物)</li>
-            <li><b>关卡</b>按段落与形态<em>自动铺面</em>生成 —— 不追求采音,原作本身也没有严格的采音标准</li>
-            <li><b>技术</b>Phaser 4 渲染 + 纯 TypeScript 定点模拟核心(可录回放测试;首包目标 &lt; 400 KB)</li>
-        </ul>
-        <p class="lost-wip__ref">参考:
-            <a href="https://github.com/Open-GD/OpenGD" target="_blank" rel="noopener noreferrer">OpenGD</a>(关卡格式与数据结构)、
-            <a href="https://github.com/camila314/gdp" target="_blank" rel="noopener noreferrer">camila314/gdp</a>(GD 物理函数反编译)。
-            想玩原作的话,RobTop 官方已经出了网页版(也是用 Phaser 做的):
-            <a href="https://geometrydash.com/game" target="_blank" rel="noopener noreferrer">geometrydash.com/game</a>
-        </p>
-    </div>
-
-    <div class="lost-hint">桌面端专用 · 手机端会单独给一个"请用 PC 打开"的提示页</div>
+    <p class="lost-wip__ref">参考:
+        <a href="https://github.com/Open-GD/OpenGD" target="_blank" rel="noopener noreferrer">OpenGD</a>(关卡格式与数据结构)、
+        <a href="https://github.com/camila314/gdp" target="_blank" rel="noopener noreferrer">camila314/gdp</a>(GD 物理反编译)。
+        想玩原作:RobTop 官方网页版
+        <a href="https://geometrydash.com/game" target="_blank" rel="noopener noreferrer">geometrydash.com/game</a>
+    </p>
 </div>
+<script defer src="/assets/gd/gd.js?v=g1"></script>

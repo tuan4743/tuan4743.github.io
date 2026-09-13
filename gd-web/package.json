@@ -7,7 +7,8 @@
   "scripts": {
     "test": "node --test test/",
     "build": "vite build",
-    "dev": "vite"
+    "dev": "vite",
+    "build:embed": "vite build --config vite.lib.config.ts"
   },
   "devDependencies": {
     "phaser": "4.2.1",

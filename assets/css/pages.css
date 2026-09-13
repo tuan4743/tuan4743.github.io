@@ -1675,3 +1675,56 @@ body.scene-open .intro-panel.is-page {
     color: #ffffff;
     border-bottom-color: #ffffff;
 }
+
+/* ---------- 第三张盘:新引擎的画布(固定逻辑尺寸 1280x720,CSS 撑满显示器框)---------- */
+.lost.is-game { display: flex; flex-direction: column; justify-content: center; gap: 14px; }
+
+.lost-stage #gd-canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    background: #05070d;
+}
+
+.lost-tip {
+    position: absolute;
+    left: 50%;
+    bottom: 10px;
+    transform: translateX(-50%);
+    font-size: 0.64rem;
+    letter-spacing: 0.12em;
+    color: color-mix(in srgb, var(--intro-accent) 55%, transparent);
+    pointer-events: none;
+}
+
+.gd-mobile-note { display: none; }
+
+/* 手机端:不启动引擎,改显示这段说明(embed.ts 会给 <html> 打 data-gd="mobile") */
+html[data-gd="mobile"] .lost-stage #gd-canvas,
+html[data-gd="mobile"] .lost-tip { display: none; }
+
+html[data-gd="mobile"] .gd-mobile-note {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    position: absolute;
+    inset: 0;
+    text-align: center;
+    padding: 24px;
+}
+
+html[data-gd="mobile"] .gd-mobile-note b {
+    font-size: 0.9rem;
+    letter-spacing: 0.24em;
+    color: var(--intro-accent);
+}
+
+html[data-gd="mobile"] .gd-mobile-note span {
+    max-width: 32ch;
+    font-size: 0.7rem;
+    line-height: 1.9;
+    color: color-mix(in srgb, var(--intro-accent) 55%, transparent);
+}
