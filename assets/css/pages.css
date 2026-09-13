@@ -387,10 +387,10 @@
     transform-origin: 50% 50%;
 }
 
-/* 恒星同样跟着视角动(默认 depth 只有 0.02 → 只轻微动一点点)*/
+/* 恒星跟着视角动 —— 但 transform 必须落在【视频/图片自己】身上:
+   祖先一旦有 transform,就会隔离 mix-blend-mode,黑底就抠不掉了 */
 .solar-node--star {
-    transform: translate3d(var(--cam-dx, 0px), var(--cam-dy, 0px), 0) scale(var(--cam-s, 1));
-    transform-origin: 50% 50%;
+    /* 这里保持无 transform */
 }
 
 /* ---------- 太阳 ---------- */
@@ -401,9 +401,10 @@
     position: absolute;
     left: 0;
     top: 0;
+    /* ★ 这里【不能有 transform】:它是 video 的祖先,会隔离 mix-blend-mode。
+       居中改由 video/img 自己的 transform 做(元素自身的 transform 不影响混合)*/
     width: var(--sun-w, 220px);
     aspect-ratio: 1;
-    transform: translate(-50%, -50%);
     border-radius: 50%;
     background:
         radial-gradient(circle at 42% 40%, #ffffff 0%, #fff3c4 18%, #ffcf6b 38%, #ff9a3c 60%, rgba(255, 120, 40, 0) 74%),
@@ -850,11 +851,14 @@
 }
 
 .solar-sun-img {
-    position: relative;
+    position: absolute;
+    left: 0;
+    top: 0;
     display: block;
     width: 100%;
     height: auto;
     pointer-events: none;
+    transform: translate(-50%, -50%);
 }
 
 /* 有背景图时,星空/星云让位 */
@@ -1049,6 +1053,10 @@
     height: auto;
     border: 0;
     pointer-events: none;
+    /* 摄像机位移/缩放由 JS 写在这三个变量上(放在自己身上才不会隔离混合)*/
+    /* 居中 + 摄像机变换都在自己身上(祖先带 transform 会隔离混合)*/
+    transform: translate(-50%, -50%) translate3d(var(--cam-dx, 0px), var(--cam-dy, 0px), 0) scale(var(--cam-s, 1));
+    transform-origin: 50% 50%;
     /* ★ 抠图第一招:视频背景是纯黑,用 screen 混合叠上去 ——
        黑像素等于没叠,球体和光晕原样留下,等于按亮度抠了图 */
     mix-blend-mode: screen;
@@ -1061,11 +1069,11 @@
     /* ★ 抠图第三招:遮罩 =【正圆】(用 px 半径,挂在 --sun-w 上,跟着太阳缩放)。
        实心半径 ≈ 1.36 倍球半径(横向光晕多留一点),淡出终点 ≈ 2.0 倍球半径;
        那层灰蓝薄雾不靠遮罩、只靠上面的 contrast 压平 */
-    --sun-mask-r: 0.52;   /* 外缘半径 ÷ 元素宽(元素宽 = 球体直径 ÷ 0.52)*/
-    --sun-mask: 68%;      /* 实心部分占外缘的比例(≈1.36 倍球半径)*/
-    -webkit-mask-image: radial-gradient(circle calc(var(--sun-w, 400px) * var(--sun-mask-r)) at 50% 50%,
+    --sun-mask-rp: 260px;    /* 遮罩外缘半径(px)—— 由 JS 按球体半径算好写进来 */
+    --sun-mask: 76%;         /* 实心占外缘的比例(≈1.0 倍球半径,保住球体与内圈光晕)*/
+    -webkit-mask-image: radial-gradient(circle var(--sun-mask-rp, 260px) at 50% 50%,
             #000 var(--sun-mask), transparent 100%);
-    mask-image: radial-gradient(circle calc(var(--sun-w, 400px) * var(--sun-mask-r)) at 50% 50%,
+    mask-image: radial-gradient(circle var(--sun-mask-rp, 260px) at 50% 50%,
             #000 var(--sun-mask), transparent 100%);
 }
 
@@ -1078,4 +1086,11 @@
 /* 拖动时禁用文字选中,免得拖出一片蓝 */
 .solar.is-drag {
     user-select: none;
+}
+/* ---------- CD 架打开 = 屏幕黑屏:内容页整页隐藏 ----------
+   ★ 太阳的 <video> 带 mix-blend-mode,会被提升成独立合成层,
+     在个别浏览器上能盖到黑屏之上(层级关系没错,是合成层的锅)。
+     黑屏状态下这一页本来就不该显示,直接隐藏最稳。*/
+body.scene-open .intro-panel.is-page {
+    visibility: hidden;
 }

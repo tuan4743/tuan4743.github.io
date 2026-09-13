@@ -36,7 +36,9 @@ body.intro-page {
 .scene {
     position: fixed;
     inset: 0;
-    will-change: transform;
+    /* ★ 不要写 will-change: transform —— 它会创建隔离组,
+       让太阳视频上的 mix-blend-mode: screen 无法与星云混合,
+       结果视频的黑底被不透明地画成一整块黑框。transition 保留,动画照旧 */
     transition: transform 0.55s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 

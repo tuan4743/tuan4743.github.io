@@ -101,9 +101,14 @@
       root.style.setProperty("--cam-y", p.dy.toFixed(2) + "px");
       if (sun && geo.sun) {
         p = project(geo.sun, W, H);
-        sun.style.setProperty("--cam-dx", p.dx.toFixed(2) + "px");
-        sun.style.setProperty("--cam-dy", p.dy.toFixed(2) + "px");
-        sun.style.setProperty("--cam-s", p.s.toFixed(4));
+        /* ★ 变量写在 .solar-sun 上,由它继承给 video/img;
+           transform 只作用在 video/img 自己身上(祖先带 transform 会隔离混合)*/
+        var ball = sun.querySelector(".solar-sun");
+        if (ball) {
+          ball.style.setProperty("--cam-dx", p.dx.toFixed(2) + "px");
+          ball.style.setProperty("--cam-dy", p.dy.toFixed(2) + "px");
+          ball.style.setProperty("--cam-s", p.s.toFixed(4));
+        }
       }
       for (i = 0; i < nodes.length; i++) {
         if (!geo[i]) continue;
@@ -134,13 +139,83 @@
     function newPhoton(rand) {
       return {
         x: Math.random(), y: Math.random(),
-        r: 1.2 + Math.random() * 5.5,
+        r: 0.6 + Math.random() * 2.6,          /* 用户要求:比原来小一半 */
         depth: 0.06 + Math.random() * 0.4,
         dur: 1600 + Math.random() * 2600,
         t: rand ? -Math.random() * 2600 : -Math.random() * 500,
         drift: (Math.random() - 0.5) * 0.00004
       };
     }
+    /* ---------- 远距离瞬变:超新星 ---------- */
+    var novaSpriteCv = null;
+    var nova = { next: 2500 + Math.random() * 6000, t: -1, dur: 0, x: 0, y: 0, size: 0, spin: 0 };
+    var NOVA_DUR = 320;      /* 一闪的总时长(ms):前 15% 冲上去,后面快速衰减 */
+    function novaBuild() {
+      var S = 160, c = S / 2;
+      novaSpriteCv = document.createElement("canvas");
+      novaSpriteCv.width = novaSpriteCv.height = S;
+      var g = novaSpriteCv.getContext("2d");
+      var core = g.createRadialGradient(c, c, 0, c, c, S * 0.17);
+      core.addColorStop(0, "rgba(255,255,255,1)");
+      core.addColorStop(0.3, "rgba(215,240,255,0.8)");
+      core.addColorStop(1, "rgba(150,205,255,0)");
+      g.fillStyle = core;
+      g.fillRect(0, 0, S, S);
+      g.globalCompositeOperation = "lighter";
+      for (var i = 0; i < 2; i++) {            /* 十字光芒 */
+        g.save();
+        g.translate(c, c);
+        g.rotate(i * Math.PI / 2);
+        var lg = g.createLinearGradient(-c, 0, c, 0);
+        lg.addColorStop(0, "rgba(170,215,255,0)");
+        lg.addColorStop(0.5, "rgba(240,250,255,0.95)");
+        lg.addColorStop(1, "rgba(170,215,255,0)");
+        g.fillStyle = lg;
+        g.fillRect(-c, -S * 0.011, S, S * 0.022);
+        g.restore();
+      }
+      g.globalCompositeOperation = "source-over";
+    }
+    function novaSpawn() {
+      /* 深空角落:四个角里挑一个,再往画面内缩一点,避开太阳和行星 */
+      var left = Math.random() < 0.5;
+      var top = Math.random() < 0.5;
+      nova.x = left ? 0.05 + Math.random() * 0.17 : 0.78 + Math.random() * 0.17;
+      nova.y = top ? 0.08 + Math.random() * 0.16 : 0.74 + Math.random() * 0.18;
+      nova.size = 26 + Math.random() * 26;
+      nova.spin = (Math.random() - 0.5) * 0.6;
+      nova.t = 0;
+      nova.dur = NOVA_DUR * (0.85 + Math.random() * 0.3);
+      nova.next = 4000 + Math.random() * 7000;
+    }
+    function novaDraw(W, H) {
+      if (!novaSpriteCv) return;
+      var k = nova.t / nova.dur;
+      /* 亮度包络:15% 快速冲上去,然后二次衰减 */
+      var a = k < 0.15 ? k / 0.15 : Math.pow(1 - (k - 0.15) / 0.85, 2);
+      if (a <= 0.01) return;
+      var x = nova.x * W + cam.dx * 0.05;      /* 纵深极小 ⇒ 几乎不动,看起来很远 */
+      var y = nova.y * H + cam.dy * 0.05;
+      var R = nova.size * (1 + 0.5 * k);
+      phCtx.save();
+      phCtx.globalCompositeOperation = "lighter";
+      phCtx.translate(x, y);
+      phCtx.rotate(nova.spin);
+      phCtx.globalAlpha = Math.min(1, a * 1.15);
+      phCtx.drawImage(novaSpriteCv, -R, -R, R * 2, R * 2);
+      /* 一圈快速扩散的环 */
+      var rk = Math.max(0, (k - 0.1) / 0.9);
+      if (rk < 1) {
+        phCtx.globalAlpha = (1 - rk) * 0.35 * a;
+        phCtx.strokeStyle = "rgba(200,235,255,1)";
+        phCtx.lineWidth = 1;
+        phCtx.beginPath();
+        phCtx.arc(0, 0, R * (0.5 + rk * 1.6), 0, Math.PI * 2);
+        phCtx.stroke();
+      }
+      phCtx.restore();
+    }
+
     function photonInit() {
       phCv = document.createElement("canvas");
       phCv.className = "solar-photons";
@@ -159,6 +234,7 @@
       g.beginPath();
       g.arc(R, R, R, 0, Math.PI * 2);
       g.fill();
+      if (!novaSpriteCv) novaBuild();
       for (var i = 0; i < PHOTONS; i++) ph.push(newPhoton(true));
     }
     function photonFrame(now) {
@@ -186,7 +262,16 @@
         var py = p.y * H + cam.dy * p.depth;
         var rr = p.r * (1 + 0.25 * Math.sin(p.t / 700 + i));
         phCtx.globalAlpha = Math.min(1, a * 0.85);
-        phCtx.drawImage(phSprite, px - rr * 2, py - rr * 2, rr * 4, rr * 4);
+        phCtx.drawImage(phSprite, px - rr * 1.5, py - rr * 1.5, rr * 3, rr * 3);
+      }
+      /* 远距离瞬变:到点了就闪一下 */
+      if (nova.t < 0) {
+        nova.next -= dt;
+        if (nova.next <= 0) novaSpawn();
+      } else {
+        nova.t += dt;
+        if (nova.t > nova.dur) nova.t = -1;
+        else novaDraw(W, H);
       }
       phCtx.globalAlpha = 1;
       phCtx.globalCompositeOperation = "source-over";
@@ -227,6 +312,9 @@
       var sunElW = sunCfg.w * W;
       if (sunVideo && sunCfg.sphere > 0.05) sunElW = sunElW / sunCfg.sphere;
       root.style.setProperty("--sun-w", sunElW.toFixed(1) + "px");
+      /* 遮罩外缘半径:球体半径 × 1.32(px 精确值,不再靠百分比猜)*/
+      var sunBallEl = sun ? sun.querySelector(".solar-sun") : null;
+      if (sunBallEl) sunBallEl.style.setProperty("--sun-mask-rp", (sunCfg.w * W * 0.5 * 1.32).toFixed(1) + "px");
       geo.sun = { x: sunCfg.x * W, y: sunCfg.y * H, depth: sunCfg.depth, r: sunCfg.w * W / 2, rh: sunCfg.w * W / 2 };
       root.__sunElW = sunElW;
 
@@ -379,6 +467,25 @@
     });
     if (sunVideo) sunVideo.muted = true;      /* 保险:绝不出声 */
 
+    /* CD 架打开(=黑屏状态):暂停视频、停掉光子;收起后恢复。
+       既省电,也避免视频层在黑屏上留下任何动静 */
+    var sceneOpen = document.body.classList.contains("scene-open");
+    function onSceneOpen() {
+      var now = document.body.classList.contains("scene-open");
+      if (now === sceneOpen) return;
+      sceneOpen = now;
+      if (now) {
+        photonStop();
+        if (sunVideo) { try { sunVideo.pause(); } catch (e) {} }
+      } else if (active) {
+        photonStart();
+        if (sunVideo) { try { sunVideo.play(); } catch (e) {} }
+      }
+    }
+    if (window.MutationObserver) {
+      new MutationObserver(onSceneOpen).observe(document.body, { attributes: true, attributeFilter: ["class"] });
+    }
+
     return {
       root: root, nodes: nodes, cfgOf: cfgOf, place: place, sunNode: sun,
       key: key,
@@ -404,6 +511,8 @@
         }
       },
       repaint: function () { place(); if (active) photonStart(); },
+      /* 验收用:立刻触发一次超新星 */
+      novaNow: function () { nova.next = 0; },
       state: function () {
         return {
           key: key, active: active, narrow: narrow, bodies: geo.length, open: onIndex,
@@ -414,6 +523,7 @@
             dx: +cam.dx.toFixed(1), dy: +cam.dy.toFixed(1)
           },
           photons: ph.length,
+          nova: { t: +nova.t.toFixed(0), next: +nova.next.toFixed(0), dur: +nova.dur.toFixed(0) },
           sun: sunCfg,
           geo: geo.filter(Boolean).map(function (g) { return [Math.round(g.x), Math.round(g.y), Math.round(g.r * 2)]; })
         };
