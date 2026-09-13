@@ -130,6 +130,8 @@ window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}",
                 </section>
                 {{- end }}
             </main>
+            {{/* 左下角「切换游玩模式」按钮(先常显看效果,见 partials/gd-mode-button.html) */}}
+            {{- partial "gd-mode-button.html" . }}
 
             <!-- 屏幕右缘:光驱边缝 + 入口箭头(常驻,不动;位置让开屏幕贴图的边框)-->
             <div class="screen-slot">

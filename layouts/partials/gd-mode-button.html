@@ -1,0 +1,122 @@
+{{/* 「切换游玩模式」按钮(左下角)
+     几何按用户给的构造(百分比空间,viewBox 0 0 100 100 + preserveAspectRatio=none,
+     所以这里的数值就是"占页面宽/高的百分之几"):
+       从下往上 10% 起 → 与竖直成 30° 往右下到 7%(Δ高 3% → Δ宽 3·tan30 ≈ 1.73%)
+       → 向右到 10% → 往下到 3% → 与竖直成 60° 往右下(Δ高 3% → Δ宽 3·tan60 ≈ 5.2%)直到页面下边界
+     再用同样的线条平移一份做呼应。目前【常显】,方便先看效果;接入彩蛋系统时把
+     data-gd-gate="easter" 打开即可(脚本会读 localStorage 里的 tuagfey-gd-easter)。 */}}
+<div class="gd-mode" data-gd-mode data-gd-gate="always">
+    <svg class="gd-mode-frame" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <polyline class="gd-mode-line" points="2,90 3.73,93 10,93 10,97 15.2,100" />
+        <polyline class="gd-mode-line gd-mode-line--echo" points="2.6,89.4 4.33,92.4 10.6,92.4 10.6,96.4 16.3,99.4" />
+        <line class="gd-mode-tick" x1="2" y1="90" x2="2" y2="86.4" />
+        <line class="gd-mode-tick" x1="10" y1="93" x2="12.4" y2="93" />
+        <line class="gd-mode-tick" x1="15.2" y1="100" x2="15.2" y2="97.6" />
+    </svg>
+    <button type="button" class="gd-mode-btn" data-gd-mode-btn aria-pressed="false">
+        <span class="gd-mode-kicker">PLAY MODE</span>
+        <span class="gd-mode-label">切换游玩模式</span>
+        <span class="gd-mode-state" data-gd-mode-state>OFF</span>
+    </button>
+</div>
+
+<style>
+    .gd-mode {
+        position: fixed;
+        left: 0;
+        top: 0;
+        /* 尺寸按视口给,位置由脚本 translate 到【视口左下角】 —— 站点里 fixed 会被带 transform
+           的祖先框住(实测按钮跑到了右中),所以不靠 left/bottom 定位 */
+        width: 100vw;
+        height: 15vh;
+        pointer-events: none;
+        z-index: 40;
+        /* 和左上角状态栏同一套语气:等宽字、细描边、青色微光 */
+        --gd-ink: #7ff0ff;
+        --gd-dim: rgba(127, 240, 255, .45);
+        --gd-fill: rgba(5, 7, 13, .72);
+    }
+    .gd-mode[hidden] { display: none; }
+    .gd-mode-frame { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+    .gd-mode-line { fill: none; stroke: var(--gd-ink); stroke-width: .22; vector-effect: non-scaling-stroke; opacity: .85; }
+    .gd-mode-line--echo { opacity: .35; }
+    .gd-mode-tick { stroke: var(--gd-ink); stroke-width: .18; vector-effect: non-scaling-stroke; opacity: .5; }
+    .gd-mode-btn {
+        position: absolute;
+        left: 2.6vw;
+        bottom: 3.2vh;
+        display: grid;
+        grid-template-columns: auto auto;
+        grid-template-rows: auto auto;
+        gap: .1rem .6rem;
+        align-items: baseline;
+        padding: .5rem .7rem;
+        background: var(--gd-fill);
+        border: 1px solid var(--gd-dim);
+        color: var(--gd-ink);
+        font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+        font-size: .68rem;
+        letter-spacing: .16em;
+        text-transform: uppercase;
+        cursor: pointer;
+        pointer-events: auto;
+        transition: background .18s, border-color .18s, box-shadow .18s;
+    }
+    .gd-mode-btn:hover { background: rgba(127, 240, 255, .10); border-color: var(--gd-ink); }
+    .gd-mode-kicker { grid-column: 1 / -1; font-size: .54rem; opacity: .55; }
+    .gd-mode-label { font-size: .72rem; letter-spacing: .12em; }
+    .gd-mode-state { font-size: .58rem; opacity: .6; }
+    .gd-mode.is-on .gd-mode-btn { border-color: var(--gd-ink); box-shadow: 0 0 18px rgba(127, 240, 255, .25) inset; }
+    .gd-mode.is-on .gd-mode-state { opacity: 1; }
+    .gd-mode.is-on .gd-mode-state::after { content: ""; }
+    .gd-mode.is-on .gd-mode-line { opacity: 1; }
+    .gd-mode.is-on .gd-mode-line--echo { opacity: .6; }
+    @media (max-width: 720px) { .gd-mode { display: none; } }
+</style>
+
+<script>
+    (function () {
+        var root = document.querySelector('[data-gd-mode]');
+        if (!root) return;
+        var btn = root.querySelector('[data-gd-mode-btn]');
+        var state = root.querySelector('[data-gd-mode-state]');
+        var MODE_KEY = 'tuagfey-gd-playmode';
+        var EASTER_KEY = 'tuagfey-gd-easter';
+
+        function read(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+        function write(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* 无痕模式 */ } }
+
+        /* 暂时常显:等接彩蛋系统时把 data-gd-gate 改成 "easter" 即可 */
+        if (root.getAttribute('data-gd-gate') === 'easter' && read(EASTER_KEY) !== '1') {
+            root.hidden = true;
+            return;
+        }
+
+        function paint(on) {
+            root.classList.toggle('is-on', on);
+            btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+            state.textContent = on ? 'ON' : 'OFF';
+        }
+        paint(read(MODE_KEY) === '1');
+
+        /* ★ 关键:把这块直接挂到 <html> 下面。站点里 .intro-main 一类祖先带了 transform,
+           position:fixed 会被那个祖先框住(实测按钮跑到了页面右侧),挂到根上就回到视口坐标了。 */
+        document.documentElement.appendChild(root);
+        function place() {
+            /* 自校正:先清掉位移量一次【真实位置】,再把它的左下角挪到视口左下角 */
+            root.style.transform = '';
+            var r = root.getBoundingClientRect();
+            root.style.transform = 'translate(' + (-r.left) + 'px,' + (window.innerHeight - r.bottom) + 'px)';
+        }
+        place();
+        window.addEventListener('resize', place);
+        window.addEventListener('load', place);
+        btn.addEventListener('click', function () {
+            var on = !root.classList.contains('is-on');
+            paint(on);
+            write(MODE_KEY, on ? '1' : '0');
+            document.dispatchEvent(new CustomEvent('gd:playmode', { detail: { on: on } }));
+        });
+        window.__gdPlayMode = function () { return root.classList.contains('is-on'); };
+    })();
+</script>
