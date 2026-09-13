@@ -1,109 +1,27 @@
-{{/* 左下角「切换游玩模式」:不规则 HUD 外框 + 独立的按钮
-     ★ 外框与按钮【分开实现】:
-       - .gd-hud-svg 是那套不规则 HUD(路径 + 顶点锁定短刺 + 断续虚线 + 晕),位置自己定;
-       - .gd-hud-btn 只负责"文字 + 状态",位置由 --gd-btn-x / --gd-btn-y 两个变量给,
-         以后要挪按钮只改这两个值,不用碰这套线。
-     语言抄站点左上角的 .holo(assets/css/holo.css):颜色 #eaf3ff(近白偏蓝,不是青色)、
-     线宽 1px、虚线 --line-dash: 26 9 5 7 42 12 13 8 7 6、顶点短刺 --holo-lock、外圈 halo。
-     几何仍是用户给的构造(百分比空间):
-       下往上 10% 起 → 与竖直 30° 往右下到 7% → 向右到 10% → 往下到 3%
-       → 与竖直 60° 往右下到页面下边界。 */}}
-<div class="gd-hud" data-gd-mode data-gd-gate="always"
-     style="--gd-btn-x: 4%; --gd-btn-y: 4.4%;">
-    <svg class="gd-hud-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-        <path class="gd-hud-halo" d="M2 90 L3.73 93 L10 93 L10 97 L15.2 100" />
-        <path class="gd-hud-line" d="M2 90 L3.73 93 L10 93 L10 97 L15.2 100" />
-        <path class="gd-hud-echo" d="M2.7 88.6 L4.43 91.6 L10.8 91.6 L10.8 95.6 L16.1 98.6" />
-        <path class="gd-hud-line" d="M2 90 L2 82.5 L7.5 78 L13 78" />
-        <path class="gd-hud-echo" d="M7.5 78 L7.5 74.5 L11 71.5" />
-        <path class="gd-hud-lock" d="M2 90 h-2 M2 90 v-2 M3.73 93 h-2 M3.73 93 v-2 M10 93 h2 M10 93 v-2 M10 97 h2 M10 97 v2 M15.2 100 v-2 M15.2 100 h-2 M2 82.5 h-2 M2 82.5 v-2 M13 78 v-2" />
-        <circle class="gd-hud-node" cx="13" cy="78" r="0.7" />
-        <circle class="gd-hud-node" cx="2" cy="90" r="0.5" />
-    </svg>
+{{/* 「切换游玩模式」(左下角)—— 和左上角 HUD 完全同一套实现逻辑:
+     挂在 .holo 容器里(inset:0 的整屏层),自带一块 frame SVG(viewBox 0 0 100 100 +
+     preserveAspectRatio=none),所以路径坐标就是"占整屏宽/高的百分比";
+     样式在 assets/css/holo.css(和 .holo / .drive-status 同一个文件、同一批变量)。
+     不再用任何 JS 定位 —— 和左上角那块一样,靠容器 + CSS 就位,所以它会一直留在屏幕上。
 
-    <button type="button" class="gd-hud-btn" data-gd-mode-btn aria-pressed="false">
-        <span class="gd-hud-kicker">PLAY MODE</span>
-        <span class="gd-hud-label">切换游玩模式</span>
-        <span class="gd-hud-state" data-gd-mode-state>OFF</span>
+     外框走向(用户给的,百分比空间;y 向下换算):
+       下往上 10% 起 → 与竖直 30° 往右下到 7%(Δ高 3% → Δ宽 3·tan30 ≈ 1.73%)
+       → 向右到 10% → 往下到 3% → 与竖直 60° 往右下(Δ高 3% → Δ宽 3·tan60 ≈ 5.2%)到页面下边界
+     语言(halo / line / lock / node)与左上角一致。*/}}
+<div class="gd-mode" data-gd-mode data-gd-gate="always">
+    <svg class="gd-mode__frame" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <path class="gd-mode__halo" d="M0 90 L1.73 93 L10 93 L10 97 L15.2 100" />
+        <path class="gd-mode__line" d="M0 90 L1.73 93 L10 93 L10 97 L15.2 100" />
+        <path class="gd-mode__lock" d="M0 90 h1.6 M0 90 v-1.6 M1.73 93 h1.6 M1.73 93 v-1.6 M10 93 h-1.6 M10 93 v-1.6 M10 97 h-1.6 M10 97 v1.6 M15.2 100 v-1.6 M15.2 100 h-1.6" />
+        <circle class="gd-mode__node" cx="10" cy="97" r="0.35" />
+    </svg>
+    <button type="button" class="gd-mode__btn" data-gd-mode-btn aria-pressed="false">
+        <span class="gd-mode__kicker">PLAY MODE</span>
+        <span class="gd-mode__label">切换游玩模式</span>
+        <span class="gd-mode__state" data-gd-mode-state>OFF</span>
+        <span class="gd-mode__hint">开启后:插入 CD 直接进入游戏,而不是展示页</span>
     </button>
 </div>
-
-<style>
-    .gd-hud {
-        position: fixed;
-        left: 0;
-        top: 0;
-        width: 34vw;
-        height: 22vh;
-        pointer-events: none;
-        z-index: 40;
-        --hud-ink: #eaf3ff;
-        --hud-line-w: 1.4px;
-        --hud-dash: 26 9 5 7 42 12 13 8 7 6;
-        --hud-line-a: .5;
-        --hud-glow: 0;
-        font-family: var(--ui-font-cjk, ui-monospace, Consolas, monospace);
-        color: var(--hud-ink);
-    }
-    .gd-hud[hidden] { display: none; }
-    .gd-hud-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-    .gd-hud-halo { fill: none; stroke: var(--hud-ink); stroke-width: 4; opacity: .10; vector-effect: non-scaling-stroke; }
-    .gd-hud-line {
-        fill: none;
-        stroke: var(--hud-ink);
-        stroke-width: var(--hud-line-w);
-        stroke-dasharray: var(--hud-dash);
-        opacity: calc(var(--hud-line-a) + var(--hud-glow) * .4);
-        vector-effect: non-scaling-stroke;
-    }
-    .gd-hud-echo {
-        fill: none;
-        stroke: var(--hud-ink);
-        stroke-width: 1px;
-        stroke-dasharray: 4 6 14 5;
-        opacity: .22;
-        vector-effect: non-scaling-stroke;
-    }
-    .gd-hud-lock {
-        fill: none;
-        stroke: var(--hud-ink);
-        stroke-width: 1.6px;
-        opacity: .55;
-        vector-effect: non-scaling-stroke;
-    }
-    .gd-hud-node { fill: var(--hud-ink); opacity: .8; }
-
-    /* 按钮:无方框、无底色 —— 左上角那套语言里,文字就是直接躺在结构线之间 */
-    .gd-hud-btn {
-        position: absolute;
-        left: var(--gd-btn-x);
-        bottom: var(--gd-btn-y);
-        display: grid;
-        grid-template-columns: auto auto;
-        gap: .12rem .7rem;
-        align-items: baseline;
-        padding: .2rem .1rem;
-        background: none;
-        border: 0;
-        color: var(--hud-ink);
-        font: inherit;
-        font-size: .72rem;
-        letter-spacing: .18em;
-        text-transform: uppercase;
-        cursor: pointer;
-        pointer-events: auto;
-        opacity: .92;
-    }
-    .gd-hud-btn:hover { opacity: 1; }
-    .gd-hud-kicker { grid-column: 1 / -1; font-size: .54rem; letter-spacing: .3em; opacity: .5; }
-    .gd-hud-label { font-size: .74rem; letter-spacing: .14em; }
-    .gd-hud-state { font-size: .6rem; opacity: .55; }
-    .gd-hud.is-on .gd-hud-label { text-shadow: 0 0 12px rgba(234, 243, 255, .55); }
-    .gd-hud.is-on .gd-hud-state { opacity: 1; }
-    .gd-hud.is-on .gd-hud-line { --hud-glow: 1; }
-    .gd-hud.is-on .gd-hud-echo { opacity: .45; }
-    @media (max-width: 720px) { .gd-hud { display: none; } }
-</style>
 
 <script>
     (function () {
@@ -122,25 +40,16 @@
             return;
         }
 
-        /* ★ 站点里祖先带 transform,position:fixed 会被框住 —— 挂到 <html> 下,再用自校正
-           translate 把这套 HUD 的左下角对齐到视口左下角(和左上角那套一样贴边)。 */
-        document.documentElement.appendChild(root);
-        function place() {
-            root.style.transform = '';
-            var r = root.getBoundingClientRect();
-            root.style.transform = 'translate(' + (-r.left) + 'px,' + (window.innerHeight - r.bottom) + 'px)';
-        }
-        place();
-        window.addEventListener('resize', place);
-        window.addEventListener('load', place);
-
+        /* ★ 这个按钮只【切换设置】:写一个标记 + 改自己的外观,不做任何别的动作
+           (不插盘、不放动画、不进游戏 —— 那些是 CD 插入流程自己的事)。 */
         function paint(on) {
             root.classList.toggle('is-on', on);
             btn.setAttribute('aria-pressed', on ? 'true' : 'false');
             state.textContent = on ? 'ON' : 'OFF';
         }
         paint(read(MODE_KEY) === '1');
-        btn.addEventListener('click', function () {
+        btn.addEventListener('click', function (ev) {
+            ev.preventDefault();
             var on = !root.classList.contains('is-on');
             paint(on);
             write(MODE_KEY, on ? '1' : '0');

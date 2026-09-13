@@ -651,3 +651,76 @@
 .song-ring__ltr.is-sep {
     color: var(--ring-artist-color);
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   「切换游玩模式」(左下角)—— 和 .holo / .drive-status 同一套语言与变量
+   外框走向:下往上 10% → 与竖直 30° 往右下到 7% → 右行到 10%
+             → 下到 3% → 与竖直 60° 往右下到页面下边界
+   位置全部是 CSS 变量,要挪按钮只改 --gd-btn-x / --gd-btn-y
+   ═══════════════════════════════════════════════════════════════ */
+.gd-mode {
+    position: absolute;
+    inset: 0;
+    z-index: 12;
+    pointer-events: none;
+    color: #eaf3ff;
+    --gd-btn-x: 1.6%;
+    --gd-btn-y: 2.4%;
+    --gd-btn-w: auto;
+    --gd-ink: #eaf3ff;
+    --gd-line-w: 1px;
+    --gd-dash: 26 9 5 7 42 12 13 8 7 6;
+    --gd-line-a: .45;
+    --gd-glow: 0;
+}
+.gd-mode[hidden] { display: none; }
+.gd-mode__frame { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.gd-mode__halo { fill: none; stroke: var(--gd-ink); stroke-width: 4; opacity: .10; vector-effect: non-scaling-stroke; }
+.gd-mode__line {
+    fill: none;
+    stroke: var(--gd-ink);
+    stroke-width: var(--gd-line-w);
+    stroke-dasharray: var(--gd-dash);
+    opacity: calc(var(--gd-line-a) + var(--gd-glow) * .45);
+    vector-effect: non-scaling-stroke;
+}
+.gd-mode__lock { fill: none; stroke: var(--gd-ink); stroke-width: 1.4px; opacity: .5; vector-effect: non-scaling-stroke; }
+.gd-mode__node { fill: var(--gd-ink); opacity: .85; }
+
+/* 文字直接躺在结构线之间(不加方框、不加底色) */
+.gd-mode__btn {
+    position: absolute;
+    left: var(--gd-btn-x);
+    bottom: var(--gd-btn-y);
+    display: grid;
+    grid-template-columns: auto auto;
+    gap: .1rem .7rem;
+    align-items: baseline;
+    padding: 0;
+    background: none;
+    border: 0;
+    color: inherit;
+    font-family: inherit;
+    font-size: .72rem;
+    letter-spacing: .16em;
+    text-align: left;
+    text-transform: uppercase;
+    cursor: pointer;
+    pointer-events: auto;
+    opacity: .9;
+}
+.gd-mode__btn:hover { opacity: 1; }
+.gd-mode__kicker { grid-column: 1 / -1; font-size: .54rem; letter-spacing: .3em; opacity: .5; }
+.gd-mode__label { font-size: .76rem; letter-spacing: .12em; }
+.gd-mode__state { font-size: .6rem; opacity: .55; }
+.gd-mode__hint {
+    grid-column: 1 / -1;
+    font-size: .54rem;
+    letter-spacing: .04em;
+    opacity: .38;
+    text-transform: none;
+}
+.gd-mode.is-on .gd-mode__label { text-shadow: 0 0 12px rgba(234, 243, 255, .5); }
+.gd-mode.is-on .gd-mode__state { opacity: 1; }
+.gd-mode.is-on .gd-mode__line { opacity: .95; }
+.gd-mode.is-on .gd-mode__lock { opacity: .8; }
