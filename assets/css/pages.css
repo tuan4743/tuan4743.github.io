@@ -1049,6 +1049,16 @@
     height: auto;
     border: 0;
     pointer-events: none;
+    /* ★ 抠图第一招:视频背景是纯黑,用 screen 混合叠上去 ——
+       黑像素等于没叠,球体和光晕原样留下,等于按亮度抠了图 */
+    mix-blend-mode: screen;
+    /* ★ 抠图第二招:再补一层柔和圆形遮罩,只留中间的圆,
+       把边缘可能残留的脏点切掉(--sun-mask 是占「最近边」的比例)*/
+    --sun-mask: 96%;
+    -webkit-mask-image: radial-gradient(circle closest-side at 50% 50%,
+            #000 var(--sun-mask), transparent 100%);
+    mask-image: radial-gradient(circle closest-side at 50% 50%,
+            #000 var(--sun-mask), transparent 100%);
 }
 
 /* 视频恒星也不加光圈(用户要求保持素材原样)*/

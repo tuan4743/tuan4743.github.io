@@ -118,6 +118,8 @@ paginate = 10
       sun_y = 0.28                    # 恒星中心 y
       sun_w = 0.26                     # 恒星宽度占面板宽的比例(想更大就调这里)
       sun_depth = 0.02                 # 恒星纵深:极小 → 转视角时只轻微动一点点
+      sun_sphere = 0.52                # 视频里球体占画面宽的比例(实测 sun.mp4 = 0.52)
+                                       # 用视频时,元素会按 1/这个值 放大,所以 sun_w 仍是"球体宽度"
       # sun 也可以直接填视频(放在 static/planet/,例如 "/planet/sun.mp4"),
       # 会自动用 <video muted autoplay loop playsinline> 播放 —— 不会导入声音
       depth = 0.05

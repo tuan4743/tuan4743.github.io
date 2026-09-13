@@ -213,7 +213,9 @@
 
       sunCfg = {
         x: attrNum(sun, "data-x", 0.19), y: attrNum(sun, "data-y", 0.34),
-        w: attrNum(sun, "data-w", 0.26), depth: attrNum(sun, "data-depth", 0.02)
+        w: attrNum(sun, "data-w", 0.26), depth: attrNum(sun, "data-depth", 0.02),
+        /* 球体占视频宽的比例:视频里只有中间的球是有用的,元素要放大到 1/这个比例 */
+        sphere: attrNum(sun, "data-sphere", 0.52)
       };
       var st = TUNE.__sun;
       if (st) for (var k in st) if (isFinite(st[k])) sunCfg[k] = st[k];
@@ -221,8 +223,12 @@
         sun.style.left = (sunCfg.x * W).toFixed(1) + "px";
         sun.style.top = (sunCfg.y * H).toFixed(1) + "px";
       }
-      root.style.setProperty("--sun-w", (sunCfg.w * W).toFixed(1) + "px");
+      /* 有视频时:元素宽度 = 目标球体直径 ÷ 球体占比(这样 sun_w 仍然表示球体宽度)*/
+      var sunElW = sunCfg.w * W;
+      if (sunVideo && sunCfg.sphere > 0.05) sunElW = sunElW / sunCfg.sphere;
+      root.style.setProperty("--sun-w", sunElW.toFixed(1) + "px");
       geo.sun = { x: sunCfg.x * W, y: sunCfg.y * H, depth: sunCfg.depth, r: sunCfg.w * W / 2, rh: sunCfg.w * W / 2 };
+      root.__sunElW = sunElW;
 
       for (var i = 0; i < nodes.length; i++) {
         var n = nodes[i];
