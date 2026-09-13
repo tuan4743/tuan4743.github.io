@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-cn">
+<head>
+    <meta charset="utf-8">
+    <title>gd-web 预览 · 第三张盘</title>
+    <style>
+        html, body { margin: 0; height: 100%; background: #05070d; color: #7ff0ff;
+            font: 600 12px/1.6 ui-monospace, Consolas, monospace; letter-spacing: .08em; }
+        #wrap { position: fixed; inset: 0; }
+        #gd-stage { position: absolute; inset: 0; }
+        #gd-stage canvas { display: block; }
+        #gd-hud { position: absolute; left: 14px; top: 10px; opacity: .85; pointer-events: none; }
+        #gd-tip { position: absolute; left: 14px; bottom: 12px; opacity: .5; }
+    </style>
+</head>
+<body>
+    <div id="wrap">
+        <div id="gd-stage"></div>
+        <div id="gd-hud">方块 · 0%</div>
+        <div id="gd-tip">空格 / ↑ = 跳(飞机=按住上升)· R = 重来 · 点击画面开始</div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+    <script type="module">
+        import { boot } from '/src/main.ts';
+        const game = boot('gd-stage');
+        window.__gdGame = game;
+    </script>
+</body>
+</html>
