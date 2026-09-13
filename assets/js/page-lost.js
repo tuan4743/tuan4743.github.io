@@ -23,8 +23,8 @@
   var CFG = {
     SPEED: 10.4,        /* 块/秒:GD 常速 311.58 units/s ÷ 30 units/块 */
     ROWS: 10,           /* 轨道行数(0 = 地面)*/
-    GRAV: 200,          /* 方块重力(块/s²)*/
-    JUMP: 34,           /* 起跳初速度 → 跳高 2.9 块、跳远 3.5 块。
+    GRAV: 150,          /* 方块重力(块/s²):200 太沉(用户说像灌了铅),降到 150 滞空更长 */
+    JUMP: 30,           /* 起跳初速度 → 跳高 3.0 块、跳远 4.2 块(配 GRAV 150,滞空 0.40s,手感更轻)。
                            原来是 30(跳远 3.12 块):跨 1 块高的障碍只有 0.046 秒容错(约 8% 拍)
                            —— 人类基本打不过、自动播放机器人也一头撞死,所以抬到 34 */
     ORB_Y: 1.12, ORB_P: 0.82,   /* 跳点力度(黄/粉)*/
@@ -265,7 +265,9 @@
         try { if (window.__cdAudio && window.__cdAudio.getVolume) v = window.__cdAudio.getVolume(); } catch (e) {}
         A.gain.gain.value = clamp(v, 0, 1) * 0.9;
         A.gain.connect(A.ctx.destination);
-        if (A.on) audioStart(S ? S.t : 0);
+        /* ★ 解码是异步的:解好之后如果游戏正在玩,就把音乐接上
+           (原来是看一个从没被设过的 A.on,于是第一次开始没声音、死一次才有)*/
+        if (active && phase === "play" && !MODE_STEP.dry) audioStart(S ? S.t : 0);
       }).catch(function (e) { A.err = (e && e.message) || "音频加载失败"; });
     }
     function audioStart(at) {
@@ -434,7 +436,9 @@
           }
         }
         if (supportY !== null && S.vy <= 0.01) {
-          S.y = supportY - CFG.PH; S.vy = 0; S.air = 0; S.onGround = true;
+          /* ★ S.y 是脚底:站在台面上就是 y = 台面高度本身。
+             原来写成 台面 − 盒子高,人会嵌进矩形里(用户说"踩在下边")*/
+          S.y = supportY; S.vy = 0; S.air = 0; S.onGround = true;
         }
         /* ★ 掉出世界就该死:几何冲刺版重写时把它弄丢了,站在坑洞上会一直往下掉、永远不死 */
         if (S.y < -2.5) { die("fall"); return; }
@@ -569,16 +573,37 @@
           ctx2d.beginPath(); ctx2d.arc(x + V.ppb * 0.5, cy2, cr, 0, Math.PI * 2); ctx2d.stroke();
           ctx2d.globalAlpha = 1;
         } else if (o.type === "platform" || o.type === "ground") {
-          ctx2d.fillStyle = "rgba(184,233,134,0.20)";
-          ctx2d.fillRect(x, H2S(o.row + (o.h || 1)), w, (o.h || 1) * V.ppb);
-          ctx2d.strokeStyle = "rgba(184,233,134,0.9)"; ctx2d.globalAlpha = 0.9; ctx2d.lineWidth = 2;
-          ctx2d.strokeRect(x, H2S(o.row + (o.h || 1)), w, (o.h || 1) * V.ppb);
+          /* ★ 砖块材质:颜色和方块一致(用户要求),只把纹理画成砖缝 */
+          var by0 = H2S(o.row + (o.h || 1)), bh0 = (o.h || 1) * V.ppb;
+          ctx2d.fillStyle = "rgba(226,246,255,0.16)";
+          ctx2d.fillRect(x, by0, w, bh0);
+          ctx2d.strokeStyle = COL.accent; ctx2d.globalAlpha = 0.75; ctx2d.lineWidth = 2;
+          ctx2d.strokeRect(x + 1, by0 + 1, w - 2, bh0 - 2);
+          ctx2d.globalAlpha = 0.35; ctx2d.lineWidth = 1;
+          var rows = Math.max(1, Math.round((o.h || 1)));
+          for (var br = 1; br < rows; br++) {
+            var byy = by0 + (bh0 * br) / rows;
+            ctx2d.beginPath(); ctx2d.moveTo(x, byy); ctx2d.lineTo(x + w, byy); ctx2d.stroke();
+          }
+          var cols = Math.max(1, Math.round(o.x2 - o.x));
+          for (var bc = 0; bc < cols; bc++) {
+            var bxx = x + (w * (bc + 0.5)) / cols;
+            for (var br2 = 0; br2 < rows; br2++) {
+              var seg = bh0 / rows, y1 = by0 + seg * br2, y2 = y1 + seg;
+              ctx2d.beginPath();
+              ctx2d.moveTo(bxx, br2 % 2 ? y1 : y1 + seg * 0.5);
+              ctx2d.lineTo(bxx, br2 % 2 ? y2 - seg * 0.5 : y2);
+              ctx2d.stroke();
+            }
+          }
           ctx2d.globalAlpha = 1; ctx2d.lineWidth = 1;
         } else if (o.type === "deco") {
           if (o.deco === "text") {
             ctx2d.fillStyle = COL.accent; ctx2d.globalAlpha = 0.85;
-            ctx2d.font = "600 " + Math.round(V.ppb * 0.7) + "px ui-monospace, Consolas, monospace";
-            ctx2d.fillText(o.text || "", x, H2S(o.row + 0.5));
+            /* ★ 字号 = 物件的 h(块):编辑器里拖上边手柄就是放大 */
+            var fsz = Math.max(8, Math.round(V.ppb * (o.h || 0.7)));
+            ctx2d.font = "600 " + fsz + "px ui-monospace, Consolas, monospace";
+            ctx2d.fillText(o.text || "", x, H2S(o.row) );
             ctx2d.globalAlpha = 1;
           } else {
             var lr = V.ppb * (o.w || 2);

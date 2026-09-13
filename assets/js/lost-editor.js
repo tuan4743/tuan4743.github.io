@@ -339,7 +339,7 @@
         if (it.type === "deco") {
           if ((it.deco || "light") === "text") {
             ctx.globalAlpha = 0.9; ctx.fillStyle = "#ffffff";
-            ctx.font = "600 12px ui-monospace, Consolas, monospace";
+            ctx.font = "600 " + Math.max(10, Math.round((it.h || 1) * 12)) + "px ui-monospace, Consolas, monospace";
             ctx.fillText(it.text || "(文字)", ix, iy);
             ctx.globalAlpha = 1;
           } else {
