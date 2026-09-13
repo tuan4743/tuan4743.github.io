@@ -417,6 +417,8 @@
           else S.onGround = false;
         }
         if (!S.onGround) S.rot += dt * 5.2 * (gdir > 0 ? 1 : -1);
+        /* ★ 掉出世界就该死:几何冲刺版重写时把它弄丢了,站在坑洞上会一直往下掉、永远不死 */
+        if (S.y < -2.5) { die("fall"); return; }
       }
 
       /* 回响:到那一拍自动补一次二段跳 */
@@ -955,7 +957,24 @@
         echo: function () { return echoes.map(function (e) { return { beat: e.beat, t: +e.t.toFixed(3), at: e.at, fired: e.fired }; }); },
         draft: function () { return draft(chart, beats); },
         chart: function () { return { segments: segs, items: items.length, speed: CFG.SPEED, rows: CFG.ROWS, lead: chart.lead }; },
+        /* 排查用:把 rail/hole 换算出来的几何打出来 */
+        probe: function () {
+          return items.filter(function (o) { return o.type === "rail" || o.type === "hole"; }).map(function (o) {
+            return { type: o.type, t: o.t, row: o.row, w: o.w, t2: o.t2, row2: o.row2,
+              x: +o.x.toFixed(2), x2: +o.x2.toFixed(2) };
+          });
+        },
+        /* 玩家当前的碰撞盒中心(排查用)*/
+        me: function () { return { x: +(S.x + CFG.PW / 2).toFixed(2), y: +(S.y + CFG.PH / 2).toFixed(2), mode: mode }; },
+        /* 排查用:把 rail/hole 换算出来的几何打出来 */
+        probe: function () {
+          return items.filter(function (o) { return o.type === "rail" || o.type === "hole"; }).map(function (o) {
+            return { type: o.type, t: o.t, row: o.row, w: o.w, t2: o.t2, row2: o.row2, x: +o.x.toFixed(2), x2: +o.x2.toFixed(2) };
+          });
+        },
+        me: function () { return { x: +(S.x + CFG.PW / 2).toFixed(2), y: +(S.y + CFG.PH / 2).toFixed(2), mode: mode }; },
         snapshot: function () {
+
           return {
             t: +S.t.toFixed(3), x: +S.x.toFixed(2), y: +S.y.toFixed(2), vy: +S.vy.toFixed(2),
             dead: dead, onGround: S.onGround, mode: mode, gdir: gdir, beat: nearestBeat(S.t),
