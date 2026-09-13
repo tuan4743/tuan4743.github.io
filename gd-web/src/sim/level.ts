@@ -189,7 +189,7 @@ export function generateLevel(opts: {
     length,
     segments,
     objects,
-    song: opts.song ?? '/assets/cd/lost.mp3',
+    song: opts.song ?? '/assets/cd/music/lost.mp3',
     songOffset: opts.songOffset ?? 0,
   };
 }

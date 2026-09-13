@@ -25,10 +25,30 @@ class Scene extends Phaser.Scene {
   fps = 0;
   fixed = false;
   camX = 0;
+  audio: HTMLAudioElement | null = null;
+  started = false;                  // 起跑闸门:第一次按键/点击才开跑
+  audioErr = '';                    // play() 失败的原因(验收要看)
   botStates: RunState[] = [];
   fp = '';
   botStarted = false;
   started = false;
+
+  /** 第一次交互:开跑 */
+  startRun() {
+    if (this.started) return;
+    this.started = true;
+    this.world = new World(LEVEL);
+    this.prevY = 0;
+    this.acc = 0;
+    if (!this.audio) {
+      const a = document.createElement('audio');
+      a.src = LEVEL.song;
+      a.preload = 'auto';
+      a.volume = 0.85;
+      this.audio = a;
+    }
+    this.audio.play().catch((e) => { this.audioErr = String((e && e.message) || e); });   // 失败原因留着,别静默吞
+  }
 
   create() {
     this.g = this.add.graphics();
@@ -39,11 +59,14 @@ class Scene extends Phaser.Scene {
     this.cameras.main.setZoom(zoom);
     const el = document.getElementById('gd-hud');
     if (el) el.addEventListener('click', () => { this.started = true; });
-    window.addEventListener('keydown', () => { this.started = true; }, { once: true });
+    window.addEventListener('keydown', () => this.startRun(), { once: true });
+    window.addEventListener('pointerdown', () => this.startRun(), { once: true });
   }
 
   update(_t: number, dtMs: number) {
     // 固定步长:每 1/60 秒推进一帧,最多补 5 帧(切标签回来不会瞬移)
+    this.expose();
+    if (!this.started) { this.draw(); return; }        // 没开跑:画面停在起点,音乐也不响
     this.acc += Math.min(dtMs / 1000, 0.5);
     const step = 1 / 60;
     let n = 0;
@@ -56,13 +79,17 @@ class Scene extends Phaser.Scene {
       if (this.keys.R?.isDown) { this.world.reset(0, 'cube'); }
       if (this.botMode && !this.botStarted) {       // 开机器人 = 从干净的一局开始,方便和 Node 侧对指纹
         this.botStarted = true;
+        this.started = true;
         this.world = new World(LEVEL);
         this.botStates = [];
         this.fp = '';
         this.prevY = 0;
       }
       const w0 = this.world;
-      if (w0.dead && (this.botMode || w0.deadT >= P.deadPause)) w0.respawn();   // 机器人模式立刻复活,和 Node 侧一致     // 死后短暂停顿再从存档点重来
+      if (w0.dead && (this.botMode || w0.deadT >= P.deadPause)) {
+        w0.respawn();
+        if (this.audio && !this.audio.paused) this.audio.currentTime = 0;   // 重来 = 音乐也回开头
+      }   // 机器人模式立刻复活,和 Node 侧一致     // 死后短暂停顿再从存档点重来
       this.prevY = w0.y;
       w0.frame(hold);
       if (this.botMode) {
@@ -83,9 +110,18 @@ class Scene extends Phaser.Scene {
       hud.textContent =
         (w.mode === 'ship' ? '飞机' : '方块') + ' · ' + Math.round(w.progress * 100) + '%' +
         ' · 尝试 ' + String(w.attempts).padStart(2, '0') +
-        ' · ' + (w.dead ? '摔了(R 重来)' : '') + ' · ' + Math.round(this.fps) + ' fps';
+        ' · ' + (w.dead ? '摔了(R 重来)' : '') + ' · ' + Math.round(this.fps) + (this.audio && !this.audio.paused ? ' · ♪ ' + this.audio.currentTime.toFixed(1) + 's' : ' · 按一下开始') + ' fps';
     }
-    (window as unknown as { __gd?: unknown }).__gd = { world: w, scene: this, level: LEVEL };
+    this.expose();
+  }
+
+  /** 对外暴露给验收脚本(每帧刷新,验收随时读到的都是当前状态) */
+  expose() {
+    (window as unknown as { __gd?: unknown }).__gd = {
+      world: this.world, scene: this, level: LEVEL,
+      audio: this.audio ? { t: this.audio.currentTime, paused: this.audio.paused, duration: this.audio.duration || 0, err: this.audioErr, src: this.audio.src } : null,
+      started: this.started,
+    };
   }
 
   draw() {
