@@ -1041,29 +1041,90 @@
       var img = new Image();
       img.onload = function () {
         try {
+          /* 缩到 1/4 再算(2200×1216 → 550×304):够准,而且快到无感 */
+          var S = 4;
+          var W = Math.max(8, Math.round(img.naturalWidth / S));
+          var H = Math.max(8, Math.round(img.naturalHeight / S));
           var c = document.createElement("canvas");
-          c.width = img.naturalWidth; c.height = img.naturalHeight;
+          c.width = W; c.height = H;
           var g = c.getContext("2d", { willReadFrequently: true });
-          g.drawImage(img, 0, 0);
-          var d = g.getImageData(0, 0, c.width, c.height).data;
-          var A = function (x, y) { return d[(y * c.width + x) * 4 + 3]; };
+          g.drawImage(img, 0, 0, W, H);
+          var d = g.getImageData(0, 0, W, H).data;
+          var A = function (x, y) { return d[(y * W + x) * 4 + 3]; };
+
+          /* ① 中线上的一整段透明:用来出"包围盒"(仅作参考/排障)
+             ② 最大内接矩形:四边形外框的角是斜切的,包围盒会把终端顶进斜角里 ——
+                宽高比一变(比如 2.25 的窗口 vs 1.81 的贴图)就会看出来。
+                所以真正用来落位的是这个矩形:它在数学上一定整个落在透明区里。
+                只搜中间那块区域(5%~95%),免得"贴图最外圈的透明留白"被当成窗口。 */
           function bigRun(len, alpha) {
             var best = null, s = -1, i;
             for (i = 0; i < len; i++) {
-              var clear = alpha(i) <= 6;
+              var clear = alpha(i) <= 8;
               if (clear && s < 0) s = i;
               if (!clear && s >= 0) { if (!best || i - 1 - s > best[1] - best[0]) best = [s, i - 1]; s = -1; }
             }
             if (s >= 0 && (!best || len - 1 - s > best[1] - best[0])) best = [s, len - 1];
             return best;
           }
-          var v = bigRun(c.height, function (y) { return A(Math.floor(c.width / 2), y); });
-          var h = bigRun(c.width, function (x) { return A(x, Math.floor(c.height / 2)); });
-          if (!v || !h) return done(null);
+          var vRun = bigRun(H, function (y) { return A(Math.floor(W / 2), y); });
+          var hRun = bigRun(W, function (x) { return A(x, Math.floor(H / 2)); });
+
+          var x0 = Math.floor(W * 0.05), x1 = Math.ceil(W * 0.95);
+          var y0 = Math.floor(H * 0.05), y1 = Math.ceil(H * 0.95);
+          var heights = new Int32Array(W), best = null;
+          for (var y = y0; y < y1; y++) {
+            for (var x = x0; x < x1; x++) heights[x] = A(x, y) <= 8 ? heights[x] + 1 : 0;
+            var stack = [];
+            for (var x2 = x0; x2 <= x1; x2++) {
+              var h = x2 === x1 ? 0 : heights[x2];
+              var start = x2;
+              while (stack.length && stack[stack.length - 1].h >= h) {
+                var top = stack.pop();
+                var area = top.h * (x2 - top.x);
+                if (!best || area > best.area) best = { x: top.x, y: y - top.h + 1, w: x2 - top.x, h: top.h, area: area };
+                start = top.x;
+              }
+              stack.push({ x: start, h: h });
+            }
+          }
+          if (!best) return done(null);
+          /* ③ 窗口的真实轮廓:一段一段扫出每一行的透明范围,连成多边形。
+             四边形外框的角是斜切的,"最大内接矩形"会把屏幕缩掉一圈(看着像悬在框里),
+             所以改成:玻璃层按这个轮廓裁(clip-path),文字层才用最大内接矩形 ——
+             玻璃严丝合缝、又绝对顶不出去。 */
+          var rows = 25, pts = [], i2;
+          var ry0 = vRun ? vRun[0] * S : best.y * S, ry1 = vRun ? vRun[1] * S : (best.y + best.h) * S;
+          for (i2 = 0; i2 < rows; i2++) {
+            var yy = Math.round(ry0 + (ry1 - ry0) * (i2 / (rows - 1)));
+            var sy = Math.max(0, Math.min(H - 1, Math.round(yy / S)));
+            var r = null, s2 = -1, x;
+            for (x = x0; x < x1; x++) {
+              var clear2 = A(x, sy) <= 8;
+              if (clear2 && s2 < 0) s2 = x;
+              if (!clear2 && s2 >= 0) { if (!r || x - 1 - s2 > r[1] - r[0]) r = [s2, x - 1]; s2 = -1; }
+            }
+            if (s2 >= 0 && (!r || x1 - 1 - s2 > r[1] - r[0])) r = [s2, x1 - 1];
+            if (r) pts.push([r[0] * S, yy, r[1] * S, yy]);
+          }
+          /* 往中心收一点点(外框内侧有亮边),再拼成闭合多边形:左边自上而下 + 右边自下而上 */
+          var cx = (best.x + best.w / 2) * S, cy = (best.y + best.h / 2) * S;
+          var k = Math.max(0.9, 1 - (2 * gapGuess()) / Math.max(80, best.h * S));
+          function shrink(p) { return [cx + (p[0] - cx) * k, cy + (p[1] - cy) * k]; }
+          var poly = pts.map(function (p) { return shrink([p[0], p[1]]); })
+            .concat(pts.slice().reverse().map(function (p) { return shrink([p[2], p[3]]); }));
           done({
-            img: [c.width, c.height],
-            win: [h[0], v[0], h[1], v[1]],
-            pct: { left: h[0] / c.width, top: v[0] / c.height, right: 1 - h[1] / c.width, bottom: 1 - v[1] / c.height }
+            img: [img.naturalWidth, img.naturalHeight],
+            scale: S,
+            win: [best.x * S, best.y * S, (best.x + best.w) * S, (best.y + best.h) * S],
+            box: hRun && vRun ? [hRun[0] * S, vRun[0] * S, hRun[1] * S, vRun[1] * S] : null,
+            polygon: poly.length >= 6 ? poly : null,
+            pct: {
+              left: (best.x * S) / img.naturalWidth,
+              top: (best.y * S) / img.naturalHeight,
+              right: 1 - ((best.x + best.w) * S) / img.naturalWidth,
+              bottom: 1 - ((best.y + best.h) * S) / img.naturalHeight
+            }
           });
         } catch (e) { done(null); }
       };
@@ -1073,31 +1134,45 @@
   }
 
   /* 反过来的安全余量:外框内侧有斜切和一条亮边,贴着窗口边界会被撞到 */
-  function frameGapPx() {
+  function gapGuess() {
     var v = parseFloat(getComputedStyle(root).getPropertyValue("--term-frame-gap"));
     return isFinite(v) ? v : 10;
   }
+  function frameGapPx() { return gapGuess(); }
 
   var frameBox = null;                   /* 最近一次量到的窗口(px,视口坐标)*/
   function fitToFrame() {
     var W = window.innerWidth, H = window.innerHeight;
     var p = frameCache;
     var gap = frameGapPx();
+    var s = root.style;
     if (p) {
+      /* 文字层的活动范围 = 最大内接矩形(px);玻璃层铺满视口,由 --term-clip 裁出轮廓。
+         两个值都交给 CSS 里的 calc 用(内边距/导航让位还是由 CSS 那套变量管,不在这里算)*/
       frameBox = [
         Math.round(p.pct.left * W + gap), Math.round(p.pct.top * H + gap),
         Math.round(W - p.pct.right * W - gap), Math.round(H - p.pct.bottom * H - gap)
       ];
-      var s = root.style;
-      s.left = frameBox[0] + "px";
-      s.top = frameBox[1] + "px";
-      s.right = (W - frameBox[2]) + "px";
-      s.bottom = (H - frameBox[3]) + "px";
-      root.style.setProperty("--term-frame-applied", "1");
+      s.setProperty("--term-inset-left", frameBox[0] + "px");
+      s.setProperty("--term-inset-top", frameBox[1] + "px");
+      s.setProperty("--term-inset-right", (W - frameBox[2]) + "px");
+      s.setProperty("--term-inset-bottom", (H - frameBox[3]) + "px");
+      var sx = W / p.img[0], sy = H / p.img[1];
+      var poly = p.polygon;
+      if (poly) {
+        s.setProperty("--term-clip", "polygon(" + poly.map(function (pt) {
+          return (pt[0] * sx).toFixed(1) + "px " + (pt[1] * sy).toFixed(1) + "px";
+        }).join(", ") + ")");
+        root.classList.add("is-fitted");
+      } else {
+        root.classList.remove("is-fitted");
+      }
+      s.setProperty("--term-frame-applied", "1");
     } else {
-      /* 量不到图:清掉内联值,退回 CSS 里那组百分比 */
-      root.style.left = root.style.top = root.style.right = root.style.bottom = "";
-      root.style.removeProperty("--term-frame-applied");
+      /* 量不到图:清掉全部内联值,退回 CSS 里那组百分比 */
+      ["--term-inset-left", "--term-inset-top", "--term-inset-right", "--term-inset-bottom", "--term-clip", "--term-frame-applied"]
+        .forEach(function (k) { s.removeProperty(k); });
+      root.classList.remove("is-fitted");
       frameBox = null;
     }
     syncTopGap();
@@ -1125,18 +1200,40 @@
     if (cs.display === "none" || cs.visibility === "hidden" || parseFloat(cs.opacity) < 0.05) return false;
     return navEl.getBoundingClientRect().height > 4;
   }
+  /* 排障:把导航为什么算"没露出来"的原因也带上 */
+  function navWhy() {
+    if (!navEl) return "no-nav";
+    if (document.body.classList.contains("statusbar-hidden")) return "body.statusbar-hidden";
+    var cs = getComputedStyle(navEl);
+    if (cs.display === "none") return "display:none";
+    if (cs.visibility === "hidden") return "visibility:hidden";
+    if (parseFloat(cs.opacity) < 0.05) return "opacity:" + cs.opacity;
+    if (navEl.getBoundingClientRect().height <= 4) return "height<=4";
+    return "visible";
+  }
   function syncTopGap() {
+    /* ★ 参照物必须是【文字区】,不能是 .term 这个盒子 ——
+       量到外框之后 .term 是铺满视口的(靠 clip-path 裁),它的 top 永远是 0,
+       拿它比就永远算出"导航没压到东西",让位量恒为 0(踩过)。
+       做法:先把让位量清零量一次文字区顶部,再按导航底边算需要让多少。 */
+    root.style.setProperty("--term-gap-top", "0px");
     var gap = 0;
     if (navVisible()) {
       var r = navEl.getBoundingClientRect();
-      var t = root.getBoundingClientRect();
-      if (r.bottom > t.top && r.top < t.top + 60) gap = Math.max(0, Math.round(r.bottom - t.top) + 6);
+      var s = screen.getBoundingClientRect();
+      if (r.bottom > s.top) gap = Math.round(r.bottom - s.top) + 6;
     }
     root.style.setProperty("--term-gap-top", gap + "px");
   }
   syncTopGap();
-  /* 导航的显示/隐藏、窗口缩放都可能晚于本脚本:多量几次 + 盯住 body 的 class */
-  [120, 700, 1800, 3200].forEach(function (ms) { setTimeout(syncTopGap, ms); });
+  /* 导航的显示/隐藏、入场动画、窗口缩放都可能晚于本脚本:
+     头 10 秒里每 450ms 重算一次(就两次 getBoundingClientRect,代价可以忽略),
+     之后靠 MutationObserver(body 的 class)+ 点收起箭头 + resize 兜着 */
+  var gapTicks = 0;
+  var gapTimer = setInterval(function () {
+    syncTopGap();
+    if (++gapTicks > 22) clearInterval(gapTimer);
+  }, 450);
   if (window.MutationObserver) {
     new MutationObserver(syncTopGap).observe(document.body, { attributes: true, attributeFilter: ["class"] });
   }
@@ -1192,12 +1289,15 @@
         frameWindow: frameBox,
         frameFromImage: !!frameCache,
         framePct: frameCache ? frameCache.pct : null,
+        frameBoxCenterLine: frameCache ? frameCache.box : null,
         gapTop: cs.getPropertyValue("--term-gap-top").trim(),
+        fitted: root.classList.contains("is-fitted"),
+        clipPath: String(getComputedStyle(root).clipPath || "none").slice(0, 90),
         termScreenBox: (function () {
           var b = screen.getBoundingClientRect();
           return [Math.round(b.left), Math.round(b.top), Math.round(b.right), Math.round(b.bottom)];
         })(),
-        nav: navEl ? { tag: navEl.tagName, cls: navEl.className, visible: navVisible(), rect: (function () { var b = navEl.getBoundingClientRect(); return [Math.round(b.top), Math.round(b.bottom)]; })() } : null,
+        nav: navEl ? { tag: navEl.tagName, cls: navEl.className, visible: navVisible(), why: navWhy(), rect: (function () { var b = navEl.getBoundingClientRect(); return [Math.round(b.top), Math.round(b.bottom)]; })() } : null,
         statusbarHidden: document.body.classList.contains("statusbar-hidden"),
       };
     },

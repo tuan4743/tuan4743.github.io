@@ -84,6 +84,24 @@
     inset: 0;
 }
 
+/* 量到外框贴图之后:玻璃层铺满视口,再用 JS 写的 --term-clip(按窗口真实轮廓的多边形)
+   裁出屏幕那一块 —— 斜切角也能严丝合缝,而且不可能顶出框。
+   文字的活动范围同时被收到最大内接矩形里(--term-inset-*,JS 写的 px)。
+   量不到图时不会加 is-fitted,就退回上面那组保底百分比。 */
+.term.is-fitted {
+    inset: 0;
+    border-radius: 0;
+    clip-path: var(--term-clip);
+    -webkit-clip-path: var(--term-clip);
+}
+
+.term.is-fitted .term-screen {
+    inset: calc(var(--term-inset-top, 0px) + var(--term-pad-y) + var(--term-gap-top, 0px))
+           calc(var(--term-inset-right, 0px) + var(--term-pad-x))
+           calc(var(--term-inset-bottom, 0px) + var(--term-pad-y))
+           calc(var(--term-inset-left, 0px) + var(--term-pad-x));
+}
+
 /* 输出区:等宽 + 保留空格(表格/树/进度条全靠它对齐)*/
 .term-screen {
     position: absolute;
