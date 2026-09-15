@@ -170,7 +170,8 @@ OpenGD 自述 `UNMAINTAINED`、官方说"levels are not playable at the moment"�
   浏览器里 `atob` + `DecompressionStream('gzip')` 就能解,难的是 **ID → 我们物件** 的映射表,
   以及坡道/触发器/装饰这些我们根本没有的东西(只能忽略或删掉);
 - 手机端只是"不启动 + 提示请用 PC 打开",没有独立提示页;
-- **提交仍未推送**(用户要求"本地修到满意再推")。
+- **推送**:用户发话后推过一次(第三张盘那一批推到 `976b9a9`);第四张盘的两次提交
+  (`7fea2bb` 选择界面面板、`a74db74` 终端)还只在本地,等用户发话再推。
 
 ## 9. 第四张盘的终端项目展示(用户给的完整任务书)
 
@@ -184,3 +185,32 @@ strings/clear/history/exit 等指令(大部分返回错误以契合故障),外�
 
 另外:用户说**五张盘的谱还没写完** —— 等他写完再回来接"盘 → 铺面"的映射
 (GD_SONGS 旁边加一份 GD_LEVELS,或在 gd-web 里按 key 选铺面)。
+
+### 9.1 实现状态:任务书 1~10 条全部落地(2026-09 这一轮)
+
+| 文件 | 干什么 |
+|---|---|
+| `assets/js/cd4-boot.js` | 第四张盘的开机动画:55% 卡死变红 → Wrong disk name → permission denied ×3 → 清屏;撕裂/RGB 分离/乱码 |
+| `assets/js/cd4-terminal.js` | 终端本体:开机日志 → 欢迎语 → `[recover]` 引导 → 30 条指令 + 文件树 + recover 工具 |
+| `assets/css/terminal.css` | 终端配色(`.term` 顶上一组变量)/ 扫描线 / 撕裂条 / 响应式 |
+| `layouts/partials/pages/tech.html` | 这一页的骨架(输出区 + 两层故障贴片 + 指纹化的脚本标签) |
+| `static/assets/cd/tech/**` | 盘里的"真实文件":INDEX / README.txt / MANIFEST.sha256 / 三个项目 / 假碎片 |
+
+接线在 `assets/js/intro.js`:`__bootRunning` 标记 + 动画结束派发 `cd-boot-done`、
+激活某张盘派发 `cd-panel`、插第四张盘时先 `CD4Term.reset()`。
+**终端只在「面板激活 + CD 架收起 + 没动画在放 + 站点已进 CD 界面」时才开打** ——
+少一条就会打在还没露出来的页面上(踩过)。
+
+要改的东西在哪:
+- **项目简介/盘内文件** → `static/assets/cd/tech/projects/<项目>/README.md`(真文件,终端 fetch);
+- **项目清单(名字/大小/有没有坏扇区)** → `cd4-terminal.js` 顶部的 `PROJECTS`;
+- **文件树与"读得出来吗"** → 同一个文件里的 `FS`(`ok/denied/eio/bad/missing`);
+- **55% 卡死、打字机速度、清屏时刻** → `cd4-boot.js` 顶部的 `T`;
+- **配色/字号/让开导航栏的高度** → `terminal.css` 顶部 `.term` 的变量。
+
+验证:`tools/verify/cd4-flow-shot.mjs`(真插盘走全流程,41 项全过)、
+`boot-regress.mjs`(五张盘的开机动画都没被带坏,0 报错)、`gd-panel-check.mjs`(10/10)。
+出图在 `.tmp/cd4-*.png`。
+
+**还没做的**:① 五张盘的谱(用户自己写,写完接"盘 → 铺面");② 项目只放了三个,
+以后加项目要同时改 `PROJECTS` 与 `static/assets/cd/tech/projects/`。

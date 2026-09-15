@@ -104,3 +104,25 @@ Projects: /mnt/cdrom/projects
 假如用户一直在乱输指令，判定为用户不知道要干什么，可以输出一行:[recover] Manual recovery pending. Try 'help' or 'cat /mnt/cdrom/INDEX'.
 9.对于BAD SECTORS的项目，不要让用户可以直接打开，让用户使用recover指令(这个是自定义的，不属于Linux基本指令的一种)recover [文件夹]。执行后打印进度条，然后弹出recover success。
 10.注意还有很多细节我没有提到，自行补充设定，但请确保遵循背景:紧急恢复只读光盘，emergency账户无root
+
+---
+
+## 实现状态(2026-09 这一轮:1~10 条全部落地)
+
+代码分布 / 要改什么 / 验证脚本,都记在 **`gd-web/HANDOVER.md` 第 9.1 节**,这里只列结果:
+
+| 条目 | 结果 |
+|---|---|
+| 1 面板:状态=未知(紫)、信号 0~37% 每 0.5s 变 | ✅ `assets/js/status-panel.js` + `css/holo.css` |
+| 2 删掉过场动画,只留终端式加载动画 | ✅ 第四张盘不再走 `cd-boot.js` 的 scene |
+| 3 55% 卡死变红 → Wrong disk name → 三行 permission denied → 清屏 → 第二页终端 | ✅ `assets/js/cd4-boot.js` |
+| 4 故障元素:撕裂 / RGB 分离 / 字符乱码 | ✅ 开机动画里最密;终端页偶尔"环境光"发作一次 |
+| 5 欢迎语 + `emergency@recovery:~$` | ✅ 终端页开头自动打印 |
+| 6 类 Linux 指令(大部分报错),经典配色 | ✅ 30 条:任务书列的 20 条 + whoami/id/uname/date/echo/systemctl/su/sudo 等 |
+| 7 文件树 + 权限/IO 错误 + README 可读 + manifest 丢失 + src 不可达 | ✅ `static/assets/cd/tech/` 里是真文件,策略表在 `cd4-terminal.js` 的 `FS` |
+| 8 `[recover]` 六行引导 + INDEX 输出 + 乱输三次给提示 | ✅ |
+| 9 BAD SECTORS 走 `recover <文件夹>` → 进度条 → recover success | ✅ 恢复后 README 可读、INDEX 状态变 RECOVERED |
+| 10 自行补充设定(仍守"只读盘 + emergency 无 root") | ✅ 另加了 ↑ 历史、Ctrl+C / Ctrl+L、真实 sha256 校验、strings 挖碎片 |
+
+自测:`tools/verify/cd4-flow-shot.mjs` 真插盘走全流程 **41/41 通过**;
+`boot-regress.mjs` 五张盘的开机动画都正常、0 条页面报错;`gd-panel-check.mjs` 10/10。
