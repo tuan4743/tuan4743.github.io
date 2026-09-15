@@ -41,11 +41,12 @@
        (见 cd4-terminal.js 的 syncTopGap)*/
     --term-gap-top: 0px;
 
-    /* ---- 落位:直接对着金属外框贴图里那块【透明窗口】量 ----
-       外框是 /assets/screen/frame.webp 按 100% 100% 拉伸铺满视口的,
-       所以窗口四边可以写成"占视口的百分比"(量法见 tools/verify/frame-window.mjs):
-         top 8.224% / right 5.455% / bottom 8.553% / left 3.636%
-       再往里收 --term-frame-gap:外框内侧有斜切和一条亮边,贴着量到的边界会被撞到。
+    /* ---- 落位 ----
+       下面这组是【保底】的百分比:正常情况由 cd4-terminal.js 在运行时把外框贴图
+       /assets/screen/frame.webp 读进 canvas、量出真正的透明窗口,再写成内联的 px 值
+       (贴图是静态资源没有指纹,浏览器里可能是旧缓存 —— 写死的百分比不一定对得上)。
+       数据来源:tools/verify/frame-window.mjs(2200×1216 那张图:
+       top 8.224% / right 5.455% / bottom 8.553% / left 3.636%)。
        ★ 别再退回 --sp-t/--sp-x/--sp-b 那一组:那是整块屏幕的内边距,
          右下比外框的窗口多出去 7~10px,终端会"顶出框"(用户报过)。*/
     --term-frame-gap: clamp(8px, 1.1vh, 16px);

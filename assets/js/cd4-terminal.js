@@ -1030,30 +1030,119 @@
     scrollDown();
   }
 
-  /* ---------- 顶部站点导航(浮层)让位 ----------
-     导航默认是收起隐藏的(用户:不用给终端留位置),真露出来的时候才量它的高度,
-     写进 --term-gap-top,免得终端头两行被压住。 */
+  /* ---------- 落位:运行时自己量金属外框的透明窗口 ----------
+     外框 = /assets/screen/frame.webp 按 100% 100% 拉伸铺满视口。
+     贴图是【静态资源、没有指纹】,浏览器里很可能是旧缓存 —— 所以别信写死的百分比,
+     直接把那张图读进 canvas,找中线上一整段透明的范围(那才是可视窗口),换算成 px。
+     量不出来(图挂了/画布被拦)就退回 terminal.css 里那组保底百分比。 */
+  var frameCache = null;
+  function measureFrameWindow() {
+    return new Promise(function (done) {
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var c = document.createElement("canvas");
+          c.width = img.naturalWidth; c.height = img.naturalHeight;
+          var g = c.getContext("2d", { willReadFrequently: true });
+          g.drawImage(img, 0, 0);
+          var d = g.getImageData(0, 0, c.width, c.height).data;
+          var A = function (x, y) { return d[(y * c.width + x) * 4 + 3]; };
+          function bigRun(len, alpha) {
+            var best = null, s = -1, i;
+            for (i = 0; i < len; i++) {
+              var clear = alpha(i) <= 6;
+              if (clear && s < 0) s = i;
+              if (!clear && s >= 0) { if (!best || i - 1 - s > best[1] - best[0]) best = [s, i - 1]; s = -1; }
+            }
+            if (s >= 0 && (!best || len - 1 - s > best[1] - best[0])) best = [s, len - 1];
+            return best;
+          }
+          var v = bigRun(c.height, function (y) { return A(Math.floor(c.width / 2), y); });
+          var h = bigRun(c.width, function (x) { return A(x, Math.floor(c.height / 2)); });
+          if (!v || !h) return done(null);
+          done({
+            img: [c.width, c.height],
+            win: [h[0], v[0], h[1], v[1]],
+            pct: { left: h[0] / c.width, top: v[0] / c.height, right: 1 - h[1] / c.width, bottom: 1 - v[1] / c.height }
+          });
+        } catch (e) { done(null); }
+      };
+      img.onerror = function () { done(null); };
+      img.src = "/assets/screen/frame.webp";
+    });
+  }
+
+  /* 反过来的安全余量:外框内侧有斜切和一条亮边,贴着窗口边界会被撞到 */
+  function frameGapPx() {
+    var v = parseFloat(getComputedStyle(root).getPropertyValue("--term-frame-gap"));
+    return isFinite(v) ? v : 10;
+  }
+
+  var frameBox = null;                   /* 最近一次量到的窗口(px,视口坐标)*/
+  function fitToFrame() {
+    var W = window.innerWidth, H = window.innerHeight;
+    var p = frameCache;
+    var gap = frameGapPx();
+    if (p) {
+      frameBox = [
+        Math.round(p.pct.left * W + gap), Math.round(p.pct.top * H + gap),
+        Math.round(W - p.pct.right * W - gap), Math.round(H - p.pct.bottom * H - gap)
+      ];
+      var s = root.style;
+      s.left = frameBox[0] + "px";
+      s.top = frameBox[1] + "px";
+      s.right = (W - frameBox[2]) + "px";
+      s.bottom = (H - frameBox[3]) + "px";
+      root.style.setProperty("--term-frame-applied", "1");
+    } else {
+      /* 量不到图:清掉内联值,退回 CSS 里那组百分比 */
+      root.style.left = root.style.top = root.style.right = root.style.bottom = "";
+      root.style.removeProperty("--term-frame-applied");
+      frameBox = null;
+    }
+    syncTopGap();
+  }
+  measureFrameWindow().then(function (p) {
+    frameCache = p;
+    fitToFrame();
+    if (p) {
+      console.info("[cd4] 外框窗口(占贴图): left " + (p.pct.left * 100).toFixed(3) + "% / top " + (p.pct.top * 100).toFixed(3) +
+        "% / right " + (p.pct.right * 100).toFixed(3) + "% / bottom " + (p.pct.bottom * 100).toFixed(3) + "%" +
+        " → 终端落在 " + frameBox.join(","));
+    } else {
+      console.info("[cd4] 没能量到外框贴图,用 terminal.css 里的保底百分比落位");
+    }
+  });
+
+  /* 顶部站点导航(浮层)让位:导航默认收起,那就不让;真露出来才量它的高度。
+     ★ 注意别在 initStatusbar() 之前量 —— 那时候 statusbar-hidden 还没加上,
+       会量出一个"导航开着"的高度,然后文字就永远往下沉(用户报过)。 */
   var navEl = document.querySelector("header") || document.querySelector(".statusbar");
+  function navVisible() {
+    if (!navEl) return false;
+    if (document.body.classList.contains("statusbar-hidden")) return false;
+    var cs = getComputedStyle(navEl);
+    if (cs.display === "none" || cs.visibility === "hidden" || parseFloat(cs.opacity) < 0.05) return false;
+    return navEl.getBoundingClientRect().height > 4;
+  }
   function syncTopGap() {
     var gap = 0;
-    if (navEl && !document.body.classList.contains("statusbar-hidden")) {
+    if (navVisible()) {
       var r = navEl.getBoundingClientRect();
       var t = root.getBoundingClientRect();
-      if (r.height > 4 && r.bottom > t.top && r.top < t.top + 40) {
-        gap = Math.max(0, Math.round(r.bottom - t.top) + 6);
-      }
+      if (r.bottom > t.top && r.top < t.top + 60) gap = Math.max(0, Math.round(r.bottom - t.top) + 6);
     }
     root.style.setProperty("--term-gap-top", gap + "px");
   }
   syncTopGap();
-  window.addEventListener("resize", syncTopGap);
-  var sbToggle = document.getElementById("statusbar-toggle");
-  if (sbToggle) {
-    sbToggle.addEventListener("click", function () {
-      syncTopGap();
-      setTimeout(syncTopGap, 420);      /* 收起/展开有过渡,过一会儿再量一次 */
-    });
+  /* 导航的显示/隐藏、窗口缩放都可能晚于本脚本:多量几次 + 盯住 body 的 class */
+  [120, 700, 1800, 3200].forEach(function (ms) { setTimeout(syncTopGap, ms); });
+  if (window.MutationObserver) {
+    new MutationObserver(syncTopGap).observe(document.body, { attributes: true, attributeFilter: ["class"] });
   }
+  window.addEventListener("resize", function () { fitToFrame(); });
+  var sbToggle = document.getElementById("statusbar-toggle");
+  if (sbToggle) sbToggle.addEventListener("click", function () { syncTopGap(); setTimeout(syncTopGap, 420); });
 
   /* ============================================================
      对外接口:reset() 清屏待机,start() 开始开机序列
@@ -1088,7 +1177,32 @@
     });
   }
 
-  window.CD4Term = { reset: reset, start: start, isStarted: function () { return started; } };
+  window.CD4Term = {
+    reset: reset,
+    start: start,
+    isStarted: function () { return started; },
+    /* 调试/排障用:控制台里敲 CD4Term.measure() —— 看看终端到底落在哪、外框窗口量到多少。
+       用户那边如果"文字还偏"或"还顶出框",把这一行结果发过来就够了 */
+    measure: function () {
+      var r = root.getBoundingClientRect();
+      var cs = getComputedStyle(root);
+      return {
+        viewport: [window.innerWidth, window.innerHeight],
+        termBox: [Math.round(r.left), Math.round(r.top), Math.round(r.right), Math.round(r.bottom)],
+        frameWindow: frameBox,
+        frameFromImage: !!frameCache,
+        framePct: frameCache ? frameCache.pct : null,
+        gapTop: cs.getPropertyValue("--term-gap-top").trim(),
+        termScreenBox: (function () {
+          var b = screen.getBoundingClientRect();
+          return [Math.round(b.left), Math.round(b.top), Math.round(b.right), Math.round(b.bottom)];
+        })(),
+        nav: navEl ? { tag: navEl.tagName, cls: navEl.className, visible: navVisible(), rect: (function () { var b = navEl.getBoundingClientRect(); return [Math.round(b.top), Math.round(b.bottom)]; })() } : null,
+        statusbarHidden: document.body.classList.contains("statusbar-hidden"),
+      };
+    },
+    refit: fitToFrame
+  };
 
   /* 接入站点流程:
      · 必须"面板激活 + CD 架已收起 + 没有开机动画在放"三条同时成立才开始打印,

@@ -216,9 +216,18 @@ strings/clear/history/exit 等指令(大部分返回错误以契合故障),外�
 3. **提示符只有一个**了(引导打完后把提示符"收"到底部,原来是又新建了一个);
 4. 快捷键改成 **Ctrl+Shift+C 中断 / Ctrl+Shift+V 粘贴 / Ctrl+Shift+L 清屏**,
    纯 Ctrl+C / Ctrl+V 一律不拦(要能选中台词复制);
-5. 终端**不再顶出模拟屏幕的框**:落位改成直接量外框贴图的透明窗口
-   (`tools/verify/frame-window.mjs`,结果 top 8.224% / right 5.455% / bottom 8.553% / left 3.636%);
-6. 顶部导航默认是收起的 → 终端**默认不让位**,只有导航真露出来时 JS 才量高度写进 `--term-gap-top`。
+5. 终端**不再顶出模拟屏幕的框**:落位不再用 `--sp-*`(那是整屏内边距,右下多出去 7~10px);
+   **运行时**把外框贴图 `/assets/screen/frame.webp` 读进 canvas、量出真正的透明窗口,
+   换算成 px 写成内联 left/top/right/bottom(`cd4-terminal.js` 的 `fitToFrame()`,
+   窗口四边再往里收 `--term-frame-gap`)。贴图是静态资源、没有指纹,浏览器里可能是旧缓存 ——
+   所以不写死百分比;量不到图才退回 `terminal.css` 里那组保底百分比
+   (由 `tools/verify/frame-window.mjs` 量的:top 8.224% / right 5.455% / bottom 8.553% / left 3.636%)。
+   排障:`CD4Term.measure()` 一次给出视口/外框窗口/终端框/导航让位,让用户贴过来即可。
+6. 顶部导航默认是收起的 → 终端**默认不让位**(`--term-gap-top` 默认 0),
+   只有导航真露出来(没 `statusbar-hidden`、且 display/visibility/opacity 都可见)时才量它的高度。
+   ★ 首次量不能在 `initStatusbar()` 之前跑 —— 那时 `statusbar-hidden` 还没加上,
+   会按"导航开着"量出 ~100px 的下沉量,而且之后不再重算(用户报过"文字还是下移的")。
+   现在除首次外还有 120/700/1800/3200ms 四次补量 + MutationObserver 盯 body 的 class。
 
 验证:`tools/verify/cd4-flow-shot.mjs`(真插盘走全流程,含上面 6 条的回归断言)、
 `boot-regress.mjs`(五张盘的开机动画都没被带坏,0 报错)、`gd-panel-check.mjs`(10/10)、
