@@ -140,6 +140,7 @@
     --panel-wave-h: 26px;                 /* 波形高度 */
     --panel-cut: 0px;                     /* 右上角切角 */
     --panel-ok: #7fe3c0;                  /* "就绪"的颜色 */
+    --panel-unknown: #b985ff;             /* ★ 第四张盘(故障):"未知"的紫色 */
 
     /* ═══════ 5. 锁定圆 + 扫描节点(由 holo-reticle.js 画在 canvas 上)═══════ */
     --scan-x: 22.2%;                        /* 扫描节点位置(架子宽/高的百分比)*/
@@ -460,6 +461,36 @@
 
 .drive-status__v.is-ok {
     color: var(--panel-ok, #7fe3c0);
+}
+
+/* ---- 第四张盘(故障):状态 = 未知(紫),信号在低位乱跳 ----
+   面板整体再叠一点点"接触不良"的闪烁,和这张盘的故障风呼应 */
+.drive-status__v.is-unknown {
+    color: var(--panel-unknown, #b985ff);
+}
+
+.drive-status__v.is-unknown::after {
+    content: "▌";
+    margin-left: 0.35em;
+    opacity: 0.55;
+    animation: ds-blink 0.62s steps(1, end) infinite;   /* 比就绪那行闪得更急 */
+}
+
+.drive-status.is-unstable .drive-status__bars i.on {
+    background: var(--panel-unknown, #b985ff);
+}
+
+.drive-status.is-unstable {
+    animation: ds-instability 4.1s steps(1, end) infinite;
+}
+
+/* 大部分时间正常,偶尔整块面板暗一下/抖一下 */
+@keyframes ds-instability {
+    0%, 91% { opacity: calc(0.85 + var(--holo-glow) * 0.15); transform: translateX(0); }
+    91.6% { opacity: 0.32; transform: translateX(-1px); }
+    92.4% { opacity: calc(0.85 + var(--holo-glow) * 0.15); transform: translateX(0); }
+    96.2% { opacity: 0.5; transform: translateX(1px); }
+    96.9% { opacity: calc(0.85 + var(--holo-glow) * 0.15); transform: translateX(0); }
 }
 
 .drive-status__dot {
