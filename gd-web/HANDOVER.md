@@ -171,3 +171,16 @@ OpenGD 自述 `UNMAINTAINED`、官方说"levels are not playable at the moment"�
   以及坡道/触发器/装饰这些我们根本没有的东西(只能忽略或删掉);
 - 手机端只是"不启动 + 提示请用 PC 打开",没有独立提示页;
 - **提交仍未推送**(用户要求"本地修到满意再推")。
+
+## 9. 第四张盘的终端项目展示(用户给的完整任务书)
+
+完整任务书在 **`gd-web/docs/cd04-terminal.md`**(用户写在仓库根的 CD_04.txt,已归档进仓库)。
+要点:第四张盘做**终端/故障风格的项目展示** —— 加载动画到 55% 卡死变红 → 打印
+Wrong disk name, trying decoding... → 三行红色 permission denied → 清屏进第二页终端
+(把内核日志一行行打出来)→ 进真正的终端页(类 Linux,emergency 账户、只读挂载、无 root)。
+终端要还原 help/ls/cd/cat/find/grep/mount/blkid/lsblk/dmesg/journalctl/sha256sum/dd/file/
+strings/clear/history/exit 等指令(大部分返回错误以契合故障),外加自定义的 recover。
+文件树与"哪些可达/哪些 BAD SECTORS"也在那份文件里。
+
+另外:用户说**五张盘的谱还没写完** —— 等他写完再回来接"盘 → 铺面"的映射
+(GD_SONGS 旁边加一份 GD_LEVELS,或在 gd-web 里按 key 选铺面)。
