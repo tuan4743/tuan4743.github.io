@@ -1048,11 +1048,12 @@
     var s = root.style;
     if (d) {
       var sx = W / d.img[0], sy = H / d.img[1];
-      /* FrameFit 给的 safe 是【图上坐标】(left,top,right,bottom),换算成视口 px 后再往内收 gap;
-         右边的写法是"坐标 - gap",不是"视口宽 - 坐标"(两种口径混过一次,终端直接被压成 0 宽)*/
+      /* 文字活动范围 = 窗口四边往内收 gap(FrameFit 的 win 是图上坐标,
+         右边的写法是"坐标 - gap",不是"视口宽 - 坐标" —— 两种口径混过一次,终端被压成 0 宽)*/
+      var win = d.win || d.safe;
       frameBox = [
-        Math.round(d.safe[0] * sx + gap), Math.round(d.safe[1] * sy + gap),
-        Math.round(d.safe[2] * sx - gap), Math.round(d.safe[3] * sy - gap)
+        Math.round(win[0] * sx + gap), Math.round(win[1] * sy + gap),
+        Math.round(win[2] * sx - gap), Math.round(win[3] * sy - gap)
       ];
       s.setProperty("--term-inset-left", frameBox[0] + "px");
       s.setProperty("--term-inset-top", frameBox[1] + "px");

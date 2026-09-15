@@ -24,7 +24,8 @@
   "use strict";
 
   var IMG = "/assets/screen/frame.webp";
-  var GAP = 10;                 /* 内接矩形再往里收一点(外框内侧有亮边)*/
+  var GAP = 10;                 /* (历史值)内接矩形再往里收一点 */
+  var CORNER = 14;              /* 窗口再往里收一点,躲开四角的斜切(给"内容"用)*/
   var SP_GAP = 4;               /* --sp-* 至少比窗口多让这么多 */
   var S = 4;                    /* 贴图缩到这个比例再算 */
 
@@ -81,8 +82,10 @@
           }
           if (!best) return done(null);
 
-          /* ③ 窗口轮廓:逐行扫出透明范围拼成多边形(玻璃层裁边用)*/
-          var rows = 25, pts = [];
+          /* ③ 窗口轮廓:逐行扫出透明范围拼成多边形(玻璃层裁边用)。
+                同时给"逐行左右边界"取中位数 —— 电源键那种局部凸起、四角的斜切
+                都是离群值,中线法量出来的左边界会偏掉(实际 77px,被电源键带成 52px)。*/
+          var rows = 25, pts = [], lefts = [], rights = [];
           var ry0 = vRun ? vRun[0] * S : best.y * S, ry1 = vRun ? vRun[1] * S : (best.y + best.h) * S;
           for (var i2 = 0; i2 < rows; i2++) {
             var yy = Math.round(ry0 + (ry1 - ry0) * (i2 / (rows - 1)));
@@ -94,8 +97,16 @@
               if (!clear2 && s2 >= 0) { if (!r || xx - 1 - s2 > r[1] - r[0]) r = [s2, xx - 1]; s2 = -1; }
             }
             if (s2 >= 0 && (!r || x1 - 1 - s2 > r[1] - r[0])) r = [s2, x1 - 1];
-            if (r) pts.push([r[0] * S, yy, r[1] * S, yy]);
+            if (r) {
+              pts.push([r[0] * S, yy, r[1] * S, yy]);
+              /* 只收"跟典型值差不多宽"的行(太窄的是切角/凸起)*/
+              if (r[1] - r[0] > (x1 - x0) * 0.5) { lefts.push(r[0]); rights.push(r[1]); }
+            }
           }
+          lefts.sort(function (a, b) { return a - b; });
+          rights.sort(function (a, b) { return a - b; });
+          var medL = lefts.length ? lefts[Math.floor(lefts.length / 2)] : best.x;
+          var medR = rights.length ? rights[Math.floor(rights.length / 2)] : best.x + best.w;
           var cx = (best.x + best.w / 2) * S, cy = (best.y + best.h / 2) * S;
           var k = Math.max(0.9, 1 - (2 * GAP) / Math.max(80, best.h * S));
           function shrink(p) { return [cx + (p[0] - cx) * k, cy + (p[1] - cy) * k]; }
@@ -106,6 +117,8 @@
             img: [img.naturalWidth, img.naturalHeight],
             safe: [best.x * S, best.y * S, (best.x + best.w) * S, (best.y + best.h) * S],
             box: hRun && vRun ? [hRun[0] * S, vRun[0] * S, hRun[1] * S, vRun[1] * S] : null,
+            /* 窗口四边的稳健值(图上坐标):左右取中位数,上下取中线透明段的两端 */
+            win: [medL * S, ry0, medR * S, ry1],
             polygon: poly.length >= 6 ? poly : null
           });
         } catch (e) { done(null); }
@@ -125,27 +138,21 @@
     return v;
   }
 
-  /* 页面那套 --sp-* 抬高到不小于窗口内边距(只抬高,不缩小 —— 原来就够宽的地方不动)*/
+  /* 页面那套 --sp-* 直接落到窗口四边(不再取 max:第二张/第三张那种自带整块底的页面,
+     原来会留一圈底色在框里,看着像"浮在框里的小方块") */
   var spOrig = null;
-  function clampSp(win) {
+  function clampSp(winIns) {
     var el = document.querySelector(".screen");
-    if (!el || !win) return;
+    if (!el || !winIns) return;
     var W = window.innerWidth, H = window.innerHeight;
     var cs = getComputedStyle(el);
     if (!spOrig) {
       spOrig = {};
       ["--sp-t", "--sp-x", "--sp-b"].forEach(function (k) { spOrig[k] = resolveLen(cs.getPropertyValue(k), W, H); });
     }
-    var need = {
-      "--sp-t": Math.max(win[1], 0) + SP_GAP,
-      "--sp-x": Math.max(win[0], win[2]) + SP_GAP,
-      "--sp-b": Math.max(win[3], 0) + SP_GAP
-    };
-    Object.keys(need).forEach(function (k) {
-      var o = spOrig[k];
-      if (o === null || o === undefined) return;
-      el.style.setProperty(k, Math.round(Math.max(o, need[k])) + "px");
-    });
+    el.style.setProperty("--sp-t", Math.round(Math.max(0, winIns[1]) + SP_GAP) + "px");
+    el.style.setProperty("--sp-x", Math.round(Math.max(winIns[0], winIns[2]) + SP_GAP) + "px");
+    el.style.setProperty("--sp-b", Math.round(Math.max(0, winIns[3]) + SP_GAP) + "px");
   }
 
   function apply() {
@@ -159,27 +166,25 @@
       return;
     }
     var sx = W / data.img[0], sy = H / data.img[1];
-    var safe = [
-      Math.round(data.safe[0] * sx + GAP), Math.round(data.safe[1] * sy + GAP),
-      Math.round(W - data.safe[2] * sx + GAP), Math.round(H - data.safe[3] * sy + GAP)
-    ];
-    s.setProperty("--ff-safe-left", safe[0] + "px");
-    s.setProperty("--ff-safe-top", safe[1] + "px");
-    s.setProperty("--ff-safe-right", safe[2] + "px");
-    s.setProperty("--ff-safe-bottom", safe[3] + "px");
-    if (data.box) {
-      s.setProperty("--ff-win-left", Math.round(data.box[0] * sx) + "px");
-      s.setProperty("--ff-win-top", Math.round(data.box[1] * sy) + "px");
-      s.setProperty("--ff-win-right", Math.round(W - data.box[2] * sx) + "px");
-      s.setProperty("--ff-win-bottom", Math.round(H - data.box[3] * sy) + "px");
-    }
+    /* 窗口四边的内边距(px):玻璃按轮廓裁;内容用"窗口 + CORNER"躲开斜切 */
+    var win = data.win || [data.safe[0], data.safe[1], data.safe[2], data.safe[3]];
+    var winIns = [win[0] * sx, win[1] * sy, W - win[2] * sx, H - win[3] * sy];
+    var safeIns = [winIns[0] + CORNER, winIns[1] + CORNER, winIns[2] + CORNER, winIns[3] + CORNER];
+    s.setProperty("--ff-win-left", Math.round(winIns[0]) + "px");
+    s.setProperty("--ff-win-top", Math.round(winIns[1]) + "px");
+    s.setProperty("--ff-win-right", Math.round(winIns[2]) + "px");
+    s.setProperty("--ff-win-bottom", Math.round(winIns[3]) + "px");
+    s.setProperty("--ff-safe-left", Math.round(safeIns[0]) + "px");
+    s.setProperty("--ff-safe-top", Math.round(safeIns[1]) + "px");
+    s.setProperty("--ff-safe-right", Math.round(safeIns[2]) + "px");
+    s.setProperty("--ff-safe-bottom", Math.round(safeIns[3]) + "px");
     if (data.polygon) {
       s.setProperty("--ff-clip", "polygon(" + data.polygon.map(function (p) {
         return (p[0] * sx).toFixed(1) + "px " + (p[1] * sy).toFixed(1) + "px";
       }).join(", ") + ")");
     }
     html.classList.add("frame-fitted");
-    clampSp(data.box ? [data.box[0] * sx, data.box[1] * sy, W - data.box[2] * sx, H - data.box[3] * sy] : null);
+    clampSp(winIns);
   }
 
   function boot() {
