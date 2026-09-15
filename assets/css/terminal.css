@@ -1,0 +1,227 @@
+/* ============================================================
+   第四张盘「技术」:故障光盘的紧急恢复终端(.term)
+   ─────────────────────────────────────────────────────────────
+   配色就一套 Linux 控制台的老配方:
+     底      #05060a(近黑)  + 极淡的扫描线
+     正文    灰白
+     错误    红
+     提示符  绿(emergency@recovery:~$)
+     路径    蓝
+     警告    黄   ·  故障/乱码 品红
+   所有可调项都在下面 .term 的变量里;想换整套配色只改这一块。
+
+   结构(见 layouts/partials/pages/tech.html):
+     .term
+       .term-stage
+         .term-screen   ← 所有输出都在这里(<pre>,等宽 + 保留空格)
+         .term-tear     ← 撕裂条(故障爆发时闪一下)
+         .term-scan     ← 缓慢下移的扫描线
+       .term-tip
+   ============================================================ */
+.term {
+    /* ---- 配色 ---- */
+    --term-bg: #05060a;
+    --term-fg: #c9d3e0;
+    --term-hi: #eaf2ff;
+    --term-dim: #6b7684;
+    --term-red: #ff5f56;
+    --term-green: #5ce68a;
+    --term-blue: #7cb7ff;
+    --term-yellow: #e8c15a;
+    --term-magenta: #c56cff;
+
+    /* ---- 排版 ---- */
+    --term-font: "Alpha Sector", "Pixel CN", "PingFang SC", "Microsoft YaHei", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --term-fs: clamp(11px, 0.83vw, 14.5px);
+    --term-lh: 1.62;
+    --term-pad-x: clamp(16px, 1.9vw, 34px);
+    --term-pad-y: clamp(12px, 1.6vh, 22px);
+    /* 顶上那条站点导航是浮在内容之上的覆盖层(约 67px),终端的第一屏
+       文字要让开它,否则前两三行会被压住 —— 想让它更靠上就改小 */
+    --term-gap-top: 68px;
+
+    /* ---- 屏幕落位:和第三张盘一样,落在显示器的可视窗里 ---- */
+    --page-top: 0px;
+    position: absolute;
+    inset: var(--sp-t, 0px) var(--sp-x, 0px) var(--sp-b, 0px);
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--term-bg);
+    color: var(--term-fg);
+    font-family: var(--term-font);
+    font-size: var(--term-fs);
+    line-height: var(--term-lh);
+    -webkit-font-smoothing: antialiased;
+}
+
+/* 老显示器的味道:一张极淡的水平扫描线贴图(纯渐变,不用图片)*/
+.term::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(to bottom,
+            rgba(255, 255, 255, 0.028) 0 1px,
+            rgba(0, 0, 0, 0) 1px 3px);
+    z-index: 4;
+}
+
+.term-stage {
+    position: absolute;
+    inset: 0;
+}
+
+/* 输出区:等宽 + 保留空格(表格/树/进度条全靠它对齐)*/
+.term-screen {
+    position: absolute;
+    inset: calc(var(--term-pad-y) + var(--term-gap-top, 0px)) var(--term-pad-x) var(--term-pad-y);
+    margin: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    white-space: pre-wrap;
+    word-break: break-word;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(201, 211, 224, 0.22) transparent;
+    user-select: text;
+    -webkit-user-select: text;
+    z-index: 2;
+    cursor: text;
+}
+
+.term-screen::-webkit-scrollbar {
+    width: 8px;
+}
+
+.term-screen::-webkit-scrollbar-thumb {
+    background: rgba(201, 211, 224, 0.2);
+    border-radius: 4px;
+}
+
+/* 一行 = 一个 div(空行也占位)*/
+.t-ln {
+    min-height: 1em;
+}
+
+/* ---- 语义颜色:JS 里用 <span class="c-x"> 或行级 class ---- */
+.c-dim { color: var(--term-dim); }
+.c-hi { color: var(--term-hi); }
+.c-err, .t-ln.is-err { color: var(--term-red); }
+.c-ok { color: var(--term-green); }
+.c-path { color: var(--term-blue); }
+.c-warn { color: var(--term-yellow); }
+.c-mag { color: var(--term-magenta); }
+.c-num { color: var(--term-blue); }
+.t-ln.is-dim { color: var(--term-dim); }
+.t-ln.is-hi { color: var(--term-hi); }
+
+/* 输入行:提示符 + 已输入内容 + 方块光标 */
+.t-prompt { color: var(--term-green); }
+.t-caret {
+    display: inline-block;
+    width: 0.62em;
+    margin-left: 1px;
+    background: var(--term-fg);
+    color: transparent;
+    animation: term-blink 1.06s steps(1, end) infinite;
+}
+.t-caret.is-off { animation: none; opacity: 0.25; }
+
+@keyframes term-blink {
+    0%, 52% { opacity: 1; }
+    53%, 100% { opacity: 0; }
+}
+
+/* ---- 撕裂条 / 扫描线(故障爆发时用)---- */
+.term-tear {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 14px;
+    top: 40%;
+    pointer-events: none;
+    opacity: 0;
+    z-index: 3;
+    background:
+        linear-gradient(90deg,
+            rgba(255, 95, 86, 0.30) 0 12%,
+            rgba(0, 0, 0, 0.55) 12% 46%,
+            rgba(197, 108, 255, 0.28) 46% 74%,
+            rgba(0, 0, 0, 0.5) 74% 100%);
+}
+
+.term-tear.is-on {
+    animation: term-tear 0.42s steps(3, end) 1;
+}
+
+@keyframes term-tear {
+    0% { opacity: 0; transform: translateX(0) scaleY(1); }
+    22% { opacity: 0.9; transform: translateX(-9px) scaleY(1); }
+    48% { opacity: 0.55; transform: translateX(7px) scaleY(1.6); }
+    74% { opacity: 0.75; transform: translateX(-3px) scaleY(1); }
+    100% { opacity: 0; transform: translateX(0) scaleY(1); }
+}
+
+.term-scan {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 26vh;
+    top: -26vh;
+    pointer-events: none;
+    opacity: 0.5;
+    z-index: 3;
+    background: linear-gradient(to bottom, rgba(124, 183, 255, 0) 0%, rgba(124, 183, 255, 0.055) 70%, rgba(124, 183, 255, 0.10) 100%);
+    animation: term-scan 7.5s linear infinite;
+}
+
+@keyframes term-scan {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(160vh); }
+}
+
+/* 一次故障爆发:文字左右错开(RGB 分离)+ 轻微抖动 */
+.term.is-glitching .term-screen {
+    text-shadow: 1.2px 0 rgba(255, 95, 86, 0.42), -1.2px 0 rgba(90, 200, 255, 0.38);
+    animation: term-shake 0.16s steps(2, end) 2;
+}
+
+@keyframes term-shake {
+    0% { transform: translateX(0); }
+    50% { transform: translateX(-1.5px); }
+    100% { transform: translateX(1px); }
+}
+
+/* 整块显示器偶尔"接触不良"一下(和选择界面那块面板同一套脾气)*/
+.term.is-unstable {
+    animation: term-instability 6.4s steps(1, end) infinite;
+}
+
+@keyframes term-instability {
+    0%, 93% { filter: none; }
+    93.4% { filter: brightness(0.62) contrast(1.3); }
+    94% { filter: none; }
+    97.2% { filter: brightness(1.25) saturate(0.6); }
+    97.7% { filter: none; }
+}
+
+/* 底部提示行:刻意不做 —— 提示都放在终端里(help / [recover] 引导),
+   页面上不再重复一份说明,免得和终端的语气打架 */
+
+/* 只给读屏用的一行(终端本身是逐行刷新的,不能让读屏去念每一次按键)*/
+.term-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .term-scan, .term.is-unstable { animation: none; }
+    .term-scan { opacity: 0.18; }
+}

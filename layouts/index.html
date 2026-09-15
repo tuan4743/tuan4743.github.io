@@ -13,6 +13,7 @@
 {{- $bootPostJs := resources.Get "js/boot-post.js" -}}
 {{- $bootFxJs := resources.Get "js/boot-fx.js" -}}
 {{- $bootGlslJs := resources.Get "js/boot-glsl.js" -}}
+{{- $cd4BootJs := resources.Get "js/cd4-boot.js" -}}
 {{- $trainGlsl := resources.Get "shaders/train.glsl" -}}
 {{- $snowGlsl := resources.Get "shaders/snow.glsl" -}}
 {{- $cd3dJs := resources.Get "js/cd3d.js" -}}
@@ -22,11 +23,12 @@
 {{- $searchJs := resources.Get "js/header-search.js" -}}
 {{- $cursorJs := resources.Get "js/magnetic-cursor.js" -}}
 {{- $pagesCss := resources.Get "css/pages.css" -}}
+{{- $termCss := resources.Get "css/terminal.css" -}}
 {{- $deckJs := resources.Get "js/page-deck.js" -}}
 {{- $solarJs := resources.Get "js/page-solar.js" -}}
 {{- $solarTuneJs := resources.Get "js/page-solar-tune.js" -}}
 {{- $pagesJs := resources.Get "js/pages.js" -}}
-{{- range $name := slice "css/intro.css" "css/holo.css" "js/intro.js" "js/boot-post.js" "js/boot-fx.js" "js/boot-glsl.js" "js/holo-reticle.js" "js/status-panel.js" "js/song-ring.js" "js/cd-boot.js" "js/cd3d.js" "js/cd-audio.js" "js/cd-fx.js" "js/theme-palette.js" "js/header-search.js" "js/magnetic-cursor.js" "css/pages.css" "js/pages.js" "js/page-deck.js" "js/page-solar.js" "js/page-solar-tune.js" -}}
+{{- range $name := slice "css/intro.css" "css/holo.css" "css/terminal.css" "js/intro.js" "js/boot-post.js" "js/boot-fx.js" "js/boot-glsl.js" "js/holo-reticle.js" "js/status-panel.js" "js/song-ring.js" "js/cd-boot.js" "js/cd3d.js" "js/cd-audio.js" "js/cd-fx.js" "js/theme-palette.js" "js/header-search.js" "js/magnetic-cursor.js" "css/pages.css" "js/pages.js" "js/page-deck.js" "js/page-solar.js" "js/page-solar-tune.js" "js/cd4-terminal.js" -}}
     {{- if not (resources.Get $name) -}}
         {{- warnf "缺少资源 assets/%s —— 该功能会被跳过(检查文件是否完整)" $name -}}
     {{- end -}}
@@ -41,6 +43,7 @@
 {{- with $bootPostJs }}{{ $bootPostJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $bootFxJs }}{{ $bootFxJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $bootGlslJs }}{{ $bootGlslJs = . | fingerprint "sha256" }}{{ end -}}
+{{- with $cd4BootJs }}{{ $cd4BootJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $trainGlsl }}{{ $trainGlsl = . | fingerprint "sha256" }}{{ end -}}
 {{- with $snowGlsl }}{{ $snowGlsl = . | fingerprint "sha256" }}{{ end -}}
 {{- with $cd3dJs }}{{ $cd3dJs = . | fingerprint "sha256" }}{{ end -}}
@@ -59,6 +62,8 @@
 {{- with $holoCss }}
 <link rel="stylesheet" href="{{ .RelPermalink }}">{{ end }}
 {{- with $pagesCss }}
+<link rel="stylesheet" href="{{ .RelPermalink }}">{{ end }}
+{{- with $termCss }}
 <link rel="stylesheet" href="{{ .RelPermalink }}">{{ end }}
 <script>/* 着色器网址带内容指纹:着色器一改网址就变,浏览器不会拿到旧版本 */
 window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}", snow: "{{ with $snowGlsl }}{{ .RelPermalink }}{{ end }}" };</script>
@@ -322,6 +327,7 @@ window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}",
     {{ with $bootPostJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
     {{ with $bootFxJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
     {{ with $bootGlslJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
+    {{ with $cd4BootJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
     {{ with $pagesJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
     {{ with $deckJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
     {{ with $solarJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}

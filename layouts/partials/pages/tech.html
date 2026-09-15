@@ -1,0 +1,25 @@
+{{/* 第四张盘「技术」:这张盘是【故障光盘】,整页做成一台紧急恢复终端
+     ─────────────────────────────────────────────────────────────
+     · 页面结构:只有一块输出区(.term-screen)+ 两层故障贴片
+     · 所有逻辑在 assets/js/cd4-terminal.js(开机的内核日志 → 欢迎语 →
+       [recover] 引导 → 可交互的命令行;文件树与"哪些文件坏了"也在那里)
+     · 盘里的"真实文件"放在 static/assets/cd/tech/(INDEX 与各项目的 README.md 等),
+       终端按需 fetch;要改项目简介直接改那些文件,不用动 JS
+     · 配色/字号/内边距全在 assets/css/terminal.css 顶部 .term 的变量里 */}}
+<div class="term is-unstable" id="cd4-term" data-term="{{ .key }}" data-term-cd="/assets/cd/tech">
+    <div class="term-stage">
+        <pre class="term-screen" id="cd4-screen" tabindex="0" role="log" aria-live="off"
+            aria-label="紧急恢复终端:可以打字,输入 help 看可用指令"></pre>
+        <div class="term-tear" id="cd4-tear" aria-hidden="true"></div>
+        <div class="term-scan" aria-hidden="true"></div>
+    </div>
+    <div class="term-sr" id="cd4-live" aria-live="polite"></div>
+</div>
+{{- /* 终端逻辑:走 Hugo 资源管线,改一次内容指纹就变,不会被浏览器缓存住 */ -}}
+{{- with resources.Get "js/cd4-terminal.js" -}}
+{{- $js := . | fingerprint "sha256" -}}
+<script defer src="{{ $js.RelPermalink }}"></script>
+{{- else -}}
+{{- warnf "缺少 assets/js/cd4-terminal.js —— 第四张盘的终端不会启动" -}}
+{{- end -}}
+

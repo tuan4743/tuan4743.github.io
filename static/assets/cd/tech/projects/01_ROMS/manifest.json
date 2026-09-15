@@ -1,0 +1,17 @@
+{
+  "_comment": "GLITCH_ARCHIVE 卷内清单:一个项目一条。字段含义见 README.txt",
+  "volume": "GLITCH_ARCHIVE",
+  "generated": "archive-time",
+  "entries": [
+    {
+      "id": "01",
+      "dir": "01_ROMS",
+      "title": "ROMS-CoSiNE 限定环境优化",
+      "kind": "hpc-optimization",
+      "entry": "README.md",
+      "size_bytes": 1476,
+      "status": "OK"
+    }
+  ],
+  "truncated": true
+}

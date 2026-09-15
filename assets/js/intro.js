@@ -230,6 +230,8 @@
     });
     /* 通知"每张盘自己的主页内容"模块(见 page-deck.js):只有当前这张盘会被激活 */
     if (window.CDPages && window.CDPages.activate) window.CDPages.activate(key);
+    /* 再广播一次"这张盘激活了"(第四张盘的终端在听这个) */
+    try { window.dispatchEvent(new CustomEvent("cd-panel", { detail: key })); } catch (e) {}
   }
 
   /* 插入某张盘后,把"架位中心/选中项"挪到最近的仍在架上的盘(避免整排跳位) */
@@ -274,6 +276,9 @@
          插入动作的音效不属于音乐,照旧 */
       moveSelectionOff(key);      /* 飞入完成后再补位/换中心,避免穿模 */
       playPanel(key);
+      /* ★ 第四张盘:先把终端清空待机 —— 它的开机序列等 cd-boot-done 才开始
+         (见 assets/js/cd4-terminal.js),这样重插同一张盘也会从头播一遍 */
+      if (key === "tech" && window.CD4Term) window.CD4Term.reset();
       hub.classList.add("is-playing");
       try { localStorage.setItem("intro-theme", key); } catch (e) {}
       locked = false;
@@ -434,7 +439,21 @@
   /* 开机动画的统一流程:黑屏 + 进度条(所有盘共用)→ 各盘的 scene 接管画面
      每个 scene 由 cd-boot.js 提供:{ total, draw(el) } —— 它自己负责盖住/揭开页面 */
   function screenBoot(style, onEnd) {
-    if (!staticCtx || !staticWrap || noMotion || !window.CDBoot) { if (onEnd) onEnd(); return; }
+    if (!staticCtx || !staticWrap || noMotion) {
+      /* 没有动画(减少动效/缺画布)也要把"放完了"这件事说出去 ——
+         第四张盘的终端就靠这个信号开始打印 */
+      window.__bootRunning = false;
+      try { window.dispatchEvent(new CustomEvent("cd-boot-done", { detail: style || bootStyle || "hex" })); } catch (e) {}
+      if (onEnd) onEnd();
+      return;
+    }
+    var used = style || bootStyle || "hex";
+    /* ★ 第四张盘(故障光盘)的开机动画是单独一段脚本(assets/js/cd4-boot.js):
+       它自带完整时间轴(55% 卡死 → permission denied ×3 → 清屏),
+       不放 cd-boot.js 里的那个 scene —— 也就是任务书说的"删掉过场动画"。*/
+    var useCD4 = used === "glitch" && !!window.CD4Boot;
+    if (!useCD4 && !window.CDBoot) { if (onEnd) onEnd(); return; }
+    window.__bootRunning = true;          /* 终端靠它判断"现在有没有动画在放" */
     if (staticRAF) { cancelAnimationFrame(staticRAF); staticRAF = 0; }
     if (bootRAF) { cancelAnimationFrame(bootRAF); bootRAF = 0; }
     var dpr = Math.min(window.devicePixelRatio || 1, 1.5);
@@ -454,20 +473,24 @@
       if (v) accent = v;
     } catch (e) {}
 
-    var used = style || bootStyle || "hex";
     /* 全息后期层:场景/loading 都画在离屏画布,再统一过一遍成像 */
     var POST = window.CDBootPost || null;
     var sceneCtx = POST ? POST.context(W, H) : staticCtx;
-    var scene = window.CDBoot.create(used, sceneCtx, W, H, accent, HEX);
+    var scene = useCD4 ? null : window.CDBoot.create(used, sceneCtx, W, H, accent, HEX);
     var tFull = HEX.load;                                  /* 进度读满 */
     var tFadeIn = tFull + HEX.hold;                        /* 停 0.5s 后开始淡出 */
     var tPanel = tFadeIn + HEX.fade;                       /* loading 淡完 → 交给 scene */
-    var tEnd = tPanel + scene.total;
+    var tEnd = useCD4 ? window.CD4Boot.total : tPanel + scene.total;
     var t0 = performance.now();
     window.__bootLastAt = Math.round(t0);
     window.__bootStyle = used;
     window.__bootTotalMs = Math.round(tEnd);
-    window.__bootPhases = {
+    /* 第四张盘没有 scene:这几个"阶段点"按它的时间轴填,方便验证脚本读 */
+    var cd4T = useCD4 ? window.CD4Boot.T : null;
+    window.__bootPhases = useCD4 ? {
+      full: 0, holdEnd: cd4T.loadEnd, panel: cd4T.wrongAt,
+      black: cd4T.clearAt, sceneEnd: tEnd
+    } : {
       full: tFull, holdEnd: tFadeIn, panel: tPanel,
       black: tPanel + (scene.blackUntil || 0),      /* 黑屏撤掉的时刻 */
       sceneEnd: tEnd
@@ -756,18 +779,23 @@
         staticWrap.classList.remove("is-black");
         staticWrap.classList.remove("is-on");
         bootRAF = 0;
-        if (onEnd) onEnd();        /* 动画放完 → 这时候才开始放背景音乐 */
+        /* 开机动画结束:广播出去(第四张盘的终端在等这个信号才开始打印第二页)*/
+        window.__bootRunning = false;
+        try { window.dispatchEvent(new CustomEvent("cd-boot-done", { detail: used })); } catch (e) {}
+        if (onEnd) onEnd();
         return;
       }
       staticCtx.setTransform(1, 0, 0, 1, 0, 0);
       staticCtx.globalAlpha = 1;
       staticCtx.globalCompositeOperation = "source-over";
       staticCtx.clearRect(0, 0, W, H);
-      if (el < tPanel) {
-        drawLoader(el);
+      /* ★ 第四张盘:整段时间轴交给 cd4-boot.js(没有 scene,也不走 loading 的淡出)*/
+      if (useCD4) {
+        window.CD4Boot.render(staticCtx, W, H, el);
         bootRAF = requestAnimationFrame(frame);
         return;
       }
+      if (el < tPanel) { drawLoader(el); bootRAF = requestAnimationFrame(frame); return; }
       /* 交给 scene 之后就不再铺全屏黑底:"谁盖住页面"由 scene 自己负责,
          这样它才能一块一块地把页面露出来。
          但若场景声明了 blackUntil(此刻它还没盖住页面),黑屏就再留一会儿 ——
@@ -1004,6 +1032,7 @@
 
   function startIntro() {
     hideLoader();
+    window.__introReady = true;          /* 站点进入 CD 界面了(第四张盘的终端等这个信号才敢开始)*/
     setOpen(true);                       /* 视角左移,CD 架滑出(内部会调度光驱弹出) */
   }
 
@@ -1078,6 +1107,9 @@
     /* 回访:面板先显示上次的主题(光驱内为空) */
     restored = true;
     activeKey = savedKey;
+    /* ★ 连同"这张盘的开机动画款式"一起恢复 —— 否则回访时收起 CD 架放的是默认那套
+       (第四张盘回访时会放成六边形,和它的故障风对不上)*/
+    bootStyle = (window.CDBoot && window.CDBoot.styleFor) ? window.CDBoot.styleFor(savedKey) : "hex";
     playPanel(savedKey);
     cds.forEach(function (cd, i) {
       if (cd.getAttribute("data-panel") === savedKey) selIndex = i;

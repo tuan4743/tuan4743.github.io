@@ -1,0 +1,17 @@
+GLITCH ARCHIVE - RECOVERY INDEX
+Volume: GLITCH_ARCHIVE
+Mount:  /mnt/cdrom
+Status: DEGRADED
+Projects: /mnt/cdrom/projects
+
+[00] projects/00_tuagfey-blog        OK
+[01] projects/01_ROMS                OK
+[02] projects/02_vllm_DCU_optimize   BAD SECTORS
+
+Note:
+  BAD SECTORS 的条目不能直接读取。
+  用 recover <folder> 尝试重建该目录的索引与首文件。
+
+  recover --list      列出全部条目与状态
+  recover <folder>    对单个项目做恢复
+  help                查看可用指令

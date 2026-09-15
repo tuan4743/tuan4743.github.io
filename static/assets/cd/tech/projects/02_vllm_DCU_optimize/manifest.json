@@ -1,0 +1,18 @@
+{
+  "_comment": "GLITCH_ARCHIVE 卷内清单:一个项目一条。字段含义见 README.txt",
+  "volume": "GLITCH_ARCHIVE",
+  "generated": "archive-time",
+  "entries": [
+    {
+      "id": "02",
+      "dir": "02_vllm_DCU_optimize",
+      "title": "Qwen3.5-27B x 海光 DCU gfx936 x vLLM",
+      "kind": "llm-inference-optimization",
+      "entry": "README.md",
+      "size_bytes": 6131,
+      "status": "BAD SECTORS",
+      "sectors": ["0x1a3f", "0x1a40", "0x1b02"]
+    }
+  ],
+  "truncated": true
+}

@@ -271,6 +271,17 @@ paginate = 10
       song = "無人区 -Vacuum Track#ADD8E6"
       artist = "NoKANY"
 
+    # ---- 第四张盘「技术」的主页内容:故障光盘 = 一台紧急恢复终端 ----
+    # 这张盘没有分页:整页就是一块终端(layouts/partials/pages/tech.html)
+    # 下面这条只是"让 tech 走自定义页面"的开关(有 decks.tech 才会渲染那个 partial)。
+    # 终端里的文字/文件树/项目简介都在 assets/js/cd4-terminal.js +
+    # static/assets/cd/tech/(盘里的真实文件),这里不用重复写。
+    [[params.intro.decks.tech]]
+      code = "CD-04"
+      key = "emergency"
+      title = "紧急恢复终端"
+      text = "故障光盘:只读挂载 + 坏扇区,用 recover 把项目从盘里救出来。"
+
     [[params.intro.panels]]
       key = "future"
       title = "未来"
