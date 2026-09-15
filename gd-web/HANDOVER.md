@@ -279,3 +279,18 @@ strings/clear/history/exit 等指令(大部分返回错误以契合故障),外�
 `page-frame-check.mjs`(逐页量盒子 + 出四角特写:五页都在窗口内,`--sp-*` = 窗口 + 4px)、
 `cd4-flow-shot.mjs`(终端)、`gd-panel-check.mjs`(游戏)、`frame-window.mjs`(窗口逐行形状)、
 `frame-fit-shots.mjs`(出图)。
+
+## 11. 光标锁定框 v3(2026-09 这一轮,用户点名要的四条)
+
+`assets/js/magnetic-cursor.js` 从 DOM 改成 **canvas**,因为要在角线上做"内亮外淡"的渐变 +
+青色外发光,而 CSS 的 `border` 上不了渐变(旧版四角就是靠 border 画的)。
+- ① 角线:每根从角点线性渐变到透明 + `shadowBlur` 外发光,再压一层淡亮芯
+- ② 中心点:半径按正弦呼吸(PULSE 0.26 / 0.85Hz)+ 一圈柔光;磁吸锁定时让位
+- ③ 微抖动:两个不同频率的正弦叠加(振幅 1.2px 上限,0.29/0.71Hz)——
+  是"慢漂"不是每帧乱跳,像光学信号不稳
+- ④ 辅助刻度:每个角的两条边旁各两根细小垂直线(TICKS 位置 / TICK_LEN 长度)
+行为沿用 v2(平滑跟随 / 磁吸放大 / 速度倾斜 / 自转 / 触屏与减少动效时不启用)。
+`html.magnetic-on`(隐藏系统光标)、`magnetic-locked`、`magnetic-reduced` 照旧挂;
+`custom.css` 里 `.magnetic-cursor` / `.magnetic-dot` 那套旧样式现在没人用了(元素不再创建)。
+排障/验收:控制台 `__mc`(位置/尺寸/实际绘制点/抖动/中心点半径/rot/是否磁吸)。
+验证脚本 `tools/verify/cursor-shot.mjs`:抖动幅度、呼吸范围、磁吸尺寸与转正、出图。

@@ -394,7 +394,7 @@
     if (k === "denied") return [E("cat: " + path + ": Permission denied")];
     if (k === "missing") return [E("cat: " + path + ": No such file or directory")];
     if (k === "bad") {
-      var hint = e.proj ? " (bad sector — try: recover " + e.proj.dir + ")" : "";
+      var hint = e.proj ? " (try: recover " + e.proj.dir + ")" : "";
       return [E("cat: " + path + ": Input/output error"), H("[recover] Unreadable sector." + hint)];
     }
     return [E("cat: " + path + ": Input/output error")];
@@ -421,14 +421,13 @@
       { h: seg("Available commands:", "c-dim") },
       row("ls  cd  pwd  cat  less  find  grep", "files & directories"),
       row("mount  blkid  lsblk", "devices & mounts"),
-      row("dmesg  journalctl", "logs (most of them are gone)"),
-      row("sha256sum  dd  file  strings", "medium tools"),
+      row("dmesg  journalctl", "kernel & journal logs"),
+      row("sha256sum  dd  file  strings", "disc utilities"),
       row("clear  history  exit", "session"),
-      row("whoami  id  uname  date  echo", "who / where you are"),
-      row("↑ ↓ history", "Ctrl+Shift+C interrupt · Ctrl+Shift+L clear"),
-      row("recover [--list|<project>]", "★ the recovery tool"),
+      row("whoami  id  uname  date  echo", "user & host info"),
+      row("recover [--list|<project>]", "recovery tool"),
       { h: "&nbsp;" },
-      { h: "  Start here: " + seg("cat /mnt/cdrom/INDEX", "c-path"), c: "is-dim" }
+      { h: "  ↑ ↓ history    Ctrl+Shift+C interrupt    Ctrl+Shift+V paste    Ctrl+Shift+L clear", c: "is-dim" }
     ];
   };
 
@@ -442,7 +441,7 @@
     return ["Linux"];
   };
   CMDS.date = function () {
-    return [new Date().toString().replace(/GMT.*/, "UTC") + "   " + seg("(clock is off: RTC never resynced after the medium error)", "c-dim")];
+    return [new Date().toString().replace(/GMT.*/, "UTC") + "   " + seg("(RTC not synced)", "c-dim")];
   };
   CMDS.echo = function (a) { return [esc(a.join(" "))]; };
   CMDS.history = function () {
@@ -468,7 +467,7 @@
       return readNode(p, n).then(function (f) {
         if (f.isBinary) {
           var dec = new TextDecoder("latin1").decode(f.bytes.slice(0, 640));
-          return [{ h: seg(dec, "c-mag") }, DIM("… (binary output truncated: " + f.bytes.length + " bytes total — try 'strings')")];
+          return [{ h: seg(dec, "c-mag") }, DIM("… (binary file, " + f.bytes.length + " bytes; output truncated)")];
         }
         var out = f.text.split(/\r?\n/);
         if (out.length && out[out.length - 1] === "") out.pop();
@@ -576,7 +575,7 @@
         .then(function (groups) {
           var out = [];
           groups.forEach(function (g) { g.forEach(function (l) { out.push(l); }); });
-          out.push(out.length ? DIM("grep: searched " + Math.min(12, hits.length) + " readable file(s) only") : DIM("grep: no match"));
+          out.push(out.length ? DIM("grep: " + Math.min(12, hits.length) + " readable file(s) searched") : DIM("grep: no match"));
           return out;
         });
     }
@@ -599,14 +598,13 @@
   CMDS.mount = function (a) {
     if (a.join(" ").indexOf("remount") >= 0) {
       return [E("mount: /mnt/cdrom: cannot remount read-write: Permission denied."),
-              H("[recover] The disc is mounted read-only, and emergency has no privilege to change mount flags.")];
+              H("[recover] /mnt/cdrom is mounted read-only; emergency cannot change mount flags.")];
     }
     return [
       "sysfs on /sys type sysfs (ro,nosuid,nodev,noexec)",
       "proc on /proc type proc (ro,nosuid,nodev,noexec)",
       "devtmpfs on /dev type devtmpfs (rw,nosuid,size=4096k)",
-      seg("/dev/sr0 on /mnt/cdrom type iso9660 (ro,relatime,norock,check=r)", "c-hi"),
-      DIM("(nothing else: the root filesystem still lives in the initramfs)")
+      seg("/dev/sr0 on /mnt/cdrom type iso9660 (ro,relatime,norock,check=r)", "c-hi")
     ];
   };
 
@@ -623,8 +621,7 @@
       "NAME   MAJ:MIN RM   SIZE RO TYPE MOUNTPOINTS",
       "sda      8:0    0    16G  0 disk ",
       "└─sda1   8:1    0    16G  0 part /",
-      seg("sr0     11:0    1   2.1G  1 rom  /mnt/cdrom", "c-hi"),
-      DIM("(sr0 is read-only and already reported a medium error)")
+      seg("sr0     11:0    1   2.1G  1 rom  /mnt/cdrom", "c-hi")
     ];
   };
 
@@ -637,13 +634,13 @@
     return [
       E("Failed to open /var/log/journal: Input/output error"),
       "No journal files were found.",
-      H("[recover] No journal either. Only the plain-text logs under /var/log survived.")
+      H("[recover] No journal files. Only plain-text logs under /var/log are readable.")
     ];
   };
 
   CMDS.systemctl = function (a) {
     return [E("Failed to connect to bus: No such file or directory"),
-            H("[recover] There is no init/DBus in emergency mode — 'systemctl " + esc(a.join(" ")) + "' cannot work here.")];
+            H("[recover] No init/DBus in emergency mode: systemctl is not available.")];
   };
 
   CMDS.su = function () { return [E("su: must be suid to work properly")]; };
@@ -680,7 +677,7 @@
       var p = norm(arg, cwd), n = nodeAt(p);
       if (!n) return Promise.resolve(E("sha256sum: " + arg + ": No such file or directory"));
       return readNode(p, n).then(function (f) {
-        if (!(window.crypto && crypto.subtle)) return E("sha256sum: " + arg + ": cannot compute (no crypto in this shell)");
+        if (!(window.crypto && crypto.subtle)) return E("sha256sum: " + arg + ": Operation not supported");
         return crypto.subtle.digest("SHA-256", f.bytes).then(function (h) {
           var hex = Array.prototype.map.call(new Uint8Array(h), function (b) {
             return ("0" + b.toString(16)).slice(-2);
@@ -710,10 +707,7 @@
   };
 
   CMDS.exit = function () {
-    return [
-      E("bash: exit: cannot exit the emergency shell (nothing to return to)"),
-      H("[recover] To leave: recover --list, or cat /mnt/cdrom/INDEX.")
-    ];
+    return [E("bash: exit: cannot exit the emergency shell")];
   };
 
   /* ---------- ★ recover:这不是 Linux 指令,是这张盘自己的恢复工具 ---------- */
@@ -726,7 +720,7 @@
         "  recover --list            list every entry and its status",
         "  recover <project-dir>     rebuild one entry (index + first file)",
         { h: "&nbsp;" },
-        H("[recover] Nothing on a bad sector is recovered for you — name it explicitly.")
+        H("[recover] Bad sectors are not recovered automatically.")
       ];
     }
     if (arg === "--list" || arg === "-l" || arg === "list") {
@@ -738,7 +732,7 @@
         var cls = st === "BAD SECTORS" ? "c-err" : "c-ok";
         return { h: "[" + p.id + "] " + esc(pad(p.dir, 28)) + " " + seg(st, cls) +
           (p.bad && !recovered[p.dir] ? seg("  (" + p.sectors.length + " bad sectors)", "c-dim") : "") };
-      })).concat([{ h: "&nbsp;" }, H("[recover] Pick one: recover <directory>")]);
+      })).concat([{ h: "&nbsp;" }, H("[recover] Select an entry: recover <directory>")]);
     }
     var proj = projOf(arg);
     if (!proj) {
@@ -780,7 +774,7 @@
         write(seg("recover success", "c-ok"), null);
         return [
           H("[recover] Now readable: cat /mnt/cdrom/projects/" + proj.dir + "/README.md"),
-          DIM("[recover] The disc is still read-only — only this entry's index was rebuilt.")
+          DIM("[recover] /mnt/cdrom remains read-only; only this entry's index was rebuilt.")
         ];
       });
     });
