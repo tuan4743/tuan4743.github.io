@@ -1,26 +1,30 @@
-GLITCH ARCHIVE — 紧急恢复光盘
-================================
+GLITCH ARCHIVE — emergency recovery disc
+========================================
 
-这张盘是"技术"那张 CD 的镜像:一次写坏的归档盘。
-盘面标签印错了名字,固件拒绝按普通介质挂载,只留下
-一个只读的 iso9660 会话和一个可以在紧急模式下打开的索引。
+This disc is the image of the "tech" CD: an archive burned wrong.
+The label on the medium does not match the volume name, the firmware
+refuses to mount it as ordinary media, and all that is left is a
+read-only iso9660 session plus an index you can open in emergency mode.
 
-你现在在 emergency mode 里:
-  · 没有 root 权限
-  · 这张盘是只读的 (ro)
-  · 部分扇区读不出来 (I/O error)
+Where you are right now
+-----------------------
+  · emergency mode, no root
+  · the disc is mounted read-only (ro)
+  · some sectors are unreadable (I/O error)
 
-能做的事
---------
-  cat /mnt/cdrom/INDEX          看恢复清单(推荐从这里开始)
-  ls  /mnt/cdrom/projects       看有哪些项目
-  cat /mnt/cdrom/projects/<项目>/README.md
-                                读项目简介(标了 BAD SECTORS 的先 recover)
-  recover <项目文件夹>          重建坏掉的索引
-  help                          看这台机器上还剩哪些指令
+What actually works
+-------------------
+  cat /mnt/cdrom/INDEX          the recovery manifest (start here)
+  ls  /mnt/cdrom/projects       which projects are on the disc
+  cat /mnt/cdrom/projects/<dir>/README.md
+                                read a project's readme
+                                (entries marked BAD SECTORS need recover first)
+  recover <dir>                 rebuild a damaged entry
+  help                          what is left of this machine
 
-诚实的说明
-----------
-  这台机器上大部分工具都残了,报的错基本都是真的:
-  权限、只读、坏扇区。别指望能修好它 —— 它只是让你
-  还能把里面的东西一件一件拿出来看。
+An honest note
+--------------
+  Most tools on this box are broken, and the errors are real:
+  permissions, read-only media, bad sectors. Do not expect to repair
+  anything — the point is only that you can still take the contents
+  out, one piece at a time.

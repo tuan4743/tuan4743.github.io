@@ -54,14 +54,14 @@
           "mount -o remount,rw /mnt/cdrom\n" +
           "dd if=/dev/sr0 of=/mnt/cdrom/recovered/fragment_001.bin bs=512\n" +
           "recover --list\n" +
-          "# 02 那个目录还是读不出来\n" +
+          "# dir 02 still will not read\n" +
           "recover 02_vllm_DCU_optimize\n"),
         ".profile": T("ok",
           "# ~/.profile — emergency session\n" +
           "export PS1='\\u@\\h:\\w\\$ '\n" +
           "export PATH=/bin:/sbin\n" +
           "alias ll='ls -l'\n" +
-          "# 这台机器是只读的:别想着改 /etc 下的东西\n")
+          "# this box is read-only: do not bother editing anything under /etc\n")
       })
     }),
     mnt: D("ok", {
@@ -147,12 +147,12 @@
     });
     out.push("");
     out.push("Note:");
-    out.push("  BAD SECTORS 的条目不能直接读取。");
-    out.push("  用 recover <folder> 尝试重建该目录的索引与首文件。");
+    out.push("  Entries marked BAD SECTORS cannot be read directly.");
+    out.push("  Use `recover <folder>` to rebuild that entry's index and first file.");
     out.push("");
-    out.push("  recover --list      列出全部条目与状态");
-    out.push("  recover <folder>    对单个项目做恢复");
-    out.push("  help                查看可用指令");
+    out.push("  recover --list      list every entry and its status");
+    out.push("  recover <folder>    attempt recovery of a single project");
+    out.push("  help                list available commands");
     return out.join("\n");
   }
   function countBad() {
@@ -394,8 +394,8 @@
     if (k === "denied") return [E("cat: " + path + ": Permission denied")];
     if (k === "missing") return [E("cat: " + path + ": No such file or directory")];
     if (k === "bad") {
-      var hint = e.proj ? " (bad sector — 试:recover " + e.proj.dir + ")" : "";
-      return [E("cat: " + path + ": Input/output error"), H("[recover] 这个扇区读不出来" + hint)];
+      var hint = e.proj ? " (bad sector — try: recover " + e.proj.dir + ")" : "";
+      return [E("cat: " + path + ": Input/output error"), H("[recover] Unreadable sector." + hint)];
     }
     return [E("cat: " + path + ": Input/output error")];
   }
@@ -410,19 +410,25 @@
   var CMDS = {};
 
   CMDS.help = function () {
+    /* 指令列 + 说明:说明统一对到第 44 列(等宽字体下才对得齐)*/
+    function row(cmds, label) {
+      var c = "  " + cmds;
+      while (c.length < 44) c += " ";
+      return { h: esc(c) + seg(label, "c-dim") };
+    }
     return [
       { h: seg("GLITCH ARCHIVE — emergency shell 1.4", "c-hi") },
-      { h: seg("可用指令:", "c-dim") },
-      { h: "  ls  cd  pwd  cat  less  find  grep      " + seg("文件与目录", "c-dim") },
-      { h: "  mount  blkid  lsblk                     " + seg("设备与挂载", "c-dim") },
-      { h: "  dmesg  journalctl                        " + seg("日志(多半读不出来)", "c-dim") },
-      { h: "  sha256sum  dd  file  strings             " + seg("读盘工具", "c-dim") },
-      { h: "  clear  history  exit                     " + seg("会话", "c-dim") },
-      { h: "  whoami  id  uname  date  echo            " + seg("看看自己在哪", "c-dim") },
-      { h: "  ↑ ↓ 翻历史  Ctrl+Shift+C 中断  Ctrl+Shift+L 清屏", c: "is-dim" },
-      { h: seg("  recover [--list|<项目>]", "c-ok") + "                   " + seg("★ 恢复工具(这张盘的全部意义)", "c-dim") },
+      { h: seg("Available commands:", "c-dim") },
+      row("ls  cd  pwd  cat  less  find  grep", "files & directories"),
+      row("mount  blkid  lsblk", "devices & mounts"),
+      row("dmesg  journalctl", "logs (most of them are gone)"),
+      row("sha256sum  dd  file  strings", "medium tools"),
+      row("clear  history  exit", "session"),
+      row("whoami  id  uname  date  echo", "who / where you are"),
+      row("↑ ↓ history", "Ctrl+Shift+C interrupt · Ctrl+Shift+L clear"),
+      row("recover [--list|<project>]", "★ the recovery tool"),
       { h: "&nbsp;" },
-      H("[recover] 不知道从哪开始就打:cat /mnt/cdrom/INDEX")
+      { h: "  Start here: " + seg("cat /mnt/cdrom/INDEX", "c-path"), c: "is-dim" }
     ];
   };
 
@@ -436,11 +442,11 @@
     return ["Linux"];
   };
   CMDS.date = function () {
-    return [new Date().toString().replace(/GMT.*/, "UTC") + "   " + seg("(时钟不准:介质故障后 RTC 没同步)", "c-dim")];
+    return [new Date().toString().replace(/GMT.*/, "UTC") + "   " + seg("(clock is off: RTC never resynced after the medium error)", "c-dim")];
   };
   CMDS.echo = function (a) { return [esc(a.join(" "))]; };
   CMDS.history = function () {
-    if (!hist.length) return [DIM("(空)")];
+    if (!hist.length) return [DIM("(empty)")];
     return hist.map(function (h, i) { return seg(pad(String(i + 1), 5), "c-dim") + "  " + esc(h); });
   };
   CMDS.clear = function () {
@@ -454,7 +460,7 @@
   };
 
   CMDS.cat = function (a) {
-    if (!a.length) return [E("cat: 缺少操作数")];
+    if (!a.length) return [E("cat: missing operand")];
     return Promise.all(a.map(function (arg) {
       var p = norm(arg, cwd), n = nodeAt(p);
       if (!n) return [E("cat: " + arg + ": No such file or directory")];
@@ -462,11 +468,11 @@
       return readNode(p, n).then(function (f) {
         if (f.isBinary) {
           var dec = new TextDecoder("latin1").decode(f.bytes.slice(0, 640));
-          return [{ h: seg(dec, "c-mag") }, DIM("… (二进制输出已截断:共 " + f.bytes.length + " 字节,用 strings 看)")];
+          return [{ h: seg(dec, "c-mag") }, DIM("… (binary output truncated: " + f.bytes.length + " bytes total — try 'strings')")];
         }
         var out = f.text.split(/\r?\n/);
         if (out.length && out[out.length - 1] === "") out.pop();
-        return out.length ? out.map(function (l) { return esc(l) || "&nbsp;"; }) : [DIM("(空文件)")];
+        return out.length ? out.map(function (l) { return esc(l) || "&nbsp;"; }) : [DIM("(empty file)")];
       }).catch(function (e) { return errLine(arg, e); });
     })).then(function (groups) {
       var out = [];
@@ -499,7 +505,7 @@
     if (n.read === "denied") return [E("ls: cannot open directory '" + (rest[0] || p) + "': Permission denied")];
     if (n.read === "eio") return [E("ls: reading directory '" + (rest[0] || p) + "': Input/output error")];
     var names = Object.keys(n.ch).filter(function (k) { return all || k.charAt(0) !== "."; });
-    if (!names.length) return [DIM("(空)")];
+    if (!names.length) return [DIM("(empty)")];
     if (!long) return [names.map(function (k) {
       var c = n.ch[k];
       return (c.d ? seg(k, "c-path") : esc(k));
@@ -544,14 +550,14 @@
         if (c.d) walk(cp, c);
       });
     })(p, n);
-    out.push(DIM("find: 完成(读不出来的目录已跳过)"));
+    out.push(DIM("find: done (unreadable directories skipped)"));
     return out;
   };
 
   CMDS.grep = function (a) {
     var ci = false, rest = [];
     a.forEach(function (x) { if (x === "-i") ci = true; else rest.push(x); });
-    if (rest.length < 2) return [E("usage: grep [-i] <模式> <文件>")];
+    if (rest.length < 2) return [E("usage: grep [-i] <pattern> <file|dir>")];
     var pat = rest[0], target = rest[1];
     var p = norm(target, cwd), n = nodeAt(p);
     if (!n) return [E("grep: " + target + ": No such file or directory")];
@@ -570,7 +576,7 @@
         .then(function (groups) {
           var out = [];
           groups.forEach(function (g) { g.forEach(function (l) { out.push(l); }); });
-          out.push(out.length ? DIM("grep: 只搜了 " + Math.min(12, hits.length) + " 个可读文件") : DIM("grep: 没有匹配"));
+          out.push(out.length ? DIM("grep: searched " + Math.min(12, hits.length) + " readable file(s) only") : DIM("grep: no match"));
           return out;
         });
     }
@@ -593,14 +599,14 @@
   CMDS.mount = function (a) {
     if (a.join(" ").indexOf("remount") >= 0) {
       return [E("mount: /mnt/cdrom: cannot remount read-write: Permission denied."),
-              H("[recover] 这张盘是只读挂载的;emergency 用户也没有权限改挂载标志。")];
+              H("[recover] The disc is mounted read-only, and emergency has no privilege to change mount flags.")];
     }
     return [
       "sysfs on /sys type sysfs (ro,nosuid,nodev,noexec)",
       "proc on /proc type proc (ro,nosuid,nodev,noexec)",
       "devtmpfs on /dev type devtmpfs (rw,nosuid,size=4096k)",
       seg("/dev/sr0 on /mnt/cdrom type iso9660 (ro,relatime,norock,check=r)", "c-hi"),
-      DIM("(没有别的了:根文件系统还在 initramfs 里)")
+      DIM("(nothing else: the root filesystem still lives in the initramfs)")
     ];
   };
 
@@ -608,7 +614,7 @@
     return [
       seg("/dev/sr0:", "c-hi") + ' LABEL="WRONG_LABEL" UUID="2026-04-01-13-37-00-00" TYPE="iso9660"',
       "/dev/sda1: LABEL=\"RECOVERY\" UUID=\"7c9e-1f2a\" TYPE=\"vfat\" PARTUUID=\"0000a1b2-01\"",
-      { h: seg("blkid: /dev/sr0: 卷标与目录里的 GLITCH_ARCHIVE 不一致", "c-err") }
+      { h: seg("blkid: /dev/sr0: volume label does not match GLITCH_ARCHIVE", "c-err") }
     ];
   };
 
@@ -618,33 +624,33 @@
       "sda      8:0    0    16G  0 disk ",
       "└─sda1   8:1    0    16G  0 part /",
       seg("sr0     11:0    1   2.1G  1 rom  /mnt/cdrom", "c-hi"),
-      DIM("(sr0 是只读的,而且已经报了介质错误)")
+      DIM("(sr0 is read-only and already reported a medium error)")
     ];
   };
 
   CMDS.dmesg = function () {
     return [E("dmesg: read kernel buffer failed: Operation not permitted"),
-            H("[recover] 需要 root 才能读内核环形缓冲区。试着 cat /var/log/disk_scan.log")];
+            H("[recover] Reading the kernel ring buffer needs root. Try: cat /var/log/disk_scan.log")];
   };
 
   CMDS.journalctl = function () {
     return [
       E("Failed to open /var/log/journal: Input/output error"),
       "No journal files were found.",
-      H("[recover] journal 也没了。这里能看的只有 /var/log 下那几个纯文本日志。")
+      H("[recover] No journal either. Only the plain-text logs under /var/log survived.")
     ];
   };
 
   CMDS.systemctl = function (a) {
     return [E("Failed to connect to bus: No such file or directory"),
-            H("[recover] 紧急模式里没有 init/DBus,'systemctl " + esc(a.join(" ")) + "' 用不了。")];
+            H("[recover] There is no init/DBus in emergency mode — 'systemctl " + esc(a.join(" ")) + "' cannot work here.")];
   };
 
   CMDS.su = function () { return [E("su: must be suid to work properly")]; };
   CMDS.sudo = function () { return [E("-bash: sudo: command not found")]; };
 
   CMDS.file = function (a) {
-    if (!a.length) return [E("usage: file <文件>")];
+    if (!a.length) return [E("usage: file <path>")];
     var p = norm(a[0], cwd), n = nodeAt(p);
     if (!n) return [E("file: cannot open `" + a[0] + "' (No such file or directory)")];
     if (n.read === "denied") return [E("file: cannot open `" + a[0] + "' (Permission denied)")];
@@ -653,28 +659,28 @@
   };
 
   CMDS.strings = function (a) {
-    if (!a.length) return [E("usage: strings <文件>")];
+    if (!a.length) return [E("usage: strings <path>")];
     var p = norm(a[0], cwd), n = nodeAt(p);
     if (!n) return [E("strings: '" + a[0] + "': No such file or directory")];
     return readNode(p, n).then(function (f) {
       var txt = f.isBinary ? new TextDecoder("latin1").decode(f.bytes) : f.text;
       var found = txt.match(/[\x20-\x7e]{4,}/g) || [];
-      if (!found.length) return [DIM("strings: 没找到可打印串")];
+      if (!found.length) return [DIM("strings: no printable strings found")];
       var out = found.slice(0, 40).map(function (s) {
         return seg(String(txt.indexOf(s)).padStart(6, "0"), "c-dim") + "  " + esc(s);
       });
-      if (found.length > 40) out.push(DIM("… 还有 " + (found.length - 40) + " 段"));
+      if (found.length > 40) out.push(DIM("… " + (found.length - 40) + " more"));
       return out;
     }).catch(function (e) { return errLine(a[0], e); });
   };
 
   CMDS.sha256sum = function (a) {
-    if (!a.length) return [E("usage: sha256sum <文件>")];
+    if (!a.length) return [E("usage: sha256sum <file>")];
     return Promise.all(a.map(function (arg) {
       var p = norm(arg, cwd), n = nodeAt(p);
       if (!n) return Promise.resolve(E("sha256sum: " + arg + ": No such file or directory"));
       return readNode(p, n).then(function (f) {
-        if (!(window.crypto && crypto.subtle)) return E("sha256sum: " + arg + ": 无法计算(环境不支持)");
+        if (!(window.crypto && crypto.subtle)) return E("sha256sum: " + arg + ": cannot compute (no crypto in this shell)");
         return crypto.subtle.digest("SHA-256", f.bytes).then(function (h) {
           var hex = Array.prototype.map.call(new Uint8Array(h), function (b) {
             return ("0" + b.toString(16)).slice(-2);
@@ -696,17 +702,17 @@
       if (x.indexOf("if=") === 0) src = x.slice(3);
       if (x.indexOf("of=") === 0) dst = x.slice(3);
     });
-    if (!src) return [E("dd: 缺少 if=<输入>"), DIM("例:dd if=/dev/sr0 of=/mnt/cdrom/recovered/fragment_001.bin bs=512")];
+    if (!src) return [E("dd: missing if=<input>"), DIM("e.g. dd if=/dev/sr0 of=/mnt/cdrom/recovered/fragment_001.bin bs=512")];
     if (src.indexOf("/dev/") === 0) return [E("dd: failed to open '" + src + "': Permission denied")];
     if (dst.indexOf("/mnt/cdrom") === 0) return [E("dd: failed to open '" + dst + "': Read-only file system")];
-    if (!dst) return [E("dd: 缺少 of=<输出>")];
+    if (!dst) return [E("dd: missing of=<output>")];
     return [E("dd: failed to open '" + dst + "': No such file or directory")];
   };
 
   CMDS.exit = function () {
     return [
-      E("bash: exit: cannot exit the emergency shell (没有可以回去的 init)"),
-      H("[recover] 想离开就输入 recover --list 或 cat /mnt/cdrom/INDEX。")
+      E("bash: exit: cannot exit the emergency shell (nothing to return to)"),
+      H("[recover] To leave: recover --list, or cat /mnt/cdrom/INDEX.")
     ];
   };
 
@@ -715,33 +721,33 @@
     var arg = (a[0] || "").replace(/\/+$/, "");
     if (!arg || arg === "-h" || arg === "--help") {
       return [
-        { h: seg("recover — GLITCH ARCHIVE 恢复工具", "c-ok") },
-        { h: seg("用法:", "c-dim") },
-        "  recover --list            列出全部条目与状态",
-        "  recover <项目文件夹>      对单个项目做恢复(重建索引 + 抢救首文件)",
+        { h: seg("recover — GLITCH ARCHIVE recovery tool", "c-ok") },
+        { h: seg("usage:", "c-dim") },
+        "  recover --list            list every entry and its status",
+        "  recover <project-dir>     rebuild one entry (index + first file)",
         { h: "&nbsp;" },
-        H("[recover] 坏扇区上的目录不会自动恢复:得你点名。")
+        H("[recover] Nothing on a bad sector is recovered for you — name it explicitly.")
       ];
     }
     if (arg === "--list" || arg === "-l" || arg === "list") {
       out.push({ h: seg("[recover] scanning /mnt/cdrom/projects ...", "c-dim") });
       return [
-        { h: seg("[" + pad("ID", 4) + "] " + pad("目录", 28) + " 状态", "c-dim") }
+        { h: seg("[" + pad("ID", 4) + "] " + pad("DIRECTORY", 28) + " STATUS", "c-dim") }
       ].concat(PROJECTS.map(function (p) {
         var st = projStatus(p);
-        var cls = st === "BAD SECTORS" ? "c-err" : (st === "RECOVERED" ? "c-ok" : "c-ok");
+        var cls = st === "BAD SECTORS" ? "c-err" : "c-ok";
         return { h: "[" + p.id + "] " + esc(pad(p.dir, 28)) + " " + seg(st, cls) +
-          (p.bad && !recovered[p.dir] ? seg("  (" + p.sectors.length + " 个坏扇区)", "c-dim") : "") };
-      })).concat([{ h: "&nbsp;" }, H("[recover] 要救哪个:recover <目录名>")]);
+          (p.bad && !recovered[p.dir] ? seg("  (" + p.sectors.length + " bad sectors)", "c-dim") : "") };
+      })).concat([{ h: "&nbsp;" }, H("[recover] Pick one: recover <directory>")]);
     }
     var proj = projOf(arg);
     if (!proj) {
-      return [E("[recover] 没有这个条目: " + arg), H("[recover] 先看看 recover --list。")];
+      return [E("[recover] No such entry: " + arg), H("[recover] Try: recover --list")];
     }
     if (!proj.bad || recovered[proj.dir]) {
       return [
-        { h: seg("[recover] " + proj.dir + ": 没有坏扇区,不需要恢复。", "c-dim") },
-        H("[recover] 直接读:cat /mnt/cdrom/projects/" + proj.dir + "/README.md")
+        { h: seg("[recover] " + proj.dir + ": no bad sectors, nothing to recover.", "c-dim") },
+        H("[recover] Read it directly: cat /mnt/cdrom/projects/" + proj.dir + "/README.md")
       ];
     }
     /* 有坏扇区:打进度条 → 成功 */
@@ -765,16 +771,16 @@
       recovered[proj.dir] = true;
       unkCount = 0;
       return writeSeq([
-        { h: seg("[recover] " + proj.sectors.length + " 个坏扇区: " + proj.sectors.join(", "), "c-dim"), d: 160 },
-        { h: seg("[recover] 重建目录索引 ... done", "c-dim"), d: 200 },
-        { h: seg("[recover] 抢救出 1 个文件: README.md (" + proj.size + " B)", "c-dim"), d: 180 }
+        { h: seg("[recover] " + proj.sectors.length + " bad sectors: " + proj.sectors.join(", "), "c-dim"), d: 160 },
+        { h: seg("[recover] rebuilding directory index ... done", "c-dim"), d: 200 },
+        { h: seg("[recover] rescued 1 file: README.md (" + proj.size + " B)", "c-dim"), d: 180 }
       ], epoch).then(function () {
         if (out.epoch !== epoch) return [];
         glitchBurst(360, epoch);
         write(seg("recover success", "c-ok"), null);
         return [
-          H("[recover] 现在可以读:cat /mnt/cdrom/projects/" + proj.dir + "/README.md"),
-          DIM("[recover] 盘还是只读的;只是这一个目录的索引修好了。")
+          H("[recover] Now readable: cat /mnt/cdrom/projects/" + proj.dir + "/README.md"),
+          DIM("[recover] The disc is still read-only — only this entry's index was rebuilt.")
         ];
       });
     });

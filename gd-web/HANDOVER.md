@@ -191,6 +191,7 @@ strings/clear/history/exit 等指令(大部分返回错误以契合故障),外�
 |---|---|
 | `assets/js/cd4-boot.js` | 第四张盘的开机动画:55% 卡死变红 → Wrong disk name → permission denied ×3 → 清屏;撕裂/RGB 分离/乱码 |
 | `assets/js/cd4-terminal.js` | 终端本体:开机日志 → 欢迎语 → `[recover]` 引导 → 30 条指令 + 文件树 + recover 工具 |
+| ↑ **文案语言** | **终端里所有会被打印出来的字都是英文**(help / 用法 / 报错 / `[recover]` 提示 / INDEX / README.txt / .bash_history)。用户明确说过中文出戏。代码注释保持中文;项目 README 是你自己的中文文档,属于"盘里抢救出来的资料",原样保留 |
 | `assets/css/terminal.css` | 终端配色(`.term` 顶上一组变量)/ 扫描线 / 撕裂条 / 响应式 |
 | `layouts/partials/pages/tech.html` | 这一页的骨架(输出区 + 两层故障贴片 + 指纹化的脚本标签) |
 | `static/assets/cd/tech/**` | 盘里的"真实文件":INDEX / README.txt / MANIFEST.sha256 / 三个项目 / 假碎片 |
