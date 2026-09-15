@@ -187,7 +187,6 @@ strings/clear/history/exit 等指令(大部分返回错误以契合故障),外�
 (GD_SONGS 旁边加一份 GD_LEVELS,或在 gd-web 里按 key 选铺面)。
 
 ### 9.1 实现状态:任务书 1~10 条全部落地(2026-09 这一轮)
-
 | 文件 | 干什么 |
 |---|---|
 | `assets/js/cd4-boot.js` | 第四张盘的开机动画:55% 卡死变红 → Wrong disk name → permission denied ×3 → 清屏;撕裂/RGB 分离/乱码 |
@@ -242,3 +241,33 @@ strings/clear/history/exit 等指令(大部分返回错误以契合故障),外�
 
 **还没做的**:① 五张盘的谱(用户自己写,写完接"盘 → 铺面");② 项目只放了三个,
 以后加项目要同时改 `PROJECTS` 与 `static/assets/cd/tech/projects/`。
+
+## 10. 外框贴合 FrameFit(五张盘共用,2026-09 这一轮)
+
+用户先在第四张盘的终端上发现"内容顶出金属外框",随后说"剩下四张CD都有同样的问题" ——
+确实有:屏幕上所有东西原来都按 `.screen` 的 `--sp-t/--sp-x/--sp-b`(13vh/5vw/7.5vh)落位,
+而那块贴图(2200×1216,按 100% 100% 拉伸铺满视口)中间真正的透明窗口是
+**左 3.6% / 上 8.2% / 右 5.5% / 下 8.6%**,右下比 `--sp-*` 多出去 7~10px,四角还有斜切。
+
+`assets/js/frame-fit.js`(新,五张盘共用)在运行时:
+1. 把 `/assets/screen/frame.webp` 读进 canvas(缩到 1/4 算,毫秒级);
+2. 求**最大内接矩形** → `--ff-safe-*`(给"内容"用,保证不碰斜切角);
+3. 逐行扫出**窗口轮廓**拼成多边形 → `--ff-clip`(给"玻璃"裁边用);
+4. 加 `html.frame-fitted`,并把 `.screen` 上那套 `--sp-*` **抬高**到不小于窗口内边距
+   (只抬高不缩小:实测 `--sp-b` 67.5px → 93px,页面底边不再被金属框切掉);
+5. resize 时重算并派发 `frame-fit` 事件;`FrameFit.ready(cb)` / `FrameFit.debug()` 给别的模块和排障用。
+
+接上的地方:
+- **五张盘的开机动画**:`html.frame-fitted .screen-static` 铺满视口 + `clip-path(--ff-clip)`,
+  里面画动画的 canvas 收到 `--ff-safe-*` 里。五套动画都是按 canvas 的 W/H 百分比画的,
+  **盒子一收内容自然进安全区,一行渲染代码都没改**;花屏(`.is-full`)时 canvas 放回全屏。
+  ★ canvas 是替换元素:`width:auto` 会退回 300×150,必须用 `calc(100% - …)` 算宽高(踩过)。
+- **第四张盘的终端**:`cd4-terminal.js` 自己的那套测量删掉了,改成 `FrameFit.ready()` 取数
+  (玻璃 `--term-clip`、文字区 `--term-inset-*`)。★ FrameFit 给的 `safe` 是**图上坐标**,
+  换算时右边的写法是"坐标 − gap",不是"视口宽 − 坐标"(混过一次,终端被压成 0 宽)。
+- **页面内容**(滑动分页 / 行星 / 游戏 / 留白面板)不用改,它们都吃 `--sp-*`,抬高了就跟着进框。
+
+验证:`tools/verify/boot-regress.mjs` 里那段"外框贴合"断言(量到贴图 / 轮廓裁剪 /
+canvas 正好落在安全区 / `--sp-*` 不小于窗口内边距)+ 五张盘动画都正常;
+`cd4-flow-shot.mjs`(终端)、`gd-panel-check.mjs`(游戏)、`frame-window.mjs`(只出数字)、
+`frame-fit-shots.mjs`(出图)。

@@ -1030,164 +1030,57 @@
     scrollDown();
   }
 
-  /* ---------- 落位:运行时自己量金属外框的透明窗口 ----------
-     外框 = /assets/screen/frame.webp 按 100% 100% 拉伸铺满视口。
-     贴图是【静态资源、没有指纹】,浏览器里很可能是旧缓存 —— 所以别信写死的百分比,
-     直接把那张图读进 canvas,找中线上一整段透明的范围(那才是可视窗口),换算成 px。
-     量不出来(图挂了/画布被拦)就退回 terminal.css 里那组保底百分比。 */
+  /* ---------- 落位:套用公共的外框贴合模块 ----------
+     量贴图、求内接矩形、拼窗口轮廓这些都在 assets/js/frame-fit.js 里(五张盘共用),
+     本文件只负责:玻璃层按轮廓裁(--term-clip)、文字层收到内接矩形里(--term-inset-*)。 */
   var frameCache = null;
-  function measureFrameWindow() {
-    return new Promise(function (done) {
-      var img = new Image();
-      img.onload = function () {
-        try {
-          /* 缩到 1/4 再算(2200×1216 → 550×304):够准,而且快到无感 */
-          var S = 4;
-          var W = Math.max(8, Math.round(img.naturalWidth / S));
-          var H = Math.max(8, Math.round(img.naturalHeight / S));
-          var c = document.createElement("canvas");
-          c.width = W; c.height = H;
-          var g = c.getContext("2d", { willReadFrequently: true });
-          g.drawImage(img, 0, 0, W, H);
-          var d = g.getImageData(0, 0, W, H).data;
-          var A = function (x, y) { return d[(y * W + x) * 4 + 3]; };
 
-          /* ① 中线上的一整段透明:用来出"包围盒"(仅作参考/排障)
-             ② 最大内接矩形:四边形外框的角是斜切的,包围盒会把终端顶进斜角里 ——
-                宽高比一变(比如 2.25 的窗口 vs 1.81 的贴图)就会看出来。
-                所以真正用来落位的是这个矩形:它在数学上一定整个落在透明区里。
-                只搜中间那块区域(5%~95%),免得"贴图最外圈的透明留白"被当成窗口。 */
-          function bigRun(len, alpha) {
-            var best = null, s = -1, i;
-            for (i = 0; i < len; i++) {
-              var clear = alpha(i) <= 8;
-              if (clear && s < 0) s = i;
-              if (!clear && s >= 0) { if (!best || i - 1 - s > best[1] - best[0]) best = [s, i - 1]; s = -1; }
-            }
-            if (s >= 0 && (!best || len - 1 - s > best[1] - best[0])) best = [s, len - 1];
-            return best;
-          }
-          var vRun = bigRun(H, function (y) { return A(Math.floor(W / 2), y); });
-          var hRun = bigRun(W, function (x) { return A(x, Math.floor(H / 2)); });
+  /* 外框内侧的安全余量(--term-frame-gap 是个 clamp(),读出来是原样字符串,这里用兜底值)*/
+  function frameGapPx() { return 10; }
 
-          var x0 = Math.floor(W * 0.05), x1 = Math.ceil(W * 0.95);
-          var y0 = Math.floor(H * 0.05), y1 = Math.ceil(H * 0.95);
-          var heights = new Int32Array(W), best = null;
-          for (var y = y0; y < y1; y++) {
-            for (var x = x0; x < x1; x++) heights[x] = A(x, y) <= 8 ? heights[x] + 1 : 0;
-            var stack = [];
-            for (var x2 = x0; x2 <= x1; x2++) {
-              var h = x2 === x1 ? 0 : heights[x2];
-              var start = x2;
-              while (stack.length && stack[stack.length - 1].h >= h) {
-                var top = stack.pop();
-                var area = top.h * (x2 - top.x);
-                if (!best || area > best.area) best = { x: top.x, y: y - top.h + 1, w: x2 - top.x, h: top.h, area: area };
-                start = top.x;
-              }
-              stack.push({ x: start, h: h });
-            }
-          }
-          if (!best) return done(null);
-          /* ③ 窗口的真实轮廓:一段一段扫出每一行的透明范围,连成多边形。
-             四边形外框的角是斜切的,"最大内接矩形"会把屏幕缩掉一圈(看着像悬在框里),
-             所以改成:玻璃层按这个轮廓裁(clip-path),文字层才用最大内接矩形 ——
-             玻璃严丝合缝、又绝对顶不出去。 */
-          var rows = 25, pts = [], i2;
-          var ry0 = vRun ? vRun[0] * S : best.y * S, ry1 = vRun ? vRun[1] * S : (best.y + best.h) * S;
-          for (i2 = 0; i2 < rows; i2++) {
-            var yy = Math.round(ry0 + (ry1 - ry0) * (i2 / (rows - 1)));
-            var sy = Math.max(0, Math.min(H - 1, Math.round(yy / S)));
-            var r = null, s2 = -1, x;
-            for (x = x0; x < x1; x++) {
-              var clear2 = A(x, sy) <= 8;
-              if (clear2 && s2 < 0) s2 = x;
-              if (!clear2 && s2 >= 0) { if (!r || x - 1 - s2 > r[1] - r[0]) r = [s2, x - 1]; s2 = -1; }
-            }
-            if (s2 >= 0 && (!r || x1 - 1 - s2 > r[1] - r[0])) r = [s2, x1 - 1];
-            if (r) pts.push([r[0] * S, yy, r[1] * S, yy]);
-          }
-          /* 往中心收一点点(外框内侧有亮边),再拼成闭合多边形:左边自上而下 + 右边自下而上 */
-          var cx = (best.x + best.w / 2) * S, cy = (best.y + best.h / 2) * S;
-          var k = Math.max(0.9, 1 - (2 * gapGuess()) / Math.max(80, best.h * S));
-          function shrink(p) { return [cx + (p[0] - cx) * k, cy + (p[1] - cy) * k]; }
-          var poly = pts.map(function (p) { return shrink([p[0], p[1]]); })
-            .concat(pts.slice().reverse().map(function (p) { return shrink([p[2], p[3]]); }));
-          done({
-            img: [img.naturalWidth, img.naturalHeight],
-            scale: S,
-            win: [best.x * S, best.y * S, (best.x + best.w) * S, (best.y + best.h) * S],
-            box: hRun && vRun ? [hRun[0] * S, vRun[0] * S, hRun[1] * S, vRun[1] * S] : null,
-            polygon: poly.length >= 6 ? poly : null,
-            pct: {
-              left: (best.x * S) / img.naturalWidth,
-              top: (best.y * S) / img.naturalHeight,
-              right: 1 - ((best.x + best.w) * S) / img.naturalWidth,
-              bottom: 1 - ((best.y + best.h) * S) / img.naturalHeight
-            }
-          });
-        } catch (e) { done(null); }
-      };
-      img.onerror = function () { done(null); };
-      img.src = "/assets/screen/frame.webp";
-    });
-  }
-
-  /* 反过来的安全余量:外框内侧有斜切和一条亮边,贴着窗口边界会被撞到 */
-  function gapGuess() {
-    var v = parseFloat(getComputedStyle(root).getPropertyValue("--term-frame-gap"));
-    return isFinite(v) ? v : 10;
-  }
-  function frameGapPx() { return gapGuess(); }
-
-  var frameBox = null;                   /* 最近一次量到的窗口(px,视口坐标)*/
+  var frameBox = null;                   /* 文字活动范围(px,视口坐标)*/
   function fitToFrame() {
     var W = window.innerWidth, H = window.innerHeight;
-    var p = frameCache;
+    var FF = window.FrameFit;
+    var d = FF && FF.data ? FF.data() : null;
+    var cs = getComputedStyle(document.documentElement);
     var gap = frameGapPx();
     var s = root.style;
-    if (p) {
-      /* 文字层的活动范围 = 最大内接矩形(px);玻璃层铺满视口,由 --term-clip 裁出轮廓。
-         两个值都交给 CSS 里的 calc 用(内边距/导航让位还是由 CSS 那套变量管,不在这里算)*/
+    if (d) {
+      var sx = W / d.img[0], sy = H / d.img[1];
+      /* FrameFit 给的 safe 是【图上坐标】(left,top,right,bottom),换算成视口 px 后再往内收 gap;
+         右边的写法是"坐标 - gap",不是"视口宽 - 坐标"(两种口径混过一次,终端直接被压成 0 宽)*/
       frameBox = [
-        Math.round(p.pct.left * W + gap), Math.round(p.pct.top * H + gap),
-        Math.round(W - p.pct.right * W - gap), Math.round(H - p.pct.bottom * H - gap)
+        Math.round(d.safe[0] * sx + gap), Math.round(d.safe[1] * sy + gap),
+        Math.round(d.safe[2] * sx - gap), Math.round(d.safe[3] * sy - gap)
       ];
       s.setProperty("--term-inset-left", frameBox[0] + "px");
       s.setProperty("--term-inset-top", frameBox[1] + "px");
       s.setProperty("--term-inset-right", (W - frameBox[2]) + "px");
       s.setProperty("--term-inset-bottom", (H - frameBox[3]) + "px");
-      var sx = W / p.img[0], sy = H / p.img[1];
-      var poly = p.polygon;
-      if (poly) {
-        s.setProperty("--term-clip", "polygon(" + poly.map(function (pt) {
-          return (pt[0] * sx).toFixed(1) + "px " + (pt[1] * sy).toFixed(1) + "px";
-        }).join(", ") + ")");
+      var clip = cs.getPropertyValue("--ff-clip").trim();
+      if (clip) {
+        s.setProperty("--term-clip", clip);
         root.classList.add("is-fitted");
       } else {
         root.classList.remove("is-fitted");
       }
+      /* 为了排障接口仍然把量到的原始数据挂在身上 */
+      frameCache = d;
       s.setProperty("--term-frame-applied", "1");
     } else {
-      /* 量不到图:清掉全部内联值,退回 CSS 里那组百分比 */
       ["--term-inset-left", "--term-inset-top", "--term-inset-right", "--term-inset-bottom", "--term-clip", "--term-frame-applied"]
         .forEach(function (k) { s.removeProperty(k); });
       root.classList.remove("is-fitted");
       frameBox = null;
+      frameCache = null;
     }
     syncTopGap();
   }
-  measureFrameWindow().then(function (p) {
-    frameCache = p;
-    fitToFrame();
-    if (p) {
-      console.info("[cd4] 外框窗口(占贴图): left " + (p.pct.left * 100).toFixed(3) + "% / top " + (p.pct.top * 100).toFixed(3) +
-        "% / right " + (p.pct.right * 100).toFixed(3) + "% / bottom " + (p.pct.bottom * 100).toFixed(3) + "%" +
-        " → 终端落在 " + frameBox.join(","));
-    } else {
-      console.info("[cd4] 没能量到外框贴图,用 terminal.css 里的保底百分比落位");
-    }
-  });
+  if (window.FrameFit) {
+    window.FrameFit.ready(function () { fitToFrame(); });
+  }
+  window.addEventListener("frame-fit", function () { fitToFrame(); });
 
   /* 顶部站点导航(浮层)让位:导航默认收起,那就不让;真露出来才量它的高度。
      ★ 注意别在 initStatusbar() 之前量 —— 那时候 statusbar-hidden 还没加上,
@@ -1287,9 +1180,10 @@
         viewport: [window.innerWidth, window.innerHeight],
         termBox: [Math.round(r.left), Math.round(r.top), Math.round(r.right), Math.round(r.bottom)],
         frameWindow: frameBox,
-        frameFromImage: !!frameCache,
-        framePct: frameCache ? frameCache.pct : null,
+        frameFromImage: !!(frameCache && frameCache.safe),
+        frameSafe: frameCache ? frameCache.safe : null,
         frameBoxCenterLine: frameCache ? frameCache.box : null,
+        frameFit: !!(window.FrameFit && window.FrameFit.data()),
         gapTop: cs.getPropertyValue("--term-gap-top").trim(),
         fitted: root.classList.contains("is-fitted"),
         clipPath: String(getComputedStyle(root).clipPath || "none").slice(0, 90),

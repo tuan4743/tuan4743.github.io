@@ -382,6 +382,8 @@
     /* 画布尺寸按屏幕可视区(DPR 限 1.5,雪花不需要那么细)*/
     var dpr = Math.min(window.devicePixelRatio || 1, 1.5);
     staticWrap.classList.remove("is-black");
+    /* 花屏要铺满整块屏幕 → 让 canvas 回到全屏(贴合的那层负责按外框裁边)*/
+    staticWrap.classList.add("is-full");
     staticCv.width = Math.max(1, Math.round(staticCv.clientWidth * dpr));
     staticCv.height = Math.max(1, Math.round(staticCv.clientHeight * dpr));
     staticWrap.classList.add("is-on");
@@ -394,6 +396,7 @@
       if (el >= ms || document.hidden) {
         staticCtx.clearRect(0, 0, staticCv.width, staticCv.height);
         staticWrap.classList.remove("is-on");
+        staticWrap.classList.remove("is-full");
         staticRAF = 0;
         return;
       }
@@ -467,6 +470,7 @@
     staticWrap.style.visibility = "";
     staticWrap.style.transition = "";
     staticWrap.classList.add("is-black");     /* 起手:黑屏 + 不透明 */
+    staticWrap.classList.remove("is-full");   /* 开机动画的 canvas 要待在安全区里(见 frame-fit.js)*/
     var accent = "#22d3ee";
     try {
       var v = getComputedStyle(document.querySelector(".screen")).getPropertyValue("--intro-accent").trim();

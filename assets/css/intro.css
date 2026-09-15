@@ -95,6 +95,41 @@ body.scene-open .scene {
     height: 100%;
 }
 
+/* ============ 外框贴合(见 assets/js/frame-fit.js)============
+   量到贴图的透明窗口之后(html.frame-fitted):
+     · 这一层铺满视口,用窗口轮廓(--ff-clip)裁出屏幕那一块 ——
+       黑底/花屏就正好到金属框的斜切角,不会再在右下角顶出去;
+     · 画开机动画的 canvas 收到"最大内接矩形"(--ff-safe-*)里。
+       五套开机动画全是按 canvas 的 W/H 百分比画的,盒子一收,
+       所有内容(日志、圆环、百分比、数据列)自然就落进安全区,
+       一行渲染代码都不用改。
+     · 花屏(雪花)要铺满整块屏幕,所以 .is-full 时把 canvas 放回全屏,靠裁边收口。 */
+html.frame-fitted .screen-static {
+    inset: 0;
+    border-radius: 0;
+    clip-path: var(--ff-clip);
+    -webkit-clip-path: var(--ff-clip);
+    background: #04060a;
+}
+
+html.frame-fitted .screen-static canvas {
+    /* canvas 是替换元素:width:auto 会退回 300×150 的固有尺寸(踩过),
+       所以宽高得自己用 calc 算 —— 100% 是这一层(现在铺满视口)的尺寸 */
+    position: absolute;
+    left: var(--ff-safe-left, 0px);
+    top: var(--ff-safe-top, 0px);
+    right: var(--ff-safe-right, 0px);
+    bottom: var(--ff-safe-bottom, 0px);
+    width: calc(100% - var(--ff-safe-left, 0px) - var(--ff-safe-right, 0px));
+    height: calc(100% - var(--ff-safe-top, 0px) - var(--ff-safe-bottom, 0px));
+}
+
+html.frame-fitted .screen-static.is-full canvas {
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
 .screen-static.is-on {
     opacity: 1;
 }
