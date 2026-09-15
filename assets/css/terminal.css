@@ -36,15 +36,27 @@
     --term-lh: 1.62;
     --term-pad-x: clamp(16px, 1.9vw, 34px);
     --term-pad-y: clamp(12px, 1.6vh, 22px);
-    /* 顶上那条站点导航是浮在内容之上的覆盖层(约 67px),终端的第一屏
-       文字要让开它,否则前两三行会被压住 —— 想让它更靠上就改小 */
-    --term-gap-top: 68px;
+    /* 顶上那条站点导航是浮在内容之上的覆盖层 —— 但它默认是收起隐藏的,
+       所以这里默认【不让位】;真露出来的时候由 JS 量出高度写进 --term-gap-top
+       (见 cd4-terminal.js 的 syncTopGap)*/
+    --term-gap-top: 0px;
 
-    /* ---- 屏幕落位:和第三张盘一样,落在显示器的可视窗里 ---- */
-    --page-top: 0px;
+    /* ---- 落位:直接对着金属外框贴图里那块【透明窗口】量 ----
+       外框是 /assets/screen/frame.webp 按 100% 100% 拉伸铺满视口的,
+       所以窗口四边可以写成"占视口的百分比"(量法见 tools/verify/frame-window.mjs):
+         top 8.224% / right 5.455% / bottom 8.553% / left 3.636%
+       再往里收 --term-frame-gap:外框内侧有斜切和一条亮边,贴着量到的边界会被撞到。
+       ★ 别再退回 --sp-t/--sp-x/--sp-b 那一组:那是整块屏幕的内边距,
+         右下比外框的窗口多出去 7~10px,终端会"顶出框"(用户报过)。*/
+    --term-frame-gap: clamp(8px, 1.1vh, 16px);
+    --term-frame-top: calc(8.224% + var(--term-frame-gap));
+    --term-frame-right: calc(5.455% + var(--term-frame-gap));
+    --term-frame-bottom: calc(8.553% + var(--term-frame-gap));
+    --term-frame-left: calc(3.636% + var(--term-frame-gap));
+    --term-radius: clamp(14px, 1.3vw, 26px);
     position: absolute;
-    inset: var(--sp-t, 0px) var(--sp-x, 0px) var(--sp-b, 0px);
-    border-radius: 12px;
+    inset: var(--term-frame-top) var(--term-frame-right) var(--term-frame-bottom) var(--term-frame-left);
+    border-radius: var(--term-radius);
     overflow: hidden;
     background: var(--term-bg);
     color: var(--term-fg);

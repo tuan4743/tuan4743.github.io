@@ -198,6 +198,16 @@
   function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
   function rnd(a, b) { return a + Math.random() * (b - a); }
 
+  /* 真实程序不是匀速打印的:
+       多数行之间很快、偶尔卡一下(在读盘/重试)、偶尔连着蹦两行。
+     用带重尾的随机,而不是均匀分布 —— 这就是"正常程序运行"的节奏。*/
+  function pace(fast, slow) {
+    var r = Math.random();
+    if (r < 0.13) return rnd(slow * 1.6, slow * 4.4);   /* 卡一下:多半是在读坏道 */
+    if (r < 0.36) return rnd(40, fast * 0.75);          /* 连着蹦两行 */
+    return rnd(fast, slow);
+  }
+
   function scrollDown() {
     if (stick) screen.scrollTop = screen.scrollHeight;
   }
@@ -234,7 +244,7 @@
     while (screen.childNodes.length > MAX_LINES) screen.removeChild(screen.firstChild);
   }
 
-  /* 一行一行地打(内核日志就是这种节奏)*/
+  /* 一行一行地打(内核日志就是这种节奏;行与行之间的间隔由 pace() 给,不匀速)*/
   function writeSeq(items, myEpoch) {
     var i = 0;
     return new Promise(function (done) {
@@ -243,12 +253,13 @@
         if (i >= items.length) return done();
         var it = items[i++];
         write(it.h, it.c);
-        setTimeout(step, it.d === undefined ? rnd(90, 200) : it.d);
+        var d = it.d === undefined ? pace(150, 460) : it.d;
+        setTimeout(step, d);
       })();
     });
   }
 
-  /* 打字机:一个字符一个字符(用于"关键的那几句")*/
+  /* 打字机:一个字符一个字符,而且字符之间也不是匀速(标点后多停一下)*/
   function typeLine(text, cls, speed, myEpoch) {
     var d = write("", cls);
     return new Promise(function (done) {
@@ -258,7 +269,10 @@
         d.textContent = text.slice(0, i);
         scrollDown();
         if (i++ >= text.length) return done();
-        setTimeout(step, speed || 18);
+        var ch = text.charAt(i - 1);
+        var ms = speed ? speed * rnd(0.6, 1.6) : rnd(26, 58);
+        if (/[,.:;]/.test(ch)) ms += rnd(60, 190);
+        setTimeout(step, ms);
       })();
     });
   }
@@ -405,6 +419,7 @@
       { h: "  sha256sum  dd  file  strings             " + seg("读盘工具", "c-dim") },
       { h: "  clear  history  exit                     " + seg("会话", "c-dim") },
       { h: "  whoami  id  uname  date  echo            " + seg("看看自己在哪", "c-dim") },
+      { h: "  ↑ ↓ 翻历史  Ctrl+Shift+C 中断  Ctrl+Shift+L 清屏", c: "is-dim" },
       { h: seg("  recover [--list|<项目>]", "c-ok") + "                   " + seg("★ 恢复工具(这张盘的全部意义)", "c-dim") },
       { h: "&nbsp;" },
       H("[recover] 不知道从哪开始就打:cat /mnt/cdrom/INDEX")
@@ -797,6 +812,8 @@
 
   function submit() {
     var line = curInput;
+    /* 输入行前面可能还压着后来打印的引导行 → 先把它挪到底,输出顺序才不乱 */
+    if (inputEl && inputEl.nextSibling) screen.appendChild(inputEl);
     if (inputEl) inputEl.innerHTML = promptHtml() + " " + esc(line);   /* 定格的回显 */
     inputEl = null;
     if (line.trim()) {
@@ -876,7 +893,10 @@
 
   function onKey(e) {
     if (!panelActive()) return;
-    if (e.ctrlKey && (e.key === "c" || e.key === "C")) {
+    /* ★ 中断/清屏用 Ctrl+Shift+C / Ctrl+Shift+L:
+       纯 Ctrl+C、Ctrl+V 一律不拦 —— 那是浏览器的复制/粘贴,用户要能选中台词拷走
+       (用户报过"Ctrl+C / Ctrl+V 不能用")。粘贴由下面的 paste 事件接。*/
+    if (e.ctrlKey && e.shiftKey && (e.key === "c" || e.key === "C")) {
       e.preventDefault();
       if (inputEl) { inputEl.innerHTML = promptHtml() + " " + esc(curInput) + seg("^C", "c-dim"); }
       inputEl = null; curInput = "";
@@ -884,7 +904,7 @@
       newInput();
       return;
     }
-    if (e.ctrlKey && (e.key === "l" || e.key === "L")) {
+    if (e.ctrlKey && e.shiftKey && (e.key === "l" || e.key === "L")) {
       e.preventDefault();
       while (screen.firstChild) screen.removeChild(screen.firstChild);
       inputEl = null; newInput();
@@ -923,6 +943,17 @@
     try { screen.focus({ preventScroll: true }); } catch (e) { screen.focus(); }
   });
 
+  /* 粘贴:Ctrl+V / Ctrl+Shift+V 都交给浏览器的 paste 事件,这里接住塞进输入行。
+     终端不是真的 <input>,不接的话按 Ctrl+V 什么也不会发生。 */
+  document.addEventListener("paste", function (e) {
+    if (!panelActive() || busy) return;
+    var txt = e.clipboardData ? e.clipboardData.getData("text") : "";
+    if (!txt) return;
+    e.preventDefault();
+    curInput = (curInput + txt.replace(/[\r\n]+/g, " ")).slice(0, 200);
+    renderInput();
+  });
+
   /* ============================================================
      开机序列(第二页:内核日志,没有进度条)
      ============================================================ */
@@ -933,7 +964,7 @@
     return t.toFixed(6).padStart(12, " ");
   }
   function klog(msg, cls) {
-    return { h: seg("[" + tstamp() + "]", "c-dim") + " " + (cls ? seg(msg, cls) : esc(msg)), d: rnd(110, 300) };
+    return { h: seg("[" + tstamp() + "]", "c-dim") + " " + (cls ? seg(msg, cls) : esc(msg)) };
   }
 
   function bootSequence(myEpoch) {
@@ -943,47 +974,84 @@
       klog("Command line: BOOT_IMAGE=/vmlinuz root=UUID=7c9e-1f2a ro emergency quiet"),
       klog("sr 0:0:0:0: [sr0] Attached SCSI removable disk"),
       klog("systemd[1]: Started Disk Scanner."),
-      { h: esc("Scanning /dev/sr0..."), d: rnd(180, 320) },
-      { h: esc("  Reading TOC... OK"), d: rnd(140, 260) },
-      { h: esc("  Reading session 1... OK"), d: rnd(140, 260) },
-      { h: esc("  Reading session 2..."), d: 900 }
+      { h: esc("Scanning /dev/sr0..."), d: pace(260, 620) },
+      { h: esc("  Reading TOC... OK"), d: pace(220, 520) },
+      { h: esc("  Reading session 1... OK"), d: pace(240, 560) },
+      { h: esc("  Reading session 2..."), d: rnd(1100, 2400) }     /* 卡在这儿:读不过去 */
     ], myEpoch).then(function () {
       if (myEpoch !== epoch) return;
       glitchBurst(420, myEpoch);
       return writeSeq([
-        { h: seg("[FAILED] Failed to read sector 0x1A3F: Input/output error.", "c-err"), d: 620 },
-        { h: seg("Disk scan failure.", "c-err"), d: 900 },
-        { h: esc("Attempting to log in as emergency user..."), d: 700 }
+        { h: seg("[FAILED] Failed to read sector 0x1A3F: Input/output error.", "c-err"), d: rnd(600, 900) },
+        { h: seg("Disk scan failure.", "c-err"), d: rnd(700, 1400) },
+        { h: esc("Attempting to log in as emergency user..."), d: rnd(900, 1600) }
       ], myEpoch);
     }).then(function () {
       if (myEpoch !== epoch) return;
       blank();
       return writeSeq([
-        { h: esc("Welcome to emergency mode! After logging in, type \"journalctl -xb\" to view"), d: 160 },
-        { h: esc("system logs, \"systemctl reboot\" to reboot, \"systemctl default\" or ^D to"), d: 160 },
-        { h: esc("try again to boot into default mode."), d: 220 }
+        { h: esc("Welcome to emergency mode! After logging in, type \"journalctl -xb\" to view"), d: rnd(180, 420) },
+        { h: esc("system logs, \"systemctl reboot\" to reboot, \"systemctl default\" or ^D to"), d: rnd(180, 420) },
+        { h: esc("try again to boot into default mode."), d: rnd(260, 520) }
       ], myEpoch);
     }).then(function () {
       if (myEpoch !== epoch) return;
       newInput();                       /* 欢迎语后面的那个提示符 */
-      return wait(700);
+      /* ★ 引导不是紧接着来的:像有个保护进程在后台先愣几秒,再开始扫盘 */
+      return wait(rnd(3400, 5200));
     }).then(function () {
       if (myEpoch !== epoch) return;
       /* 抢在提示符后面打印的恢复守护进程 */
       return writeSeq([
-        { h: seg("[recover] Received fatal error, trying detecting...", "c-mag"), d: 260 },
-        { h: seg("[recover] Medium error detected on /dev/sr0.", "c-mag"), d: 240 },
-        { h: seg("[recover] Archive mounted read-only at /mnt/cdrom.", "c-mag"), d: 240 },
-        { h: seg("[recover] Automatic index failed. Manual recovery required.", "c-mag"), d: 300 },
-        { h: seg("[recover] See /mnt/cdrom/INDEX for recovery manifest.", "c-mag"), d: 240 },
-        { h: seg("[recover] Suggested commands: ls /mnt/cdrom | cat /mnt/cdrom/INDEX | recover --list", "c-mag"), d: 240 }
+        { h: seg("[recover] Received fatal error, trying detecting...", "c-mag"), d: rnd(220, 520) },
+        { h: seg("[recover] Medium error detected on /dev/sr0.", "c-mag"), d: rnd(200, 460) },
+        { h: seg("[recover] Archive mounted read-only at /mnt/cdrom.", "c-mag"), d: rnd(200, 460) },
+        { h: seg("[recover] Automatic index failed. Manual recovery required.", "c-mag"), d: rnd(300, 620) },
+        { h: seg("[recover] See /mnt/cdrom/INDEX for recovery manifest.", "c-mag"), d: rnd(200, 460) },
+        { h: seg("[recover] Suggested commands: ls /mnt/cdrom | cat /mnt/cdrom/INDEX | recover --list", "c-mag"), d: rnd(200, 460) }
       ], myEpoch);
     }).then(function () {
       if (myEpoch !== epoch) return;
       blank();
-      newInput();
+      /* 引导打完之后把提示符"收"到底部 —— 屏幕上永远只有一个 emergency@recovery:~$
+         (之前这里又新建了一个,于是出现两个提示符,用户报过这个 bug)。
+         用户要是在这几秒里已经敲了字,就不动它,免得把输入弄没。*/
+      settlePrompt();
       try { screen.focus({ preventScroll: true }); } catch (e) {}
       ambientGlitch(myEpoch);
+    });
+  }
+
+  /* 让输入行回到最底下(它前面是被打印出来的引导行时)*/
+  function settlePrompt() {
+    if (!inputEl) { newInput(); return; }
+    if (curInput) return;                 /* 用户在打字:保持原样 */
+    if (inputEl.nextSibling) screen.appendChild(inputEl);
+    scrollDown();
+  }
+
+  /* ---------- 顶部站点导航(浮层)让位 ----------
+     导航默认是收起隐藏的(用户:不用给终端留位置),真露出来的时候才量它的高度,
+     写进 --term-gap-top,免得终端头两行被压住。 */
+  var navEl = document.querySelector("header") || document.querySelector(".statusbar");
+  function syncTopGap() {
+    var gap = 0;
+    if (navEl && !document.body.classList.contains("statusbar-hidden")) {
+      var r = navEl.getBoundingClientRect();
+      var t = root.getBoundingClientRect();
+      if (r.height > 4 && r.bottom > t.top && r.top < t.top + 40) {
+        gap = Math.max(0, Math.round(r.bottom - t.top) + 6);
+      }
+    }
+    root.style.setProperty("--term-gap-top", gap + "px");
+  }
+  syncTopGap();
+  window.addEventListener("resize", syncTopGap);
+  var sbToggle = document.getElementById("statusbar-toggle");
+  if (sbToggle) {
+    sbToggle.addEventListener("click", function () {
+      syncTopGap();
+      setTimeout(syncTopGap, 420);      /* 收起/展开有过渡,过一会儿再量一次 */
     });
   }
 

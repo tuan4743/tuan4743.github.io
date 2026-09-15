@@ -21,12 +21,12 @@
   /* 时间轴(ms)。要改节奏只动这里 */
   var T = {
     fadeIn: 220,        /* 起手黑屏 */
-    loadEnd: 2400,      /* 进度爬到 55% 的时刻 */
-    wrongAt: 2620,      /* "Wrong disk name, trying decoding..." 开始打 */
-    wrongSpeed: 26,     /* 打字机速度(ms/字符)*/
-    denyAt: 3900,       /* 打完那句后再等一秒 → 三行 permission denied */
+    loadEnd: 3000,      /* 进度爬到 55% 的时刻(每行什么时候到见 LINE_AT,不匀速)*/
+    wrongAt: 3260,      /* "Wrong disk name, trying decoding..." 开始打 */
+    wrongSpeed: 30,     /* 打字机基准速度(ms/字符,实际每个字符还会抖)*/
+    denyAt: 4400,       /* 打完那句后再等一秒 → 三行 permission denied(下面会按打字表校正)*/
     denyGap: 330,
-    clearAt: 5100,      /* 清屏 */
+    clearAt: 5100,      /* 清屏(同样会被校正)*/
     total: 5700         /* 整段时长(onEnd 在这一刻触发)*/
   };
   var STALL_P = 0.55;   /* 卡死时的进度 */
@@ -36,8 +36,7 @@
     "> DRIVE SPIN-UP ........... OK",
     "> MOUNTING DISC GLITCH",
     "> READING SECTORS ......... ",
-    "> SIGNAL LOCK ............. ",
-    "> READY"
+    "> SIGNAL LOCK ............. "
   ];
   var WRONG = "Wrong disk name, trying decoding...";
   var DENY = "permission denied";
@@ -50,17 +49,75 @@
 
   function rnd(a, b) { return a + Math.random() * (b - a); }
 
+  /* ---------- 不匀速:真实扫描程序也是一阵一阵的 ----------
+     ① LINE_AT:每一行日志什么时候出现(权重带重尾 —— 有的行几乎同时冒出,
+        有的中间要卡一下)。按它反推进度:读到一块 → 进度跳一下 → 中间慢慢爬。
+     ② TYPE_AT:"Wrong disk name, trying decoding..." 每个字符的打字时刻,
+        同样不是等间隔(标点后停久一点)。 */
+  function schedule(n, span) {
+    var w = [], sum = 0, i, r;
+    for (i = 0; i < n; i++) {
+      r = Math.random();
+      var v = r < 0.18 ? 2.4 + Math.random() * 2.4 : 0.5 + Math.random();
+      w.push(v); sum += v;
+    }
+    var out = [], acc = 0;
+    for (i = 0; i < n; i++) { acc += w[i]; out.push(acc / sum * span); }
+    return out;
+  }
+  var LINE_AT = schedule(LOG.length, T.loadEnd * 0.94);
+  var TYPE_AT = (function () {
+    var out = [], t = 0;
+    for (var i = 0; i < WRONG.length; i++) {
+      t += T.wrongSpeed * rnd(0.55, 1.7);
+      if (/[,.:;]/.test(WRONG.charAt(i))) t += rnd(90, 260);
+      out.push(t);
+    }
+    return out;
+  })();
+  var TYPE_END = TYPE_AT[TYPE_AT.length - 1] || 0;
+
+  /* 打字表建好之后,把后两个时刻往后退 —— 否则非匀速打字还没打完就刷 denied
+     (原来匀速 26ms 时刚好够,改抖动之后就不够了) */
+  T.denyAt = T.wrongAt + Math.max(TYPE_END + 900, T.denyAt - T.wrongAt);
+  T.clearAt = T.denyAt + T.denyGap * 3 + 480;
+  T.total = T.clearAt + 620;
+
+  /* 进度:把 LINE_AT 折成一条单调折线,每段里做轻微 ease-out */
+  function progressAt(el) {
+    var n = LINE_AT.length, prevT = 0, prevP = 0.015, i;
+    for (i = 0; i < n; i++) {
+      var pHere = STALL_P * (0.12 + 0.88 * (i + 1) / n);      /* 每读完一块跳一下 */
+      if (el <= LINE_AT[i]) {
+        var k = (el - prevT) / Math.max(1, LINE_AT[i] - prevT);
+        return prevP + (pHere - prevP) * (1 - Math.pow(1 - Math.max(0, Math.min(1, k)), 2));
+      }
+      prevT = LINE_AT[i]; prevP = pHere;
+    }
+    return STALL_P;
+  }
+
   /* 本帧的状态:进度 / 是否已卡死 / 已打完的字符数 / 已出现的 denied 行数 */
   function stateAt(el) {
     var stalling = el >= T.loadEnd;
-    var p = el >= T.loadEnd ? STALL_P : STALL_P * Math.min(1, el / T.loadEnd);
-    var wrongLen = el < T.wrongAt ? 0 : Math.floor((el - T.wrongAt) / T.wrongSpeed);
-    wrongLen = Math.max(0, Math.min(WRONG.length, wrongLen));
+    var p = stalling ? STALL_P : progressAt(el);
+    var wrongLen = 0;
+    if (el >= T.wrongAt) {
+      var e2 = el - T.wrongAt;
+      while (wrongLen < WRONG.length && TYPE_AT[wrongLen] <= e2) wrongLen++;
+    }
     var denyN = el < T.denyAt ? 0 : Math.min(3, Math.floor((el - T.denyAt) / T.denyGap) + 1);
     /* 故障强度:卡死之后拉满;清屏前 300ms 归零 */
     var amt = 0;
     if (stalling) amt = el > T.clearAt - 320 ? 0.25 : 1;
-    return { p: p, stalling: stalling, wrongLen: wrongLen, deny: denyN, amt: amt };
+    return { p: p, stalling: stalling, wrongLen: wrongLen, deny: denyN, amt: amt, lineShown: shownLines(el) };
+  }
+
+  /* 已经"到货"的日志行数(按 LINE_AT)*/
+  function shownLines(el) {
+    var n = 0;
+    while (n < LINE_AT.length && LINE_AT[n] <= el) n++;
+    return n;
   }
 
   /* 乱码:故障期间把一部分字符换掉 */
@@ -116,7 +173,7 @@
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
     ctx.globalAlpha = outA;
-    var shown = st.stalling ? LOG.length : Math.min(LOG.length, Math.floor(st.p / STALL_P * (LOG.length - 1) + 1));
+    var shown = st.stalling ? LOG.length : Math.max(1, st.lineShown);
     for (var i = 0; i < shown; i++) {
       var txt = LOG[i];
       if (i === 3) txt += Math.round(st.p * 100) + "%";

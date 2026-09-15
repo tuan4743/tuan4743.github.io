@@ -205,12 +205,24 @@ strings/clear/history/exit 等指令(大部分返回错误以契合故障),外�
 - **项目简介/盘内文件** → `static/assets/cd/tech/projects/<项目>/README.md`(真文件,终端 fetch);
 - **项目清单(名字/大小/有没有坏扇区)** → `cd4-terminal.js` 顶部的 `PROJECTS`;
 - **文件树与"读得出来吗"** → 同一个文件里的 `FS`(`ok/denied/eio/bad/missing`);
-- **55% 卡死、打字机速度、清屏时刻** → `cd4-boot.js` 顶部的 `T`;
-- **配色/字号/让开导航栏的高度** → `terminal.css` 顶部 `.term` 的变量。
+- **55% 卡死、打字机速度、清屏时刻** → `cd4-boot.js` 顶部的 `T`
+  (打印节奏不匀速:行到达时刻见 `LINE_AT`、打字时刻见 `TYPE_AT`,后两个时刻会按打字表自动校正);
+- **终端这边的节奏**(行间停顿的重尾分布、引导延后几秒、打字机抖动)→ `cd4-terminal.js` 的 `pace()` 与 `bootSequence()`;
+- **配色/字号/落位/让开导航栏的高度** → `terminal.css` 顶部 `.term` 的变量。
 
-验证:`tools/verify/cd4-flow-shot.mjs`(真插盘走全流程,41 项全过)、
-`boot-regress.mjs`(五张盘的开机动画都没被带坏,0 报错)、`gd-panel-check.mjs`(10/10)。
-出图在 `.tmp/cd4-*.png`。
+用户实测反馈修掉的几条(2026-09 第二轮):
+1. 打印**不匀速**了(带重尾的随机:多数行很快、偶尔卡一两秒;打字机逐字符抖动、标点后多停);
+2. `[recover]` 引导改成**提示符出现几秒后**才开始(像后台保护进程自己醒过来);
+3. **提示符只有一个**了(引导打完后把提示符"收"到底部,原来是又新建了一个);
+4. 快捷键改成 **Ctrl+Shift+C 中断 / Ctrl+Shift+V 粘贴 / Ctrl+Shift+L 清屏**,
+   纯 Ctrl+C / Ctrl+V 一律不拦(要能选中台词复制);
+5. 终端**不再顶出模拟屏幕的框**:落位改成直接量外框贴图的透明窗口
+   (`tools/verify/frame-window.mjs`,结果 top 8.224% / right 5.455% / bottom 8.553% / left 3.636%);
+6. 顶部导航默认是收起的 → 终端**默认不让位**,只有导航真露出来时 JS 才量高度写进 `--term-gap-top`。
+
+验证:`tools/verify/cd4-flow-shot.mjs`(真插盘走全流程,含上面 6 条的回归断言)、
+`boot-regress.mjs`(五张盘的开机动画都没被带坏,0 报错)、`gd-panel-check.mjs`(10/10)、
+`frame-window.mjs`(量外框窗口)。出图在 `.tmp/cd4-*.png`。
 
 **还没做的**:① 五张盘的谱(用户自己写,写完接"盘 → 铺面");② 项目只放了三个,
 以后加项目要同时改 `PROJECTS` 与 `static/assets/cd/tech/projects/`。
