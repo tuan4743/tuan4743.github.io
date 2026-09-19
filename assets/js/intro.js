@@ -221,6 +221,9 @@
        直接进第三张盘(游戏),并把这张盘对应的歌喂给引擎 —— 见 gd-mode-button.html
        与 gd-web/src/embed.ts(window.__GD_SONG)。只保留加载动画,不另做载入页。 */
     var song = window.GD_SONGS && window.GD_SONGS[key];
+    /* ★ 第三张盘(迷茫)进游戏时放【完整版】:完整曲子是 static/levels/WATER.mp3(用户换的),
+       原来那张 lost.mp3 只是给开机动画对节拍用的裁剪版,进游戏听着不对(用户反馈)。 */
+    if (key === "lost") song = "/levels/WATER.mp3";
     if (song && window.__gdPlayMode && window.__gdPlayMode()) {
       window.__GD_SONG = song;
       key = "lost";

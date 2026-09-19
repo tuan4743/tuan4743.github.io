@@ -493,23 +493,32 @@ test('放大门:迷你之后能变回普通身材', () => {
   assert.ok(Math.abs(w.box - P.box) < 1e-6, '外框回到 ' + P.box);
 });
 
-/* ---------------- ③f 双向传送门 ---------------- */
-test('双向传送门:跨过去就被送到配对的另一个门,而且不会在两个门之间来回弹', () => {
+/* ---------------- ③f 单向传送门 ---------------- */
+test('传送门:蓝(入口)→ 橙(出口)单向;只有入口没有出口时什么也不发生', () => {
   const lv = solo([
-    { kind: 'platform', b: 0, r: -1, w: 200, h: 1 },
+    { kind: 'platform', b: 0, r: -1, w: 300, h: 1 },
     { kind: 'teleport', b: 20, r: 4, w: 1, h: 1, channel: 1 },
-    { kind: 'teleport', b: 45, r: 4, w: 1, h: 1, channel: 1 },
+    { kind: 'teleport', b: 45, r: 4, w: 1, h: 1, channel: 1, exit: true },
   ], { length: 300 });
   const w = new World(lv);
   while (w.x / U < 19) w.frame(false);
-  assert.ok(w.x / U < 20, '还没跨过第一个门(x=' + (w.x / U).toFixed(1) + ')');
+  assert.ok(w.x / U < 20, '还没跨过入口(x=' + (w.x / U).toFixed(1) + ')');
   for (let i = 0; i < 30 && w.x / U < 40; i++) w.frame(false);
-  assert.ok(w.x / U >= 45 && w.x / U < 50, '跨过第一个门之后应该出现在第二个门那里(现在 x=' + (w.x / U).toFixed(1) + ')');
-  /* 关键:别在两边来回弹(传送过去之后不能马上又被送回来) */
+  assert.ok(w.x / U >= 45 && w.x / U < 50, '跨过入口应该出现在出口那里(现在 x=' + (w.x / U).toFixed(1) + ')');
+  /* 关键:出口不再把人送回入口(单向),否则会在两个门之间来回弹 */
   const x1 = w.x;
   for (let i = 0; i < 60; i++) w.frame(false);
   assert.ok(w.x > x1 && w.x / U < 70, '应该继续往右跑,而不是被弹回去(现在 x=' + (w.x / U).toFixed(1) + ')');
   assert.equal(w.dead, false, '传送不该致死');
+
+  /* 只有蓝入口、没有橙出口(用户那关就是这样):按原版不生效,人应该正常跑过去 */
+  const only = solo([
+    { kind: 'platform', b: 0, r: -1, w: 300, h: 1 },
+    { kind: 'teleport', b: 20, r: 4, w: 1, h: 1, channel: 1 },
+  ], { length: 300 });
+  const w2 = new World(only);
+  for (let i = 0; i < 200; i++) w2.frame(false);
+  assert.ok(w2.x / U > 30, '没有出口时不该被传送(x=' + (w2.x / U).toFixed(1) + ')');
 });
 
 /* ---------------- ④ 自动铺面 ---------------- */
@@ -636,10 +645,14 @@ test('ID 映射表:认识的算进覆盖率,不认识的按"缺什么"归类', (
 /* ---------------- ⑥ 架构约束 ---------------- */
 /* ---------------- ⑥ 架构约束:核心不许依赖引擎/浏览器 ---------------- */
 test('模拟核心零依赖:src/sim 里不许出现 phaser / window / document', () => {
-  const dir = join(HERE, '..', 'src', 'sim');
-  for (const f of readdirSync(dir)) {
-    const src = readFileSync(join(dir, f), 'utf8');
-    assert.ok(!/from\s+['"]phaser['"]/.test(src), f + ' 不该 import phaser');
-    assert.ok(!/\bwindow\.|\bdocument\./.test(src), f + ' 不该用浏览器 API');
+  const root = join(HERE, '..', 'src', 'sim');
+  /* 递归(现在有 charts/ 子目录了;以前只读顶层,遇到目录会 EISDIR 直接报错) */
+  const walk = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory() ? walk(join(dir, e.name)) : (e.name.endsWith('.ts') ? [join(dir, e.name)] : []));
+  for (const f of walk(root)) {
+    const src = readFileSync(f, 'utf8');
+    const name = f.slice(root.length + 1);
+    assert.ok(!/from\s+['"]phaser['"]/.test(src), name + ' 不该 import phaser');
+    assert.ok(!/\bwindow\.|\bdocument\./.test(src), name + ' 不该用浏览器 API');
   }
 });

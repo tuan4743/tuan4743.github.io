@@ -4,7 +4,7 @@
  * 这一版修的三件大事(都是用户实测反馈):
  *   ① 【上下翻转】世界坐标 y 向上,而 Phaser 相机 y 向下 —— 所有 y 现在统一过 Y() 转换,
  *      于是"下落"看着是下落、尖刺朝上、地面在底部;
- *   ② 【画面太大】可见宽度从 17.8 块放大到 36 块(VIEW_W_BLOCKS 一个常量就能再调);
+ *   ② 【一屏多高】原版口径是一屏 10 格高(VIEW_H_BLOCKS),纵向靠跟随镜头看;
  *   ③ 【按拍子走】铺面是按 onset 放的,所以画面的时间轴【由音乐驱动】:
  *      每帧读 audio.currentTime,模拟推进到对应的那一帧;复活时把音乐 seek 到存档点的时间。
  */
@@ -12,17 +12,33 @@
 import Phaser from 'phaser';
 import { generateLevel, tOfX, type Level, type Mode } from './sim/level.ts';
 import { World, botThink, type RunState } from './sim/world.ts';
+import { frameRects } from './sim/gdids.ts';
 import { fingerprint } from './sim/replay.ts';
-import { P, U, ROWS, Y_TIME_SCALE } from './sim/constants.ts';
+import { P, U, Y_TIME_SCALE } from './sim/constants.ts';
+import { WATER_CHART } from './sim/charts/water.ts';
 
 const HL = '#7ff0ff';
 /* 每段一个强调色:网格、地面、门的颜色都跟着走,一眼知道跑到第几段 */
 const PAL = [0x7ff0ff, 0xffe17a, 0xa0ffd0, 0xc6a0ff, 0xff9fd0];
 const HLD = 0x7ff0ff;
 const WARN = 0xff9a6b;
-/** 可见宽度(块)。★用户反馈"画面特别大,整体缩小一倍":从 17.8 块 → 36 块。想再调就改这一条 */
-const VIEW_W_BLOCKS = 36;
-const LEVEL: Level = generateLevel({ seed: 20260913 });
+/** 视口高度(块)。★ 原版口径:一屏 10 格高 —— 铺面有 125 格高也不怕,靠纵向跟随镜头看。
+ *  宽度由画幅比例决定(1280×720 → 17.78 格)。想改"一屏多高"就改这一条。 */
+const VIEW_H_BLOCKS = 10;
+/** 纵向跟随的死区(块):玩家在视口中心 ±dead 之内时镜头【不动】。
+ *  ★ 这就是用户说的"某些形态视口被固定"的观感来源 —— 飞行类死区开大,微操时镜头是死的。
+ *    真·锁死(wave/UFO 完全不跟)会把 12~16 格高的飞行段拍出画外,所以这里用大死区代替。 */
+const CAM_DEAD: Record<string, number> = {
+  cube: 2.0, ball: 2.2, robot: 2.2, spider: 2.2, ship: 2.6, ufo: 3.4, wave: 3.6,
+};
+
+/** 从页面上挑这一局用哪张铺面:window.__GD_CHART = 'gen' 用老的自动铺面,其它用真实铺面 */
+function pickLevel(): Level {
+  const want = (window as unknown as { __GD_CHART?: string }).__GD_CHART;
+  if (want === 'gen') return generateLevel({ seed: 20260913 });
+  return WATER_CHART;                       // 第三张盘:用户自己铺的 WATER
+}
+const LEVEL: Level = pickLevel();
 
 /* 跳环 / 弹簧的配色(和游戏里的常识一致:黄=跳,粉=小跳,蓝=翻重力,绿=翻重力+跳) */
 const ORB_COL: Record<string, number> = {
@@ -76,6 +92,9 @@ class Scene extends Phaser.Scene {
   fps = 0;
   fixed = false;
   camX = 0;
+  camY = 0;                        // 镜头中心的世界 y(单位)
+  camInit = false;                 // 第一帧直接贴到玩家身上(不然开场会从 0 滑过去)
+  camWorldY = 0;                   // 本帧实际用的镜头中心(夹取之后)
   audio: HTMLAudioElement | null = null;
   started = false;                  // 起跑闸门:按了确认键才开跑
   audioErr = '';                    // play() 失败的原因(验收要看)
@@ -87,6 +106,8 @@ class Scene extends Phaser.Scene {
   airT = 0;                         // 空中停留了多久(给方块自转用)
   labels: Phaser.GameObjects.Text[] = [];
   phase: Phase = 'idle';
+  /** 调试/出图用:冻住模拟(只渲染,不推进) —— 自动化截图不会因为"瞬移到墙里"当场摔死 */
+  dbgPause = false;
   deathT = 0;                       // 死亡后过了多久(先停一拍再出菜单)
   clicked = false;                  // 画布上被点过一下
   private prevHeld = false;         // 上一帧有没有按着确认键(用来算"按下"的边沿)
@@ -112,6 +133,7 @@ class Scene extends Phaser.Scene {
     this.acc = 0;
     this.airT = 0;
     this.deathT = 0;
+    this.camInit = false;
     /* ★ 每局开始时再读一次页面指定的歌:换盘之后开跑就会用新歌 */
     const forced = (window as unknown as { __GD_SONG?: string }).__GD_SONG;
     if (forced && forced !== LEVEL.song) { LEVEL.song = forced; if (this.audio) this.audio.src = forced; }
@@ -148,18 +170,20 @@ class Scene extends Phaser.Scene {
     this.acc = 0;
     this.deathT = 0;
     this.prevY = w.y;
+    this.camInit = false;                 // 复活:镜头立刻贴到存档点(不然要从死亡点滑过来)
     this.phase = 'running';
     this.playMusicAt(tOfX(LEVEL, w.checkX));
   }
 
   /** 从头来(R 键,死亡界面与通关界面都能用) */
   restartFromZero() {
-    this.world.reset(0, 'cube');
+    this.world.resetToStart();          // ★ 回到铺面的出生点(Level.start),不是硬编码的 (0,0)
     this.baseTick = 0;
     this.airT = 0;
     this.acc = 0;
     this.deathT = 0;
     this.prevY = 0;
+    this.camInit = false;
     this.phase = 'running';
     this.playMusicAt(0);
   }
@@ -191,7 +215,7 @@ class Scene extends Phaser.Scene {
       });
       t.setOrigin(0.5, 0.5).setAlpha(0.95);
       t.setData('isText', true);
-      t.setY(ROWS * U - (o.r + 0.5) * U);          // 功能块自己定在它那一格
+      t.setY(LEVEL.rows * U - (o.r + 0.5) * U);          // 功能块自己定在它那一格
       this.labels.push(t);
     }
   }
@@ -214,9 +238,9 @@ class Scene extends Phaser.Scene {
     return false;
   }
 
-  /** 可见宽度 = VIEW_W_BLOCKS 块 */
+  /** 可见宽度 = 由 VIEW_H_BLOCKS 与画幅比例决定(1280×720 → 17.78 块) */
   zoomOf() {
-    return 1280 / (VIEW_W_BLOCKS * U);
+    return 720 / (VIEW_H_BLOCKS * U);
   }
 
   /** 推进 n 帧模拟(输入按当前模式取:机器人 / 键盘) */
@@ -279,7 +303,7 @@ class Scene extends Phaser.Scene {
         this.world.mode = m;
         this.world.gdir = 1;
         this.world.vy = 0;
-        this.world.y = Math.max(0, Math.min(this.world.y, ROWS * U - P.box));
+        this.world.y = Math.max(0, Math.min(this.world.y, LEVEL.rows * U - P.box));
       }
       this.modeLatch = 0;
     }
@@ -315,6 +339,8 @@ class Scene extends Phaser.Scene {
 
     if (this.botMode) {
       this.pump(8);                                    // 机器人验收:加速跑完(物理仍是定点步长)
+    } else if (this.dbgPause) {
+      /* 冻住:只画不推(出图/调试用) */
     } else {
       const a = this.audio;
       const live = !!a && !a.paused && isFinite(a.duration) && a.duration > 0;
@@ -358,12 +384,30 @@ class Scene extends Phaser.Scene {
     hud.classList.toggle('is-dead', this.phase === 'dead');
   }
 
-  /** 取景:横向让玩家落在左侧 22% 处,纵向固定居中于场地(所有阶段都要跑,否则开场画面还停在左上角) */
+  /** 取景:横向让玩家落在左侧 22% 处;纵向【跟随玩家】,带一段死区(见 CAM_DEAD)。
+   *  ★ 关卡高 125 格、视口只有 10 格 —— 不动镜头的话,超过 10 格高的内容全看不见。
+   *    死区让"站在原地小幅上下"时镜头纹丝不动(原版那种"视口被固定"的观感),
+   *    一旦出死区就平滑跟上,并且始终夹在 [半屏, 关卡高 − 半屏] 里,不会拍到虚空。
+   *  ★ 坐标:相机的 y 是【绘图空间】(y 向下、0 在关卡顶),而关卡/玩家是"世界 y"(向上)。
+   *    混用会拍到关卡外面去(踩过:整个画面只剩网格),所以这里统一换算一次。 */
   private followCamera() {
     const cam = this.cameras.main;
     const vw = cam.width / cam.zoom;
+    const vh = cam.height / cam.zoom;
+    const rowsU = LEVEL.rows * U;
     this.camX = Math.max(vw / 2, this.world.x + vw * 0.22);
-    cam.centerOn(this.camX, ROWS * U / 2);
+    /* 镜头目标:玩家中心再往上抬一点(原版就是"看得见头顶",不是把人放正中间) */
+    const targetWorld = this.world.y + (P.box * this.world.sizeMul) / 2 + vh * 0.06;
+    const target = rowsU - targetWorld;
+    if (!this.camInit) { this.camY = target; this.camInit = true; }
+    const dead = (CAM_DEAD[this.world.mode] ?? 2.2) * U;
+    const want = Math.max(this.camY - dead, Math.min(this.camY + dead, target));
+    this.camY += (want - this.camY) * 0.35;                 // 平滑但不拖沓
+    let cy = this.camY;
+    if (rowsU >= vh) cy = Math.max(vh / 2, Math.min(rowsU - vh / 2, cy));
+    else cy = rowsU / 2;                                     // 关卡比视口还矮(老的自动铺面)→ 居中
+    this.camWorldY = cy;
+    cam.centerOn(this.camX, cy);
   }
 
   /** 三个界面(开场 / 死亡 / 通关)+ 终末之诗 + 彩蛋窗口:位置跟着相机取景走 */
@@ -372,7 +416,8 @@ class Scene extends Phaser.Scene {
     const vw = cam.width / cam.zoom;
     const vh = cam.height / cam.zoom;
     const ux = Math.max(vw / 2, this.camX);
-    const uy = ROWS * U / 2;
+    /* ★ 界面文字跟着【镜头】走:铺面高 125 格,再用"场地中心"就会把面板画到画外去 */
+    const uy = this.camWorldY;
     const w = this.world;
     /* 终末之诗:单独一条长文本,从取景下方向上滚 */
     const inPoem = this.phase === 'poem';
@@ -399,7 +444,8 @@ class Scene extends Phaser.Scene {
       this.uiHint.setText('按 空格 开始(也可以点一下画面)\n按住 = 连跳 · 弹簧碰到就弹、不用按 · 跳环要按一下 · R = 重来');
     } else if (this.phase === 'dead') {
       this.uiTitle.setText('摔了 · ' + Math.round(w.progress * 100) + '%');
-      this.uiHint.setText('空格 / 点一下 = 从上一处存档点(' + Math.round(tOfX(LEVEL, w.checkX) / tOfX(LEVEL, LEVEL.length) * 100) + '% 处)重来 · R = 从头开始');
+      const at = LEVEL.length > 0 ? Math.round(w.checkX / U / LEVEL.length * 100) : 0;
+      this.uiHint.setText('空格 / 点一下 = 从上一处存档点(' + at + '% 处)重来 · R = 从头开始');
     } else {
       this.uiTitle.setText('通关 · ' + Math.round(w.progress * 100) + '%');
       this.uiHint.setText('你跑完了这一张盘 · 按 R 再来一遍');
@@ -434,24 +480,26 @@ class Scene extends Phaser.Scene {
     const tint = w.tint != null ? w.tint : PAL[LEVEL.segments.indexOf(seg) % PAL.length];
     const vw = cam.width / cam.zoom, vh = cam.height / cam.zoom;
     const x0 = this.camX - vw / 2, x1 = x0 + vw;
-    /* ★ 绘图空间:y 向下,地面在 ROWS*U 处 —— 世界坐标过来一律走它,整幅画就不会再倒过来 */
-    const Y = (wy: number) => ROWS * U - wy;
-    const dy0 = ROWS * U / 2 - vh / 2, dy1 = dy0 + vh;
-    const groundY = Y(0), ceilY = Y(ROWS * U);
+    const rowsU = LEVEL.rows * U;
+    /* ★ 绘图空间:y 向下,世界 y=0(地面)画在 rowsU 处 —— 世界坐标过来一律走它,整幅画就不会倒。
+       视口上下边由【纵向跟随镜头】给出:camWorldY ± 半屏。 */
+    const Y = (wy: number) => rowsU - wy;
+    const dy0 = this.camWorldY - vh / 2, dy1 = dy0 + vh;
+    const lowY = rowsU - dy1, highY = rowsU - dy0;      // 可见的世界 y 范围(单位)
+    const groundY = Y(0), ceilY = Y(rowsU);
     const tick = this.world.tick;
     g.clear();
 
-    /* 场地之外压暗(10 行的场地只占屏幕中间一半,压暗之后一眼知道哪里是"跑道") */
+    /* 场地之外压暗(地面以下 / 关卡顶以上;铺面高的时候这两块基本都在画外) */
     g.fillStyle(0x03050a, 0.72);
     g.fillRect(x0, dy0, vw, Math.max(0, groundY + U - dy0));
     g.fillRect(x0, ceilY - U, vw, Math.max(0, dy1 - (ceilY - U)));
-    /* 跑道本身给一层极淡的底色 + 上下边框,和"场地外"分开 */
-    g.fillStyle(tint, 0.025).fillRect(x0, ceilY, vw, groundY - ceilY);
 
-    // 场地网格(每块一条细线)
+    // 场地网格(每块一条细线;只画看得见的那几行)
     g.lineStyle(1, tint, 0.09);
     for (let gx = Math.floor(x0 / U); gx <= x1 / U; gx++) g.lineBetween(gx * U, dy0, gx * U, dy1);
-    for (let r = 0; r <= ROWS; r++) g.lineBetween(x0, Y(r * U), x1, Y(r * U));
+    const r0 = Math.max(0, Math.floor(lowY / U)), r1 = Math.min(LEVEL.rows, Math.ceil(highY / U));
+    for (let r = r0; r <= r1; r++) g.lineBetween(x0, Y(r * U), x1, Y(r * U));
     // 地面线与天花板线(跑道的上下边)
     g.lineStyle(2, tint, 0.6).lineBetween(x0, groundY, x1, groundY);
     g.lineStyle(1, tint, 0.42).lineBetween(x0, ceilY, x1, ceilY);
@@ -459,14 +507,17 @@ class Scene extends Phaser.Scene {
     g.lineStyle(1, tint, 0.18);
     for (let k = 1; k <= 4; k++) g.lineBetween(x0, groundY + k * 22, x1, groundY + k * 22);
 
-    // 物件
+    /* 物件:两遍 —— 先装饰(deco 是背景贴片,不该盖在方块上),再玩法物件 */
+    for (let pass = 0; pass < 2; pass++) {
     for (const o of LEVEL.objects) {
+      if ((o.kind === 'deco') !== (pass === 0)) continue;
       /* ★ 会动的东西(触发器推的)按运行时偏移画;判定盒在 sim 里已经同步过了 */
       const off = w.offsetOf(o);
       const obx = (o.b + off.dx) * U, obw = o.w * U, obh = o.h * U;
       const oTop = Y((o.r + o.h + off.dy) * U);   // 格子上边(绘图空间)
       const oBot = Y((o.r + off.dy) * U);         // 格子下边
       if (obx + obw < x0 || obx > x1) continue;
+      if ((o.r + o.h + off.dy) * U < lowY || (o.r + off.dy) * U > highY) continue;
       if (o.kind === 'trigger') continue;         // 触发器是个逻辑物件,不画
       switch (o.kind) {
         case 'platform':
@@ -491,17 +542,35 @@ class Scene extends Phaser.Scene {
           g.fillStyle(tint, 0.55).fillTriangle(obx + obw, oTop, obx + obw - 9, oTop, obx + obw, oTop + 9);
           break;
         }
-        case 'spike':
-          /* 尖刺:底边在格子下沿、尖朝上;高度按 o.h 缩放(小刺 0.5 / 大刺 1.5) */
-          for (let k = 0; k < o.w; k++) {
-            const sx = obx + k * U, tip = oBot - U * 0.9 * o.h;
-            g.fillStyle(0x2a1408, 0.95).fillTriangle(sx + 2, oBot, sx + U / 2, tip, sx + U - 2, oBot);
+        case 'spike': {
+          /* 尖刺:底边在格子下沿、尖朝上;高度按 o.h 缩放(小刺 0.5 / 大刺 1.5)。
+             ★ 方向只有一条规则:先画"朝上"的基础形状,再套【旋转】(屏幕上顺时针)。
+               —— 之前写成"rot180 先镜像、又转 180°",等于翻了两次,倒挂的刺画成了正的
+               (用户一眼就看出"刺的方向还没修")。flipY 才是真正的镜像,单独乘一次。
+               判定那侧是同一条口径:rot 180 / flipY → 判定盒挂在格子【顶面】。 */
+          const rot = (((o.rot ?? 0) % 360) + 360) % 360;
+          const side = rot === 90 || rot === 270;      // 横着的刺:整格只画一个
+          const mirror = o.flipY ? -1 : 1;             // flipY = 上下镜像(不转的时候用)
+          const theta = (rot * Math.PI) / 180;
+          const cs = Math.cos(theta), sn = Math.sin(theta);
+          const n = side ? 1 : Math.max(1, Math.round(o.w));
+          for (let k = 0; k < n; k++) {
+            const ccx = side ? obx + obw / 2 : obx + (k + 0.5) * U;
+            const ccy = oBot - obh / 2;                // 格子中心(绘图空间)
+            const hw = U * 0.47;                       // 基础形状:一格宽
+            const hh = (U * 0.9 * o.h) / 2;            // 高 = 0.9 × 刺高
+            const yb = hh * mirror, yt = -hh * mirror; // 底边 / 尖端
+            const P = (lx: number, ly: number): [number, number] =>
+              [ccx + lx * cs - ly * sn, ccy + lx * sn + ly * cs];
+            const p1 = P(-hw, yb), p2 = P(0, yt), p3 = P(hw, yb);
+            g.fillStyle(0x2a1408, 0.95).fillTriangle(p1[0], p1[1], p2[0], p2[1], p3[0], p3[1]);
             g.lineStyle(2, WARN, 0.95);
             g.beginPath();
-            g.moveTo(sx + 2, oBot); g.lineTo(sx + U / 2, tip); g.lineTo(sx + U - 2, oBot);
+            g.moveTo(p1[0], p1[1]); g.lineTo(p2[0], p2[1]); g.lineTo(p3[0], p3[1]);
             g.strokePath();
           }
           break;
+        }
         case 'saw': {
           /* 锯片:一个带齿的圆锯,按时间转(纯视觉,判定是整格) */
           const scx = obx + obw / 2, scy = oBot - obh / 2;
@@ -600,13 +669,85 @@ class Scene extends Phaser.Scene {
           g.strokePath();
           break;
         }
-        case 'gravity':
-          g.fillStyle(0xc6a0ff, 0.9).fillTriangle(obx, oTop, obx + U / 2, oBot, obx + U, oTop);
+        case 'gravity': {
+          /* 重力门:向下 = 常重力(实心三角朝下),向上 = 反重力(空心三角朝上) */
+          const up = (o.gdir ?? 1) < 0;
+          const gcx = obx + U / 2, gcy = Y((o.r + o.h / 2) * U);
+          g.lineStyle(3, 0xc6a0ff, 0.95);
+          g.beginPath();
+          if (up) { g.moveTo(gcx - 9, gcy + 6); g.lineTo(gcx, gcy - 7); g.lineTo(gcx + 9, gcy + 6); }
+          else { g.moveTo(gcx - 9, gcy - 6); g.lineTo(gcx, gcy + 7); g.lineTo(gcx + 9, gcy - 6); }
+          g.strokePath();
+          g.fillStyle(0xc6a0ff, 0.18).fillCircle(gcx, gcy, U * 0.5);
           break;
+        }
+        case 'size': {
+          /* 尺寸门:迷你 = 小方框里一个小人,恢复 = 大方框 */
+          const mini = o.mini !== false;
+          const scx2 = obx + U / 2, scy2 = Y((o.r + o.h / 2) * U);
+          g.lineStyle(2, mini ? 0xff9fd0 : 0xa0ffd0, 0.9).strokeCircle(scx2, scy2, U * 0.45);
+          g.fillStyle(mini ? 0xff9fd0 : 0xa0ffd0, 0.9)
+            .fillRect(scx2 - (mini ? 4 : 8), scy2 - (mini ? 4 : 8), mini ? 8 : 16, mini ? 8 : 16);
+          break;
+        }
+        case 'frame': {
+          /* 线框:判定就是这几根细杆(见 sim/gdids.ts 的 frameRects)—— 画的和判定的是同一份几何 */
+          g.lineStyle(2, tint, 0.9);
+          for (const r of frameRects({ ...o, b: o.b + off.dx, r: o.r + off.dy })) {
+            g.strokeRect(r.x0, Y(r.y1), r.x1 - r.x0, r.y1 - r.y0);
+          }
+          break;
+        }
+        case 'breakable': {
+          /* 可破坏砖块:橙色的裂纹砖 —— 撞上去会碎(碎了就不画了) */
+          if (w.isBroken(o)) break;
+          g.fillStyle(0xffb066, 0.16).fillRect(obx, oTop, obw, obh);
+          g.lineStyle(2, 0xffb066, 0.9).strokeRect(obx + 1, oTop + 1, obw - 2, obh - 2);
+          g.lineStyle(1, 0xffb066, 0.7);
+          g.lineBetween(obx + 3, oTop + obh - 3, obx + obw - 3, oTop + 3);
+          g.lineBetween(obx + obw * 0.3, oTop + 2, obx + obw * 0.55, oTop + obh * 0.55);
+          break;
+        }
+        case 'coin': {
+          /* 硬币:金色圆片(收过了就不画) */
+          if (w.isCoinTaken(o)) break;
+          const ccx3 = obx + obw / 2, ccy3 = Y((o.r + o.h / 2) * U);
+          const wob = Math.abs(Math.cos(tick * 0.05));
+          g.fillStyle(0xffd76a, 0.9).fillRect(ccx3 - obw * 0.3 * wob, ccy3 - obh * 0.3, obw * 0.6 * wob, obh * 0.6);
+          g.lineStyle(2, 0xffe9a8, 0.95).strokeRect(ccx3 - obw * 0.3 * wob, ccy3 - obh * 0.3, obw * 0.6 * wob, obh * 0.6);
+          break;
+        }
+        case 'arrow': {
+          /* 冲刺箭头(绿/粉)/ 紫色上跳箭头:一个环 + 一支按旋转角指的箭头 */
+          const acx = obx + obw / 2, acy = Y((o.r + o.h / 2) * U);
+          const acol = o.tp ? 0xc6a0ff : (o.arrow === 'pink' ? 0xff9fd0 : 0xa0ffd0);
+          g.fillStyle(acol, 0.12).fillCircle(acx, acy, U * 0.55);
+          g.lineStyle(3, acol, 0.95).strokeCircle(acx, acy, U * 0.42);
+          /* rot 0 = 朝上,顺时针(和线框的旋转口径一致) */
+          const a = -((o.rot ?? 0) * Math.PI) / 180 + Math.PI / 2;
+          const L = U * 0.5;
+          g.lineStyle(3, acol, 0.95);
+          g.beginPath();
+          g.moveTo(acx - Math.sin(a) * 0 - Math.cos(a) * L * 0.6, acy + Math.sin(a) * L * 0.6);
+          g.lineTo(acx + Math.cos(a) * L * 0.6, acy - Math.sin(a) * L * 0.6);
+          g.moveTo(acx + Math.cos(a) * L * 0.6, acy - Math.sin(a) * L * 0.6);
+          g.lineTo(acx + Math.cos(a + 2.5) * L * 0.5, acy - Math.sin(a + 2.5) * L * 0.5);
+          g.moveTo(acx + Math.cos(a) * L * 0.6, acy - Math.sin(a) * L * 0.6);
+          g.lineTo(acx + Math.cos(a - 2.5) * L * 0.5, acy - Math.sin(a - 2.5) * L * 0.5);
+          g.strokePath();
+          break;
+        }
+        case 'clone': {
+          /* 克隆门:只标记、不生效 —— 画成灰色虚线环,一眼知道"这里我们没做" */
+          const kcx = obx + obw / 2, kcy = Y((o.r + o.h / 2) * U);
+          g.lineStyle(2, 0x8b93a7, 0.75).strokeCircle(kcx, kcy, U * 0.5);
+          g.lineStyle(2, 0x8b93a7, 0.45).strokeCircle(kcx, kcy, U * 0.34);
+          break;
+        }
         case 'teleport': {
-          /* 传送门:紫色漩涡(配对的两个门一眼能对上) */
+          /* 传送门:蓝 = 入口(747),橙 = 出口(748) —— 原版就是"蓝进橙出" */
           const tcx = obx + U / 2, tcy = Y(o.r * U + U / 2);
-          const tcol = 0xc6a0ff;
+          const tcol = o.exit ? 0xffa04d : 0x6fc8ff;
           const spinT = tick * 0.06;
           g.lineStyle(3, tcol, 0.95).strokeCircle(tcx, tcy, U * 0.95);
           g.fillStyle(tcol, 0.12).fillCircle(tcx, tcy, U * 0.95);
@@ -636,9 +777,12 @@ class Scene extends Phaser.Scene {
           break;
         }
         case 'deco':
-          if (o.deco === 'light') g.fillStyle(0xffe9a8, 0.10).fillCircle(obx + obw / 2, Y(o.r * U + U / 2), obw * 1.6);
+          /* 装饰:只画不判定。3638 是背景黑块(用户拿它做"画面逐渐清晰"的遮罩),
+             其余几个是指示用的小图形(感叹号 / 箭头 / 笑脸 / 叉 / 点赞 / 锁链)。 */
+          this.drawDeco(g, o, obx, obw, oBot, Y, tick);
           break;
       }
+    }
     }
 
     // 玩家:方块 = 描边正方形(空中自转 90°),飞机 = 三角(按 vy 倾斜)
@@ -741,16 +885,77 @@ class Scene extends Phaser.Scene {
     if (w.flash > 0) g.fillStyle(w.tint ?? 0xffffff, 0.34 * w.flash).fillRect(x0, dy0, vw, dy1 - dy0);
     /* 开场 / 死亡 / 通关界面:半透明面板(文字是 Text 对象,这里只画底板) */
     if (this.phase !== 'running') {
-      const px = Math.max(vw / 2, this.camX), py = ROWS * U / 2;
+      const px = Math.max(vw / 2, this.camX), py = this.camWorldY;
       g.fillStyle(0x03050a, 0.82).fillRect(px - 470, py - 120, 940, 240);
       g.lineStyle(2, HLD, 0.55).strokeRect(px - 470, py - 120, 940, 240);
       g.lineStyle(1, HLD, 0.25).strokeRect(px - 462, py - 112, 924, 224);
     }
+  }
 
-    // 段落水印跟着场地高度放
-    for (const t of this.labels) {
-      if (t.getData('isText')) continue;
-      t.setY(Y(7.5 * U));
+  /** 装饰贴片:只画不判定(3638 = 背景黑块,其余是几个指示图形) */
+  private drawDeco(
+    g: Phaser.GameObjects.Graphics, o: Level['objects'][number],
+    obx: number, obw: number, oBot: number,
+    Y: (wy: number) => number, tick: number,
+  ) {
+    const cx = obx + obw / 2, cy = Y((o.r + o.h / 2) * U);
+    const rot = (((o.rot ?? 0) % 360) + 360) % 360;
+    switch (o.art) {
+      case 3638:
+        /* 黑色背景块(图层 8):极淡的一层,主要是"遮罩"用途;太黑会盖掉整个画面 */
+        g.fillStyle(0x000000, 0.10).fillRect(obx, Y((o.r + o.h) * U), obw, o.h * U);
+        break;
+      case 3810: {
+        /* 感叹号(通常是"注意/警告"的指示)*/
+        const th = (tick * 0) + 0;
+        g.fillStyle(0xffe17a, 0.85);
+        g.fillRect(cx - obw * 0.08, cy - obw * 0.45 + th, obw * 0.16, obw * 0.6);
+        g.fillCircle(cx, cy + obw * 0.32, obw * 0.1);
+        break;
+      }
+      case 3812: {
+        /* 箭头:显示关卡想让你往哪走(旋转角就是这个方向) */
+        const a = -((rot * Math.PI) / 180) + Math.PI / 2;
+        const L = obw * 0.5;
+        g.lineStyle(3, 0xe2f6ff, 0.75);
+        g.beginPath();
+        g.moveTo(cx - Math.cos(a) * L, cy - Math.sin(a) * L);
+        g.lineTo(cx + Math.cos(a) * L, cy + Math.sin(a) * L);
+        g.moveTo(cx + Math.cos(a) * L, cy + Math.sin(a) * L);
+        g.lineTo(cx + Math.cos(a + 2.5) * L * 0.8, cy + Math.sin(a + 2.5) * L * 0.8);
+        g.moveTo(cx + Math.cos(a) * L, cy + Math.sin(a) * L);
+        g.lineTo(cx + Math.cos(a - 2.5) * L * 0.8, cy + Math.sin(a - 2.5) * L * 0.8);
+        g.strokePath();
+        break;
+      }
+      case 3823:
+        /* 笑脸 */
+        g.lineStyle(2, 0xffe17a, 0.8).strokeCircle(cx, cy, obw * 0.4);
+        g.fillStyle(0xffe17a, 0.8).fillCircle(cx - obw * 0.15, cy - obw * 0.1, 2);
+        g.fillStyle(0xffe17a, 0.8).fillCircle(cx + obw * 0.15, cy - obw * 0.1, 2);
+        g.lineStyle(2, 0xffe17a, 0.8);
+        g.beginPath();
+        g.arc(cx, cy + obw * 0.05, obw * 0.2, 0.3, Math.PI - 0.3, false);
+        g.strokePath();
+        break;
+      case 3818:
+        /* 叉 */
+        g.lineStyle(3, 0xff9a6b, 0.8);
+        g.lineBetween(cx - obw * 0.3, cy - obw * 0.3, cx + obw * 0.3, cy + obw * 0.3);
+        g.lineBetween(cx + obw * 0.3, cy - obw * 0.3, cx - obw * 0.3, cy + obw * 0.3);
+        break;
+      case 3848:
+        /* 点赞:一个简化的手势(拇指朝上) */
+        g.fillStyle(0xa0ffd0, 0.7).fillRect(cx - obw * 0.25, cy - obw * 0.1, obw * 0.5, obw * 0.45);
+        g.fillRect(cx - obw * 0.1, cy - obw * 0.45, obw * 0.2, obw * 0.35);
+        break;
+      case 41: case 106:
+        /* 锁链:几个小环 */
+        g.lineStyle(2, 0x8b93a7, 0.7);
+        for (let k = -1; k <= 1; k++) g.strokeCircle(cx, cy + k * obw * 0.4, obw * 0.22);
+        break;
+      default:
+        break;      // 31 / 1007 这类"占位空白"什么都不画
     }
   }
 }

@@ -1,0 +1,9073 @@
+/* 生成物 —— 由 tools/dat-to-chart.ts 从 CCLocalLevels.dat 生成,别手改。
+ * 关卡:WATER · 物件 8980 个(含 1 条补的地面)· 长 3620 块 · 高 125 格
+ * 段:按形态门/速度门切,共 72 段
+ * 重新生成:cd gd-web && node tools/dat-to-chart.ts --level=WATER
+ *
+ * 物件表格式:每行 "code b r [w] [h] [key=value …]",默认 w=h=1 —— 见 sim/gdids.ts 的文件头。
+ */
+import { makeChart } from '../gdids.ts';
+
+const TABLE = `
+S 203 0
+S 204 0
+S 203 3 rot=180
+S 204 3 rot=180
+D 202 -0.033 1 0.2 pad=purple z=2
+S 202 3 rot=180
+S 211 0
+S 215 -0.05 1 0.5
+S 216 0
+S 217 0
+S 218 0
+S 219 0
+S 220 0
+O 217.5 1 orb=yellow z=2
+D 221 1 1 0.2 pad=blue z=2
+B 221 0
+D 215 -0.2 1 0.2 pad=blue rot=180 z=2
+B 222 4
+D 222 3.8 1 0.2 pad=blue rot=180 z=2
+H 227 1 fm=corner
+H 228 1.95 1 0.05 fm=edge
+H 227 0 0.05 1 rot=270 fm=edge
+H 229 1 rot=-270 fm=corner
+H 229.95 0 0.05 1 rot=-270 fm=edge
+S 229 2
+D 225 -0.033 1 0.2 pad=purple z=2
+P 231.5 3 1 0.5
+H 235 4 fm=corner
+H 236 4.95 1 0.05 fm=edge
+H 237 4.95 1 0.05 fm=edge
+H 238 4.95 1 0.05 fm=edge
+H 235 3 0.05 1 rot=270 fm=edge
+H 235 2 0.05 1 rot=270 fm=edge
+H 235 1 0.05 1 rot=270 fm=edge
+H 235 0 0.05 1 rot=270 fm=edge
+H 239 4 rot=90 fm=corner
+H 239.95 3 0.05 1 rot=-270 fm=edge
+H 239.95 2 0.05 1 rot=-270 fm=edge
+H 239.95 1 0.05 1 rot=-270 fm=edge
+H 239.95 0 0.05 1 rot=-270 fm=edge
+S 239 5
+P 241.5 5.5 1 0.5
+P 246 5.5 1 0.5
+P 250.5 5.5 1 0.5
+P 254 7.5 1 0.5
+P 258 8 1 0.5
+D 258 8.5 1 0.2 pad=blue z=2
+D 259 11.8 1 0.2 pad=blue rot=180 z=2
+P 259 12 1 0.5
+S 227 4 rot=180
+S 226 0
+S 226 4 rot=180
+S 225 4 rot=180
+S 224 4 rot=180
+S 240 0
+S 241 0
+S 242 0
+S 243 0
+S 244 0
+S 245 0
+S 246 0
+S 247 0
+S 248 0
+S 249 0
+S 250 0
+S 251 0
+S 252 0
+S 253 0
+S 254 0
+S 255 0
+S 256 0
+S 257 0
+H 261 7 fm=corner
+H 261 6 0.05 1 rot=270 fm=edge
+H 261 5 0.05 1 rot=270 fm=edge
+H 261 4 0.05 1 rot=270 fm=edge
+H 261 3 0.05 1 rot=270 fm=edge
+H 261 2 0.05 1 rot=270 fm=edge
+H 261 1 0.05 1 rot=270 fm=edge
+H 261 0 0.05 1 rot=270 fm=edge
+H 261 -1 0.05 1 rot=270 fm=edge
+S 260 0
+S 259 0
+S 258 0
+H 262 7.95 1 0.05 fm=edge
+H 263 7.95 1 0.05 fm=edge
+H 264 7.95 1 0.05 fm=edge
+S 263 7.95 1 0.5
+H 265 7 rot=90 fm=corner
+H 265.95 6 0.05 1 rot=90 fm=edge
+H 265.95 5 0.05 1 rot=90 fm=edge
+H 265.95 4 0.05 1 rot=90 fm=edge
+H 265.95 3 0.05 1 rot=90 fm=edge
+H 265.95 2 0.05 1 rot=90 fm=edge
+H 265.95 1 0.05 1 rot=90 fm=edge
+H 265.95 0 0.05 1 rot=90 fm=edge
+H 265.95 -1 0.05 1 rot=90 fm=edge
+H 266 8 0.05 1 rot=-90 fm=edge
+H 266 9 fm=corner
+H 267 9.95 1 0.05 fm=edge
+H 268 9.95 1 0.05 fm=edge
+H 269 9.95 1 0.05 fm=edge
+S 265 8
+S 264 8
+S 265 9 rot=-90
+H 267 14 1 0.05 rot=180 fm=edge
+H 268 14 1 0.05 rot=180 fm=edge
+H 269 14 1 0.05 rot=180 fm=edge
+H 270 14 1 0.05 rot=180 fm=edge
+H 271 14 1 0.05 rot=180 fm=edge
+H 272 14 1 0.05 rot=180 fm=edge
+H 273 14 1 0.05 rot=180 fm=edge
+H 266 14 1 0.05 rot=180 fm=edge
+H 265 14 1 0.05 rot=180 fm=edge
+H 264 14 1 0.05 rot=180 fm=edge
+H 263 14 1 0.05 rot=180 fm=edge
+H 262 14 1 0.05 rot=180 fm=edge
+S 273 13 rot=180
+H 275 5.95 1 0.05 fm=edge
+H 276 5.95 1 0.05 fm=edge
+H 277 5.95 1 0.05 fm=edge
+H 278 5.95 1 0.05 fm=edge
+H 279 5.95 1 0.05 fm=edge
+H 280 5.95 1 0.05 fm=edge
+H 281 5.95 1 0.05 fm=edge
+S 271 10
+S 272 9
+H 271 9 rot=90 fm=corner
+H 272 8 rot=90 fm=corner
+H 274 5.95 1 0.05 fm=edge
+H 275 12 rot=270 fm=corner
+H 276 11 rot=270 fm=corner
+H 277 11 1 0.05 rot=180 fm=edge
+H 278 11 1 0.05 rot=180 fm=edge
+H 279 11 1 0.05 rot=180 fm=edge
+P 277 8 1 0.5
+P 278 8 1 0.5
+P 279 8 1 0.5
+S 278 5.95 1 0.5
+S 281 7.55 1 0.5 rot=180
+P 280 8 1 0.5
+P 281 8 1 0.5
+H 280 11 1 0.05 rot=180 fm=edge
+H 281 11 1 0.05 rot=180 fm=edge
+H 282 11 rot=180 fm=corner
+H 283 12 rot=180 fm=corner
+H 284 13 rot=180 fm=corner
+H 274 13 rot=270 fm=corner
+S 274 12 rot=180
+S 275 11 rot=180
+S 276 10 rot=180
+S 277 10 rot=180
+S 278 10 rot=180
+S 279 10 rot=180
+S 280 10 rot=180
+S 281 10 rot=180
+S 282 10 rot=180
+S 281 8.5
+S 280 8.5
+S 279 8.5
+S 278 8.5
+S 277 8.5
+H 282 5.95 1 0.05 fm=edge
+H 283 5.95 1 0.05 fm=edge
+H 284 5.95 1 0.05 fm=edge
+S 283 11 rot=180
+S 284 12 rot=180
+S 285 13 rot=180
+H 285 13.95 1 0.05 fm=edge
+H 287 13.95 1 0.05 fm=edge
+H 288 13.95 1 0.05 fm=edge
+H 289 13.95 1 0.05 fm=edge
+S 287 13 rot=180
+S 288 13 rot=180
+S 289 13 rot=180
+G 290 11 gd=1 z=2
+S 290 13 rot=180
+S 291 13 rot=180
+S 292 13 rot=180
+H 290 13.95 1 0.05 fm=edge
+H 291 13.95 1 0.05 fm=edge
+H 292 13.95 1 0.05 fm=edge
+H 294 5.95 1 0.05 fm=edge
+H 295 5.95 1 0.05 fm=edge
+H 296 5.95 1 0.05 fm=edge
+H 297 5.95 1 0.05 fm=edge
+H 298 5.95 1 0.05 fm=edge
+H 286 7 fm=corner
+H 287 8 fm=corner
+H 288 9 fm=corner
+H 289 9.95 1 0.05 fm=edge
+H 285 6 fm=corner
+S 303 7 rot=180
+S 299 6
+S 300 6
+P 303 8 1 0.5
+P 302 8 1 0.5
+P 301 8 1 0.5
+P 300 8 1 0.5
+P 299 8 1 0.5
+P 298 8 1 0.5
+P 297 8 1 0.5
+S 297 9 rot=180
+S 298 9 rot=180
+S 299 9 rot=180
+S 300 9 rot=180
+S 301 9 rot=180
+S 302 9 rot=180
+S 303 9 rot=180
+H 297 10 1 0.05 rot=180 fm=edge
+H 298 10 1 0.05 rot=180 fm=edge
+H 299 10 1 0.05 rot=180 fm=edge
+H 300 10 1 0.05 rot=180 fm=edge
+H 301 10 1 0.05 rot=180 fm=edge
+H 302 10 1 0.05 rot=180 fm=edge
+H 299 5.95 1 0.05 fm=edge
+H 300 5.95 1 0.05 fm=edge
+H 301 5.95 1 0.05 fm=edge
+H 302 5.95 1 0.05 fm=edge
+H 303 5.95 1 0.05 fm=edge
+H 303 10 1 0.05 rot=180 fm=edge
+H 304 5.95 1 0.05 fm=edge
+H 305 5.95 1 0.05 fm=edge
+H 306 5.95 1 0.05 fm=edge
+H 307 5.95 1 0.05 fm=edge
+S 307 6
+H 304 10 rot=180 fm=corner
+H 305 11 rot=180 fm=corner
+H 306 12 rot=180 fm=corner
+H 307 13 rot=180 fm=corner
+S 304 9 rot=180
+S 305 10 rot=180
+S 306 11 rot=180
+S 307 12 rot=180
+H 308 13.95 1 0.05 fm=edge
+H 309 13.95 1 0.05 fm=edge
+H 310 13.95 1 0.05 fm=edge
+S 308 13 rot=180
+S 309 13 rot=180
+S 311 13 rot=180
+S 310 13 rot=180
+H 311 13.95 1 0.05 fm=edge
+S 308 7
+S 309 6
+H 308 6 fm=u
+H 309 6 1 0.05 rot=180 fm=edge
+H 310 6 1 0.05 rot=180 fm=edge
+D 312 12.3 1 0.2 pad=blue rot=180 z=2
+P 312 12.5 1 0.5
+H 313 6 1 0.05 rot=180 fm=edge
+H 314 6 1 0.05 rot=180 fm=edge
+H 315 6 1 0.05 rot=180 fm=edge
+H 316 6 1 0.05 rot=180 fm=edge
+H 317 6 1 0.05 rot=180 fm=edge
+H 319 6 1 0.05 rot=180 fm=edge
+S 284 5.95 1 0.5
+S 285 6.95 1 0.5
+S 286 7.95 1 0.5
+S 287 8.95 1 0.5
+H 311 6 1 0.05 rot=180 fm=edge
+H 312 6 1 0.05 rot=180 fm=edge
+G 308 11 gd=1 z=2
+D 311 10 1 0.2 pad=blue z=2
+P 311 9.5 1 0.5
+D 316 6 1 0.2 pad=blue z=2
+D 317 8.8 1 0.2 pad=blue rot=180 z=2
+P 317 9 1 0.5
+H 318 6 1 0.05 rot=180 fm=edge
+D 320 9.8 1 0.2 pad=blue rot=180 z=2
+D 319 6 1 0.2 pad=blue z=2
+H 320 6 1 0.05 rot=180 fm=edge
+H 321 6 1 0.05 rot=180 fm=edge
+H 322 6 1 0.05 rot=180 fm=edge
+H 323 6 1 0.05 rot=180 fm=edge
+P 320 10 1 0.5
+R 323 7 to=ufo z=2
+H 327 11.95 1 0.05 fm=edge
+H 326 11.95 1 0.05 fm=edge
+H 325 11.95 1 0.05 fm=edge
+H 324 11.95 1 0.05 fm=edge
+H 323 11.95 1 0.05 fm=edge
+H 322 11.95 1 0.05 fm=edge
+H 321 11.95 1 0.05 fm=edge
+H 320 11.95 1 0.05 fm=edge
+H 319 11.95 1 0.05 fm=edge
+H 318 11.95 1 0.05 fm=edge
+H 317 11.95 1 0.05 fm=edge
+H 316 11.95 1 0.05 fm=edge
+H 315 11.95 1 0.05 fm=edge
+H 314 11.95 1 0.05 fm=edge
+H 313.95 12 0.05 1 rot=90 fm=edge
+H 313 13 rot=90 fm=corner
+H 312 13.95 1 0.05 fm=edge
+H 324 5 rot=90 fm=corner
+H 324.95 4 0.05 1 rot=90 fm=edge
+H 324.95 3 0.05 1 rot=90 fm=edge
+H 325 2 rot=-90 fm=corner
+H 326 2 1 0.05 rot=180 fm=edge
+H 327 2 1 0.05 rot=180 fm=edge
+H 328 2 1 0.05 rot=180 fm=edge
+S 330 4
+S 331 4
+S 329 3
+S 328 2
+H 330 3 fm=corner
+H 329 2 fm=corner
+H 330 3.95 1 0.05 fm=edge
+H 331 3.95 1 0.05 fm=edge
+S 330 8 rot=-180
+H 330 9 rot=-90 fm=corner
+H 329 10 rot=-90 fm=corner
+H 328 11 rot=-90 fm=corner
+S 329 9 rot=-180
+S 328 10 rot=-180
+S 327 11 rot=-180
+S 334 6.95 1 0.5
+S 332 9 rot=180
+S 333 10 rot=180
+S 334 10 rot=180
+S 335 10 rot=180
+S 336 11 rot=180
+S 337 11 rot=180
+S 336 7
+S 335 7
+S 337 7
+S 332 5
+S 333 6
+S 331 8 rot=180
+H 331 9 rot=180 fm=corner
+H 332 10 rot=180 fm=corner
+H 333 11 1 0.05 rot=180 fm=edge
+H 334 11 1 0.05 rot=180 fm=edge
+H 335 11 rot=180 fm=corner
+H 332 4 fm=corner
+H 333 5 fm=corner
+H 334 6 fm=corner
+H 335 6.95 1 0.05 fm=edge
+H 336 6.95 1 0.05 fm=edge
+H 337 6.95 1 0.05 fm=edge
+G 337 9 gd=-1 z=2
+S 338 11 rot=180
+S 340 10 rot=180
+S 341 9 rot=180
+S 339 11 rot=180
+S 342 8 rot=-180
+S 338 6
+S 339 5
+S 340 4
+G 345 5 gd=1 z=2
+S 341 3
+S 342 3
+S 343 3
+H 340 11 rot=-90 fm=corner
+H 341 10 rot=-90 fm=corner
+H 342 9 rot=-90 fm=corner
+H 343 8 rot=-90 fm=corner
+E 339 9 rot=90 art=3812 z=3
+E 347 5 rot=270 art=3812 z=3
+E 328 4 rot=270 art=3812 z=3
+E 331 6 rot=270 art=3812 z=3
+E 334 8 rot=270 art=3812 z=3
+E 340 8 rot=90 art=3812 z=3
+E 341 7 rot=90 art=3812 z=3
+E 348 6 rot=-90 art=3812 z=3
+E 349 7 rot=-90 art=3812 z=3
+S 344 3
+S 345 3
+S 346 3
+S 343 7 rot=180
+S 344 7 rot=180
+S 345 7 rot=180
+S 346 8 rot=180
+S 347 9 rot=180
+S 348 10 rot=180
+S 349 10 rot=180
+S 347 4
+S 348 5
+S 349 6
+S 350 7
+S 351 7
+S 352 6
+S 353 5
+S 354 4
+S 350 10 rot=180
+S 351 10 rot=180
+S 352 10 rot=180
+S 353 10 rot=180
+S 354 10 rot=180
+S 355 4
+S 356 4
+S 357 4
+S 355 9 rot=180
+S 356 8 rot=180
+S 358 5
+E 356 5 rot=270 art=3812 z=3
+S 357 8 rot=180
+S 358 8 rot=180
+S 359 8 rot=180
+S 360 9 rot=180
+E 360 6 rot=-90 art=3812 z=3
+S 359 5
+S 360 5
+S 361 10 rot=180
+S 362 10 rot=180
+S 363 10 rot=180
+E 364 7 rot=-90 art=3812 z=3
+S 361 5
+S 362 6
+S 363 6
+S 364 6
+S 365 6
+S 364 11 rot=180
+S 365 11 rot=180
+S 366 11 rot=180
+S 367 11 rot=180
+S 368 10 rot=180
+A 367 9 rot=90 ar=pink z=2
+S 366 5
+S 367 5
+S 368 5
+S 369 5
+S 370 5
+S 371 5
+S 372 4
+S 373 4
+S 374 4
+S 375 3
+S 376 3
+S 377 3
+E 374 7 rot=90 art=3812 z=3
+E 378 6 rot=90 art=3812 z=3
+S 373 8 rot=180
+S 374 8 rot=180
+S 375 8 rot=180
+S 376 7 rot=180
+S 377 7 rot=180
+S 378 7 rot=180
+S 379 7 rot=180
+S 380 6 rot=180
+G 380 4 gd=1 z=2
+E 370 8 rot=90 art=3812 z=3
+S 372 8 rot=180
+S 378 2
+S 379 2
+S 380 2
+S 386 2
+E 385 2 rot=-90 art=3812 z=3
+E 388 3 rot=-90 art=3812 z=3
+S 387 2
+S 388 2
+S 389 2
+S 381 6 rot=180
+S 382 6 rot=180
+S 383 6 rot=180
+S 384 6 rot=180
+S 385 6 rot=180
+S 386 6 rot=180
+S 387 6 rot=180
+S 388 6 rot=180
+S 389 6 rot=180
+E 392 4 rot=-90 art=3812 z=3
+S 390 3
+S 391 3
+S 392 3
+S 390 7 rot=180
+S 391 7 rot=180
+S 392 7 rot=180
+S 393 8 rot=180
+S 394 8 rot=180
+S 395 8 rot=180
+E 397 5 rot=-90 art=3812 z=3
+E 398 6 rot=-90 art=3812 z=3
+S 393 4
+S 394 4
+S 395 4
+S 396 4
+S 397 4
+S 398 5
+S 399 6
+S 396 8 rot=180
+S 397 9 rot=180
+S 398 10 rot=180
+S 400 7
+S 399 10 rot=-180
+S 400 11 rot=-180
+S 401 7
+S 401 11 rot=-180
+S 402 11 rot=-180
+E 401 8 rot=-90 art=3812 z=3
+S 402 7
+S 403 11 rot=180
+S 404 11 rot=180
+A 404 9 rot=90 ar=pink z=2
+E 407 8 rot=90 art=3812 z=3
+S 403 7
+S 404 6
+S 405 6
+S 406 6
+S 407 5
+S 408 5
+S 409 4
+S 410 3
+S 410 8 rot=180
+S 411 7 rot=180
+S 412 6 rot=180
+S 413 5 rot=180
+E 418 3 rot=-90 art=3812 z=3
+S 415 5 rot=180
+S 417 6 rot=180
+S 417 2
+S 418 2
+S 418 7 rot=180
+S 419 7 rot=180
+S 420 7 rot=180
+S 421 7 rot=180
+H 418 1.95 1 0.05 fm=edge
+S 419 2
+H 420 3 fm=corner
+H 420.002 2 0.05 1 rot=270 fm=edge
+H 419 1.95 1 0.05 fm=edge
+H 421 3.95 1 0.05 fm=edge
+H 422 3.95 1 0.05 fm=edge
+H 423 3.95 1 0.05 fm=edge
+H 424 3.95 1 0.05 fm=edge
+H 410 2 rot=90 fm=corner
+H 409 3 rot=90 fm=corner
+H 408 4 rot=90 fm=corner
+H 406 5 rot=90 fm=corner
+H 403 6 rot=90 fm=corner
+H 407 4.95 1 0.05 fm=edge
+H 405 5.95 1 0.05 fm=edge
+H 402 6.95 1 0.05 fm=edge
+H 401 6.95 1 0.05 fm=edge
+H 400 6 fm=corner
+H 399 5 fm=corner
+H 398 4 fm=corner
+H 397 3.95 1 0.05 fm=edge
+H 395 3.95 1 0.05 fm=edge
+H 396 3.95 1 0.05 fm=edge
+H 394 3.95 1 0.05 fm=edge
+H 393 3 fm=corner
+H 390 2 fm=corner
+H 392 2.95 1 0.05 fm=edge
+H 391 2.95 1 0.05 fm=edge
+H 389 1.95 1 0.05 fm=edge
+H 388 1.95 1 0.05 fm=edge
+H 387 1.95 1 0.05 fm=edge
+H 386 1.95 1 0.05 fm=edge
+H 385 1.95 1 0.05 fm=edge
+H 384 1.95 1 0.05 fm=edge
+H 382 1.95 1 0.05 fm=edge
+H 383 1.95 1 0.05 fm=edge
+H 381 1.95 1 0.05 fm=edge
+H 380 1.95 1 0.05 fm=edge
+H 379 1.95 1 0.05 fm=edge
+H 378 1.95 1 0.05 fm=edge
+H 377 2 rot=90 fm=corner
+H 374 3 rot=90 fm=corner
+H 371 4 rot=90 fm=corner
+H 376 2.95 1 0.05 fm=edge
+H 375 2.95 1 0.05 fm=edge
+H 373 3.95 1 0.05 fm=edge
+H 372 3.95 1 0.05 fm=edge
+H 370 4.95 1 0.05 fm=edge
+H 369 4.95 1 0.05 fm=edge
+H 368 4.95 1 0.05 fm=edge
+H 367 4.95 1 0.05 fm=edge
+H 366 4.95 1 0.05 fm=edge
+H 365 5 rot=90 fm=corner
+H 362 5 fm=corner
+H 364 5.95 1 0.05 fm=edge
+H 363 5.95 1 0.05 fm=edge
+H 361 4.95 1 0.05 fm=edge
+H 360 4.95 1 0.05 fm=edge
+H 359 4.95 1 0.05 fm=edge
+H 358 4 fm=corner
+H 353 4 rot=90 fm=corner
+H 352 5 rot=90 fm=corner
+H 351 6 rot=90 fm=corner
+H 350 6 fm=corner
+H 349 5 fm=corner
+H 348 4 fm=corner
+H 347 3 fm=corner
+H 357 3.95 1 0.05 fm=edge
+H 356 3.95 1 0.05 fm=edge
+H 355 3.95 1 0.05 fm=edge
+H 354 3.95 1 0.05 fm=edge
+H 346 2.95 1 0.05 fm=edge
+H 345 2.95 1 0.05 fm=edge
+H 344 2.95 1 0.05 fm=edge
+H 343 2.95 1 0.05 fm=edge
+H 342 2.95 1 0.05 fm=edge
+H 341 2.95 1 0.05 fm=edge
+H 340 3 rot=90 fm=corner
+H 339 4 rot=90 fm=corner
+H 338 5 rot=90 fm=corner
+H 337 6 rot=90 fm=corner
+H 344 8 1 0.05 rot=180 fm=edge
+H 345 8 rot=180 fm=corner
+H 346 9 rot=180 fm=corner
+H 347 10 rot=180 fm=corner
+H 348 11 1 0.05 rot=180 fm=edge
+H 349 11 1 0.05 rot=180 fm=edge
+H 350 11 1 0.05 rot=180 fm=edge
+H 351 11 1 0.05 rot=180 fm=edge
+H 352 11 1 0.05 rot=180 fm=edge
+H 353 11 1 0.05 rot=180 fm=edge
+H 354 11 1 0.05 rot=180 fm=edge
+H 355 10 rot=-90 fm=corner
+H 356 9 rot=-90 fm=corner
+H 359 9 rot=180 fm=corner
+H 360 10 rot=180 fm=corner
+H 357 9 1 0.05 rot=180 fm=edge
+H 358 9 1 0.05 rot=180 fm=edge
+H 361 11 1 0.05 rot=180 fm=edge
+H 362 11 1 0.05 rot=180 fm=edge
+H 363 11 rot=180 fm=corner
+H 364 12 1 0.05 rot=180 fm=edge
+H 365 12 1 0.05 rot=180 fm=edge
+H 366 12 1 0.05 rot=180 fm=edge
+H 367 12 1 0.05 rot=180 fm=edge
+H 368 11 rot=-90 fm=corner
+H 369 10 rot=-90 fm=corner
+H 372 9 rot=-90 fm=corner
+H 370 10 1 0.05 rot=180 fm=edge
+H 371 10 1 0.05 rot=180 fm=edge
+H 373 9 1 0.05 rot=180 fm=edge
+H 374 9 1 0.05 rot=180 fm=edge
+H 375 9 1 0.05 rot=180 fm=edge
+H 376 8 rot=-90 fm=corner
+H 377 8 1 0.05 rot=180 fm=edge
+H 378 8 1 0.05 rot=180 fm=edge
+H 379 8 1 0.05 rot=180 fm=edge
+H 380 7 rot=-90 fm=corner
+H 381 7 1 0.05 rot=180 fm=edge
+H 382 7 1 0.05 rot=180 fm=edge
+H 383 7 1 0.05 rot=180 fm=edge
+H 384 7 1 0.05 rot=180 fm=edge
+H 385 7 1 0.05 rot=180 fm=edge
+H 386 7 1 0.05 rot=180 fm=edge
+H 387 7 1 0.05 rot=180 fm=edge
+H 388 7 1 0.05 rot=180 fm=edge
+H 390 8 1 0.05 rot=180 fm=edge
+H 391 8 1 0.05 rot=180 fm=edge
+H 389 7 rot=180 fm=corner
+H 392 8 rot=180 fm=corner
+H 396 9 rot=180 fm=corner
+H 397 10 rot=180 fm=corner
+H 399 11 rot=180 fm=corner
+H 393 9 1 0.05 rot=180 fm=edge
+H 394 9 1 0.05 rot=180 fm=edge
+H 395 9 1 0.05 rot=180 fm=edge
+H 398 11 1 0.05 rot=180 fm=edge
+H 400 12 1 0.05 rot=180 fm=edge
+H 401 12 1 0.05 rot=180 fm=edge
+H 402 12 1 0.05 rot=180 fm=edge
+H 403 12 1 0.05 rot=180 fm=edge
+H 404 12 1 0.05 rot=180 fm=edge
+H 405 11 rot=-90 fm=corner
+H 410 9 rot=-90 fm=corner
+H 411 8 rot=-90 fm=corner
+H 412 7 rot=-90 fm=corner
+H 413 6 rot=-90 fm=corner
+H 415 5.95 1 0.05 fm=edge
+H 417 7 rot=180 fm=corner
+H 418 7.95 1 0.05 fm=edge
+H 419 7.95 1 0.05 fm=edge
+H 420 7.95 1 0.05 fm=edge
+H 421 8 rot=180 fm=corner
+H 421.948 9 0.05 1 rot=90 fm=edge
+H 421.948 10 0.05 1 rot=90 fm=edge
+H 421.948 11 0.05 1 rot=90 fm=edge
+H 421.948 12 0.05 1 rot=90 fm=edge
+H 421.948 13 0.05 1 rot=90 fm=edge
+H 421.948 14 0.05 1 rot=90 fm=edge
+H 421.948 15 0.05 1 rot=90 fm=edge
+H 421.948 16 0.05 1 rot=90 fm=edge
+H 421.948 17 0.05 1 rot=90 fm=edge
+S 369 9.55 1 0.5 rot=180
+S 370 9.55 1 0.5 rot=180
+S 371 9.55 1 0.5 rot=180
+S 405 10.55 1 0.5 rot=180
+S 406 10.55 1 0.5 rot=180
+S 407 10.55 1 0.5 rot=180
+S 408 10.55 1 0.5 rot=180
+H 406 11 1 0.05 rot=180 fm=edge
+H 407 11 1 0.05 rot=180 fm=edge
+H 408 11 1 0.05 rot=180 fm=edge
+H 409 10 rot=-90 fm=corner
+S 409 9 rot=180
+R 421 5 to=cube z=2
+E 367 7 art=3810 z=3
+E 404 8 art=3810 z=3
+G 408 7 gd=1 z=2
+E 414 2 rot=-90 art=3812 z=3
+S 416 2
+S 415 2
+H 417 1.95 1 0.05 fm=edge
+H 416 1.95 1 0.05 fm=edge
+H 415 1.95 1 0.05 fm=edge
+H 413 1.95 1 0.05 fm=edge
+H 414 1.95 1 0.05 fm=edge
+S 414 5 rot=180
+H 414 6 1 0.05 rot=180 fm=edge
+H 415 6 rot=180 fm=corner
+S 416 6 rot=180
+H 416 7 1 0.05 rot=180 fm=edge
+H 412 1.95 1 0.05 fm=edge
+S 411 1.95 1 0.5
+H 411 1.95 1 0.05 fm=edge
+S 223 4 rot=180
+S 312 13 rot=180
+S 313 13 rot=180
+S 314 11 rot=180
+S 315 11 rot=180
+S 316 11 rot=180
+S 317 11 rot=180
+S 318 11 rot=180
+S 319 11 rot=180
+S 320 11 rot=180
+S 321 11 rot=180
+S 322 11 rot=180
+S 323 11 rot=180
+S 324 11 rot=180
+S 325 11 rot=180
+S 326 11 rot=180
+C 315 7
+S 306 6
+S 310 6
+E 305 6 rot=-90 art=3812 z=3
+P 310 9.5 1 0.5
+S 311 6
+S 312 6
+S 313 6
+E 328 6 art=3810 z=3
+E 283 6 rot=-90 art=3812 z=3
+D 286 12.833 1 0.2 pad=yellow rot=180 z=2
+H 286 13 rot=180 fm=u
+S 293 13 rot=180
+S 294 12 rot=180
+S 295 11 rot=180
+S 296 10 rot=180
+H 297 10 rot=-90 fm=corner
+H 296 11 rot=-90 fm=corner
+H 295 12 rot=-90 fm=corner
+H 294 13 rot=-90 fm=corner
+S 327 2
+S 326 2
+S 325 2
+H 426 3.95 1 0.05 fm=edge
+H 425 3.95 1 0.05 fm=edge
+H 427 3 rot=90 fm=corner
+H 427.948 2 0.05 1 rot=-270 fm=edge
+H 427.948 1 0.05 1 rot=-270 fm=edge
+H 427.948 0 0.05 1 rot=-270 fm=edge
+H 290 9 rot=90 fm=corner
+H 291 8 rot=90 fm=corner
+H 292 7 rot=90 fm=corner
+H 293 6 rot=90 fm=corner
+S 291 9
+S 292 8
+P 430 4 1 0.5
+P 434 5.5 1 0.5
+S 428 0
+S 429 0
+S 430 0
+S 431 0
+S 432 0
+S 433 0
+S 434 0
+S 435 0
+S 436 0
+S 437 0
+H 443 5.95 1 0.05 fm=edge
+H 444 5.95 1 0.05 fm=edge
+H 438 5 fm=corner
+H 438.002 4 0.05 1 rot=-90 fm=edge
+H 438.002 3 0.05 1 rot=-90 fm=edge
+H 438.002 2 0.05 1 rot=-90 fm=edge
+H 438.002 1 0.05 1 rot=-90 fm=edge
+H 438.002 0 0.05 1 rot=-90 fm=edge
+H 439 5.95 1 0.05 fm=edge
+H 440 5.95 1 0.05 fm=edge
+H 441 5.95 1 0.05 fm=edge
+H 442 5.95 1 0.05 fm=edge
+R 439 7 to=spider z=2
+H 445 9 rot=-90 fm=corner
+H 445.002 10 0.05 1 rot=-90 fm=edge
+H 445.002 11 0.05 1 rot=-90 fm=edge
+H 446 9 1 0.05 rot=180 fm=edge
+H 447 9 1 0.05 rot=180 fm=edge
+H 448 9 rot=-180 fm=corner
+H 448.948 10 0.05 1 rot=90 fm=edge
+H 448.948 11 0.05 1 rot=90 fm=edge
+H 448 5 fm=corner
+H 448.002 4 0.05 1 rot=-90 fm=edge
+H 448.002 3 0.05 1 rot=-90 fm=edge
+H 449 5.95 1 0.05 fm=edge
+H 448.002 2 0.05 1 rot=-90 fm=edge
+H 448.002 1 0.05 1 rot=-90 fm=edge
+H 448.002 0 0.05 1 rot=-90 fm=edge
+H 450 5.95 1 0.05 fm=edge
+H 451 5 rot=90 fm=corner
+H 451.948 4 0.05 1 rot=-270 fm=edge
+H 451.948 3 0.05 1 rot=-270 fm=edge
+H 451.948 2 0.05 1 rot=-270 fm=edge
+H 451.948 1 0.05 1 rot=-270 fm=edge
+H 451.948 0 0.05 1 rot=-270 fm=edge
+H 451 9 rot=-90 fm=corner
+H 454 9 rot=180 fm=corner
+H 451.002 10 0.05 1 rot=-90 fm=edge
+H 451.002 11 0.05 1 rot=-90 fm=edge
+H 454.948 11 0.05 1 rot=90 fm=edge
+H 454.948 10 0.05 1 rot=90 fm=edge
+H 453 9 1 0.05 rot=180 fm=edge
+H 452 9 1 0.05 rot=180 fm=edge
+H 454 5 fm=corner
+H 456 5 rot=-270 fm=corner
+H 456.948 4 0.05 1 rot=90 fm=edge
+H 456.948 3 0.05 1 rot=90 fm=edge
+H 454.002 4 0.05 1 rot=-90 fm=edge
+H 454.002 3 0.05 1 rot=-90 fm=edge
+H 455 5.95 1 0.05 fm=edge
+H 454.002 2 0.05 1 rot=-90 fm=edge
+H 454.002 1 0.05 1 rot=-90 fm=edge
+H 454.002 0 0.05 1 rot=-90 fm=edge
+H 456.948 2 0.05 1 rot=90 fm=edge
+H 456.948 1 0.05 1 rot=90 fm=edge
+H 456.948 0 0.05 1 rot=90 fm=edge
+H 445 5 rot=90 fm=corner
+H 445.948 4 0.05 1 rot=90 fm=edge
+H 445.948 3 0.05 1 rot=90 fm=edge
+H 445.948 2 0.05 1 rot=90 fm=edge
+H 445.948 1 0.05 1 rot=90 fm=edge
+H 445.948 0 0.05 1 rot=90 fm=edge
+E 445 6 rot=-90 art=3812 z=3
+E 448 8 rot=90 art=3812 z=3
+E 451 6 rot=-90 art=3812 z=3
+E 454 8 rot=90 art=3812 z=3
+E 456 6 rot=-90 art=3812 z=3
+H 456 9 rot=-90 fm=corner
+H 458 9 rot=180 fm=corner
+H 456.002 10 0.05 1 rot=-90 fm=edge
+H 456.002 11 0.05 1 rot=-90 fm=edge
+H 458.948 11 0.05 1 rot=90 fm=edge
+H 458.948 10 0.05 1 rot=90 fm=edge
+H 457 9 1 0.05 rot=-180 fm=edge
+E 458 8 rot=90 art=3812 z=3
+H 458 5 fm=corner
+H 461 5 rot=-270 fm=corner
+H 459 5.95 1 0.05 fm=edge
+H 460 5.95 1 0.05 fm=edge
+H 458.002 4 0.05 1 rot=270 fm=edge
+H 458.002 3 0.05 1 rot=270 fm=edge
+H 458.002 2 0.05 1 rot=270 fm=edge
+H 458.002 1 0.05 1 rot=270 fm=edge
+H 458.002 0 0.05 1 rot=270 fm=edge
+H 461.948 4 0.05 1 rot=90 fm=edge
+H 461.948 3 0.05 1 rot=90 fm=edge
+H 461.948 2 0.05 1 rot=90 fm=edge
+H 461.948 1 0.05 1 rot=90 fm=edge
+H 461.948 0 0.05 1 rot=90 fm=edge
+E 461 6 rot=-90 art=3812 z=3
+H 461 9 rot=270 fm=corner
+H 464 9 rot=180 fm=corner
+H 461.002 10 0.05 1 rot=-90 fm=edge
+H 461.002 11 0.05 1 rot=-90 fm=edge
+H 464.948 11 0.05 1 rot=90 fm=edge
+H 464.948 10 0.05 1 rot=90 fm=edge
+H 463 9 1 0.05 rot=180 fm=edge
+H 462 9 1 0.05 rot=180 fm=edge
+H 464 5 fm=corner
+H 467 5 rot=90 fm=corner
+H 465 5.95 1 0.05 fm=edge
+H 466 5.95 1 0.05 fm=edge
+H 464.002 4 0.05 1 rot=-90 fm=edge
+H 464.002 3 0.05 1 rot=-90 fm=edge
+H 464.002 2 0.05 1 rot=-90 fm=edge
+H 464.002 1 0.05 1 rot=-90 fm=edge
+H 464.002 0 0.05 1 rot=-90 fm=edge
+H 467.948 4 0.05 1 rot=90 fm=edge
+H 467.948 3 0.05 1 rot=90 fm=edge
+H 467.948 1 0.05 1 rot=90 fm=edge
+H 467.948 0 0.05 1 rot=90 fm=edge
+H 467.948 2 0.05 1 rot=90 fm=edge
+H 467 9 rot=-90 fm=corner
+H 470 9 rot=180 fm=corner
+H 468 9 1 0.05 rot=180 fm=edge
+H 467.002 10 0.05 1 rot=-90 fm=edge
+H 467.002 11 0.05 1 rot=-90 fm=edge
+H 470.948 11 0.05 1 rot=90 fm=edge
+H 470.948 10 0.05 1 rot=90 fm=edge
+H 469 5 fm=corner
+H 473 5 rot=90 fm=corner
+H 470 5.95 1 0.05 fm=edge
+H 471 5.95 1 0.05 fm=edge
+H 469.002 4 0.05 1 rot=-90 fm=edge
+H 469.002 3 0.05 1 rot=-90 fm=edge
+H 469.002 2 0.05 1 rot=-90 fm=edge
+H 469.002 1 0.05 1 rot=-90 fm=edge
+H 469.002 0 0.05 1 rot=-90 fm=edge
+H 473.948 4 0.05 1 rot=90 fm=edge
+H 473.948 3 0.05 1 rot=90 fm=edge
+H 473.948 2 0.05 1 rot=90 fm=edge
+H 473.948 1 0.05 1 rot=90 fm=edge
+H 473.948 0 0.05 1 rot=90 fm=edge
+H 472 9 rot=-90 fm=corner
+H 472.002 11 0.05 1 rot=270 fm=edge
+H 476 9 rot=180 fm=corner
+H 473 9 1 0.05 rot=180 fm=edge
+H 474 9 1 0.05 rot=180 fm=edge
+H 476.948 11 0.05 1 rot=90 fm=edge
+H 477 5.95 1 0.05 fm=edge
+H 478 9 rot=-90 fm=corner
+H 478.002 11 0.05 1 rot=270 fm=edge
+H 479 9 1 0.05 rot=180 fm=edge
+H 481 5 rot=90 fm=corner
+H 481.948 4 0.05 1 rot=90 fm=edge
+H 481.948 3 0.05 1 rot=90 fm=edge
+H 481.948 2 0.05 1 rot=90 fm=edge
+H 481.948 1 0.05 1 rot=90 fm=edge
+H 481.948 0 0.05 1 rot=90 fm=edge
+H 480 9 1 0.05 rot=180 fm=edge
+H 481 9 1 0.05 rot=180 fm=edge
+H 489 9 rot=180 fm=corner
+H 489.948 11 0.05 1 rot=90 fm=edge
+H 489.948 10 0.05 1 rot=90 fm=edge
+H 488 9 1 0.05 rot=180 fm=edge
+H 489 5 fm=corner
+H 489.002 4 0.05 1 rot=-90 fm=edge
+H 489.002 3 0.05 1 rot=-90 fm=edge
+H 489.002 1 0.05 1 rot=-90 fm=edge
+H 489.002 0 0.05 1 rot=-90 fm=edge
+H 489.002 2 0.05 1 rot=-90 fm=edge
+H 491 5.95 1 0.05 fm=edge
+H 490 5.95 1 0.05 fm=edge
+K 490 7 inert=1 z=2
+H 495 9 1 0.05 rot=180 fm=edge
+H 496 9 1 0.05 rot=180 fm=edge
+H 497 9 1 0.05 rot=180 fm=edge
+H 492 5.95 1 0.05 fm=edge
+H 493 5.95 1 0.05 fm=edge
+H 494 5.95 1 0.05 fm=edge
+H 495 5.95 1 0.05 fm=edge
+H 496 5.95 1 0.05 fm=edge
+R 492 10 to=ball z=2
+H 494 9 rot=-90 fm=corner
+H 494 10 fm=corner
+H 495 10.95 1 0.05 fm=edge
+H 496 10.95 1 0.05 fm=edge
+H 497 10.95 1 0.05 fm=edge
+H 498 10.95 1 0.05 fm=edge
+H 499 10.95 1 0.05 fm=edge
+H 500 10.95 1 0.05 fm=edge
+H 501 10.95 1 0.05 fm=edge
+H 503 10.95 1 0.05 fm=edge
+H 502 10.95 1 0.05 fm=edge
+H 504 10.95 1 0.05 fm=edge
+H 505 10.95 1 0.05 fm=edge
+H 506 10.95 1 0.05 fm=edge
+H 507 10.95 1 0.05 fm=edge
+H 508 10.95 1 0.05 fm=edge
+H 509 10.95 1 0.05 fm=edge
+H 510 10.95 1 0.05 fm=edge
+H 511 10.95 1 0.05 fm=edge
+H 498 9 1 0.05 rot=180 fm=edge
+H 499 9 1 0.05 rot=180 fm=edge
+H 500 9 1 0.05 rot=180 fm=edge
+H 501 9 1 0.05 rot=180 fm=edge
+H 502 9 1 0.05 rot=180 fm=edge
+S 493.3 9.25 1 0.5 rot=270
+H 497 5.95 1 0.05 fm=edge
+H 498 5.95 1 0.05 fm=edge
+H 499 5.95 1 0.05 fm=edge
+H 500 5.95 1 0.05 fm=edge
+H 501 5.95 1 0.05 fm=edge
+H 502 5.95 1 0.05 fm=edge
+R 489 7 to=ball z=2
+S 494 8 rot=180
+S 495 8 rot=180
+S 496 8 rot=180
+H 503 5.95 1 0.05 fm=edge
+H 504 5.95 1 0.05 fm=edge
+H 505 5.95 1 0.05 fm=edge
+H 506 5.95 1 0.05 fm=edge
+H 507 5.95 1 0.05 fm=edge
+H 503 9 1 0.05 rot=180 fm=edge
+H 504 9 1 0.05 rot=180 fm=edge
+H 505 9 1 0.05 rot=180 fm=edge
+H 506 9 1 0.05 rot=180 fm=edge
+D 498 6 1 0.2 pad=blue z=2
+D 499 8.8 1 0.2 pad=blue rot=180 z=2
+S 501 8 rot=180
+S 502 8 rot=180
+D 504 6 1 0.2 pad=blue z=2
+D 505 8.8 1 0.2 pad=blue rot=180 z=2
+H 507 9 1 0.05 rot=180 fm=edge
+H 508 9 1 0.05 rot=180 fm=edge
+H 509 9 1 0.05 rot=180 fm=edge
+H 510 9 1 0.05 rot=180 fm=edge
+H 511 9 1 0.05 rot=180 fm=edge
+H 508 5.95 1 0.05 fm=edge
+H 509 5.95 1 0.05 fm=edge
+H 511 5.95 1 0.05 fm=edge
+H 512 5.95 1 0.05 fm=edge
+H 510 5.95 1 0.05 fm=edge
+H 514 5.95 1 0.05 fm=edge
+H 513 5.95 1 0.05 fm=edge
+H 516 5.95 1 0.05 fm=edge
+H 517 5.95 1 0.05 fm=edge
+H 515 5.95 1 0.05 fm=edge
+H 512 9 1 0.05 rot=180 fm=edge
+H 513 9 1 0.05 rot=180 fm=edge
+H 514 9 1 0.05 rot=180 fm=edge
+H 516 9 1 0.05 rot=180 fm=edge
+H 515 9 1 0.05 rot=180 fm=edge
+H 512 10.95 1 0.05 fm=edge
+H 513 10.95 1 0.05 fm=edge
+D 510 6 1 0.2 pad=blue z=2
+D 511 8.8 1 0.2 pad=blue rot=180 z=2
+X 501 6
+X 514 6
+S 507 8 rot=180
+S 508 8 rot=180
+S 509 8 rot=180
+S 513 8 rot=180
+S 514 8 rot=180
+S 515 8 rot=180
+X 498 11
+X 504 11
+X 507 11
+X 510 11
+X 513 11
+H 518 5.95 1 0.05 fm=edge
+H 519 5.95 1 0.05 fm=edge
+H 522 5.95 1 0.05 fm=edge
+H 520 5.95 1 0.05 fm=edge
+H 521 5.95 1 0.05 fm=edge
+H 523 5.95 1 0.05 fm=edge
+H 524 5.95 1 0.05 fm=edge
+H 643 18.95 1 0.05 fm=edge
+K 516 7 inert=1 z=2
+H 514 10.95 1 0.05 fm=edge
+H 515 10.95 1 0.05 fm=edge
+H 515.948 11 0.05 1 rot=90 fm=edge
+H 516.948 8 0.05 1 rot=90 fm=edge
+H 516.948 7 0.05 1 rot=90 fm=edge
+H 517 7 1 0.05 rot=180 fm=edge
+H 518 7 1 0.05 rot=180 fm=edge
+H 519 7 1 0.05 rot=180 fm=edge
+H 520 7 1 0.05 rot=180 fm=edge
+H 521 7 1 0.05 rot=180 fm=edge
+X 517 6
+X 518 6
+X 519 6
+X 520 6
+X 521 6
+X 522 6
+X 523 6
+X 524 6
+H 522 7 1 0.05 rot=180 fm=edge
+H 523 7 1 0.05 rot=180 fm=edge
+H 524 7 1 0.05 rot=180 fm=edge
+E 461 8 art=3810 z=3
+H 644 18.95 1 0.05 fm=edge
+H 645 18.95 1 0.05 fm=edge
+H 646 18.95 1 0.05 fm=edge
+H 647 18.95 1 0.05 fm=edge
+C 643 19
+H 648 18.95 1 0.05 fm=edge
+H 649 18.95 1 0.05 fm=edge
+V 512 7 spd=1 z=2
+V 423 5 spd=0 z=2
+H 650 18.95 1 0.05 fm=edge
+H 651 18.95 1 0.05 fm=edge
+H 652 18.95 1 0.05 fm=edge
+H 653 18.95 1 0.05 fm=edge
+H 654 18.95 1 0.05 fm=edge
+H 655 18.95 1 0.05 fm=edge
+H 656 18.95 1 0.05 fm=edge
+H 658 18.95 1 0.05 fm=edge
+H 657 18.95 1 0.05 fm=edge
+H 659 18.95 1 0.05 fm=edge
+H 660 18.95 1 0.05 fm=edge
+H 661 18.95 1 0.05 fm=edge
+H 662 18.95 1 0.05 fm=edge
+V 650 20 spd=4 z=2
+R 657 20 to=cube z=2
+H 663 18.95 1 0.05 fm=edge
+O 666 21 orb=yellow z=2
+O 668.5 23 orb=yellow z=2
+O 671 25 orb=yellow z=2
+W 667.5 16 2 2 z=5
+W 670.5 19.5 2 2 z=5
+W 671.845 16.845 1.31 1.31 z=5
+W 662.755 23.755 1.49 1.49 z=5
+W 663.255 27.255 1.49 1.49 z=5
+O 674 27 orb=black z=2
+O 681 17 orb=blue z=2
+O 682 18 orb=black z=2
+B 686 26
+B 687 26
+B 688 26
+B 686 27
+B 687 27
+B 688 27
+B 686 28
+B 687 28
+B 688 28
+B 687 29
+B 688 29
+B 689 29
+B 689 28
+B 689 27
+B 690 28
+B 690 29
+B 688 30
+B 687 30
+S 685 27 rot=270
+S 685 26 rot=270
+S 691 28 rot=90
+W 677.5 30.5 2 2 z=5
+W 677.92 25.92 1.16 1.16 z=5
+W 680.2 22.7 1.6 1.6 z=5
+W 685 14 z=5
+W 678.5 13.5 2 2 z=5
+W 685.7 16.7 1.6 1.6 z=5
+W 680.645 26.645 1.71 1.71 z=5
+B 695 26
+B 696 26
+B 693 28
+B 694 27
+B 694 28
+B 695 27
+B 695 28
+B 693 29
+B 694 29
+S 692 29 rot=270
+W 691 25 z=5
+O 699 23 orb=yellow z=2
+B 693 20
+B 692 19
+B 691 19
+B 691 18
+B 693 19
+B 694 19
+B 695 19
+B 696 18
+B 697 18
+B 696 19
+B 698 17
+B 697 17
+B 696 17
+B 695 18
+B 694 18
+B 693 18
+B 695 17
+B 694 17
+B 693 17
+B 692 18
+B 692 17
+B 690 18
+B 690 19
+B 692 20
+S 690 20
+S 691 20
+S 689 19 rot=-90
+S 692 21
+S 693 21
+S 694 20
+S 695 20
+S 696 20
+S 697 19
+S 698 18
+S 699 17 rot=90
+S 698 16 rot=180
+S 697 16 rot=180
+S 696 16 rot=180
+S 694 16 rot=180
+S 695 16 rot=180
+S 693 16 rot=180
+S 692 16 rot=180
+S 691 17 rot=180
+S 690 17 rot=180
+S 689 18 rot=270
+E 639 22 art=3823 z=3
+D 703 26.8 1 0.2 pad=blue rot=180 z=2
+B 704 27
+B 703 27
+B 702 28
+B 702 29
+B 703 28
+B 703 29
+B 704 28
+B 705 28
+B 705 27
+S 701 28 rot=-90
+S 701 29 rot=-90
+S 703 30
+S 702 30
+W 698.17 26.67 1.66 1.66 z=5
+W 700 30 z=5
+W 700.67 17.67 1.66 1.66 z=5
+W 703.5 20.5 z=5
+S 706 28 rot=90
+W 666.5 27.5 2 2 z=5
+O 701 21 orb=black z=2
+B 710 16
+B 711 16
+B 711 17
+B 710 17
+B 709 18
+B 708 17
+B 710 18
+B 709 17
+B 711 18
+B 709 16
+B 708 16
+B 707 16
+B 712 16
+B 712 17
+B 709 15
+B 708 15
+B 707 15
+B 707 17
+B 706 16
+O 711 24 orb=yellow z=2
+G 714 22.5 gd=-1 z=2
+B 717 25
+B 717 26
+B 716 26
+B 718 25
+B 722 19
+B 723 18
+B 723 19
+B 722 18
+B 721 17
+B 722 17
+B 726 25
+B 725 26
+B 726 26
+B 726 27
+B 727 27
+B 730 19
+B 730 18
+B 729 19
+B 731 18
+B 729 18
+D 718 24.8 1 0.2 pad=blue rot=180 z=2
+D 722 20 1 0.2 pad=blue z=2
+D 726 24.8 1 0.2 pad=blue rot=180 z=2
+D 729 20 1 0.2 pad=blue z=2
+W 713.785 27.785 1.43 1.43 z=5
+W 710 30 2 2 z=5
+W 715.225 15.725 1.55 1.55 z=5
+W 718.835 17.835 1.33 1.33 z=5
+W 721 26.5 2 2 z=5
+W 725.6 16.6 1.8 1.8 z=5
+W 709 27 z=5
+S 717 27
+S 718 26
+S 726 28
+S 727 28
+S 723 17 rot=180
+S 722 16 rot=180
+S 730 17 rot=180
+S 731 17 rot=180
+S 731 19
+S 732 18 rot=90
+E 709 19.65 art=41 z=6
+G 732 24 gd=1 z=2
+V 733 24 spd=2 z=2
+O 737 19 orb=yellow z=2
+O 739 22 orb=yellow z=2
+O 741 25 orb=pink col=13017343 z=2
+B 746 19
+B 747 19
+B 746 18
+B 747 18
+B 745 18
+B 748 18
+B 748 17
+B 747 17
+B 745 17
+B 746 17
+B 749 17
+B 750 16
+B 749 16
+B 749 18
+B 748 16
+B 747 16
+A 751 22 rot=-45 ar=pink z=2
+B 756 27
+B 755 27
+B 756 28
+B 755 28
+B 757 28
+B 756 29
+B 757 29
+B 758 29
+B 757 30
+B 756 30
+B 755 29
+B 754 28
+B 754 29
+G 758 24 gd=1 z=2
+D 761 20 1 0.2 pad=blue z=2
+D 762 23.8 1 0.2 pad=blue rot=180 z=2
+D 763 21 1 0.2 pad=blue z=2
+D 765 23.8 1 0.2 pad=blue rot=180 z=2
+B 762 24
+B 762 25
+B 761 24
+B 765 24
+B 765 25
+B 764 25
+B 763 20
+B 762 19
+B 763 19
+B 761 19
+B 762 18
+W 740.5 16.5 2 2 z=5
+W 744.5 26.5 2 2 z=5
+W 750.615 27.615 1.77 1.77 z=5
+W 748.34 24.84 1.32 1.32 z=5
+W 746.825 29.825 1.35 1.35 z=5
+W 760 27 z=5
+W 755.5 18.5 2 2 z=5
+W 751.755 16.755 1.49 1.49 z=5
+B 769 18
+B 770 18
+B 769 17
+B 768 18
+B 768 17
+B 767 17
+B 767 18
+B 768 16
+B 767 16
+B 766 17
+B 766 18
+B 765 17
+V 767 20 spd=4 z=2
+B 771 18
+B 770 17
+B 769 16
+R 769 20 to=ufo z=2
+B 772 24
+B 772 25
+B 771 25
+B 771 24
+B 773 25
+B 775 17
+B 776 18
+B 776 17
+B 777 18
+B 778 17
+B 777 16
+B 778 15
+B 777 17
+B 778 16
+W 776 16 z=5
+W 778 18 z=5
+W 771.865 22.865 1.27 1.27 z=5
+W 783.945 20.945 1.11 1.11 z=5
+W 779.7 26.7 1.6 1.6 z=5
+B 781 14
+B 782 14
+B 783 14
+B 783 15
+B 784 21
+B 777 25
+B 776 25
+B 776 24
+B 786 28
+B 787 28
+B 787 27
+B 785 28
+B 786 29
+W 790.945 16.945 1.11 1.11 z=5
+W 789.945 24.945 1.11 1.11 z=5
+W 782.945 28.945 1.11 1.11 z=5
+N 791 15 z=2
+B 794 23
+B 795 23
+B 793 24
+B 795 24
+B 794 24
+B 796 23
+B 796 24
+B 797 24
+B 796 25
+B 795 25
+S 786 27 rot=180
+S 785 27 rot=180
+S 787 26 rot=180
+S 788 27 rot=90
+S 788 28 rot=90
+S 785 29
+S 787 29
+S 786 30
+S 777 24 rot=180
+S 776 23 rot=180
+S 775 24 rot=270
+S 775 25 rot=270
+S 776 26
+S 777 26
+S 778 25 rot=90
+X 790 15
+X 790 14
+X 790 13
+X 792 15
+X 792 14
+X 792 13
+B 792 16
+B 790 16
+B 792 17
+B 791 16
+S 781 15
+S 782 15
+S 783 16
+S 784 15 rot=90
+S 784 14 rot=90
+S 780 14 rot=-90
+W 800.5 13.5 2 2 z=5
+B 803 15
+B 803 14
+B 802 13
+B 803 13
+W 804 16 z=5
+B 804 15
+B 804 14
+W 800.5 26.5 2 2 z=5
+W 811 28 z=5
+B 810 29
+B 811 29
+B 812 29
+B 811 30
+B 810 28
+W 807.87 26.87 1.26 1.26 z=5
+W 807 9 z=5
+W 813 9 z=5
+S 783 13 rot=180
+S 782 13 rot=180
+S 781 13 rot=180
+W 819 23 z=5
+W 811.705 19.705 1.59 1.59 z=5
+W 816.83 17.83 1.34 1.34 z=5
+W 824 21 z=5
+B 817 17
+B 816 17
+B 818 18
+B 818 17
+B 819 24
+B 820 24
+B 820 23
+S 821 23 rot=90
+S 821 24 rot=90
+W 807.5 18.5 2 2 z=5
+B 810 17
+B 809 17
+B 808 16
+B 809 16
+B 810 16
+B 811 17
+B 808 18
+B 809 18
+B 808 17
+B 807 17
+G 810 23 gd=-1 z=2
+B 811 16
+B 812 17
+B 812 18
+B 812 19
+B 813 19
+B 813 18
+B 811 18
+B 810 18
+S 808 15 rot=180
+S 811 15 rot=180
+S 809 15 rot=180
+S 810 15 rot=180
+S 812 16 rot=180
+S 813 17 rot=180
+S 814 18 rot=90
+S 815 17 rot=-90
+S 806 17 rot=-90
+S 807 16 rot=-180
+W 819 16 z=5
+B 818 16
+B 817 16
+R 824 18 to=ship z=2
+G 825 18 gd=1 z=2
+W 827.65 21.65 1.7 1.7 z=5
+W 837 23 z=5
+W 828.78 13.78 1.44 1.44 z=5
+W 833.73 20.73 1.54 1.54 z=5
+W 834.865 13.865 1.27 1.27 z=5
+W 839.79 21.79 1.42 1.42 z=5
+W 840.695 14.695 1.61 1.61 z=5
+W 845.835 15.835 1.33 1.33 z=5
+W 849.815 22.815 1.37 1.37 z=5
+W 844 24 z=5
+W 850.5 14.5 2 2 z=5
+W 855.5 23.5 2 2 z=5
+W 860 22 z=5
+W 860.86 14.86 1.28 1.28 z=5
+W 863 21 z=5
+W 864.795 14.795 1.41 1.41 z=5
+W 844.12 14.12 0.76 0.76 z=5
+W 848.12 14.12 0.76 0.76 z=5
+W 853.12 22.12 0.76 0.76 z=5
+W 837.12 20.12 0.76 0.76 z=5
+W 838.12 15.12 0.76 0.76 z=5
+B 832 14
+B 833 15
+B 832 15
+B 833 14
+B 831 14
+E 832 16.65 art=41 z=6
+B 846 23
+B 847 23
+B 847 22
+B 848 23
+B 848 22
+B 846 22
+B 845 22
+B 846 24
+B 847 24
+S 848 24
+S 847 25
+S 846 25
+B 855 13
+B 855 14
+B 856 15
+B 856 14
+B 857 15
+B 858 14
+B 857 14
+B 858 15
+B 856 13
+S 855 15
+S 856 15.95 1 0.5
+S 858 15.95 1 0.5
+S 857 15.95 1 0.5
+S 854 14 rot=-90
+S 854 13 rot=-90
+S 859 14 rot=90
+S 859 15 rot=90
+W 870.5 22.5 2 2 z=5
+W 868.73 13.73 1.54 1.54 z=5
+W 849.5 11.5 2 2 z=5
+B 866 22
+B 867 22
+B 866 23
+B 865 22
+B 867 23
+B 868 22
+S 865 21 rot=180
+S 866 21 rot=180
+S 867 21 rot=180
+S 868 21 rot=180
+S 865 23
+S 866 24
+S 867 24
+S 868 23
+E 857 16.65 art=41 z=6
+R 871 18 to=cube z=2
+D 874 17 1 0.2 pad=blue z=2
+B 873 16
+B 874 16
+B 875 16
+B 875 15
+B 874 15
+B 872 15
+B 873 15
+R 879 26 to=wave z=2
+W 888 29 z=5
+W 892.5 29.5 2 2 z=5
+W 890 20 z=5
+W 896.5 20.5 2 2 z=5
+W 885.5 19.5 2 2 z=5
+B 891 22
+B 892 21
+B 893 21
+B 893 22
+B 892 22
+N 710 24 z=2
+W 881.72 16.72 1.56 1.56 z=5
+B 880 17
+B 881 17
+B 881 16
+B 880 16
+B 879 16
+B 879 15
+B 882 17
+W 877.5 15.5 2 2 z=5
+V 873 18 spd=3 z=2
+W 907 27 z=5
+W 905 24 z=5
+W 901 21 z=5
+W 903.5 26.5 2 2 z=5
+B 898 29
+B 898 30
+B 897 30
+B 897 29
+B 896 29
+B 899 29
+B 899 30
+B 900 29
+B 901 29
+B 900 30
+B 899 31
+B 898 31
+B 897 31
+B 901 30
+B 902 29
+S 897 32
+S 898 32
+S 899 32
+S 900 31
+S 901 31
+S 902 30
+S 896 30
+W 909.5 18.5 2 2 z=5
+W 910 29 z=5
+W 914.835 24.835 1.33 1.33 z=5
+S 891 23
+S 892 23
+S 893 23
+S 890 22 rot=-90
+W 898.665 28.665 1.67 1.67 z=5
+B 920 30
+B 921 30
+B 923 30
+B 923 29
+B 922 29
+B 922 30
+B 920 18
+B 922 20
+B 921 19
+B 922 19
+B 922 18
+B 923 18
+B 923 19
+B 923 20
+B 924 19
+B 924 21
+B 923 21
+B 922 22
+B 924 20
+B 925 19
+B 924 18
+B 925 18
+B 926 18
+B 925 20
+B 926 19
+B 921 18
+B 920 19
+B 924 24
+B 922 28
+B 924 29
+B 924 30
+S 923 22
+S 921 20
+S 920 20
+S 921 29 rot=180
+S 920 29 rot=180
+S 923 28 rot=180
+S 924 28 rot=180
+S 925 24 rot=90
+W 919 19 z=5
+W 919 29 z=5
+W 928 29 z=5
+W 931 25 z=5
+W 927.5 18.5 2 2 z=5
+W 931.5 28.5 2 2 z=5
+W 934.66 25.66 1.68 1.68 z=5
+W 935.765 29.765 1.47 1.47 z=5
+B 932 19
+B 934 19
+B 933 20
+B 934 20
+B 933 19
+B 936 20
+B 935 21
+B 935 20
+B 934 21
+B 935 19
+B 936 19
+B 932 20
+S 932 21
+S 933 21
+S 936 21
+W 943.5 19.5 2 2 z=5
+W 939.5 28.5 2 2 z=5
+W 944 30 z=5
+W 946 23 z=5
+W 948.65 23.65 1.7 1.7 z=5
+W 947.835 19.835 1.33 1.33 z=5
+W 955.5 25.5 2 2 z=5
+W 951.5 19.5 2 2 z=5
+B 960 25
+B 960 27
+B 959 27
+B 961 27
+B 960 26
+B 961 26
+B 961 25
+B 962 25
+S 959 28
+S 960 28
+S 961 28
+S 960 24 rot=180
+S 961 24 rot=180
+S 959 25 rot=270
+S 959 26 rot=270
+S 962 26 rot=90
+S 962 27 rot=90
+S 963 25 rot=90
+S 962 24 rot=180
+S 958 27 rot=270
+V 968 25 spd=4 z=2
+W 955.81 18.81 1.38 1.38 z=5
+W 959.5 17.5 2 2 z=5
+W 964 20 z=5
+N 961 22 z=2
+B 967 30
+B 969 30
+B 968 30
+B 966 30
+B 968 29
+B 967 29
+B 969 29
+S 965 30 rot=-90
+S 966 29 rot=-90
+S 970 30 rot=90
+S 970 29 rot=90
+B 968 28
+B 969 27
+B 967 28
+B 966 18
+B 967 19
+B 968 20
+B 968 19
+B 968 21
+B 967 20
+B 969 21
+B 969 20
+B 968 22
+B 969 19
+B 970 18
+B 971 21
+B 969 18
+B 968 18
+B 967 18
+S 967 21
+S 966 19
+S 966 28 rot=-90
+S 970 27 rot=90
+S 972 21 rot=90
+S 969 22
+W 971.725 27.725 1.55 1.55 z=5
+W 973.5 18.5 2 2 z=5
+W 976.5 29.5 2 2 z=5
+W 978.5 20.5 2 2 z=5
+W 986.5 20.5 2 2 z=5
+W 984.5 29.5 2 2 z=5
+W 989.765 28.765 1.47 1.47 z=5
+W 995.825 23.825 1.35 1.35 z=5
+W 1002 27 z=5
+W 998 29 z=5
+W 976.105 22.105 0.79 0.79 z=5
+B 982 23
+B 983 23
+B 984 22
+B 983 22
+B 983 21
+B 982 21
+B 982 20
+B 982 22
+B 981 22
+B 981 21
+S 981 23
+S 982 24
+S 983 24
+S 984 23
+S 982 19 rot=180
+S 983 20 rot=180
+S 984 21 rot=180
+S 981 20 rot=180
+B 980 29
+B 982 29
+B 983 29
+B 981 29
+B 982 30
+B 983 30
+B 980 30
+B 981 30
+B 981 31
+B 982 31
+B 983 31
+B 984 31
+B 984 30
+S 980 31
+S 981 32
+S 982 32
+S 983 32
+S 984 32
+W 994.5 27.5 2 2 z=5
+W 998.765 25.765 1.47 1.47 z=5
+Z 1002 22 mini=1 z=2
+W 1003.5 29.5 2 2 z=5
+W 1016.895 19.895 1.21 1.21 z=5
+W 1021.5 29.5 2 2 z=5
+W 1012.5 18.5 2 2 z=5
+B 1010 19
+B 1009 19
+B 1008 19
+B 1009 18
+B 1009 20
+B 1010 20
+S 1008 20
+E 1009 21.65 art=41 z=6
+Z 1019 24 mini=0 z=2
+B 1010 28
+B 1009 28
+B 1009 27
+B 1011 28
+B 1011 29
+B 1012 29
+B 1012 28
+B 1013 29
+B 1014 29
+B 1013 30
+B 1014 30
+B 1012 30
+B 1011 30
+B 1010 29
+B 1009 29
+B 1008 29
+B 1008 28
+S 1008 27 rot=180
+S 1010 27 rot=180
+S 1011 27 rot=180
+S 1012 27 rot=180
+S 1013 28 rot=180
+S 1014 28 rot=180
+S 1009 26 rot=180
+S 1007 28 rot=270
+S 1007 29 rot=270
+S 1008 30
+S 1009 30
+S 1010 30
+S 1011 31
+S 1012 31
+S 1013 31
+S 1014 31
+S 1015 30 rot=90
+S 1015 29 rot=90
+W 1017.695 29.695 1.61 1.61 z=5
+W 1022 19 z=5
+B 1025 19
+B 1026 20
+B 1025 20
+B 1026 19
+B 1027 19
+B 1027 20
+B 1024 19
+B 1025 18
+B 1026 18
+B 1027 18
+B 1020 20
+B 1019 20
+B 1019 19
+S 1019 18 rot=180
+S 1025 17 rot=180
+S 1026 17 rot=180
+S 1027 17 rot=180
+S 1024 18 rot=180
+S 1028 18 rot=90
+S 1028 19 rot=90
+S 1028 20 rot=90
+S 1024 20
+S 1025 21
+S 1026 21
+S 1027 21
+W 1030 20 z=5
+W 1033.5 18.5 2 2 z=5
+B 1026 27
+B 1025 27
+B 1026 29
+B 1025 28
+B 1026 28
+B 1028 29
+B 1027 28
+B 1027 29
+B 1026 30
+B 1027 30
+B 1030 28
+S 1025 26 rot=180
+S 1026 26 rot=180
+S 1027 27 rot=180
+S 1028 28 rot=180
+S 1031 28 rot=90
+S 1030 29
+S 1030 27 rot=180
+W 1033.5 28.5 2 2 z=5
+W 1038.5 16.5 2 2 z=5
+W 1038 30 z=5
+W 1042 19 z=5
+W 1037 21 z=5
+W 1039.56 20.56 1.88 1.88 z=5
+W 1041.5 29.5 2 2 z=5
+B 1045 28
+B 1046 29
+B 1045 29
+B 1046 30
+B 1045 30
+B 1047 29
+B 1046 28
+B 1047 28
+B 1047 30
+B 1046 31
+B 1043 27
+B 1045 21
+B 1044 20
+B 1045 19
+B 1046 20
+B 1046 21
+B 1045 20
+B 1046 19
+B 1047 20
+B 1047 19
+B 1047 18
+B 1045 18
+B 1044 18
+B 1046 18
+B 1047 21
+B 1048 21
+B 1048 20
+B 1050 21
+S 1045 22
+S 1046 22
+S 1047 22
+S 1048 22
+S 1050 22
+S 1051 21 rot=90
+S 1050 20 rot=180
+S 1043 26 rot=180
+S 1042 27 rot=270
+S 1045 27 rot=180
+S 1046 27 rot=180
+S 1047 27 rot=180
+S 1048 28 rot=90
+S 1048 29 rot=90
+S 1048 30 rot=90
+S 1044 21
+R 1054 25 to=cube z=2
+W 1050.75 28.75 1.5 1.5 z=5
+W 1052.74 20.74 1.52 1.52 z=5
+W 1054 30 z=5
+W 1049 31 z=5
+B 1056 21
+B 1057 21
+B 1058 21
+B 1057 20
+B 1058 20
+B 1059 21
+B 1059 20
+B 1060 20
+B 1060 21
+B 1061 20
+B 1061 21
+B 1062 21
+B 1062 20
+B 1063 21
+B 1063 20
+B 1064 21
+B 1064 20
+B 1065 21
+B 1065 20
+B 1066 21
+C 1059 22
+V 1055 25 spd=2 z=2
+R 1060 23 to=robot z=2
+O 1068 23 orb=yellow z=2
+O 1073 25 orb=pink col=13017343 z=2
+B 1078 23
+B 1078 22
+B 1078 21
+D 1078 24 1 0.2 pad=blue z=2
+B 1080 28
+A 1083 25 rot=-45 ar=pink z=2
+D 1080 27.833 1 0.2 pad=purple rot=180 z=2
+B 1088 28
+B 1089 29
+B 1089 28
+B 1090 29
+B 1090 28
+B 1091 29
+B 1092 28
+B 1091 28
+B 1092 29
+B 1093 28
+B 1093 29
+B 1094 28
+E 1090 30.65 art=41 z=6
+E 1092 30.65 art=41 z=6
+E 1080 29.65 art=41 z=6
+O 1097 32 orb=yellow z=2
+O 1102 32 orb=green z=2
+B 1107 32
+B 1108 32
+B 1106 32
+B 1107 33
+E 1107 30.417 rot=180 art=106 z=7
+O 1112 30 orb=pink col=13017343 z=2
+D 1117 31.8 1 0.2 pad=blue rot=180 z=2
+D 1118 28 1 0.2 pad=blue z=2
+D 1120 30.8 1 0.2 pad=blue rot=180 z=2
+R 1121 29 to=ball z=2
+B 1117 32
+B 1117 33
+B 1120 32
+B 1120 31
+B 1120 33
+B 1118 27
+B 1118 26
+B 1118 25
+B 1118 24
+H 1122 26 fm=corner
+H 1122.002 25 0.05 1 rot=-90 fm=edge
+H 1122.002 24 0.05 1 rot=-90 fm=edge
+H 1123 26.95 1 0.05 fm=edge
+H 1124 26.95 1 0.05 fm=edge
+H 1125 26.95 1 0.05 fm=edge
+H 1126 26.95 1 0.05 fm=edge
+H 1127 26.95 1 0.05 fm=edge
+H 1128 26.95 1 0.05 fm=edge
+H 1129 26.95 1 0.05 fm=edge
+H 1130 26.95 1 0.05 fm=edge
+H 1131 26.95 1 0.05 fm=edge
+H 1132 26.95 1 0.05 fm=edge
+H 1123 30 rot=-90 fm=corner
+H 1123.002 31 0.05 1 rot=-90 fm=edge
+H 1123.002 32 0.05 1 rot=-90 fm=edge
+H 1123.002 33 0.05 1 rot=-90 fm=edge
+H 1124 30 1 0.05 rot=-180 fm=edge
+H 1125 30 1 0.05 rot=-180 fm=edge
+H 1126 30 1 0.05 rot=-180 fm=edge
+H 1127 30 1 0.05 rot=-180 fm=edge
+X 1127 29
+X 1127 28
+X 1127 27
+H 1128 30 rot=-180 fm=corner
+H 1129 31 rot=-180 fm=corner
+H 1130 32 rot=-180 fm=corner
+S 1129 30 rot=180
+S 1130 31 rot=180
+S 1131 32 rot=180
+S 1132 27
+P 1130 29 1 0.5
+P 1131 29 1 0.5
+P 1132 29 1 0.5
+P 1133 29 1 0.5
+P 1134 29 1 0.5
+P 1135 29 1 0.5
+S 1136 28 rot=180
+P 1136 29 1 0.5
+P 1137 29 1 0.5
+H 1133 26 rot=90 fm=corner
+H 1135 24.95 1 0.05 fm=edge
+H 1136 24.95 1 0.05 fm=edge
+H 1137 24.95 1 0.05 fm=edge
+H 1138 24.95 1 0.05 fm=edge
+H 1139 24.95 1 0.05 fm=edge
+H 1140 24.95 1 0.05 fm=edge
+H 1134 25 rot=90 fm=corner
+S 1133 27
+S 1134 26
+S 1135 25
+H 1138 32 rot=-90 fm=corner
+H 1139 31 rot=180 fm=u
+H 1140 32 rot=180 fm=corner
+S 1137 32 rot=180
+S 1138 31 rot=180
+S 1139 30 rot=180
+S 1140 31 rot=180
+S 1141 32 rot=180
+S 1132 32 rot=180
+S 1133 32 rot=180
+S 1134 32 rot=180
+S 1135 32 rot=180
+S 1136 32 rot=180
+S 1142 32 rot=180
+S 1141 25
+P 1149 29 1 0.5
+D 1144 32.8 1 0.2 pad=blue rot=180 z=2
+D 1145 31 1 0.2 pad=blue z=2
+S 1149 32 rot=180
+D 1148 32.8 1 0.2 pad=blue rot=180 z=2
+P 1150 29 1 0.5
+P 1151 29 1 0.5
+P 1152 29 1 0.5
+H 1142 25 fm=corner
+H 1143 26 fm=corner
+H 1144 26.95 1 0.05 fm=edge
+H 1145 26.95 1 0.05 fm=edge
+H 1146 26.95 1 0.05 fm=edge
+H 1147 26.95 1 0.05 fm=edge
+H 1148 26.95 1 0.05 fm=edge
+H 1149 26.95 1 0.05 fm=edge
+H 1150 26.95 1 0.05 fm=edge
+H 1151 26.95 1 0.05 fm=edge
+H 1152 26.95 1 0.05 fm=edge
+S 1142 26
+S 1143 27
+S 1144 27
+S 1145 27
+S 1146 27
+S 1147 27
+S 1148 27
+S 1149 27
+S 1150 27
+S 1151 27
+S 1152 27
+P 1153 29 1 0.5
+P 1154 29 1 0.5
+S 1154 29.5
+H 1153 26.95 1 0.05 fm=edge
+H 1154 26.95 1 0.05 fm=edge
+H 1155 26.95 1 0.05 fm=edge
+H 1156 26.95 1 0.05 fm=edge
+S 1150 32 rot=180
+S 1151 32 rot=180
+S 1153 27
+S 1154 27
+S 1155 27
+S 1156 27
+H 1157 26 rot=90 fm=corner
+H 1158 25 rot=90 fm=corner
+H 1159 25 1 0.05 rot=180 fm=edge
+H 1160 25 1 0.05 rot=180 fm=edge
+H 1161 25 1 0.05 rot=180 fm=edge
+H 1162 25 1 0.05 rot=180 fm=edge
+H 1163 25 1 0.05 rot=180 fm=edge
+H 1164 25 1 0.05 rot=180 fm=edge
+H 1165 25 1 0.05 rot=180 fm=edge
+H 1166 25 1 0.05 rot=180 fm=edge
+H 1167 25 1 0.05 rot=180 fm=edge
+S 1157 27
+S 1158 26
+S 1159 25
+O 1180 31 orb=blue z=2
+W 1180 33 z=5
+W 1174.5 31.5 2 2 z=5
+W 1169.5 25.5 2 2 z=5
+W 1179.62 24.62 1.76 1.76 z=5
+W 1162.5 30.5 2 2 z=5
+A 1184 25 rot=315 ar=pink z=2
+V 1120 29 spd=2 z=2
+W 1187 26 z=5
+W 1190.5 26.5 2 2 z=5
+W 1183.5 30.5 2 2 z=5
+D 1189 32.8 1 0.2 pad=blue rot=180 z=2
+D 1193 32.8 1 0.2 pad=blue rot=180 z=2
+D 1194 31 1 0.2 pad=blue z=2
+D 1190 31 1 0.2 pad=blue z=2
+P 1190 30.5 1 0.5
+P 1194 30.5 1 0.5
+R 1196 31 to=cube z=2
+G 1199 37 gd=1 z=2
+D 1204 31.967 1 0.2 pad=yellow z=2
+P 1204 31.5 1 0.5
+O 1209 36 orb=green z=2
+K 1211 34 inert=1 z=2
+H 1211 39 rot=-90 fm=corner
+H 1211.002 40 0.05 1 rot=-90 fm=edge
+H 1211.002 41 0.05 1 rot=-90 fm=edge
+H 1211.002 42 0.05 1 rot=-90 fm=edge
+H 1212 39 1 0.05 rot=-180 fm=edge
+H 1213 39 1 0.05 rot=-180 fm=edge
+H 1214 39 1 0.05 rot=-180 fm=edge
+H 1216 39 1 0.05 rot=-180 fm=edge
+H 1217 39 1 0.05 rot=-180 fm=edge
+H 1215 39 1 0.05 rot=-180 fm=edge
+H 1218 39 1 0.05 rot=-180 fm=edge
+H 1219 39 1 0.05 rot=-180 fm=edge
+H 1220 39 1 0.05 rot=-180 fm=edge
+H 1221 39 1 0.05 rot=-180 fm=edge
+H 1222 39 1 0.05 rot=-180 fm=edge
+H 1212 29.95 1 0.05 fm=edge
+H 1213 29.95 1 0.05 fm=edge
+H 1214 29.95 1 0.05 fm=edge
+H 1215 29.95 1 0.05 fm=edge
+H 1216 29.95 1 0.05 fm=edge
+H 1217 29.95 1 0.05 fm=edge
+H 1218 29.95 1 0.05 fm=edge
+H 1219 29.95 1 0.05 fm=edge
+H 1220 29.95 1 0.05 fm=edge
+H 1221 29.95 1 0.05 fm=edge
+H 1222 29.95 1 0.05 fm=edge
+H 1224 29.95 1 0.05 fm=edge
+H 1225 29.95 1 0.05 fm=edge
+H 1226 29.95 1 0.05 fm=edge
+H 1227 29.95 1 0.05 fm=edge
+H 1223 29.95 1 0.05 fm=edge
+H 1211 29 fm=corner
+H 1211.002 28 0.05 1 rot=-90 fm=edge
+H 1211.002 27 0.05 1 rot=-90 fm=edge
+H 1211.002 26 0.05 1 rot=-90 fm=edge
+H 1211.002 25 0.05 1 rot=-90 fm=edge
+H 1215 31 fm=corner
+H 1215 37 rot=-90 fm=corner
+H 1217 31 rot=-270 fm=corner
+H 1217 37 rot=-180 fm=corner
+H 1216 31.95 1 0.05 fm=edge
+H 1215.002 30 0.05 1 rot=-90 fm=edge
+H 1217.948 30 0.05 1 rot=90 fm=edge
+H 1217.948 38 0.05 1 rot=90 fm=edge
+H 1215.002 38 0.05 1 rot=270 fm=edge
+H 1216 37 1 0.05 rot=180 fm=edge
+O 1219 34 orb=black z=2
+S 1218 37 rot=90
+S 1218 38 rot=90
+S 1218 31 rot=90
+S 1218 30 rot=90
+W 1222 34 z=5
+H 1225 37 rot=-90 fm=corner
+H 1227 37 rot=180 fm=corner
+H 1225 31 fm=corner
+H 1227 31 rot=90 fm=corner
+H 1226 31.95 1 0.05 fm=edge
+H 1227.948 38 0.05 1 rot=90 fm=edge
+H 1225.002 38 0.05 1 rot=-90 fm=edge
+H 1226 37 1 0.05 rot=-180 fm=edge
+H 1225.002 30 0.05 1 rot=-90 fm=edge
+H 1227.948 30 0.05 1 rot=-270 fm=edge
+O 1228 34 orb=pink col=13017343 z=2
+S 1228 38 rot=180
+S 1229 38 rot=180
+S 1230 38 rot=180
+S 1231 38 rot=180
+S 1233 38 rot=180
+S 1232 38 rot=180
+S 1228 30
+S 1229 30
+S 1230 30
+S 1231 30
+S 1232 30
+S 1233 30
+S 1234 30
+O 1233 32 orb=pink col=13017343 z=2
+O 1233 36 orb=pink col=13017343 z=2
+S 1234 38 rot=180
+S 1235 38 rot=180
+S 1235 30
+S 1239 38 rot=180
+S 1239 30
+S 1240 30
+S 1240 38 rot=180
+O 1248 34 orb=pink col=13017343 z=2
+P 1245 31.5 1 0.5
+P 1245 37 1 0.5
+W 1247.8 37.8 1.4 1.4 z=5
+W 1255.79 37.79 1.42 1.42 z=5
+W 1251.8 37.8 1.4 1.4 z=5
+W 1247.795 29.795 1.41 1.41 z=5
+W 1251.775 29.775 1.45 1.45 z=5
+W 1255.765 29.765 1.47 1.47 z=5
+K 1258 34 inert=1 z=2
+D 1260 32 1 0.2 pad=blue z=2
+D 1262 36.8 1 0.2 pad=blue rot=180 z=2
+D 1263 32 1 0.2 pad=blue z=2
+D 1265 36.8 1 0.2 pad=blue rot=-180 z=2
+H 1261 37 rot=-90 fm=corner
+H 1266 37 rot=-180 fm=corner
+H 1264 31 rot=-270 fm=corner
+H 1259 31 fm=corner
+H 1260 31.95 1 0.05 fm=edge
+H 1261 31.95 1 0.05 fm=edge
+H 1262 31.95 1 0.05 fm=edge
+H 1263 31.95 1 0.05 fm=edge
+H 1264.948 30 0.05 1 rot=90 fm=edge
+H 1264.948 29 0.05 1 rot=90 fm=edge
+H 1264.948 28 0.05 1 rot=90 fm=edge
+H 1264.948 27 0.05 1 rot=90 fm=edge
+H 1259.002 30 0.05 1 rot=270 fm=edge
+H 1259.002 29 0.05 1 rot=270 fm=edge
+H 1259.002 28 0.05 1 rot=270 fm=edge
+H 1259.002 27 0.05 1 rot=270 fm=edge
+H 1259.002 26 0.05 1 rot=270 fm=edge
+H 1264.948 26 0.05 1 rot=90 fm=edge
+H 1262 37 1 0.05 rot=180 fm=edge
+H 1264 37 1 0.05 rot=180 fm=edge
+H 1263 37 1 0.05 rot=180 fm=edge
+H 1265 37 1 0.05 rot=180 fm=edge
+H 1261.002 38 0.05 1 rot=270 fm=edge
+H 1261.002 39 0.05 1 rot=270 fm=edge
+H 1261.002 40 0.05 1 rot=270 fm=edge
+H 1261.002 41 0.05 1 rot=270 fm=edge
+H 1266.948 38 0.05 1 rot=90 fm=edge
+H 1266.948 39 0.05 1 rot=90 fm=edge
+H 1266.948 40 0.05 1 rot=90 fm=edge
+H 1266.948 41 0.05 1 rot=90 fm=edge
+H 1267 31 fm=corner
+H 1268 31.95 1 0.05 fm=edge
+H 1269 31.95 1 0.05 fm=edge
+H 1270 31.95 1 0.05 fm=edge
+H 1271 31.95 1 0.05 fm=edge
+H 1267.002 30 0.05 1 rot=-90 fm=edge
+H 1267.002 29 0.05 1 rot=-90 fm=edge
+H 1267.002 28 0.05 1 rot=-90 fm=edge
+H 1267.002 27 0.05 1 rot=-90 fm=edge
+H 1267.002 26 0.05 1 rot=-90 fm=edge
+R 1268 33 to=spider z=2
+H 1272 31.95 1 0.05 fm=edge
+H 1273 31.95 1 0.05 fm=edge
+H 1274 31 rot=90 fm=corner
+H 1274.948 30 0.05 1 rot=90 fm=edge
+H 1274.948 28 0.05 1 rot=90 fm=edge
+H 1274.948 29 0.05 1 rot=90 fm=edge
+H 1274.948 27 0.05 1 rot=90 fm=edge
+H 1274.948 26 0.05 1 rot=90 fm=edge
+H 1274 37 rot=-90 fm=corner
+H 1277 37 rot=-180 fm=corner
+H 1276 37 1 0.05 rot=180 fm=edge
+H 1275 37 1 0.05 rot=180 fm=edge
+H 1274.002 38 0.05 1 rot=270 fm=edge
+H 1274.002 39 0.05 1 rot=270 fm=edge
+H 1274.002 40 0.05 1 rot=270 fm=edge
+H 1274.002 41 0.05 1 rot=270 fm=edge
+H 1274.002 42 0.05 1 rot=270 fm=edge
+H 1261.002 42 0.05 1 rot=270 fm=edge
+H 1266.948 42 0.05 1 rot=90 fm=edge
+H 1277.948 38 0.05 1 rot=90 fm=edge
+H 1277.948 40 0.05 1 rot=90 fm=edge
+H 1277.948 41 0.05 1 rot=90 fm=edge
+H 1277.948 42 0.05 1 rot=90 fm=edge
+H 1277.948 39 0.05 1 rot=90 fm=edge
+H 1277 31 fm=corner
+H 1277.002 30 0.05 1 rot=-90 fm=edge
+H 1277.002 29 0.05 1 rot=-90 fm=edge
+H 1277.002 28 0.05 1 rot=-90 fm=edge
+H 1277.002 27 0.05 1 rot=-90 fm=edge
+H 1277.002 26 0.05 1 rot=-90 fm=edge
+H 1278 31.95 1 0.05 fm=edge
+H 1279 31.95 1 0.05 fm=edge
+H 1280 31.95 1 0.05 fm=edge
+H 1281 31 rot=90 fm=corner
+H 1281.948 29 0.05 1 rot=90 fm=edge
+H 1281.948 30 0.05 1 rot=90 fm=edge
+H 1281.948 28 0.05 1 rot=90 fm=edge
+H 1281.948 27 0.05 1 rot=90 fm=edge
+H 1281.948 26 0.05 1 rot=90 fm=edge
+H 1281 37 rot=-90 fm=corner
+H 1281.002 38 0.05 1 rot=-90 fm=edge
+H 1281.002 39 0.05 1 rot=-90 fm=edge
+H 1281.002 41 0.05 1 rot=-90 fm=edge
+H 1281.002 40 0.05 1 rot=-90 fm=edge
+H 1281.002 42 0.05 1 rot=-90 fm=edge
+H 1282 37 1 0.05 rot=180 fm=edge
+H 1283 37 1 0.05 rot=180 fm=edge
+H 1284 37 rot=180 fm=corner
+H 1284.948 38 0.05 1 rot=90 fm=edge
+H 1284.948 39 0.05 1 rot=90 fm=edge
+H 1284.948 40 0.05 1 rot=90 fm=edge
+H 1284.948 41 0.05 1 rot=90 fm=edge
+H 1284.948 42 0.05 1 rot=90 fm=edge
+H 1284 31 fm=corner
+H 1284.002 29 0.05 1 rot=-90 fm=edge
+H 1284.002 28 0.05 1 rot=-90 fm=edge
+H 1284.002 30 0.05 1 rot=-90 fm=edge
+H 1284.002 27 0.05 1 rot=-90 fm=edge
+H 1284.002 26 0.05 1 rot=-90 fm=edge
+H 1285 31.95 1 0.05 fm=edge
+H 1286 31 rot=90 fm=corner
+H 1286.948 29 0.05 1 rot=90 fm=edge
+H 1286.948 30 0.05 1 rot=90 fm=edge
+H 1286.948 28 0.05 1 rot=90 fm=edge
+H 1286.948 27 0.05 1 rot=90 fm=edge
+H 1286.948 26 0.05 1 rot=90 fm=edge
+H 1286 37 rot=-90 fm=corner
+H 1286.002 38 0.05 1 rot=-90 fm=edge
+H 1286.002 39 0.05 1 rot=-90 fm=edge
+H 1286.002 40 0.05 1 rot=-90 fm=edge
+H 1286.002 41 0.05 1 rot=-90 fm=edge
+H 1286.002 42 0.05 1 rot=-90 fm=edge
+H 1287 37 1 0.05 rot=-180 fm=edge
+H 1288 37 1 0.05 rot=-180 fm=edge
+H 1289 37 1 0.05 rot=-180 fm=edge
+H 1290 37 1 0.05 rot=-180 fm=edge
+H 1291 37 rot=-180 fm=corner
+H 1291.948 38 0.05 1 rot=90 fm=edge
+H 1291.948 39 0.05 1 rot=90 fm=edge
+H 1291.948 40 0.05 1 rot=90 fm=edge
+H 1291.948 41 0.05 1 rot=90 fm=edge
+H 1291.948 42 0.05 1 rot=90 fm=edge
+H 1291 31 fm=corner
+H 1291.002 30 0.05 1 rot=-90 fm=edge
+H 1291.002 29 0.05 1 rot=-90 fm=edge
+H 1291.002 28 0.05 1 rot=-90 fm=edge
+H 1291.002 27 0.05 1 rot=-90 fm=edge
+H 1291.002 26 0.05 1 rot=-90 fm=edge
+H 1292 31.95 1 0.05 fm=edge
+H 1293 37 rot=270 fm=corner
+H 1293.002 39 0.05 1 rot=-90 fm=edge
+H 1293.002 38 0.05 1 rot=-90 fm=edge
+H 1293.002 40 0.05 1 rot=-90 fm=edge
+H 1293.002 41 0.05 1 rot=-90 fm=edge
+H 1293.002 42 0.05 1 rot=-90 fm=edge
+H 1294 37 1 0.05 rot=-180 fm=edge
+H 1295 37 1 0.05 rot=-180 fm=edge
+H 1296 37 1 0.05 rot=-180 fm=edge
+H 1297 37 1 0.05 rot=-180 fm=edge
+H 1298 37 rot=-180 fm=corner
+H 1298.948 38 0.05 1 rot=90 fm=edge
+H 1298.948 39 0.05 1 rot=90 fm=edge
+H 1298.948 40 0.05 1 rot=90 fm=edge
+H 1298.948 41 0.05 1 rot=90 fm=edge
+H 1298.948 42 0.05 1 rot=90 fm=edge
+H 1298 31 fm=corner
+H 1301 31 rot=90 fm=corner
+H 1300 31.95 1 0.05 fm=edge
+H 1299 31.95 1 0.05 fm=edge
+H 1298.002 30 0.05 1 rot=-90 fm=edge
+H 1298.002 29 0.05 1 rot=-90 fm=edge
+H 1298.002 28 0.05 1 rot=-90 fm=edge
+H 1298.002 26 0.05 1 rot=-90 fm=edge
+H 1298.002 27 0.05 1 rot=-90 fm=edge
+H 1301.948 30 0.05 1 rot=90 fm=edge
+H 1301.948 29 0.05 1 rot=90 fm=edge
+H 1301.948 28 0.05 1 rot=90 fm=edge
+H 1301.948 27 0.05 1 rot=90 fm=edge
+H 1301.948 26 0.05 1 rot=90 fm=edge
+H 1301 37 rot=-90 fm=corner
+H 1301.002 38 0.05 1 rot=-90 fm=edge
+H 1301.002 39 0.05 1 rot=-90 fm=edge
+H 1301.002 40 0.05 1 rot=-90 fm=edge
+H 1301.002 42 0.05 1 rot=-90 fm=edge
+H 1301.002 41 0.05 1 rot=-90 fm=edge
+H 1302 37 1 0.05 rot=180 fm=edge
+H 1303 37 1 0.05 rot=180 fm=edge
+H 1304 37 1 0.05 rot=180 fm=edge
+H 1305 37 1 0.05 rot=180 fm=edge
+H 1306 37 rot=-180 fm=corner
+H 1306.948 38 0.05 1 rot=90 fm=edge
+H 1306.948 39 0.05 1 rot=90 fm=edge
+H 1306.948 40 0.05 1 rot=90 fm=edge
+H 1306.948 41 0.05 1 rot=90 fm=edge
+H 1306.948 42 0.05 1 rot=90 fm=edge
+H 1306 31 fm=corner
+H 1308 31 rot=90 fm=corner
+H 1307 31.95 1 0.05 fm=edge
+H 1306.002 30 0.05 1 rot=-90 fm=edge
+H 1306.002 29 0.05 1 rot=-90 fm=edge
+H 1306.002 27 0.05 1 rot=-90 fm=edge
+H 1306.002 26 0.05 1 rot=-90 fm=edge
+H 1306.002 28 0.05 1 rot=-90 fm=edge
+H 1308.948 30 0.05 1 rot=90 fm=edge
+H 1308.948 28 0.05 1 rot=90 fm=edge
+H 1308.948 27 0.05 1 rot=90 fm=edge
+H 1308.948 26 0.05 1 rot=90 fm=edge
+H 1308.948 29 0.05 1 rot=90 fm=edge
+H 1308 37 rot=-90 fm=corner
+H 1308.002 38 0.05 1 rot=-90 fm=edge
+H 1308.002 39 0.05 1 rot=-90 fm=edge
+H 1308.002 40 0.05 1 rot=-90 fm=edge
+H 1308.002 42 0.05 1 rot=-90 fm=edge
+H 1308.002 41 0.05 1 rot=-90 fm=edge
+H 1311 37 rot=180 fm=corner
+H 1310 37 1 0.05 rot=180 fm=edge
+H 1309 37 1 0.05 rot=180 fm=edge
+H 1311.948 38 0.05 1 rot=90 fm=edge
+H 1311.948 39 0.05 1 rot=90 fm=edge
+H 1311.948 41 0.05 1 rot=90 fm=edge
+H 1311.948 42 0.05 1 rot=90 fm=edge
+H 1311.948 40 0.05 1 rot=90 fm=edge
+H 1311 31 fm=corner
+H 1311.002 29 0.05 1 rot=-90 fm=edge
+H 1311.002 30 0.05 1 rot=-90 fm=edge
+H 1311.002 28 0.05 1 rot=-90 fm=edge
+H 1311.002 27 0.05 1 rot=-90 fm=edge
+H 1311.002 26 0.05 1 rot=-90 fm=edge
+H 1312 31.95 1 0.05 fm=edge
+H 1313 31.95 1 0.05 fm=edge
+H 1314 31.95 1 0.05 fm=edge
+H 1315 31 rot=90 fm=corner
+H 1315.948 30 0.05 1 rot=90 fm=edge
+H 1315.948 29 0.05 1 rot=90 fm=edge
+H 1315.948 28 0.05 1 rot=90 fm=edge
+H 1315.948 27 0.05 1 rot=90 fm=edge
+H 1315.948 26 0.05 1 rot=90 fm=edge
+H 1315 37 rot=-90 fm=corner
+H 1315.002 38 0.05 1 rot=-90 fm=edge
+H 1315.002 39 0.05 1 rot=-90 fm=edge
+H 1315.002 40 0.05 1 rot=-90 fm=edge
+H 1315.002 41 0.05 1 rot=-90 fm=edge
+H 1315.002 42 0.05 1 rot=-90 fm=edge
+H 1316 37 1 0.05 rot=-180 fm=edge
+H 1317 37 1 0.05 rot=-180 fm=edge
+H 1318 37 rot=-180 fm=corner
+H 1318.948 38 0.05 1 rot=-270 fm=edge
+H 1318.948 39 0.05 1 rot=-270 fm=edge
+H 1318.948 40 0.05 1 rot=-270 fm=edge
+H 1318.948 41 0.05 1 rot=-270 fm=edge
+H 1318.948 42 0.05 1 rot=-270 fm=edge
+H 1318 31 fm=corner
+H 1318.002 30 0.05 1 rot=-90 fm=edge
+H 1318.002 28 0.05 1 rot=-90 fm=edge
+H 1318.002 27 0.05 1 rot=-90 fm=edge
+H 1318.002 29 0.05 1 rot=-90 fm=edge
+H 1318.002 26 0.05 1 rot=-90 fm=edge
+H 1319 31.95 1 0.05 fm=edge
+H 1320 31.95 1 0.05 fm=edge
+H 1321 31.95 1 0.05 fm=edge
+A 1252 34 ar=pink z=2
+H 1322 31 rot=90 fm=corner
+H 1322.948 30 0.05 1 rot=90 fm=edge
+H 1322.948 28 0.05 1 rot=90 fm=edge
+H 1322.948 29 0.05 1 rot=90 fm=edge
+H 1322.948 27 0.05 1 rot=90 fm=edge
+H 1322.948 26 0.05 1 rot=90 fm=edge
+R 1322 33 to=cube z=2
+H 1325 30 fm=corner
+H 1294 31 rot=-270 fm=corner
+H 1293 31.95 1 0.05 fm=edge
+H 1294.948 30 0.05 1 rot=90 fm=edge
+H 1294.948 29 0.05 1 rot=90 fm=edge
+H 1294.948 28 0.05 1 rot=90 fm=edge
+H 1294.948 27 0.05 1 rot=90 fm=edge
+H 1294.948 26 0.05 1 rot=90 fm=edge
+V 1325 32 spd=0 z=2
+H 1326 30 rot=90 fm=corner
+H 1325.002 29 0.05 1 rot=-90 fm=edge
+H 1325.002 28 0.05 1 rot=-90 fm=edge
+H 1325.002 27 0.05 1 rot=-90 fm=edge
+H 1325.002 26 0.05 1 rot=-90 fm=edge
+H 1325.002 25 0.05 1 rot=-90 fm=edge
+H 1325.002 24 0.05 1 rot=-90 fm=edge
+H 1326.948 29 0.05 1 rot=90 fm=edge
+H 1326.948 28 0.05 1 rot=90 fm=edge
+H 1326.948 27 0.05 1 rot=90 fm=edge
+H 1326.948 26 0.05 1 rot=90 fm=edge
+H 1326.948 25 0.05 1 rot=90 fm=edge
+H 1326.948 24 0.05 1 rot=90 fm=edge
+H 1322.948 25 0.05 1 rot=90 fm=edge
+H 1322.948 24 0.05 1 rot=90 fm=edge
+H 1318.002 25 0.05 1 rot=-90 fm=edge
+H 1318.002 24 0.05 1 rot=-90 fm=edge
+P 1335.5 29.5 1 0.5
+P 1339 29.5 1 0.5
+H 1328 30.5 0.5 0.5 fm=corner
+H 1329.5 30 0.5 0.5 fm=corner
+P 1331 29.5 1 0.5
+O 1343 30 orb=yellow z=2
+R 1345 32 to=ship z=2
+V 1351 28 spd=1 z=2
+V 1359 28 spd=2 z=2
+V 1368 28 spd=3 z=2
+V 1377 28 spd=4 z=2
+C 1344 32
+W 1359.805 29.805 1.39 1.39 z=5
+W 1355.5 30.5 2 2 z=5
+W 1363.5 31.5 2 2 z=5
+W 1369.5 30.5 2 2 z=5
+W 1375.5 31.5 2 2 z=5
+W 1351.805 30.805 1.39 1.39 z=5
+W 1367 30 z=5
+W 1371.5 34.5 2 2 z=5
+W 1366.5 35.5 2 2 z=5
+W 1348.5 33.5 2 2 z=5
+W 1344.5 36.5 2 2 z=5
+W 1370 38 z=5
+W 1376 36 z=5
+W 1380 30 z=5
+W 1382.5 32.5 2 2 z=5
+W 1386.715 34.715 1.57 1.57 z=5
+W 1390 37 z=5
+W 1380.17 32.17 0.66 0.66 z=5
+W 1378.765 34.765 1.47 1.47 z=5
+W 1382.56 37.56 1.88 1.88 z=5
+W 1386.765 38.765 1.47 1.47 z=5
+W 1383 26 z=5
+W 1386.5 25.5 2 2 z=5
+W 1393 32 z=5
+W 1395.555 26.555 1.89 1.89 z=5
+R 1393 35 to=cube z=2
+B 1398 32
+B 1397 32
+B 1398 31
+B 1399 31
+B 1398 30
+B 1397 31
+B 1396 30
+B 1397 30
+B 1396 31
+B 1395 30
+B 1397 29
+B 1398 29
+B 1398 28
+S 1395 31
+S 1396 32
+S 1399 30 rot=90
+S 1400 31 rot=90
+S 1399 29 rot=90
+S 1399 28 rot=90
+W 1359.5 33.5 2 2 z=5
+W 1353.5 35.5 2 2 z=5
+D 1422 36.8 1 0.2 pad=blue rot=180 z=2
+D 1425 34 1 0.2 pad=blue z=2
+B 1422 37
+B 1421 37
+B 1422 38
+B 1423 37
+B 1421 38
+B 1425 33
+B 1424 33
+B 1425 32
+B 1424 32
+B 1423 32
+B 1424 31
+S 1422 32 rot=-90
+S 1426 32 rot=90
+S 1426 33 rot=90
+S 1424 30 rot=180
+S 1423 31 rot=180
+S 1425 31 rot=180
+S 1420 37 rot=270
+S 1420 38 rot=270
+S 1421 39
+S 1422 39
+S 1423 38
+S 1424 37 rot=90
+R 1432 35 to=ship z=2
+W 1437 38 z=5
+T 1433 35 z=2
+W 1440 30 z=5
+W 1436 33 z=5
+W 1437.845 34.845 1.31 1.31 z=5
+W 1440.5 37.5 2 2 z=5
+W 1442.715 30.715 1.57 1.57 z=5
+W 1446.5 32.5 2 2 z=5
+W 1450 36 z=5
+W 1444.78 40.78 1.44 1.44 z=5
+W 1448.21 36.21 0.58 0.58 z=5
+B 1450 38
+B 1451 38
+R 1450 40 to=spider z=2
+B 1452 38
+B 1453 38
+B 1452 37
+B 1453 37
+B 1451 37
+B 1451 36
+B 1452 36
+B 1453 36
+B 1454 37
+B 1454 36
+B 1454 38
+B 1455 38
+B 1455 37
+B 1455 36
+B 1456 38
+B 1456 37
+B 1456 36
+B 1454 35
+B 1453 35
+B 1457 37
+E 1455 39 rot=-90 art=3812 z=3
+B 1455 43
+B 1454 43
+B 1456 43
+B 1454 44
+B 1455 44
+B 1454 45
+B 1453 44
+B 1456 44
+B 1452 46
+B 1457 43
+B 1457 38
+B 1458 38
+B 1458 37
+B 1457 36
+B 1459 37
+S 1456.25 39.144 1 0.063
+B 1459 38
+B 1460 38
+B 1460 37
+B 1458 36
+B 1461 38
+B 1461 37
+B 1462 38
+B 1462 37
+E 1457 42 rot=90 art=3812 z=3
+E 1462 39 rot=-90 art=3812 z=3
+B 1462 43
+B 1463 43
+B 1461 43
+B 1462 44
+B 1461 44
+B 1463 45
+B 1464 44
+B 1463 44
+B 1464 43
+B 1465 44
+B 1466 44
+B 1465 43
+B 1467 43
+B 1468 43
+B 1469 43
+B 1466 43
+B 1467 44
+B 1469 44
+B 1468 44
+B 1467 45
+B 1466 45
+B 1465 45
+B 1464 45
+B 1466 46
+B 1461 46
+B 1467 48
+B 1469 46
+E 1469 42 rot=90 art=3812 z=3
+B 1464 36
+B 1457 34
+B 1469 37
+B 1469 36
+B 1470 35
+B 1470 37
+B 1470 36
+B 1471 36
+B 1471 37
+B 1472 37
+B 1474 37
+B 1473 37
+B 1472 36
+B 1473 36
+E 1474 38 rot=-90 art=3812 z=3
+B 1473 34
+B 1474 44
+B 1475 44
+B 1474 45
+B 1475 46
+B 1475 45
+B 1476 44
+B 1477 44
+B 1478 44
+B 1479 44
+B 1480 44
+B 1481 44
+B 1482 44
+B 1476 45
+B 1477 46
+B 1478 45
+B 1479 45
+B 1477 45
+B 1478 46
+B 1479 46
+B 1480 45
+B 1481 45
+B 1481 47
+B 1480 46
+B 1473 46
+B 1482 47
+B 1484 47
+E 1482 43 rot=90 art=3812 z=3
+B 1482 39
+B 1481 38
+B 1482 38
+B 1481 39
+B 1483 38
+B 1483 39
+B 1484 38
+B 1484 39
+B 1480 39
+B 1480 38
+B 1479 37
+B 1479 39
+B 1485 38
+B 1482 37
+B 1483 37
+B 1476 48
+B 1451 34
+R 1483 41 to=cube z=2
+B 1485 39
+B 1486 38
+B 1487 36
+R 1488 41 to=ship z=2
+T 1489 41 z=2
+G 1428 38 gd=1 z=2
+W 1390.5 28.5 2 2 z=5
+O 1401 35 orb=yellow z=2
+O 1409 35 orb=pink col=13017343 z=2
+O 1414 35 orb=green z=2
+B 1468 37
+B 1473 44
+W 1491.1 39.1 0.8 0.8 z=5
+V 1481 41 spd=4 z=2
+W 1491 34 z=5
+W 1494.5 33.5 2 2 z=5
+W 1492.5 41.5 2 2 z=5
+W 1496.76 43.76 1.48 1.48 z=5
+W 1499.675 46.675 1.65 1.65 z=5
+W 1500.5 33.5 2 2 z=5
+W 1497.79 36.79 1.42 1.42 z=5
+W 1501.5 38.5 2 2 z=5
+W 1496.25 42.25 0.5 0.5 z=5
+W 1493.5 46.5 2 2 z=5
+W 1505.5 35.5 2 2 z=5
+B 1504 42
+B 1506 42
+B 1505 41
+B 1505 42
+B 1506 41
+B 1505 40
+B 1506 40
+B 1505 39
+B 1506 39
+B 1504 40
+B 1504 41
+B 1503 41
+B 1503 42
+B 1501 41
+B 1502 41
+R 1504 44 to=ball z=2
+B 1517 47
+B 1509 42
+B 1508 42
+B 1507 41
+B 1508 41
+B 1507 42
+B 1509 41
+B 1507 40
+B 1510 42
+S 1511 42 rot=90
+S 1510 41 rot=90
+S 1508 40 rot=90
+S 1507 39 rot=90
+B 1514 47
+B 1513 47
+B 1515 47
+B 1514 46
+B 1513 46
+B 1515 46
+B 1512 47
+B 1517 47
+B 1514 49
+B 1511 49
+B 1513 48
+B 1514 48
+E 1509 43 rot=-90 art=3812 z=3
+E 1515 45 rot=90 art=3812 z=3
+B 1522 41
+B 1521 41
+B 1520 41
+B 1523 41
+B 1521 40
+B 1522 40
+B 1520 40
+B 1519 40
+B 1517 41
+E 1522 42 rot=-90 art=3812 z=3
+B 1528 47
+B 1528 46
+B 1529 47
+B 1527 46
+B 1527 47
+B 1529 46
+B 1530 47
+B 1530 46
+B 1534 47
+B 1529 48
+B 1520 39
+B 1521 39
+B 1525 40
+B 1527 42
+S 1525 41
+S 1526 42 rot=-90
+S 1527 43
+S 1517 42
+S 1516 41 rot=-90
+S 1517 46 rot=-180
+S 1518 47 rot=-270
+S 1510 49 rot=-90
+S 1511 47 rot=-90
+S 1519 41
+S 1526 47 rot=-90
+S 1534 48
+S 1535 47 rot=90
+S 1534 46 rot=180
+S 1528 42 rot=90
+S 1527 41 rot=180
+B 1531 46
+B 1532 46
+B 1531 47
+E 1531 45 rot=90 art=3812 z=3
+B 1536 41
+B 1535 41
+B 1535 40
+B 1536 40
+B 1533 40
+B 1537 41
+B 1537 40
+B 1535 43
+S 1535 44
+S 1532 40 rot=-90
+S 1539 40 rot=90
+B 1538 40
+E 1537 42 rot=-90 art=3812 z=3
+R 1542 45 to=ship z=2
+T 1543 45 z=2
+B 1534 41
+G 1541 45 gd=1 z=2
+W 1545.75 37.75 1.5 1.5 z=5
+W 1549.5 38.5 2 2 z=5
+W 1557 44 z=5
+W 1553.5 41.5 2 2 z=5
+W 1546.845 44.845 1.31 1.31 z=5
+W 1545.5 48.5 2 2 z=5
+W 1551.5 50.5 2 2 z=5
+W 1552.25 48.25 0.5 0.5 z=5
+W 1549.945 46.945 1.11 1.11 z=5
+W 1551.055 42.055 0.89 0.89 z=5
+W 1547.25 40.25 0.5 0.5 z=5
+V 198 1 spd=1 z=2
+H 472.027 5.95 1 0.05 fm=edge
+H 475 9 1 0.05 rot=180 fm=edge
+H 476 5 fm=corner
+H 476.002 4 0.05 1 rot=-90 fm=edge
+H 476.002 2 0.05 1 rot=-90 fm=edge
+H 476.002 1 0.05 1 rot=-90 fm=edge
+H 476.002 3 0.05 1 rot=-90 fm=edge
+H 476.002 0 0.05 1 rot=-90 fm=edge
+H 478 5.95 1 0.05 fm=edge
+H 479 5.95 1 0.05 fm=edge
+H 480 5.95 1 0.05 fm=edge
+H 472.002 10 0.05 1 rot=270 fm=edge
+H 476.948 10 0.05 1 rot=90 fm=edge
+H 478.002 10 0.05 1 rot=270 fm=edge
+H 482 9 1 0.05 rot=180 fm=edge
+H 483 9 rot=180 fm=corner
+H 483.948 10 0.05 1 rot=90 fm=edge
+H 483.948 11 0.05 1 rot=90 fm=edge
+H 483 5 fm=corner
+H 484 5.95 1 0.05 fm=edge
+H 485 5.95 1 0.05 fm=edge
+H 486 5 rot=90 fm=corner
+H 483.002 4 0.05 1 rot=-90 fm=edge
+H 483.002 3 0.05 1 rot=-90 fm=edge
+H 483.002 2 0.05 1 rot=-90 fm=edge
+H 483.002 0 0.05 1 rot=-90 fm=edge
+H 483.002 1 0.05 1 rot=-90 fm=edge
+H 486.948 4 0.05 1 rot=90 fm=edge
+H 486.948 3 0.05 1 rot=90 fm=edge
+H 486.948 2 0.05 1 rot=90 fm=edge
+H 486.948 1 0.05 1 rot=90 fm=edge
+H 486.948 0 0.05 1 rot=90 fm=edge
+H 486 9 rot=-90 fm=corner
+H 486.002 10 0.05 1 rot=-90 fm=edge
+H 486.002 11 0.05 1 rot=-90 fm=edge
+H 487 9 1 0.05 rot=-180 fm=edge
+R 484 7 to=spider z=2
+H 525 5 rot=90 fm=corner
+H 525 7 rot=-180 fm=corner
+H 525.948 8 0.05 1 rot=90 fm=edge
+H 525.948 9 0.05 1 rot=90 fm=edge
+H 525.948 10 0.05 1 rot=90 fm=edge
+H 525.948 11 0.05 1 rot=90 fm=edge
+H 525.948 4 0.05 1 rot=90 fm=edge
+H 525.948 3 0.05 1 rot=90 fm=edge
+H 525.948 2 0.05 1 rot=90 fm=edge
+H 525.948 1 0.05 1 rot=90 fm=edge
+H 525.948 0 0.05 1 rot=90 fm=edge
+H 528 4 fm=corner
+H 528.002 3 0.05 1 rot=-90 fm=edge
+H 528.002 2 0.05 1 rot=-90 fm=edge
+H 528.002 1 0.05 1 rot=-90 fm=edge
+H 528.002 0 0.05 1 rot=-90 fm=edge
+H 529 4.95 1 0.05 fm=edge
+H 530 4.95 1 0.05 fm=edge
+H 531 4 rot=90 fm=corner
+H 531.948 3 0.05 1 rot=90 fm=edge
+H 531.948 2 0.05 1 rot=90 fm=edge
+H 531.948 1 0.05 1 rot=90 fm=edge
+H 531.948 0 0.05 1 rot=90 fm=edge
+R 525 6 to=cube z=2
+O 532 7 orb=yellow z=2
+H 469 9 1 0.05 rot=180 fm=edge
+S 479 6.175 1 0.25
+S 531 5
+H 536 7 fm=corner
+H 536.002 6 0.05 1 rot=-90 fm=edge
+H 536.002 5 0.05 1 rot=-90 fm=edge
+H 536.002 4 0.05 1 rot=-90 fm=edge
+H 536.002 2 0.05 1 rot=-90 fm=edge
+H 536.002 1 0.05 1 rot=-90 fm=edge
+H 536.002 3 0.05 1 rot=-90 fm=edge
+H 536.002 0 0.05 1 rot=-90 fm=edge
+H 537 7.95 1 0.05 fm=edge
+H 538 7.95 1 0.05 fm=edge
+H 539 7.95 1 0.05 fm=edge
+H 540 7.95 1 0.05 fm=edge
+H 541 7.95 1 0.05 fm=edge
+H 542 7.95 1 0.05 fm=edge
+H 546 7 rot=90 fm=corner
+H 543 7.95 1 0.05 fm=edge
+H 544 7.95 1 0.05 fm=edge
+H 545 7.95 1 0.05 fm=edge
+H 546.948 6 0.05 1 rot=90 fm=edge
+H 546.948 5 0.05 1 rot=90 fm=edge
+H 546.948 4 0.05 1 rot=90 fm=edge
+H 546.948 3 0.05 1 rot=90 fm=edge
+H 546.948 2 0.05 1 rot=90 fm=edge
+H 546.948 1 0.05 1 rot=90 fm=edge
+H 546.948 0 0.05 1 rot=90 fm=edge
+D 546 8 1 0.2 pad=blue z=2
+D 550 16.8 1 0.2 pad=blue rot=180 z=2
+B 550 17
+B 549 17
+B 550 18
+B 552 18
+D 552 12 1 0.2 pad=blue z=2
+B 552 11
+B 553 11
+B 553 10
+B 552 10
+B 554 10
+B 553 17
+B 553 18
+B 554 17
+D 554 16.8 1 0.2 pad=blue rot=180 z=2
+B 547 18
+O 557 8 orb=green z=2
+G 559 5 gd=1 z=2
+D 561 2 1 0.2 pad=blue z=2
+D 565 9.8 1 0.2 pad=blue rot=180 z=2
+D 566 6 1 0.2 pad=blue z=2
+B 561 1
+B 560 1
+B 562 1
+B 562 0
+B 561 0
+B 560 0
+B 563 1
+B 566 5
+B 565 5
+B 566 4
+B 567 3
+B 565 2
+B 565 10
+B 564 10
+B 564 11
+B 565 11
+B 566 10
+B 563 11
+B 563 12
+B 564 12
+B 561 12
+B 569 13
+B 568 14
+B 569 14
+B 566 12
+D 569 12.8 1 0.2 pad=blue rot=180 z=2
+D 570 9 1 0.2 pad=blue z=2
+B 570 8
+B 570 7
+B 569 6
+B 570 5
+B 569 7
+E 561 11 rot=90 art=3812 z=3
+E 559 7 rot=-90 art=3812 z=3
+E 559 3 rot=90 art=3812 z=3
+B 573 12
+B 574 12
+B 575 12
+B 576 12
+B 575 11
+B 574 11
+B 576 11
+B 577 11
+B 577 12
+B 576 10
+B 578 11
+B 577 10
+B 574 9
+D 561 11.833 1 0.2 pad=purple rot=180 z=2
+G 572 14 gd=1 z=2
+O 580 14 orb=pink col=13017343 z=2
+D 582 15 1 0.2 pad=blue z=2
+D 585 22.8 1 0.2 pad=blue rot=180 z=2
+D 587 19 1 0.2 pad=blue z=2
+D 589 24.8 1 0.2 pad=blue rot=180 z=2
+B 582 14
+B 582 13
+B 583 13
+B 580 11
+S 580 12
+S 582 12 rot=-180
+S 581 11 rot=-270
+S 578 12 rot=-270
+S 573 11 rot=-90
+S 584 13 rot=-270
+B 586 18
+B 587 18
+B 586 17
+B 587 17
+B 587 16
+B 585 23
+B 584 23
+B 585 24
+B 584 24
+B 584 25
+B 586 24
+B 586 25
+B 587 25
+B 588 25
+B 588 26
+B 587 26
+B 585 25
+B 583 24
+S 582 24 rot=-90
+S 583 25 rot=-90
+S 584 26
+S 585 26
+S 586 26
+S 587 27
+S 588 27
+S 590 26 rot=90
+S 590 25 rot=90
+S 583 23 rot=-90
+B 590 19
+B 589 19
+B 590 18
+B 589 18
+B 591 18
+B 588 18
+B 588 17
+B 589 17
+B 591 19
+B 585 15
+B 587 14
+B 593 18
+B 595 17
+B 597 16
+O 600 18 orb=pink col=13017343 z=2
+B 592 16
+B 594 15
+B 594 16
+B 595 16
+B 588 16
+B 589 16
+B 588 15
+B 588 14
+B 590 16
+B 590 15
+B 590 13
+D 602 20 1 0.2 pad=blue z=2
+D 603 23.8 1 0.2 pad=blue rot=180 z=2
+D 604 21 1 0.2 pad=blue z=2
+B 604 19
+B 603 19
+B 604 20
+B 602 18
+B 602 19
+B 603 18
+B 602 24
+B 603 24
+B 603 25
+B 601 24
+B 600 24
+B 598 23
+B 599 24
+B 599 23
+B 598 24
+B 601 25
+B 600 25
+B 602 25
+B 599 25
+B 597 26
+B 589 25
+B 589 26
+S 589 27
+B 587 24
+G 605 23 gd=1 z=2
+R 606 23 to=ufo z=2
+B 610 26 rot=180
+B 611 26 rot=180
+B 611 27 rot=180
+B 610 27 rot=180
+B 609 26 rot=180
+B 608 26 rot=180
+B 609 27 rot=180
+B 609 19 rot=180
+B 610 18 rot=180
+B 612 18 rot=180
+B 610 19 rot=180
+B 609 18 rot=180
+B 608 18 rot=180
+B 611 18 rot=180
+B 611 17 rot=180
+B 609 17 rot=180
+B 610 17 rot=180
+B 616 23 rot=180
+B 615 22 rot=180
+B 617 23 rot=180
+B 618 22 rot=180
+B 617 21 rot=180
+W 616.815 21.815 1.37 1.37 z=5
+B 616 22
+B 617 28
+B 618 27
+B 616 27
+B 616 28
+B 619 29
+B 613 27
+B 614 17
+B 616 17
+B 617 17
+B 618 17
+B 616 16
+B 617 16
+B 618 16
+B 615 16
+B 624 24
+B 625 24
+B 624 25
+B 624 23
+B 625 23
+B 623 25
+W 623 24 z=5
+B 625 19
+B 623 18
+B 624 18
+B 625 18
+B 625 17
+B 626 16
+B 624 16
+B 623 16
+B 623 17
+W 623.72 16.72 1.56 1.56 z=5
+B 621 15
+B 629 26
+B 630 27
+B 629 28
+B 630 28
+B 631 28
+B 631 27
+B 632 26
+B 632 27
+B 633 18
+B 631 17
+B 633 17
+B 632 17
+B 633 16
+B 632 16
+H 638 18 fm=corner
+H 642 18.95 1 0.05 fm=edge
+H 641 18.95 1 0.05 fm=edge
+H 640 18.95 1 0.05 fm=edge
+H 639 18.95 1 0.05 fm=edge
+H 638.002 17 0.05 1 rot=-90 fm=edge
+H 638.002 16 0.05 1 rot=-90 fm=edge
+H 638 26 rot=-90 fm=corner
+H 640 26 1 0.05 rot=-180 fm=edge
+H 639 26 1 0.05 rot=-180 fm=edge
+H 641 26 1 0.05 rot=-180 fm=edge
+H 642 26 1 0.05 rot=-180 fm=edge
+H 643 26 1 0.05 rot=-180 fm=edge
+H 644 26 1 0.05 rot=-180 fm=edge
+H 645 26 1 0.05 rot=-180 fm=edge
+H 638.002 27 0.05 1 rot=-90 fm=edge
+H 638.002 28 0.05 1 rot=-90 fm=edge
+H 646 26 1 0.05 rot=-180 fm=edge
+H 647 26 1 0.05 rot=-180 fm=edge
+H 648 26 1 0.05 rot=-180 fm=edge
+H 649 26 1 0.05 rot=-180 fm=edge
+H 650 26 1 0.05 rot=-180 fm=edge
+H 652 26 1 0.05 rot=-180 fm=edge
+H 654 26 1 0.05 rot=-180 fm=edge
+H 655 26 1 0.05 rot=-180 fm=edge
+H 651 26 1 0.05 rot=-180 fm=edge
+H 653 26 1 0.05 rot=-180 fm=edge
+H 656 26 1 0.05 rot=-180 fm=edge
+H 657 26 1 0.05 rot=-180 fm=edge
+H 658 26 1 0.05 rot=-180 fm=edge
+H 659 26 1 0.05 rot=-180 fm=edge
+H 660 26 1 0.05 rot=-180 fm=edge
+E 638 22 art=3823 z=3
+E 639 23 art=3823 z=3
+E 639 21 art=3823 z=3
+E 640 22 art=3823 z=3
+W 632 18 z=5
+W 630 26 z=5
+W 613.2 17.2 0.6 0.6 z=5
+W 605.86 17.86 1.28 1.28 z=5
+W 604.76 26.76 1.48 1.48 z=5
+W 613.86 26.86 1.28 1.28 z=5
+W 621.5 29.5 2 2 z=5
+W 625.825 28.825 1.35 1.35 z=5
+W 627.535 15.535 1.93 1.93 z=5
+W 634.5 26.5 2 2 z=5
+W 634.5 15.5 2 2 z=5
+W 619.87 14.87 1.26 1.26 z=5
+V 0 10 spd=0 z=2
+B 0 9
+B 0 14
+B 1 13
+B 0 13
+B 1 14
+B 0 8
+B 1 9
+B 1 8
+B 1 7
+B 2 8
+B 2 7
+B 3 7
+B 2 9
+B 0 6
+B 2 13
+B 2 14
+B 3 13
+B 3 14
+B 3 16
+B 2 15
+B 0 15
+B 1 15
+B 5 15
+B 4 13
+B 3 9
+B 3 8
+B 4 9
+B 5 5
+B 5 6
+B 5 9
+B 6 9
+B 7 8
+B 7 9
+B 6 8
+B 5 8
+B 7 7
+B 8 8
+B 8 7
+B 9 8
+B 8 9
+B 9 7
+B 9 9
+B 10 9
+B 11 8
+B 11 9
+B 13 9
+B 12 9
+B 13 8
+B 12 8
+B 14 8
+B 18 8
+B 19 8
+B 20 8
+B 17 9
+B 16 9
+B 15 9
+B 14 9
+B 18 9
+B 19 9
+B 20 9
+B 21 9
+B 22 9
+B 22 8
+B 21 8
+B 20 7
+B 14 7
+B 13 7
+B 12 7
+B 16 7
+B 15 6
+B 9 6
+B 11 5
+B 21 6
+B 23 9
+B 24 7
+B 26 9
+B 27 9
+B 26 8
+B 27 8
+B 27 7
+B 28 7
+B 28 8
+B 30 7
+B 30 8
+B 29 8
+B 28 9
+B 31 7
+B 31 8
+B 32 8
+B 32 7
+B 29 5
+B 34 8
+B 33 8
+B 35 8
+B 36 8
+B 36 7
+B 37 7
+B 35 7
+B 34 6
+B 32 6
+B 37 8
+B 38 8
+B 38 7
+B 39 8
+B 40 8
+B 41 8
+B 42 8
+B 43 8
+B 44 8
+B 45 8
+B 46 8
+B 47 8
+B 47 7
+B 46 7
+B 39 6
+B 43 6
+B 46 6
+B 44 5
+B 38 5
+B 35 5
+B 38 6
+B 39 7
+B 40 5
+B 41 5
+B 44 6
+B 41 6
+B 45 7
+B 48 6
+B 50 7
+B 50 6
+B 51 7
+B 51 6
+B 52 6
+B 53 6
+B 52 7
+B 53 5
+B 55 5
+B 53 7
+B 54 7
+B 54 6
+B 55 6
+B 56 6
+B 56 5
+B 57 5
+B 57 6
+B 58 6
+B 59 5
+B 59 6
+B 60 6
+B 61 5
+B 62 5
+B 62 6
+B 61 6
+B 63 6
+B 63 5
+B 64 6
+B 66 6
+B 65 6
+B 65 5
+B 66 5
+B 67 6
+B 68 6
+B 69 6
+B 68 5
+B 51 5
+B 56 4
+B 59 4
+B 60 4
+B 62 4
+B 63 4
+B 66 4
+B 68 4
+B 56 3
+B 55 3
+B 53 4
+B 49 3
+B 58 3
+B 64 3
+B 66 3
+B 70 6
+B 71 6
+B 72 6
+B 72 5
+B 71 5
+B 70 5
+B 73 5
+B 71 4
+B 70 3
+B 75 5
+B 76 5
+B 76 4
+B 77 5
+B 77 4
+B 76 3
+B 78 4
+B 78 5
+B 79 5
+B 79 4
+B 78 3
+B 79 3
+B 80 3
+B 85 3
+B 84 4
+B 83 4
+B 82 5
+B 81 5
+B 80 5
+B 83 5
+B 84 5
+B 85 5
+B 86 5
+B 87 5
+B 87 4
+B 88 5
+B 88 4
+B 89 5
+B 90 5
+B 91 5
+B 92 5
+B 93 5
+B 94 5
+B 95 5
+B 92 4
+B 93 4
+B 94 3
+B 92 3
+B 91 3
+B 95 3
+B 82 3
+B 84 3
+B 88 3
+B 89 3
+B 91 4
+B 91 2
+B 86 2
+B 96 4
+B 99 4
+B 100 4
+B 99 3
+B 98 3
+B 100 3
+B 101 3
+B 101 4
+B 102 4
+B 103 4
+B 104 4
+B 105 4
+B 106 4
+B 106 3
+B 107 3
+B 108 3
+B 103 3
+B 102 3
+B 107 4
+B 108 4
+B 109 4
+B 110 4
+B 111 4
+B 112 4
+B 112 3
+B 111 3
+B 110 3
+B 109 3
+B 102 2
+B 103 2
+B 105 2
+B 107 2
+B 111 2
+B 112 2
+B 113 2
+B 113 3
+B 102 1
+B 108 1
+B 112 1
+B 113 4
+B 114 4
+B 115 4
+B 116 4
+B 117 4
+B 118 4
+B 119 3
+B 118 3
+B 117 3
+B 116 3
+B 114 2
+B 117 2
+B 122 4
+B 122 3
+B 123 3
+B 123 4
+B 124 4
+B 124 3
+B 125 4
+B 126 4
+B 126 3
+B 127 4
+B 127 3
+B 121 4
+B 123 2
+B 124 2
+B 128 4
+B 129 4
+B 130 4
+B 131 3
+B 130 3
+B 130 2
+B 128 1
+B 134 3
+B 135 3
+B 134 2
+B 133 3
+B 135 2
+B 136 1
+B 137 3
+B 138 3
+B 139 3
+B 138 2
+B 140 3
+B 141 3
+B 141 2
+B 142 2
+B 142 3
+B 143 2
+B 143 1
+B 142 1
+B 139 1
+B 139 2
+B 141 0
+B 145 3
+B 146 3
+B 147 3
+B 147 2
+B 146 2
+B 145 2
+B 148 3
+B 148 2
+B 149 3
+B 150 3
+B 150 2
+B 147 1
+B 149 0
+B 151 3
+B 151 2
+B 152 2
+B 152 3
+B 153 3
+O 154 5 orb=pink col=13017343 z=2
+B 152 1
+B 157 4
+B 158 4
+B 158 3
+B 159 3
+B 159 4
+B 160 4
+B 160 3
+B 161 4
+B 157 2
+B 161 2
+B 163 3
+B 164 4
+B 164 3
+B 165 4
+B 165 3
+B 164 2
+B 166 3
+B 158 2
+B 155 2
+B 166 4
+B 167 3
+B 169 3
+B 170 3
+B 170 2
+B 171 3
+B 171 2
+B 172 3
+B 173 3
+B 175 2
+B 175 1
+B 176 2
+B 176 1
+B 170 1
+B 169 0
+B 166 1
+B 167 1
+B 173 1
+B 174 1
+B 177 1
+B 178 1
+B 179 1
+B 178 0
+B 179 0
+B 177 0
+B 176 0
+B 182 0
+B 183 0
+B 184 0
+S 180 0
+S 181 0
+S 185 0
+S 186 0
+S 190 0
+S 154 2 rot=270
+S 156 2 rot=90
+S 155 1 rot=180
+S 155 3
+S 146 1 rot=180
+S 151 1 rot=180
+S 138 1 rot=180
+S 134 1 rot=180
+S 126 2 rot=180
+S 129 3 rot=180
+S 123 1 rot=180
+S 120 3 rot=90
+S 117 1 rot=180
+S 114 1 rot=180
+S 105 1 rot=180
+S 99 2 rot=180
+S 97 3 rot=270
+S 92 2 rot=180
+S 88 2 rot=180
+S 81 4 rot=180
+S 76 2 rot=180
+S 74 5 rot=270
+S 70 2 rot=180
+S 67 5 rot=180
+S 62 3 rot=180
+S 56 2 rot=180
+S 49 4
+S 48 5 rot=180
+S 51 4 rot=180
+S 37 6 rot=180
+S 43 5 rot=180
+S 27 6 rot=180
+S 25 7 rot=90
+S 24 8
+S 19 7 rot=-90
+S 13 6 rot=-180
+S 7 6 rot=-180
+S 2 6 rot=-180
+S 3 12 rot=-180
+B 16 12
+B 17 12
+B 18 12
+B 15 14
+B 16 13
+B 20 13
+B 20 14
+B 34 12
+B 33 12
+B 32 12
+B 35 11
+B 37 12
+B 36 13
+B 34 13
+B 28 13
+S 33 11 rot=180
+S 20 12 rot=180
+S 56 11 rot=180
+B 56 12
+B 57 11
+B 58 11
+B 59 11
+B 59 12
+B 57 13
+B 60 11
+S 59 10 rot=180
+B 54 13
+B 63 10
+B 45 5
+S 63 9 rot=180
+B 63 11
+B 62 11
+B 85 9
+B 86 9
+B 86 10
+B 85 11
+B 84 11
+B 83 11
+B 88 11
+B 89 10
+B 87 11
+B 90 11 rot=90
+S 89 9 rot=180
+B 119 9
+B 120 10
+B 119 10
+B 128 9
+B 125 9
+B 124 10
+B 122 10
+B 126 9
+B 127 9
+B 117 10
+B 115 10
+B 112 11
+B 114 10
+B 113 10
+B 116 11
+B 116 12
+B 117 12
+B 117 13
+B 117 11
+B 118 11
+B 119 11
+B 124 11
+B 123 11
+S 114 9 rot=180
+S 125 8 rot=180
+B 144 8
+B 145 9
+B 145 10
+B 144 10
+B 146 9
+B 147 9
+B 148 9
+B 151 11
+B 151 10
+B 150 11
+B 150 10
+B 149 11
+B 148 11
+B 147 11
+B 152 10
+B 156 12
+B 157 11
+B 157 12
+B 157 13
+B 157 14
+B 158 14
+B 158 13
+B 159 13
+B 162 11
+B 163 11
+B 163 10
+B 164 11
+B 165 11
+B 166 11
+B 161 9
+S 161 8 rot=180
+S 157 10 rot=180
+S 150 9 rot=180
+S 146 8 rot=180
+B 142 8
+W 1542 48 z=5
+R 1556 48 to=wave z=2
+B 1561 44
+B 1560 43
+B 1559 43
+B 1559 44
+B 1560 44
+B 1558 43
+B 1558 42
+B 1560 41
+B 1561 42
+B 1559 41
+B 1561 43
+B 1562 42
+B 1563 42
+B 1559 52
+B 1558 52
+B 1557 52
+B 1560 51
+B 1559 51
+B 1560 53
+B 1561 51
+B 1560 52
+B 1561 52
+B 1561 50
+B 1560 50
+B 1558 51
+B 1559 53
+B 1561 53
+B 1562 51
+B 1562 52
+S 1561 45
+S 1560 45
+S 1559 45
+S 1561 49 rot=180
+S 1560 49 rot=180
+S 1564 42 rot=90
+S 1556 52 rot=-90
+S 1557 51 rot=-90
+S 1558 53 rot=-90
+S 1559 54
+S 1560 54
+S 1561 54
+S 1562 53
+S 1558 50 rot=180
+S 1559 50 rot=180
+S 1562 50 rot=180
+B 1570 46
+B 1568 45
+B 1569 47
+B 1568 46
+B 1570 47
+B 1571 47
+B 1571 46
+W 1568.5 45.5 2 2 z=5
+B 1578 50
+B 1579 50
+B 1578 51
+B 1578 52
+B 1576 52
+B 1577 52
+B 1577 51
+B 1586 41
+W 1576.63 49.63 1.74 1.74 z=5
+W 1561.755 42.755 1.49 1.49 z=5
+W 1564.955 44.955 1.09 1.09 z=5
+W 1562.765 51.765 1.47 1.47 z=5
+W 1573.765 52.765 1.47 1.47 z=5
+W 1572.765 44.765 1.47 1.47 z=5
+W 1566.765 41.765 1.47 1.47 z=5
+W 1570.765 41.765 1.47 1.47 z=5
+W 1574.5 40.5 2 2 z=5
+Z 1578 45 mini=1 z=2
+W 1580.85 50.85 1.3 1.3 z=5
+W 1585.7 51.7 1.6 1.6 z=5
+W 1580.5 40.5 2 2 z=5
+W 1586.5 40.5 2 2 z=5
+W 1589.89 41.89 1.22 1.22 z=5
+B 1586 42
+B 1585 42
+B 1586 43
+B 1584 43
+B 1585 43
+B 1584 42
+B 1585 41
+B 1586 44
+B 1584 52
+B 1585 52
+B 1585 51
+B 1591 52
+B 1592 51
+B 1593 52
+B 1592 52
+W 1591 51 z=5
+W 1583.89 42.89 1.22 1.22 z=5
+W 1589.15 52.15 0.7 0.7 z=5
+W 1584.15 51.15 0.7 0.7 z=5
+W 1594.55 40.55 1.9 1.9 z=5
+B 1594 42
+B 1593 43
+B 1594 43
+W 1593 42 z=5
+W 1593.75 51.75 1.5 1.5 z=5
+R 1598 47 to=ship z=2
+T 1599 47 z=2
+W 1597 50 z=5
+B 1567 54
+B 1566 54
+B 1566 53
+B 1565 53
+B 1565 54
+S 1566 52 rot=180
+S 1567 53 rot=180
+W 1520.5 48.5 2 2 z=5
+W 1512.5 38.5 2 2 z=5
+W 1528.5 38.5 2 2 z=5
+W 1600.75 38.896 1.5 1.5 z=5
+W 1604.5 39.646 2 2 z=5
+W 1608.82 40.966 1.36 1.36 z=5
+W 1601.845 45.991 1.31 1.31 z=5
+W 1600.5 49.646 2 2 z=5
+W 1607.5 50.646 2 2 z=5
+W 1604.25 46.396 0.5 0.5 z=5
+W 1604.945 48.091 1.11 1.11 z=5
+W 1607.055 43.201 0.89 0.89 z=5
+W 1602.25 41.396 0.5 0.5 z=5
+W 1609.82 43.82 1.36 1.36 z=5
+R 263 10 to=ball z=2
+E 1348 28 art=3823 z=3
+E 1347 28 art=3823 z=3
+E 1348 29 art=3823 z=3
+E 1348 27 art=3823 z=3
+E 1349 28 art=3823 z=3
+W 1613.5 45.5 2 2 z=5
+W 1612.5 40.5 2 2 z=5
+W 1611.22 46.22 0.56 0.56 z=5
+W 1605.22 50.22 0.56 0.56 z=5
+W 1612.065 52.065 0.87 0.87 z=5
+R 1614 50 to=cube z=2
+O 1620 46 orb=yellow z=2
+B 1627 47
+B 1626 47
+B 1625 47
+B 1625 46
+B 1626 46
+B 1623 46
+B 1624 46
+B 1624 45
+B 1621 44
+B 1619 44
+B 1619 45
+B 1620 44
+B 1618 45
+B 1618 44
+B 1617 45
+B 1616 45
+B 1616 46
+B 1615 46
+S 1617 46
+S 1618 46
+S 1620 45
+S 1621 45
+S 1619 45.95 1 0.5
+S 1624 47
+S 1623 47
+O 1632 50 orb=green z=2
+B 1635 49
+B 1636 49
+D 1636 48.8 1 0.2 pad=blue rot=180 z=2
+B 1639 44
+B 1638 44
+B 1640 44
+B 1641 44
+B 1639 43
+B 1637 43
+B 1636 43
+B 1638 43
+B 1636 50
+B 1637 49
+B 1636 51
+B 1638 50
+B 1637 51
+B 1637 50
+B 1640 51
+B 1640 43
+B 1641 43
+B 1641 42
+B 1649 47
+B 1648 47
+B 1648 46
+B 1649 46
+B 1650 46
+B 1650 45
+B 1647 46
+B 1642 43
+O 1643 47 orb=pink col=13017343 z=2
+R 1653 50 to=ship z=2
+T 1654 50 z=2
+W 1655.25 42.396 1.5 1.5 z=5
+W 1659 42.146 2 2 z=5
+W 1663.32 46.466 1.36 1.36 z=5
+W 1656.345 49.491 1.31 1.31 z=5
+W 1655 53.146 2 2 z=5
+W 1660 52.146 2 2 z=5
+W 1658.75 49.896 0.5 0.5 z=5
+W 1663.445 54.591 1.11 1.11 z=5
+W 1665.555 48.701 0.89 0.89 z=5
+W 1657.75 44.896 0.5 0.5 z=5
+W 1663.32 43.32 1.36 1.36 z=5
+W 1668 49 2 2 z=5
+W 1667 44 2 2 z=5
+W 1660.72 45.72 0.56 0.56 z=5
+W 1663.72 52.72 0.56 0.56 z=5
+W 1665.565 54.565 0.87 0.87 z=5
+R 1668 54 to=spider z=2
+B 1673 51
+B 1672 52
+B 1673 52
+B 1674 52
+B 1674 51
+B 1676 51
+B 1675 51
+B 1672 50
+B 1675 52
+E 1674 53 rot=-90 art=3812 z=3
+B 1674 56
+B 1675 56
+B 1674 57
+B 1673 57
+B 1676 56
+B 1677 57
+B 1678 57
+B 1678 56
+B 1679 56
+B 1677 56
+E 1678 55 rot=90 art=3812 z=3
+B 1678 58
+B 1680 58
+B 1678 52
+B 1679 52
+B 1679 51
+B 1680 51
+B 1680 52
+B 1681 52
+B 1681 51
+B 1682 51
+B 1682 52
+B 1683 51
+E 1681 53 rot=-90 art=3812 z=3
+B 1681 57
+B 1681 58
+B 1681 56
+B 1682 56
+B 1683 56
+B 1682 57
+B 1684 56
+B 1686 56
+B 1687 56
+B 1688 56
+B 1685 56
+B 1685 57
+B 1686 57
+B 1688 57
+B 1689 56
+E 1688 55 rot=90 art=3812 z=3
+B 1685 58
+B 1689 58
+B 1683 58
+B 1688 52
+B 1687 51
+B 1688 51
+B 1684 53
+B 1676 53
+B 1689 52
+B 1689 51
+B 1690 52
+B 1691 52
+B 1692 52
+B 1693 52
+B 1695 52
+B 1696 52
+B 1695 51
+B 1694 52
+B 1696 51
+E 1696 53 rot=-90 art=3812 z=3
+B 1688 50
+B 1694 50
+B 1696 50
+B 1691 50
+B 1689 50
+B 1686 49
+B 1690 51
+B 1697 51
+B 1697 52
+B 1698 50
+B 1699 52
+B 1696 56
+B 1696 57
+B 1697 57
+B 1697 56
+B 1698 56
+B 1699 57
+B 1700 56
+B 1701 56
+B 1702 57
+B 1702 56
+B 1701 52
+B 1702 51
+B 1701 51
+B 1701 50
+B 1700 50
+B 1702 52
+B 1703 52
+B 1703 51
+B 1704 51
+E 1701 55 rot=90 art=3812 z=3
+B 1699 56
+B 1695 57
+B 1697 58
+B 1703 57
+W 1691.5 57.5 2 2 z=5
+W 1684.715 50.715 1.57 1.57 z=5
+W 1676.905 50.905 1.19 1.19 z=5
+W 1699 51 z=5
+W 1679 57 z=5
+W 1667 57 z=5
+W 1670.5 57.5 2 2 z=5
+B 1647 47
+B 1646 46
+W 1703.64 56.64 1.72 1.72 z=5
+W 1707.975 54.975 1.05 1.05 z=5
+T 1708 52 z=2
+R 1707 52 to=ship z=2
+W 1705 50 z=5
+W 1706.1 55.1 0.8 0.8 z=5
+W 1709.233 49.6 0.8 0.8 z=5
+W 1709.133 44.5 z=5
+W 1712.633 44 2 2 z=5
+W 1710.633 52 2 2 z=5
+W 1714.893 54.26 1.48 1.48 z=5
+W 1717.808 57.175 1.65 1.65 z=5
+W 1718.633 44 2 2 z=5
+W 1715.923 47.29 1.42 1.42 z=5
+W 1719.633 49 2 2 z=5
+W 1714.383 52.75 0.5 0.5 z=5
+W 1710.633 57 2 2 z=5
+B 1695 56
+B 1694 56
+B 1687 52
+R 1721 54 to=ufo z=2
+W 1722 58 z=5
+W 1724 61 z=5
+W 1724 50 z=5
+B 1727 59
+B 1728 59
+B 1726 60
+B 1726 59
+B 1727 60
+B 1728 60
+B 1726 62
+B 1728 61
+B 1726 61
+B 1727 62
+B 1727 61
+B 1725 59
+B 1729 60
+B 1730 60
+B 1730 61
+B 1729 62
+B 1730 58
+B 1728 52
+B 1727 52
+B 1726 51
+B 1729 51
+B 1728 51
+B 1727 51
+B 1730 52
+B 1729 50
+B 1728 50
+B 1727 50
+B 1726 49
+B 1728 49
+B 1726 50
+B 1725 49
+B 1727 49
+B 1725 50
+B 1731 50
+S 1726 58 rot=180
+S 1725 58 rot=180
+S 1727 58 rot=180
+S 1728 58 rot=180
+S 1731 58 rot=90
+S 1731 52 rot=90
+S 1732 50 rot=90
+Z 1595 47 mini=0 z=2
+S 1726 52
+S 1727 53
+S 1728 53
+S 1730 53
+W 1732.875 50.875 1.25 1.25 z=5
+G 1730 55 gd=-1 z=2
+W 1734.5 60.5 2 2 z=5
+W 1735.7 56.7 1.6 1.6 z=5
+W 1739 55 z=5
+W 1736 49 z=5
+W 1739 48 z=5
+G 1740 51 gd=1 z=2
+W 1741.615 44.615 1.77 1.77 z=5
+W 1745.76 49.76 1.48 1.48 z=5
+W 1743 48 z=5
+B 1741 54
+B 1742 55
+B 1741 55
+B 1742 54
+B 1743 55
+B 1740 55
+B 1740 56
+B 1742 57
+B 1737 48
+B 1738 49
+B 1738 47
+B 1737 49
+B 1738 48
+B 1737 47
+B 1736 47
+B 1735 48
+B 1736 48
+B 1739 47
+W 1749 51 z=5
+W 1744 56 z=5
+W 1746.5 57.5 2 2 z=5
+W 1755 55 z=5
+W 1753.5 47.5 2 2 z=5
+W 1758.64 46.64 1.72 1.72 z=5
+W 1758.5 56.5 2 2 z=5
+W 1762.5 47.5 2 2 z=5
+W 1763 57 z=5
+B 1752 56
+B 1751 56
+B 1751 57
+B 1750 57
+B 1758 49
+B 1757 49
+B 1758 48
+B 1757 48
+B 1756 48
+B 1757 46
+B 1753 58
+W 1749 48 z=5
+W 1733 58 z=5
+W 1741.125 48.125 0.75 0.75 z=5
+W 1745.76 45.76 1.48 1.48 z=5
+B 1765 56
+B 1765 57
+B 1766 56
+B 1766 57
+B 1767 56
+B 1764 57
+B 1764 56
+B 1768 58
+B 1765 58
+W 1751.1 50.1 0.8 0.8 z=5
+W 1757.07 54.07 0.86 0.86 z=5
+W 1762.07 55.07 0.86 0.86 z=5
+W 1762.07 59.07 0.86 0.86 z=5
+W 1756.07 57.07 0.86 0.86 z=5
+B 1765 50
+B 1765 49
+B 1765 48
+B 1764 48
+B 1764 49
+B 1766 50
+B 1766 49
+B 1766 48
+B 1767 48
+B 1765 47
+B 1766 47
+B 1768 46
+B 1768 50
+S 1765 51
+S 1766 51
+S 1768 51
+S 1764 55 rot=180
+S 1765 55 rot=180
+S 1766 55 rot=180
+S 1767 55 rot=180
+V 1768 53 spd=0 z=2
+V 1786 53 spd=2 z=2
+W 1770.5 47.5 2 2 z=5
+W 1775.5 47.5 2 2 z=5
+W 1779.5 49.5 2 2 z=5
+W 1769.5 56.5 2 2 z=5
+W 1775.915 57.915 1.17 1.17 z=5
+W 1778.06 57.06 0.88 0.88 z=5
+W 1773.935 55.935 1.13 1.13 z=5
+W 1773.185 58.185 0.63 0.63 z=5
+W 1780.79 57.79 1.42 1.42 z=5
+B 1783 51
+B 1784 51
+B 1785 51
+B 1786 51
+B 1787 51
+B 1788 51
+B 1789 51
+B 1788 50
+B 1786 50
+B 1787 50
+B 1785 50
+B 1785 49
+B 1784 49
+B 1784 50
+B 1783 48
+B 1790 49
+R 1785 53 to=cube z=2
+B 1785 56
+B 1786 56
+B 1784 57
+B 1785 57
+B 1784 58
+B 1786 57
+B 1787 56
+B 1788 56
+B 1783 58
+B 1783 59
+B 1783 57
+B 1782 59
+B 1782 58
+B 1785 59
+B 1786 58
+B 1788 58
+B 1787 60
+C 1784 53
+S 1757 49.95 1 0.5
+S 1758 49.95 1 0.5
+B 1790 51
+B 1791 51
+B 1791 50
+B 1792 51
+B 1793 49
+O 1796 54 orb=yellow z=2
+O 1800 55 orb=yellow z=2
+D 1807 58 1 0.2 pad=blue z=2
+D 1809 61.8 1 0.2 pad=blue rot=180 z=2
+O 1805 56 orb=pink col=13017343 z=2
+B 1811 55
+B 1812 55
+B 1810 54
+B 1810 55
+B 1811 54
+B 1813 55
+B 1813 54
+B 1809 54
+B 1814 52
+B 1814 55
+B 1811 53
+O 1818 56 orb=yellow z=2
+B 1807 57
+B 1809 62
+B 1808 62
+B 1807 56
+B 1810 56
+B 1810 62
+B 1809 63
+B 1808 63
+B 1806 63
+B 1807 63
+B 1805 61
+B 1804 61
+D 1824 56 1 0.2 pad=blue z=2
+D 1825 58.8 1 0.2 pad=blue rot=180 z=2
+D 1826 57 1 0.2 pad=blue z=2
+B 1824 55
+B 1825 55
+B 1826 55
+B 1826 56
+B 1827 56
+B 1828 54
+B 1824 54
+B 1823 54
+B 1826 53
+B 1825 59
+B 1824 59
+B 1824 60
+B 1826 61
+B 1830 64
+B 1829 64
+B 1831 64
+B 1830 65
+B 1828 64
+B 1827 64
+B 1826 63
+B 1829 65
+B 1832 64
+B 1833 64
+B 1832 65
+B 1834 66
+O 1837 64 orb=yellow z=2
+S 1827 63 rot=180
+S 1828 63 rot=180
+S 1827 61 rot=90
+S 1823 60 rot=-90
+S 1815 55 rot=90
+S 1822 54 rot=-90
+S 1828 56 rot=90
+S 1808 57 rot=90
+S 1805 60 rot=180
+S 1804 60 rot=180
+S 1811 62 rot=90
+S 1808 54 rot=-90
+G 1839 61 gd=1 z=2
+D 1841 59 1 0.2 pad=blue z=2
+D 1843 65.8 1 0.2 pad=blue rot=180 z=2
+D 1846 62 1 0.2 pad=blue z=2
+B 1841 58
+B 1840 58
+B 1841 57
+B 1840 57
+B 1839 57
+B 1843 67
+B 1841 66
+B 1843 66
+B 1842 66
+B 1844 66
+B 1844 67
+B 1846 61
+B 1845 60
+B 1846 60
+B 1843 57
+B 1842 57
+B 1848 66
+B 1847 66
+B 1849 66
+B 1849 67
+B 1848 67
+B 1850 66
+B 1846 68
+G 1851 64 gd=1 z=2
+B 1854 59
+B 1853 59
+B 1855 59
+B 1853 58
+B 1854 58
+B 1852 58
+O 1860 60 orb=yellow z=2
+D 1866 60 1 0.2 pad=blue z=2
+D 1867 62.8 1 0.2 pad=blue rot=180 z=2
+B 1870 57
+B 1869 57
+B 1869 56
+B 1868 56
+B 1871 55
+O 1873 59 orb=yellow z=2
+D 1883 61.8 1 0.2 pad=blue rot=180 z=2
+D 1882 60 1 0.2 pad=blue z=2
+O 1878 60 orb=pink col=13017343 z=2
+B 1883 62
+B 1883 63
+B 1884 62
+B 1882 59
+B 1881 59
+B 1882 58
+B 1880 58
+B 1884 64
+B 1867 63
+B 1868 63
+B 1869 63
+B 1869 62
+B 1870 63
+B 1870 62
+B 1871 63
+B 1870 64
+B 1872 65
+B 1867 64
+B 1866 64
+B 1866 59
+B 1865 58
+B 1866 58
+B 1867 57
+B 1866 57
+B 1867 56
+B 1866 56
+B 1867 58
+B 1864 56
+B 1864 57
+B 1885 57
+B 1886 57
+B 1884 57
+B 1885 56
+B 1887 57
+B 1888 57
+B 1887 56
+D 1888 58 1 0.2 pad=blue z=2
+D 1889 59.8 1 0.2 pad=blue rot=180 z=2
+B 1889 55
+B 1889 60
+B 1888 61
+B 1889 61
+B 1890 61
+B 1890 60
+B 1889 62
+B 1887 63
+B 1891 56
+B 1892 56
+B 1890 56
+B 1890 55
+B 1892 55
+B 1893 56
+B 1894 56
+B 1895 55
+B 1896 56
+B 1895 56
+B 1892 54
+B 1897 54
+B 1893 55
+B 1893 54
+O 1898 58 orb=yellow z=2
+B 1915 57
+B 1914 57
+B 1913 56
+B 1914 56
+B 1891 54
+A 1901 60 ar=green z=2
+A 1920 59 ar=green z=2
+R 1935 59 to=ship z=2
+E 1912 60 art=3818 z=3
+B 1913 57
+B 1912 56
+W 1933 62 z=5
+W 1926 62 z=5
+W 1929 63 z=5
+W 1932.75 54.75 1.5 1.5 z=5
+W 1926 56 z=5
+W 1930 56 z=5
+B 1928 56
+B 1927 57
+B 1926 57
+B 1928 57
+B 1926 55
+B 1927 56
+B 1927 55
+B 1928 55
+B 1929 56
+B 1929 55
+B 1931 63
+B 1930 62
+B 1930 63
+B 1931 62
+B 1929 62
+S 1929 61 rot=180
+S 1930 61 rot=180
+S 1931 61 rot=180
+W 1921.5 54.5 2 2 z=5
+W 1921.5 63.5 2 2 z=5
+W 1924.25 62.25 0.5 0.5 z=5
+W 1903.5 55.5 2 2 z=5
+W 1912.025 57.025 0.95 0.95 z=5
+W 1906.5 64.5 2 2 z=5
+W 1904.225 63.225 0.55 0.55 z=5
+W 1913.225 63.225 0.55 0.55 z=5
+W 1915.025 62.025 0.95 0.95 z=5
+B 1918 62
+B 1917 62
+B 1919 62
+B 1918 63
+B 1917 63
+B 1918 64
+B 1917 65
+B 1917 64
+S 1917 61.55 1 0.5 rot=180
+S 1918 61.55 1 0.5 rot=180
+S 1919 61.55 1 0.5 rot=180
+B 1916 63
+B 1916 64
+B 1908 56
+B 1907 57
+B 1908 57
+B 1906 57
+B 1906 56
+S 1906 58
+S 1907 58
+S 1908 58
+B 1909 56
+B 1905 56
+B 1904 58
+B 1908 55
+B 1910 55
+W 1901.865 64.865 1.27 1.27 z=5
+W 1910.79 63.79 1.42 1.42 z=5
+W 1937.5 53.5 2 2 z=5
+W 1938.875 61.875 1.25 1.25 z=5
+W 1942.5 55.5 2 2 z=5
+B 1935 62
+B 1936 62
+B 1936 63
+B 1937 62
+B 1935 63
+B 1937 64
+B 1942 63
+B 1943 64
+B 1942 65
+B 1943 63
+B 1944 64
+B 1947 57
+B 1948 56
+B 1947 56
+B 1947 55
+B 1948 55
+B 1946 55
+B 1946 56
+B 1945 56
+B 1945 55
+B 1946 57
+B 1946 54
+B 1947 54
+B 1946 53
+B 1947 53
+B 1948 54
+B 1948 53
+B 1949 53
+B 1949 54
+B 1950 56
+B 1950 57
+B 1944 53
+W 1946 64 z=5
+W 1955.5 61.5 2 2 z=5
+W 1951.5 53.5 2 2 z=5
+W 1951.98 62.98 1.04 1.04 z=5
+B 1949 63
+B 1950 63
+B 1948 64
+B 1948 63
+B 1949 64
+B 1949 65
+B 1950 64
+B 1947 66
+W 1958.16 55.16 0.68 0.68 z=5
+W 1960 62 z=5
+W 1960.5 53.5 2 2 z=5
+B 1963 55
+B 1964 55
+B 1963 56
+B 1964 56
+B 1963 57
+B 1964 57
+B 1963 54
+B 1964 54
+B 1963 53
+B 1962 54
+B 1965 55
+B 1966 53
+B 1961 56
+B 1963 61
+B 1962 62
+B 1963 63
+B 1964 63
+B 1964 62
+B 1963 62
+B 1966 61
+B 1966 62
+B 1966 64
+B 1964 64
+B 1965 63
+B 1964 61
+S 1967 61 rot=90
+S 1965 56 rot=90
+S 1965 57 rot=90
+W 1972.5 58.5 2 2 z=5
+W 1969 60 z=5
+W 1969 53 z=5
+W 1955.73 52.73 1.54 1.54 z=5
+W 1976.5 61.5 2 2 z=5
+W 1971.5 63.5 2 2 z=5
+D 1870 57.967 1 0.2 pad=purple z=2
+G 1972 55 gd=-1 z=2
+W 1978.87 53.87 1.26 1.26 z=5
+W 1981.78 55.78 1.44 1.44 z=5
+W 1937 53 z=5
+S 1946 58
+S 1947 58
+S 1950 58
+S 1948 62 rot=180
+S 1949 62 rot=180
+S 1950 62 rot=180
+S 1943 62 rot=180
+S 1942 62 rot=180
+S 1935 61 rot=180
+S 1936 61 rot=180
+S 1937 61 rot=180
+S 1948 57
+S 1949 57 rot=-90
+S 1951 57 rot=90
+S 1962 61 rot=180
+S 1966 55 rot=90
+W 1981 63 z=5
+W 1986.5 54.5 2 2 z=5
+W 1990.815 63.815 1.37 1.37 z=5
+B 1987 62
+B 1987 63
+B 1985 63
+B 1986 63
+B 1986 62
+B 1986 64
+B 1988 63
+B 1989 63
+B 1990 64
+B 1984 57
+B 1985 57
+B 1984 58
+B 1984 56
+B 1983 56
+B 1983 57
+B 1983 55
+B 1982 55
+B 1991 56
+B 1992 55
+B 1991 55
+B 1992 56
+B 1990 56
+B 1990 55
+B 1989 58
+B 1991 57
+B 1991 58
+B 1990 58
+B 1988 56
+W 1984.635 63.635 1.73 1.73 z=5
+S 1988 62 rot=180
+S 1989 62 rot=180
+W 1995.725 62.725 1.55 1.55 z=5
+G 1995 59 gd=1 z=2
+W 1991.82 54.82 1.36 1.36 z=5
+W 2001 64 z=5
+B 2000 57
+B 1999 56
+B 2001 56
+B 2000 56
+B 1999 55
+B 1998 56
+B 2001 54
+B 2002 54
+W 2004.5 53.5 2 2 z=5
+W 2006.63 63.63 1.74 1.74 z=5
+B 2004 63
+B 2002 63
+B 2003 63
+B 2003 62
+B 2002 64
+B 2004 65
+B 2005 65
+W 1998.93 61.93 1.14 1.14 z=5
+W 1993.065 62.065 0.87 0.87 z=5
+W 1995.5 53.5 2 2 z=5
+W 2000.805 54.805 1.39 1.39 z=5
+R 2013 59 to=wave z=2
+W 2008.93 54.93 1.14 1.14 z=5
+W 2010 62 z=5
+W 2011.11 56.11 0.78 0.78 z=5
+S 2002 62 rot=180
+S 2004 62 rot=180
+S 2003 61 rot=180
+B 2012 62
+B 2013 62
+B 2014 62
+B 2013 63
+B 2012 63
+B 2013 64
+B 2014 63
+B 2011 64
+B 2013 56
+B 2012 55
+B 2014 56
+B 2012 56
+B 2013 55
+B 2011 55
+B 2014 54
+B 2015 54
+W 2018.5 61.5 2 2 z=5
+W 2017.725 53.725 1.55 1.55 z=5
+W 2026.83 53.83 1.34 1.34 z=5
+W 2022.835 61.835 1.33 1.33 z=5
+W 2029.5 63.5 2 2 z=5
+W 2030.83 53.83 1.34 1.34 z=5
+W 2034 57 z=5
+W 2035.77 63.77 1.46 1.46 z=5
+W 2037.785 55.785 1.43 1.43 z=5
+W 2044.755 60.755 1.49 1.49 z=5
+W 2040.5 53.5 2 2 z=5
+W 2048 58 z=5
+W 2045 54 z=5
+W 2023 53 z=5
+B 2020 53
+B 2019 54
+B 2019 53
+B 2020 54
+B 2021 53
+B 2027 53
+B 2027 54
+B 2026 54
+B 2028 53
+B 2028 54
+B 2029 54
+B 2024 53
+B 2020 60
+B 2021 60
+B 2020 62
+B 2020 61
+B 2022 62
+B 2022 61
+B 2030 63
+B 2032 64
+B 2030 65
+B 2031 63
+B 2032 63
+B 2031 64
+B 2033 65
+B 2036 55
+B 2035 55
+B 2035 56
+B 2034 56
+B 2034 57
+B 2036 56
+B 2037 56
+B 2038 56
+B 2038 55
+B 2037 55
+B 2034 55
+B 2034 54
+B 2033 54
+B 2037 54
+B 2037 53
+B 2038 53
+B 2040 54
+B 2046 60
+B 2047 61
+B 2046 61
+B 2047 59
+B 2047 60
+B 2048 59
+B 2049 58
+B 2048 58
+B 2048 60
+B 2050 60
+B 2050 61
+B 2045 61
+B 2045 62
+B 2047 63
+B 2048 63
+B 2048 61
+B 2047 62
+B 2045 60
+S 2016 54 rot=90
+S 2025 54 rot=-90
+S 2030 62 rot=-180
+S 2031 62 rot=-180
+S 2032 62 rot=-180
+S 2020 59 rot=-180
+S 2021 59 rot=-180
+S 2015 62 rot=-270
+S 2015 63 rot=-270
+W 2025.84 60.84 1.32 1.32 z=5
+W 2040.5 62.5 2 2 z=5
+W 2054 56 z=5
+W 2051.5 52.5 2 2 z=5
+W 2056.5 52.5 2 2 z=5
+W 2051 61 z=5
+B 2048 53
+B 2049 53
+B 2046 53
+B 2047 53
+B 2048 52
+B 2047 52
+B 2049 54
+B 2050 54
+B 2050 53
+W 2052.74 62.74 1.52 1.52 z=5
+R 2055 60 to=cube z=2
+B 2056 57
+B 2056 58
+B 2057 56
+B 2057 55
+B 2058 55
+B 2058 56
+B 2057 57
+B 2057 58
+B 2058 57
+B 2059 57
+B 2058 58
+B 2059 58
+B 2055 57
+B 2055 55
+B 2060 57
+B 2059 56
+V 2057 60 spd=0 z=2
+D 2059 59 1 0.2 pad=blue z=2
+D 2060 64.8 1 0.2 pad=blue rot=180 z=2
+B 2060 65
+B 2059 65
+B 2058 65
+B 2060 66
+B 2061 66
+B 2061 65
+B 2057 67
+B 2058 67
+B 2062 66
+B 2063 55
+B 2064 55
+B 2064 54
+B 2063 54
+B 2065 55
+B 2062 55
+B 2066 55
+B 2067 54
+B 2067 55
+B 2068 55
+B 2068 54
+B 2069 55
+B 2070 55
+B 2071 55
+B 2071 54
+B 2072 55
+B 2072 54
+B 2073 55
+B 2067 53
+B 2069 53
+B 2072 53
+B 2073 53
+B 2064 53
+B 2061 53
+B 2062 52
+B 2061 52
+B 2075 56
+B 2076 56
+B 2076 55
+B 2077 55
+B 2077 56
+B 2078 55
+B 2078 56
+B 2079 55
+B 2079 56
+B 2081 56
+B 2080 55
+B 2080 56
+B 2077 54
+B 2076 54
+B 2080 54
+G 2085 55 gd=-1 rot=90 z=2
+B 2088 60
+B 2089 61
+B 2088 61
+B 2090 60
+B 2082 62
+B 2083 62
+B 2083 61
+B 2082 61
+B 2080 62
+B 2081 62
+B 2080 61
+B 2079 61
+B 2081 61
+B 2085 63
+B 2077 62
+B 2076 63
+B 2081 63
+B 2078 61
+B 2078 62
+B 2077 63
+B 2075 62
+B 2084 61
+B 2079 64
+B 2078 64
+B 2071 61
+B 2070 61
+B 2070 60
+B 2068 60
+B 2069 60
+B 2067 60
+B 2066 60
+B 2065 61
+B 2064 62
+B 2066 62
+B 2066 61
+B 2067 61
+B 2069 62
+B 2070 62
+B 2072 63
+B 2072 60
+S 2074 55 rot=90
+S 2073 60 rot=90
+S 2074 62 rot=-90
+S 2072 61 rot=90
+S 2073 63 rot=90
+S 2077 61 rot=-180
+S 2078 60 rot=-180
+S 2079 60 rot=-180
+S 2067 59 rot=-180
+S 2069 59 rot=-180
+S 2064 52 rot=-180
+S 2067 52 rot=-180
+S 2078 54 rot=-180
+S 2086 63 rot=-270
+S 2087 61 rot=-90
+S 2087 60 rot=-90
+S 2085 61 rot=90
+S 2082 56 rot=90
+S 2084 60 rot=180
+B 2091 60
+B 2093 60
+D 2090 59.8 1 0.2 pad=blue rot=180 z=2
+D 2091 55 1 0.2 pad=blue z=2
+B 2091 54
+B 2090 54
+B 2092 54
+B 2090 53
+B 2088 54
+B 2089 54
+B 2091 53
+B 2093 52
+S 2087 54 rot=-90
+S 2093 54 rot=90
+S 2094 52 rot=90
+B 2092 62
+B 2094 60
+B 2094 61
+B 2095 61
+B 2095 60
+B 2096 60
+B 2097 60
+B 2096 61
+B 2098 61
+B 2097 61
+B 2097 62
+B 2099 63
+B 2096 54
+B 2097 54
+B 2096 53
+B 2098 53
+B 2098 54
+B 2099 54
+B 2100 53
+B 2095 54
+S 2094 54 rot=-90
+S 2095 53 rot=-90
+S 2092 61 rot=-180
+B 2101 59
+B 2102 59
+B 2101 60
+B 2101 53
+B 2106 59
+B 2107 59
+B 2108 59
+B 2100 59
+B 2102 60
+B 2103 59
+B 2103 61
+D 2106 58.8 1 0.2 pad=blue rot=180 z=2
+B 2104 52
+B 2104 53
+B 2103 52
+B 2105 52
+B 2106 52
+B 2107 52
+B 2106 53
+B 2107 53
+B 2108 52
+D 2107 54 1 0.2 pad=blue z=2
+D 2109 57.8 1 0.2 pad=blue rot=180 z=2
+B 2109 58
+B 2108 58
+B 2109 52
+B 2105 51
+B 2109 51
+B 2109 53
+B 2111 53
+B 2110 53
+S 2099 59 rot=-90
+S 2105 59 rot=-90
+S 2104 59 rot=90
+S 2102 52 rot=-90
+S 2099 61 rot=-270
+B 2112 53
+B 2111 52
+B 2113 53
+B 2114 53
+B 2116 52
+B 2116 53
+B 2115 53
+B 2117 52
+B 2117 51
+B 2112 51
+B 2112 52
+B 2115 52
+B 2114 52
+B 2114 51
+B 2113 52
+B 2117 53
+B 2119 53
+B 2120 53
+B 2121 53
+B 2118 53
+B 2120 52
+B 2119 52
+B 2118 52
+B 2119 51
+B 2120 51
+B 2114 58
+B 2116 58
+B 2117 58
+B 2119 58
+B 2120 58
+B 2117 60
+B 2118 59
+B 2116 59
+B 2114 59
+B 2117 59
+B 2115 59
+B 2115 58
+B 2121 60
+B 2122 60
+B 2112 60
+B 2123 52
+B 2123 51
+B 2124 52
+B 2124 53
+B 2125 53
+B 2127 52
+B 2125 52
+B 2126 53
+B 2128 53
+B 2127 53
+B 2128 52
+B 2128 51
+B 2129 53
+B 2129 52
+B 2129 51
+B 2130 53
+B 2126 58
+B 2127 58
+B 2124 58
+B 2125 59
+B 2125 58
+B 2126 59
+B 2127 59
+B 2129 58
+B 2128 58
+B 2128 59
+B 2130 58
+B 2132 59
+B 2131 60
+B 2126 60
+B 2125 61
+B 2124 61
+B 2133 59
+B 2134 60
+B 2133 61
+B 2134 59
+B 2134 61
+B 2133 60
+B 2135 59
+B 2136 60
+B 2135 60
+B 2137 61
+B 2137 60
+B 2138 60
+B 2137 59
+B 2136 59
+B 2138 59
+B 2131 61
+B 2139 59
+B 2140 59
+B 2141 60
+B 2140 60
+B 2141 59
+B 2140 61
+B 2142 60
+B 2144 60
+B 2143 60
+B 2143 61
+B 2144 61
+B 2144 59
+B 2142 59
+B 2143 59
+B 2135 54
+B 2136 54
+B 2137 54
+B 2138 54
+B 2139 54
+B 2142 54
+B 2143 54
+B 2140 54
+B 2139 53
+B 2138 53
+B 2137 53
+B 2135 51
+B 2135 52
+B 2142 53
+B 2142 52
+B 2139 52
+S 2134 54 rot=-90
+S 2134 52 rot=-90
+S 2134 51 rot=-90
+S 2131 53 rot=90
+S 2133 51
+B 2133 50
+B 2132 50
+S 2132 51
+S 2131 59 rot=180
+S 2122 59 rot=180
+S 2121 59 rot=180
+S 2122 53 rot=90
+S 2123 53 rot=270
+S 2123 58 rot=270
+S 2113 58 rot=270
+S 2116 57 rot=180
+S 2097 55
+S 2100 54
+S 2104 54
+S 2125 57 rot=180
+S 2128 57 rot=180
+S 2137 55
+S 2139 55
+S 2143 55
+D 2145 58.8 1 0.2 pad=blue rot=180 z=2
+D 2146 55 1 0.2 pad=blue z=2
+D 2147 57.8 1 0.2 pad=blue rot=180 z=2
+D 2148 54 1 0.2 pad=blue z=2
+D 2150 59.8 1 0.2 pad=blue rot=180 z=2
+D 2151 56 1 0.2 pad=blue z=2
+D 2152 58.8 1 0.2 pad=blue rot=180 z=2
+D 2153 55 1 0.2 pad=blue z=2
+D 2156 63.8 1 0.2 pad=blue rot=180 z=2
+D 2157 60 1 0.2 pad=blue z=2
+D 2158 62.8 1 0.2 pad=blue rot=180 z=2
+D 2159 59 1 0.2 pad=blue z=2
+D 2162 68.8 1 0.2 pad=blue rot=-180 z=2
+D 2163 65 1 0.2 pad=blue z=2
+D 2164 67.8 1 0.2 pad=blue rot=180 z=2
+D 2165 64 1 0.2 pad=blue z=2
+B 2146 54
+B 2145 54
+B 2145 53
+B 2144 52
+B 2147 53
+B 2148 53
+B 2145 59
+B 2147 58
+B 2146 59
+B 2146 61
+B 2147 61
+B 2147 60
+B 2150 60
+B 2149 61
+B 2151 60
+B 2152 59
+B 2152 60
+B 2151 55
+B 2150 54
+B 2153 54
+B 2152 54
+B 2153 53
+B 2151 53
+B 2151 54
+B 2146 53
+B 2147 52
+B 2157 58
+B 2157 59
+B 2158 58
+B 2159 58
+B 2156 58
+B 2156 64
+B 2155 64
+B 2155 65
+B 2158 64
+B 2158 63
+B 2157 64
+B 2158 65
+B 2157 57
+S 2154 54 rot=90
+S 2156 57 rot=-90
+S 2157 56 rot=-180
+S 2149 54 rot=-90
+S 2148 60 rot=-270
+S 2153 60 rot=-270
+S 2141 54 rot=-270
+S 2144 53
+S 2160 58 rot=90
+S 2159 64 rot=90
+S 2154 64 rot=270
+B 2161 69
+B 2162 69
+B 2164 68
+B 2163 69
+B 2164 69
+B 2163 64
+B 2165 63
+B 2163 63
+B 2164 63
+B 2162 63
+B 2162 62
+B 2164 62
+B 2166 61
+B 2165 70
+B 2167 70
+B 2168 70
+B 2167 71
+B 2168 71
+B 2166 71
+B 2169 70
+B 2170 70
+B 2171 70
+B 2170 71
+B 2171 72
+B 2172 70
+B 2173 70
+B 2173 71
+B 2172 71
+B 2171 71
+B 2174 71
+B 2174 70
+B 2175 70
+B 2175 71
+B 2173 72
+B 2175 73
+B 2176 73
+B 2169 64
+B 2171 64
+B 2170 65
+B 2172 65
+B 2173 65
+B 2171 65
+B 2174 64
+B 2176 64
+B 2175 65
+B 2172 63
+B 2173 63
+B 2175 62
+S 2170 66
+S 2175 66
+B 2176 70
+B 2177 70
+B 2177 71
+B 2178 71
+B 2178 70
+B 2179 70
+B 2180 70
+B 2179 71
+B 2181 71
+B 2182 70
+B 2179 73
+B 2180 71
+B 2183 72
+A 2179 69 rot=180 ar=purple tp=1 z=2
+B 2179 65
+B 2178 65
+B 2179 64
+B 2180 65
+B 2180 64
+B 2181 65
+B 2182 64
+B 2182 65
+S 2180 69 rot=180
+S 2182 69 rot=180
+S 2183 70 rot=90
+B 2183 65
+B 2183 64
+B 2184 65
+B 2184 64
+B 2185 65
+B 2187 64
+B 2186 65
+B 2187 65
+B 2188 65
+B 2188 64
+B 2189 65
+B 2191 65
+B 2189 64
+B 2190 65
+B 2192 65
+B 2191 64
+B 2182 63
+B 2187 62
+B 2187 63
+B 2188 63
+B 2181 62
+B 2185 63
+B 2190 62
+B 2195 66
+B 2196 65
+B 2194 66
+B 2195 65
+B 2198 67
+B 2199 67
+B 2199 66
+B 2198 65
+B 2188 70
+B 2190 71
+B 2189 72
+B 2192 72
+B 2191 71
+B 2191 72
+B 2193 72
+B 2194 73
+B 2195 73
+B 2196 73
+B 2195 72
+B 2193 73
+B 2194 72
+B 2193 74
+B 2190 74
+B 2191 74
+B 2197 73
+B 2197 74
+B 2198 74
+B 2199 74
+B 2199 73
+B 2195 75
+B 2198 73
+B 2196 75
+B 2201 74
+B 2201 73
+B 2200 74
+B 2203 74
+B 2202 75
+A 2132 55 ar=purple tp=1 z=2
+B 2201 67
+B 2201 66
+B 2202 67
+B 2202 66
+B 2203 67
+B 2202 73
+B 2203 73
+D 2201 68 1 0.2 pad=blue z=2
+D 2203 72.8 1 0.2 pad=purple rot=180 tp=1 z=2
+B 2204 67
+B 2205 66
+B 2205 67
+B 2206 66
+B 2203 64
+B 2206 65
+B 2206 67
+B 2207 67
+B 2207 66
+B 2208 67
+B 2209 66
+B 2209 67
+B 2209 64
+B 2211 67
+B 2212 67
+B 2210 67
+B 2210 66
+B 2212 66
+B 2213 66
+B 2213 67
+B 2215 67
+B 2215 66
+B 2214 66
+B 2214 67
+B 2216 67
+B 2209 65
+B 2211 64
+B 2213 64
+B 2212 64
+B 2213 65
+B 2217 65
+B 2208 72
+B 2210 71
+B 2209 72
+B 2210 72
+B 2211 71
+B 2212 72
+B 2213 71
+B 2211 72
+B 2210 73
+B 2206 73
+B 2214 73
+S 2188 69 rot=180
+S 2191 70 rot=180
+S 2195 71 rot=180
+S 2197 72 rot=180
+S 2200 73 rot=180
+S 2206 72 rot=180
+S 2197 65 rot=90
+S 2193 65 rot=90
+S 2201 65 rot=180
+S 2200 66 rot=270
+S 2183 63 rot=180
+S 2177 64 rot=90
+S 2179 63 rot=180
+S 2206 64 rot=180
+S 2208 71 rot=180
+S 2214 71 rot=90
+S 2204 73 rot=90
+S 2205 73 rot=270
+S 2207 72 rot=270
+B 2218 67
+B 2219 67
+B 2219 66
+B 2220 67
+B 2220 66
+B 2222 67
+B 2221 67
+B 2221 66
+B 2223 66
+D 2218 68 1 0.2 pad=blue z=2
+D 2219 71.8 1 0.2 pad=blue rot=180 z=2
+D 2221 68 1 0.2 pad=blue z=2
+D 2224 72.8 1 0.2 pad=blue rot=180 z=2
+B 2219 72
+B 2220 72
+B 2221 72
+B 2222 73
+B 2224 73
+B 2223 73
+B 2221 73
+B 2219 74
+B 2218 74
+B 2222 74
+B 2223 74
+B 2223 67
+B 2224 66
+B 2224 67
+B 2225 66
+B 2225 67
+B 2218 72
+B 2217 74
+S 2217 72 rot=-90
+S 2222 75
+S 2221 65 rot=180
+S 2223 65 rot=180
+S 2217 64 rot=180
+S 2225 73 rot=90
+B 2226 67
+B 2227 67
+A 2227 68 ar=purple tp=1 z=2
+B 2228 65
+B 2227 73
+B 2228 73
+B 2227 74
+B 2228 74
+B 2229 73
+B 2226 74
+B 2230 73
+B 2229 74
+B 2231 73
+B 2232 73
+B 2230 74
+B 2231 74
+B 2233 74
+B 2233 73
+B 2234 73
+B 2235 74
+B 2235 73
+B 2236 74
+B 2236 73
+B 2237 73
+B 2238 74
+B 2237 74
+B 2238 73
+B 2239 73
+B 2230 69
+B 2232 68
+B 2232 69
+B 2234 69
+B 2236 68
+B 2235 69
+B 2237 69
+B 2239 69
+B 2239 68
+B 2240 69
+B 2234 68
+B 2235 68
+B 2233 67
+S 2231 68 rot=-90
+S 2237 68 rot=-180
+S 2239 67 rot=-180
+S 2240 73 rot=-270
+B 2229 75
+B 2236 75
+B 2237 75
+S 2229 69 rot=-90
+S 2230 70
+S 2229 65 rot=90
+S 2228 67 rot=90
+S 2238 69 rot=-90
+S 2237 70
+B 2242 73
+B 2243 73
+B 2244 73
+B 2245 73
+B 2246 73
+B 2248 73
+B 2247 73
+B 2249 73
+B 2250 73
+B 2245 68
+B 2243 68
+B 2244 68
+B 2246 68
+B 2247 68
+B 2248 67
+B 2247 67
+B 2246 67
+B 2243 66
+B 2242 66
+B 2241 66
+B 2249 69
+B 2244 74
+B 2244 75
+B 2241 75
+B 2247 74
+B 2249 74
+B 2246 74
+B 2247 75
+B 2248 75
+B 2248 74
+B 2251 76
+B 2251 75
+G 2251 71 gd=1 z=2
+H 2251 69 fm=corner
+H 2251.002 68 0.05 1 rot=-90 fm=edge
+H 2251.002 67 0.05 1 rot=-90 fm=edge
+H 2251.002 66 0.05 1 rot=-90 fm=edge
+H 2251.002 65 0.05 1 rot=-90 fm=edge
+H 2251.002 64 0.05 1 rot=-90 fm=edge
+H 2251.002 63 0.05 1 rot=-90 fm=edge
+H 2252 69.95 1 0.05 fm=edge
+H 2253 69.95 1 0.05 fm=edge
+H 2254 69.95 1 0.05 fm=edge
+H 2255 69.95 1 0.05 fm=edge
+H 2256 69.95 1 0.05 fm=edge
+H 2257 69.95 1 0.05 fm=edge
+H 2258 69.95 1 0.05 fm=edge
+H 2260 69.95 1 0.05 fm=edge
+H 2261 69.95 1 0.05 fm=edge
+H 2262 69.95 1 0.05 fm=edge
+H 2259 69.95 1 0.05 fm=edge
+R 2258 71 to=spider z=2
+H 2263 69 rot=90 fm=corner
+H 2263.948 68 0.05 1 rot=90 fm=edge
+H 2263.948 67 0.05 1 rot=90 fm=edge
+H 2263.948 66 0.05 1 rot=90 fm=edge
+H 2263.948 65 0.05 1 rot=90 fm=edge
+H 2263.948 64 0.05 1 rot=90 fm=edge
+H 2263.948 63 0.05 1 rot=90 fm=edge
+H 2262 74 rot=-90 fm=corner
+H 2264 74 1 0.05 rot=180 fm=edge
+H 2265 74 1 0.05 rot=180 fm=edge
+H 2262.002 75 0.05 1 rot=270 fm=edge
+H 2262.002 76 0.05 1 rot=270 fm=edge
+H 2262.002 77 0.05 1 rot=270 fm=edge
+H 2262.002 78 0.05 1 rot=270 fm=edge
+H 2262.002 79 0.05 1 rot=270 fm=edge
+C 2056 60
+E 2256 71 art=3848 z=3
+H 2263 74 1 0.05 rot=180 fm=edge
+H 2266 74 rot=-180 fm=corner
+H 2266.948 75 0.05 1 rot=90 fm=edge
+H 2266.948 76 0.05 1 rot=90 fm=edge
+H 2266.948 77 0.05 1 rot=90 fm=edge
+H 2266.948 79 0.05 1 rot=90 fm=edge
+H 2266.948 78 0.05 1 rot=90 fm=edge
+H 2265 69 fm=corner
+H 2265.002 67 0.05 1 rot=-90 fm=edge
+H 2265.002 68 0.05 1 rot=-90 fm=edge
+H 2265.002 66 0.05 1 rot=-90 fm=edge
+H 2265.002 65 0.05 1 rot=-90 fm=edge
+H 2265.002 64 0.05 1 rot=-90 fm=edge
+H 2265.002 63 0.05 1 rot=-90 fm=edge
+H 2267 69.95 1 0.05 fm=edge
+H 2268 69.95 1 0.05 fm=edge
+H 2266 69.95 1 0.05 fm=edge
+H 2269 74 rot=-90 fm=corner
+H 2270 74 1 0.05 rot=180 fm=edge
+H 2269.002 75 0.05 1 rot=-90 fm=edge
+H 2269.002 76 0.05 1 rot=-90 fm=edge
+H 2269.002 77 0.05 1 rot=-90 fm=edge
+H 2269.002 78 0.05 1 rot=-90 fm=edge
+H 2269.002 79 0.05 1 rot=-90 fm=edge
+H 2271 74 1 0.05 rot=-180 fm=edge
+H 2269 69 rot=90 fm=corner
+H 2269.948 68 0.05 1 rot=90 fm=edge
+H 2269.948 66 0.05 1 rot=90 fm=edge
+H 2269.948 64 0.05 1 rot=90 fm=edge
+H 2269.948 67 0.05 1 rot=90 fm=edge
+H 2269.948 65 0.05 1 rot=90 fm=edge
+H 2269.948 63 0.05 1 rot=90 fm=edge
+H 2271 69 fm=corner
+H 2271.002 68 0.05 1 rot=-90 fm=edge
+H 2271.002 67 0.05 1 rot=-90 fm=edge
+H 2271.002 66 0.05 1 rot=-90 fm=edge
+H 2271.002 65 0.05 1 rot=-90 fm=edge
+H 2271.002 64 0.05 1 rot=-90 fm=edge
+H 2271.002 63 0.05 1 rot=-90 fm=edge
+H 2272 69.95 1 0.05 fm=edge
+H 2273 69.95 1 0.05 fm=edge
+H 2274 69.95 1 0.05 fm=edge
+H 2272 74 1 0.05 rot=180 fm=edge
+H 2273 74 1 0.05 rot=180 fm=edge
+H 2275 74 rot=-180 fm=corner
+H 2275.948 75 0.05 1 rot=-270 fm=edge
+H 2275.948 76 0.05 1 rot=-270 fm=edge
+H 2275.948 77 0.05 1 rot=-270 fm=edge
+H 2275.948 78 0.05 1 rot=-270 fm=edge
+H 2275.948 79 0.05 1 rot=-270 fm=edge
+S 2273.75 70.144 1 0.063
+S 2272.25 73.794 1 0.063 rot=180
+H 2274 74 1 0.05 rot=180 fm=edge
+H 2275 69.95 1 0.05 fm=edge
+H 2276 69.95 1 0.05 fm=edge
+H 2277 69.95 1 0.05 fm=edge
+H 2278 69.95 1 0.05 fm=edge
+H 2279 69.95 1 0.05 fm=edge
+H 2280 69.95 1 0.05 fm=edge
+H 2281 69.95 1 0.05 fm=edge
+H 2282 69.95 1 0.05 fm=edge
+H 2283 69.95 1 0.05 fm=edge
+H 2284 69.95 1 0.05 fm=edge
+H 2285 69.95 1 0.05 fm=edge
+H 2286 69 rot=90 fm=corner
+H 2286.948 67 0.05 1 rot=90 fm=edge
+H 2286.948 68 0.05 1 rot=90 fm=edge
+H 2286.948 65 0.05 1 rot=90 fm=edge
+H 2286.948 66 0.05 1 rot=90 fm=edge
+H 2286.948 64 0.05 1 rot=90 fm=edge
+H 2286.948 63 0.05 1 rot=90 fm=edge
+H 2286 74 rot=-90 fm=corner
+H 2286.002 75 0.05 1 rot=270 fm=edge
+H 2286.002 76 0.05 1 rot=270 fm=edge
+H 2286.002 78 0.05 1 rot=270 fm=edge
+H 2286.002 79 0.05 1 rot=270 fm=edge
+H 2286.002 77 0.05 1 rot=270 fm=edge
+H 2287 74 1 0.05 rot=180 fm=edge
+H 2288 74 1 0.05 rot=180 fm=edge
+H 2289 74 rot=180 fm=corner
+H 2289.948 75 0.05 1 rot=-270 fm=edge
+H 2289.948 76 0.05 1 rot=-270 fm=edge
+H 2289.948 77 0.05 1 rot=-270 fm=edge
+H 2289.948 78 0.05 1 rot=-270 fm=edge
+H 2289.948 79 0.05 1 rot=-270 fm=edge
+H 2289 69 fm=corner
+H 2289.002 68 0.05 1 rot=-90 fm=edge
+H 2289.002 67 0.05 1 rot=-90 fm=edge
+H 2289.002 66 0.05 1 rot=-90 fm=edge
+H 2289.002 65 0.05 1 rot=-90 fm=edge
+H 2289.002 64 0.05 1 rot=-90 fm=edge
+H 2289.002 63 0.05 1 rot=-90 fm=edge
+H 2290 69.95 1 0.05 fm=edge
+H 2291 69.95 1 0.05 fm=edge
+H 2292 69 rot=90 fm=corner
+H 2292.948 67 0.05 1 rot=90 fm=edge
+H 2292.948 68 0.05 1 rot=90 fm=edge
+H 2292.948 66 0.05 1 rot=90 fm=edge
+H 2292.948 65 0.05 1 rot=90 fm=edge
+H 2292.948 64 0.05 1 rot=90 fm=edge
+H 2292.948 63 0.05 1 rot=90 fm=edge
+H 2292 74 rot=-90 fm=corner
+H 2292.002 75 0.05 1 rot=-90 fm=edge
+H 2292.002 76 0.05 1 rot=-90 fm=edge
+H 2292.002 77 0.05 1 rot=-90 fm=edge
+H 2292.002 78 0.05 1 rot=-90 fm=edge
+H 2292.002 79 0.05 1 rot=-90 fm=edge
+H 2293 74 1 0.05 rot=180 fm=edge
+H 2294 74 1 0.05 rot=180 fm=edge
+H 2295 69 fm=corner
+H 2295.002 68 0.05 1 rot=-90 fm=edge
+H 2295.002 67 0.05 1 rot=-90 fm=edge
+H 2295.002 65 0.05 1 rot=-90 fm=edge
+H 2295.002 66 0.05 1 rot=-90 fm=edge
+H 2295.002 64 0.05 1 rot=-90 fm=edge
+H 2295.002 63 0.05 1 rot=-90 fm=edge
+H 2296 69.95 1 0.05 fm=edge
+H 2297 69.95 1 0.05 fm=edge
+H 2298 69.95 1 0.05 fm=edge
+H 2298 74 rot=180 fm=corner
+H 2297 74 1 0.05 rot=180 fm=edge
+H 2295 74 1 0.05 rot=180 fm=edge
+H 2296 74 1 0.05 rot=180 fm=edge
+H 2298.948 75 0.05 1 rot=90 fm=edge
+H 2298.948 77 0.05 1 rot=90 fm=edge
+H 2298.948 79 0.05 1 rot=90 fm=edge
+H 2298.948 78 0.05 1 rot=90 fm=edge
+H 2298.948 76 0.05 1 rot=90 fm=edge
+S 2295.75 73.794 1 0.063 rot=180
+S 2297.25 70.144 1 0.063
+H 2299 69.95 1 0.05 fm=edge
+H 2300 69.95 1 0.05 fm=edge
+H 2301 69.95 1 0.05 fm=edge
+H 2302 69.95 1 0.05 fm=edge
+H 2303 69.95 1 0.05 fm=edge
+H 2304 69.95 1 0.05 fm=edge
+H 2305 69.95 1 0.05 fm=edge
+H 2306 69.95 1 0.05 fm=edge
+H 2307 69.95 1 0.05 fm=edge
+H 2308 69.95 1 0.05 fm=edge
+H 2309 69.95 1 0.05 fm=edge
+H 2309 73 rot=-90 fm=corner
+H 2310 73 1 0.05 rot=180 fm=edge
+H 2309.002 76 0.05 1 rot=-90 fm=edge
+H 2309.002 75 0.05 1 rot=-90 fm=edge
+H 2309.002 74 0.05 1 rot=-90 fm=edge
+H 2309.002 77 0.05 1 rot=-90 fm=edge
+H 2310 69.95 1 0.05 fm=edge
+H 2311 69.95 1 0.05 fm=edge
+H 2312 69.95 1 0.05 fm=edge
+S 2309.75 70.144 1 0.063
+H 2313 69.95 1 0.05 fm=edge
+H 2314 69.95 1 0.05 fm=edge
+H 2315 69.95 1 0.05 fm=edge
+H 2316 69.95 1 0.05 fm=edge
+H 2317 69.95 1 0.05 fm=edge
+H 2315 73 1 0.05 rot=180 fm=edge
+H 2314 73 rot=-90 fm=corner
+H 2316 73 rot=180 fm=corner
+H 2316.948 74 0.05 1 rot=90 fm=edge
+H 2316.948 75 0.05 1 rot=90 fm=edge
+H 2316.948 76 0.05 1 rot=90 fm=edge
+H 2316.948 77 0.05 1 rot=90 fm=edge
+H 2314.002 77 0.05 1 rot=-90 fm=edge
+H 2314.002 76 0.05 1 rot=-90 fm=edge
+H 2314.002 75 0.05 1 rot=-90 fm=edge
+H 2314.002 74 0.05 1 rot=-90 fm=edge
+S 2314.75 70.144 1 0.063
+H 2311 73 rot=180 fm=corner
+H 2311.948 74 0.05 1 rot=90 fm=edge
+H 2311.948 75 0.05 1 rot=90 fm=edge
+H 2311.948 76 0.05 1 rot=90 fm=edge
+H 2311.948 77 0.05 1 rot=90 fm=edge
+H 2318 69.95 1 0.05 fm=edge
+H 2323 73 1 0.05 rot=180 fm=edge
+H 2319 73 rot=-90 fm=corner
+H 2322 73 1 0.05 rot=180 fm=edge
+H 2321 73 1 0.05 rot=180 fm=edge
+H 2320 73 1 0.05 rot=180 fm=edge
+H 2319.002 74 0.05 1 rot=270 fm=edge
+H 2319.002 75 0.05 1 rot=270 fm=edge
+H 2319.002 76 0.05 1 rot=270 fm=edge
+H 2319.002 77 0.05 1 rot=270 fm=edge
+H 2319 69 rot=90 fm=corner
+H 2319.948 67 0.05 1 rot=90 fm=edge
+H 2319.948 68 0.05 1 rot=90 fm=edge
+H 2319.948 65 0.05 1 rot=90 fm=edge
+H 2319.948 66 0.05 1 rot=90 fm=edge
+H 2319.948 64 0.05 1 rot=90 fm=edge
+H 2319.948 63 0.05 1 rot=90 fm=edge
+H 2324 73 1 0.05 rot=180 fm=edge
+H 2325 73 1 0.05 rot=180 fm=edge
+H 2326 73 1 0.05 rot=180 fm=edge
+H 2327 73 1 0.05 rot=180 fm=edge
+H 2329 73 1 0.05 rot=180 fm=edge
+H 2330 73 1 0.05 rot=180 fm=edge
+H 2331 73 1 0.05 rot=180 fm=edge
+H 2328 73 1 0.05 rot=180 fm=edge
+H 2322 69 fm=corner
+H 2323 69.95 1 0.05 fm=edge
+H 2324 69 rot=90 fm=corner
+H 2322.002 68 0.05 1 rot=-90 fm=edge
+H 2322.002 67 0.05 1 rot=-90 fm=edge
+H 2322.002 65 0.05 1 rot=-90 fm=edge
+H 2322.002 66 0.05 1 rot=-90 fm=edge
+H 2322.002 64 0.05 1 rot=-90 fm=edge
+H 2322.002 63 0.05 1 rot=-90 fm=edge
+H 2324.948 68 0.05 1 rot=90 fm=edge
+H 2324.948 67 0.05 1 rot=90 fm=edge
+H 2324.948 66 0.05 1 rot=90 fm=edge
+H 2324.948 65 0.05 1 rot=90 fm=edge
+H 2324.948 64 0.05 1 rot=90 fm=edge
+H 2324.948 63 0.05 1 rot=90 fm=edge
+S 2322.75 72.794 1 0.063 rot=180
+H 2326 69 fm=corner
+H 2327 69.95 1 0.05 fm=edge
+H 2328 69 rot=90 fm=corner
+H 2326.002 68 0.05 1 rot=-90 fm=edge
+H 2326.002 67 0.05 1 rot=-90 fm=edge
+H 2326.002 66 0.05 1 rot=-90 fm=edge
+H 2326.002 64 0.05 1 rot=-90 fm=edge
+H 2326.002 63 0.05 1 rot=-90 fm=edge
+H 2326.002 65 0.05 1 rot=-90 fm=edge
+H 2328.948 68 0.05 1 rot=90 fm=edge
+H 2328.948 67 0.05 1 rot=90 fm=edge
+H 2328.948 66 0.05 1 rot=90 fm=edge
+H 2328.948 65 0.05 1 rot=90 fm=edge
+H 2328.948 64 0.05 1 rot=90 fm=edge
+H 2328.948 63 0.05 1 rot=90 fm=edge
+S 2326.75 72.794 1 0.063 rot=180
+H 2333 73 rot=-180 fm=corner
+H 2332 73 1 0.05 rot=180 fm=edge
+H 2333.948 74 0.05 1 rot=90 fm=edge
+H 2333.948 75 0.05 1 rot=90 fm=edge
+H 2333.948 76 0.05 1 rot=90 fm=edge
+H 2333.948 77 0.05 1 rot=90 fm=edge
+H 2333 69 fm=corner
+H 2333.002 67 0.05 1 rot=-90 fm=edge
+H 2333.002 68 0.05 1 rot=-90 fm=edge
+H 2333.002 66 0.05 1 rot=-90 fm=edge
+H 2333.002 65 0.05 1 rot=-90 fm=edge
+H 2333.002 64 0.05 1 rot=-90 fm=edge
+H 2333.002 63 0.05 1 rot=-90 fm=edge
+H 2334 69.95 1 0.05 fm=edge
+H 2335 69.95 1 0.05 fm=edge
+H 2337 69.95 1 0.05 fm=edge
+H 2338 69.95 1 0.05 fm=edge
+H 2339 69.95 1 0.05 fm=edge
+H 2336 69.95 1 0.05 fm=edge
+H 2340 69.95 1 0.05 fm=edge
+H 2341 69.95 1 0.05 fm=edge
+H 2342 69.95 1 0.05 fm=edge
+H 2343 69 rot=90 fm=corner
+H 2343.948 68 0.05 1 rot=90 fm=edge
+H 2343.948 67 0.05 1 rot=90 fm=edge
+H 2343.948 66 0.05 1 rot=90 fm=edge
+H 2343.948 65 0.05 1 rot=90 fm=edge
+H 2343.948 64 0.05 1 rot=90 fm=edge
+H 2343.948 63 0.05 1 rot=90 fm=edge
+H 2343 73 rot=-90 fm=corner
+H 2343.002 74 0.05 1 rot=-90 fm=edge
+H 2343.002 75 0.05 1 rot=-90 fm=edge
+H 2343.002 76 0.05 1 rot=-90 fm=edge
+H 2343.002 77 0.05 1 rot=-90 fm=edge
+H 2344 73 1 0.05 rot=-180 fm=edge
+H 2345 73 1 0.05 rot=-180 fm=edge
+H 2346 73 rot=180 fm=corner
+H 2345 69 fm=corner
+H 2345.002 68 0.05 1 rot=-90 fm=edge
+H 2345.002 67 0.05 1 rot=-90 fm=edge
+H 2345.002 66 0.05 1 rot=-90 fm=edge
+H 2345.002 65 0.05 1 rot=-90 fm=edge
+H 2345.002 64 0.05 1 rot=-90 fm=edge
+H 2345.002 63 0.05 1 rot=-90 fm=edge
+H 2346 69.95 1 0.05 fm=edge
+H 2347 69.95 1 0.05 fm=edge
+H 2348 69.95 1 0.05 fm=edge
+H 2349 69.95 1 0.05 fm=edge
+H 2350 69.95 1 0.05 fm=edge
+H 2351 69.95 1 0.05 fm=edge
+H 2353 69.95 1 0.05 fm=edge
+H 2352 69.95 1 0.05 fm=edge
+H 2346.948 74 0.05 1 rot=90 fm=edge
+H 2346.948 75 0.05 1 rot=90 fm=edge
+H 2346.948 76 0.05 1 rot=90 fm=edge
+H 2346.948 77 0.05 1 rot=90 fm=edge
+H 2354 73 rot=-90 fm=corner
+H 2354.002 74 0.05 1 rot=-90 fm=edge
+H 2354.002 75 0.05 1 rot=-90 fm=edge
+H 2354.002 76 0.05 1 rot=-90 fm=edge
+H 2354.002 77 0.05 1 rot=-90 fm=edge
+H 2355 73 1 0.05 rot=-180 fm=edge
+H 2356 73 1 0.05 rot=-180 fm=edge
+H 2357 73 rot=180 fm=corner
+H 2357.948 74 0.05 1 rot=90 fm=edge
+H 2357.948 75 0.05 1 rot=90 fm=edge
+H 2357.948 77 0.05 1 rot=90 fm=edge
+H 2357.948 76 0.05 1 rot=90 fm=edge
+H 2354 69 rot=90 fm=corner
+H 2354.948 68 0.05 1 rot=90 fm=edge
+H 2354.948 67 0.05 1 rot=90 fm=edge
+H 2354.948 66 0.05 1 rot=90 fm=edge
+H 2354.948 65 0.05 1 rot=90 fm=edge
+H 2354.948 64 0.05 1 rot=90 fm=edge
+H 2354.948 63 0.05 1 rot=90 fm=edge
+H 2357 69 fm=corner
+H 2357.002 68 0.05 1 rot=-90 fm=edge
+H 2357.002 67 0.05 1 rot=-90 fm=edge
+H 2357.002 66 0.05 1 rot=-90 fm=edge
+H 2357.002 65 0.05 1 rot=-90 fm=edge
+H 2357.002 63 0.05 1 rot=-90 fm=edge
+H 2357.002 64 0.05 1 rot=-90 fm=edge
+H 2358 69.95 1 0.05 fm=edge
+H 2359 69.95 1 0.05 fm=edge
+H 2360 69 rot=90 fm=corner
+H 2360.948 68 0.05 1 rot=90 fm=edge
+H 2360.948 67 0.05 1 rot=90 fm=edge
+H 2360.948 65 0.05 1 rot=90 fm=edge
+H 2360.948 66 0.05 1 rot=90 fm=edge
+H 2360.948 64 0.05 1 rot=90 fm=edge
+H 2360.948 63 0.05 1 rot=90 fm=edge
+H 2360 73 rot=-90 fm=corner
+H 2360.002 74 0.05 1 rot=270 fm=edge
+H 2360.002 75 0.05 1 rot=270 fm=edge
+H 2360.002 76 0.05 1 rot=270 fm=edge
+H 2360.002 77 0.05 1 rot=270 fm=edge
+H 2361 73 1 0.05 rot=180 fm=edge
+H 2362 73 1 0.05 rot=180 fm=edge
+H 2363 73 rot=180 fm=corner
+H 2363.948 74 0.05 1 rot=-270 fm=edge
+H 2363.948 75 0.05 1 rot=-270 fm=edge
+H 2363.948 76 0.05 1 rot=-270 fm=edge
+H 2363.948 77 0.05 1 rot=-270 fm=edge
+H 2363 69 fm=corner
+H 2363.002 68 0.05 1 rot=-90 fm=edge
+H 2363.002 67 0.05 1 rot=-90 fm=edge
+H 2363.002 65 0.05 1 rot=-90 fm=edge
+H 2363.002 64 0.05 1 rot=-90 fm=edge
+H 2363.002 66 0.05 1 rot=-90 fm=edge
+H 2363.002 63 0.05 1 rot=-90 fm=edge
+H 2364 69.95 1 0.05 fm=edge
+H 2365 69.95 1 0.05 fm=edge
+H 2366 69.95 1 0.05 fm=edge
+H 2367 69.95 1 0.05 fm=edge
+H 2368 69.95 1 0.05 fm=edge
+H 2369 69.95 1 0.05 fm=edge
+H 2365 73 rot=-90 fm=corner
+H 2369 73 rot=180 fm=corner
+H 2368 73 1 0.05 rot=180 fm=edge
+H 2367 73 1 0.05 rot=180 fm=edge
+H 2366 73 1 0.05 rot=180 fm=edge
+H 2365.002 74 0.05 1 rot=270 fm=edge
+H 2365.002 75 0.05 1 rot=270 fm=edge
+H 2365.002 76 0.05 1 rot=270 fm=edge
+H 2365.002 77 0.05 1 rot=270 fm=edge
+H 2369.948 76 0.05 1 rot=90 fm=edge
+H 2369.948 77 0.05 1 rot=90 fm=edge
+H 2369.948 75 0.05 1 rot=90 fm=edge
+H 2369.948 74 0.05 1 rot=90 fm=edge
+S 2366.25 72.794 1 0.063 rot=180
+S 2367.75 70.144 1 0.063
+H 2370 69.95 1 0.05 fm=edge
+H 2371 69.95 1 0.05 fm=edge
+H 2372 69.95 1 0.05 fm=edge
+H 2373 69.95 1 0.05 fm=edge
+H 2375 69.95 1 0.05 fm=edge
+H 2377 69.95 1 0.05 fm=edge
+H 2378 69.95 1 0.05 fm=edge
+H 2374 69.95 1 0.05 fm=edge
+H 2379 69.95 1 0.05 fm=edge
+H 2376 69.95 1 0.05 fm=edge
+H 2380 69.95 1 0.05 fm=edge
+H 2381 69 rot=90 fm=corner
+H 2381.948 68 0.05 1 rot=90 fm=edge
+H 2381.948 67 0.05 1 rot=90 fm=edge
+H 2381.948 66 0.05 1 rot=90 fm=edge
+H 2381.948 65 0.05 1 rot=90 fm=edge
+H 2381.948 64 0.05 1 rot=90 fm=edge
+H 2381.948 63 0.05 1 rot=90 fm=edge
+H 2381 73 rot=-90 fm=corner
+H 2381.002 74 0.05 1 rot=-90 fm=edge
+H 2381.002 75 0.05 1 rot=-90 fm=edge
+H 2381.002 76 0.05 1 rot=-90 fm=edge
+H 2381.002 77 0.05 1 rot=-90 fm=edge
+H 2382 73 1 0.05 rot=-180 fm=edge
+H 2383 73 1 0.05 rot=-180 fm=edge
+H 2384 73 rot=180 fm=corner
+H 2384.948 74 0.05 1 rot=90 fm=edge
+H 2384.948 75 0.05 1 rot=90 fm=edge
+H 2384.948 76 0.05 1 rot=90 fm=edge
+H 2384.948 77 0.05 1 rot=90 fm=edge
+H 2384 69 fm=corner
+H 2384.002 68 0.05 1 rot=-90 fm=edge
+H 2384.002 67 0.05 1 rot=-90 fm=edge
+H 2385 69.95 1 0.05 fm=edge
+H 2386 69.95 1 0.05 fm=edge
+H 2387 69 rot=90 fm=corner
+H 2387.948 68 0.05 1 rot=90 fm=edge
+H 2387.948 66 0.05 1 rot=90 fm=edge
+H 2387.948 67 0.05 1 rot=90 fm=edge
+H 2387.948 65 0.05 1 rot=90 fm=edge
+H 2387.948 64 0.05 1 rot=90 fm=edge
+H 2387.948 63 0.05 1 rot=90 fm=edge
+H 2384.002 64 0.05 1 rot=270 fm=edge
+H 2384.002 65 0.05 1 rot=270 fm=edge
+H 2384.002 63 0.05 1 rot=270 fm=edge
+H 2384.002 66 0.05 1 rot=270 fm=edge
+H 2386 73 rot=-90 fm=corner
+H 2386.002 74 0.05 1 rot=-90 fm=edge
+H 2386.002 75 0.05 1 rot=-90 fm=edge
+H 2386.002 76 0.05 1 rot=-90 fm=edge
+H 2386.002 77 0.05 1 rot=-90 fm=edge
+H 2387 73 1 0.05 rot=180 fm=edge
+H 2389 73 1 0.05 rot=180 fm=edge
+H 2388 73 1 0.05 rot=180 fm=edge
+H 2391 73 1 0.05 rot=180 fm=edge
+H 2390 73 1 0.05 rot=180 fm=edge
+H 2392 73 1 0.05 rot=180 fm=edge
+H 2393 73 rot=180 fm=corner
+H 2393.948 74 0.05 1 rot=90 fm=edge
+H 2393.948 76 0.05 1 rot=90 fm=edge
+H 2393.948 75 0.05 1 rot=90 fm=edge
+H 2393.948 77 0.05 1 rot=90 fm=edge
+H 2389 69 fm=corner
+H 2389.002 68 0.05 1 rot=-90 fm=edge
+H 2389.002 67 0.05 1 rot=-90 fm=edge
+H 2389.002 66 0.05 1 rot=-90 fm=edge
+H 2389.002 65 0.05 1 rot=-90 fm=edge
+H 2389.002 64 0.05 1 rot=-90 fm=edge
+H 2389.002 63 0.05 1 rot=-90 fm=edge
+H 2390 69.95 1 0.05 fm=edge
+H 2391 69.95 1 0.05 fm=edge
+H 2392 69.95 1 0.05 fm=edge
+H 2393 69.95 1 0.05 fm=edge
+H 2394 69.95 1 0.05 fm=edge
+S 2390.25 70.144 1 0.063
+S 2391.75 72.794 1 0.063 rot=180
+H 2395 69.95 1 0.05 fm=edge
+H 2396 69.95 1 0.05 fm=edge
+H 2397 69.95 1 0.05 fm=edge
+H 2398 69.95 1 0.05 fm=edge
+H 2399 69.95 1 0.05 fm=edge
+H 2400 69.95 1 0.05 fm=edge
+H 2401 69.95 1 0.05 fm=edge
+H 2402 69.95 1 0.05 fm=edge
+H 2403 69.95 1 0.05 fm=edge
+H 2404 69.95 1 0.05 fm=edge
+H 2405 69.95 1 0.05 fm=edge
+H 2406 69.95 1 0.05 fm=edge
+H 2407 69.95 1 0.05 fm=edge
+H 2404 73 rot=-90 fm=corner
+H 2405 73 1 0.05 rot=180 fm=edge
+H 2406 73 rot=180 fm=corner
+H 2404.002 74 0.05 1 rot=-90 fm=edge
+H 2404.002 75 0.05 1 rot=-90 fm=edge
+H 2404.002 76 0.05 1 rot=-90 fm=edge
+H 2404.002 77 0.05 1 rot=-90 fm=edge
+H 2406.948 77 0.05 1 rot=90 fm=edge
+H 2406.948 76 0.05 1 rot=90 fm=edge
+H 2406.948 75 0.05 1 rot=90 fm=edge
+H 2406.948 74 0.05 1 rot=90 fm=edge
+H 2408 69.95 1 0.05 fm=edge
+H 2409 69.95 1 0.05 fm=edge
+H 2410 69.95 1 0.05 fm=edge
+H 2412 69.95 1 0.05 fm=edge
+H 2411 69.95 1 0.05 fm=edge
+H 2409 73 1 0.05 rot=180 fm=edge
+H 2408 73 rot=-90 fm=corner
+H 2410 73 rot=180 fm=corner
+H 2408.002 74 0.05 1 rot=-90 fm=edge
+H 2408.002 75 0.05 1 rot=-90 fm=edge
+H 2408.002 76 0.05 1 rot=-90 fm=edge
+H 2408.002 77 0.05 1 rot=-90 fm=edge
+H 2410.948 77 0.05 1 rot=90 fm=edge
+H 2410.948 75 0.05 1 rot=90 fm=edge
+H 2410.948 76 0.05 1 rot=90 fm=edge
+H 2410.948 74 0.05 1 rot=90 fm=edge
+S 2404.75 70.144 1 0.063
+S 2409.25 70.144 1 0.063
+H 2413 69 rot=90 fm=corner
+H 2413.948 68 0.05 1 rot=90 fm=edge
+H 2413.948 67 0.05 1 rot=90 fm=edge
+H 2413.948 66 0.05 1 rot=90 fm=edge
+H 2413.948 65 0.05 1 rot=90 fm=edge
+H 2413.948 64 0.05 1 rot=90 fm=edge
+H 2413.948 63 0.05 1 rot=90 fm=edge
+H 2413 73 rot=-90 fm=corner
+H 2413.002 74 0.05 1 rot=-90 fm=edge
+H 2413.002 75 0.05 1 rot=-90 fm=edge
+H 2413.002 76 0.05 1 rot=-90 fm=edge
+H 2413.002 77 0.05 1 rot=-90 fm=edge
+H 2414 73 1 0.05 rot=-180 fm=edge
+H 2415 73 1 0.05 rot=-180 fm=edge
+H 2416 73 1 0.05 rot=-180 fm=edge
+H 2417 73 1 0.05 rot=-180 fm=edge
+H 2418 73 1 0.05 rot=-180 fm=edge
+H 2419 73 1 0.05 rot=-180 fm=edge
+H 2416 69 fm=corner
+H 2418 69 rot=90 fm=corner
+H 2417 69.95 1 0.05 fm=edge
+H 2416.002 68 0.05 1 rot=-90 fm=edge
+H 2416.002 67 0.05 1 rot=-90 fm=edge
+H 2416.002 66 0.05 1 rot=-90 fm=edge
+H 2416.002 65 0.05 1 rot=-90 fm=edge
+H 2416.002 64 0.05 1 rot=-90 fm=edge
+H 2416.002 63 0.05 1 rot=-90 fm=edge
+H 2418.948 68 0.05 1 rot=90 fm=edge
+H 2418.948 67 0.05 1 rot=90 fm=edge
+H 2418.948 66 0.05 1 rot=90 fm=edge
+H 2418.948 65 0.05 1 rot=90 fm=edge
+H 2418.948 64 0.05 1 rot=90 fm=edge
+H 2418.948 63 0.05 1 rot=90 fm=edge
+H 2420 73 1 0.05 rot=180 fm=edge
+H 2421 73 1 0.05 rot=180 fm=edge
+H 2422 73 1 0.05 rot=180 fm=edge
+H 2420 69 fm=corner
+H 2421 69.95 1 0.05 fm=edge
+H 2422 69 rot=90 fm=corner
+H 2420.002 68 0.05 1 rot=-90 fm=edge
+H 2420.002 67 0.05 1 rot=-90 fm=edge
+H 2420.002 65 0.05 1 rot=-90 fm=edge
+H 2420.002 64 0.05 1 rot=-90 fm=edge
+H 2420.002 66 0.05 1 rot=-90 fm=edge
+H 2420.002 63 0.05 1 rot=270 fm=edge
+H 2422.948 68 0.05 1 rot=90 fm=edge
+H 2422.948 67 0.05 1 rot=90 fm=edge
+H 2422.948 66 0.05 1 rot=90 fm=edge
+H 2422.948 65 0.05 1 rot=90 fm=edge
+H 2422.948 64 0.05 1 rot=90 fm=edge
+H 2422.948 63 0.05 1 rot=90 fm=edge
+H 2423 73 1 0.05 rot=180 fm=edge
+H 2424 73 1 0.05 rot=180 fm=edge
+H 2425 73 1 0.05 rot=180 fm=edge
+H 2426 73 1 0.05 rot=180 fm=edge
+H 2427 73 1 0.05 rot=180 fm=edge
+H 2428 73 rot=180 fm=corner
+H 2428.948 74 0.05 1 rot=90 fm=edge
+H 2428.948 75 0.05 1 rot=90 fm=edge
+H 2428.948 76 0.05 1 rot=90 fm=edge
+H 2428.948 77 0.05 1 rot=90 fm=edge
+H 2425 69 fm=corner
+H 2426 69.95 1 0.05 fm=edge
+H 2427 69.95 1 0.05 fm=edge
+H 2428 69.95 1 0.05 fm=edge
+H 2429 69.95 1 0.05 fm=edge
+H 2430 69.95 1 0.05 fm=edge
+S 2425.75 72.794 1 0.063 rot=180
+S 2427.25 70.144 1 0.063
+H 2425.002 68 0.05 1 rot=-90 fm=edge
+H 2425.002 67 0.05 1 rot=-90 fm=edge
+H 2425.002 66 0.05 1 rot=-90 fm=edge
+H 2425.002 65 0.05 1 rot=-90 fm=edge
+H 2425.002 64 0.05 1 rot=-90 fm=edge
+H 2425.002 63 0.05 1 rot=-90 fm=edge
+H 2431 69.95 1 0.05 fm=edge
+H 2432 69.95 1 0.05 fm=edge
+H 2433 69.95 1 0.05 fm=edge
+H 2434 69.95 1 0.05 fm=edge
+H 2435 69.95 1 0.05 fm=edge
+H 2436 69.95 1 0.05 fm=edge
+H 2437 69 rot=90 fm=corner
+H 2440 69 fm=corner
+H 2437.948 68 0.05 1 rot=90 fm=edge
+H 2437.948 67 0.05 1 rot=90 fm=edge
+H 2437.948 66 0.05 1 rot=90 fm=edge
+H 2437.948 65 0.05 1 rot=90 fm=edge
+H 2437.948 64 0.05 1 rot=90 fm=edge
+H 2437.948 63 0.05 1 rot=90 fm=edge
+H 2440.002 68 0.05 1 rot=-90 fm=edge
+H 2440.002 67 0.05 1 rot=-90 fm=edge
+H 2440.002 66 0.05 1 rot=-90 fm=edge
+H 2440.002 65 0.05 1 rot=-90 fm=edge
+H 2440.002 64 0.05 1 rot=-90 fm=edge
+H 2440.002 63 0.05 1 rot=-90 fm=edge
+H 2437 73 rot=-90 fm=corner
+H 2438 73 1 0.05 rot=180 fm=edge
+H 2439 73 1 0.05 rot=180 fm=edge
+H 2440 73 rot=180 fm=corner
+H 2437.002 74 0.05 1 rot=-90 fm=edge
+H 2437.002 75 0.05 1 rot=-90 fm=edge
+H 2437.002 76 0.05 1 rot=-90 fm=edge
+H 2437.002 77 0.05 1 rot=-90 fm=edge
+H 2440.948 77 0.05 1 rot=90 fm=edge
+H 2440.948 76 0.05 1 rot=90 fm=edge
+H 2440.948 75 0.05 1 rot=90 fm=edge
+H 2440.948 74 0.05 1 rot=90 fm=edge
+H 2441 69.95 1 0.05 fm=edge
+H 2443 69.95 1 0.05 fm=edge
+H 2442 69.95 1 0.05 fm=edge
+H 2444 69.95 1 0.05 fm=edge
+H 2445 69.95 1 0.05 fm=edge
+H 2446 69.95 1 0.05 fm=edge
+H 2447 69.95 1 0.05 fm=edge
+H 2448 69.95 1 0.05 fm=edge
+H 2449 69.95 1 0.05 fm=edge
+H 2450 69.95 1 0.05 fm=edge
+H 2451 69.95 1 0.05 fm=edge
+H 2452 69 rot=90 fm=corner
+H 2451 73 rot=-90 fm=corner
+H 2451.002 74 0.05 1 rot=-90 fm=edge
+H 2451.002 76 0.05 1 rot=-90 fm=edge
+H 2451.002 75 0.05 1 rot=-90 fm=edge
+H 2451.002 77 0.05 1 rot=-90 fm=edge
+H 2452.948 68 0.05 1 rot=90 fm=edge
+H 2452.948 67 0.05 1 rot=90 fm=edge
+H 2452.948 66 0.05 1 rot=90 fm=edge
+H 2452.948 65 0.05 1 rot=90 fm=edge
+H 2452.948 64 0.05 1 rot=90 fm=edge
+H 2452.948 63 0.05 1 rot=90 fm=edge
+H 2452 73 1 0.05 rot=180 fm=edge
+H 2453 73 1 0.05 rot=180 fm=edge
+H 2454 73 1 0.05 rot=180 fm=edge
+H 2455 73 rot=180 fm=corner
+H 2455.948 74 0.05 1 rot=-270 fm=edge
+H 2455.948 75 0.05 1 rot=-270 fm=edge
+H 2455.948 77 0.05 1 rot=-270 fm=edge
+H 2455.948 76 0.05 1 rot=-270 fm=edge
+H 2454 69 fm=corner
+H 2454.002 68 0.05 1 rot=-90 fm=edge
+H 2454.002 66 0.05 1 rot=-90 fm=edge
+H 2454.002 67 0.05 1 rot=-90 fm=edge
+H 2454.002 65 0.05 1 rot=-90 fm=edge
+H 2454.002 64 0.05 1 rot=-90 fm=edge
+H 2454.002 63 0.05 1 rot=-90 fm=edge
+H 2455 69.95 1 0.05 fm=edge
+H 2456 69.95 1 0.05 fm=edge
+H 2457 69.95 1 0.05 fm=edge
+H 2458 69 rot=90 fm=corner
+H 2458.948 68 0.05 1 rot=90 fm=edge
+H 2458.948 67 0.05 1 rot=90 fm=edge
+H 2458.948 66 0.05 1 rot=90 fm=edge
+H 2458.948 65 0.05 1 rot=90 fm=edge
+H 2458.948 64 0.05 1 rot=90 fm=edge
+H 2458.948 63 0.05 1 rot=90 fm=edge
+H 2457 73 rot=-90 fm=corner
+H 2457.002 74 0.05 1 rot=-90 fm=edge
+H 2457.002 75 0.05 1 rot=-90 fm=edge
+H 2457.002 76 0.05 1 rot=-90 fm=edge
+H 2457.002 77 0.05 1 rot=-90 fm=edge
+H 2458 73 1 0.05 rot=-180 fm=edge
+H 2459 73 1 0.05 rot=-180 fm=edge
+H 2460 73 1 0.05 rot=-180 fm=edge
+H 2461 73 rot=180 fm=corner
+H 2461.948 74 0.05 1 rot=90 fm=edge
+H 2461.948 75 0.05 1 rot=90 fm=edge
+H 2461.948 76 0.05 1 rot=90 fm=edge
+H 2461.948 77 0.05 1 rot=90 fm=edge
+H 2460 69 fm=corner
+H 2460.002 68 0.05 1 rot=-90 fm=edge
+H 2460.002 67 0.05 1 rot=-90 fm=edge
+H 2460.002 66 0.05 1 rot=-90 fm=edge
+H 2460.002 64 0.05 1 rot=-90 fm=edge
+H 2460.002 63 0.05 1 rot=-90 fm=edge
+H 2460.002 65 0.05 1 rot=-90 fm=edge
+H 2461 69.95 1 0.05 fm=edge
+H 2462 69.95 1 0.05 fm=edge
+H 2464 69 rot=90 fm=corner
+H 2463 69.95 1 0.05 fm=edge
+H 2464.948 68 0.05 1 rot=90 fm=edge
+H 2464.948 67 0.05 1 rot=90 fm=edge
+H 2464.948 66 0.05 1 rot=90 fm=edge
+H 2464.948 64 0.05 1 rot=90 fm=edge
+H 2464.948 65 0.05 1 rot=90 fm=edge
+H 2464.948 63 0.05 1 rot=90 fm=edge
+H 2463 73 rot=-90 fm=corner
+H 2463.002 74 0.05 1 rot=-90 fm=edge
+H 2463.002 76 0.05 1 rot=-90 fm=edge
+H 2463.002 75 0.05 1 rot=-90 fm=edge
+H 2463.002 77 0.05 1 rot=-90 fm=edge
+H 2464 73 1 0.05 rot=-180 fm=edge
+H 2465 73 1 0.05 rot=-180 fm=edge
+H 2466 73 1 0.05 rot=-180 fm=edge
+H 2467 73 rot=180 fm=corner
+H 2466 69 fm=corner
+H 2467 69.95 1 0.05 fm=edge
+H 2466.002 68 0.05 1 rot=-90 fm=edge
+H 2466.002 67 0.05 1 rot=-90 fm=edge
+H 2466.002 66 0.05 1 rot=-90 fm=edge
+H 2466.002 65 0.05 1 rot=-90 fm=edge
+H 2466.002 64 0.05 1 rot=-90 fm=edge
+H 2466.002 63 0.05 1 rot=-90 fm=edge
+H 2468 69.95 1 0.05 fm=edge
+H 2467.948 74 0.05 1 rot=90 fm=edge
+H 2467.948 75 0.05 1 rot=90 fm=edge
+H 2467.948 76 0.05 1 rot=90 fm=edge
+H 2467.948 77 0.05 1 rot=90 fm=edge
+H 2469 69.95 1 0.05 fm=edge
+H 2470 69.95 1 0.05 fm=edge
+H 2471 69.95 1 0.05 fm=edge
+H 2472 69.95 1 0.05 fm=edge
+H 2473 69.95 1 0.05 fm=edge
+H 2474 69.95 1 0.05 fm=edge
+H 2475 69.95 1 0.05 fm=edge
+H 2476 69.95 1 0.05 fm=edge
+H 2477 69.95 1 0.05 fm=edge
+R 2472 71 to=cube z=2
+V 2473 71 spd=2 z=2
+V 2473 71 spd=2 z=2
+H 2478 69 rot=90 fm=corner
+H 2478.948 68 0.05 1 rot=90 fm=edge
+H 2478.948 67 0.05 1 rot=90 fm=edge
+H 2478.948 66 0.05 1 rot=90 fm=edge
+H 2478.948 65 0.05 1 rot=90 fm=edge
+H 2478.948 64 0.05 1 rot=90 fm=edge
+H 2478.948 63 0.05 1 rot=90 fm=edge
+O 2484 69 orb=yellow z=2
+B 2488 69
+B 2489 69
+B 2489 68
+B 2488 68
+B 2487 68
+B 2490 69
+B 2490 68
+B 2491 68
+O 2495 70 orb=yellow z=2
+B 2502 69
+B 2503 69
+B 2502 68
+B 2501 68
+B 2501 67
+B 2503 68
+B 2502 67
+B 2504 68
+B 2504 69
+B 2505 68
+B 2504 67
+B 2503 67
+B 2505 67
+B 2505 69
+B 2506 69
+B 2506 70
+B 2507 70
+B 2507 69
+B 2508 70
+B 2505 70
+B 2504 70
+B 2507 68
+B 2506 68
+B 2509 68
+B 2509 67
+B 2509 66
+B 2508 66
+B 2507 66
+B 2487 67
+B 2488 67
+B 2490 66
+B 2491 66
+B 2492 66
+A 2513 72 ar=purple tp=1 z=2
+B 2513 78
+B 2511 78
+B 2512 79
+B 2514 79
+B 2514 78
+B 2515 78
+B 2512 78
+B 2516 78
+B 2517 78
+B 2516 79
+B 2517 79
+B 2518 78
+B 2518 79
+B 2519 78
+B 2519 79
+B 2520 78
+B 2510 80
+B 2516 81
+B 2515 81
+B 2521 80
+E 2490 70 rot=-90 art=3812 z=3
+E 2502 70 rot=-90 art=3812 z=3
+E 2508 71 rot=-90 art=3812 z=3
+E 2519 77 rot=90 art=3812 z=3
+A 2527 81 rot=180 ar=purple tp=1 z=2
+B 2527 72
+B 2527 71
+B 2526 71
+B 2529 71
+B 2528 71
+B 2528 70
+B 2529 70
+B 2528 72
+B 2529 72
+B 2530 72
+B 2530 71
+B 2526 72
+B 2525 71
+B 2531 72
+B 2531 71
+B 2532 72
+B 2532 71
+B 2533 71
+B 2533 69
+B 2532 69
+B 2531 69
+B 2534 69
+E 2532 73 rot=-90 art=3812 z=3
+B 2535 73
+B 2536 73
+B 2535 74
+B 2536 74
+B 2534 74
+B 2537 74
+B 2537 73
+B 2538 74
+B 2539 74
+B 2538 73
+B 2532 70
+B 2531 70
+W 2535 71 z=5
+W 2523 81 z=5
+W 2526 84 z=5
+W 2530 82 z=5
+B 2527 84
+B 2528 84
+B 2529 83
+B 2528 83
+B 2529 84
+B 2530 83
+B 2531 82
+B 2531 83
+B 2530 84
+B 2525 84
+B 2524 84
+B 2523 83
+B 2522 82
+B 2523 82
+B 2524 83
+B 2523 84
+B 2525 85
+W 2512 68 z=5
+W 2515 69 z=5
+B 2515 68
+B 2515 67
+B 2514 67
+B 2512 67
+B 2513 68
+B 2513 67
+B 2514 68
+W 2485 65 z=5
+W 2480 66 z=5
+W 2482 64 z=5
+E 2539 75 rot=-90 art=3812 z=3
+A 2545 73 ar=purple tp=1 z=2
+W 2541 73 z=5
+W 2544 71 z=5
+B 2542 72
+B 2541 72
+B 2542 71
+B 2543 71
+B 2543 70
+B 2544 70
+B 2542 70
+B 2540 71
+B 2540 70
+B 2548 72
+B 2548 71
+B 2547 71
+W 2547 72 z=5
+B 2545 79
+B 2546 79
+B 2544 80
+B 2544 79
+B 2545 81
+B 2545 80
+B 2547 79
+B 2546 80
+B 2548 79
+B 2549 79
+B 2548 80
+B 2547 80
+B 2551 81
+B 2543 80
+B 2555 79
+B 2554 79
+B 2556 79
+B 2559 77
+B 2560 77
+B 2563 75
+B 2564 75
+B 2563 78
+B 2563 79
+B 2562 79
+B 2561 79
+B 2560 79
+B 2559 79
+B 2559 80
+B 2558 80
+B 2556 80
+B 2555 80
+B 2554 80
+B 2557 80
+B 2553 80
+B 2560 80
+B 2559 81
+B 2558 81
+B 2557 81
+B 2557 82
+B 2556 81
+B 2554 82
+B 2555 83
+B 2554 83
+B 2562 81
+B 2563 81
+B 2565 79
+B 2560 78
+B 2559 78
+B 2563 77
+B 2563 76
+B 2564 77
+B 2564 76
+B 2564 78
+B 2564 79
+B 2566 77
+B 2566 76
+B 2562 78
+G 2566 72 gd=1 z=2
+B 2568 69
+B 2567 69
+B 2569 69
+E 2559 76 rot=90 art=3812 z=3
+E 2563 74 rot=90 art=3812 z=3
+E 2555 78 rot=90 art=3812 z=3
+E 2568 70 rot=270 art=3812 z=3
+B 2572 71
+B 2573 71
+B 2576 73
+B 2577 73
+B 2577 72
+B 2576 72
+B 2576 71
+B 2577 71
+B 2577 70
+B 2576 70
+B 2577 69
+B 2576 69
+B 2575 69
+B 2574 69
+B 2573 69
+B 2573 70
+B 2572 70
+B 2572 69
+B 2570 69
+B 2571 69
+B 2570 68
+B 2572 68
+B 2571 68
+B 2569 67
+B 2567 67
+B 2569 68
+B 2573 67
+B 2573 68
+B 2576 67
+B 2575 67
+B 2580 75
+B 2581 75
+B 2580 74
+B 2581 74
+B 2580 73
+B 2581 73
+B 2581 72
+B 2580 72
+B 2580 71
+B 2581 71
+B 2581 70
+B 2580 69
+B 2581 69
+B 2580 70
+B 2579 69
+B 2578 69
+B 2585 75
+B 2586 75
+B 2588 75
+B 2589 75
+B 2587 75
+B 2590 75
+B 2593 75
+B 2591 75
+B 2592 75
+B 2585 79
+B 2586 79
+B 2587 79
+B 2588 79
+B 2589 79
+B 2591 79
+B 2593 79
+B 2590 79
+B 2592 79
+B 2587 80
+B 2588 80
+B 2589 80
+B 2591 80
+B 2592 80
+B 2590 80
+B 2593 80
+B 2594 79
+B 2590 81
+B 2589 81
+B 2591 81
+B 2592 81
+B 2594 80
+B 2595 79
+B 2585 81
+B 2584 81
+B 2594 74
+B 2594 75
+B 2595 75
+B 2596 74
+B 2597 74
+B 2596 75
+B 2590 73
+B 2590 74
+B 2589 73
+B 2588 73
+B 2587 73
+B 2587 74
+B 2586 74
+B 2589 74
+B 2588 74
+B 2592 73
+B 2593 73
+B 2593 74
+B 2596 72
+B 2595 72
+B 2584 73
+B 2594 82
+V 2603 77 spd=4 z=2
+A 2601 77 ar=green z=2
+C 2587 77
+E 2598 78 art=3823 z=3
+E 2599 78 art=3823 z=3
+E 2599 77 art=3823 z=3
+E 2598 77 art=3823 z=3
+E 2597 77 art=3823 z=3
+E 2597 78 art=3823 z=3
+E 2597 76 art=3823 z=3
+E 2598 76 art=3823 z=3
+E 2599 76 art=3823 z=3
+B 2631 76
+B 2630 76
+S 2629 76
+S 2628 76
+S 2627 76
+S 2626 76
+S 2625 76
+S 2624 76
+S 2623 75
+S 2621 75
+S 2620 75
+S 2622 75
+S 2619 75
+S 2618 75
+S 2617 75
+S 2616 75
+S 2615 74
+S 2614 74
+S 2613 74
+S 2612 74
+S 2611 74
+S 2610 74
+S 2609 74
+S 2608 74
+S 2607 74
+S 2606 74
+S 2605 74
+S 2604 74
+S 2603 74
+S 2602 74
+B 2599 73
+B 2600 73
+B 2601 73
+B 2602 73
+S 2601 74
+S 2600 74
+S 2599 74
+B 2603 73
+B 2605 73
+B 2607 73
+B 2609 73
+B 2610 73
+B 2606 73
+B 2604 73
+B 2608 73
+B 2612 73
+B 2613 73
+B 2611 73
+B 2615 73
+B 2614 73
+B 2616 74
+B 2617 74
+B 2618 74
+B 2619 74
+B 2620 74
+B 2621 74
+B 2623 74
+B 2624 75
+B 2622 74
+B 2625 75
+B 2626 75
+B 2628 75
+B 2627 75
+B 2629 75
+B 2624 74
+B 2625 74
+B 2626 74
+B 2628 74
+B 2629 74
+B 2627 74
+B 2629 73
+B 2628 73
+B 2627 73
+B 2626 73
+B 2625 73
+B 2624 73
+B 2623 73
+B 2622 73
+B 2621 73
+B 2620 73
+B 2619 73
+B 2618 73
+B 2617 73
+B 2616 73
+B 2630 75
+B 2631 75
+B 2631 74
+B 2630 74
+B 2630 73
+B 2631 73
+B 2631 78.5 rot=-180 fy=1
+B 2630 78.5 rot=-180 fy=1
+S 2629 78.5 rot=-180 fy=1
+S 2628 78.5 rot=-180 fy=1
+S 2627 78.5 rot=-180 fy=1
+S 2626 78.5 rot=-180 fy=1
+S 2625 78.5 rot=-180 fy=1
+S 2624 78.5 rot=-180 fy=1
+S 2623 79.5 rot=-180 fy=1
+S 2621 79.5 rot=-180 fy=1
+S 2620 79.5 rot=-180 fy=1
+S 2622 79.5 rot=-180 fy=1
+S 2619 79.5 rot=-180 fy=1
+S 2618 79.5 rot=-180 fy=1
+S 2617 79.5 rot=-180 fy=1
+S 2616 79.5 rot=-180 fy=1
+S 2615 80.5 rot=-180 fy=1
+S 2614 80.5 rot=-180 fy=1
+S 2613 80.5 rot=-180 fy=1
+S 2612 80.5 rot=-180 fy=1
+S 2611 80.5 rot=-180 fy=1
+S 2610 80.5 rot=-180 fy=1
+S 2609 80.5 rot=-180 fy=1
+S 2608 80.5 rot=-180 fy=1
+S 2607 80.5 rot=-180 fy=1
+S 2606 80.5 rot=-180 fy=1
+S 2605 80.5 rot=-180 fy=1
+S 2604 80.5 rot=-180 fy=1
+S 2603 80.5 rot=-180 fy=1
+S 2602 80.5 rot=-180 fy=1
+B 2599 81.5 rot=-180 fy=1
+B 2600 81.5 rot=-180 fy=1
+B 2601 81.5 rot=-180 fy=1
+B 2602 81.5 rot=-180 fy=1
+S 2601 80.5 rot=-180 fy=1
+S 2600 80.5 rot=-180 fy=1
+S 2599 80.5 rot=-180 fy=1
+B 2603 81.5 rot=-180 fy=1
+B 2605 81.5 rot=-180 fy=1
+B 2607 81.5 rot=-180 fy=1
+B 2609 81.5 rot=-180 fy=1
+B 2610 81.5 rot=-180 fy=1
+B 2606 81.5 rot=-180 fy=1
+B 2604 81.5 rot=-180 fy=1
+B 2608 81.5 rot=-180 fy=1
+B 2612 81.5 rot=-180 fy=1
+B 2613 81.5 rot=-180 fy=1
+B 2611 81.5 rot=-180 fy=1
+B 2615 81.5 rot=-180 fy=1
+B 2614 81.5 rot=-180 fy=1
+B 2616 80.5 rot=-180 fy=1
+B 2617 80.5 rot=-180 fy=1
+B 2618 80.5 rot=-180 fy=1
+B 2619 80.5 rot=-180 fy=1
+B 2620 80.5 rot=-180 fy=1
+B 2621 80.5 rot=-180 fy=1
+B 2623 80.5 rot=-180 fy=1
+B 2624 79.5 rot=-180 fy=1
+B 2622 80.5 rot=-180 fy=1
+B 2625 79.5 rot=-180 fy=1
+B 2626 79.5 rot=-180 fy=1
+B 2628 79.5 rot=-180 fy=1
+B 2627 79.5 rot=-180 fy=1
+B 2629 79.5 rot=-180 fy=1
+B 2624 80.5 rot=-180 fy=1
+B 2625 80.5 rot=-180 fy=1
+B 2626 80.5 rot=-180 fy=1
+B 2628 80.5 rot=-180 fy=1
+B 2629 80.5 rot=-180 fy=1
+B 2627 80.5 rot=-180 fy=1
+B 2629 81.5 rot=-180 fy=1
+B 2628 81.5 rot=-180 fy=1
+B 2627 81.5 rot=-180 fy=1
+B 2626 81.5 rot=-180 fy=1
+B 2625 81.5 rot=-180 fy=1
+B 2624 81.5 rot=-180 fy=1
+B 2623 81.5 rot=-180 fy=1
+B 2622 81.5 rot=-180 fy=1
+B 2621 81.5 rot=-180 fy=1
+B 2620 81.5 rot=-180 fy=1
+B 2619 81.5 rot=-180 fy=1
+B 2618 81.5 rot=-180 fy=1
+B 2617 81.5 rot=-180 fy=1
+B 2616 81.5 rot=-180 fy=1
+B 2630 79.5 rot=-180 fy=1
+B 2631 79.5 rot=-180 fy=1
+B 2631 80.5 rot=-180 fy=1
+B 2630 80.5 rot=-180 fy=1
+B 2630 81.5 rot=-180 fy=1
+B 2631 81.5 rot=-180 fy=1
+O 2647 84 orb=yellow z=2
+E 2641 87 art=3818 z=3
+O 2651 86 orb=yellow z=2
+O 2655 88 orb=green z=2
+O 2659 86 orb=yellow z=2
+O 2663 84 orb=yellow z=2
+O 2667 82 orb=green z=2
+O 2671 84 orb=yellow z=2
+O 2675 86 orb=yellow z=2
+O 2679 88 orb=green z=2
+O 2683 86 orb=yellow z=2
+A 2687 84 ar=green z=2
+O 2704 86 orb=yellow z=2
+O 2700 84 orb=green z=2
+O 2708 88 orb=yellow z=2
+O 2712 90 orb=green z=2
+O 2716 88 orb=yellow z=2
+O 2720 86 orb=yellow z=2
+O 2724 84 orb=green z=2
+O 2728 86 orb=yellow z=2
+O 2732 88 orb=yellow z=2
+O 2736 90 orb=green z=2
+O 2740 88 orb=yellow z=2
+A 2744 86 ar=green z=2
+O 2761 88 orb=yellow z=2
+O 2757 86 orb=green z=2
+O 2765 90 orb=yellow z=2
+O 2769 92 orb=green z=2
+O 2773 90 orb=yellow z=2
+O 2777 88 orb=yellow z=2
+O 2781 86 orb=green z=2
+O 2785 88 orb=yellow z=2
+O 2789 90 orb=yellow z=2
+O 2793 92 orb=green z=2
+O 2797 90 orb=yellow z=2
+E 2810.117 97.792 art=3818 z=3
+O 2867 90 orb=yellow fx=1 z=2
+E 2861 87 fx=1 art=3818 z=3
+O 2871 88 orb=yellow fx=1 z=2
+O 2875 86 orb=green fx=1 z=2
+O 2879 88 orb=yellow fx=1 z=2
+O 2883 90 orb=yellow fx=1 z=2
+O 2887 92 orb=green fx=1 z=2
+O 2891 90 orb=yellow fx=1 z=2
+O 2895 88 orb=yellow fx=1 z=2
+O 2899 86 orb=green fx=1 z=2
+O 2903 88 orb=yellow fx=1 z=2
+A 2852 97 rot=45 ar=pink z=2
+A 2907 90 ar=green z=2
+O 2924 92 orb=yellow z=2
+O 2920 90 orb=green z=2
+O 2928 94 orb=yellow z=2
+O 2932 96 orb=green z=2
+O 2936 94 orb=yellow z=2
+O 2940 92 orb=yellow z=2
+O 2944 90 orb=green z=2
+O 2948 92 orb=yellow z=2
+O 2952 94 orb=yellow z=2
+O 2956 96 orb=green z=2
+O 2975.06 101 orb=yellow z=2
+E 2969.06 104 art=3818 z=3
+O 2979.06 103 orb=yellow z=2
+O 2983.06 105 orb=green z=2
+O 2987.06 103 orb=yellow z=2
+O 2991.06 101 orb=yellow z=2
+O 2995.06 99 orb=green z=2
+O 2999.06 101 orb=yellow z=2
+O 3003.06 103 orb=yellow z=2
+A 2960 94 rot=-45 ar=pink z=2
+A 2632 77 rot=-45 ar=green z=2
+A 2801 88 rot=-45 ar=green z=2
+O 2816 95 orb=yellow z=2
+O 2820 97 orb=yellow z=2
+O 2824 99 orb=green z=2
+O 2828 97 orb=yellow z=2
+O 2832 95 orb=yellow z=2
+O 2836 93 orb=green z=2
+O 2840 95 orb=yellow z=2
+O 2844 97 orb=yellow z=2
+O 2848 99 orb=green z=2
+R 3005 104 to=ship z=2
+V 3006 104 spd=0 z=2
+C 3032 104
+W 3008 108 z=5
+W 3008 99 z=5
+W 3015 99 z=5
+W 3015.875 108.875 1.25 1.25 z=5
+W 3021 99 z=5
+W 3028 108 z=5
+W 3029 99 z=5
+B 3015 108
+B 3014 108
+B 3014 109
+B 3015 109
+B 3016 109
+B 3016 108
+B 3015 110
+B 3014 110
+B 3013 110
+B 3017 111
+B 3011 100
+B 3011 101
+B 3012 100
+B 3009 100
+B 3010 100
+B 3010 99
+B 3011 99
+B 3013 98
+B 3024 100
+B 3024 99
+B 3023 99
+B 3023 100
+B 3025 99
+B 3025 100
+B 3026 99
+B 3024 98
+B 3022 97
+B 3026 97
+B 3027 97
+W 3024.5 109.5 2 2 z=5
+W 3018.875 110.875 1.25 1.25 z=5
+W 3020.655 107.655 1.69 1.69 z=5
+W 3017.655 97.655 1.69 1.69 z=5
+W 3013.14 100.14 0.72 0.72 z=5
+W 3027.14 100.14 0.72 0.72 z=5
+W 3011.5 109.5 2 2 z=5
+W 3031.5 109.5 2 2 z=5
+W 3032.5 97.5 2 2 z=5
+B 3033 102
+B 3034 102
+B 3034 101
+B 3033 101
+B 3035 101
+B 3035 100
+B 3036 101
+B 3037 99
+B 3035 102
+B 3036 102
+B 3037 102
+B 3038 102
+B 3040 102
+R 3034 104 to=cube z=2
+B 3039 102
+B 3041 102
+B 3042 102
+B 3043 102
+B 3045 102
+B 3046 102
+B 3044 102
+B 3038 101
+B 3040 100
+B 3042 101
+B 3043 100
+B 3041 101
+B 3045 101
+B 3045 100
+B 3046 101
+B 3047 102
+B 3048 102
+B 3049 102
+B 3050 102
+B 3049 101
+B 3051 102
+B 3050 101
+B 3052 102
+B 3051 101
+B 3051 100
+B 3040 101
+V 3052 104 spd=3 z=2
+B 3053 102
+B 3054 102
+B 3054 101
+B 3053 99
+B 3056 100
+O 3061 103 orb=yellow z=2
+O 3067 103 orb=yellow z=2
+H 270 9.95 1 0.05 fm=edge
+S 270 10
+S 269 10
+S 268 10
+H 273 5.95 1 0.05 fm=edge
+H 272.95 6 0.05 1 rot=90 fm=edge
+H 272.95 7 0.05 1 rot=90 fm=edge
+B 3072 103
+B 3073 103
+B 3074 103
+B 3073 102
+B 3072 102
+B 3073 101
+B 3072 101
+B 3071 102
+B 3070 100
+O 3077 106 orb=green z=2
+O 3082 105 orb=yellow z=2
+B 3086 103
+B 3087 103
+B 3055 101
+B 3053 98
+B 3087 104
+B 3088 104
+O 3093 102 orb=green z=2
+B 3085 105
+B 3090 103
+B 3099 100
+B 3098 100
+B 3100 100
+B 3099 99
+B 3100 99
+B 3101 98
+B 3104 101
+B 3105 102
+B 3104 102
+B 3105 101
+B 3103 101
+O 3109 104 orb=yellow z=2
+D 3115 105 1 0.2 pad=blue z=2
+D 3117 107.8 1 0.2 pad=blue rot=180 z=2
+D 3119 103 1 0.2 pad=blue z=2
+D 3122 107.8 1 0.2 pad=blue rot=180 z=2
+D 3125 104 1 0.2 pad=blue z=2
+D 3131 114.8 1 0.2 pad=blue rot=180 z=2
+D 3137 104 1 0.2 pad=blue z=2
+D 3142 112.8 1 0.2 pad=blue rot=180 z=2
+B 3148 104
+B 3147 104
+B 3146 104
+B 3147 103
+B 3148 103
+B 3149 103
+B 3148 102
+B 3150 101
+B 3147 102
+B 3117 108
+B 3118 108
+B 3118 109
+B 3117 109
+B 3119 109
+B 3120 108
+B 3121 109
+B 3122 108
+B 3122 109
+B 3119 110
+B 3120 109
+B 3118 110
+B 3115 111
+B 3121 111
+B 3123 111
+B 3122 111
+B 3118 102
+B 3119 102
+B 3116 102
+B 3115 103
+B 3115 104
+B 3116 103
+B 3117 102
+B 3120 102
+B 3120 101
+B 3122 102
+B 3121 101
+B 3123 102
+B 3125 103
+B 3125 102
+B 3124 102
+B 3117 101
+B 3114 102
+B 3122 101
+B 3123 101
+B 3125 100
+B 3126 100
+B 3118 100
+B 3131 115
+B 3130 115
+B 3130 116
+B 3137 103
+B 3138 103
+B 3138 102
+B 3139 102
+B 3141 113
+B 3143 113
+B 3142 113
+B 3142 114
+B 3143 114
+O 3154 106 orb=yellow z=2
+O 3159 106 orb=yellow z=2
+B 3165 107
+B 3164 107
+B 3165 106
+B 3166 106
+B 3168 105
+B 3166 105
+B 3163 105
+B 3167 106
+B 3170 109
+B 3171 109
+B 3171 108
+B 3172 108
+B 3174 107
+B 3172 107
+B 3174 106
+B 3174 109
+B 3174 108
+B 3173 109
+O 3175 112 orb=yellow z=2
+O 3181 112 orb=green z=2
+B 3188 113
+B 3187 113
+B 3187 114
+B 3186 114
+B 3186 113
+B 3188 114
+B 3186 115
+B 3187 115
+B 3189 116
+B 3189 115
+B 3189 114
+B 3185 114
+A 3192 111 rot=180 ar=purple tp=1 z=2
+B 3192 106
+B 3191 106
+B 3193 105
+B 3192 105
+B 3194 106
+B 3193 106
+B 3195 106
+B 3196 105
+B 3198 105
+B 3199 105
+B 3194 104
+B 3196 103
+B 3190 105
+D 3203 106 1 0.2 pad=blue z=2
+D 3208 115.8 1 0.2 pad=blue rot=180 z=2
+D 3214 105 1 0.2 pad=blue z=2
+D 3224 117.8 1 0.2 pad=blue rot=180 z=2
+D 3218 106 1 0.2 pad=blue z=2
+D 3216 107.8 1 0.2 pad=blue rot=180 z=2
+D 3227 113 1 0.2 pad=blue z=2
+D 3230 117.8 1 0.2 pad=blue rot=180 z=2
+B 3203 105
+B 3202 105
+B 3202 104
+B 3201 105
+B 3204 104
+B 3203 104
+B 3200 103
+B 3208 116
+B 3209 116
+B 3208 117
+B 3210 118
+B 3207 118
+B 3207 117
+B 3206 118
+B 3206 117
+B 3208 118
+B 3210 119
+B 3216 108
+B 3215 108
+B 3215 109
+B 3218 105
+B 3218 104
+B 3217 104
+B 3216 104
+B 3215 104
+B 3215 103
+B 3214 104
+B 3217 102
+B 3218 102
+B 3224 118
+B 3223 118
+B 3224 119
+B 3225 119
+B 3222 120
+B 3230 118
+B 3229 119
+B 3231 118
+B 3227 120
+B 3226 120
+B 3227 112
+B 3226 112
+B 3227 111
+V 3234 113 spd=4 z=2
+R 3233 113 to=ufo z=2
+W 3238 116 z=5
+W 3243 118 z=5
+W 3243 108 z=5
+W 3245.9 112.9 1.2 1.2 z=5
+G 3246 116 gd=-1 z=2
+W 3246 119 z=5
+W 3250.5 118.5 2 2 z=5
+W 3249.22 108.22 0.56 0.56 z=5
+B 3238 110
+B 3238 109
+B 3237 110
+B 3237 109
+B 3239 109
+B 3239 108
+B 3238 108
+B 3236 109
+B 3235 110
+B 3240 108
+B 3244 108
+B 3244 107
+B 3243 107
+B 3245 107
+S 3235 111
+S 3241 108 rot=90
+S 3245 108
+W 3246.83 106.83 1.34 1.34 z=5
+W 3244.22 120.22 0.56 0.56 z=5
+B 3240 116
+B 3240 117
+B 3241 117
+B 3241 118
+B 3240 118
+B 3239 117
+B 3239 116
+B 3238 119
+S 3241 116 rot=180
+S 3237 119 rot=-90
+G 3252 113 gd=1 z=2
+W 3251 109 z=5
+W 3257 112 z=5
+W 3257.07 109.07 0.86 0.86 z=5
+W 3260 114 z=5
+W 3259.5 109.5 2 2 z=5
+W 3263 112 z=5
+W 3262.12 114.12 0.76 0.76 z=5
+T 3264 117 z=2
+B 3255 109
+B 3254 109
+B 3254 110
+B 3255 110
+B 3253 109
+B 3254 108
+B 3252 107
+B 3256 106
+S 3255 111
+S 3254 111
+B 3254 117
+B 3255 117
+B 3254 118
+B 3256 117
+B 3255 118
+B 3254 119
+B 3257 119
+B 3252 117
+B 3253 118
+W 3270.1 109.1 0.8 0.8 z=5
+W 3266 114 z=5
+W 3272 108 z=5
+W 3267.5 116.5 2 2 z=5
+W 3272 118 z=5
+W 3272.195 110.195 0.61 0.61 z=5
+W 3274.5 109.5 2 2 z=5
+W 3271.215 116.215 0.57 0.57 z=5
+G 3275 114 gd=-1 z=2
+W 3268.1 108.1 0.8 0.8 z=5
+W 3275.67 117.67 1.66 1.66 z=5
+W 3280 117 z=5
+W 3278.21 116.21 0.58 0.58 z=5
+W 3288 113 z=5
+W 3284 107 z=5
+W 3293 114 z=5
+B 3278 109
+B 3279 110
+B 3278 110
+B 3279 109
+B 3280 109
+B 3280 108
+B 3279 108
+B 3277 110
+B 3277 109
+B 3278 111
+B 3276 107
+B 3275 107
+W 3280.635 108.635 1.73 1.73 z=5
+W 3284.21 109.21 0.58 0.58 z=5
+W 3286.735 106.735 1.53 1.53 z=5
+G 3288 110 gd=1 z=2
+B 3290 113
+B 3291 113
+B 3290 114
+B 3292 114
+B 3291 114
+B 3292 113
+B 3293 115
+B 3292 115
+B 3291 116
+B 3290 116
+W 3285.705 115.705 1.59 1.59 z=5
+W 3281.21 115.21 0.58 0.58 z=5
+W 3283.07 116.07 0.86 0.86 z=5
+W 3284.13 114.13 0.74 0.74 z=5
+B 3290 106
+B 3291 107
+B 3290 107
+B 3291 106
+B 3292 107
+B 3292 106
+B 3293 108
+B 3291 108
+B 3289 108
+B 3289 107
+W 3293 107 z=5
+W 3294.5 116.5 2 2 z=5
+W 3303.16 113.16 0.68 0.68 z=5
+W 3300.125 109.125 0.75 0.75 z=5
+W 3294.78 104.78 1.44 1.44 z=5
+W 3299.5 118.5 2 2 z=5
+W 3298.195 116.195 0.61 0.61 z=5
+W 3300.5 101.5 2 2 z=5
+W 3304.78 103.78 1.44 1.44 z=5
+W 3307.5 106.5 2 2 z=5
+W 3304.5 118.5 2 2 z=5
+W 3311.78 116.78 1.44 1.44 z=5
+W 3313.66 107.66 1.68 1.68 z=5
+W 3319.5 106.5 2 2 z=5
+W 3317.78 115.78 1.44 1.44 z=5
+W 3323.78 107.78 1.44 1.44 z=5
+W 3328.54 117.54 1.92 1.92 z=5
+B 3306 117
+B 3305 117
+B 3305 118
+B 3304 118
+B 3304 117
+B 3303 118
+B 3307 119
+B 3304 119
+B 3302 120
+B 3310 109
+B 3311 109
+B 3311 108
+B 3309 108
+B 3310 108
+B 3312 108
+B 3311 107
+B 3310 107
+B 3313 106
+B 3312 109
+B 3313 109
+B 3323 115
+B 3322 116
+B 3322 115
+B 3321 116
+B 3323 116
+B 3324 117
+B 3324 116
+B 3321 118
+B 3320 118
+B 3319 118
+S 3309 109
+S 3310 110
+S 3311 110
+S 3312 110
+S 3313 110
+S 3322 114 rot=180
+S 3323 114 rot=180
+S 3324 115 rot=180
+S 3321 115 rot=180
+W 3309 118 z=5
+W 3305.165 107.165 0.67 0.67 z=5
+W 3298.08 105.08 0.84 0.84 z=5
+W 3296.855 101.855 1.29 1.29 z=5
+B 3315 116
+B 3316 116
+B 3314 116
+B 3315 117
+B 3314 117
+B 3314 118
+B 3316 118
+B 3313 117
+S 3314 115 rot=180
+S 3315 115 rot=180
+S 3316 115 rot=180
+W 3317.14 109.14 0.72 0.72 z=5
+W 3324.96 116.96 1.08 1.08 z=5
+W 3327.05 115.05 0.9 0.9 z=5
+B 3327 108
+B 3328 108
+B 3328 107
+B 3327 109
+B 3327 107
+B 3326 109
+B 3325 107
+B 3326 108
+S 3327 110
+S 3326 110
+S 3328 109
+W 3334.805 116.805 1.39 1.39 z=5
+W 3327.81 106.81 1.38 1.38 z=5
+W 3334.5 106.5 2 2 z=5
+W 3338.835 105.835 1.33 1.33 z=5
+W 3341 108 z=5
+B 3337 117
+B 3338 117
+B 3338 116
+B 3336 117
+B 3336 118
+B 3337 118
+B 3339 119
+S 3336 116 rot=180
+S 3337 116 rot=180
+S 3338 115 rot=180
+W 3331.97 115.97 1.06 1.06 z=5
+W 3330.89 104.89 1.22 1.22 z=5
+W 3330.89 107.89 1.22 1.22 z=5
+W 3338.13 108.13 0.74 0.74 z=5
+W 3338.89 116.89 1.22 1.22 z=5
+W 3345.5 116.5 2 2 z=5
+B 3344 108
+B 3345 108
+B 3343 107
+B 3344 107
+B 3345 107
+B 3345 106
+B 3343 106
+B 3346 108
+B 3346 107
+B 3347 108
+B 3347 106
+B 3347 107
+S 3343 108
+S 3344 109
+S 3345 109
+S 3346 109
+S 3347 109
+W 3341.89 115.89 1.22 1.22 z=5
+R 3348 112 to=wave z=2
+W 3351 114 z=5
+W 3356 108 z=5
+W 3360.145 113.145 0.71 0.71 z=5
+W 3362.86 106.86 1.28 1.28 z=5
+W 3366.145 111.145 0.71 0.71 z=5
+W 3371.135 114.135 0.73 0.73 z=5
+W 3377 110 z=5
+W 3384.89 107.89 1.22 1.22 z=5
+W 3389.205 111.205 0.59 0.59 z=5
+W 3395.15 107.15 0.7 0.7 z=5
+W 3401.115 107.115 0.77 0.77 z=5
+W 3403.88 111.88 1.24 1.24 z=5
+W 3350 106 z=5
+W 3372.095 107.095 0.81 0.81 z=5
+W 3355 117 z=5
+W 3362.87 116.87 1.26 1.26 z=5
+W 3377 116 z=5
+W 3392.075 115.075 0.85 0.85 z=5
+W 3398.82 116.82 1.36 1.36 z=5
+W 3398.16 111.16 0.68 0.68 z=5
+W 3385.93 115.93 1.14 1.14 z=5
+W 3382.25 113.25 0.5 0.5 z=5
+V 3404 108 spd=0 z=2
+V 3404 115 spd=0 z=2
+R 3424 112 to=cube z=2
+B 3424 110
+B 3423 110
+B 3422 109
+B 3421 108
+B 3420 107
+B 3424 114
+B 3423 114
+B 3422 115
+B 3421 116
+B 3420 117
+B 3421 117
+B 3422 117
+B 3423 116
+B 3422 116
+B 3423 117
+B 3424 117
+B 3424 116
+B 3423 115
+B 3424 115
+B 3424 109
+B 3423 109
+B 3424 108
+B 3423 108
+B 3422 108
+B 3424 107
+B 3423 107
+B 3422 107
+B 3421 107
+B 3421 109
+B 3420 108
+B 3419 108
+B 3419 107
+B 3418 107
+B 3418 108
+B 3417 107
+B 3416 107
+B 3415 107
+B 3414 107
+B 3421 115
+B 3420 116
+B 3419 116
+B 3418 116
+B 3419 117
+B 3418 117
+B 3417 117
+B 3416 117
+B 3415 117
+B 3414 117
+B 3420 115
+B 3417 116
+B 3416 116
+B 3413 117
+B 3412 117
+B 3411 117
+B 3420 109
+B 3417 108
+B 3416 108
+B 3413 107
+B 3411 107
+B 3410 107
+B 3412 107
+B 3425 107
+B 3427 107
+B 3426 107
+B 3428 107
+B 3429 107
+B 3430 107
+B 3432 107
+B 3431 107
+B 3433 107
+B 3434 107
+B 3435 107
+B 3436 107
+B 3437 107
+B 3438 107
+B 3439 107
+B 3440 107
+B 3441 107
+B 3442 107
+B 3443 107
+B 3444 107
+B 3445 107
+B 3446 107
+B 3447 107
+B 3448 107
+B 3449 107
+B 3450 107
+B 3451 107
+B 3452 107
+B 3453 107
+B 3454 107
+B 3455 107
+B 3456 107
+B 3457 107
+B 3458 107
+B 3459 107
+B 3460 107
+B 3461 107
+B 3462 107
+B 3463 107
+B 3464 107
+B 3465 107
+B 3466 107
+B 3467 107
+B 3468 107
+B 3469 107
+B 3470 107
+B 3471 107
+B 3472 107
+B 3473 107
+B 3474 107
+B 3475 107
+B 3476 107
+B 3477 107
+B 3478 107
+B 3479 107
+B 3480 107
+B 3481 107
+B 3482 107
+B 3483 107
+B 3484 107
+B 3485 107
+B 3486 107
+B 3487 107
+B 3488 107
+B 3489 107
+B 3490 107
+B 3491 107
+B 3492 107
+B 3493 107
+B 3494 107
+B 3495 107
+B 3496 107
+B 3497 107
+B 3498 107
+B 3499 107
+B 3500 107
+B 3501 107
+B 3502 107
+B 3503 107
+B 3504 107
+B 3505 107
+B 3506 107
+B 3508 107
+B 3509 107
+B 3510 107
+B 3507 107
+B 3511 107
+B 3512 107
+B 3513 107
+B 3515 107
+B 3514 107
+B 3516 107
+B 3517 107
+B 3518 107
+B 3519 107
+B 3520 107
+B 3521 107
+B 3522 107
+B 3523 107
+B 3524 107
+B 3525 107
+B 3526 107
+B 3527 107
+B 3528 107
+B 3529 107
+B 3530 107
+B 3531 107
+B 3532 107
+B 3534 107
+B 3535 107
+B 3533 107
+B 3536 107
+B 3537 107
+B 3538 107
+B 3539 107
+B 3540 107
+B 3541 107
+B 3542 107
+B 3544 107
+B 3543 107
+B 3545 107
+B 3546 107
+B 3548 107
+B 3547 107
+B 3549 107
+B 3550 107
+B 3551 107
+B 3552 107
+B 3553 107
+B 3554 107
+B 3555 107
+B 3556 107
+B 3557 107
+B 3558 107
+B 3559 107
+B 3560 107
+B 3561 107
+B 3562 107
+B 3563 107
+B 3564 107
+B 3565 107
+B 3566 107
+B 3567 107
+B 3568 107
+B 3569 107
+B 3570 107
+B 3571 107
+B 3572 107
+B 3573 107
+B 3574 107
+B 3575 107
+B 3576 107
+B 3577 107
+B 3578 107
+B 3579 107
+B 3580 107
+B 3581 107
+B 3582 107
+B 3583 107
+B 3584 107
+B 3585 107
+B 3586 107
+B 3587 107
+B 3588 107
+B 3589 107
+B 3590 107
+B 3591 107
+B 3592 107
+B 3593 107
+B 3594 107
+B 3595 107
+B 3596 107
+B 3597 107
+B 3598 107
+B 3599 107
+B 3600 107
+B 3602 107
+B 3601 107
+B 3603 107
+E 0 3 art=3638 z=8 g=1
+E 0 4 art=3638 z=8 g=1
+E 0 5 art=3638 z=8 g=1
+E 0 6 art=3638 z=8 g=1
+E 0 7 art=3638 z=8 g=1
+E 0 8 art=3638 z=8 g=1
+E 0 9 art=3638 z=8 g=1
+E 0 10 art=3638 z=8 g=1
+E 0 11 art=3638 z=8 g=1
+E 0 12 art=3638 z=8 g=1
+E 0 13 art=3638 z=8 g=1
+E 0 14 art=3638 z=8 g=1
+E 0 15 art=3638 z=8 g=1
+E 0 16 art=3638 z=8 g=1
+E 0 17 art=3638 z=8 g=1
+E 0 18 art=3638 z=8 g=1
+E 1 18 art=3638 z=8 g=1
+E 1 17 art=3638 z=8 g=1
+E 1 16 art=3638 z=8 g=1
+E 1 15 art=3638 z=8 g=1
+E 1 14 art=3638 z=8 g=1
+E 1 13 art=3638 z=8 g=1
+E 1 12 art=3638 z=8 g=1
+E 1 11 art=3638 z=8 g=1
+E 1 10 art=3638 z=8 g=1
+E 1 9 art=3638 z=8 g=1
+E 1 8 art=3638 z=8 g=1
+E 1 7 art=3638 z=8 g=1
+E 1 6 art=3638 z=8 g=1
+E 1 5 art=3638 z=8 g=1
+E 1 4 art=3638 z=8 g=1
+E 1 3 art=3638 z=8 g=1
+E 2.333 3 art=3638 z=8 g=1
+E 2.333 4 art=3638 z=8 g=1
+E 2.333 5 art=3638 z=8 g=1
+E 2.333 6 art=3638 z=8 g=1
+E 2.333 7 art=3638 z=8 g=1
+E 2.333 8 art=3638 z=8 g=1
+E 2.333 9 art=3638 z=8 g=1
+E 2.333 10 art=3638 z=8 g=1
+E 2.333 11 art=3638 z=8 g=1
+E 2.333 12 art=3638 z=8 g=1
+E 2.333 13 art=3638 z=8 g=1
+E 2.333 14 art=3638 z=8 g=1
+E 2.333 15 art=3638 z=8 g=1
+E 2.333 16 art=3638 z=8 g=1
+E 2.333 17 art=3638 z=8 g=1
+E 2.333 18 art=3638 z=8 g=1
+E 3.333 18 art=3638 z=8 g=1
+E 3.333 17 art=3638 z=8 g=1
+E 3.333 16 art=3638 z=8 g=1
+E 3.333 15 art=3638 z=8 g=1
+E 3.333 14 art=3638 z=8 g=1
+E 3.333 13 art=3638 z=8 g=1
+E 3.333 12 art=3638 z=8 g=1
+E 3.333 11 art=3638 z=8 g=1
+E 3.333 10 art=3638 z=8 g=1
+E 3.333 9 art=3638 z=8 g=1
+E 3.333 8 art=3638 z=8 g=1
+E 3.333 7 art=3638 z=8 g=1
+E 3.333 6 art=3638 z=8 g=1
+E 3.333 5 art=3638 z=8 g=1
+E 3.333 4 art=3638 z=8 g=1
+E 3.333 3 art=3638 z=8 g=1
+E 4.667 3 art=3638 z=8 g=1
+E 4.667 4 art=3638 z=8 g=1
+E 4.667 5 art=3638 z=8 g=1
+E 4.667 6 art=3638 z=8 g=1
+E 4.667 7 art=3638 z=8 g=1
+E 4.667 8 art=3638 z=8 g=1
+E 4.667 9 art=3638 z=8 g=1
+E 4.667 10 art=3638 z=8 g=1
+E 4.667 11 art=3638 z=8 g=1
+E 4.667 12 art=3638 z=8 g=1
+E 4.667 13 art=3638 z=8 g=1
+E 4.667 14 art=3638 z=8 g=1
+E 4.667 15 art=3638 z=8 g=1
+E 4.667 16 art=3638 z=8 g=1
+E 4.667 17 art=3638 z=8 g=1
+E 4.667 18 art=3638 z=8 g=1
+E 5.667 18 art=3638 z=8 g=1
+E 5.667 17 art=3638 z=8 g=1
+E 5.667 16 art=3638 z=8 g=1
+E 5.667 15 art=3638 z=8 g=1
+E 5.667 14 art=3638 z=8 g=1
+E 5.667 13 art=3638 z=8 g=1
+E 5.667 12 art=3638 z=8 g=1
+E 5.667 11 art=3638 z=8 g=1
+E 5.667 10 art=3638 z=8 g=1
+E 5.667 9 art=3638 z=8 g=1
+E 5.667 8 art=3638 z=8 g=1
+E 5.667 7 art=3638 z=8 g=1
+E 5.667 6 art=3638 z=8 g=1
+E 5.667 5 art=3638 z=8 g=1
+E 5.667 4 art=3638 z=8 g=1
+E 5.667 3 art=3638 z=8 g=1
+E 7 3 art=3638 z=8 g=1
+E 7 4 art=3638 z=8 g=1
+E 7 5 art=3638 z=8 g=1
+E 7 6 art=3638 z=8 g=1
+E 7 7 art=3638 z=8 g=1
+E 7 8 art=3638 z=8 g=1
+E 7 9 art=3638 z=8 g=1
+E 7 10 art=3638 z=8 g=1
+E 7 11 art=3638 z=8 g=1
+E 7 12 art=3638 z=8 g=1
+E 7 13 art=3638 z=8 g=1
+E 7 14 art=3638 z=8 g=1
+E 7 15 art=3638 z=8 g=1
+E 7 16 art=3638 z=8 g=1
+E 7 17 art=3638 z=8 g=1
+E 7 18 art=3638 z=8 g=1
+E 8 18 art=3638 z=8 g=1
+E 8 17 art=3638 z=8 g=1
+E 8 16 art=3638 z=8 g=1
+E 8 15 art=3638 z=8 g=1
+E 8 14 art=3638 z=8 g=1
+E 8 13 art=3638 z=8 g=1
+E 8 12 art=3638 z=8 g=1
+E 8 11 art=3638 z=8 g=1
+E 8 10 art=3638 z=8 g=1
+E 8 9 art=3638 z=8 g=1
+E 8 8 art=3638 z=8 g=1
+E 8 7 art=3638 z=8 g=1
+E 8 6 art=3638 z=8 g=1
+E 8 5 art=3638 z=8 g=1
+E 8 4 art=3638 z=8 g=1
+E 8 3 art=3638 z=8 g=1
+E 9.333 3 art=3638 z=8 g=1
+E 9.333 4 art=3638 z=8 g=1
+E 9.333 5 art=3638 z=8 g=1
+E 9.333 6 art=3638 z=8 g=1
+E 9.333 7 art=3638 z=8 g=1
+E 9.333 8 art=3638 z=8 g=1
+E 9.333 9 art=3638 z=8 g=1
+E 9.333 10 art=3638 z=8 g=1
+E 9.333 11 art=3638 z=8 g=1
+E 9.333 12 art=3638 z=8 g=1
+E 9.333 13 art=3638 z=8 g=1
+E 9.333 14 art=3638 z=8 g=1
+E 9.333 15 art=3638 z=8 g=1
+E 9.333 16 art=3638 z=8 g=1
+E 9.333 17 art=3638 z=8 g=1
+E 9.333 18 art=3638 z=8 g=1
+E 10.333 18 art=3638 z=8 g=1
+E 10.333 17 art=3638 z=8 g=1
+E 10.333 16 art=3638 z=8 g=1
+E 10.333 15 art=3638 z=8 g=1
+E 10.333 14 art=3638 z=8 g=1
+E 10.333 13 art=3638 z=8 g=1
+E 10.333 12 art=3638 z=8 g=1
+E 10.333 11 art=3638 z=8 g=1
+E 10.333 10 art=3638 z=8 g=1
+E 10.333 9 art=3638 z=8 g=1
+E 10.333 8 art=3638 z=8 g=1
+E 10.333 7 art=3638 z=8 g=1
+E 10.333 6 art=3638 z=8 g=1
+E 10.333 5 art=3638 z=8 g=1
+E 10.333 4 art=3638 z=8 g=1
+E 10.333 3 art=3638 z=8 g=1
+E 11.667 3 art=3638 z=8 g=1
+E 11.667 4 art=3638 z=8 g=1
+E 11.667 5 art=3638 z=8 g=1
+E 11.667 6 art=3638 z=8 g=1
+E 11.667 7 art=3638 z=8 g=1
+E 11.667 8 art=3638 z=8 g=1
+E 11.667 9 art=3638 z=8 g=1
+E 11.667 10 art=3638 z=8 g=1
+E 11.667 11 art=3638 z=8 g=1
+E 11.667 12 art=3638 z=8 g=1
+E 11.667 13 art=3638 z=8 g=1
+E 11.667 14 art=3638 z=8 g=1
+E 11.667 15 art=3638 z=8 g=1
+E 11.667 16 art=3638 z=8 g=1
+E 11.667 17 art=3638 z=8 g=1
+E 11.667 18 art=3638 z=8 g=1
+E 12.667 18 art=3638 z=8 g=1
+E 12.667 17 art=3638 z=8 g=1
+E 12.667 16 art=3638 z=8 g=1
+E 12.667 15 art=3638 z=8 g=1
+E 12.667 14 art=3638 z=8 g=1
+E 12.667 13 art=3638 z=8 g=1
+E 12.667 12 art=3638 z=8 g=1
+E 12.667 11 art=3638 z=8 g=1
+E 12.667 10 art=3638 z=8 g=1
+E 12.667 9 art=3638 z=8 g=1
+E 12.667 8 art=3638 z=8 g=1
+E 12.667 7 art=3638 z=8 g=1
+E 12.667 6 art=3638 z=8 g=1
+E 12.667 5 art=3638 z=8 g=1
+E 12.667 4 art=3638 z=8 g=1
+E 12.667 3 art=3638 z=8 g=1
+E 14 3 art=3638 z=8 g=1
+E 14 4 art=3638 z=8 g=1
+E 14 5 art=3638 z=8 g=1
+E 14 6 art=3638 z=8 g=1
+E 14 7 art=3638 z=8 g=1
+E 14 8 art=3638 z=8 g=1
+E 14 9 art=3638 z=8 g=1
+E 14 10 art=3638 z=8 g=1
+E 14 11 art=3638 z=8 g=1
+E 14 12 art=3638 z=8 g=1
+E 14 13 art=3638 z=8 g=1
+E 14 14 art=3638 z=8 g=1
+E 14 15 art=3638 z=8 g=1
+E 14 16 art=3638 z=8 g=1
+E 14 17 art=3638 z=8 g=1
+E 14 18 art=3638 z=8 g=1
+E 15 18 art=3638 z=8 g=1
+E 15 17 art=3638 z=8 g=1
+E 15 16 art=3638 z=8 g=1
+E 15 15 art=3638 z=8 g=1
+E 15 14 art=3638 z=8 g=1
+E 15 13 art=3638 z=8 g=1
+E 15 12 art=3638 z=8 g=1
+E 15 11 art=3638 z=8 g=1
+E 15 10 art=3638 z=8 g=1
+E 15 9 art=3638 z=8 g=1
+E 15 8 art=3638 z=8 g=1
+E 15 7 art=3638 z=8 g=1
+E 15 6 art=3638 z=8 g=1
+E 15 5 art=3638 z=8 g=1
+E 15 4 art=3638 z=8 g=1
+E 15 3 art=3638 z=8 g=1
+E 16.333 3 art=3638 z=8 g=1
+E 16.333 4 art=3638 z=8 g=1
+E 16.333 5 art=3638 z=8 g=1
+E 16.333 6 art=3638 z=8 g=1
+E 16.333 7 art=3638 z=8 g=1
+E 16.333 8 art=3638 z=8 g=1
+E 16.333 9 art=3638 z=8 g=1
+E 16.333 10 art=3638 z=8 g=1
+E 16.333 11 art=3638 z=8 g=1
+E 16.333 12 art=3638 z=8 g=1
+E 16.333 13 art=3638 z=8 g=1
+E 16.333 14 art=3638 z=8 g=1
+E 16.333 15 art=3638 z=8 g=1
+E 16.333 16 art=3638 z=8 g=1
+E 16.333 17 art=3638 z=8 g=1
+E 16.333 18 art=3638 z=8 g=1
+E 17.333 18 art=3638 z=8 g=1
+E 17.333 17 art=3638 z=8 g=1
+E 17.333 16 art=3638 z=8 g=1
+E 17.333 15 art=3638 z=8 g=1
+E 17.333 14 art=3638 z=8 g=1
+E 17.333 13 art=3638 z=8 g=1
+E 17.333 12 art=3638 z=8 g=1
+E 17.333 11 art=3638 z=8 g=1
+E 17.333 10 art=3638 z=8 g=1
+E 17.333 9 art=3638 z=8 g=1
+E 17.333 8 art=3638 z=8 g=1
+E 17.333 7 art=3638 z=8 g=1
+E 17.333 6 art=3638 z=8 g=1
+E 17.333 5 art=3638 z=8 g=1
+E 17.333 4 art=3638 z=8 g=1
+E 17.333 3 art=3638 z=8 g=1
+E 18.667 3 art=3638 z=8 g=1
+E 18.667 4 art=3638 z=8 g=1
+E 18.667 5 art=3638 z=8 g=1
+E 18.667 6 art=3638 z=8 g=1
+E 18.667 7 art=3638 z=8 g=1
+E 18.667 8 art=3638 z=8 g=1
+E 18.667 9 art=3638 z=8 g=1
+E 18.667 10 art=3638 z=8 g=1
+E 18.667 11 art=3638 z=8 g=1
+E 18.667 12 art=3638 z=8 g=1
+E 18.667 13 art=3638 z=8 g=1
+E 18.667 14 art=3638 z=8 g=1
+E 18.667 15 art=3638 z=8 g=1
+E 18.667 16 art=3638 z=8 g=1
+E 18.667 17 art=3638 z=8 g=1
+E 18.667 18 art=3638 z=8 g=1
+E 19.667 18 art=3638 z=8 g=1
+E 19.667 17 art=3638 z=8 g=1
+E 19.667 16 art=3638 z=8 g=1
+E 19.667 15 art=3638 z=8 g=1
+E 19.667 14 art=3638 z=8 g=1
+E 19.667 13 art=3638 z=8 g=1
+E 19.667 12 art=3638 z=8 g=1
+E 19.667 11 art=3638 z=8 g=1
+E 19.667 10 art=3638 z=8 g=1
+E 19.667 9 art=3638 z=8 g=1
+E 19.667 8 art=3638 z=8 g=1
+E 19.667 7 art=3638 z=8 g=1
+E 19.667 6 art=3638 z=8 g=1
+E 19.667 5 art=3638 z=8 g=1
+E 19.667 4 art=3638 z=8 g=1
+E 19.667 3 art=3638 z=8 g=1
+E 21 3 art=3638 z=8 g=1
+E 21 4 art=3638 z=8 g=1
+E 21 5 art=3638 z=8 g=1
+E 21 6 art=3638 z=8 g=1
+E 21 7 art=3638 z=8 g=1
+E 21 8 art=3638 z=8 g=1
+E 21 9 art=3638 z=8 g=1
+E 21 10 art=3638 z=8 g=1
+E 21 11 art=3638 z=8 g=1
+E 21 12 art=3638 z=8 g=1
+E 21 13 art=3638 z=8 g=1
+E 21 14 art=3638 z=8 g=1
+E 21 15 art=3638 z=8 g=1
+E 21 16 art=3638 z=8 g=1
+E 21 17 art=3638 z=8 g=1
+E 21 18 art=3638 z=8 g=1
+E 22 18 art=3638 z=8 g=1
+E 22 17 art=3638 z=8 g=1
+E 22 16 art=3638 z=8 g=1
+E 22 15 art=3638 z=8 g=1
+E 22 14 art=3638 z=8 g=1
+E 22 13 art=3638 z=8 g=1
+E 22 12 art=3638 z=8 g=1
+E 22 11 art=3638 z=8 g=1
+E 22 10 art=3638 z=8 g=1
+E 22 9 art=3638 z=8 g=1
+E 22 8 art=3638 z=8 g=1
+E 22 7 art=3638 z=8 g=1
+E 22 6 art=3638 z=8 g=1
+E 22 5 art=3638 z=8 g=1
+E 22 4 art=3638 z=8 g=1
+E 22 3 art=3638 z=8 g=1
+E 23.333 3 art=3638 z=8 g=1
+E 23.333 4 art=3638 z=8 g=1
+E 23.333 5 art=3638 z=8 g=1
+E 23.333 6 art=3638 z=8 g=1
+E 23.333 7 art=3638 z=8 g=1
+E 23.333 8 art=3638 z=8 g=1
+E 23.333 9 art=3638 z=8 g=1
+E 23.333 11 art=3638 z=8 g=1
+E 23.333 12 art=3638 z=8 g=1
+E 23.333 13 art=3638 z=8 g=1
+E 23.333 14 art=3638 z=8 g=1
+E 23.333 15 art=3638 z=8 g=1
+E 23.333 16 art=3638 z=8 g=1
+E 23.333 17 art=3638 z=8 g=1
+E 23.333 18 art=3638 z=8 g=1
+E 24.333 18 art=3638 z=8 g=1
+E 24.333 17 art=3638 z=8 g=1
+E 24.333 16 art=3638 z=8 g=1
+E 24.333 15 art=3638 z=8 g=1
+E 24.333 14 art=3638 z=8 g=1
+E 24.333 13 art=3638 z=8 g=1
+E 24.333 12 art=3638 z=8 g=1
+E 24.333 11 art=3638 z=8 g=1
+E 24.333 10 art=3638 z=8 g=1
+E 24.333 9 art=3638 z=8 g=1
+E 24.333 8 art=3638 z=8 g=1
+E 24.333 7 art=3638 z=8 g=1
+E 24.333 6 art=3638 z=8 g=1
+E 24.333 5 art=3638 z=8 g=1
+E 24.333 4 art=3638 z=8 g=1
+E 24.333 3 art=3638 z=8 g=1
+E 25.667 3 art=3638 z=8 g=1
+E 25.667 4 art=3638 z=8 g=1
+E 25.667 5 art=3638 z=8 g=1
+E 25.667 6 art=3638 z=8 g=1
+E 25.667 7 art=3638 z=8 g=1
+E 25.667 8 art=3638 z=8 g=1
+E 25.667 9 art=3638 z=8 g=1
+E 25.667 10 art=3638 z=8 g=1
+E 25.667 11 art=3638 z=8 g=1
+E 25.667 12 art=3638 z=8 g=1
+E 25.667 13 art=3638 z=8 g=1
+E 25.667 14 art=3638 z=8 g=1
+E 25.667 15 art=3638 z=8 g=1
+E 25.667 16 art=3638 z=8 g=1
+E 25.667 17 art=3638 z=8 g=1
+E 25.667 18 art=3638 z=8 g=1
+E 26.667 18 art=3638 z=8 g=1
+E 26.667 17 art=3638 z=8 g=1
+E 26.667 16 art=3638 z=8 g=1
+E 26.667 15 art=3638 z=8 g=1
+E 26.667 14 art=3638 z=8 g=1
+E 26.667 13 art=3638 z=8 g=1
+E 26.667 12 art=3638 z=8 g=1
+E 26.667 11 art=3638 z=8 g=1
+E 26.667 10 art=3638 z=8 g=1
+E 26.667 9 art=3638 z=8 g=1
+E 26.667 8 art=3638 z=8 g=1
+E 26.667 7 art=3638 z=8 g=1
+E 26.667 6 art=3638 z=8 g=1
+E 26.667 5 art=3638 z=8 g=1
+E 26.667 4 art=3638 z=8 g=1
+E 26.667 3 art=3638 z=8 g=1
+E 28 3 art=3638 z=8 g=1
+E 28 4 art=3638 z=8 g=1
+E 28 5 art=3638 z=8 g=1
+E 28 6 art=3638 z=8 g=1
+E 28 7 art=3638 z=8 g=1
+E 28 8 art=3638 z=8 g=1
+E 28 9 art=3638 z=8 g=1
+E 28 10 art=3638 z=8 g=1
+E 28 11 art=3638 z=8 g=1
+E 28 12 art=3638 z=8 g=1
+E 28 13 art=3638 z=8 g=1
+E 28 14 art=3638 z=8 g=1
+E 28 15 art=3638 z=8 g=1
+E 28 16 art=3638 z=8 g=1
+E 28 17 art=3638 z=8 g=1
+E 28 18 art=3638 z=8 g=1
+E 29 18 art=3638 z=8 g=1
+E 29 17 art=3638 z=8 g=1
+E 29 16 art=3638 z=8 g=1
+E 29 15 art=3638 z=8 g=1
+E 29 14 art=3638 z=8 g=1
+E 29 13 art=3638 z=8 g=1
+E 29 12 art=3638 z=8 g=1
+E 29 11 art=3638 z=8 g=1
+E 29 10 art=3638 z=8 g=1
+E 29 9 art=3638 z=8 g=1
+E 29 8 art=3638 z=8 g=1
+E 29 7 art=3638 z=8 g=1
+E 29 6 art=3638 z=8 g=1
+E 29 5 art=3638 z=8 g=1
+E 29 4 art=3638 z=8 g=1
+E 29 3 art=3638 z=8 g=1
+E 30.333 3 art=3638 z=8 g=1
+E 30.333 4 art=3638 z=8 g=1
+E 30.333 5 art=3638 z=8 g=1
+E 30.333 6 art=3638 z=8 g=1
+E 30.333 7 art=3638 z=8 g=1
+E 30.333 8 art=3638 z=8 g=1
+E 30.333 9 art=3638 z=8 g=1
+E 30.333 10 art=3638 z=8 g=1
+E 30.333 11 art=3638 z=8 g=1
+E 30.333 12 art=3638 z=8 g=1
+E 30.333 13 art=3638 z=8 g=1
+E 30.333 14 art=3638 z=8 g=1
+E 30.333 15 art=3638 z=8 g=1
+E 30.333 16 art=3638 z=8 g=1
+E 30.333 17 art=3638 z=8 g=1
+E 30.333 18 art=3638 z=8 g=1
+E 31.333 18 art=3638 z=8 g=1
+E 31.333 17 art=3638 z=8 g=1
+E 31.333 16 art=3638 z=8 g=1
+E 31.333 15 art=3638 z=8 g=1
+E 31.333 14 art=3638 z=8 g=1
+E 31.333 13 art=3638 z=8 g=1
+E 31.333 12 art=3638 z=8 g=1
+E 31.333 11 art=3638 z=8 g=1
+E 31.333 10 art=3638 z=8 g=1
+E 31.333 9 art=3638 z=8 g=1
+E 31.333 8 art=3638 z=8 g=1
+E 31.333 7 art=3638 z=8 g=1
+E 31.333 6 art=3638 z=8 g=1
+E 31.333 5 art=3638 z=8 g=1
+E 31.333 4 art=3638 z=8 g=1
+E 31.333 3 art=3638 z=8 g=1
+E 32.667 3 art=3638 z=8 g=1
+E 32.667 4 art=3638 z=8 g=1
+E 32.667 5 art=3638 z=8 g=1
+E 32.667 6 art=3638 z=8 g=1
+E 32.667 7 art=3638 z=8 g=1
+E 32.667 8 art=3638 z=8 g=1
+E 32.667 9 art=3638 z=8 g=1
+E 32.667 10 art=3638 z=8 g=1
+E 32.667 11 art=3638 z=8 g=1
+E 32.667 12 art=3638 z=8 g=1
+E 32.667 13 art=3638 z=8 g=1
+E 32.667 14 art=3638 z=8 g=1
+E 32.667 15 art=3638 z=8 g=1
+E 32.667 16 art=3638 z=8 g=1
+E 32.667 17 art=3638 z=8 g=1
+E 32.667 18 art=3638 z=8 g=1
+E 33.667 18 art=3638 z=8 g=1
+E 33.667 17 art=3638 z=8 g=1
+E 33.667 16 art=3638 z=8 g=1
+E 33.667 15 art=3638 z=8 g=1
+E 33.667 14 art=3638 z=8 g=1
+E 33.667 13 art=3638 z=8 g=1
+E 33.667 12 art=3638 z=8 g=1
+E 33.667 11 art=3638 z=8 g=1
+E 33.667 10 art=3638 z=8 g=1
+E 33.667 9 art=3638 z=8 g=1
+E 33.667 8 art=3638 z=8 g=1
+E 33.667 7 art=3638 z=8 g=1
+E 33.667 6 art=3638 z=8 g=1
+E 33.667 5 art=3638 z=8 g=1
+E 33.667 4 art=3638 z=8 g=1
+E 33.667 3 art=3638 z=8 g=1
+E 35 3 art=3638 z=8 g=1
+E 35 4 art=3638 z=8 g=1
+E 35 5 art=3638 z=8 g=1
+E 35 6 art=3638 z=8 g=1
+E 35 7 art=3638 z=8 g=1
+E 35 8 art=3638 z=8 g=1
+E 35 9 art=3638 z=8 g=1
+E 35 10 art=3638 z=8 g=1
+E 35 11 art=3638 z=8 g=1
+E 35 12 art=3638 z=8 g=1
+E 35 13 art=3638 z=8 g=1
+E 35 14 art=3638 z=8 g=1
+E 35 15 art=3638 z=8 g=1
+E 35 16 art=3638 z=8 g=1
+E 35 17 art=3638 z=8 g=1
+E 35 18 art=3638 z=8 g=1
+E 36 18 art=3638 z=8 g=1
+E 36 17 art=3638 z=8 g=1
+E 36 16 art=3638 z=8 g=1
+E 36 15 art=3638 z=8 g=1
+E 36 14 art=3638 z=8 g=1
+E 36 13 art=3638 z=8 g=1
+E 36 12 art=3638 z=8 g=1
+E 36 11 art=3638 z=8 g=1
+E 36 10 art=3638 z=8 g=1
+E 36 9 art=3638 z=8 g=1
+E 36 8 art=3638 z=8 g=1
+E 36 7 art=3638 z=8 g=1
+E 36 6 art=3638 z=8 g=1
+E 36 5 art=3638 z=8 g=1
+E 36 4 art=3638 z=8 g=1
+E 36 3 art=3638 z=8 g=1
+E 37.333 3 art=3638 z=8 g=1
+E 37.333 4 art=3638 z=8 g=1
+E 37.333 5 art=3638 z=8 g=1
+E 37.333 6 art=3638 z=8 g=1
+E 37.333 7 art=3638 z=8 g=1
+E 37.333 8 art=3638 z=8 g=1
+E 37.333 9 art=3638 z=8 g=1
+E 37.333 10 art=3638 z=8 g=1
+E 37.333 11 art=3638 z=8 g=1
+E 37.333 12 art=3638 z=8 g=1
+E 37.333 13 art=3638 z=8 g=1
+E 37.333 14 art=3638 z=8 g=1
+E 37.333 15 art=3638 z=8 g=1
+E 37.333 16 art=3638 z=8 g=1
+E 37.333 17 art=3638 z=8 g=1
+E 37.333 18 art=3638 z=8 g=1
+E 38.333 18 art=3638 z=8 g=1
+E 38.333 17 art=3638 z=8 g=1
+E 38.333 16 art=3638 z=8 g=1
+E 38.333 15 art=3638 z=8 g=1
+E 38.333 14 art=3638 z=8 g=1
+E 38.333 13 art=3638 z=8 g=1
+E 38.333 12 art=3638 z=8 g=1
+E 38.333 11 art=3638 z=8 g=1
+E 38.333 10 art=3638 z=8 g=1
+E 38.333 9 art=3638 z=8 g=1
+E 38.333 8 art=3638 z=8 g=1
+E 38.333 7 art=3638 z=8 g=1
+E 38.333 6 art=3638 z=8 g=1
+E 38.333 5 art=3638 z=8 g=1
+E 38.333 4 art=3638 z=8 g=1
+E 38.333 3 art=3638 z=8 g=1
+E 39.667 3 art=3638 z=8 g=1
+E 39.667 4 art=3638 z=8 g=1
+E 39.667 5 art=3638 z=8 g=1
+E 39.667 6 art=3638 z=8 g=1
+E 39.667 7 art=3638 z=8 g=1
+E 39.667 8 art=3638 z=8 g=1
+E 39.667 9 art=3638 z=8 g=1
+E 39.667 10 art=3638 z=8 g=1
+E 39.667 11 art=3638 z=8 g=1
+E 39.667 12 art=3638 z=8 g=1
+E 39.667 13 art=3638 z=8 g=1
+E 39.667 14 art=3638 z=8 g=1
+E 39.667 15 art=3638 z=8 g=1
+E 39.667 16 art=3638 z=8 g=1
+E 39.667 17 art=3638 z=8 g=1
+E 39.667 18 art=3638 z=8 g=1
+E 40.667 18 art=3638 z=8 g=1
+E 40.667 17 art=3638 z=8 g=1
+E 40.667 16 art=3638 z=8 g=1
+E 40.667 15 art=3638 z=8 g=1
+E 40.667 14 art=3638 z=8 g=1
+E 40.667 13 art=3638 z=8 g=1
+E 40.667 12 art=3638 z=8 g=1
+E 40.667 11 art=3638 z=8 g=1
+E 40.667 10 art=3638 z=8 g=1
+E 40.667 9 art=3638 z=8 g=1
+E 40.667 8 art=3638 z=8 g=1
+E 40.667 7 art=3638 z=8 g=1
+E 40.667 6 art=3638 z=8 g=1
+E 40.667 5 art=3638 z=8 g=1
+E 40.667 4 art=3638 z=8 g=1
+E 40.667 3 art=3638 z=8 g=1
+E 42 3 art=3638 z=8 g=1
+E 42 4 art=3638 z=8 g=1
+E 42 5 art=3638 z=8 g=1
+E 42 6 art=3638 z=8 g=1
+E 42 7 art=3638 z=8 g=1
+E 42 8 art=3638 z=8 g=1
+E 42 9 art=3638 z=8 g=1
+E 42 10 art=3638 z=8 g=1
+E 42 11 art=3638 z=8 g=1
+E 42 12 art=3638 z=8 g=1
+E 42 13 art=3638 z=8 g=1
+E 42 14 art=3638 z=8 g=1
+E 42 15 art=3638 z=8 g=1
+E 42 16 art=3638 z=8 g=1
+E 42 17 art=3638 z=8 g=1
+E 42 18 art=3638 z=8 g=1
+E 43 18 art=3638 z=8 g=1
+E 43 17 art=3638 z=8 g=1
+E 43 16 art=3638 z=8 g=1
+E 43 15 art=3638 z=8 g=1
+E 43 14 art=3638 z=8 g=1
+E 43 13 art=3638 z=8 g=1
+E 43 12 art=3638 z=8 g=1
+E 43 11 art=3638 z=8 g=1
+E 43 10 art=3638 z=8 g=1
+E 43 9 art=3638 z=8 g=1
+E 43 8 art=3638 z=8 g=1
+E 43 7 art=3638 z=8 g=1
+E 43 6 art=3638 z=8 g=1
+E 43 5 art=3638 z=8 g=1
+E 43 4 art=3638 z=8 g=1
+E 43 3 art=3638 z=8 g=1
+E 44.333 3 art=3638 z=8 g=1
+E 44.333 4 art=3638 z=8 g=1
+E 44.333 5 art=3638 z=8 g=1
+E 44.333 6 art=3638 z=8 g=1
+E 44.333 7 art=3638 z=8 g=1
+E 44.333 8 art=3638 z=8 g=1
+E 44.333 9 art=3638 z=8 g=1
+E 44.333 10 art=3638 z=8 g=1
+E 44.333 11 art=3638 z=8 g=1
+E 44.333 12 art=3638 z=8 g=1
+E 44.333 13 art=3638 z=8 g=1
+E 44.333 14 art=3638 z=8 g=1
+E 44.333 15 art=3638 z=8 g=1
+E 44.333 16 art=3638 z=8 g=1
+E 44.333 17 art=3638 z=8 g=1
+E 44.333 18 art=3638 z=8 g=1
+E 45.333 18 art=3638 z=8 g=1
+E 45.333 17 art=3638 z=8 g=1
+E 45.333 16 art=3638 z=8 g=1
+E 45.333 15 art=3638 z=8 g=1
+E 45.333 14 art=3638 z=8 g=1
+E 45.333 13 art=3638 z=8 g=1
+E 45.333 12 art=3638 z=8 g=1
+E 45.333 11 art=3638 z=8 g=1
+E 45.333 10 art=3638 z=8 g=1
+E 45.333 9 art=3638 z=8 g=1
+E 45.333 8 art=3638 z=8 g=1
+E 45.333 7 art=3638 z=8 g=1
+E 45.333 6 art=3638 z=8 g=1
+E 45.333 5 art=3638 z=8 g=1
+E 45.333 4 art=3638 z=8 g=1
+E 45.333 3 art=3638 z=8 g=1
+E 46.667 3 art=3638 z=8 g=1
+E 46.667 4 art=3638 z=8 g=1
+E 46.667 5 art=3638 z=8 g=1
+E 46.667 6 art=3638 z=8 g=1
+E 46.667 7 art=3638 z=8 g=1
+E 46.667 8 art=3638 z=8 g=1
+E 46.667 9 art=3638 z=8 g=1
+E 46.667 10 art=3638 z=8 g=1
+E 46.667 11 art=3638 z=8 g=1
+E 46.667 12 art=3638 z=8 g=1
+E 46.667 13 art=3638 z=8 g=1
+E 46.667 14 art=3638 z=8 g=1
+E 46.667 15 art=3638 z=8 g=1
+E 46.667 16 art=3638 z=8 g=1
+E 46.667 17 art=3638 z=8 g=1
+E 46.667 18 art=3638 z=8 g=1
+E 47.667 18 art=3638 z=8 g=1
+E 47.667 17 art=3638 z=8 g=1
+E 47.667 16 art=3638 z=8 g=1
+E 47.667 15 art=3638 z=8 g=1
+E 47.667 14 art=3638 z=8 g=1
+E 47.667 13 art=3638 z=8 g=1
+E 47.667 12 art=3638 z=8 g=1
+E 47.667 11 art=3638 z=8 g=1
+E 47.667 10 art=3638 z=8 g=1
+E 47.667 9 art=3638 z=8 g=1
+E 47.667 8 art=3638 z=8 g=1
+E 47.667 7 art=3638 z=8 g=1
+E 47.667 6 art=3638 z=8 g=1
+E 47.667 5 art=3638 z=8 g=1
+E 47.667 4 art=3638 z=8 g=1
+E 47.667 3 art=3638 z=8 g=1
+E 49 3 art=3638 z=8 g=1
+E 49 4 art=3638 z=8 g=1
+E 49 5 art=3638 z=8 g=1
+E 49 6 art=3638 z=8 g=1
+E 49 7 art=3638 z=8 g=1
+E 49 8 art=3638 z=8 g=1
+E 49 9 art=3638 z=8 g=1
+E 49 10 art=3638 z=8 g=1
+E 49 11 art=3638 z=8 g=1
+E 49 12 art=3638 z=8 g=1
+E 49 13 art=3638 z=8 g=1
+E 49 14 art=3638 z=8 g=1
+E 49 15 art=3638 z=8 g=1
+E 49 16 art=3638 z=8 g=1
+E 49 17 art=3638 z=8 g=1
+E 49 18 art=3638 z=8 g=1
+E 50 18 art=3638 z=8 g=1
+E 50 17 art=3638 z=8 g=1
+E 50 16 art=3638 z=8 g=1
+E 50 15 art=3638 z=8 g=1
+E 50 14 art=3638 z=8 g=1
+E 50 13 art=3638 z=8 g=1
+E 50 12 art=3638 z=8 g=1
+E 50 11 art=3638 z=8 g=1
+E 50 10 art=3638 z=8 g=1
+E 50 9 art=3638 z=8 g=1
+E 50 8 art=3638 z=8 g=1
+E 50 7 art=3638 z=8 g=1
+E 50 6 art=3638 z=8 g=1
+E 50 5 art=3638 z=8 g=1
+E 50 4 art=3638 z=8 g=1
+E 50 3 art=3638 z=8 g=1
+E 51.333 3 art=3638 z=8 g=1
+E 51.333 4 art=3638 z=8 g=1
+E 51.333 5 art=3638 z=8 g=1
+E 51.333 6 art=3638 z=8 g=1
+E 51.333 7 art=3638 z=8 g=1
+E 51.333 8 art=3638 z=8 g=1
+E 51.333 9 art=3638 z=8 g=1
+E 51.333 10 art=3638 z=8 g=1
+E 51.333 11 art=3638 z=8 g=1
+E 51.333 12 art=3638 z=8 g=1
+E 51.333 13 art=3638 z=8 g=1
+E 51.333 14 art=3638 z=8 g=1
+E 51.333 15 art=3638 z=8 g=1
+E 51.333 16 art=3638 z=8 g=1
+E 51.333 17 art=3638 z=8 g=1
+E 51.333 18 art=3638 z=8 g=1
+E 52.333 18 art=3638 z=8 g=1
+E 52.333 17 art=3638 z=8 g=1
+E 52.333 16 art=3638 z=8 g=1
+E 52.333 15 art=3638 z=8 g=1
+E 52.333 14 art=3638 z=8 g=1
+E 52.333 13 art=3638 z=8 g=1
+E 52.333 12 art=3638 z=8 g=1
+E 52.333 11 art=3638 z=8 g=1
+E 52.333 10 art=3638 z=8 g=1
+E 52.333 9 art=3638 z=8 g=1
+E 52.333 8 art=3638 z=8 g=1
+E 52.333 7 art=3638 z=8 g=1
+E 52.333 6 art=3638 z=8 g=1
+E 52.333 5 art=3638 z=8 g=1
+E 52.333 4 art=3638 z=8 g=1
+E 52.333 3 art=3638 z=8 g=1
+E 53.667 3 art=3638 z=8 g=1
+E 53.667 4 art=3638 z=8 g=1
+E 53.667 5 art=3638 z=8 g=1
+E 53.667 6 art=3638 z=8 g=1
+E 53.667 7 art=3638 z=8 g=1
+E 53.667 8 art=3638 z=8 g=1
+E 53.667 9 art=3638 z=8 g=1
+E 53.667 10 art=3638 z=8 g=1
+E 53.667 11 art=3638 z=8 g=1
+E 53.667 12 art=3638 z=8 g=1
+E 53.667 13 art=3638 z=8 g=1
+E 53.667 14 art=3638 z=8 g=1
+E 53.667 15 art=3638 z=8 g=1
+E 53.667 16 art=3638 z=8 g=1
+E 53.667 17 art=3638 z=8 g=1
+E 53.667 18 art=3638 z=8 g=1
+E 54.667 18 art=3638 z=8 g=1
+E 54.667 17 art=3638 z=8 g=1
+E 54.667 16 art=3638 z=8 g=1
+E 54.667 15 art=3638 z=8 g=1
+E 54.667 14 art=3638 z=8 g=1
+E 54.667 13 art=3638 z=8 g=1
+E 54.667 12 art=3638 z=8 g=1
+E 54.667 11 art=3638 z=8 g=1
+E 54.667 10 art=3638 z=8 g=1
+E 54.667 9 art=3638 z=8 g=1
+E 54.667 8 art=3638 z=8 g=1
+E 54.667 7 art=3638 z=8 g=1
+E 54.667 6 art=3638 z=8 g=1
+E 54.667 5 art=3638 z=8 g=1
+E 54.667 4 art=3638 z=8 g=1
+E 54.667 3 art=3638 z=8 g=1
+E 56 3 art=3638 z=8 g=1
+E 56 4 art=3638 z=8 g=1
+E 56 5 art=3638 z=8 g=1
+E 56 6 art=3638 z=8 g=1
+E 56 7 art=3638 z=8 g=1
+E 56 8 art=3638 z=8 g=1
+E 56 9 art=3638 z=8 g=1
+E 56 10 art=3638 z=8 g=1
+E 56 11 art=3638 z=8 g=1
+E 56 12 art=3638 z=8 g=1
+E 56 13 art=3638 z=8 g=1
+E 56 14 art=3638 z=8 g=1
+E 56 15 art=3638 z=8 g=1
+E 56 16 art=3638 z=8 g=1
+E 56 17 art=3638 z=8 g=1
+E 56 18 art=3638 z=8 g=1
+E 57 18 art=3638 z=8 g=1
+E 57 17 art=3638 z=8 g=1
+E 57 16 art=3638 z=8 g=1
+E 57 15 art=3638 z=8 g=1
+E 57 14 art=3638 z=8 g=1
+E 57 13 art=3638 z=8 g=1
+E 57 12 art=3638 z=8 g=1
+E 57 11 art=3638 z=8 g=1
+E 57 10 art=3638 z=8 g=1
+E 57 9 art=3638 z=8 g=1
+E 57 8 art=3638 z=8 g=1
+E 57 7 art=3638 z=8 g=1
+E 57 6 art=3638 z=8 g=1
+E 57 5 art=3638 z=8 g=1
+E 57 4 art=3638 z=8 g=1
+E 57 3 art=3638 z=8 g=1
+E 58.333 3 art=3638 z=8 g=1
+E 58.333 4 art=3638 z=8 g=1
+E 58.333 5 art=3638 z=8 g=1
+E 58.333 6 art=3638 z=8 g=1
+E 58.333 7 art=3638 z=8 g=1
+E 58.333 8 art=3638 z=8 g=1
+E 58.333 9 art=3638 z=8 g=1
+E 58.333 10 art=3638 z=8 g=1
+E 58.333 11 art=3638 z=8 g=1
+E 58.333 12 art=3638 z=8 g=1
+E 58.333 13 art=3638 z=8 g=1
+E 58.333 14 art=3638 z=8 g=1
+E 58.333 15 art=3638 z=8 g=1
+E 58.333 16 art=3638 z=8 g=1
+E 58.333 17 art=3638 z=8 g=1
+E 58.333 18 art=3638 z=8 g=1
+E 59.333 18 art=3638 z=8 g=1
+E 59.333 17 art=3638 z=8 g=1
+E 59.333 16 art=3638 z=8 g=1
+E 59.333 15 art=3638 z=8 g=1
+E 59.333 14 art=3638 z=8 g=1
+E 59.333 13 art=3638 z=8 g=1
+E 59.333 12 art=3638 z=8 g=1
+E 59.333 11 art=3638 z=8 g=1
+E 59.333 10 art=3638 z=8 g=1
+E 59.333 9 art=3638 z=8 g=1
+E 59.333 8 art=3638 z=8 g=1
+E 59.333 7 art=3638 z=8 g=1
+E 59.333 6 art=3638 z=8 g=1
+E 59.333 5 art=3638 z=8 g=1
+E 59.333 4 art=3638 z=8 g=1
+E 59.333 3 art=3638 z=8 g=1
+E 60.667 3 art=3638 z=8 g=1
+E 60.667 4 art=3638 z=8 g=1
+E 60.667 5 art=3638 z=8 g=1
+E 60.667 6 art=3638 z=8 g=1
+E 60.667 7 art=3638 z=8 g=1
+E 60.667 8 art=3638 z=8 g=1
+E 60.667 9 art=3638 z=8 g=1
+E 60.667 10 art=3638 z=8 g=1
+E 60.667 11 art=3638 z=8 g=1
+E 60.667 12 art=3638 z=8 g=1
+E 60.667 13 art=3638 z=8 g=1
+E 60.667 14 art=3638 z=8 g=1
+E 60.667 15 art=3638 z=8 g=1
+E 60.667 16 art=3638 z=8 g=1
+E 60.667 17 art=3638 z=8 g=1
+E 60.667 18 art=3638 z=8 g=1
+E 61.667 18 art=3638 z=8 g=1
+E 61.667 17 art=3638 z=8 g=1
+E 61.667 16 art=3638 z=8 g=1
+E 61.667 15 art=3638 z=8 g=1
+E 61.667 14 art=3638 z=8 g=1
+E 61.667 13 art=3638 z=8 g=1
+E 61.667 12 art=3638 z=8 g=1
+E 61.667 11 art=3638 z=8 g=1
+E 61.667 10 art=3638 z=8 g=1
+E 61.667 9 art=3638 z=8 g=1
+E 61.667 8 art=3638 z=8 g=1
+E 61.667 7 art=3638 z=8 g=1
+E 61.667 6 art=3638 z=8 g=1
+E 61.667 5 art=3638 z=8 g=1
+E 61.667 4 art=3638 z=8 g=1
+E 61.667 3 art=3638 z=8 g=1
+E 63 3 art=3638 z=8 g=1
+E 63 4 art=3638 z=8 g=1
+E 63 5 art=3638 z=8 g=1
+E 63 6 art=3638 z=8 g=1
+E 63 7 art=3638 z=8 g=1
+E 63 8 art=3638 z=8 g=1
+E 63 9 art=3638 z=8 g=1
+E 63 10 art=3638 z=8 g=1
+E 63 11 art=3638 z=8 g=1
+E 63 12 art=3638 z=8 g=1
+E 63 13 art=3638 z=8 g=1
+E 63 14 art=3638 z=8 g=1
+E 63 15 art=3638 z=8 g=1
+E 63 16 art=3638 z=8 g=1
+E 63 17 art=3638 z=8 g=1
+E 63 18 art=3638 z=8 g=1
+E 64 18 art=3638 z=8 g=1
+E 64 17 art=3638 z=8 g=1
+E 64 16 art=3638 z=8 g=1
+E 64 15 art=3638 z=8 g=1
+E 64 14 art=3638 z=8 g=1
+E 64 13 art=3638 z=8 g=1
+E 64 12 art=3638 z=8 g=1
+E 64 11 art=3638 z=8 g=1
+E 64 10 art=3638 z=8 g=1
+E 64 9 art=3638 z=8 g=1
+E 64 8 art=3638 z=8 g=1
+E 64 7 art=3638 z=8 g=1
+E 64 6 art=3638 z=8 g=1
+E 64 5 art=3638 z=8 g=1
+E 64 4 art=3638 z=8 g=1
+E 64 3 art=3638 z=8 g=1
+E 65.333 3 art=3638 z=8 g=1
+E 65.333 4 art=3638 z=8 g=1
+E 65.333 5 art=3638 z=8 g=1
+E 65.333 6 art=3638 z=8 g=1
+E 65.333 7 art=3638 z=8 g=1
+E 65.333 8 art=3638 z=8 g=1
+E 65.333 9 art=3638 z=8 g=1
+E 65.333 10 art=3638 z=8 g=1
+E 65.333 11 art=3638 z=8 g=1
+E 65.333 12 art=3638 z=8 g=1
+E 65.333 13 art=3638 z=8 g=1
+E 65.333 14 art=3638 z=8 g=1
+E 65.333 15 art=3638 z=8 g=1
+E 65.333 16 art=3638 z=8 g=1
+E 65.333 17 art=3638 z=8 g=1
+E 65.333 18 art=3638 z=8 g=1
+E 66.333 18 art=3638 z=8 g=1
+E 66.333 17 art=3638 z=8 g=1
+E 66.333 16 art=3638 z=8 g=1
+E 66.333 15 art=3638 z=8 g=1
+E 66.333 14 art=3638 z=8 g=1
+E 66.333 13 art=3638 z=8 g=1
+E 66.333 12 art=3638 z=8 g=1
+E 66.333 11 art=3638 z=8 g=1
+E 66.333 10 art=3638 z=8 g=1
+E 66.333 9 art=3638 z=8 g=1
+E 66.333 8 art=3638 z=8 g=1
+E 66.333 7 art=3638 z=8 g=1
+E 66.333 6 art=3638 z=8 g=1
+E 66.333 5 art=3638 z=8 g=1
+E 66.333 4 art=3638 z=8 g=1
+E 66.333 3 art=3638 z=8 g=1
+E 67.667 3 art=3638 z=8 g=1
+E 67.667 4 art=3638 z=8 g=1
+E 67.667 5 art=3638 z=8 g=1
+E 67.667 6 art=3638 z=8 g=1
+E 67.667 7 art=3638 z=8 g=1
+E 67.667 8 art=3638 z=8 g=1
+E 67.667 9 art=3638 z=8 g=1
+E 67.667 10 art=3638 z=8 g=1
+E 67.667 11 art=3638 z=8 g=1
+E 67.667 12 art=3638 z=8 g=1
+E 67.667 13 art=3638 z=8 g=1
+E 67.667 14 art=3638 z=8 g=1
+E 67.667 15 art=3638 z=8 g=1
+E 67.667 16 art=3638 z=8 g=1
+E 67.667 17 art=3638 z=8 g=1
+E 67.667 18 art=3638 z=8 g=1
+E 68.667 18 art=3638 z=8 g=1
+E 68.667 17 art=3638 z=8 g=1
+E 68.667 16 art=3638 z=8 g=1
+E 68.667 15 art=3638 z=8 g=1
+E 68.667 14 art=3638 z=8 g=1
+E 68.667 13 art=3638 z=8 g=1
+E 68.667 12 art=3638 z=8 g=1
+E 68.667 11 art=3638 z=8 g=1
+E 68.667 10 art=3638 z=8 g=1
+E 68.667 9 art=3638 z=8 g=1
+E 68.667 8 art=3638 z=8 g=1
+E 68.667 7 art=3638 z=8 g=1
+E 68.667 6 art=3638 z=8 g=1
+E 68.667 5 art=3638 z=8 g=1
+E 68.667 4 art=3638 z=8 g=1
+E 68.667 3 art=3638 z=8 g=1
+E 70 3 art=3638 z=8 g=1
+E 70 4 art=3638 z=8 g=1
+E 70 5 art=3638 z=8 g=1
+E 70 6 art=3638 z=8 g=1
+E 70 7 art=3638 z=8 g=1
+E 70 8 art=3638 z=8 g=1
+E 70 9 art=3638 z=8 g=1
+E 70 10 art=3638 z=8 g=1
+E 70 11 art=3638 z=8 g=1
+E 70 12 art=3638 z=8 g=1
+E 70 13 art=3638 z=8 g=1
+E 70 14 art=3638 z=8 g=1
+E 70 15 art=3638 z=8 g=1
+E 70 16 art=3638 z=8 g=1
+E 70 17 art=3638 z=8 g=1
+E 70 18 art=3638 z=8 g=1
+E 71 18 art=3638 z=8 g=1
+E 71 17 art=3638 z=8 g=1
+E 71 16 art=3638 z=8 g=1
+E 71 15 art=3638 z=8 g=1
+E 71 14 art=3638 z=8 g=1
+E 71 13 art=3638 z=8 g=1
+E 71 12 art=3638 z=8 g=1
+E 71 11 art=3638 z=8 g=1
+E 71 10 art=3638 z=8 g=1
+E 71 9 art=3638 z=8 g=1
+E 71 8 art=3638 z=8 g=1
+E 71 7 art=3638 z=8 g=1
+E 71 6 art=3638 z=8 g=1
+E 71 5 art=3638 z=8 g=1
+E 71 4 art=3638 z=8 g=1
+E 71 3 art=3638 z=8 g=1
+E 72.333 3 art=3638 z=8 g=1
+E 72.333 4 art=3638 z=8 g=1
+E 72.333 5 art=3638 z=8 g=1
+E 72.333 6 art=3638 z=8 g=1
+E 72.333 7 art=3638 z=8 g=1
+E 72.333 8 art=3638 z=8 g=1
+E 72.333 9 art=3638 z=8 g=1
+E 72.333 10 art=3638 z=8 g=1
+E 72.333 11 art=3638 z=8 g=1
+E 72.333 12 art=3638 z=8 g=1
+E 72.333 13 art=3638 z=8 g=1
+E 72.333 14 art=3638 z=8 g=1
+E 72.333 15 art=3638 z=8 g=1
+E 72.333 16 art=3638 z=8 g=1
+E 72.333 17 art=3638 z=8 g=1
+E 72.333 18 art=3638 z=8 g=1
+E 73.333 18 art=3638 z=8 g=1
+E 73.333 17 art=3638 z=8 g=1
+E 73.333 16 art=3638 z=8 g=1
+E 73.333 15 art=3638 z=8 g=1
+E 73.333 14 art=3638 z=8 g=1
+E 73.333 13 art=3638 z=8 g=1
+E 73.333 12 art=3638 z=8 g=1
+E 73.333 11 art=3638 z=8 g=1
+E 73.333 10 art=3638 z=8 g=1
+E 73.333 9 art=3638 z=8 g=1
+E 73.333 8 art=3638 z=8 g=1
+E 73.333 7 art=3638 z=8 g=1
+E 73.333 6 art=3638 z=8 g=1
+E 73.333 5 art=3638 z=8 g=1
+E 73.333 4 art=3638 z=8 g=1
+E 73.333 3 art=3638 z=8 g=1
+E 1 20 art=1007 inert=1 z=2
+E -9.5 18.133 art=3638 z=8 g=1
+E -9.5 17.133 art=3638 z=8 g=1
+E -9.5 16.133 art=3638 z=8 g=1
+E -9.5 15.133 art=3638 z=8 g=1
+E -9.5 14.133 art=3638 z=8 g=1
+E -9.5 13.133 art=3638 z=8 g=1
+E -9.5 12.133 art=3638 z=8 g=1
+E -9.5 11.133 art=3638 z=8 g=1
+E -9.5 10.133 art=3638 z=8 g=1
+E -8.167 10.133 art=3638 z=8 g=1
+E -8.167 11.133 art=3638 z=8 g=1
+E -8.167 12.133 art=3638 z=8 g=1
+E -8.167 13.133 art=3638 z=8 g=1
+E -8.167 14.133 art=3638 z=8 g=1
+E -8.167 15.133 art=3638 z=8 g=1
+E -8.167 16.133 art=3638 z=8 g=1
+E -8.167 17.133 art=3638 z=8 g=1
+E -8.167 18.133 art=3638 z=8 g=1
+E -7.167 18.133 art=3638 z=8 g=1
+E -7.167 17.133 art=3638 z=8 g=1
+E -7.167 16.133 art=3638 z=8 g=1
+E -7.167 15.133 art=3638 z=8 g=1
+E -7.167 14.133 art=3638 z=8 g=1
+E -7.167 13.133 art=3638 z=8 g=1
+E -7.167 12.133 art=3638 z=8 g=1
+E -7.167 11.133 art=3638 z=8 g=1
+E -7.167 10.133 art=3638 z=8 g=1
+E -5.833 10.133 art=3638 z=8 g=1
+E -5.833 11.133 art=3638 z=8 g=1
+E -5.833 12.133 art=3638 z=8 g=1
+E -5.833 13.133 art=3638 z=8 g=1
+E -5.833 14.133 art=3638 z=8 g=1
+E -5.833 15.133 art=3638 z=8 g=1
+E -5.833 16.133 art=3638 z=8 g=1
+E -5.833 17.133 art=3638 z=8 g=1
+E -5.833 18.133 art=3638 z=8 g=1
+E -4.833 18.133 art=3638 z=8 g=1
+E -4.833 17.133 art=3638 z=8 g=1
+E -4.833 16.133 art=3638 z=8 g=1
+E -4.833 15.133 art=3638 z=8 g=1
+E -4.833 14.133 art=3638 z=8 g=1
+E -4.833 13.133 art=3638 z=8 g=1
+E -4.833 12.133 art=3638 z=8 g=1
+E -4.833 11.133 art=3638 z=8 g=1
+E -4.833 10.133 art=3638 z=8 g=1
+E -3.5 10.133 art=3638 z=8 g=1
+E -3.5 11.133 art=3638 z=8 g=1
+E -3.5 12.133 art=3638 z=8 g=1
+E -3.5 13.133 art=3638 z=8 g=1
+E -3.5 14.133 art=3638 z=8 g=1
+E -3.5 15.133 art=3638 z=8 g=1
+E -3.5 16.133 art=3638 z=8 g=1
+E -3.5 17.133 art=3638 z=8 g=1
+E -3.5 18.133 art=3638 z=8 g=1
+E -2.5 18.133 art=3638 z=8 g=1
+E -2.5 17.133 art=3638 z=8 g=1
+E -2.5 16.133 art=3638 z=8 g=1
+E -2.5 15.133 art=3638 z=8 g=1
+E -2.5 14.133 art=3638 z=8 g=1
+E -2.5 13.133 art=3638 z=8 g=1
+E -2.5 12.133 art=3638 z=8 g=1
+E -2.5 11.133 art=3638 z=8 g=1
+E -2.5 10.133 art=3638 z=8 g=1
+E -1.167 10.133 art=3638 z=8 g=1
+E -1.167 11.133 art=3638 z=8 g=1
+E -1.167 12.133 art=3638 z=8 g=1
+E -1.167 13.133 art=3638 z=8 g=1
+E -1.167 14.133 art=3638 z=8 g=1
+E -1.167 15.133 art=3638 z=8 g=1
+E -1.167 16.133 art=3638 z=8 g=1
+E -1.167 17.133 art=3638 z=8 g=1
+E -1.167 18.133 art=3638 z=8 g=1
+E -9.5 8.833 art=3638 z=8 g=1
+E -9.5 7.833 art=3638 z=8 g=1
+E -9.5 6.833 art=3638 z=8 g=1
+E -9.5 5.833 art=3638 z=8 g=1
+E -9.5 4.833 art=3638 z=8 g=1
+E -9.5 3.833 art=3638 z=8 g=1
+E -9.5 2.833 art=3638 z=8 g=1
+E -9.5 1.833 art=3638 z=8 g=1
+E -9.5 0.833 art=3638 z=8 g=1
+E -8.167 0.833 art=3638 z=8 g=1
+E -8.167 1.833 art=3638 z=8 g=1
+E -8.167 2.833 art=3638 z=8 g=1
+E -8.167 3.833 art=3638 z=8 g=1
+E -8.167 4.833 art=3638 z=8 g=1
+E -8.167 5.833 art=3638 z=8 g=1
+E -8.167 6.833 art=3638 z=8 g=1
+E -8.167 7.833 art=3638 z=8 g=1
+E -8.167 8.833 art=3638 z=8 g=1
+E -7.167 8.833 art=3638 z=8 g=1
+E -7.167 7.833 art=3638 z=8 g=1
+E -7.167 6.833 art=3638 z=8 g=1
+E -7.167 5.833 art=3638 z=8 g=1
+E -7.167 4.833 art=3638 z=8 g=1
+E -7.167 3.833 art=3638 z=8 g=1
+E -7.167 2.833 art=3638 z=8 g=1
+E -7.167 1.833 art=3638 z=8 g=1
+E -7.167 0.833 art=3638 z=8 g=1
+E -5.833 0.833 art=3638 z=8 g=1
+E -5.833 1.833 art=3638 z=8 g=1
+E -5.833 2.833 art=3638 z=8 g=1
+E -5.833 3.833 art=3638 z=8 g=1
+E -5.833 4.833 art=3638 z=8 g=1
+E -5.833 5.833 art=3638 z=8 g=1
+E -5.833 6.833 art=3638 z=8 g=1
+E -5.833 7.833 art=3638 z=8 g=1
+E -5.833 8.833 art=3638 z=8 g=1
+E -4.833 8.833 art=3638 z=8 g=1
+E -4.833 7.833 art=3638 z=8 g=1
+E -4.833 6.833 art=3638 z=8 g=1
+E -4.833 5.833 art=3638 z=8 g=1
+E -4.833 4.833 art=3638 z=8 g=1
+E -4.833 3.833 art=3638 z=8 g=1
+E -4.833 2.833 art=3638 z=8 g=1
+E -4.833 1.833 art=3638 z=8 g=1
+E -4.833 0.833 art=3638 z=8 g=1
+E -3.5 0.833 art=3638 z=8 g=1
+E -3.5 1.833 art=3638 z=8 g=1
+E -3.5 2.833 art=3638 z=8 g=1
+E -3.5 3.833 art=3638 z=8 g=1
+E -3.5 4.833 art=3638 z=8 g=1
+E -3.5 5.833 art=3638 z=8 g=1
+E -3.5 6.833 art=3638 z=8 g=1
+E -3.5 7.833 art=3638 z=8 g=1
+E -3.5 8.833 art=3638 z=8 g=1
+E -2.5 8.833 art=3638 z=8 g=1
+E -2.5 7.833 art=3638 z=8 g=1
+E -2.5 6.833 art=3638 z=8 g=1
+E -2.5 5.833 art=3638 z=8 g=1
+E -2.5 4.833 art=3638 z=8 g=1
+E -2.5 3.833 art=3638 z=8 g=1
+E -2.5 2.833 art=3638 z=8 g=1
+E -2.5 1.833 art=3638 z=8 g=1
+E -2.5 0.833 art=3638 z=8 g=1
+E -1.167 0.833 art=3638 z=8 g=1
+E -1.167 1.833 art=3638 z=8 g=1
+E -1.167 2.833 art=3638 z=8 g=1
+E -1.167 3.833 art=3638 z=8 g=1
+E -1.167 4.833 art=3638 z=8 g=1
+E -1.167 5.833 art=3638 z=8 g=1
+E -1.167 6.833 art=3638 z=8 g=1
+E -1.167 7.833 art=3638 z=8 g=1
+E -1.167 8.833 art=3638 z=8 g=1
+P -16 -1 3652 1
+`;
+
+export const WATER_CHART = makeChart({
+  name: "WATER",
+  rows: 125,
+  length: 3620,
+  song: "/levels/WATER.mp3",
+  start: { b: 0, r: 10 },
+  segments: [
+  { from: 0, to: 198, mode: 'cube', speed: 0, label: 'cube' },
+  { from: 198, to: 263, mode: 'cube', speed: 1, label: 'cube' },
+  { from: 263, to: 323, mode: 'ball', speed: 1, label: 'ball' },
+  { from: 323, to: 421, mode: 'ufo', speed: 1, label: 'ufo' },
+  { from: 421, to: 423, mode: 'cube', speed: 1, label: 'cube' },
+  { from: 423, to: 439, mode: 'cube', speed: 0, label: 'cube' },
+  { from: 439, to: 484, mode: 'spider', speed: 0, label: 'spider' },
+  { from: 484, to: 489, mode: 'spider', speed: 0, label: 'spider' },
+  { from: 489, to: 492, mode: 'ball', speed: 0, label: 'ball' },
+  { from: 492, to: 512, mode: 'ball', speed: 0, label: 'ball' },
+  { from: 512, to: 525, mode: 'ball', speed: 1, label: 'ball' },
+  { from: 525, to: 606, mode: 'cube', speed: 1, label: 'cube' },
+  { from: 606, to: 650, mode: 'ufo', speed: 1, label: 'ufo' },
+  { from: 650, to: 657, mode: 'ufo', speed: 4, label: 'ufo' },
+  { from: 657, to: 733, mode: 'cube', speed: 4, label: 'cube' },
+  { from: 733, to: 767, mode: 'cube', speed: 2, label: 'cube' },
+  { from: 767, to: 769, mode: 'cube', speed: 4, label: 'cube' },
+  { from: 769, to: 824, mode: 'ufo', speed: 4, label: 'ufo' },
+  { from: 824, to: 871, mode: 'ship', speed: 4, label: 'ship' },
+  { from: 871, to: 873, mode: 'cube', speed: 4, label: 'cube' },
+  { from: 873, to: 879, mode: 'cube', speed: 3, label: 'cube' },
+  { from: 879, to: 968, mode: 'wave', speed: 3, label: 'wave' },
+  { from: 968, to: 1054, mode: 'wave', speed: 4, label: 'wave' },
+  { from: 1054, to: 1055, mode: 'cube', speed: 4, label: 'cube' },
+  { from: 1055, to: 1060, mode: 'cube', speed: 2, label: 'cube' },
+  { from: 1060, to: 1120, mode: 'robot', speed: 2, label: 'robot' },
+  { from: 1120, to: 1121, mode: 'robot', speed: 2, label: 'robot' },
+  { from: 1121, to: 1196, mode: 'ball', speed: 2, label: 'ball' },
+  { from: 1196, to: 1268, mode: 'cube', speed: 2, label: 'cube' },
+  { from: 1268, to: 1322, mode: 'spider', speed: 2, label: 'spider' },
+  { from: 1322, to: 1325, mode: 'cube', speed: 2, label: 'cube' },
+  { from: 1325, to: 1345, mode: 'cube', speed: 0, label: 'cube' },
+  { from: 1345, to: 1351, mode: 'ship', speed: 0, label: 'ship' },
+  { from: 1351, to: 1359, mode: 'ship', speed: 1, label: 'ship' },
+  { from: 1359, to: 1368, mode: 'ship', speed: 2, label: 'ship' },
+  { from: 1368, to: 1377, mode: 'ship', speed: 3, label: 'ship' },
+  { from: 1377, to: 1393, mode: 'ship', speed: 4, label: 'ship' },
+  { from: 1393, to: 1432, mode: 'cube', speed: 4, label: 'cube' },
+  { from: 1432, to: 1450, mode: 'ship', speed: 4, label: 'ship' },
+  { from: 1450, to: 1481, mode: 'spider', speed: 4, label: 'spider' },
+  { from: 1481, to: 1483, mode: 'spider', speed: 4, label: 'spider' },
+  { from: 1483, to: 1488, mode: 'cube', speed: 4, label: 'cube' },
+  { from: 1488, to: 1504, mode: 'ship', speed: 4, label: 'ship' },
+  { from: 1504, to: 1542, mode: 'ball', speed: 4, label: 'ball' },
+  { from: 1542, to: 1556, mode: 'ship', speed: 4, label: 'ship' },
+  { from: 1556, to: 1598, mode: 'wave', speed: 4, label: 'wave' },
+  { from: 1598, to: 1614, mode: 'ship', speed: 4, label: 'ship' },
+  { from: 1614, to: 1653, mode: 'cube', speed: 4, label: 'cube' },
+  { from: 1653, to: 1668, mode: 'ship', speed: 4, label: 'ship' },
+  { from: 1668, to: 1707, mode: 'spider', speed: 4, label: 'spider' },
+  { from: 1707, to: 1721, mode: 'ship', speed: 4, label: 'ship' },
+  { from: 1721, to: 1768, mode: 'ufo', speed: 4, label: 'ufo' },
+  { from: 1768, to: 1785, mode: 'ufo', speed: 0, label: 'ufo' },
+  { from: 1785, to: 1786, mode: 'cube', speed: 0, label: 'cube' },
+  { from: 1786, to: 1935, mode: 'cube', speed: 2, label: 'cube' },
+  { from: 1935, to: 2013, mode: 'ship', speed: 2, label: 'ship' },
+  { from: 2013, to: 2055, mode: 'wave', speed: 2, label: 'wave' },
+  { from: 2055, to: 2057, mode: 'cube', speed: 2, label: 'cube' },
+  { from: 2057, to: 2258, mode: 'cube', speed: 0, label: 'cube' },
+  { from: 2258, to: 2472, mode: 'spider', speed: 0, label: 'spider' },
+  { from: 2472, to: 2473, mode: 'cube', speed: 0, label: 'cube' },
+  { from: 2473, to: 2603, mode: 'cube', speed: 2, label: 'cube' },
+  { from: 2603, to: 3005, mode: 'cube', speed: 4, label: 'cube' },
+  { from: 3005, to: 3006, mode: 'ship', speed: 4, label: 'ship' },
+  { from: 3006, to: 3034, mode: 'ship', speed: 0, label: 'ship' },
+  { from: 3034, to: 3052, mode: 'cube', speed: 0, label: 'cube' },
+  { from: 3052, to: 3233, mode: 'cube', speed: 3, label: 'cube' },
+  { from: 3233, to: 3234, mode: 'ufo', speed: 3, label: 'ufo' },
+  { from: 3234, to: 3348, mode: 'ufo', speed: 4, label: 'ufo' },
+  { from: 3348, to: 3404, mode: 'wave', speed: 4, label: 'wave' },
+  { from: 3404, to: 3424, mode: 'wave', speed: 0, label: 'wave' },
+  { from: 3424, to: 3620, mode: 'cube', speed: 0, label: 'cube' },
+  ],
+}, TABLE);

@@ -23,6 +23,10 @@ import { LOST_BEATS, type BeatData } from './beats.ts';
 export type Mode = 'cube' | 'ship' | 'ball' | 'ufo' | 'wave' | 'robot' | 'spider';
 export type ObjKind =
   | 'block'      // 实心方块:踩上面能站,撞侧面死
+  | 'frame'      // 线框:实心但很细的杆(单边 / L 形 / U 形) —— 蜘蛛段就踩它
+  | 'breakable'  // 可破坏砖块:撞到即碎(不碎就撞死,所以必须实现)
+  | 'coin'       // 硬币:碰到就收(收集向)
+  | 'arrow'      // 冲刺箭头:长按给冲量(绿=不改重力 / 粉=翻重力 / 紫=瞬移头顶+翻重力)
   | 'spike'      // 尖刺:碰到就死(h 决定大小:0.5 = 小刺,1.0 = 普通,1.5 = 大刺)
   | 'saw'        // 锯片:整格吃人的旋转圆锯
   | 'platform'   // 可踩平台:只从上面接住,不致死
@@ -33,12 +37,13 @@ export type ObjKind =
   | 'orb'        // 空中跳环:要一次【新的按键】才生效(黄=跳/粉=小跳/红=大跳/蓝=翻重力/绿=翻重力+跳/黑=冲刺)
   | 'pad'        // 弹簧/跳板:碰到就生效,不用按键(黄/粉/红=弹起,蓝/紫=翻重力)
   | 'force'      // 力场:人进到里面就被推(现在只做垂直方向,口径见 P.forceNote)
-  | 'teleport'   // 传送门:和【同频道】的另一个门配对,跨过去就被送过去(双向)
+  | 'teleport'   // 传送门:蓝(入口) → 橙(出口),单向
+  | 'clone'      // 克隆门:只标记不生效(GD 的克隆门/回收门)
   | 'size'       // 尺寸门:迷你(默认)/ 放大(mini:false)
   | 'text'       // 功能块:显示字母/符号,做关卡内提示用(纯视觉)
   | 'trigger'    // 触发器:玩家越过它的 x 时,对【分组】里的物件做事(move/rotate/color/pulse)
   | 'pit'        // 坑:地板断口(纯标记,地板在生成时跳过这一段)
-  | 'deco';      // 装饰(文字/光源,纯视觉)
+  | 'deco';      // 装饰(文字/光源/背景贴片,纯视觉)
 
 export type TriggerKind = 'move' | 'rotate' | 'color' | 'pulse';
 
@@ -47,7 +52,7 @@ export interface Obj {
   b: number;        // 左边缘(块)
   r: number;        // 底边所在行(0 = 地面那行)
   w: number;        // 宽(块)
-  h: number;        // 高(块)
+  h: number;        // 高(块);刺的 h 就是【刺的高度】
   to?: Mode;        // portal:切成什么形态
   speed?: number;   // speed:速度档(0..4)
   orb?: OrbKind;    // orb:是哪种环
@@ -55,7 +60,19 @@ export interface Obj {
   fy?: number;      // force:垂直加速度(单位/帧²,正 = 往上推)。正数大于 gravity 就是"上升气流"
   text?: string;    // text:显示什么字(功能块)
   size?: number;    // text:字号缩放
-  channel?: number; // teleport:频道号(同频道的两个门配对,默认 0)
+  channel?: number; // teleport:频道号(蓝进橙出配对,默认 0)
+  exit?: boolean;   // teleport:这个是【出口】(橙)而不是入口(蓝)
+  gdir?: 1 | -1;    // gravity:进这个门之后重力朝哪(1 = 向下/常重力,-1 = 向上)
+  frame?: 'edge' | 'corner' | 'u';   // frame:画法(一条边 / L 形 / U 形)
+  arrow?: 'green' | 'pink' | 'purple'; // arrow:是哪种冲刺箭头
+  tp?: boolean;     // pad/arrow:瞬移到头顶的方块 + 翻重力(紫的那两种)
+  inert?: boolean;  // 只标记、不生效(clone 门、占位物件)
+  art?: number;     // deco:GD 物件号(按它挑画法)
+  col?: number;     // 显示色覆盖(0xRRGGBB)
+  z?: number;       // 图层(155):1..5 前景、8 背景 —— 只影响绘制顺序
+  rot?: number;     // 旋转角(度,顺时针为正);线框/装饰靠它定位
+  flipX?: boolean;  // 5
+  flipY?: boolean;  // 4
   groups?: number[];   // ★ 所属分组:触发器靠它挑目标(一个物件可以在多个组里)
   trigger?: TriggerKind; // trigger:哪种触发器
   dx?: number; dy?: number;  // move:位移(块)
@@ -66,7 +83,7 @@ export interface Obj {
   color?: number;            // color/pulse:颜色
   hold?: boolean;            // pulse:闪完是否留色
   need?: boolean;   // 这个物件需要玩家出手(跳/按环)才过得去 —— 只有它进"间距"约束
-  deco?: 'text' | 'light';
+  deco?: 'text' | 'light' | 'art';
 }
 
 export interface Segment {
@@ -89,6 +106,9 @@ export interface Level {
   song: string;
   songOffset: number;
   beats?: number[]; // 生成时用的 onset 列表(秒),留着给调试/对齐用
+  /** ★ 出生点(块)。GD 里由"起点标记"(物件 31)给出 —— 用户那关的起点在 (0, 10),
+   *  也就是铺面第一段的【上一层】,不写这条的话人会在关卡底下跑、被压死。 */
+  start?: { b: number; r: number };
 }
 
 /* ---------------- 时间 ↔ 位置 ---------------- */

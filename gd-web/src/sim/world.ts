@@ -7,7 +7,8 @@
  * 坐标:一律用 GD 口径的【单位】(1 块 = 30 单位),x 向右、y 向上,玩家 (x,y) 是【左下角】。
  */
 
-import { P, U, ROWS, Y_TIME_SCALE, vxOf, arcSpan, ORB, PAD } from './constants.ts';
+import { P, U, Y_TIME_SCALE, vxOf, arcSpan, ORB, PAD } from './constants.ts';
+import { frameRects } from './gdids.ts';
 import type { Level, Mode, Obj } from './level.ts';
 
 export interface RunState {
@@ -19,6 +20,18 @@ export interface RunState {
 }
 
 interface Box { x0: number; x1: number; y0: number; y1: number; o: Obj }
+
+/** World 的可存档状态(搜索式机器人:回放、试验、回退都靠它) */
+export interface WorldSnap {
+  tick: number; x: number; y: number; vy: number; onGround: boolean;
+  mode: Mode; gdir: number; speedIdx: number;
+  dead: boolean; done: boolean; deadT: number; attempts: number;
+  checkX: number; checkY: number; checkMode: Mode; checkSize: number;
+  pressFresh: boolean; prevHold: boolean; floatT: number; sizeMul: number;
+  tint: number | null; tintGround: boolean; flash: number;
+  dash: { ang: number; kind: 'green' | 'pink' | 'purple'; t: number } | null;
+  sets: Array<Array<Box>>;
+}
 
 /** 会被触发器推动的物件:记下它的判定盒与"原始坐标",每帧按偏移重写 */
 interface Movable {
@@ -46,6 +59,13 @@ const FRAME = 1 / 60;
 export class World {
   level: Level;
   readonly solids: Box[] = [];      // 实心:踩上面能站,撞侧面死
+  readonly frames: Box[] = [];      // 线框的细杆(也是实心,判定与绘制共用 frameRects)
+  readonly breakables: Box[] = [];  // 可破坏砖块:撞到即碎
+  readonly broken = new Set<Box>(); // 已经碎掉的(每局重来时清空)
+  readonly coins: Box[] = [];       // 硬币
+  readonly gotCoins = new Set<Box>();
+  readonly arrows: Box[] = [];      // 冲刺箭头 / 紫色上跳箭头
+  readonly clones: Box[] = [];      // 克隆门(只标记,不生效)
   readonly floors: Box[] = [];      // 平台/地面:只从上面接住,不致死
   readonly hazards: Box[] = [];     // 尖刺
   readonly portals: Box[] = [];
@@ -58,7 +78,7 @@ export class World {
   readonly pits: Box[] = [];        // 坑(纯标记,给机器人判"脚下有没有地板"用)
   readonly triggers: Box[] = [];    // 触发器:越过它的 x 就开火
   readonly sizes: Box[] = [];       // 尺寸门:迷你 / 放大
-  readonly teleports: Box[] = [];   // 传送门:同频道两个配对
+  readonly teleports: Box[] = [];   // 传送门:蓝(入口) → 橙(出口),单向
   /* ★ 会动的东西:带 groups 的物件都在这里,触发器改的是它们的【运行时偏移】,
      判定表里的 Box 每帧跟着偏移重写 —— 于是"移动平台/移动尖刺"对判定是真的移动了。 */
   readonly movables: Movable[] = [];
@@ -76,7 +96,7 @@ export class World {
   speedIdx = 1;
   dead = false; done = false; deadT = 0;
   attempts = 1;
-  checkX = 0; checkMode: Mode = 'cube'; checkSize = 1;
+  checkX = 0; checkY = 0; checkMode: Mode = 'cube'; checkSize = 1;
   /** ★ 跳环要"一次新的按键"才生效(原作口径:按一下消耗一次,按住不放串不起环)。
    *  按下的那一瞬间 pressFresh 置位,被一次起跳或一个环用掉;松手再按才会有新的一次。 */
   pressFresh = false;
@@ -91,20 +111,56 @@ export class World {
   private armedGravs = new Set<Box>();
   private armedOrbs = new Set<Box>();
   private armedPads = new Set<Box>();
+  private armedArrows = new Set<Box>();
   private armedTriggers = new Set<Box>();
 
-  constructor(level: Level, startX = 0) {
+  constructor(level: Level, startX?: number, startY?: number) {
     this.level = level;
+    const st = level.start;                       // 出生点(物件 31):不传就按铺面标的来
+    if (startX == null) startX = (st?.b ?? 0) * U;
+    if (startY == null) startY = (st?.r ?? 0) * U;
     for (const o of level.objects) {
       const b: Box = { x0: o.b * U, x1: (o.b + o.w) * U, y0: o.r * U, y1: (o.r + o.h) * U, o };
       switch (o.kind) {
         case 'block': this.solids.push(b); break;
+        case 'frame': {
+          /* 线框:实心细杆。判定盒按 frameRects 展开(469/470 会展开成 2~3 根杆),
+             每根杆都挂着【同一个 Obj】—— 触发器推它时所有杆一起动,线框不会被撕开。 */
+          for (const r of frameRects(o)) {
+            const bar: Box = { x0: r.x0, x1: r.x1, y0: r.y0, y1: r.y1, o };
+            this.frames.push(bar);
+            this.solids.push(bar);
+          }
+          break;
+        }
+        case 'breakable': this.breakables.push(b); this.solids.push(b); break;
+        case 'coin': this.coins.push(b); break;
+        case 'arrow': this.arrows.push(b); break;
+        case 'clone': this.clones.push(b); break;
         case 'platform': this.floors.push(b); break;
         case 'spike': {
           /* ★ 判定高度 = 0.7 × 物件高度:于是"小刺 / 大刺"只是 h 不同(1.0 / 0.5 / 1.5),
-             碰撞盒自动跟着变 —— 不用为每种刺再写一套判定 */
-          const inset = (1 - P.spikeHitScale) / 2 * (o.w * U);
-          this.hazards.push({ x0: b.x0 + inset, x1: b.x1 - inset, y0: b.y0, y1: b.y0 + 0.7 * o.h * U, o });
+             碰撞盒自动跟着变 —— 不用为每种刺再写一套判定。
+             ★ 旋转/翻转也要认:GD 里天花板上的刺就是同一个物件转了 180°(或 flipY),
+               判定得跟着挂到格子【顶面】,否则人贴着天花板能从刺里穿过去;
+               横着的刺(rot 90/270)改成"占半边宽、整格高"。 */
+          const rot = (((o.rot ?? 0) % 360) + 360) % 360;
+          const down = !!o.flipY || rot === 180;
+          if (rot === 90 || rot === 270) {
+            const bw = 0.7 * o.w * U;
+            const baseLeft = rot === 90;        // 顺时针 90°:尖端朝右 → 占格子左半边
+            this.hazards.push({
+              x0: baseLeft ? b.x0 : b.x1 - bw, x1: baseLeft ? b.x0 + bw : b.x1,
+              y0: b.y0, y1: b.y1, o,
+            });
+          } else {
+            const inset = (1 - P.spikeHitScale) / 2 * (o.w * U);
+            const bh = 0.7 * o.h * U;
+            this.hazards.push({
+              x0: b.x0 + inset, x1: b.x1 - inset,
+              y0: down ? b.y1 - bh : b.y0, y1: down ? b.y1 : b.y0 + bh, o,
+            });
+          }
           break;
         }
         case 'saw': {
@@ -127,25 +183,33 @@ export class World {
         case 'deco': this.decos.push(o); break;
       }
     }
-    this.reset(startX, 'cube');
-    /* ---- 分组:给每个带 groups 的物件记一份"可动"记录,并把它的判定盒挂上去 ---- */
-    const boxOf = new Map<Obj, Box>();
-    for (const list of [this.solids, this.floors, this.hazards, this.orbs, this.pads, this.forces, this.pits]) {
-      for (const b of list) if (!boxOf.has(b.o)) boxOf.set(b.o, b);
+    this.reset(startX, 'cube', startY);
+    /* ---- 分组:给每个带 groups 的物件记一份"可动"记录,并把它的判定盒挂上去 ----
+       ★ 一个物件可能有好几个判定盒(线框的每根杆、U 形的三条边):每个盒子各记一份,
+         触发器一推,所有杆一起动 —— 只挂第一个盒子的话,线框会被"撕开"。 */
+    const boxesOf = new Map<Obj, Box[]>();
+    for (const list of [this.solids, this.floors, this.hazards, this.orbs, this.pads, this.forces, this.pits, this.coins, this.arrows]) {
+      for (const b of list) {
+        const arr = boxesOf.get(b.o);
+        if (arr) arr.push(b); else boxesOf.set(b.o, [b]);
+      }
     }
     for (const o of level.objects) {
       if (!o.groups || !o.groups.length) continue;
-      const box = boxOf.get(o) ?? null;
-      const m: Movable = {
+      const boxes = boxesOf.get(o) ?? [];
+      const list: Movable[] = boxes.length ? boxes.map((box) => ({
         o, box,
-        bx0: box ? box.x0 : o.b * U, bx1: box ? box.x1 : (o.b + o.w) * U,
-        by0: box ? box.y0 : o.r * U, by1: box ? box.y1 : (o.r + o.h) * U,
-        dx: 0, dy: 0,
-      };
-      this.movables.push(m);
-      for (const g of o.groups) {
-        const arr = this.byGroup.get(g);
-        if (arr) arr.push(m); else this.byGroup.set(g, [m]);
+        bx0: box.x0, bx1: box.x1, by0: box.y0, by1: box.y1, dx: 0, dy: 0,
+      })) : [{
+        o, box: null,
+        bx0: o.b * U, bx1: (o.b + o.w) * U, by0: o.r * U, by1: (o.r + o.h) * U, dx: 0, dy: 0,
+      }];
+      for (const m of list) {
+        this.movables.push(m);
+        for (const g of o.groups) {
+          const arr = this.byGroup.get(g);
+          if (arr) arr.push(m); else this.byGroup.set(g, [m]);
+        }
       }
     }
   }
@@ -154,6 +218,92 @@ export class World {
   offsetOf(o: Obj): { dx: number; dy: number } {
     for (const m of this.movables) if (m.o === o) return { dx: m.dx, dy: m.dy };
     return { dx: 0, dy: 0 };
+  }
+
+  /* ---------------- 窗口裁剪(搜索式机器人要靠它把 8000 个盒子裁成身边几十个) ----------------
+   * 物理与机器人都只跟"玩家附近"的东西打交道,所以每帧重建一次窗口就够:
+   * [x − 6 块, x + 45 块]。★ 触发器会推盒子 → 有会动的盒子时不许开(索引会过期)。 */
+  private idx: Record<string, XIndex<Box>> | null = null;
+  private win: Record<string, Box[]> = {};
+  private fast = false;
+
+  /** 开关窗口裁剪(opt-in:默认关,渲染/普通诊断都走完整列表) */
+  set windowed(on: boolean) {
+    if (on && this.movables.some((m) => m.box)) {
+      throw new Error('有会动的判定盒(触发器),不能用窗口裁剪');
+    }
+    if (on && !this.idx) {
+      this.idx = {
+        solids: new XIndex(this.solids), floors: new XIndex(this.floors), hazards: new XIndex(this.hazards),
+        pads: new XIndex(this.pads), orbs: new XIndex(this.orbs), coins: new XIndex(this.coins),
+        arrows: new XIndex(this.arrows),
+      };
+      for (const k of Object.keys(this.idx)) this.win[k] = [];
+    }
+    this.fast = on;
+  }
+  get isWindowed() { return this.fast; }
+
+  /** 本帧相关的判定盒(物理与机器人共用;没开裁剪时就是全部) */
+  get nearSolids(): Box[] { return this.fast ? this.win.solids : this.solids; }
+  get nearFloors(): Box[] { return this.fast ? this.win.floors : this.floors; }
+  get nearHazards(): Box[] { return this.fast ? this.win.hazards : this.hazards; }
+  get nearPads(): Box[] { return this.fast ? this.win.pads : this.pads; }
+  get nearOrbs(): Box[] { return this.fast ? this.win.orbs : this.orbs; }
+  get nearCoins(): Box[] { return this.fast ? this.win.coins : this.coins; }
+  get nearArrows(): Box[] { return this.fast ? this.win.arrows : this.arrows; }
+
+  private rebuildWindow() {
+    const idx = this.idx;
+    if (!idx) return;
+    const x0 = this.x - 6 * U, x1 = this.x + 45 * U;
+    for (const k of Object.keys(idx)) idx[k].near(x0, x1, this.win[k]);
+  }
+
+  /* ---------------- 存档 / 读档(搜索式机器人一帧要回放几百遍) ---------------- */
+  snapshot(): WorldSnap {
+    return {
+      tick: this.tick, x: this.x, y: this.y, vy: this.vy, onGround: this.onGround,
+      mode: this.mode, gdir: this.gdir, speedIdx: this.speedIdx,
+      dead: this.dead, done: this.done, deadT: this.deadT, attempts: this.attempts,
+      checkX: this.checkX, checkY: this.checkY, checkMode: this.checkMode, checkSize: this.checkSize,
+      pressFresh: this.pressFresh, prevHold: this.prevHold, floatT: this.floatT, sizeMul: this.sizeMul,
+      tint: this.tint, tintGround: this.tintGround, flash: this.flash,
+      dash: this.dash ? { ...this.dash } : null,
+      sets: [
+        [...this.armedChecks], [...this.armedPortals], [...this.armedSpeeds], [...this.armedSizes],
+        [...this.armedGravs], [...this.armedOrbs], [...this.armedPads], [...this.armedArrows],
+        [...this.armedTriggers], [...this.broken], [...this.gotCoins],
+      ],
+    };
+  }
+
+  restore(s: WorldSnap) {
+    this.tick = s.tick; this.x = s.x; this.y = s.y; this.vy = s.vy; this.onGround = s.onGround;
+    this.mode = s.mode; this.gdir = s.gdir; this.speedIdx = s.speedIdx;
+    this.dead = s.dead; this.done = s.done; this.deadT = s.deadT; this.attempts = s.attempts;
+    this.checkX = s.checkX; this.checkY = s.checkY; this.checkMode = s.checkMode; this.checkSize = s.checkSize;
+    this.pressFresh = s.pressFresh; this.prevHold = s.prevHold; this.floatT = s.floatT; this.sizeMul = s.sizeMul;
+    this.tint = s.tint; this.tintGround = s.tintGround; this.flash = s.flash;
+    this.dash = s.dash ? { ...s.dash } : null;
+    const [c, p, sp, sz, gv, ob, pd, aw, tg, br, gc] = s.sets;
+    this.armedChecks = new Set(c); this.armedPortals = new Set(p); this.armedSpeeds = new Set(sp);
+    this.armedSizes = new Set(sz); this.armedGravs = new Set(gv); this.armedOrbs = new Set(ob);
+    this.armedPads = new Set(pd); this.armedArrows = new Set(aw); this.armedTriggers = new Set(tg);
+    this.broken.clear(); for (const b of br) this.broken.add(b);
+    this.gotCoins.clear(); for (const b of gc) this.gotCoins.add(b);
+  }
+
+  /** 这块可破坏砖已经碎了吗(渲染层用:碎了就不画) */
+  isBroken(o: Obj): boolean {
+    for (const b of this.breakables) if (b.o === o) return this.broken.has(b);
+    return false;
+  }
+
+  /** 这枚硬币收过了吗 */
+  isCoinTaken(o: Obj): boolean {
+    for (const b of this.coins) if (b.o === o) return this.gotCoins.has(b);
+    return false;
   }
 
   /** 把当前偏移写回判定盒(带 h 缩放的刺也只用加偏移,不用重算) */
@@ -221,6 +371,13 @@ export class World {
   /** 速度(单位/帧)—— 速度门给的是"速度值 × 倍率",不是直接的每帧位移 */
   get vx() { return vxOf(this.speedIdx); }
 
+  /** 关卡高度(行)。★ 不再是全局常量 ROWS:第三张盘用户的铺面有 121 格高,
+   *  而视口永远只有 10 行 —— 上下边界必须跟着【这一关】走。 */
+  get rows() { return this.level.rows; }
+
+  /** 冲刺箭头生效期间的状态(重力关掉,速度按箭头方向给) */
+  dash: { ang: number; kind: 'green' | 'pink' | 'purple'; t: number } | null = null;
+
   /** 体积倍率(迷你门 = 0.6):★ 碰撞盒、内框、内框偏移全都跟着它走,
    *  所以"能不能钻过一条缝"是真的由它决定,而不是画小一点而已。 */
   sizeMul = 1;
@@ -236,16 +393,20 @@ export class World {
     return { x0: this.x + off, x1: this.x + off + this.innerSize, y0: this.y + off, y1: this.y + off + this.innerSize };
   }
 
-  reset(startX: number, mode: Mode) {
+  reset(startX: number, mode: Mode, startY = 0) {
     this.tick = 0;
-    this.x = startX; this.y = 0; this.vy = 0; this.onGround = true;
+    this.x = startX; this.y = startY; this.vy = 0; this.onGround = true;
     this.mode = mode; this.gdir = 1; this.speedIdx = 1;
     this.sizeMul = this.checkSize;      // 复活要恢复存档点时的体积(迷你/普通)
     this.dead = false; this.done = false; this.deadT = 0;
     this.pressFresh = false; this.prevHold = false;
     this.armedChecks.clear(); this.armedPortals.clear(); this.armedSpeeds.clear(); this.armedGravs.clear();
     this.armedOrbs.clear(); this.armedPads.clear();
-    this.armedTriggers.clear(); this.armedSizes.clear();
+    this.armedTriggers.clear(); this.armedSizes.clear(); this.armedArrows.clear();
+    /* 碎掉的砖块 / 吃掉的硬币 / 进行中的冲刺都回到初始状态(和原作"重开一局"一致) */
+    this.broken.clear();
+    this.gotCoins.clear();
+    this.dash = null;
     /* 重来 = 会动的东西回到原位、颜色与闪烁清空(和原作"重开一局"一致) */
     this.anims = [];
     this.flash = 0;
@@ -255,10 +416,21 @@ export class World {
     this.syncBoxes();
   }
 
-  /** 死后重来:回到最近跨过的存档点(没有就用关卡起点) */
+  /** 死后重来:回到最近跨过的存档点(没有就用关卡起点)。
+   *  ★ y 也要跟着存档点走:这张铺面有 125 格高,顶点在 y=300 的存档点上复活到 y=0 会直接摔死。 */
   respawn() {
     this.attempts++;
-    this.reset(this.checkX, this.checkMode);
+    this.reset(this.checkX, this.checkMode, this.checkY);
+  }
+
+  /** 从头来(不碰存档点):回到铺面的出生点(Level.start,没有就是 (0,0)) */
+  resetToStart() {
+    const s = this.level.start;
+    this.checkX = (s?.b ?? 0) * U;
+    this.checkY = (s?.r ?? 0) * U;
+    this.checkMode = 'cube';
+    this.checkSize = 1;
+    this.reset(this.checkX, 'cube', this.checkY);
   }
 
   get progress() { return Math.max(0, Math.min(1, this.x / (this.level.length * U))); }
@@ -266,7 +438,7 @@ export class World {
   /** 这一列有没有地板?没有就是坑(机器人靠它判断) */
   floorTopAt(x: number, y: number): number | null {
     let best: number | null = null;
-    for (const f of this.floors) {
+    for (const f of this.nearFloors) {
       if (x < f.x0 || x > f.x1) continue;
       if (f.y1 <= y + 0.001) { if (best === null || f.y1 > best) best = f.y1; }
     }
@@ -279,6 +451,7 @@ export class World {
     if (hold && !this.prevHold) this.pressFresh = true;
     this.prevHold = hold;
     if (this.dead || this.done) { this.deadT += FRAME; return; }
+    if (this.fast) this.rebuildWindow();   // ★ 每帧把窗口滑到玩家身边(搜索式机器人靠它跑得动)
     this.stepAnims();                      // ★ 先让会动的东西动完,再跑物理(判定盒已同步)
     for (let i = 0; i < SUB; i++) this.substep(FRAME / SUB, hold);
     this.tick++;
@@ -291,25 +464,36 @@ export class World {
 
     this.x += this.vx * s;
 
-    if (this.mode === 'ship') {
+    /* --- 冲刺箭头生效期间:重力关掉,纵向速度按箭头方向给 ---
+     * 口径是近似:原版 dash 期间横向速度不变、纵向速度按箭头给,按住期间一直有效。 */
+    if (this.dash) {
+      const d = this.dash;
+      d.t += FRAME / 4;
+      const dir = arrowDir(d.ang);
+      this.vy = Math.abs(this.vx) * dir.y;
+      this.y += this.vy * sY;
+      if (d.t > 0.5 || !hold) this.dash = null;
+      if (this.y < 0 || this.y + this.box > this.rows * U) { this.die(); return; }
+      this.onGround = false;
+    } else if (this.mode === 'ship') {
       const acc = hold ? (this.gdir * P.shipAccelUp) : (this.gdir * P.shipAccelDown);
       this.vy += acc * sY;
       this.vy = Math.max(-P.shipVyMax, Math.min(P.shipVyMax, this.vy));
       this.y += this.vy * sY;
-      if (this.y < 0 || this.y + this.box > ROWS * U) { this.die(); return; }
+      if (this.y < 0 || this.y + this.box > this.rows * U) { this.die(); return; }
     } else if (this.mode === 'wave') {
       /* 波浪:垂直速度【每步直接赋值】= ±水平速度 → 永远 45°(反编译口径,y 轴不夹)
          —— 这形态没有重力,按住就往上、松开就往下。 */
       this.vy = (hold ? 1 : -1) * this.vx;
       this.y += this.vy * sY;
-      if (this.y < 0 || this.y + this.box > ROWS * U) { this.die(); return; }
+      if (this.y < 0 || this.y + this.box > this.rows * U) { this.die(); return; }
     } else if (this.mode === 'ufo') {
       /* UFO:点一下给一个上冲,平时往下掉;在 GD 里它和飞机共用那套飞行夹取(上 8 / 下 -6.4) */
       if (hold && this.pressFresh) { this.vy = P.ufoImpulse; this.pressFresh = false; }
       this.vy -= P.gravity * sY;
       this.vy = Math.max(P.flyDownMax, Math.min(P.flyUpMax, this.vy));
       this.y += this.vy * sY;
-      if (this.y < 0 || this.y + this.box > ROWS * U) { this.die(); return; }
+      if (this.y < 0 || this.y + this.box > this.rows * U) { this.die(); return; }
     } else if (this.mode === 'ball') {
       /* 球:重力 ×0.6;点一下【翻重力】并把垂直速度 ×0.6(反编译口径) */
       if (hold && this.pressFresh) { this.gdir = -this.gdir; this.vy *= P.ballFlipVelMul; this.pressFresh = false; }
@@ -352,11 +536,11 @@ export class World {
       const boxTop = this.y + this.box, prevTop = prevY + this.box;
       let support: number | null = null;
       if (this.gdir > 0) {
-        for (const f of this.floors) {
+        for (const f of this.nearFloors) {
           if (this.x + this.box <= f.x0 || this.x >= f.x1) continue;
           if (prevY >= f.y1 - 0.01 && this.y <= f.y1) { if (support === null || f.y1 > support) support = f.y1; }
         }
-        for (const b of this.solids) {
+        for (const b of this.nearSolids) {
           if (this.x + this.box <= b.x0 || this.x >= b.x1) continue;
           if (prevY >= b.y1 - 0.01 && this.y <= b.y1) { if (support === null || b.y1 > support) support = b.y1; }
         }
@@ -367,23 +551,30 @@ export class World {
         if (this.y < -2.5 * U) { this.die(); return; }
       } else {
         /* 反重力:场地顶就是一层实心天花板,方块/平台的底面也能贴住 */
-        support = ROWS * U;
-        for (const f of this.floors) {
+        support = this.rows * U;
+        for (const f of this.nearFloors) {
           if (this.x + this.box <= f.x0 || this.x >= f.x1) continue;
           if (prevTop <= f.y0 + 0.01 && boxTop >= f.y0 && f.y0 < support) support = f.y0;
         }
-        for (const b of this.solids) {
+        for (const b of this.nearSolids) {
           if (this.x + this.box <= b.x0 || this.x >= b.x1) continue;
           if (prevTop <= b.y0 + 0.01 && boxTop >= b.y0 && b.y0 < support) support = b.y0;
         }
         if (this.vy >= 0) { this.y = support - this.box; this.vy = 0; this.onGround = true; }
         else this.onGround = false;
-        if (this.y + this.box > ROWS * U + 2.5 * U) { this.die(); return; }
+        if (this.y + this.box > this.rows * U + 2.5 * U) { this.die(); return; }
       }
 
-      // 实心方块:从侧面撞上就死(正重力时"落在顶面"、反重力时"贴住底面"都不算撞)
+      /* 实心方块:从侧面撞上就死(正重力时"落在顶面"、反重力时"贴住底面"都不算撞)
+         ★ 可破坏砖块撞到是【碎掉】而不是死 —— 不实现它,玩家会直接撞死在这条铺面上。 */
       const inn = this.inner();
-      for (const b of this.solids) {
+      for (const b of this.nearSolids) {
+        if (b.o.kind === 'breakable') {
+          if (this.broken.has(b)) continue;
+          if (inn.x1 <= b.x0 || inn.x0 >= b.x1 || inn.y1 <= b.y0 || inn.y0 >= b.y1) continue;
+          this.broken.add(b);
+          continue;
+        }
         if (inn.x1 <= b.x0 || inn.x0 >= b.x1 || inn.y1 <= b.y0 || inn.y0 >= b.y1) continue;
         if (this.gdir > 0 && prevY >= b.y1 - 0.01 && this.y <= b.y1) continue;
         if (this.gdir < 0 && prevTop <= b.y0 + 0.01 && boxTop >= b.y0) continue;
@@ -394,7 +585,7 @@ export class World {
     /* --- 尖刺:内框相交就死 --- */
     {
       const inn = this.inner();
-      for (const hz of this.hazards) {
+      for (const hz of this.nearHazards) {
         if (inn.x1 > hz.x0 && inn.x0 < hz.x1 && inn.y1 > hz.y0 && inn.y0 < hz.y1) { this.die(); return; }
       }
     }
@@ -415,18 +606,47 @@ export class World {
     /* --- 弹簧(跳板):碰到就生效,不用按键 —— "连续鼓点用弹簧连起来"靠的就是这条 --- */
     {
       const inn = this.inner();
-      for (const b of this.pads) {
+      for (const b of this.nearPads) {
         if (this.armedPads.has(b)) continue;
         if (inn.x1 <= b.x0 || inn.x0 >= b.x1 || inn.y1 <= b.y0 || inn.y0 >= b.y1) continue;
         this.armedPads.add(b);
-        if (b.o.pad) this.applyTrigger(PAD[b.o.pad]);
+        if (b.o.tp) this.spiderJump();                     // 紫色地面跳点:瞬移到头顶方块 + 翻重力
+        else if (b.o.pad) this.applyTrigger(PAD[b.o.pad]);
+      }
+    }
+
+    /* --- 硬币:碰到就收(收集向,不影响能不能过) --- */
+    {
+      const inn = this.inner();
+      for (const b of this.nearCoins) {
+        if (this.gotCoins.has(b)) continue;
+        if (inn.x1 <= b.x0 || inn.x0 >= b.x1 || inn.y1 <= b.y0 || inn.y0 >= b.y1) continue;
+        this.gotCoins.add(b);
+      }
+    }
+
+    /* --- 冲刺箭头 / 紫色上跳箭头:一次【新的按键】才生效(和跳环同族) --- */
+    if (hold && this.pressFresh) {
+      const inn = this.inner();
+      for (const b of this.nearArrows) {
+        if (this.armedArrows.has(b)) continue;
+        if (inn.x1 <= b.x0 || inn.x0 >= b.x1 || inn.y1 <= b.y0 || inn.y0 >= b.y1) continue;
+        this.armedArrows.add(b);
+        this.pressFresh = false;
+        if (b.o.tp) {
+          this.spiderJump();                              // 紫色:瞬移到头顶方块 + 翻重力
+        } else {
+          this.dash = { ang: b.o.rot ?? 0, kind: b.o.arrow ?? 'green', t: 0 };
+          if (b.o.arrow === 'pink' && this.mode === 'cube') this.gdir = -this.gdir;
+        }
+        break;
       }
     }
 
     /* --- 跳环:要一次【新的按键】才生效 —— 空中二段跳靠它,而"按住不放"串不起一串环(原作口径) --- */
     if (hold && this.pressFresh) {
       const inn = this.inner();
-      for (const b of this.orbs) {
+      for (const b of this.nearOrbs) {
         if (this.armedOrbs.has(b)) continue;
         if (inn.x1 <= b.x0 || inn.x0 >= b.x1 || inn.y1 <= b.y0 || inn.y0 >= b.y1) continue;
         this.armedOrbs.add(b);
@@ -455,7 +675,9 @@ export class World {
       if (this.armedGravs.has(b)) continue;
       if (prevX + this.box <= b.x0 || this.x >= b.x1) continue;
       this.armedGravs.add(b);
-      this.gdir = -this.gdir;
+      /* ★ 原版的重力门是【指定方向】(向下门 / 向上门),不是"翻一下" ——
+         连吃两个同样的门不该把人翻回去,所以这里按 gdir 直接设,没有 gdir 才退回"翻转"。 */
+      this.gdir = b.o.gdir ?? -this.gdir;
       this.vy = 0;
     }
     for (const b of this.triggers) {
@@ -464,18 +686,19 @@ export class World {
       this.armedTriggers.add(b);
       this.fire(b.o);
     }
-    /* --- 传送门:同频道的两个门配对,跨过任意一个就被送到另一个(双向) ---
-     * ★ 目的地也要标成"已跨越",否则出来之后立刻又跨一次,人会在两个门之间来回弹。
-     * 速度、形态、体积都保留(原作也是"人从另一个门里原样出来")。 */
+    /* --- 传送门:【单向】蓝门(入口) → 橙门(出口),同频道配对 ---
+     * ★ 原版口径:进蓝门就被送到同频道的橙门;橙门自己不送人(所以不会来回弹)。
+     * ★ 这关(WATER)有 7 个蓝入口、0 个橙出口 —— 按原版它们不生效(已写在文档里,等用户确认)。 */
     for (const b of this.teleports) {
       if (this.armedPortals.has(b)) continue;
       if (prevX + this.box <= b.x0 || this.x >= b.x1) continue;
       this.armedPortals.add(b);
-      const dst = this.partnerOf(b);
-      if (!dst) continue;
+      if (b.o.exit) continue;                       // 出口不主动送人
+      const dst = this.exitOf(b);
+      if (!dst) continue;                           // 没有配对出口 → 什么都不发生
       this.armedPortals.add(dst);
       this.x = dst.x0;
-      if (this.y + this.box > ROWS * U) this.y = ROWS * U - this.box;
+      if (this.y + this.box > this.rows * U) this.y = this.rows * U - this.box;
       if (this.y < 0) this.y = 0;
     }
     for (const b of this.sizes) {
@@ -484,13 +707,14 @@ export class World {
       this.armedSizes.add(b);
       /* 迷你门:体积 0.6(反编译口径 m_vehicleSize=m_vehicleSize);放大门 = mini:false → 回到 1.0 */
       this.sizeMul = b.o.mini === false ? 1 : P.miniSize;
-      this.y = Math.min(this.y, ROWS * U - this.box);      // 别因为变大顶到天花板里
+      this.y = Math.min(this.y, this.rows * U - this.box);      // 别因为变大顶到天花板里
     }
     for (const b of this.checks) {
       if (this.armedChecks.has(b)) continue;
       if (prevX + this.box <= b.x0 || this.x >= b.x1) continue;
       this.armedChecks.add(b);
       this.checkX = b.x0;
+      this.checkY = this.y;                 // ★ 存档点记的是"人越过它时的位置"(原版口径)
       this.checkMode = this.mode; this.checkSize = this.sizeMul;
     }
 
@@ -505,13 +729,13 @@ export class World {
     let best: number | null = null;
     if (this.gdir > 0) {
       /* 正重力:往【上】找最近的底面(方块底 / 平台底 / 场地顶) */
-      best = ROWS * U;
-      for (const s of this.solids) {
+      best = this.rows * U;
+      for (const s of this.nearSolids) {
         if (this.x + this.box <= s.x0 || this.x >= s.x1) continue;
         if (s.y0 < top() + 1) continue;
         if (best === null || s.y0 < best) best = s.y0;
       }
-      for (const f of this.floors) {
+      for (const f of this.nearFloors) {
         if (this.x + this.box <= f.x0 || this.x >= f.x1) continue;
         if (f.y0 < top() + 1) continue;
         if (best === null || f.y0 < best) best = f.y0;
@@ -520,12 +744,12 @@ export class World {
     } else {
       /* 反重力:往【下】找最近的顶面 */
       best = 0;
-      for (const s of this.solids) {
+      for (const s of this.nearSolids) {
         if (this.x + this.box <= s.x0 || this.x >= s.x1) continue;
         if (s.y1 > this.y - 1) continue;
         if (best === null || s.y1 > best) best = s.y1;
       }
-      for (const f of this.floors) {
+      for (const f of this.nearFloors) {
         if (this.x + this.box <= f.x0 || this.x >= f.x1) continue;
         if (f.y1 > this.y - 1) continue;
         if (best === null || f.y1 > best) best = f.y1;
@@ -540,13 +764,14 @@ export class World {
 
   private die() { if (!this.dead) { this.dead = true; this.deadT = 0; } }
 
-  /** 同频道里"下一个"传送门 = 配对的那一个(同频道多于两个就依次串起来) */
-  private partnerOf(b: Box): Box | null {
+  /** 同频道里"入口要去的那个出口"(橙门)。没有出口(或只有入口)就返回 null —— 什么也不发生。
+   *  ★ 原版是"蓝进橙出"的单向配对;同一频道有多个出口时,取入口【右边最近】的那一个。 */
+  private exitOf(b: Box): Box | null {
     const ch = b.o.channel ?? 0;
-    const same = this.teleports.filter((t) => (t.o.channel ?? 0) === ch);
-    if (same.length < 2) return null;
-    const i = same.indexOf(b);
-    return same[(i + 1) % same.length];
+    const exits = this.teleports.filter((t) => t !== b && t.o.exit && (t.o.channel ?? 0) === ch);
+    if (!exits.length) return null;
+    const after = exits.filter((e) => e.x0 >= b.x1).sort((p, q) => p.x0 - q.x0);
+    return after.length ? after[0] : exits.sort((p, q) => p.x0 - q.x0)[0];
   }
 
   /** 迷你时跳环/弹簧的力度 ×0.8(反编译口径:普通跳环 ×0.8、弹簧力度 ×0.8) */
@@ -591,6 +816,58 @@ export class World {
   }
 }
 
+/* ---------------- 冲刺箭头的方向 ----------------
+ * 口径说明(★ 这是实测不出来、只能先定一个的部分,已写进文档等用户确认):
+ *   存档里的旋转角 0 / 90 / 180 / ±45 / 315。按"顺时针、0 = 箭头朝上"解释:
+ *     0 → 朝上(爬升)   90 → 水平   180 → 朝下(俯冲)   ±45 → 斜上/斜下
+ *   原版的 dash 期间横向速度不变,所以这里只决定【纵向】速度:
+ *     y 分量 = 箭头方向的 cos,再用 x 分量做一个下限(0.7)保证"永远在往前走"。
+ *   于是 0 → 爬升 ≈ 1.43×水平速度、90 → 水平、180 → 俯冲。 */
+export function arrowDir(deg: number): { x: number; y: number } {
+  const a = (deg * Math.PI) / 180;
+  const sx = Math.max(Math.sin(a), 0.7);       // 横向分量:永远不小于 0.7(不会往后退)
+  const cy = Math.cos(a);
+  return { x: sx, y: cy / sx };
+}
+
+/* ---------------- 空间索引 ----------------
+ * 搜索式机器人要在一帧里把状态回放几百遍,每一次都遍历 8000 个判定盒是不可能的
+ * (实测:不裁剪 ≈ 4300 帧/秒,一关 21600 帧;搜索要放大 100 倍 → 得先把它裁到"身边几十个")。
+ * 做法:按 x 排序 + 二分找窗口;特别宽的(补出来的整条地面)单独放,每次都查。
+ * ★ 只对【不动】的物件有效:一旦有触发器在推盒子,索引就会过期 → 由 fast 开关把关(见 useIndex)。 */
+class XIndex<T extends { x0: number; x1: number }> {
+  private readonly arr: T[] = [];
+  private readonly wide: T[] = [];
+  private readonly maxW: number;
+  constructor(list: T[]) {
+    let maxW = 1;
+    for (const b of list) {
+      const w = b.x1 - b.x0;
+      if (w > 50 * U) this.wide.push(b); else { this.arr.push(b); maxW = Math.max(maxW, w); }
+    }
+    this.arr.sort((a, b) => a.x0 - b.x0);
+    this.maxW = maxW;
+  }
+  /** 与 [qx0,qx1] 横向可能重叠的盒子写进 out(复用数组,不产生垃圾) */
+  near(qx0: number, qx1: number, out: T[]): T[] {
+    out.length = 0;
+    for (const b of this.wide) out.push(b);
+    const from = qx0 - this.maxW;
+    /* 二分:第一个 x0 >= from 的下标再回退一格(保证不漏) */
+    let lo = 0, hi = this.arr.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (this.arr[mid].x0 < from) lo = mid + 1; else hi = mid;
+    }
+    for (let i = lo; i < this.arr.length; i++) {
+      const b = this.arr[i];
+      if (b.x0 > qx1) break;
+      out.push(b);
+    }
+    return out;
+  }
+}
+
 /* ---------------- 自动播放机器人(验收用:证明"这一版铺面真的能过") ----------------
    刻意写得笨一点:只看"前方最近要跳的东西"和"这一列有没有地板"。
    它的存在不是为了好玩,而是当作"铺面可通过性"的自动化证明。 */
@@ -599,15 +876,15 @@ export function botThink(w: World): boolean {
   if (w.mode === 'ship') {
     // 目标:前方 3 块处那一列里,最大空隙的中心
     const probeX = w.x + 3 * BL;
-    let y0 = 0, y1 = ROWS * U;
-    const blocks = [...w.solids].filter((b) => probeX >= b.x0 && probeX <= b.x1).sort((a, b) => a.y0 - b.y0);
-    let bestGap = { a: 0, b: ROWS * U, size: ROWS * U };
+    let y0 = 0, y1 = w.rows * U;
+    const blocks = [...w.nearSolids].filter((b) => probeX >= b.x0 && probeX <= b.x1).sort((a, b) => a.y0 - b.y0);
+    let bestGap = { a: 0, b: w.rows * U, size: w.rows * U };
     let cursor = 0;
     for (const b of blocks) {
       if (b.y0 - cursor > bestGap.size) bestGap = { a: cursor, b: b.y0, size: b.y0 - cursor };
       cursor = Math.max(cursor, b.y1);
     }
-    if (ROWS * U - cursor > bestGap.size) bestGap = { a: cursor, b: ROWS * U, size: ROWS * U - cursor };
+    if (w.rows * U - cursor > bestGap.size) bestGap = { a: cursor, b: w.rows * U, size: w.rows * U - cursor };
     const target = (bestGap.a + bestGap.b) / 2 - w.box / 2;
     void y0; void y1;
     return w.y < target - 2;
@@ -622,7 +899,7 @@ export function botThink(w: World): boolean {
   /* 跳环:空中二段跳要按一下 —— 而且必须是【新的一下】(按住不放串不起环,和原作一致)。
      环在眼前、高度又对得上时:手上有"没用掉的一下"就按着,没有就先松一帧再按。
      这一条必须排在"看到危险就跳"前面,否则一直被按住、根本凑不出新的一下。 */
-  for (const o of w.orbs) {
+  for (const o of w.nearOrbs) {
     if (o.x1 < w.x || o.x0 - w.x > 1.6 * U) continue;
     const iy0 = w.y + w.innerOff, iy1 = iy0 + w.innerSize;
     if (iy1 < o.y0 - 8 || iy0 > o.y1 + 8) continue;
@@ -630,7 +907,7 @@ export function botThink(w: World): boolean {
     return w.pressFresh ? true : !w.prevHold;
   }
   let best: { x0: number; x1: number } | null = null;
-  for (const o of [...w.hazards.filter((h) => h.y0 < 2 * U), ...w.solids.filter((s) => s.y1 <= 2 * U)]) {
+  for (const o of [...w.nearHazards.filter((h) => h.y0 < 2 * U), ...w.nearSolids.filter((s) => s.y1 <= 2 * U)]) {
     /* ★ "已经过去了"要按【内框】判:危险判定框的右边缘一旦退到内框左缘后面,就真的踩不到了。
        按外框判(老写法)会让机器人为一根刚过去 0.3 块的刺按住不放,落地瞬间被动起跳,
        而那一跳的落点正好压在下一个障碍上 —— 实测就是这么死的。 */
@@ -639,12 +916,17 @@ export function botThink(w: World): boolean {
   }
   if (best && best.x1 - w.x <= reach) return true;
   /* 坑:先找出脚下的地板、以及它右边下一块地板 —— 两者之间就是缺口。
-     必须在"落到对面"的窗口里起跳:太早会掉进坑,太晚就来不及。 */
-  for (const f of w.floors) {
+     必须在"落到对面"的窗口里起跳:太早会掉进坑,太晚就来不及。
+     ★ 这里的两个额外条件都是踩出来的坑:铺面里到处是【浮在半空的平台/线框】,
+       不判"是不是脚底那块地板"的话,机器人会把头顶的平台当成坑、凭空起跳 —— 然后撞死在天花板的刺上。 */
+  for (const f of w.nearFloors) {
     if (w.x + w.box <= f.x0 || w.x >= f.x1) continue;      // 玩家不站在这块地板上
+    if (Math.abs(f.y1 - w.y) > 6) continue;                // ★ 这才是脚底那块(高度对得上)
     let next: number | null = null;
-    for (const g of w.floors) {
-      if (g.x0 >= f.x1 - 1 && (next === null || g.x0 < next)) next = g.x0;
+    for (const g of w.nearFloors) {
+      if (g.x0 < f.x1 - 1) continue;
+      if (Math.abs(g.y1 - f.y1) > 2 * U) continue;         // ★ 坑对面的地板得差不多高
+      if (next === null || g.x0 < next) next = g.x0;
     }
     if (next === null) continue;                           // 右侧没地板了(关卡尾部)
     const pitFar = next;
