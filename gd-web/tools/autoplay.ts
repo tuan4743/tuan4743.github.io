@@ -69,22 +69,22 @@ function trial(s: WorldSnap, holdFrames: number, rest: number, mode: 'idle' | 'b
 /** 试一遍所有候选,返回"活下来而且走得最远"的按法;全都活不下来就把视界拉长再试。 */
 function decide(s: WorldSnap) {
   for (let horizon = HORIZON; horizon <= HORIZON * 4; horizon *= 2) {
-    let best: { hold: number; x: number; done: boolean } | null = null;
-    let farDead: { hold: number; x: number } = { hold: 0, x: s.x };
+    let best: { hold: number; mode: 'idle' | 'bot'; x: number; done: boolean } | null = null;
+    let farDead: { hold: number; mode: 'idle' | 'bot'; x: number } = { hold: 0, mode: 'idle', x: s.x };
     const consider = (hold: number, mode: 'idle' | 'bot') => {
       const r = trial(s, hold, horizon, mode);
-      if (r.dead) { if (r.x > farDead.x) farDead = { hold, x: r.x }; return; }
-      if (!best || r.x > best.x + 1e-6) best = { hold, x: r.x, done: r.done };
+      if (r.dead) { if (r.x > farDead.x) farDead = { hold, mode, x: r.x }; return; }
+      if (!best || r.x > best.x + 1e-6) best = { hold, mode, x: r.x, done: r.done };
     };
     consider(0, 'idle');
     for (const k of HOLDS) {
       consider(k, 'idle');
       if (!best) consider(k, 'bot');
     }
-    if (best) return { hold: best.hold, x: best.x, done: best.done, hopeful: true };
-    if (horizon === HORIZON * 4) return { hold: farDead.hold, x: farDead.x, done: false, hopeful: false };
+    if (best) return { ...best, hopeful: true };
+    if (horizon === HORIZON * 4) return { ...farDead, done: false, hopeful: false };
   }
-  return { hold: 0, x: s.x, done: false, hopeful: false };
+  return { hold: 0, mode: 'idle' as const, x: s.x, done: false, hopeful: false };
 }
 
 const maxTicks = 60 * SECS;
@@ -117,11 +117,20 @@ while (w.tick < maxTicks && !w.done) {
   decisions++;
 
   const plan = decide(snap);
+  /* ★ 试算用的是同一个 World 对象:decide() 返回时,世界停在"最后一次试算"的状态上。
+     正式走之前必须把快照读回来 —— 不然走的是某个试算的世界(踩过:一路乱死,死点都莫名其妙) */
+  w.restore(snap);
 
-  /* 采用:先按 plan.hold 帧,剩下的 STEP 帧用兜底(活下来就继续,活不下来也照走 —— 下一轮会重新算) */
+  /* 采用:先按 plan.hold 帧,剩下的 STEP 帧走 plan 选中的兜底策略
+     (★ 这里必须跟着 plan.mode 走:选了"松手"却在后面接着调 botThink,等于白算 —— 隧道里
+        botThink 一按就撞死在天花板的刺上) */
   const holdFrames = Math.min(plan.hold, STEP);
   for (let i = 0; i < holdFrames; i++) { tape.push(true); w.frame(true); }
-  for (let i = holdFrames; i < STEP; i++) { const h = botThink(w); tape.push(h); w.frame(h); }
+  for (let i = holdFrames; i < STEP; i++) {
+    const h = plan.mode === 'bot' ? botThink(w) : false;
+    tape.push(h);
+    w.frame(h);
+  }
   best = Math.max(best, w.x);
   if (decisions % 400 === 0) {
     const dt = (performance.now() - t0) / 1000;
