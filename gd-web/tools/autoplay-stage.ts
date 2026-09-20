@@ -89,6 +89,7 @@ console.log('分站推进 v2:必过门 ' + doors.length + ' 个 + 路标 → 共
   + ' 站(路标间距 ' + WAY + ' 块)· 每站 ' + PER + 's · 总预算 ' + TOTAL + 's');
 
 const t0 = Date.now();
+let ctxSplits = 0;                                      // "劈半"次数(卡住时把路标劈成两半)
 const at = (i: number) => '#' + (i + 1) + '/' + stations.length;
 const st0 = stations[0];
 let seed = fs.existsSync(BEST) ? BEST : '';
@@ -254,6 +255,25 @@ for (let i = 0; i < stations.length; i++) {
   }
   if (!okThis) {
     const aa = audit(BEST);
+    const front = Math.max(aa?.x ?? 0, audit(MAXB)?.x ?? 0);
+    /* ★ 一整条重试清单都没啃下来时,【别放弃 —— 把这一站劈成两半】。
+       踩过的坑:站 #72(路标 727.5)在第 721.2 块卡死,而 721.2 到 727.5 之间是
+       "落到台上 → 立刻起跳吃蓝板 → 反重力撞天花板板 → 打下来落在下一根蓝板上"这一串弹板链:
+       每一下单看都能找到,连成一串就不在一个 12 块的路标里 —— 于是每次都在同一个前沿上重来,
+       32 次重试全废,整个长程跑 8 分钟就"卡住"收工了。
+       现在:卡住就把中间点插成一个新路标接着推(前沿往前挪多少就插多少),
+       一段啃不动就啃半段 —— 这也是人打这种段落的方式(先过这一下,再想下一下)。 */
+    const room = st.door >= 0 ? st.x - front : Math.min(st.x, front + WAY * 2) - front;
+    if (!FREE && front > 5 && st.x - front > 2.5) {
+      const mid = +(front + Math.max(2.5, (st.x - front) / 2)).toFixed(1);
+      ctxSplits++;
+      console.log('劈半:' + at(i) + ' 站目标 ' + st.x.toFixed(1) + ' 卡在前沿 ' + front.toFixed(1)
+        + ' → 插入新路标 ' + mid.toFixed(1) + ' 接着推(第 ' + ctxSplits + ' 次)');
+      stations.splice(i + 1, 0, { x: mid, door: -1 });
+      seed = fs.existsSync(BEST) ? BEST : seed;
+      continue;
+    }
+    void room;
     console.log('卡在 ' + at(i) + ' 站(目标 x=' + st.x.toFixed(1) + '),后面先不推了');
     if (aa) console.log('  前缀终点 x=' + aa.x.toFixed(2) + ' y=' + aa.y.toFixed(2) + ' ' + aa.mode
       + (aa.dead ? ' 【死了】' : '') + ' · 已生效的门 ' + aa.armed.size + '/' + doorCount);

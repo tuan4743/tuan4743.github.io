@@ -14,8 +14,10 @@ const MODE = (process.argv[4] ?? 'cube') as 'cube' | 'ship' | 'ball' | 'ufo' | '
 const FRAMES = Number(process.argv[5] ?? 120);
 const INPUT = (process.argv[6] ?? 'idle') as string;
 /* 输入可以写成 hold:N —— 按住前 N 帧再松手。塔段("贴天花板时按一下从门底下钻过去")
-   全靠这个:一直按会一路弹到天花板上飞出去,一直松又会被撞死。 */
+   全靠这个:一直按会一路弹到天花板上飞出去,一直松又会被撞死。
+   ★ 还可以写成 pat=0011 —— 按这个 0/1 串【循环】按键,用来扫"起跳时机差几帧"。 */
 const HOLD_N = INPUT.startsWith('hold:') ? Number(INPUT.slice(5)) : -1;
+const PAT = INPUT.startsWith('pat=') ? INPUT.slice(4) : '';
 const kind = INPUT.startsWith('hold:') ? 'hold' : INPUT;
 const GDIR = Number(process.argv[7] ?? 1) < 0 ? -1 : 1;
 const SPEED = Number(process.argv[8] ?? 1);
@@ -53,6 +55,7 @@ const mark = (i: number) => (i % EVERY === 0 ? '[' + i + ']' : '');
 for (let i = 0; i < FRAMES; i++) {
   if (w.dead || w.done) break;
   if (INPUT === 'bot') w.frame(botThink(w));
+  else if (PAT) w.frame(PAT[i % PAT.length] === '1');
   else if (HOLD_N >= 0) w.frame(i < HOLD_N);
   else w.frame(kind === 'hold');
   if (i % EVERY === 0 || WHY) {

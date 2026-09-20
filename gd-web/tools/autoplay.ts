@@ -414,32 +414,14 @@ function tapeOf(n: Node): boolean[] {
   return out;
 }
 
-/* ---------------- 热启动:把一条已知可行的输入卷铺成一条链,推进堆 ---------------- */
 let nodes = 0, deadEnds = 0, dups = 0, bestAlive = 0, macros = 0, bestNode: Node | null = null;
+let fineKept = 0;             // 额外留下的"宏内部精细节点"个数(见主循环)
 let bestScore = -Infinity, maxAliveX = 0, maxNode: Node | null = null;
 /** 种子链上【还没推进堆】的老节点(从前到后)。前沿空了才逐个补进去当"退回岔路口"。 */
 const seedBack: Node[] = [];
-/* ★ 只把【链尾】推进前沿(踩过的坑):
-   以前把沿途每一段(每 HORIZON 帧一个节点)都推进堆,想的是"搜索也能退回岔路口重新规划"。
-   但前沿里一旦混进几十块之前的老节点,最优优先就会去展开它们 ——
-   尤其"离门口还有多远"这条引力分对老节点【有利】(老节点往往正贴着它那一段的门),
-   于是 45 秒里 438 个死胡同全挤在 x=430~510,而塔上新铺的 567.9 那几个节点一个都没展开。
-   现在:老节点先扣在 seedBack 里,【前沿真的枯了】才放一个进去(见主循环),
-   既不被老岔路稀释,又保留了"实在搜不动就退回去"的能力。 */
-if (SEED && fs.existsSync(SEED)) {
-  let t: boolean[] = JSON.parse(fs.readFileSync(SEED, 'utf8')).tape;
-  /* --seedtrim=块 —— 把种子的尾巴剪掉这么多块再接着搜。
-     为什么要它:分站搜有时会"卡在自己的尾巴上" —— 上一次的最优前缀末端是个死状态
-     (实测 x=512.9 那一步是个在天上 75 格往上飞的球),从那一点往后怎么搜都没有出路,
-     而重新规划必须【退回到岔路口】。剪掉尾巴 = 把搜索根往前挪一点,换一条微路线重来。 */
-  const trimBlocks = Number(arg('seedtrim', 0));
-  if (trimBlocks > 0 && t.length > 60) {
-    const rawX = JSON.parse(fs.readFileSync(SEED, 'utf8')).x ?? 0;
-    const perBlock = rawX > 1 ? t.length / rawX : 6.5;
-    const cut = Math.min(t.length - 60, Math.round(trimBlocks * perBlock));
-    t = t.slice(0, t.length - cut);
-    console.log('种子剪尾 ' + trimBlocks + ' 块(约 ' + cut + ' 帧)→ 从 ' + t.length + ' 帧重新规划');
-  }
+/** 把一卷输入从头回放、沿路切成一条节点链;链尾推进前沿,老节点扣进 seedBack。
+ *  热启动和"局部回退"(见主循环)共用这一份。 */
+function replayInto(t: boolean[], label: string): number {
   w.resetToStart();
   let seg: boolean[] = [], parent: Node | null = null, made = 0;
   const chain: Node[] = [];
@@ -463,13 +445,33 @@ if (SEED && fs.existsSync(SEED)) {
   }
   flush();
   /* ★ 只把【链尾】推进堆;老节点扣在 seedBack 里,前沿枯了再补(见上面的说明) */
+  seedBack.length = 0;
   if (chain.length) {
     for (let i = 0; i < chain.length - 1; i++) seedBack.push(chain[i]);
     pushHeap(chain[chain.length - 1]);
   }
-  console.log('热启动 ' + SEED + ':铺了 ' + made + ' 个节点,最远 ' + (w.x / U).toFixed(1)
+  console.log(label + ':铺了 ' + made + ' 个节点,最远 ' + (w.x / U).toFixed(1)
     + ' 块(前沿只放链尾,另 ' + seedBack.length + ' 个老节点扣着等前沿枯)');
   if (parent) { bestAlive = w.x; bestNode = parent; bestScore = parent.score; }
+  return made;
+}
+
+/* ---------------- 热启动:把一条已知可行的输入卷铺成一条链,推进堆 ---------------- */
+if (SEED && fs.existsSync(SEED)) {
+  let t: boolean[] = JSON.parse(fs.readFileSync(SEED, 'utf8')).tape;
+  /* --seedtrim=块 —— 把种子的尾巴剪掉这么多块再接着搜。
+     为什么要它:分站搜有时会"卡在自己的尾巴上" —— 上一次的最优前缀末端是个死状态
+     (实测 x=512.9 那一步是个在天上 75 格往上飞的球),从那一点往后怎么搜都没有出路,
+     而重新规划必须【退回到岔路口】。剪掉尾巴 = 把搜索根往前挪一点,换一条微路线重来。 */
+  const trimBlocks = Number(arg('seedtrim', 0));
+  if (trimBlocks > 0 && t.length > 60) {
+    const rawX = JSON.parse(fs.readFileSync(SEED, 'utf8')).x ?? 0;
+    const perBlock = rawX > 1 ? t.length / rawX : 6.5;
+    const cut = Math.min(t.length - 60, Math.round(trimBlocks * perBlock));
+    t = t.slice(0, t.length - cut);
+    console.log('种子剪尾 ' + trimBlocks + ' 块(约 ' + cut + ' 帧)→ 从 ' + t.length + ' 帧重新规划');
+  }
+  replayInto(t, '热启动 ' + SEED);
 }
 
 if (!heap.length) {
@@ -512,6 +514,10 @@ if (!heap.length) {
 
 /* ---------------- 主循环 ---------------- */
 const t0 = performance.now();
+/** 局部回退的档位(帧):前沿枯了 / 久不推进时,逐级剪尾巴重放。见主循环里的说明。 */
+const REWIND = [8, 16, 32, 64, 128, 256, 512, 1024];
+const REWIND_AFTER = Number(arg('rewindafter', 400));   // 连续多少次展开没刷新最远记录就回退一档
+let rewinds = 0, lastProgressX = 0, sinceProgress = 0;
 const endX = lv.length * U;
 const GOAL = arg('goal', '') ? Number(arg('goal')) * U : Infinity;
 let goalHit = false;
@@ -615,15 +621,37 @@ while (nodes < MAXNODES) {
   if (maxAliveX >= GOAL) { goalHit = true; break; }
   const node = popHeap();
   if (!node) {
-    /* ★ 前沿枯了:把种子链上扣着的老节点放一个进去当"退回岔路口"继续搜 ——
-       没有这一步的话,链尾一死搜索就提前收工(实测 50 秒的预算 2 秒就空了)。 */
+    /* ★ 前沿枯了,两级退路:
+       ① 先把种子链上扣着的老节点放一个进去当"退回岔路口";
+       ② 老节点也用完了,就【局部回退】—— 把当前最好那卷的尾巴剪掉几帧重放一遍再搜。
+       ② 是这一轮补上的关键一环:种子链是按 HORIZON(90 帧≈29 块)切段的,
+       所以"退一步"一次就退 29 块 —— 而弹板链那种段落里,错的是【最后十几帧】
+       (实测站 #72:在 721.2 落台后正好贴着 722 那块平台的左脸,再往前一帧就撞死;
+        要重新规划的不是"29 块之前",而是"弹簧触发前那一下按不按"),
+       退 29 块等于把整段重摸一遍,退 8~32 帧才是对的粒度。
+       档位逐级加大(8/16/32/64/128/256/512 帧),每档只花一次回放的钱。 */
     if (seedBack.length) { pushHeap(seedBack.pop()!); continue; }
+    if (rewinds < REWIND.length && (maxNode ?? bestNode)) {
+      const from = maxNode ?? bestNode!;
+      const full = tapeOf(from);
+      const cut = REWIND[rewinds];
+      if (full.length > cut + 60) {
+        rewinds++;
+        const kept = full.slice(0, full.length - cut);
+        console.log('局部回退:前沿枯了 → 剪掉最后 ' + cut + ' 帧(第 ' + rewinds + ' 档),从 '
+          + (kept.length) + ' 帧重放接着搜');
+        replayInto(kept, '回退重放');
+        if (heap.length) continue;
+      }
+    }
     break;
   }
   node.gen = nodes++;
 
   /* 展开:每个候选先自己走 STEP 帧(便宜),活下来的才花算力试算 */
   const kids: Array<{ inputs: boolean[]; snap: WorldSnap; score: number }> = [];
+  /** ★ 宏落子之外,还要留一个【只走 STEP 帧】的精细子节点 —— 见下面那段说明。 */
+  let bestFine: { inputs: boolean[]; snap: WorldSnap; score: number } | null = null;
   let solved = false;
   for (const c of CANDS) {
     w.restore(node.snap);
@@ -639,10 +667,22 @@ while (nodes < MAXNODES) {
     if (!out.snap) continue;                       // 边内就死:这个候选作废
     const fine: boolean[] = [];
     for (let i = 0; i < STEP; i++) fine.push(bit(c.pat, i));
-    /* 宏落子优先(它一次顶 30 次精细落子),没有宏就退成精细落子 */
+    /* 宏落子优先(它一次顶 30 次精细落子),没有宏就退成精细落子。
+       ★★ 但【两个都要留】—— 这一条是这一轮最关键的搜索修正:
+       以前有宏就【只】留宏(一次跳 60~90 帧 ≈ 20~29 块),于是宏内部那几十帧从来没有被精细展开过。
+       在"时机定生死"的段落里这是致命的:实测 x=718 那个天花板蓝板,
+       卷子在 718.6 那一帧的 y=24.03、盒子顶 24.03+1=25.03 > 板的 24.8 → 板开火 → 打下去撞死;
+       而正确答案只需要【在 718 之前早 1~3 帧起跳】、让那一帧低 0.2 块(23.8 就刚好不碰板)。
+       这种 1~3 帧的差别,宏一旦落子就再也调不了了 —— 所以宏的每一个候选,
+       都额外留一个"只走 STEP 帧、不提交宏"的兄弟节点,分给成和宏一样高(差 1 单位),
+       于是它紧跟宏节点之后被展开,搜索就获得了"在宏内部改主意"的能力。
+       代价:节点数大约翻倍(实测 45 秒里 6000 → 1.1 万节点),换来的是时机可调。 */
     if (out.endSnap) {
       kids.push({ inputs: fine.concat(out.tap), snap: out.endSnap, score: out.score });
       macros++;
+      if (!bestFine || out.score > bestFine.score) {
+        bestFine = { inputs: fine, snap: out.snap, score: out.score - 1 };
+      }
     } else {
       kids.push({ inputs: fine, snap: out.snap, score: out.score });
     }
@@ -698,10 +738,43 @@ while (nodes < MAXNODES) {
       bestScore = k.score; bestAlive = k.snap.x; bestNode = n;
     }
   }
+  /* ★ 那个"只走 STEP 帧"的精细兄弟节点:哪怕束宽把宏节点都塞满了,它也要进前沿 ——
+     它就是"宏内部还能改主意"的唯一入口(见 walkEdge 后面那段说明)。 */
+  if (bestFine && !solved) {
+    const key = stateKey(bestFine.snap);
+    if (!seen.has(key)) {
+      seen.add(key);
+      const fn: Node = { snap: bestFine.snap, parent: node, inputs: bestFine.inputs, score: bestFine.score, gen: nodes };
+      pushHeap(fn);
+      fineKept++;
+      if (fn.snap.x > maxAliveX) { maxAliveX = fn.snap.x; maxNode = fn; }
+    }
+  }
   if (!pushed) deadEnds++;
   pruneHeap();
   focusFrontier();
   if (performance.now() - t0 > nextPhase) { nextPhase += PHASE; restartFromBest(); }
+  /* ★ 局部回退(主动版):前沿没枯、但【已经很久没有推进】时也要退。
+     踩过的坑:弹板走廊那段(站 #72,x=721 的台子)里,前沿一直有节点可展开(老岔路 + 回退链),
+     于是"前沿枯了才回退"这条永远不触发 —— 50 秒 6922 个节点全在原地打转,
+     而死胡同直方图明明白白写着 700→359 / 710→188。
+     正确的粒度是【最后十几帧】:玩家在 721.2 落台时贴上了 722 平台的左脸,
+     要重规划的是"蓝板触发前那一下按不按",不是"29 块之前怎么走"。
+     所以:连续 REWIND_AFTER 次展开没有刷新最远记录 → 主动剪尾巴重放一档。 */
+  if (maxAliveX > lastProgressX + 1e-6) { lastProgressX = maxAliveX; sinceProgress = 0; }
+  else if (++sinceProgress > REWIND_AFTER && rewinds < REWIND.length && (maxNode ?? bestNode)) {
+    const from = maxNode ?? bestNode!;
+    const full = tapeOf(from);
+    const cut = REWIND[rewinds];
+    if (full.length > cut + 60) {
+      rewinds++;
+      sinceProgress = 0;
+      console.log('[' + el.toFixed(0) + 's] 局部回退(第 ' + rewinds + ' 档):最远 ' + (maxAliveX / U).toFixed(1)
+        + ' 块卡住 ' + REWIND_AFTER + ' 次展开 → 剪掉最后 ' + cut + ' 帧重放接着搜');
+      replayInto(full.slice(0, full.length - cut), '回退重放');
+      continue;
+    }
+  }
 
   if (!QUIET && LOGSTEP > 0 && el - lastLog >= LOGSTEP) {
     lastLog = el;
