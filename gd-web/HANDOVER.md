@@ -349,19 +349,25 @@ node tools/verify-run.ts                      # 回归门:回放这卷输入,必
   黑(冲刺)环走另一条分支,不吃这 7 折。
 - 力度觉得不对就用页面上的 `[` / `]`(padMul 0.4~1.5)—— 改物理之前先用手感微调。
 
-**还没动:**
+**复核过、判定为误报(别照着改!证据见 `docs/gdp-coverage.md` 附录 A):**
 
-1. `P.speedMul=[0.7,0.9,1.1,1.3,1.6]` 标着 [GDOpenGD] 但两版源码里都没有这张表(只有 `m_dXVel`),
-   且互相冲突 ⇒ 该改成"每帧位移"并注明只能实测标定;
-2. `spiderReach()=[60,90,120,135,120]` 把 `checkSnapJumpToObject` 的**方块台阶吸附表**当成了蜘蛛可达距离;
-   同时 `constants.ts` 的 `spiderBand=8` 从未被用 —— 同一件事两套来源;
-3. 弹簧/跳环的 `boostDir` 与 GD 的 `m_isRising` 语义近似(GD 上升支本来就不夹终端速度),
-   但黄板峰值 3.9 vs 社区口径 4.4 块 —— 差额可能出在 `Y_TIME_SCALE=0.9` 上,待定;
-4. `m_jumpBuffered` **没实现**(注释声称实现了);空中起跳的 `jumpPower = 1/32` 也没有;
-5. 飞船"按住"的符号抄的是 OpenGD 旧版(gdp211:step=0.4、multiplier=−1)。
+- ❌ "`speedMul` 无出处、算不出社区口径" —— 出处是 gdp master `checkSnapJumpToObject.cpp:14-33`
+  的 `m_playerSpeed` 五档;**算术逐位对得上**(4.186/5.193/6.457/7.8/9.6 单位/帧 = 8.37/10.39/12.91/15.6/19.2 块/秒)。
+- ❌ "`boostDir` 是自造量导致黄板峰值 3.9 vs 4.4" —— 它和 GD 的 `m_maybeIsBoosted` 一一对应
+  (`PlayerObject_updateJump.cpp:419-448`:推力飞行中重力照常、**只是不夹终端速度**,速度反向即结束)。
+  实测本机:初速 16 峰值 **4.39 块**(社区口径 4.4)、方块起跳 2.13 块(公式 2.17)。
+  另:`Y_TIME_SCALE=0.9` 是 y 轴时间重参数化,**不压峰值**(只把滞空拉长 1/0.9)。
+- ❌ "球的重力倍率方向反了" —— gdp master `updateJump.cpp:112,454` 说明球那一档 = 0.9582×0.6 ≈ 0.575,
+  和 OpenGD 一致;`ballGravityMul = 0.6` 不动。
 
-完全缺失的机制 24 项(`checkSnapJumpToObject` 方块爬台阶/横向吸附、`m_stateRingJump`、自定义环、坡道、
-dash 状态机、`boostPlayer`、移动平台载人、圆形判定…)与 14 处"未验证"见报告原文。
+**还没动(来源确实缺失,不要瞎改):**
+
+1. `spiderReach()=[60,90,120,135,120]` 确实误用了 `checkSnapJumpToObject` 的**方块台阶吸附表**
+   (littleStair/downStair/bigStair = 90/120/135/150/180/225 单位);但 `spiderTestJump` 的实现体
+   在 gdp(22 个文件)和 OpenGD 里都**不存在**,拿不到真值,只能先标注存疑。
+2. `m_jumpBuffered`:我们的 `pressFresh` 语义接近(GD 会在 8 处碰撞里把它清掉,我们不会 ⇒ 我们略宽容)。
+3. `checkSnapJumpToObject`(方块落到新方块时的横向吸附 ±1~2 单位)整条没实现 —— 机制已读懂,影响很小,排后面。
+4. `constants.ts` 里两处注释串行 / 同一段"球的弹簧 ×0.6"结论相反 —— 只是文档问题,代码是对的(0.6 生效)。
 
 **改物理的流程(重要)**:任何一条改动都会让现有输入卷失效 —— 改完必须
 `autoplay.ts` 重搜(≈1~2 分钟)→ `tape-pack.ts` 重打包 → `verify-run.ts` + `gd-demo-check.mjs` 重验 → 提交。

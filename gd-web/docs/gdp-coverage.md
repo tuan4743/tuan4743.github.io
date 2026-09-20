@@ -309,3 +309,74 @@
   (2) 反编译**自相矛盾**(flying 支的 `hasHitPortal`、`playerTouchesObject`、`flipGravity` 的 ×1.75 vs /2);
   (3) 引用的量在反编译里**来源不明**(`checkCollisions.cpp` 的 `xmm2/groundHeight/groundY`、`spiderTestJump` 的实现体)。
 - 本报告只读代码,未改动 `tuagfey-blog/` 下任何文件。
+
+---
+
+# 附录 A:复核(2026-09,改物理之前先自己回读源码 + 实测)
+
+审计的结论不能直接照改 —— 下面三条**复核后判定为误报**,证据在这里;另外三条**已按源码修掉**。
+
+## A.1 误报:速度表无出处 / 复现不出社区口径
+
+审计说 `P.speedMul=[0.7,0.9,1.1,1.3,1.6]` 两版源码都没有、且算不出 8.4/10.4/12.9/15.6/19.2 块/秒。复核:
+
+- 出处其实有:gdp master `PlayerObject_checkSnapJumpToObject.cpp:14-33` 直接按 `m_playerSpeed` 分档写死了
+  **0.7 / 0.9 / 1.1 / 1.3 / else** 五档 —— 这就是我们那张表的来源,不是编的。
+- 算术也复现得出来:`(speedVal × speedMul) × 60 / 30 = 块/秒`
+  · 5.98×0.7 = 4.186 → 8.37 块/秒 ✓
+  · 5.77×0.9 = 5.193 → 10.39 ✓
+  · 5.87×1.1 = 6.457 → 12.91 ✓
+  · 6.00×1.3 = 7.800 → 15.60 ✓
+  · 6.00×1.6 = 9.600 → 19.20 ✓
+  五档与社区口径**逐位相同**。结论:不改。
+
+## A.2 误报:弹簧 `boostDir` 是自造量,黄板峰值 3.9 vs 4.4 块
+
+复核 gdp master `PlayerObject_updateJump.cpp:419-448`(推力飞行那一段)与 `PlayerObject_boostPlayer.cpp:2-8`:
+
+```
+boostPlayer(){ m_maybeIsBoosted = true; m_isOnGround = false; setYVelocity(amount); }
+updateJump(){ if (m_maybeIsBoosted) { addToYVelocity(-float_d, 62);      // ★ 重力照常施加
+                                       if (playerIsFallingBugged()) m_maybeIsBoosted = false; }  // ★ 速度反向就结束
+              else { ... setYVelocity(max(m_yVelocity, -15), 5); } }     // ★ 终端速度只在这条支里夹
+```
+
+这正是我们 `boostDir` 的语义(推力飞行中不夹终端速度、重力照常、速度反向即结束)——
+`applyFallClamp()` 与它一一对应,不是自造量。
+
+实测本机模拟:初速 16 的峰值 = **4.39 块**(公式 `arcPeak(16) = 4.45`,社区口径 4.4);
+方块起跳峰值 = **2.13 块**(公式 2.17,原作"跳两块多")。
+（顺带纠正我自己一开始的误判:`Y_TIME_SCALE = 0.9` 是给 y 轴做时间重参数化,
+`y += vy·sY` 与 `vy -= g·sY` 同时缩放 ⇒ **峰值不变、滞空变长 1/0.9**,不会把峰值压掉 10%。）
+
+## A.3 误报:球的重力倍率方向反了
+
+gdp211 的 `its_1_if_ball`(= 球时为 1.0)一度看起来和 OpenGD `playerobject.cpp:627-629`
+(球 = 0.6)矛盾。复核 gdp master `PlayerObject_updateJump.cpp:112,454`:
+`usedGravity = (isBall || isFlying() || isSpider ? 0.9582 : m_gravity)`,而施加重力那一行还要再乘一个
+`float_b` —— 球那一档正是 `0.9582 × 0.6 ≈ 0.575`。两版源码在这一条上**其实一致**:
+球的重力是 0.6 档。我们现在的 `ballGravityMul = 0.6` 不用动。
+
+## A.4 已按源码修掉的三条(见 git 9674dd6)
+
+| 项 | 出处 | 改法 |
+|---|---|---|
+| 翻重力 ×1.75 | gdp211 `flipGravity.cpp:2,19` | 蓝板 12.8→**22.4**、蓝环 8.94→**15.65**(球/蜘蛛再 ×0.7 → 10.96) |
+| 重力门不清零速度 | `checkCollisions.cpp:194,204` + `flipGravity.cpp:49` | 方向真变了才 `vy *= 1.75` 且 `onGround = false` |
+| 球/蜘蛛普通跳环 ×0.7 | gdp211 `ringJump.cpp:127-130`、OpenGD `playerobject.cpp:522-526` | 黑(冲刺)环不吃这 7 折 |
+
+改完重搜:106.8 秒通关(改前 60.8 秒),输入卷仍 21187 帧,指纹 `cda117a3 → cb300414`;
+`verify-run` 6/6、`gd-demo-check` 9/9、`sim.test` 38/38、`diag-bot` 0 死亡。
+
+## A.5 依然成立、还没动的
+
+- `spiderReach()=[60,90,120,135,120]` 确实是把 `checkSnapJumpToObject` 的**方块台阶吸附表**
+  (littleStair/downStair/bigStair = 90/120/135/150/180/225 单位)当成了蜘蛛可达距离 ——
+  但 `spiderTestJump` 的实现体在 gdp(22 个文件)与 OpenGD 里都**不存在**,拿不到真值,
+  只能先标注来源存疑,不要瞎改(改了没有依据)。
+- `m_jumpBuffered`:gdp master 里它是"按下时置位、落地/碰撞时消费并清零"的缓冲跳,
+  我们的 `pressFresh`(上升沿 + 被一次起跳/跳环消费)语义接近,但 GD 会在碰撞处清掉它,
+  我们不会 —— 差别是"我们略宽容一点",等有空按 `collidedWithObjectInternal` 的 8 处清零逐条对齐。
+- `checkSnapJumpToObject`(方块落到新方块时的**横向吸附**,±1~2 单位)整条没实现 ——
+  机制读懂了(`PlayerObject_checkSnapJumpToObject.cpp`),但影响只有 1~2 单位(0.03~0.07 格),
+  排在其它项后面。
