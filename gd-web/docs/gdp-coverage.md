@@ -11,7 +11,7 @@
 
 ## 0. 一句话结论
 
-**数值层面大体是对的**(弹簧、跳环、重力×1.75、跳跃初速、终端速度、容差 15/10/6、各形态重力倍率都能对上);
+**数值层面大体是对的**(弹簧、跳环、跳跃初速、终端速度、容差 15/10/6、各形态重力倍率都能对上;翻重力那一下原来按 2.11 取 ×1.75,现已按关卡实测改回 2.2 的减半);
 **对不上的是"时机/时序/作用域"三类**:弹簧与跳环不受终端速度钳制的机制、蓝粉板的触发前置条件、
 绿环的"先翻后给"、黑环的分形态倍率、重力门的速度处理、以及 `checkSnapJumpToObject` 的来源被误用。
 手感跑偏的头号嫌疑在 §3 的「我们猜的」清单里。
@@ -55,7 +55,7 @@
 | 21 | 起跳时若"不在落地状态"(`!onGround`)则 `jumpPower = 1/32`(0.03125) 且置 `hasHitPortal` (`gdp211\updateJump.cpp:247-250`) | — | **缺失** | 这是"缓冲跳在空中兑现"的细节:GD 给一个极小初速。我们没有对应实现(第 25 条的缓冲也没做) |
 | 22 | 起跳后才清缓冲:`m_isRising=true; isSliding=false; onGround=false; hasJustHeld=false; robotCanJump=false; decelRate=0`(`gdp211\updateJump.cpp:236-241`) | `world.ts:654-660` | **一致** | — |
 | 23 | 方块落地缓冲/连跳:`hasJustHeld & isHolding`(按住不放 → 落地自动连跳) (`gdp211\updateJump.cpp:7-9,236-241`;`OpenGD playerobject.cpp:1028-1047 set/clear`) | `world.ts:654` `hold && onGround`;`pressFresh` 仅在 `frame()` 里"上升沿"置位 (`world.ts:511`) | **一致**(行为),**未验证**(内部量) | 行为等价;但 GD 的 `hasJustHeld` 是**按下时置位、直到某次起跳才清**,我们 `pressFresh` 会被第一个子步的**任何**环/门/箭头消费(`world.ts:824,846,1068`)——同帧既碰环又要跳时,消费顺序与 GD 不同 |
-| 24 | 球:只有 `pressFresh && onGround` 才跳;顺序 = 给旧方向初速 → `flipGravity`(×1.75) → `vy *= 0.6` (`gdp211\updateJump.cpp:279-284`;`flipGravity.cpp:18-20`) | `world.ts:631-638` | **一致** | `jump*0.8*gdir → gdir*=-1 → *1.75 → *0.6` 与 GD 完全同序 ✓(注:gdp211 里 `flipGravity` 在 `+=` 之后调用,`yAccel = size*jumpPower*sign` 是赋值,所以 ×1.75 作用在赋值上) |
+| 24 | 球:只有 `pressFresh && onGround` 才跳;顺序 = 给旧方向初速 → `flipGravity`(倍率见第 52 条,现为 ÷2) → `vy *= 0.6` (`gdp211\updateJump.cpp:279-284`;`flipGravity.cpp:18-20`) | `world.ts:631-638` | **一致** | `jump*0.8*gdir → gdir*=-1 → *1.75 → *0.6` 与 GD 完全同序 ✓(注:gdp211 里 `flipGravity` 在 `+=` 之后调用,`yAccel = size*jumpPower*sign` 是赋值,所以 ×1.75 作用在赋值上) |
 | 25 | 球/机器人的**缓冲跳**:`m_jumpBuffered` 在空中按下时置位、落地时兑现 (`gdp\...updateJump.cpp:110,323,391-396`;"空中按下的也算数(按下时标记,落地才消费)") | 我们只有 `pressFresh`(空中按 → 落地**不**兑现) | **缺失** | 与 `world.ts:622-629` 的注释自相矛盾:注释声称还原了"缓冲跳",代码里没有缓冲。空中按一下落地不会弹 |
 | 26 | 机器人 `shouldJump = hasJustHeld & isHolding`,与 `m_jumpBuffered` 双轨 (`gdp211\updateJump.cpp:7-9`;`gdp\...updateJump.cpp:110`) | `world.ts:654` 用 `hold` | **一致**(行为) | — |
 | 27 | 球/蜘蛛在 `propellPlayer`/`ringJump` 里 `m_yAccel *= 0.6` / `*0.7` (`propellPlayer.cpp:8-10`;`ringJump.cpp:127-130`) | `world.ts:1047`(弹簧 0.6)、`world.ts:1066`(boostDir) | **部分一致** | 弹簧 0.6 ✓;跳环那一档 `*0.7` **缺失**(见 #46) |
@@ -98,8 +98,8 @@
 
 | # | gdp 里的规则 | 我们实现 | 判定 | 差在哪 |
 |---|---|---|---|---|
-| 52 | `flipGravity` 里 `m_yAccel *= 1.75`(方向不变,速度**放大**)(`flipGravity.cpp:18-20`) | `world.ts:25,635,1050` | **部分一致** | 球起跳 ×1.75 ✓;蓝板/蓝环/重力门**故意不乘**(`world.ts:1051-1054` 注释说明),与 GD 口径不符但注释承认了 |
-| 53 | 重力门:`flipGravity(player, true/false, false)`,**没有 `vy=0`** (`checkCollisions.cpp:188-207`) | `world.ts:885-886` `gdir = o.gdir ?? -gdir; this.vy = 0;` | **数值不同** | GD:速度保留且 ×1.75;我们:清零、不乘。**这是"重力门前后手感"最大的一处偏差** |
+| 52 | `flipGravity` 里翻重力对纵向速度的处理:gdp@2.11 `m_yAccel *= 1.75`(放大)、OpenGD/**2.2** `m_dYVel /= 2`(**减半**)(`flipGravity.cpp:18-20` 对 `playerobject.cpp:540`) | `world.ts` 文件头 `FLIP_VEL_MUL = 0.5` | **已定案 = 减半(OpenGD/2.2)** | ★ **两张源直接冲突**,最后按【关卡自己的证据】定案。A/B 实测(同一处手工反重力贴顶状态、同一套搜索,只改这一个倍率):`(714.2, y=23)` ×1.75 死在 718.0 / ÷2 过到 740.6;`(716, y=24)` ×1.75 死在 726.6 / ÷2 过到 740.6 —— **×1.75 让本关 714~727 那段垫板走廊无解**。再加两条旁证:本关是 2.2 的图,而 2.2 的通行口径就是减半;×1.75 会让蓝板一跳 9 格(塔段 546 那块把人从 y=8 直接送到 y=17),÷2 约 0.7 格,后者才像原版蓝板。用户 2026-09 拍板取 ÷2;`w.flipMul` 仍可改,供定点实验 |
+| 53 | 重力门:`flipGravity(player, true/false, false)`,**没有 `vy=0`** (`checkCollisions.cpp:188-207`) | `world.ts` 重力门分支 | **一致** | GD:速度保留并按第 52 条处理(现在 = 减半);我们:保留 + 减半 + `onGround=false`(只有方向真的变了才动,和 `flipGravity.cpp:2` 的 `if (m_upsideDown != upsideDown)` 一致) |
 | 54 | 重力门触发用玩家外框相交,盒子 `75×25`(id 10/11:`{75,25,-12.5,-37.5}`)(`longdata.cpp:32-33`) | `gdids.ts:69` `gravity:[25,75]`;`world.ts:200` | **一致**(尺寸对称)/ **锚点未还原** | 表里是 75 宽 × 25 高,我们写成 25 宽 × 75 高 —— 因为取的是包络盒且两者都是纯包围盒判定,功能上等价;但原表 x/y 偏移(-12.5,-37.5)说明它其实是"横向 75 宽、贴在门底"的盒,我们没还原 |
 | 55 | 翻转时清空 `m_dict_518/m_dict_520`、`m_collidedUUID=0`、`m_onGround=false`、球则 `runBallRotation2` (`flipGravity.cpp:15-17,48-55`) | `world.ts` 未实现 | **缺失** | 我们只改 `gdir`;GD 还会清"同帧已撞过的物件表"(防止翻重力后立刻再撞同一个块) |
 | 56 | `arg2=true` 时不出光圈、`m_lastHitGround = m_lastPortalLocation` (`flipGravity.cpp:29-32,48`) | 无 | **缺失**(表现层) | 只影响视觉/落台基准点 |
@@ -222,14 +222,17 @@
    **影响**:档 0(慢速门)我们比原版慢 13%、档 3 快 4.6%、档 4(4x 速)快 6.7%;所有"速度门之后的落点/间距"都会漂。这是全表最大的一处数值风险。
 2. **`spiderReach() = [60,90,120,135,120]` 直接搬 `checkSnapJumpToObject` 的台阶表** — `world.ts:937-944`
    那张表是**方块吸附到台阶精灵**用的(`gdp211\checkSnapJumpToObject.cpp:14-39`),不是蜘蛛的可达距离。同时 `constants.ts:56` 还留着一个从未被使用的 `spiderBand=8`(注释说来自 `m_vehicleSize × 8`)。**我们对同一件事有两套互相矛盾的来源**。
-3. **`applyTrigger` 里蓝/绿/环的 `FLIP_VEL_MUL` 处理** — `world.ts:1048-1062`
-   我们在 `'before'` 支**故意不乘 1.75**(注释 `:1051-1054` 承认),在 `'after'` 支也不乘。GD 的 `flipGravity` 是无条件 ×1.75 的(`flipGravity.cpp:18-20`),蓝板因此应为 `12.8 × 1.75 = 22.4`,蓝环 `8.944 × 1.75 = 15.65`。**这是明确的"与原版不符",只是被注释合法化了**。
+3. ~~**`applyTrigger` 里蓝/绿/环的 `FLIP_VEL_MUL` 处理**~~ — **已解决(2026-09)**
+   原来两张源冲突:gdp@2.11 `flipGravity` 是 `m_yAccel *= 1.75`,OpenGD(2.2)是 `m_dYVel /= 2`。
+   当时取 1.75,结果**本关 714~727 那段垫板走廊按 1.75 无解**(A/B 实测:同一处手工状态,
+   714.2/23 起点 ×1.75 死在 718.0、÷2 过到 740.6;716/24 起点 ×1.75 死在 726.6、÷2 过到 740.6)。
+   现在定案 = **÷2**(`world.ts` 文件头 `FLIP_VEL_MUL = 0.5`),理由三条写在那个注释里:
+   关卡自己的证据、版本(本关是 2.2 的图)、手感(×1.75 让蓝板一跳 9 格,÷2 约 0.7 格)。
 4. **弹簧/跳环的"推力飞行不夹终端速度"豁免** — `world.ts:555-561`
    GD 的豁免来自 `m_maybeIsBoosted` 那一整支(`gdp\...updateJump.cpp:420-448`),**上升支本来就完全不含钳制**;我们的 `boostDir` 是自造量,而且**整个上升段都在"不钳"**、回落时才钳 —— 与原版的分支边界不同。黄板峰值我们 3.9 块 / GD 4.4 块。
 5. **`hitEvent()` 的 strict 分流** — `world.ts:991-1001`
    真实 GD 铺面我们走"外框相交",但原版触发器的条件**只有 x**(`OpenGD playlayer.cpp:1328-1335`)。同一文件里我们给"门"用了相交、给"触发器"用相交,原版对门是相交、对触发器是 x —— 一半对一半错。
-6. **重力门清零速度** — `world.ts:885-886`
-   `this.vy = 0`。原版 `flipGravity` 不清零、只 ×1.75(`checkCollisions.cpp:188-207` + `flipGravity.cpp:18-20`)。
+6. ~~**重力门清零速度**~~ — **已修**:原版 `flipGravity` 不清零,而是按第 52 条换算(现在 = 减半)。
 7. **`force`(力场)整套** — `world.ts:216,785-792`;`level.ts:60`
    2.11/gdp 源码里没有 Force 类型。我们是"垂直加速度 `fy`",来源不可核。
 8. **`dash` 的参数**:`vy = |vx|*dir.y`、`d > 0.5s || !hold` 结束、出界判死 — `world.ts:576-586,1124-1133`
@@ -257,7 +260,7 @@
 | 位置 | 矛盾 | 我们的取法 |
 |---|---|---|
 | `gdp211\propellPlayer.cpp:6`(16×force) vs OpenGD `playerobject.cpp:404`(16×force) | 两版一致 ✓ | — |
-| `gdp211\flipGravity.cpp:19`(×1.75) vs OpenGD `playerobject.cpp:540`(`/= 2`) | **完全相反** | 取 gdp211 的 ×1.75(`world.ts:25`) |
+| `gdp211\flipGravity.cpp:19`(×1.75) vs OpenGD `playerobject.cpp:540`(`/= 2`) | **完全相反** | **已定案 = 取 OpenGD 的 ÷2**(`world.ts` 文件头 `FLIP_VEL_MUL`):本关 714~727 那段垫板走廊在 ×1.75 下无解、在 ÷2 下过得去(A/B 见 §2 第 3 条);另外本关是 2.2 的图,2.2 的通行口径就是减半 |
 | `gdp211\updateJump.cpp:203-208`(`yAccel = min(15, yAccel)` 显然是被反编译搞坏的行) | 会**丢掉算出来的新速度** | 取"只钳下落方向"的语义 |
 | `gdp211\checkCollisions.cpp:5-18`(`playerTouchesObject` = 四边包含)vs OpenGD `intersectsRect` | **相反** | 取相交 |
 | `gdp211\updateJump.cpp:19`(`if(!this->hasHitPortal)`) | 会把飞船加速度整段跳掉,逻辑上不可能 | **未验证**,按 OpenGD 的飞船公式实现 |

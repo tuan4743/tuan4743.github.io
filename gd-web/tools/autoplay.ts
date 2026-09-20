@@ -69,6 +69,11 @@ w.windowed = true;                    // 窗口裁剪:搜索要回放上千万�
    "这一段到底要多大力度才过得去"比"猜一个常数"靠谱得多。 */
 const PADMUL = Number(arg('padmul', 1));
 if (PADMUL !== 1) { w.padMul = PADMUL; console.log('弹簧力度 ×' + PADMUL); }
+/* --flipmul=N —— 翻重力那一下的纵向速度倍率(默认 1.75 = gdp@2.11)。
+   和 --padmul 一样是【定点实验】旋钮:用来回答"这一段到底按哪一版语义才过得去"。
+   (源冲突:gdp@2.11 `flipGravity.cpp:19 m_yAccel *= 1.75` vs OpenGD `playerobject.cpp:540 m_dYVel /= 2`。) */
+const FLIPMUL = Number(arg('flipmul', 0));
+if (FLIPMUL > 0 && FLIPMUL !== w.flipMul) { w.flipMul = FLIPMUL; console.log('翻重力速度倍率 ×' + FLIPMUL); }
 
 /* ---------------- ★ 不许跳过事件门(否则搜出来的"通关"是飞过去的,证明不了任何东西) ----------------
  * 踩过的坑:第一版搜索报"通关",可回放一看 —— 玩家在第 2000 帧左右进了 UFO,

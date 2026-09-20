@@ -307,9 +307,11 @@ test('球:重力只有 0.6 倍;★ 只有站在地面上点一下才跳(跳=先�
   assert.equal(w.gdir, gdir0, '空中点一下不该翻重力(球只有落地才跳)');
 
   /* 落地,再点一下:应该翻重力 + 往上弹
-     ★ 初速 = jump → 翻重力【×1.75】→ ×0.6
-       出处:gdp(2.11 反编译)PlayerObject::flipGravity 里 `m_yAccel *= 1.75;`
-       —— 以前我们写成 `/2`(注释还写"原版会把速度减半"),那是猜的而且方向反了。 */
+     ★ 初速 = jump → 翻重力【÷2】→ ×0.6
+       出处:OpenGD(2.2)`playerobject.cpp:540 m_dYVel /= 2.f`。
+       (gdp@2.11 反编译写的是 `m_yAccel *= 1.75`,两张源直接冲突;
+        最后按【关卡自己的证据】定案 = 减半:本关 x=714~727 那段垫板走廊
+        在 ×1.75 下无解、在 ÷2 下过得去 —— 详见 src/sim/world.ts 里 FLIP_VEL_MUL 的注释。) */
   const w2 = new World(solo([floor60]));
   w2.mode = 'ball'; w2.y = 6 * U; w2.onGround = false;
   for (let i = 0; i < 120 && !w2.onGround; i++) w2.frame(false);
@@ -317,9 +319,9 @@ test('球:重力只有 0.6 倍;★ 只有站在地面上点一下才跳(跳=先�
   w2.frame(true);
   assert.equal(w2.gdir, -1, '在地面上点一下应该翻重力');
   assert.ok(w2.vy > 0, '而且要给一个向上的初速,vy=' + w2.vy.toFixed(2));
-  const expect = P.jump * 1.75 * P.ballFlipVelMul;
+  const expect = P.jump * 0.5 * P.ballFlipVelMul;
   assert.ok(Math.abs(w2.vy - expect) < 0.8,
-    '初速应该是 jump×1.75×0.6 ≈ ' + expect.toFixed(2) + ' 上下(实测 ' + w2.vy.toFixed(2) + ',含本帧已翻重力的那几步)');
+    '初速应该是 jump÷2×0.6 ≈ ' + expect.toFixed(2) + ' 上下(实测 ' + w2.vy.toFixed(2) + ',含本帧已翻重力的那几步)');
   for (let i = 0; i < 20 && !w2.dead; i++) w2.frame(false);
   assert.ok(w2.y > 1.5 * U, '反重力应该一路往上飞,y=' + (w2.y / U).toFixed(2) + ' 块');
 

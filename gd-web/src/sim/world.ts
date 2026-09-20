@@ -15,14 +15,30 @@ import type { Level, Mode, Obj } from './level.ts';
  *  这样无论纵向速度多大,都不会"一步跨过一堵墙"(见 frame() 里的自适应切分)。 */
 const SUBSTEP_MAX = 1.2;
 
-/** ★ 翻重力时纵向速度的倍率 —— 出处:gdp(2.11 反编译)PlayerObject::flipGravity
- *      `m_yAccel *= 1.75;`
- *  这里的 `yAccel` 就是【纵向速度】(同文件里它被当成速度用:飞船夹 ±8/−6.4、
- *  波浪 = ±水平速度、UFO 冲量 ±7/8、黑环 ±15,全对得上)。
- *  我们以前在球的起跳里写了 `vy /= 2`(注释还写着"原版 flipGravity 会把速度减半")——
- *  那是凭空猜的,方向都反了:真实规则是【×1.75】。所以凡是"翻重力"的地方都要乘它:
- *  球的点按起跳、蓝板/蓝环(赋值之后再翻)、重力门。 */
-const FLIP_VEL_MUL = 1.75;
+/** ★ 翻重力时纵向速度的倍率 —— 两张源直接冲突,最后按【关卡自己的证据】定案 = **0.5(减半)**:
+ *
+ *  · gdp@2.11 反编译 `PlayerObject::flipGravity`:`m_yAccel *= 1.75;`
+ *    (那里的 `yAccel` 确实就是纵向速度:同文件里它被当速度用 —— 飞船夹 ±8/−6.4、
+ *     波浪 = ±水平速度、UFO 冲量 ±7/8、黑环 ±15,全都对得上。所以这一行不是"加速度乘 1.75"。)
+ *  · OpenGD(面向 GD 2.2)`playerobject.cpp:540`:`m_dYVel /= 2.f;` —— 同一个函数,除以 2。
+ *
+ *  取 0.5 的三条理由(按分量排序):
+ *   ① **关卡自己说话了**。本关是 2.2 的图,x=714~727 那段"垫板走廊"在两种口径下 A/B 实测:
+ *        同一处手工状态(反重力贴天花板)、同一套搜索、只改这一个倍率:
+ *          (714.2, y=23)  ×1.75 → 死在 718.0   |  ÷2 → 过到 740.6
+ *          (716,   y=24)  ×1.75 → 死在 726.6   |  ÷2 → 过到 740.6
+ *      也就是说 ×1.75 会让这段**无解**(718 那块天花板蓝板把人以 -22.4 砸下去,
+ *      落点必然撞上 722 平台的左脸;而 ÷2 的 -6.4 刚好让人落在平台顶面上)。
+ *      作者摆出来的地形,只能按一种口径通 —— 那是 2.2 的口径。
+ *   ② 版本对得上:2.2 的通行口径就是"重力门不再给 1.75 倍,而是减半"(社区里 2.2 物理变更之一)。
+ *   ③ 手感对得上:×1.75 让蓝板一跳 9 格(实测塔段 546 那块把人从 y=8 直接送到 y=17),
+ *      ÷2 约 0.7 格 —— 后者才像原版蓝板"翻重力 + 小推力"的样子。
+ *
+ *  ★ 改这一条【会让所有输入卷失效】(塔段那条 1.75 弹射路线整个变了),必须重搜:
+ *    free 路线:autoplay-stage --free → tape-pack → verify-run → build:embed + hugo → gd-demo-check
+ *    legit 路线:autoplay-stage(重头搜)
+ *  ★ 想再做定点实验就设 `w.flipMul`(或 autoplay 的 `--flipmul=`),默认已经是 0.5。 */
+const FLIP_VEL_MUL = 0.5;
 
 export interface RunState {
   tick: number; x: number; y: number; vy: number; onGround: boolean;
@@ -112,6 +128,10 @@ export class World {
   x = 0; y = 0; vy = 0; onGround = true;
   mode: Mode = 'cube';
   gdir = 1;
+  /** ★ 翻重力的纵向速度倍率(原版 flipGravity 里那一下)。默认 0.5 = OpenGD/2.2 口径,
+   *  理由见文件头 FLIP_VEL_MUL 那段(关卡 A/B 实测 + 版本 + 手感三条)。
+   *  只给【定点实验】用:想知道某一段按另一边才过得去,就设成 1.75 再搜一遍。 */
+  flipMul = FLIP_VEL_MUL;
   speedIdx = 1;
   dead = false; done = false; deadT = 0;
   attempts = 1;
@@ -691,7 +711,7 @@ export class World {
         this.pressFresh = false;
         this.vy = P.jump * size * this.gdir;    // 旧重力方向的起跳初速
         this.gdir = -this.gdir;                 // 翻重力
-        this.vy *= FLIP_VEL_MUL;                // ★ 原版 flipGravity:m_yAccel *= 1.75
+        this.vy *= this.flipMul;                // ★ 原版 flipGravity:m_yAccel *= 1.75
         this.vy *= P.ballFlipVelMul;            // ★ 再按球那一档 ×0.6(原版 updateJump)
         this.onGround = false;
       }
@@ -970,15 +990,15 @@ export class World {
       this.armedGravs.add(b);
       /* ★ 原版的重力门是【指定方向】(向下门 / 向上门),不是"翻一下" ——
          连吃两个同样的门不该把人翻回去,所以这里按 gdir 直接设,没有 gdir 才退回"翻转"。
-         ★ 速度不清零:出处 gdp@2.11 checkCollisions.cpp:194/204(重力门只是调 flipGravity)
-           + flipGravity.cpp:19 `m_yAccel *= 1.75` + 末尾 `m_onGround = false`;
+         ★ 速度不清零,而是【减半】:重力门只是调 flipGravity(出处 gdp@2.11
+           checkCollisions.cpp:194/204),倍率见文件头 FLIP_VEL_MUL(默认 ÷2);
            而且 flipGravity.cpp:2 是 `if (m_upsideDown != upsideDown)` —— 方向没变就什么都不做。
          以前我们写的是 `vy = 0`:进门那一刻纵向动量被抹掉,过门后的抛物线整个不对
-         (进门时正在下落的话,原版会带着 1.75 倍的动量往下走,我们却从静止开始)。 */
+         (进门时正在下落的话,原版会带着减半后的动量继续往下走,我们却从静止开始)。 */
       const want = b.o.gdir ?? -this.gdir;
       if (want !== this.gdir) {
         this.gdir = want;
-        this.vy *= FLIP_VEL_MUL;
+        this.vy *= this.flipMul;
         this.onGround = false;
       }
     }
@@ -1145,16 +1165,16 @@ export class World {
     if (spec.flip === 'before') {
       this.vy = v * this.gdir;                    // 按【旧】重力方向给速度
       this.gdir = -this.gdir;                     // 然后才翻重力
-      /* ★ 翻重力要乘 1.75 —— 出处 gdp@2.11 flipGravity.cpp:19 `m_yAccel *= 1.75`
-         (只有方向真的变了才进那段,所以这里的 -gdir 一定变了)。
+      /* ★ 翻重力那一下把纵向速度【除以 2】(默认 0.5,理由见文件头 FLIP_VEL_MUL 的三条)。
+         所以蓝板/蓝环是"先按旧重力方向给 12.8,再翻重力并减半" = 6.4。
          顺序也对得上两条路:
            · 蓝板 checkCollisions.cpp:239-240 = propellPlayer(0.8) 之后才 flipFravity → 先赋值再翻;
            · 蓝环 ringJump.cpp:117→132 = 先赋值 yAccel,最后才 kBlueRing 的 flipGravity。
          以前这里【故意不乘】,理由是"用户嫌蓝板力度太大" —— 但那是把 12.8 当成了全部;
-         原版给的就是 12.8×1.75 = 22.4,力度应该用页面上的 [ / ] 往【小】调,而不是改物理。
+         真正缺的是这一步:减半之后是 6.4,而不是 22.4。
          (OpenGD 的 playerobject.cpp:540 写的是 m_dYVel /= 2.f —— 两版源码在这一条上冲突,
-          我们取 gdp@2.11 的反编译口径:球的起跳就是按这条修好的,实测也支持它。) */
-      this.vy *= FLIP_VEL_MUL;
+          我们改取 OpenGD 的减半口径(关卡 A/B 实测:22.4 让 714~727 那段无解)。) */
+      this.vy *= this.flipMul;
     } else if (spec.flip === 'after') {
       this.gdir = -this.gdir;                     // 先翻重力
       this.vy = v * this.gdir;                    // 再按【新】重力方向给速度
