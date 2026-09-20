@@ -620,6 +620,13 @@ export class World {
           continue;
         }
         if (inn.x1 <= b.x0 || inn.x0 >= b.x1 || inn.y1 <= b.y0 || inn.y0 >= b.y1) continue;
+        /* ★ 原版【容错】(OpenGD PlayerObject::collidedWithObject):
+             外框已经越过砖的【中线】 → 不判死,直接把人抬到砖的顶面站住。
+             这就是"明明擦到砖了却上去了"的那种手感(用户点名的"容错机制"),
+             也正是"跳点弹上去刚好差一点"能过去的原因。反重力方向同理(贴到底面)。 */
+        const mid = (b.y0 + b.y1) / 2;
+        if (this.gdir > 0 && boxTop >= mid) { this.y = b.y1; this.vy = 0; this.onGround = true; continue; }
+        if (this.gdir < 0 && this.y <= mid) { this.y = b.y0 - this.box; this.vy = 0; this.onGround = true; continue; }
         if (this.gdir > 0 && prevY >= b.y1 - 0.01 && this.y <= b.y1) continue;
         if (this.gdir < 0 && prevTop <= b.y0 + 0.01 && boxTop >= b.y0) continue;
         this.die(); return;

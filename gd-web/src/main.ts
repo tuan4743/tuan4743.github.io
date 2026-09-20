@@ -552,13 +552,15 @@ class Scene extends Phaser.Scene {
    *    ~525 px,多出来的 38% 就被金属边框挡住(用户截图:HUD 写着"画布被挡 38%",
    *    底下还露出一条黑条,关卡底部的刺全被裁掉)。这一句才是真正的病根。 */
   private applyViewport(cam: Phaser.Cameras.Scene2D.Camera) {
+    /* ★ 先让缓冲跟着盒子的长宽比走,再把画布的 CSS 尺寸按回 100%×100% ——
+       顺序不能反:Phaser 的 ScaleManager 会在 resize 时把 canvas 的行内样式又写成
+       "1280px/xxx px",那正是底部那条黑条(画布固定高、装不下窗口)的来源。 */
+    if (this.scale.height !== this.viewH || this.scale.width !== 1280) this.scale.resize(1280, this.viewH);
     const cv = document.getElementById('gd-canvas') as HTMLCanvasElement | null;
-    if (cv && (cv.style.height !== '100%' || cv.style.width !== '100%')) {
+    if (cv) {
       cv.style.width = '100%';
       cv.style.height = '100%';
     }
-    /* ★ 缓冲也跟着取景高度走:缓冲 = 盒子(不然缓冲多出来的部分就是那条黑边) */
-    if (this.scale.height !== this.viewH || this.scale.width !== 1280) this.scale.resize(1280, this.viewH);
     cam.setViewport(0, 0, 1280, this.viewH);
     cam.setSize(1280, this.viewH);
     cam.setZoom(this.zoomOf());
