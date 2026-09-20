@@ -262,6 +262,21 @@ class Scene extends Phaser.Scene {
   viewTop = 0;
   viewH = 720;
   private fracT = 0;
+  private fitted = false;
+  /** ★ 外框那 38%:直接从 FrameFit 量好的窗口内缩量(--ff-win-*,视口 px)把游戏盒子摆正 ——
+   *  盒子 = 窗口之后,画布就不再被挡,黑条自然没了(viewFrac 回到 1,applyViewport 也就是整块)。 */
+  private fitBox() {
+    const lost = document.querySelector('.lost') as HTMLElement | null;
+    if (!lost) return;
+    const root = document.documentElement;
+    const v = (n: string) => root.style.getPropertyValue(n) || getComputedStyle(root).getPropertyValue(n);
+    const t = parseFloat(v('--ff-win-top')), r = parseFloat(v('--ff-win-right'));
+    const b = parseFloat(v('--ff-win-bottom')), l = parseFloat(v('--ff-win-left'));
+    if (![t, r, b, l].every((x) => isFinite(x) && x >= 0)) return;      // FrameFit 没跑 → 保持原样
+    /* +1px 内缩:免得金属边框的抗锯齿边压在画面上 */
+    lost.style.inset = (t + 1) + 'px ' + (r + 1) + 'px ' + (b + 1) + 'px ' + (l + 1) + 'px';
+  }
+
   private measureFrac() {
     const cv = document.getElementById('gd-canvas') as HTMLCanvasElement | null;
     const r = cv?.getBoundingClientRect();
@@ -557,11 +572,14 @@ class Scene extends Phaser.Scene {
        320×180(恰好四分之一),渲染就被裁在左上角一小块里 —— 只改 setSize 没用,得设 viewport。 */
     if (!this.fixed) {
       this.fixed = true;
+      this.fitBox();                       // 先把游戏盒子摆到外框窗口里(消掉被挡的 38%)
       this.measureFrac();
       this.applyViewport(cam);
+      window.addEventListener('resize', () => { this.fitBox(); this.measureFrac(); this.applyViewport(cam); });
     }
     /* 每 20 帧(或刚开局)重新量一次:露出来的那一条变了就跟着改取景框 */
     if (this.fixed && (this.fracT++ % 20 === 0)) {
+      if (!this.fitted) { this.fitted = true; this.fitBox(); }
       const before = [this.viewTop, this.viewH];
       this.measureFrac();
       if (before[0] !== this.viewTop || before[1] !== this.viewH) this.applyViewport(cam);
