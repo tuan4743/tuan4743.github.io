@@ -1300,6 +1300,13 @@
     display: block;
     width: 100%;
     height: 100%;
+    /* ★ !important 是故意的:Phaser 的 ScaleManager(mode: NONE)会把 canvas 的
+       【行内样式】写成 "1280px / 720px",行内样式优先级高于这里的 100% ——
+       于是画布固定 720 px 高,盒子矮一半时底下就露一条黑边(用户截图里的那条)。
+       JS 里虽然每 20 帧按回一次 100%,但 Phaser 会在 resize 后再写一遍,抢不过它;
+       用 !important 一次性钉死,画布永远等于盒子。 */
+    width: 100% !important;
+    height: 100% !important;
 }
 
 /* 慢动作时压一层冷色(纯渐变,不用滤镜)*/
