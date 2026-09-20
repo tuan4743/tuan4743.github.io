@@ -138,6 +138,10 @@ class Scene extends Phaser.Scene {
   private restartPressed = false;
   private confirmLatch = false;     // 真实的 keydown 事件(比"每帧查 isDown"可靠:极短的一下也收得到)
   private restartLatch = false;
+  private godLatch = false;         // G 键:无敌模式
+  private prevG = false;
+  /** 无敌模式想要的状态 —— startRun() 会 new 一个 World,得把开关带过去 */
+  godWanted = false;
   private modeLatch = 0;            // 数字键 1~7:调试用的现场换形态
   uiTitle!: Phaser.GameObjects.Text;
   uiHint!: Phaser.GameObjects.Text;
@@ -151,6 +155,7 @@ class Scene extends Phaser.Scene {
     this.phase = 'running';
     this.started = true;
     this.world = new World(LEVEL);
+    this.world.god = this.godWanted;      // 无敌开关要跟着新世界走
     this.baseTick = 0;
     this.prevY = 0;
     this.acc = 0;
@@ -213,7 +218,10 @@ class Scene extends Phaser.Scene {
 
   create() {
     this.g = this.add.graphics();
-    this.keys = this.input.keyboard!.addKeys('SPACE,UP,W,R') as Record<string, Phaser.Input.Keyboard.Key>;
+    this.keys = this.input.keyboard!.addKeys('SPACE,UP,W,R,G') as Record<string, Phaser.Input.Keyboard.Key>;
+    /* ★ 无敌模式:页面按 G 切;也可以开局就用 URL 打开(?god=1),验收脚本直接改 __gd.world.god */
+    this.godWanted = /(^|[?&])god=1(&|$)/.test(location.search);
+    this.world.god = this.godWanted;
     this.cameras.main.setBackgroundColor('#05070d');
     this.cameras.main.setZoom(this.zoomOf());
     /* ★ 只在【画布上】点才算确认 —— 以前监听 window,点导航、点 CD 面板都会顺手把游戏开起来 */
@@ -223,6 +231,7 @@ class Scene extends Phaser.Scene {
     window.addEventListener('keydown', (ev: KeyboardEvent) => {
       if (ev.code === 'Space' || ev.code === 'ArrowUp' || ev.code === 'KeyW') this.confirmLatch = true;
       if (ev.code === 'KeyR') this.restartLatch = true;
+      if (ev.code === 'KeyG') this.godLatch = true;
       if (/^Digit[1-7]$/.test(ev.code)) this.modeLatch = Number(ev.code.slice(5));
     });
     const ui = { fontFamily: 'ui-monospace, Consolas, monospace', align: 'center' as const };
@@ -255,6 +264,14 @@ class Scene extends Phaser.Scene {
     this.prevR = !!k.R?.isDown;
     this.restartPressed = rEdge;
     this.restartLatch = false;
+    /* 无敌模式开关:G 键(边沿触发)。切换时给一次提示,好确认到底开没开。 */
+    const gEdge = (!!k.G?.isDown && !this.prevG) || this.godLatch;
+    this.prevG = !!k.G?.isDown;
+    this.godLatch = false;
+    if (gEdge) {
+      this.godWanted = !this.godWanted;
+      this.world.god = this.godWanted;
+    }
     if (this.confirmLatch) { this.confirmLatch = false; this.clicked = false; return true; }
     if (edge) { this.clicked = false; return true; }
     if (this.clicked) { this.clicked = false; return true; }
@@ -331,6 +348,7 @@ class Scene extends Phaser.Scene {
         this.botStarted = true;
         this.started = true;
         this.world = new World(LEVEL);
+        this.world.god = this.godWanted;
         this.botStates = [];
         this.fp = '';
         this.prevY = 0;
@@ -442,6 +460,7 @@ class Scene extends Phaser.Scene {
     if (this.phase === 'idle') parts.push('按空格开始');
     if (this.phase === 'done') parts.push('通关');
     if (w.mode === 'ship') parts.push('按住 = 上升');
+    if (w.god) parts.push('★ 无敌');
     /* ★ 可见格数 + 取景框被外框挡掉的比例:和原版对不上时,一眼看出是缩放还是裁切问题 */
     const cam = this.cameras.main;
     const vhBlocks = (cam.height / cam.zoom) / U;
@@ -591,6 +610,7 @@ class Scene extends Phaser.Scene {
       audio: this.audio ? { t: this.audio.currentTime, paused: this.audio.paused, duration: this.audio.duration || 0, err: this.audioErr, src: this.audio.src } : null,
       started: this.started,
       phase: this.phase,
+      god: this.world.god,
     };
   }
 

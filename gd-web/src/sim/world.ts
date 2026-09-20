@@ -494,6 +494,9 @@ export class World {
     if (hold && !this.prevHold) this.pressFresh = true;
     this.prevHold = hold;
     if (this.dead || this.done) { this.deadT += FRAME; return; }
+    /* ★ 无敌模式下掉进坑里不会死,那就得兜住:掉到地面线以下直接放回地面,
+       不然相机会跟着一路往下、整个关卡都看不见了。 */
+    if (this.god && this.y < -2 * U) { this.y = 0; this.vy = 0; this.onGround = false; }
     if (this.fast) this.rebuildWindow();   // ★ 每帧把窗口滑到玩家身边(搜索式机器人靠它跑得动)
     this.stepAnims();                      // ★ 先让会动的东西动完,再跑物理(判定盒已同步)
     for (let i = 0; i < SUB; i++) this.substep(FRAME / SUB, hold);
@@ -910,7 +913,15 @@ export class World {
     return u.x1 > b.x0 && u.x0 < b.x1 && u.y1 > b.y0 && u.y0 < b.y1;
   }
 
-  private die() { if (!this.dead) { this.dead = true; this.deadT = 0; } }
+  /** ★ 无敌模式(测试用,页面按 G 切):不判死,撞到刺/侧面也照常穿过去。
+   *  die() 直接返回,而调用点后面都是 `return` —— 于是那一帧的后续结算跳过,人继续往前走。
+   *  掉出世界(坑)也死不了,所以下面加了一条兜底:掉到地面线以下就放回地面,免得一直往下掉。 */
+  god = false;
+
+  private die() {
+    if (this.god) return;
+    if (!this.dead) { this.dead = true; this.deadT = 0; }
+  }
 
   /** 同频道里"入口要去的那个出口"(橙门)。没有出口(或只有入口)就返回 null —— 什么也不发生。
    *  ★ 原版是"蓝进橙出"的单向配对;同一频道有多个出口时,取入口【右边最近】的那一个。 */
