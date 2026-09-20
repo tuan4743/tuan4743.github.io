@@ -58,7 +58,10 @@ export const GD_HITBOX: {
   /* 跳环与冲刺箭头:36/84/141/1022/1330 → 36×36;1704/1751 → 36×36 */
   orb: [36, 36],
   arrow: [36, 36],
-  /* 锯片:1705 → h85 w44、1706 → 60×60 */
+  /* 锯片:★ 判定 = 物件自己的包围盒(基础块 × 缩放),不再用固定的 44×85 ——
+     那张表里的数值本来就是"基础块",缩放要乘上去;以前不管缩放一律 44×85,scale=2 的锯片
+     判定比画出来的还小一半。走 default(null)→ 调用方用 bbox。 */
+  /* 锯片(旧口径,留个记录):1705 → 44×85 单位、1706 → 60×60 */
   saw: [44, 85],
   coin: [40, 40],
   /* 形态门 12/13/47/111/660/745/1331 → h86 w34(竖高的门) */
@@ -79,7 +82,7 @@ export function hitboxOf(o: Obj): [number, number] | null {
     case 'pad': return GD_HITBOX.pad[o.pad ?? 'yellow'] ?? null;
     case 'orb': return GD_HITBOX.orb;
     case 'arrow': return GD_HITBOX.arrow;
-    case 'saw': return o.w > 1.5 ? [60, 60] : GD_HITBOX.saw;      // 1706 小锯片 = 60×60
+    case 'saw': return null;                                      // 判定 = 自己的包围盒(见上面注释)
     case 'coin': return GD_HITBOX.coin;
     case 'portal': return GD_HITBOX.portal;
     case 'gravity': return GD_HITBOX.gravity;
@@ -159,9 +162,14 @@ export const GD_SPEC: Record<number, Spec> = {
   103: { kind: 'spike', h: 0.25, note: '小刺(1/4)' },
   392: { kind: 'spike', h: 0.0625, note: '迷你刺(1/16)' },
 
-  /* ---- 锯片 ---- */
-  1705: { kind: 'saw', scaled: true, note: '锯片(大小由 128/129 缩放决定)' },
-  1706: { kind: 'saw', scaled: true, note: '小锯片(同族,靠缩放)' },
+  /* ---- 锯片 ----
+   * ★ 尺寸是【基础块 × 缩放(128/129)】,不是"缩放值本身"。原版 LongData 给 1705 的外框是
+   *   44(宽)×85(高)单位 = 1.47×2.83 格 —— 我们以前把 spec.w/h 留空(默认 1 格)再乘缩放,
+   *   于是 scale=1 的大锯片被画成 1×1 格、判定也只有 1×1:用户实测"锯片小了可能有三倍"。
+   *   (本关 550 个锯片里 1705 有 550-8-2... 总之主力就是 1705。) */
+  1704: { kind: 'saw', w: 36 / 30, h: 36 / 30, scaled: true, note: '小锯片(基础 1.2×1.2 格,再乘缩放)' },
+  1705: { kind: 'saw', w: 44 / 30, h: 85 / 30, scaled: true, note: '大锯片(基础 1.47×2.83 格,再乘缩放;本关 550 个)' },
+  1706: { kind: 'saw', w: 2, h: 2, scaled: true, note: '圆锯(基础 2×2 格,再乘缩放)' },
 
   /* ---- 跳环(空中要按一下)---- */
   36: { kind: 'orb', orb: 'yellow', note: '黄色跳环' },

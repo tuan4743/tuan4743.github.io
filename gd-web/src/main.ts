@@ -10,7 +10,7 @@
  */
 
 import Phaser from 'phaser';
-import { generateLevel, tOfX, type Level, type Mode } from './sim/level.ts';
+import { generateLevel, tOfX, type Level, type Mode, type Obj } from './sim/level.ts';
 import { World, botThink, type RunState } from './sim/world.ts';
 import { frameRects } from './sim/gdids.ts';
 import { fingerprint } from './sim/replay.ts';
@@ -67,6 +67,14 @@ const ORB_COL: Record<string, number> = {
 const PAD_COL: Record<string, number> = {
   yellow: 0xffe17a, pink: 0xff9fd0, red: 0xff8a8a, blue: 0x9fd8ff, purple: 0xc6a0ff,
 };
+/* 形态门的颜色(和原版各形态的口径对齐:方块绿、飞机粉、球橙、UFO 黄、波浪青、机器人紫、蜘蛛灰蓝)
+   —— 用户报"形态门都是一个样式,我怎么知道这个门是什么",所以颜色 + 门上的名字牌子一起上。 */
+const PORTAL_COL: Record<string, number> = {
+  cube: 0x7dffb0, ship: 0xff9fd0, ball: 0xffb066, ufo: 0xffe17a,
+  wave: 0x7ff0ff, robot: 0xc6a0ff, spider: 0xa8c4ff,
+};
+/** 门框尺寸(单位)= 原版判定盒 34×86 —— 画成竖椭圆门,和撞上去的范围一致 */
+const PORTAL_W = 34, PORTAL_H = 86;
 
 /** 终末之诗:通关之后向上滚动的文本。
  *  ★ 内容留白给用户填 —— 一行一个字符串,空字符串 = 空行(段落间隔)。
@@ -146,6 +154,8 @@ class Scene extends Phaser.Scene {
   uiTitle!: Phaser.GameObjects.Text;
   uiHint!: Phaser.GameObjects.Text;
   poemText!: Phaser.GameObjects.Text;
+  /** 形态门头上那块名字牌子(门可能被触发器推动,位置每帧跟着算) */
+  private portalLabels: Array<{ o: Obj; t: Phaser.GameObjects.Text }> = [];
   poemT = 0;                       // 终末之诗滚了多久(秒)
   egg = false;                     // 彩蛋窗口是否已弹出
 
@@ -263,6 +273,22 @@ class Scene extends Phaser.Scene {
       t.setData('isText', true);
       t.setY(LEVEL.rows * U - (o.r + 0.5) * U);          // 功能块自己定在它那一格
       this.labels.push(t);
+    }
+    /* ★ 形态门挂牌子:光看门框分不出切什么形态(用户:"形态门都是一个样式,我怎么知道这个门是什么")——
+       每个门头上挂一块写着形态名的小牌子,底色就是那个形态的颜色。位置每帧跟着门走(见 draw)。 */
+    for (const o of LEVEL.objects) {
+      if (o.kind !== 'portal' || !o.to) continue;
+      const to = o.to as Mode;
+      const col = PORTAL_COL[to] ?? 0xffe17a;
+      const t = this.add.text(0, 0, MODE_NAME[to] ?? to, {
+        fontFamily: 'ui-monospace, Consolas, monospace',
+        fontSize: '16px',
+        color: '#05070d',
+        backgroundColor: '#' + col.toString(16).padStart(6, '0'),
+        padding: { x: 4, y: 1 },
+      });
+      t.setOrigin(0.5, 1).setDepth(18).setAlpha(0.95);
+      this.portalLabels.push({ o, t });
     }
   }
 
@@ -724,6 +750,11 @@ class Scene extends Phaser.Scene {
     for (let k = 1; k <= 4; k++) g.lineBetween(x0, groundY + k * 22, x1, groundY + k * 22);
 
     /* 物件:两遍 —— 先装饰(deco 是背景贴片,不该盖在方块上),再玩法物件 */
+    for (const pl of this.portalLabels) {
+      const off = w.offsetOf(pl.o);
+      pl.t.setX((pl.o.b + pl.o.w / 2 + off.dx) * U);
+      pl.t.setY(Y((pl.o.r + pl.o.h + off.dy) * U) - 8);
+    }
     for (let pass = 0; pass < 2; pass++) {
     for (const o of LEVEL.objects) {
       if ((o.kind === 'deco') !== (pass === 0)) continue;
@@ -796,21 +827,25 @@ class Scene extends Phaser.Scene {
           break;
         }
         case 'saw': {
-          /* 锯片:一个带齿的圆锯,按时间转(纯视觉,判定是整格) */
+          /* 锯片:一个带齿的锯轮,按时间转。
+             ★ 尺寸就画成【物件包围盒】(基础 1.47×2.83 格 × 128/129 缩放)—— 原版 LongData 给
+               1705 的外框就是 44×85 单位;以前我们按"1 格"画,用户实测"小了可能有三倍"。
+             判定也已经是同一个盒(见 sim/gdids.ts 的 hitboxOf → null),所以画的和判的一致。 */
           const scx = obx + obw / 2, scy = oBot - obh / 2;
-          const r = Math.min(obw, obh) * 0.42;
+          const rx = Math.max(6, obw / 2), ry = Math.max(6, obh / 2);
           const spin = tick * 0.12;
-          g.fillStyle(0x2a1408, 0.9).fillCircle(scx, scy, r);
-          g.lineStyle(2, WARN, 0.95).strokeCircle(scx, scy, r);
-          for (let k = 0; k < 8; k++) {
-            const a = spin + k * Math.PI / 4;
+          g.fillStyle(0x2a1408, 0.9).fillEllipse(scx, scy, rx * 1.7, ry * 1.7);
+          g.lineStyle(2, WARN, 0.95).strokeEllipse(scx, scy, rx * 1.7, ry * 1.7);
+          for (let k = 0; k < 10; k++) {
+            const a = spin + k * Math.PI / 5;
+            const ca = Math.cos(a), sa = Math.sin(a);
             g.fillStyle(WARN, 0.9).fillTriangle(
-              scx + Math.cos(a) * r, scy + Math.sin(a) * r,
-              scx + Math.cos(a + 0.28) * r * 1.35, scy + Math.sin(a + 0.28) * r * 1.35,
-              scx + Math.cos(a - 0.28) * r * 1.35, scy + Math.sin(a - 0.28) * r * 1.35,
+              scx + ca * rx * 0.95, scy + sa * ry * 0.95,
+              scx + Math.cos(a + 0.22) * rx * 1.32, scy + Math.sin(a + 0.22) * ry * 1.32,
+              scx + Math.cos(a - 0.22) * rx * 1.32, scy + Math.sin(a - 0.22) * ry * 1.32,
             );
           }
-          g.fillStyle(0x05070d, 1).fillCircle(scx, scy, r * 0.3);
+          g.fillStyle(0x05070d, 1).fillEllipse(scx, scy, rx * 0.5, ry * 0.5);
           break;
         }
         case 'pad': {
@@ -872,16 +907,29 @@ class Scene extends Phaser.Scene {
           break;
         }
         case 'portal': {
-          const ccx = obx + U / 2, ccy = Y(o.r * U + U / 2);
-          g.lineStyle(3, 0xffe17a, 0.95).strokeCircle(ccx, ccy, U * 0.95);
-          g.lineStyle(1, 0xffe17a, 0.45).strokeCircle(ccx, ccy, U * 0.74);
-          g.fillStyle(0xffe17a, 0.12).fillCircle(ccx, ccy, U * 0.74);
-          /* 环里画目标形态:方块 = 小方,飞机 = 小三角(不用猜这个环切什么) */
-          if (o.to === 'ship') {
-            g.fillStyle(0xffe17a, 0.95);
-            g.fillTriangle(ccx + 7, ccy, ccx - 5, ccy - 6, ccx - 5, ccy + 6);
+          /* 形态门:★ 每个形态一套颜色 + 门上一块写着形态名的小牌子 ——
+             以前所有门都画成同一个黄圈(只有飞机画个三角),用户根本看不出切什么形态。
+             门画成原版那种"竖着的椭圆门"(尺寸就取判定盒 34×86 单位),色/牌子都按目标形态分。 */
+          const to = (o.to ?? 'cube') as Mode;
+          const col = PORTAL_COL[to] ?? 0xffe17a;
+          const pw = PORTAL_W, ph = PORTAL_H;
+          const ccx = obx + obw / 2, ccy = oBot - obh / 2;
+          g.fillStyle(col, 0.16).fillEllipse(ccx, ccy, pw, ph);
+          g.lineStyle(3, col, 0.95).strokeEllipse(ccx, ccy, pw, ph);
+          g.lineStyle(1, col, 0.45).strokeEllipse(ccx, ccy, pw * 0.72, ph * 0.8);
+          /* 门里画个目标形态的简笔:方块=方,飞机/波浪=三角,球=圆,UFO=扁圆,机器人=方+腿,蜘蛛=方+须 */
+          g.fillStyle(col, 0.95);
+          const gs = 9;
+          if (to === 'cube' || to === 'robot' || to === 'spider') {
+            g.fillRect(ccx - gs, ccy - gs, gs * 2, gs * 2);
+            if (to === 'robot') { g.fillRect(ccx - gs, ccy + gs, 4, 5); g.fillRect(ccx + gs - 4, ccy + gs, 4, 5); }
+            if (to === 'spider') { g.fillRect(ccx - gs - 5, ccy - gs, 5, 3); g.fillRect(ccx + gs, ccy - gs, 5, 3); }
+          } else if (to === 'ball') {
+            g.fillCircle(ccx, ccy, gs);
+          } else if (to === 'ufo') {
+            g.fillEllipse(ccx, ccy, gs * 2.6, gs * 1.1);
           } else {
-            g.fillStyle(0xffe17a, 0.95).fillRect(ccx - 6, ccy - 6, 12, 12);
+            g.fillTriangle(ccx + gs, ccy, ccx - gs, ccy - gs, ccx - gs, ccy + gs);
           }
           break;
         }

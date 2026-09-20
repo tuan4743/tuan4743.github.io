@@ -28,6 +28,7 @@ export interface WorldSnap {
   dead: boolean; done: boolean; deadT: number; attempts: number;
   checkX: number; checkY: number; checkMode: Mode; checkSize: number;
   pressFresh: boolean; prevHold: boolean; floatT: number; sizeMul: number;
+  boostDir: 1 | -1 | 0;
   tint: number | null; tintGround: boolean; flash: number;
   dash: { ang: number; kind: 'green' | 'pink' | 'purple'; t: number } | null;
   sets: Array<Array<Box>>;
@@ -301,6 +302,7 @@ export class World {
       dead: this.dead, done: this.done, deadT: this.deadT, attempts: this.attempts,
       checkX: this.checkX, checkY: this.checkY, checkMode: this.checkMode, checkSize: this.checkSize,
       pressFresh: this.pressFresh, prevHold: this.prevHold, floatT: this.floatT, sizeMul: this.sizeMul,
+      boostDir: this.boostDir,
       tint: this.tint, tintGround: this.tintGround, flash: this.flash,
       dash: this.dash ? { ...this.dash } : null,
       sets: [
@@ -317,6 +319,7 @@ export class World {
     this.dead = s.dead; this.done = s.done; this.deadT = s.deadT; this.attempts = s.attempts;
     this.checkX = s.checkX; this.checkY = s.checkY; this.checkMode = s.checkMode; this.checkSize = s.checkSize;
     this.pressFresh = s.pressFresh; this.prevHold = s.prevHold; this.floatT = s.floatT; this.sizeMul = s.sizeMul;
+    this.boostDir = s.boostDir;
     this.tint = s.tint; this.tintGround = s.tintGround; this.flash = s.flash;
     this.dash = s.dash ? { ...s.dash } : null;
     const [c, p, sp, sz, gv, ob, pd, aw, tg, br, gc] = s.sets;
@@ -443,6 +446,7 @@ export class World {
     this.sizeMul = this.checkSize;      // 复活要恢复存档点时的体积(迷你/普通)
     this.dead = false; this.done = false; this.deadT = 0;
     this.pressFresh = false; this.prevHold = false;
+    this.boostDir = 0;
     this.armedChecks.clear(); this.armedPortals.clear(); this.armedSpeeds.clear(); this.armedGravs.clear();
     this.armedOrbs.clear(); this.armedPads.clear();
     this.armedTriggers.clear(); this.armedSizes.clear(); this.armedArrows.clear();
@@ -494,14 +498,41 @@ export class World {
     if (hold && !this.prevHold) this.pressFresh = true;
     this.prevHold = hold;
     if (this.dead || this.done) { this.deadT += FRAME; return; }
-    /* ★ 无敌模式下掉进坑里不会死,那就得兜住:掉到地面线以下直接放回地面,
-       不然相机会跟着一路往下、整个关卡都看不见了。 */
-    if (this.god && this.y < -2 * U) { this.y = 0; this.vy = 0; this.onGround = false; }
+    /* ★ 无敌模式:不许跑出关卡边界(用户:"无敌模式会卡出墙,这个是最大的问题,同时也无法避免")。
+       不无敌时飞出关卡顶/掉出底部都是死,所以"出界"这条以前不用管;无敌之后死不了,
+       人就会一路飞出关卡再也回不来 —— 相机跟着走,整关都看不见了。
+       现在贴住边界:把往外的那一维速度清零,人可以沿着边界滑,不会卡在墙上。 */
+    if (this.god) {
+      const maxY = this.rows * U - this.box;
+      if (this.y > maxY) { this.y = maxY; if (this.vy > 0) this.vy = 0; }
+      if (this.y < 0) { this.y = 0; if (this.vy < 0) this.vy = 0; this.onGround = false; }
+      const maxX = this.level.length * U;
+      if (this.x < -2 * U) this.x = -2 * U;
+      else if (this.x > maxX + 2 * U) this.x = maxX + 2 * U;
+    }
     if (this.fast) this.rebuildWindow();   // ★ 每帧把窗口滑到玩家身边(搜索式机器人靠它跑得动)
     this.stepAnims();                      // ★ 先让会动的东西动完,再跑物理(判定盒已同步)
     for (let i = 0; i < SUB; i++) this.substep(FRAME / SUB, hold);
     this.tick++;
   }
+
+  /** 终端速度(只在"下落"时夹)—— ★ 但弹簧/跳环刚推出去的那一段【推力飞行】不夹。
+   *  出处:原版 PlayerObject::updateJump 里 m_maybeIsBoosted(刚起跳/刚吃到弹簧)那一支
+   *  只施加重力,没有 setYVelocity(max(vy,-15)) 那一句 —— 夹终端速度的是 else 那一支。
+   *  为什么必须这样:蓝跳点(重力板)给 12.8 同时翻重力,接下来是【顺重力加速】的,
+   *  一夹就两帧内顶到 15、然后一直 15 —— 轨迹从抛物线变成一条斜直线(用户实测:
+   *  "蓝跳点的力度太大了,成斜线轨道了,原版也是一个抛物线")。
+   *  推力用尽(纵向速度反向)之后,终端速度照常生效(黄弹簧落下来那段还是会被夹)。 */
+  private applyFallClamp() {
+    if (this.boostDir !== 0) {
+      if (Math.sign(this.vy) !== this.boostDir) this.boostDir = 0;   // 推力用尽
+      else return;                                                    // 推力飞行中:不夹
+    }
+    if (this.vy * this.gdir < 0) this.vy = Math.max(-P.vyMax, Math.min(P.vyMax, this.vy));
+  }
+
+  /** 弹簧 / 跳环给的推力方向(0 = 没有推力飞行)。见 applyFallClamp */
+  private boostDir: 1 | -1 | 0 = 0;
 
   private substep(dt: number, hold: boolean) {
     const s = dt * 60;                     // 帧当量:表里的常量按"每帧"给
@@ -566,13 +597,13 @@ export class World {
         this.onGround = false;
       }
       this.vy -= P.gravity * P.ballGravityMul * this.gdir * sY;
-      if (this.vy * this.gdir < 0) this.vy = Math.max(-P.vyMax, Math.min(P.vyMax, this.vy));
+      this.applyFallClamp();
       this.y += this.vy * sY;
     } else if (this.mode === 'spider') {
       /* 蜘蛛:点一下【传送到对面】再翻重力(反编译:搜索带厚度 = 体积 ×8) */
       if (hold && this.pressFresh) { this.spiderJump(); this.pressFresh = false; }
       this.vy -= P.gravity * this.gdir * sY;
-      if (this.vy * this.gdir < 0) this.vy = Math.max(-P.vyMax, Math.min(P.vyMax, this.vy));
+      this.applyFallClamp();
       this.y += this.vy * sY;
     } else {
       /* 方块 / 机器人:按住且在落地状态就起跳 —— 按住不放 = 落地自动连跳(原作手感)。
@@ -593,8 +624,9 @@ export class World {
         this.vy -= P.gravity * this.gdir * sY;
       }
       /* ★ 终端速度只夹【下落】方向(原作在 falling 分支里夹):
-         所以黄弹簧的 16 能原样生效,峰值才有 4.45 块,而不是被夹到 3.9 */
-      if (this.vy * this.gdir < 0) this.vy = Math.max(-P.vyMax, Math.min(P.vyMax, this.vy));
+         所以黄弹簧的 16 能原样生效,峰值才有 4.45 块,而不是被夹到 3.9。
+         ★ 而【弹簧/跳环刚推出去的那一段】连下落方向也不夹 —— 见 applyFallClamp。 */
+      this.applyFallClamp();
       this.y += this.vy * sY;
     }
 
@@ -970,6 +1002,9 @@ export class World {
       this.vy = v * this.gdir;
     }
     if (this.mode === 'ship') this.vy = Math.max(-P.shipVyMax, Math.min(P.shipVyMax, this.vy));
+    /* ★ 记下这一推的方向:接下来这段"推力飞行"不夹终端速度(见 applyFallClamp) ——
+       蓝跳点全靠它才是抛物线而不是斜直线。 */
+    this.boostDir = this.vy > 0 ? 1 : this.vy < 0 ? -1 : 0;
     this.onGround = false;
     if (consumePress) this.pressFresh = false;
   }
