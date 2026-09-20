@@ -102,7 +102,15 @@ export const PAD: Record<PadKind, { v: number; flip: FlipWhen; note: string }> =
   yellow: { v: 16.0, flip: 'none', note: '[OpenGD PlayLayer:1398] propellPlayer(1.0) → 1.0×16(峰值 4.45 块)' },
   pink: { v: 10.4, flip: 'none', note: '[OpenGD PlayLayer:1420] propellPlayer(0.65) → 0.65×16 = 10.4。★物件 140 = 粉色小跳板(GameObject.cpp:199「case 140: // pink pad」,粒子色 255,0,255),峰值约 1.88 块 —— 原版就是拿它过【低走廊】的' },
   red: { v: 20.0, flip: 'none', note: '[OpenGD PlayLayer:1428] propellPlayer(1.25) → 1.25×16 = 20(峰值约 7 块)' },
-  blue: { v: 12.8, flip: 'before', note: '[OpenGD PlayLayer:1410] propellPlayer(0.8)=12.8,然后翻转重力' },
+  blue: {
+    v: 12.8, flip: 'before',
+    /* ★ 力度【待用户标定】:OpenGD 的 propellPlayer(0.8) 给的是 12.8,但用户实测"力度太大"。
+       试过把翻转时机改成 'after'(先翻重力再给速度)想让它变软 —— 不行:那样人是被往【面里】
+       推的,方块踩地面蓝板时会直接穿进脚下方块、超出容差判死(实测第 1 帧就死)。
+       所以时机维持 'before'(先给速度再翻重力,原版口径),力度做成【运行时可调】:
+       页面里按 [ / ] 增减(见 main.ts),HUD 会显示"跳点×N",用户调到手感对了我再定死。 */
+    note: '[待标定] 12.8 + 先给速度再翻重力;力度可在页面里按 [ / ] 调(用户实测偏大)',
+  },
   purple: {
     v: 16.0, flip: 'none',
     /* 3005(2.2 的紫板)在本关里全部带 tp,走的是蜘蛛那套"瞬移到头顶方块",用不到这里的力度。

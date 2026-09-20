@@ -148,8 +148,12 @@ class Scene extends Phaser.Scene {
   private restartLatch = false;
   private godLatch = false;         // G 键:无敌模式
   private prevG = false;
+  private prevBrL = false;          // 弹簧力度微调([ / ])
+  private prevBrR = false;
   /** 无敌模式想要的状态 —— startRun() 会 new 一个 World,得把开关带过去 */
   godWanted = false;
+  /** 弹簧力度微调(和 godWanted 一样:换世界时要带过去) */
+  padMulWanted = 1;
   private modeLatch = 0;            // 数字键 1~7:调试用的现场换形态
   uiTitle!: Phaser.GameObjects.Text;
   uiHint!: Phaser.GameObjects.Text;
@@ -166,6 +170,7 @@ class Scene extends Phaser.Scene {
     this.started = true;
     this.world = new World(LEVEL);
     this.world.god = this.godWanted;      // 无敌开关要跟着新世界走
+    this.world.padMul = this.padMulWanted;
     this.baseTick = 0;
     this.prevY = 0;
     this.acc = 0;
@@ -228,10 +233,13 @@ class Scene extends Phaser.Scene {
 
   create() {
     this.g = this.add.graphics();
-    this.keys = this.input.keyboard!.addKeys('SPACE,UP,W,R,G') as Record<string, Phaser.Input.Keyboard.Key>;
+    this.keys = this.input.keyboard!.addKeys('SPACE,UP,W,R,G,OPEN_BRACKET,CLOSED_BRACKET') as Record<string, Phaser.Input.Keyboard.Key>;
     /* ★ 无敌模式:页面按 G 切;也可以开局就用 URL 打开(?god=1),验收脚本直接改 __gd.world.god */
     this.godWanted = /(^|[?&])god=1(&|$)/.test(location.search);
     this.world.god = this.godWanted;
+    /* ?padmul=0.75 —— 弹簧力度微调(和按 [ / ] 等效),验收脚本也能用 URL 指定 */
+    const pm = /(^|[?&])padmul=([\d.]+)/.exec(location.search);
+    if (pm) { this.padMulWanted = Math.max(0.4, Math.min(1.5, Number(pm[2]) || 1)); this.world.padMul = this.padMulWanted; }
     this.cameras.main.setBackgroundColor('#05070d');
     this.cameras.main.setZoom(this.zoomOf());
     /* ★ 只在【画布上】点才算确认 —— 以前监听 window,点导航、点 CD 面板都会顺手把游戏开起来 */
@@ -309,6 +317,15 @@ class Scene extends Phaser.Scene {
     this.prevG = !!k.G?.isDown;
     this.godLatch = false;
     if (gEdge) this.toggleGod();
+    /* ★ 弹簧力度微调:[ 减 5%、] 加 5%(0.4 ~ 1.5)。蓝跳点到底该多大还没定死,
+       让用户直接把数值调到手感对,比我们反复猜省事 —— HUD 上会显示"跳点×N"。 */
+    const brL = !!k.OPEN_BRACKET?.isDown, brR = !!k.CLOSED_BRACKET?.isDown;
+    const dPad = (brL && !this.prevBrL ? -0.05 : 0) + (brR && !this.prevBrR ? 0.05 : 0);
+    this.prevBrL = brL; this.prevBrR = brR;
+    if (dPad) {
+      this.padMulWanted = Math.round(Math.max(0.4, Math.min(1.5, this.padMulWanted + dPad)) * 100) / 100;
+      this.world.padMul = this.padMulWanted;
+    }
     if (this.confirmLatch) { this.confirmLatch = false; this.clicked = false; return true; }
     if (edge) { this.clicked = false; return true; }
     if (this.clicked) { this.clicked = false; return true; }
@@ -413,6 +430,7 @@ class Scene extends Phaser.Scene {
         this.started = true;
         this.world = new World(LEVEL);
         this.world.god = this.godWanted;
+        this.world.padMul = this.padMulWanted;
         this.botStates = [];
         this.fp = '';
         this.prevY = 0;
@@ -526,6 +544,7 @@ class Scene extends Phaser.Scene {
     if (this.phase === 'done') parts.push('通关');
     if (w.mode === 'ship') parts.push('按住 = 上升');
     if (w.god) parts.push('★ 无敌');
+    if (Math.abs(w.padMul - 1) > 0.001) parts.push('跳点×' + w.padMul.toFixed(2));
     /* ★ 可见格数 + 取景框被外框挡掉的比例:和原版对不上时,一眼看出是缩放还是裁切问题 */
     const cam = this.cameras.main;
     const vhBlocks = (cam.height / cam.zoom) / U;

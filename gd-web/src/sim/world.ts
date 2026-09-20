@@ -528,6 +528,12 @@ export class World {
     this.tick++;
   }
 
+  /** ★ 弹簧/跳环力度的运行时微调(页面上按 [ / ] 改,HUD 会显示)。
+   *  为什么留这个口子:蓝跳点的力度 OpenGD 给的是 0.8×16=12.8,但用户实测"太大了";
+   *  我们手上没有第二个可核的原版来源,与其反复猜,不如让用户直接把数值调到手感对上再定死。
+   *  ?padmul=0.75 也能指定(验收脚本用 __gd.scene.world.padMul 也行)。 */
+  padMul = 1;
+
   /** 终端速度(只在"下落"时夹)—— ★ 但弹簧/跳环刚推出去的那一段【推力飞行】不夹。
    *  出处:原版 PlayerObject::updateJump 里 m_maybeIsBoosted(刚起跳/刚吃到弹簧)那一支
    *  只施加重力,没有 setYVelocity(max(vy,-15)) 那一句 —— 夹终端速度的是 else 那一支。
@@ -994,7 +1000,7 @@ export class World {
    *    玩家被第一根弹簧弹起来之后,会自动落进下一根弹簧 —— 这就是"弹簧连不用出手"的原理。
    *  ★ 重力的翻转时机分两种(反编译口径):蓝的"先给速度再翻",绿的"先翻再给速度"。 */
   private applyTrigger(spec: { v: number; flip: 'none' | 'before' | 'after' | 'dash' }, consumePress = false) {
-    let v = spec.v * this.triggerScale();             // 迷你时力度 ×0.8
+    let v = spec.v * this.triggerScale() * this.padMul;   // 迷你 ×0.8;padMul 是页面上的力度微调
     /* ★ 弹簧的球/蜘蛛折扣(原版 PlayerObject::propellPlayer:m_dYVel *= 0.6)——
        ★★ 但【球】这一档实测是错的,拿本关的几何一算就穿帮:
           球形态段 x=286 天花板下那块黄板,球贴在天花板(r≈13.95)上吃到它之后,
@@ -1013,9 +1019,9 @@ export class World {
     if (this.mode === 'ball' || this.mode === 'spider') v *= 0.6;
     if (spec.flip === 'before') {
       this.vy = v * this.gdir;                          // 按【旧】重力方向给速度
-      if (this.mode === 'cube') this.gdir = -this.gdir; // 然后才翻重力
+      this.gdir = -this.gdir;                           // 然后才翻重力
     } else if (spec.flip === 'after') {
-      if (this.mode === 'cube') this.gdir = -this.gdir; // 先翻重力
+      this.gdir = -this.gdir;                           // 先翻重力
       this.vy = v * this.gdir;                          // 再按【新】重力方向给速度
     } else if (spec.flip === 'dash') {
       this.vy = -v * this.gdir;                         // 冲刺环:朝重力方向砸下去(常重力下 -15)
