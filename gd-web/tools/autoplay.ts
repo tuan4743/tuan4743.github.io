@@ -59,6 +59,8 @@ const BESTTAPE = arg('best', '../../.tmp/gd/water.best.tape.json');
 const WANT = arg('level', 'water');
 const QUIET = arg('quiet', '0') === '1';
 const TRACE = Number(arg('trace', 0));      // --trace=N:打印前 N 次展开的候选情况(调搜索用)
+const DBG = arg('dbg', '0') === '1';        // --dbg=1:每次存盘打印"选中的那条路凭多少分当选"
+let dbgW: World | null = null;              // --dbg 用的替身世界(见 saveBest 里的说明)
 const lv: Level = WANT === 'gen' ? generateLevel({ seed: 20260913 }) : WATER_CHART;
 
 const w = new World(lv);
@@ -191,7 +193,19 @@ function portalPull(): number {
   if (!NOSKIP) return 0;
   const armed = armedOf(w);
   let next: (typeof mustPass)[number] | null = null;
-  for (const b of mustPass) if (!armed.has(b)) { next = b; break; }
+  for (const b of mustPass) {
+    if (armed.has(b) || w.handledPortals.has(b)) continue;
+    /* ★ 还要跳过【越过了、而且"碰不碰都一样"】的门 —— 和 gateOk 同一条判据。
+       踩过的坑:只看 armed 的话,一个【冗余门】会把指针永远钉在它身上:
+       本关 x≈492 有个球门,玩家进 489 那个门之后本来就是球了,492 那个"碰不碰都一样",
+       于是它【永远不会 armed】—— 于是 portalPull 认的"下一门"永远是 492,
+       而 w.x > 492.x1 + 2 块之后函数直接 return 0:整条关卡【再也没有朝门口的引力】。
+       后果很实在:塔段那卷走在地面 y=0 的 584 分=586,把真正上了塔的 567.9 分=563 顶掉,
+       存进种子的永远是地面路线,分站推进在原地打转(实测站 22 卡了一整轮)。
+       判据里的状态检查只对【已经越过的门】做 —— 前面的门不能拿"当前形态"去蒙。 */
+    if (b.x1 <= w.x && portalSatisfied(b, w)) continue;
+    next = b; break;
+  }
   if (!next) return 0;
   if (w.x < next.x0 - APPROACH || w.x > next.x1 + 2 * U) return 0;   // 还没进入"最后这一段"就不管
   /* ★ 权重必须压过"横向领先":贴天花板那条路比贴地路多走了 30 块,可它纵向差着 117 块 ——
@@ -394,6 +408,15 @@ function tapeOf(n: Node): boolean[] {
 /* ---------------- 热启动:把一条已知可行的输入卷铺成一条链,推进堆 ---------------- */
 let nodes = 0, deadEnds = 0, dups = 0, bestAlive = 0, macros = 0, bestNode: Node | null = null;
 let bestScore = -Infinity, maxAliveX = 0, maxNode: Node | null = null;
+/** 种子链上【还没推进堆】的老节点(从前到后)。前沿空了才逐个补进去当"退回岔路口"。 */
+const seedBack: Node[] = [];
+/* ★ 只把【链尾】推进前沿(踩过的坑):
+   以前把沿途每一段(每 HORIZON 帧一个节点)都推进堆,想的是"搜索也能退回岔路口重新规划"。
+   但前沿里一旦混进几十块之前的老节点,最优优先就会去展开它们 ——
+   尤其"离门口还有多远"这条引力分对老节点【有利】(老节点往往正贴着它那一段的门),
+   于是 45 秒里 438 个死胡同全挤在 x=430~510,而塔上新铺的 567.9 那几个节点一个都没展开。
+   现在:老节点先扣在 seedBack 里,【前沿真的枯了】才放一个进去(见主循环),
+   既不被老岔路稀释,又保留了"实在搜不动就退回去"的能力。 */
 if (SEED && fs.existsSync(SEED)) {
   let t: boolean[] = JSON.parse(fs.readFileSync(SEED, 'utf8')).tape;
   /* --seedtrim=块 —— 把种子的尾巴剪掉这么多块再接着搜。
@@ -410,11 +433,17 @@ if (SEED && fs.existsSync(SEED)) {
   }
   w.resetToStart();
   let seg: boolean[] = [], parent: Node | null = null, made = 0;
+  const chain: Node[] = [];
   const flush = () => {
     if (!seg.length) return;
-    const n: Node = { snap: w.snapshot(), parent, inputs: seg, score: w.x, gen: -1 };
+    /* ★ 种子节点的分必须和 walkEdge 算出来的分【同口径】:以前这里写的是 `score: w.x`,
+       于是种子链上的老节点(塔段那卷里 x=430~510 有几十个)分数虚高,
+       而塔上那个 567.9 的子节点因为要扣"离 UFO 门还差 11 块"的引力分,只拿 384 ——
+       堆按分排序,搜索就一路跑回几十块之前的老岔路去展开了(实测:45 秒里 438 个死胡同
+       全挤在 430~510,塔上新铺的节点一个都没展开)。这里补上同一项扣分即可。 */
+    const n: Node = { snap: w.snapshot(), parent, inputs: seg, score: w.x - portalPull(), gen: -1 };
     seen.add(stateKey(n.snap));
-    pushHeap(n); parent = n; made++; seg = [];
+    chain.push(n); parent = n; made++; seg = [];
   };
   for (let i = 0; i < t.length; i++) {
     if (w.dead || w.done) break;
@@ -424,7 +453,13 @@ if (SEED && fs.existsSync(SEED)) {
     if (seg.length >= HORIZON) flush();
   }
   flush();
-  console.log('热启动 ' + SEED + ':铺了 ' + made + ' 个节点,最远 ' + (w.x / U).toFixed(1) + ' 块');
+  /* ★ 只把【链尾】推进堆;老节点扣在 seedBack 里,前沿枯了再补(见上面的说明) */
+  if (chain.length) {
+    for (let i = 0; i < chain.length - 1; i++) seedBack.push(chain[i]);
+    pushHeap(chain[chain.length - 1]);
+  }
+  console.log('热启动 ' + SEED + ':铺了 ' + made + ' 个节点,最远 ' + (w.x / U).toFixed(1)
+    + ' 块(前沿只放链尾,另 ' + seedBack.length + ' 个老节点扣着等前沿枯)');
   if (parent) { bestAlive = w.x; bestNode = parent; bestScore = parent.score; }
 }
 
@@ -478,6 +513,31 @@ const LOGSTEP = Number(arg('log', 15));
 
 function saveBest() {
   if (!bestNode) return;
+  /* --dbg=1 —— 调搜索用:把"选中的那条路到底凭多少分当选"打出来。
+     踩过的坑:塔段的搜索明明有个"上了塔"的高分状态,存下来的却是地面路线 ——
+     分数是怎么算出来的、下一次必过门是哪一个,不打印就只能猜。 */
+  if (DBG && !dbgW) dbgW = new World(lv);
+  if (DBG && dbgW) {
+    /* ★ 必须拿 bestNode 的状态去算 —— 直接用 w 是错的:w 停在上一次试算的末端,
+       它的 handledPortals 未必是 bestNode 那一条路的(踩过:打印出来的"下一门"
+       永远是几十块之前的冗余门,而真正的原因只是 w 的状态不对)。 */
+    dbgW.restore(bestNode.snap);
+    const armed = dbgW.armedPortals;
+    const undone: string[] = [];
+    for (const b of mustPass) {
+      if (armed.has(b) || dbgW.handledPortals.has(b)) continue;
+      if (b.x1 <= dbgW.x && portalSatisfied(b, dbgW)) continue;
+      undone.push('x' + (b.x0 / U).toFixed(1) + ' y' + (b.y0 / U).toFixed(1) + '~' + (b.y1 / U).toFixed(1)
+        + '/' + b.o.kind + (b.o.to ? '→' + b.o.to : '') + ' [前=' + (b.x1 <= dbgW.x ? 1 : 0)
+        + ' armed=' + (armed.has(b) ? 1 : 0) + ' 记=' + (dbgW.handledPortals.has(b) ? 1 : 0) + ']');
+      if (undone.length >= 3) break;
+    }
+    const s = bestNode.snap;
+    console.log('  [选] x=' + (s.x / U).toFixed(2) + ' y=' + (s.y / U).toFixed(2) + ' ' + s.mode
+      + (s.gdir < 0 ? '↑' : '↓') + ' 分=' + (bestScore / U).toFixed(1)
+      + ' · 未办的门:' + (undone.length ? undone.join(' | ') : '无')
+      + ' · 最远活=' + (maxAliveX / U).toFixed(1));
+  }
   fs.mkdirSync(path.dirname(BESTTAPE), { recursive: true });
   const tape = tapeOf(bestNode);
   /* ★ 存之前先自检:这一卷输入从出生点原样回放,必须走到 bestNode 那个 x。
@@ -545,7 +605,12 @@ while (nodes < MAXNODES) {
      而把根挪到卡口前面单独搜,几十秒就过去了 —— 分站等于自动做这件事。 */
   if (maxAliveX >= GOAL) { goalHit = true; break; }
   const node = popHeap();
-  if (!node) break;
+  if (!node) {
+    /* ★ 前沿枯了:把种子链上扣着的老节点放一个进去当"退回岔路口"继续搜 ——
+       没有这一步的话,链尾一死搜索就提前收工(实测 50 秒的预算 2 秒就空了)。 */
+    if (seedBack.length) { pushHeap(seedBack.pop()!); continue; }
+    break;
+  }
   node.gen = nodes++;
 
   /* 展开:每个候选先自己走 STEP 帧(便宜),活下来的才花算力试算 */
