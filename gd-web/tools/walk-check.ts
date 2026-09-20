@@ -3,7 +3,7 @@ import { World } from "../src/sim/world.ts";
 import { U } from "../src/sim/constants.ts";
 const SX = Number(process.argv[2] ?? 481), SY = Number(process.argv[3] ?? 6);
 const w = new World(WATER_CHART); w.windowed = true;
-w.x = SX * U; w.y = SY * U; w.vy = 0; w.onGround = true; w.mode = "spider"; w.speedIdx = 0;
+const MODE = process.argv[4] ?? "spider"; w.x = SX * U; w.y = SY * U; w.vy = 0; w.onGround = true; w.mode = MODE as never; w.speedIdx = Number(process.argv[5] ?? 0);
 w.checkX = w.x; w.checkY = w.y;
 const tr = [];
 for (let i = 0; i < 120; i++) { if (w.dead) break; w.frame(false); if (i % 4 === 0) tr.push((w.x/U).toFixed(2)+"/"+(w.y/U).toFixed(2)); }

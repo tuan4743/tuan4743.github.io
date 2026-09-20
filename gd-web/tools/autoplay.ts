@@ -84,7 +84,35 @@ const armedOf = (world: World) => (world as unknown as { armedPortals: Set<unkno
 const NOSKIP = mustPass.length > 0;
 console.log('必过门 ' + mustPass.length + ' 个(' + MUSTPASS.join('/') + ')· 跳过即判死');
 
-/** 推进一帧(种子回放用:带约束,能在种子坏掉时第一时间发现) */
+/** ★ 局部天花板(--roof=auto,默认开):
+ *  这张图里到处是"开口的竖井" —— 球/蜘蛛/飞机翻个重力就能一路飞到 y=75、120 去,
+ *  而原版是让你在走廊里弹来弹去的。于是搜索的"最远活着"永远是那条飞天路:
+ *     实测 max 种子在 x=495/505/515 的状态分别是 ball y=17.96 / 50.36 / 75.56,
+ *     到 x=526 就被"没碰到 cube 门"判死 —— 搜了几万节点全是在给这条死路做无用功。
+ *  对策:算一条【局部天花板】—— 右边 25 块、左边 10 块内的最高物件 +4 块;
+ *  超过它的状态一律不留。它不是物理(不改 World),只是搜索的"别飞出去"约束;
+ *  输入卷在不带它的物理上照样成立。--roof=off 关掉,或给具体块数。 */
+/* 默认:只有"必须按铺面路线走"(--noskip)时才开天花板 —— 自由路线本来就是允许飞过去的,
+   给它加天花板等于把它唯一的走法堵死。要单独控制就 --roof=off / --roof=<块数>。 */
+const ROOFARG = arg('roof', NOSKIP ? 'auto' : 'off');
+let roofAt: ((x: number) => number) | null = null;
+if (ROOFARG === 'auto') {
+  const N = Math.ceil(lv.length) + 4;
+  const arr = new Float64Array(N);
+  for (const o of lv.objects) {
+    if (o.kind === 'deco' || o.kind === 'text') continue;
+    const top = (o.r ?? 0) + (o.h ?? 0);
+    const x0 = Math.max(0, Math.floor(o.b - 10)), x1 = Math.min(N - 1, Math.ceil(o.b + o.w + 25));
+    for (let i = x0; i <= x1; i++) if (top > arr[i]) arr[i] = top;
+  }
+  for (let i = 0; i < N; i++) arr[i] += 4;
+  roofAt = (x: number) => arr[Math.max(0, Math.min(N - 1, Math.floor(x / U)))];
+  console.log('局部天花板:开(物件最高点 +4 块,超出即判死)');
+} else if (ROOFARG !== 'off') {
+  const lvl = Number(ROOFARG) * U;
+  roofAt = () => lvl;
+  console.log('天花板:y = ' + ROOFARG + ' 块');
+}
 function step(hold: boolean) {
   w.frame(hold);
   if (!NOSKIP || w.dead || w.done) return;
@@ -103,12 +131,28 @@ function step(hold: boolean) {
  *  宏动作和长视界一起掐掉:实测从 x=481 起搜,关掉约束能走到 497.7,开着只剩 481.4
  *  (50 个节点就把前沿耗干了)。现在试算一律用 w.frame 自由跑,
  *  只在"这个状态要不要留下"时用本函数判一次 —— 留下了却跳过门的,下一帧照样被 step 判死。 */
+/** 这个门"碰不碰都一样"吗 —— 是的话不算跳过。
+ *  ★ 原版的门只在【会改变状态】时才起作用:你已经是球了,再从球门里滚过去什么都不会发生。
+ *    这条不是放水,是改正我自己写严了的约束:实测球态走廊那截,489 那个球门把人变成球之后,
+ *    492 那个【高高挂在 y=10 的】冗余球门根本碰不到(球贴着地面 y=6 滚过去),
+ *    于是整条路被判"跳过门" —— 前沿在 x=492.77 就全灭了,而实际上这一段无输入都能滚过去。 */
+function portalSatisfied(b: Box, world: World): boolean {
+  const o = b.o;
+  if (o.kind === 'portal') return world.mode === o.to;
+  if (o.kind === 'gravity') return world.gdir === (o.gdir ?? 1);
+  if (o.kind === 'speed') return world.speedIdx === (o.speed ?? 1);
+  if (o.kind === 'size') return world.sizeMul !== 1;      // 尺寸门:已经是迷你就够了
+  return false;
+}
+
 function constraintOk(): boolean {
+  if (roofAt && w.y + w.box > roofAt(w.x) * U) return false;    // 飞出了局部天花板
   if (!NOSKIP) return true;
   const armed = armedOf(w);
   for (const b of mustPass) {
     if (w.x < b.x1) break;
-    if (!armed.has(b)) return false;
+    if (armed.has(b) || portalSatisfied(b, w)) continue;
+    return false;
   }
   return true;
 }
@@ -243,8 +287,8 @@ function walkEdge(c: Cand): EdgeOut {
     w.frame(bit(c.pat, i));
   }
   if (w.done) return { snap: w.snapshot(), endSnap: null, tap: [], score: w.x, done: true };
-  if (w.dead) return { snap: null, endSnap: null, tap: [], score: w.x, done: false };
-  if (!constraintOk()) return { snap: null, endSnap: null, tap: [], score: w.x, done: false };   // 这 3 帧里跳过了必过门
+  if (w.dead) return { snap: null, endSnap: null, tap: [], score: w.x, done: false, why: 'edge' };
+  if (!constraintOk()) return { snap: null, endSnap: null, tap: [], score: w.x, done: false, why: (roofAt && w.y + w.box > roofAt(w.x) * U) ? 'roof' : 'skip' };   // 过顶 / 跳过了必过门
   const snap = w.snapshot();
 
   let r = rollout(c.mode, HORIZON, true);
@@ -480,6 +524,18 @@ while (nodes < MAXNODES) {
   }
   if (solved) break;
   if (!kids.length) {                              // 死胡同 → 回溯到堆里下一个分支
+    if (TRACE && nodes <= TRACE) {                 // 调搜索用:把每个候选为什么没留下打出来
+      const why: string[] = [];
+      for (const c of CANDS) {
+        w.restore(node.snap);
+        const o = walkEdge(c);
+        why.push('pat' + c.pat + '/' + c.mode + '→'
+          + (o.done ? '通关' : o.snap ? (o.endSnap ? '宏' : '细')
+            : (o.why === 'edge' ? 'X边内' : o.why === 'roof' ? 'B过顶' : 'K跳门')));
+      }
+      console.log('  #' + nodes + ' 无子节点 x=' + (node.snap.x / U).toFixed(2) + ' y=' + (node.snap.y / U).toFixed(2) + ' g=' + node.snap.gdir + (node.snap.onGround ? '地' : '空')
+        + ' 天花板=' + (roofAt ? roofAt(node.snap.x).toFixed(1) : '-') + ' · ' + why.join(' '));
+    }
     deadEnds++;
     const bx = Math.floor(node.snap.x / U / 10) * 10;
     stuckAt.set(bx, (stuckAt.get(bx) ?? 0) + 1);
