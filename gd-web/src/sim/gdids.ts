@@ -90,7 +90,19 @@ export function hitboxOf(o: Obj): [number, number] | null {
     case 'speed': return GD_HITBOX.speed[o.speed ?? 1] ?? null;
     case 'teleport': return GD_HITBOX.teleport;
     case 'check': return GD_HITBOX.check;
-    case 'block': case 'breakable': case 'frame': return GD_HITBOX.block;
+    /* ★ 线框族:判定盒 = 【物件自己的包围盒】,不要套 block 那张 30×30。
+       原版 LongData 表给的值,正好就是每个成员的包围盒:
+         468 / 475(edge,1×0.05)  → 30×1.5   ← 细杆
+         469 / 470(corner/u,1×1)  → 30×30    ← 整格
+         661(corner,0.5×0.5)      → 15×15
+         662(box,1×0.5)           → 30×15
+       以前这里返回 GD_HITBOX.block(=30×30),于是【细杆全变成了整格实心的隐形墙】:
+       x=517 那一段"地面细杆 + 倒挂细杆"之间明明有一格的空当,却被判成只剩 1.5 单位,
+       怎么都过不去(分站搜到 x=512.9 就再也推不动,死胡同 99 次都堆在那儿)。
+       用户当初说的"原版一格宽的线框变成小于一格"针对的是【1×1 的 L/U 形】——
+       那条按包围盒判也是整格 ✓ 两边都对。 */
+    case 'frame': return null;
+    case 'block': case 'breakable': return GD_HITBOX.block;
     default: return null;
   }
 }

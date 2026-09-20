@@ -665,7 +665,10 @@ export class World {
       if (this.mode === 'robot') {
         this.floatT += FRAME / 4;                       // 每次子步推进(4 步 = 一帧)
         const floating = hold && !this.onGround && this.floatT < P.robotFloat;
-        if (!floating) this.vy -= P.gravity * this.gdir * sY;   // 浮着的时候重力被抵消
+        /* ★ 机器人的重力是 0.9 档 —— 出处 gdp master PlayerObject_updateJump.cpp:309-315:
+             float_b = (isBall||isSpider||isSwing) ? 0.6 : (isRobot ? 0.9 : 1.0)
+           以前这里漏了:机器人掉得和方块一样快(用户:"各形态的性能也必须还原")。 */
+        if (!floating) this.vy -= P.gravity * P.robotGravityMul * this.gdir * sY;   // 浮着的时候重力被抵消
       } else {
         this.vy -= P.gravity * this.gdir * sY;
       }

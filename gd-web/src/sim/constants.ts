@@ -43,6 +43,8 @@ export const P = {
 
   /* ---- 数值:其它形态(口径同 §docs/gd-physics-triggers.md)---- */
   ballGravityMul: 0.6,        // [GDOpenGD] 球(以及蜘蛛/摇摆)的重力倍率
+  robotGravityMul: 0.9,       // [gdp master updateJump.cpp:309-315] 机器人的重力倍率
+                              //   float_b = (isBall||isSpider||isSwing) ? 0.6 : (isRobot ? 0.9 : 1.0)
   ballFlipVelMul: 0.6,        // [GDOpenGD] 球点一下:翻重力 + 垂直速度 ×0.6
   ufoImpulse: 7.0,            // [待核] UFO 点一下的上冲。反编译里没找到"离散冲量"那条路径
                               //   (只有 UFO 环的 ±7.0),这里按社区口径取 7.0
