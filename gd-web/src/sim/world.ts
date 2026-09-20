@@ -931,10 +931,13 @@ export class World {
   private spiderJump() {
     const reach = this.spiderReach();
     const top = () => this.y + this.box;
-    /* ★ 横向用【窄框】判(内框 7.5 单位宽),不用整个 30 单位的外框:
-       外框会让人"和旁边一格的方块也算重叠",于是蜘蛛能横着一格跳到本来够不着的面上
-       —— 用户:"蜘蛛的碰撞箱太大了,导致直接跨过了一格的宽度"。 */
-    const hx0 = this.x + this.innerOff, hx1 = hx0 + this.innerSize;
+    /* ★ 横向用【整 1 格的外框】判 —— 上上版我按"碰撞箱太大、跨过一格"那句收窄成内框(7.5 单位),
+       结果蜘蛛在蜘蛛段根本抓不住那些【一格宽】的线框平台了
+       (用户:"原版一格宽的线框变成小于一格了" —— 说的就是这个)。
+       原版口径:物体碰撞用的是 getObjectRect()(gdp@2.11 PlayLayer/checkCollisions.cpp:
+       `playerTouchesObject(playerRect, loopObject->getObjectRect())`),线框物件的 sprite 是整格大小,
+       所以它一格宽的顶面本来就该按一格算。改回外框。 */
+    const hx0 = this.x, hx1 = this.x + this.box;
     let best: number | null = null;
     if (this.gdir > 0) {
       /* 正重力:往【上】找最近的底面(方块底 / 平台底),必须在可达距离内 */
