@@ -1703,6 +1703,48 @@ body.scene-open .intro-panel.is-page {
     pointer-events: none;
 }
 
+.gd-tools { display: none; }
+
+/* 测试用的小按钮(无敌开关 / 重来):放在画面【右下角】、盖在画布上,
+   但只有按钮自己收点击(外层 pointer-events: none)。
+   ★ 不能放右上角:站点的 header(连搜索框)盖在画面顶部,按钮会被它挡住 ——
+     实测 elementFromPoint 在那个位置拿到的是 header-search-input,鼠标根本点不到。 */
+.lost.is-game .gd-tools {
+    display: flex;
+    position: absolute;
+    right: 10px;
+    bottom: 34px;
+    z-index: 5;
+    gap: 6px;
+    pointer-events: none;
+}
+
+.gd-tool {
+    pointer-events: auto;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.64rem;
+    letter-spacing: 0.1em;
+    padding: 3px 8px;
+    color: color-mix(in srgb, var(--intro-accent) 82%, transparent);
+    background: rgba(6, 12, 20, 0.55);
+    border: 1px solid color-mix(in srgb, var(--intro-accent) 30%, transparent);
+    border-radius: 4px;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.gd-tool:hover {
+    color: #ffffff;
+    border-color: color-mix(in srgb, var(--intro-accent) 70%, transparent);
+}
+
+/* 无敌开着:按钮变亮绿,一眼看出状态 */
+.gd-tool.is-on {
+    color: #0a1a10;
+    background: #7dffb0;
+    border-color: #7dffb0;
+}
+
 .gd-mobile-note { display: none; }
 
 /* 手机端:不启动引擎,改显示这段说明(embed.ts 会给 <html> 打 data-gd="mobile") */

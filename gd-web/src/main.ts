@@ -225,15 +225,29 @@ class Scene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor('#05070d');
     this.cameras.main.setZoom(this.zoomOf());
     /* ★ 只在【画布上】点才算确认 —— 以前监听 window,点导航、点 CD 面板都会顺手把游戏开起来 */
-    this.input.on('pointerdown', () => { this.clicked = true; });
+    this.input.on('pointerdown', () => {
+      this.clicked = true;
+      /* ★ 把焦点从站内搜索框上拿走:搜索框还留着焦点时,键盘事件都指向它,
+         实测就是它让 R / G 按了没反应(点一下画面就恢复正常)。 */
+      const ae = document.activeElement as HTMLElement | null;
+      if (ae && ae !== document.body) ae.blur();
+    });
     /* 空格 / 上 / W 才算"确认",其它按键一概不理(以前任何按键都会开跑);
-       数字键 1~7 是调试用的"现场换形态" */
+       数字键 1~7 是调试用的"现场换形态";R 重来、G 无敌。
+       ★ 用【捕获阶段】(第三个参数 true)挂:页面里别的 keydown 处理器(搜索框、站内快捷键等)
+         一旦 stopPropagation,冒泡阶段我们就收不到了 —— 捕获阶段先于它们运行。
+       ★ 不再"焦点在输入框里就不理":用户实测 R/G 没反应,查出来是站内搜索框还留着焦点 ——
+         指向输入框的 keydown 我们一样要接。玩之前点一下画面就会把焦点从搜索框上拿走(见下面 pointerdown)。 */
     window.addEventListener('keydown', (ev: KeyboardEvent) => {
       if (ev.code === 'Space' || ev.code === 'ArrowUp' || ev.code === 'KeyW') this.confirmLatch = true;
       if (ev.code === 'KeyR') this.restartLatch = true;
       if (ev.code === 'KeyG') this.godLatch = true;
       if (/^Digit[1-7]$/.test(ev.code)) this.modeLatch = Number(ev.code.slice(5));
-    });
+    }, true);
+    /* ★ 再给两个【能点的】按钮:键盘在某些环境里会被别的东西吃掉(用户实测 R/G 没反应),
+       按钮用鼠标/触屏都能按,而且状态直接写在按钮上 —— 不用猜到底开没开。 */
+    document.getElementById('gd-god')?.addEventListener('click', () => { this.toggleGod(); this.blurSelf(); });
+    document.getElementById('gd-restart')?.addEventListener('click', () => { this.restartLatch = true; this.blurSelf(); });
     const ui = { fontFamily: 'ui-monospace, Consolas, monospace', align: 'center' as const };
     this.uiTitle = this.add.text(0, 0, '', { ...ui, fontSize: '44px', color: '#e2f6ff' }).setOrigin(0.5).setDepth(20).setVisible(false);
     this.uiHint = this.add.text(0, 0, '', { ...ui, fontSize: '24px', color: HL }).setOrigin(0.5).setDepth(20).setVisible(false);
@@ -268,14 +282,38 @@ class Scene extends Phaser.Scene {
     const gEdge = (!!k.G?.isDown && !this.prevG) || this.godLatch;
     this.prevG = !!k.G?.isDown;
     this.godLatch = false;
-    if (gEdge) {
-      this.godWanted = !this.godWanted;
-      this.world.god = this.godWanted;
-    }
+    if (gEdge) this.toggleGod();
     if (this.confirmLatch) { this.confirmLatch = false; this.clicked = false; return true; }
     if (edge) { this.clicked = false; return true; }
     if (this.clicked) { this.clicked = false; return true; }
     return false;
+  }
+
+  /** 无敌开关:键盘 G 和屏幕右下角那个按钮都走这里(状态写在按钮上,不用猜开没开) */
+  toggleGod() {
+    this.godWanted = !this.godWanted;
+    this.world.god = this.godWanted;
+    this.syncGodButton();
+  }
+
+  /** 按钮点完把焦点还回去 —— 不然按钮留着焦点,按空格会当成"再点一次这个按钮"(HTML 默认行为) */
+  private blurSelf() {
+    const ae = document.activeElement as HTMLElement | null;
+    if (ae && ae !== document.body) ae.blur();
+  }
+
+  private godBtnEl: HTMLElement | null = null;
+  private godBtnTxt = '';
+
+  private syncGodButton() {
+    if (!this.godBtnEl) this.godBtnEl = document.getElementById('gd-god');
+    const el = this.godBtnEl;
+    if (!el) return;
+    const txt = this.world.god ? '无敌:开' : '无敌:关';
+    if (txt === this.godBtnTxt) return;              // 只在变了的时候写 DOM
+    this.godBtnTxt = txt;
+    el.textContent = txt;
+    el.classList.toggle('is-on', this.world.god);
   }
 
   /** 可见高度 = VIEW_H_BLOCKS 块 **在真正的窗口里**(不是整块画布)。
@@ -447,6 +485,7 @@ class Scene extends Phaser.Scene {
 
   /** HUD(DOM 里那条):每帧都刷 —— 以前只在"跑着"的分支里刷,死亡界面上的 HUD 是残留的旧值 */
   private paintHud() {
+    this.syncGodButton();
     const hud = document.getElementById('gd-hud');
     if (!hud) return;
     const w = this.world;
