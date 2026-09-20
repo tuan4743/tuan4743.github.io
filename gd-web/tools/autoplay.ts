@@ -51,6 +51,7 @@ const TAPE = arg('tape', '../../.tmp/gd/water.solution.json');
 const BESTTAPE = arg('best', '../../.tmp/gd/water.best.tape.json');
 const WANT = arg('level', 'water');
 const QUIET = arg('quiet', '0') === '1';
+const TRACE = Number(arg('trace', 0));      // --trace=N:打印前 N 次展开的候选情况(调搜索用)
 const lv: Level = WANT === 'gen' ? generateLevel({ seed: 20260913 }) : WATER_CHART;
 
 const w = new World(lv);
@@ -83,7 +84,7 @@ const armedOf = (world: World) => (world as unknown as { armedPortals: Set<unkno
 const NOSKIP = mustPass.length > 0;
 console.log('必过门 ' + mustPass.length + ' 个(' + MUSTPASS.join('/') + ')· 跳过即判死');
 
-/** 推进一帧(搜索里所有推进都要走这里,约束才生效) */
+/** 推进一帧(种子回放用:带约束,能在种子坏掉时第一时间发现) */
 function step(hold: boolean) {
   w.frame(hold);
   if (!NOSKIP || w.dead || w.done) return;
@@ -94,6 +95,22 @@ function step(hold: boolean) {
     w.dead = true;                               // 完全越过了却没碰到 → 这条路作废
     return;
   }
+}
+
+/** ★ 约束只在【要留下的状态】上判,不在试算途中判。
+ *  踩过的坑:约束写在 per-frame 的推进里,于是"跳过了门"的【试算】会被当场判死 ——
+ *  可试算本来就是在探路(它跳过去、发现不行、于是不再往那边走),判死它等于把
+ *  宏动作和长视界一起掐掉:实测从 x=481 起搜,关掉约束能走到 497.7,开着只剩 481.4
+ *  (50 个节点就把前沿耗干了)。现在试算一律用 w.frame 自由跑,
+ *  只在"这个状态要不要留下"时用本函数判一次 —— 留下了却跳过门的,下一帧照样被 step 判死。 */
+function constraintOk(): boolean {
+  if (!NOSKIP) return true;
+  const armed = armedOf(w);
+  for (const b of mustPass) {
+    if (w.x < b.x1) break;
+    if (!armed.has(b)) return false;
+  }
+  return true;
 }
 
 /* ---------------- ★ 朝门口的梯度(只有"跳过就判死"是不够的) ----------------
@@ -201,7 +218,7 @@ function rollout(mode: 'idle' | 'bot', frames: number, collect: boolean): Roll {
     if (w.dead || w.done) break;
     const h = mode === 'bot' ? botThink(w) : false;
     if (collect) rollTape.push(h);
-    step(h);
+    w.frame(h);                          // ★ 试算自由跑:约束只在"留下状态"时判(constraintOk)
     if (w.x > maxX + 1e-9) { maxX = w.x; still = 0; } else still++;
     /* 卡住不动(既没前进也没死)= 这条兜底没意义,提前收工省算力 */
     if (still > 40) return { maxX, alive: !w.dead, done: w.done, stalled: !w.dead, frames: i + 1 };
@@ -223,10 +240,11 @@ function walkEdge(c: Cand): EdgeOut {
   rollTape.length = 0;
   for (let i = 0; i < STEP; i++) {
     if (w.dead || w.done) return { snap: null, endSnap: null, tap: [], score: w.x, done: w.done };
-    step(bit(c.pat, i));
+    w.frame(bit(c.pat, i));
   }
   if (w.done) return { snap: w.snapshot(), endSnap: null, tap: [], score: w.x, done: true };
   if (w.dead) return { snap: null, endSnap: null, tap: [], score: w.x, done: false };
+  if (!constraintOk()) return { snap: null, endSnap: null, tap: [], score: w.x, done: false };   // 这 3 帧里跳过了必过门
   const snap = w.snapshot();
 
   let r = rollout(c.mode, HORIZON, true);
@@ -239,8 +257,10 @@ function walkEdge(c: Cand): EdgeOut {
     if (r2.maxX > r.maxX || r2.done) r = r2;
     else { rollTape.length = 0; for (const h of first) rollTape.push(h); }
   }
-  /* 宏落子:活着走完整个视界(没卡住)、而且真的前进了 → 这一整段可以直接落子 */
-  const endSnap = (MACRO && r.alive && !r.done && !r.stalled && w.x - snap.x >= MINMACRO) ? w.snapshot() : null;
+  /* 宏落子:活着走完整个视界(没卡住)、而且真的前进了 → 这一整段可以直接落子。
+     ★ 宏这一段里要是跳过了必过门,这个落子不能要(见 constraintOk 的说明)。 */
+  const endSnap = (MACRO && r.alive && !r.done && !r.stalled && w.x - snap.x >= MINMACRO && constraintOk())
+    ? w.snapshot() : null;
   /* 活着走到视界尽头 → 给一点"活着"的奖励(2 块):同样远的两个分支,先扩张没死的那个 */
   const score = Math.max(r.maxX, snap.x) + (r.alive && !r.stalled ? 2 * U : 0) - portalPull();
   const needTap = endSnap !== null || r.done;
@@ -293,6 +313,7 @@ function tapeOf(n: Node): boolean[] {
 
 /* ---------------- 热启动:把一条已知可行的输入卷铺成一条链,推进堆 ---------------- */
 let nodes = 0, deadEnds = 0, dups = 0, bestAlive = 0, macros = 0, bestNode: Node | null = null;
+let bestScore = -Infinity, maxAliveX = 0;
 if (SEED && fs.existsSync(SEED)) {
   let t: boolean[] = JSON.parse(fs.readFileSync(SEED, 'utf8')).tape;
   /* --seedtrim=块 —— 把种子的尾巴剪掉这么多块再接着搜。
@@ -324,20 +345,44 @@ if (SEED && fs.existsSync(SEED)) {
   }
   flush();
   console.log('热启动 ' + SEED + ':铺了 ' + made + ' 个节点,最远 ' + (w.x / U).toFixed(1) + ' 块');
-  if (parent) { bestAlive = w.x; bestNode = parent; }
+  if (parent) { bestAlive = w.x; bestNode = parent; bestScore = parent.score; }
 }
 
 if (!heap.length) {
-  w.resetToStart();
-  if (startAt) {
-    /* 半路起搜:把人放到指定位置/形态(诊断用)。y 用块、x 用块。 */
-    w.x = startAt[0] * U; w.y = startAt[1] * U; w.vy = 0; w.onGround = false;
-    w.mode = (arg('startmode', 'cube') as typeof w.mode);
-    w.checkX = w.x; w.checkY = w.y;
-    console.log('半路起搜:x=' + startAt[0] + ' y=' + startAt[1] + ' 形态=' + w.mode
-      + ' · 之后的必过门 ' + mustPass.length + ' 个(最近一个 x=' + (mustPass[0] ? (mustPass[0].x1 / U).toFixed(1) : '-') + ')');
+  /* --startfrom=<卷子文件>,<块> —— 沿着这条卷子走到指定 x,【用那个真实状态】当搜索根,
+     并且开一个干净的前沿。为什么需要它:分站搜卡住的真正原因常常不是"那一段过不去",
+     而是"前缀末端的那个状态是个死状态"(实测站 14:前缀末端是个在空中翻着重力的球,
+     从它往后怎么搜都没出路),而同一段从 x=478 的地面状态起搜,几秒就过到 547。
+     它和 --seed 的区别:--seed 把整条链都塞进堆里(前沿还带着旧的包袱),
+     --startfrom 只塞一个根节点 —— 相当于"退到岔路口、重新开一局心态"。 */
+  const SF = arg('startfrom', '');
+  if (SF) {
+    const cut = SF.lastIndexOf(',');
+    const file = SF.slice(0, cut), bx = Number(SF.slice(cut + 1));
+    const t: boolean[] = JSON.parse(fs.readFileSync(file, 'utf8')).tape;
+    w.resetToStart();
+    const prefix: boolean[] = [];
+    for (const h of t) {
+      if (w.dead || w.done || w.x >= bx * U) break;
+      step(h);
+      prefix.push(h);
+    }
+    console.log('从卷子里起搜:' + file + ' 走到 x=' + (w.x / U).toFixed(1) + ' 块(' + prefix.length
+      + ' 帧)· 形态=' + w.mode + ' y=' + (w.y / U).toFixed(2) + ' · 干净前沿');
+    pushHeap({ snap: w.snapshot(), parent: null, inputs: prefix, score: w.x, gen: -1 });
+  } else {
+    w.resetToStart();
+    if (startAt) {
+      /* 半路起搜:把人放到指定位置/形态(诊断用)。y 用块、x 用块。 */
+      w.x = startAt[0] * U; w.y = startAt[1] * U; w.vy = 0; w.onGround = false;
+      w.mode = (arg('startmode', 'cube') as typeof w.mode);
+      w.speedIdx = Number(arg('startspeed', 1));      // 诊断用:指定速度档(0 最慢 … 4 最快)
+      w.checkX = w.x; w.checkY = w.y;
+      console.log('半路起搜:x=' + startAt[0] + ' y=' + startAt[1] + ' 形态=' + w.mode
+        + ' · 之后的必过门 ' + mustPass.length + ' 个(最近一个 x=' + (mustPass[0] ? (mustPass[0].x1 / U).toFixed(1) : '-') + ')');
+    }
+    pushHeap({ snap: w.snapshot(), parent: null, inputs: [], score: w.x, gen: -1 });   // 根
   }
-  pushHeap({ snap: w.snapshot(), parent: null, inputs: [], score: w.x, gen: -1 });   // 根
 }
 
 /* ---------------- 主循环 ---------------- */
@@ -365,11 +410,23 @@ function saveBest() {
       + (bestNode.snap.x / U).toFixed(1) + ' 块(差 ' + (drift / U).toFixed(2) + ' 块)—— 输入卷拼错了,不写文件');
     return;
   }
-  /* ★ 只准变好:分站搜里后一次尝试(比如"种子剪尾 45 块重规划")可能只走到一半,
-     直接覆盖就把冠军卷子弄丢了(踩过:跑到 521.3 又被 512.9 盖掉)。 */
-  const prevX = fs.existsSync(BESTTAPE) ? (JSON.parse(fs.readFileSync(BESTTAPE, 'utf8')).x ?? 0) : 0;
-  if (bestNode.snap.x / U < prevX) return;
-  fs.writeFileSync(BESTTAPE, JSON.stringify({ level: lv.name, tape, x: bestNode.snap.x / U }));
+  /* ★ 进度(可以走得更远)和卷子(要留最好的那条)是两件事,得分开写:
+     · maxX —— 这一局活着走到的最远 x,只要更远就记下来,【不受卷子好坏影响】;
+     · tape —— 只在分数变好时才换(分数含"朝门口对齐"的扣分,是"走在正路上"的度量)。
+     踩过的坑:以前只有一个"x 不许变小"的闸门,于是一次"走到 523.6 但最佳卷子在 488.0"的尝试
+     被上一局的 488.3 挡掉 —— 进度明明推进了 11 块,文件里却什么都没记,分站搜据此判"没过"。 */
+  const prev: { tape?: boolean[]; x?: number; maxX?: number; score?: number } | null =
+    fs.existsSync(BESTTAPE) ? JSON.parse(fs.readFileSync(BESTTAPE, 'utf8')) : null;
+  const newX = bestNode.snap.x / U;
+  const newMax = Math.max(maxAliveX, bestNode.snap.x) / U;
+  if (prev && typeof prev.score === 'number' && bestScore < prev.score - 1e-6) {
+    if (newMax > (prev.maxX ?? 0)) { prev.maxX = newMax; fs.writeFileSync(BESTTAPE, JSON.stringify(prev)); }
+    return;
+  }
+  fs.writeFileSync(BESTTAPE, JSON.stringify({
+    level: lv.name, tape, x: newX, score: bestScore,
+    maxX: Math.max(newMax, prev?.maxX ?? 0),
+  }));
 }
 
 while (nodes < MAXNODES) {
@@ -378,7 +435,7 @@ while (nodes < MAXNODES) {
   /* --goal=块 —— 分站搜:到了这一站就收工(外面套一层循环,一站一站往终点推)。
      为什么要分站:整关一次性搜时,每到一个门就是一个"卡口"(实测 x=421 / 512 各卡住几万节点),
      而把根挪到卡口前面单独搜,几十秒就过去了 —— 分站等于自动做这件事。 */
-  if (bestAlive >= GOAL) { goalHit = true; break; }
+  if (maxAliveX >= GOAL) { goalHit = true; break; }
   const node = popHeap();
   if (!node) break;
   node.gen = nodes++;
@@ -417,17 +474,35 @@ while (nodes < MAXNODES) {
   }
 
   kids.sort((a, b) => b.score - a.score);
-  let pushed = 0;
+  let pushed = 0, kidDup = 0;
+  if (TRACE && nodes <= TRACE) {
+    console.log('  #' + nodes + ' 展开 x=' + (node.snap.x / U).toFixed(2) + ' y=' + (node.snap.y / U).toFixed(2)
+      + ' ' + node.snap.mode + ' 分=' + (node.score / U).toFixed(1) + ' · 候选活 ' + kids.length
+      + ' · 边内死 ' + (CANDS.length - kids.length));
+  }
   for (const k of kids) {
     if (pushed >= BEAM) break;
     const key = stateKey(k.snap);
-    if (seen.has(key)) { dups++; continue; }
+    if (seen.has(key)) { dups++; kidDup++; continue; }
     seen.add(key);
     const n: Node = { snap: k.snap, parent: node, inputs: k.inputs, score: k.score, gen: nodes };
     pushHeap(n);
     pushed++;
     if (k.score > frontierBest) frontierBest = k.score;
-    if (k.snap.x > bestAlive) { bestAlive = k.snap.x; bestNode = n; }
+    /* ★ 两个"最远"要分开记:
+       · maxAliveX —— 【活着走到的最远 x】,只用来报进度 / 判"这一站到没到";
+       · bestNode  —— 按【分数】选出来、要写进种子文件的那条路。
+       为什么必须分开:分数里含"朝门口对齐"的扣分,所以一条"走到 x=490 但偏离门口 3.5 块"的路,
+       分数可能低于"走到 485 但正好对着门口"的路。要是拿分数最高的那条的 x 当进度,
+       就会误判"这一站没过"(实测卡在站 14:实际已经过了 x=490,却一直报 485.2)。 */
+    if (k.snap.x > maxAliveX) maxAliveX = k.snap.x;
+    /* ★ 同分时取更远的那个:分数在一整段路上是【平台期】(朝门口对齐的扣分不变),
+       只认 `>` 的话最佳节点会永远停在平台期的第一个节点上 ——
+       实测"从 x=481 起搜"明明走到了 484.8,报出来却是 481.4,写进种子的也是 481.4。 */
+    if (k.score > bestScore + 1e-6
+      || (Math.abs(k.score - bestScore) <= 1e-6 && k.snap.x > bestAlive)) {
+      bestScore = k.score; bestAlive = k.snap.x; bestNode = n;
+    }
   }
   if (!pushed) deadEnds++;
   pruneHeap();
@@ -438,7 +513,7 @@ while (nodes < MAXNODES) {
     lastLog = el;
     console.log('[' + el.toFixed(0) + 's] 展开 ' + nodes + ' · 堆 ' + heap.length + ' · 死胡同 ' + deadEnds
       + ' · 宏 ' + macros + ' · 重复 ' + dups + ' · 聚焦丢 ' + focused + ' · 重启 ' + restarts
-      + ' · 最远(活) ' + (bestAlive / U).toFixed(1)
+      + ' · 最远(活) ' + (maxAliveX / U).toFixed(1) + '(存 ' + (bestAlive / U).toFixed(1) + ')'
       + '/' + lv.length + ' 块 = ' + (bestAlive / endX * 100).toFixed(1) + '%');
     saveBest();
   }
@@ -450,7 +525,8 @@ console.log('\n=== 搜索结束 ===');
 console.log('铺面 ' + lv.name + ' · ' + lv.objects.length + ' 物件 · 长 ' + lv.length + ' 块 · 高 ' + lv.rows + ' 格');
 console.log('展开 ' + nodes + ' 节点 · 死胡同 ' + deadEnds + ' · 宏落子 ' + macros + ' · 重复剪枝 ' + dups
   + ' · 堆剩 ' + heap.length + ' · 用时 ' + el.toFixed(1) + 's · ' + (nodes / Math.max(el, 1e-9)).toFixed(1) + ' 节点/秒');
-console.log('最远(活着走到) ' + (bestAlive / U).toFixed(1) + ' 块 = ' + (bestAlive / endX * 100).toFixed(1) + '%');
+console.log('最远(活着走到) ' + (maxAliveX / U).toFixed(1) + ' 块 = ' + (maxAliveX / endX * 100).toFixed(1)
+  + '% · 存下的前缀到 ' + (bestAlive / U).toFixed(1) + ' 块');
 if (goalHit) console.log('★ 到站:--goal=' + (GOAL / U).toFixed(1) + ' 块(前缀已写进 best 文件,可以接着下一站)');
 if (stuckAt.size) {
   const top = [...stuckAt.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);

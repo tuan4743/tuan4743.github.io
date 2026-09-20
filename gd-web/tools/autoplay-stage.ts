@@ -30,7 +30,10 @@ const t0 = Date.now();
 let seed = fs.existsSync(BEST) ? BEST : '';
 const reached = () => {
   if (!fs.existsSync(BEST)) return 0;
-  return JSON.parse(fs.readFileSync(BEST, 'utf8')).x ?? 0;
+  const j = JSON.parse(fs.readFileSync(BEST, 'utf8'));
+  /* 判"这一站到没到"用 maxX(活着走到的最远),不用 x(要写进种子的那条路的终点)——
+     两者在门口附近可能差好几块(见 autoplay.ts 里那段注释) */
+  return j.maxX ?? j.x ?? 0;
 };
 console.log('分站推进:必过门 ' + doors.length + ' 个 · 每站 ' + PER + 's · 总预算 ' + TOTAL + 's');
 
@@ -42,21 +45,30 @@ for (let i = 0; i < doors.length; i++) {
   const left = TOTAL - (Date.now() - t0) / 1000;
   if (left <= 5) { console.log('总预算用完,停在第 ' + i + ' 站(x=' + have.toFixed(1) + ')'); break; }
   const budget = Math.min(PER, left);
-  /* 一站最多试 4 次:每次失败就把种子的尾巴多剪掉一点(退回岔路口重新规划) */
+  /* 一站最多试几次:先按种子接着搜,失败就【退到岔路口重开前沿】(--startfrom),
+     再失败才剪种子尾巴。顺序有讲究:实测卡住多半是"前缀末端是死状态",重开前沿最有效。 */
+  const tries: Array<{ tag: string; extra: string[] }> = seed
+    ? [
+      { tag: '', extra: [] },
+      { tag: '退回 45 块重开前沿', extra: ['--startfrom=' + seed + ',' + Math.max(1, door.b - 45).toFixed(1)] },
+      { tag: '退回 15 块重开前沿', extra: ['--startfrom=' + seed + ',' + Math.max(1, door.b - 15).toFixed(1)] },
+      { tag: '种子剪尾 20 块重规划', extra: ['--seedtrim=20'] },
+    ]
+    : [{ tag: '', extra: [] }];
   let okThis = false;
-  for (const trim of [0, 8, 20, 45]) {
+  for (const tr of tries) {
     const args = ['tools/autoplay.ts', '--budget=' + budget, '--quiet=1', '--goal=' + goal.toFixed(1),
       '--best=' + BEST, '--tape=' + SOL];
-    if (seed) args.push('--seed=' + seed);
-    if (trim) args.push('--seedtrim=' + trim);
+    if (seed && !tr.extra.some((e) => e.startsWith('--startfrom'))) args.push('--seed=' + seed);
+    for (const e of tr.extra) args.push(e);
     if (FREE) args.push('--noskip=');
     console.log('\n--- 第 ' + (i + 1) + '/' + doors.length + ' 站:目标 x=' + goal.toFixed(1)
       + '(' + (door.kind === 'portal' ? '形态→' + door.to : door.kind) + ')· 现在 ' + have.toFixed(1)
-      + ' · 预算 ' + budget.toFixed(0) + 's' + (trim ? ' · 种子剪尾 ' + trim + ' 块重规划' : ''));
+      + ' · 预算 ' + budget.toFixed(0) + 's' + (tr.tag ? ' · ' + tr.tag : ''));
     spawnSync(process.execPath, args, { stdio: 'inherit', cwd: process.cwd() });
     const reached2 = reached();
     if (reached2 >= goal) { console.log('    这一站走到 ' + reached2.toFixed(1) + ' 块 ✓ 过站'); okThis = true; break; }
-    console.log('    走到 ' + reached2.toFixed(1) + ' 块 ✗ 没过' + (trim ? '' : '(换个退法再试)'));
+    console.log('    走到 ' + reached2.toFixed(1) + ' 块 ✗ 没过');
     if (reached2 > have) have = reached2;
     seed = fs.existsSync(BEST) ? BEST : seed;
   }
