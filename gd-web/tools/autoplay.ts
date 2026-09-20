@@ -280,19 +280,20 @@ const horizonFrames = () => {
   return Math.max(30, Math.min(420, Math.round(HORIZON_BLOCKS * U / vx)));
 };
 const HORIZON = 90;                    // 兜底值(种子回放按段切分时用)
-interface Roll { maxX: number; alive: boolean; done: boolean; stalled: boolean; frames: number }
+interface Roll { maxX: number; alive: boolean; done: boolean; stalled: boolean; frames: number; overRoof: boolean }
 function rollout(mode: 'idle' | 'bot', frames: number, collect: boolean): Roll {
-  let maxX = w.x, still = 0, i = 0;
+  let maxX = w.x, still = 0, i = 0, overRoof = false;
   for (; i < frames; i++) {
     if (w.dead || w.done) break;
     const h = mode === 'bot' ? botThink(w) : false;
     if (collect) rollTape.push(h);
     w.frame(h);                          // ★ 试算自由跑:约束只在"留下状态"时判(constraintOk)
+    if (roofAt && w.y + w.box > roofAt(w.x) * U) overRoof = true;      // 这一趟飞出了局部天花板
     if (w.x > maxX + 1e-9) { maxX = w.x; still = 0; } else still++;
     /* 卡住不动(既没前进也没死)= 这条兜底没意义,提前收工省算力 */
-    if (still > 40) return { maxX, alive: !w.dead, done: w.done, stalled: !w.dead, frames: i + 1 };
+    if (still > 40) return { maxX, alive: !w.dead, done: w.done, stalled: !w.dead, frames: i + 1, overRoof };
   }
-  return { maxX: Math.max(maxX, w.x), alive: !w.dead, done: w.done, stalled: false, frames: i };
+  return { maxX: Math.max(maxX, w.x), alive: !w.dead, done: w.done, stalled: false, frames: i, overRoof };
 }
 
 interface EdgeOut {
@@ -331,8 +332,13 @@ function walkEdge(c: Cand): EdgeOut {
      ★ 宏这一段里要是跳过了必过门,这个落子不能要(见 constraintOk 的说明)。 */
   const endSnap = (MACRO && r.alive && !r.done && !r.stalled && w.x - snap.x >= MINMACRO && constraintOk())
     ? w.snapshot() : null;
-  /* 活着走到视界尽头 → 给一点"活着"的奖励(2 块):同样远的两个分支,先扩张没死的那个 */
-  const score = Math.max(r.maxX, snap.x) + (r.alive && !r.stalled ? 2 * U : 0) - portalPull();
+  /* 活着走到视界尽头 → 给一点"活着"的奖励(2 块):同样远的两个分支,先扩张没死的那个。
+     ★ 飞出局部天花板的试算要【重罚】:以前只有"要不要留下"时才判天花板,于是
+       "一变方块就朝天上掉"的那条路在试算里 x 最远、分还不低,搜索一直往那边走
+       —— 实测球态走廊尽头的 cube 门(525)就是这么卡住的:进门后重力是向上的,
+       方块一路飞到 y=49,而所有试算都"看起来很远"。 */
+  const score = Math.max(r.maxX, snap.x) + (r.alive && !r.stalled ? 2 * U : 0)
+    - portalPull() - (r.overRoof ? 300 * U : 0);
   const needTap = endSnap !== null || r.done;
   return { snap, endSnap, tap: needTap ? rollTape.slice() : [], score, done: r.done };
 }
