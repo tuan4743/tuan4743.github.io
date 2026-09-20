@@ -522,8 +522,23 @@ node tools/autoplay.ts --seed=<卷> --seedtrim=20 --goal=527.5                  
 "窗口裁剪指纹一致"照旧成立。教训:**任何"落点记忆 / 对象身份"类的新状态,都要检查它是不是
 依赖列表顺序**,否则裁剪模式与完整模式会悄悄分家。
 
+### 13.11 审计清单的收尾:哪些已核对、哪些"不适用"、哪些拿不到出处
+
+| 项 | 结论 |
+|---|---|
+| 速度表 `speedMul` | ✅ 出处是 gdp master `checkSnapJumpToObject.cpp:14-33` 的 `m_playerSpeed` 五档,算术逐位对得上 |
+| 弹簧/跳环 `boostDir` | ✅ 等价于 GD 的 `m_maybeIsBoosted`(推力飞行中只跳过终端速度、重力照常) |
+| 刺 / 跳板 / 门 / 跳环判定盒 | ✅ 与原表一致(原表前三列是 {高, 宽, x, y},三个形状交叉验证过) |
+| 硬币 40×40 / 冲刺箭头 36×36 | ✅ 已修(重复 case 让原表那两档从来没生效过) |
+| 蓝色重力跳点朝向 | ✅ 已修(`isUpsideDown ^ !isPadUpsideDown`) |
+| 落块吸附 | ✅ 已实现(`checkSnapJumpToObject`,含 ±threshold 夹取) |
+| **`m_jumpBuffered` 的清零** | ✅ 已核对、**本关不适用**:8 处清零全在 `m_stateNoAutoJump > 0`(禁自动跳的物件)与 dash 环结束这两条分支里;本关没有这类物件,我们的 `pressFresh` 模型够用 |
+| 飞船"按住且正在加速下落"的瞬态 | ⚠ **两版源码打架**:gdp master 那一支给 0.8(反而往下)、OpenGD 给 −1.0(继续往上);我们跟 OpenGD。它只在"刚松手又按住"的瞬间起作用,先留记录 |
+| 蜘蛛可达距离 `spiderReach` | ⚠ **拿不到出处**:`spiderTestJump` 的实现体在 gdp 的 22 个文件与 OpenGD 里都不存在;现在的 `[60,90,120,135,120]` 是从 `checkSnapJumpToObject` 的台阶表误抄的,只能标注存疑 |
+| 坡道 / 双人 / 平台模式 / 自定义环 / dash 状态机 | 本关没有这些物件,不需要 |
+
 ### 13.8 验收(每一轮改完都要重跑这四条)
 
-- `sim.test` **39/39**;`tools/verify-run.ts` **6/6**(0 死亡 · 终点 3620.0 · 窗口裁剪指纹一致 `d586750d`);
+- `sim.test` **39/39**;`tools/verify-run.ts` **6/6**(0 死亡 · 终点 3620.0 · 窗口裁剪指纹一致 `6a42fcb7`);
 - `tools/verify/gd-demo-check.mjs` **9/9**(浏览器 tick = 卷子帧数、attempts=1、x=3620.0、无报错);
-- 页面演示卷 `static/assets/gd-tape.json` 重打包(11.9 KB)· gd.js 重建。
+- 页面演示卷 `static/assets/gd-tape.json` 重打包(12.8 KB)· gd.js 重建。
