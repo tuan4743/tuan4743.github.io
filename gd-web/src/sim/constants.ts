@@ -104,12 +104,13 @@ export const PAD: Record<PadKind, { v: number; flip: FlipWhen; note: string }> =
   red: { v: 20.0, flip: 'none', note: '[OpenGD PlayLayer:1428] propellPlayer(1.25) → 1.25×16 = 20(峰值约 7 块)' },
   blue: {
     v: 12.8, flip: 'before',
-    /* ★ 力度【待用户标定】:OpenGD 的 propellPlayer(0.8) 给的是 12.8,但用户实测"力度太大"。
-       试过把翻转时机改成 'after'(先翻重力再给速度)想让它变软 —— 不行:那样人是被往【面里】
-       推的,方块踩地面蓝板时会直接穿进脚下方块、超出容差判死(实测第 1 帧就死)。
-       所以时机维持 'before'(先给速度再翻重力,原版口径),力度做成【运行时可调】:
-       页面里按 [ / ] 增减(见 main.ts),HUD 会显示"跳点×N",用户调到手感对了我再定死。 */
-    note: '[待标定] 12.8 + 先给速度再翻重力;力度可在页面里按 [ / ] 调(用户实测偏大)',
+    /* ★ 口径来自 gdp@2.11 的 propellPlayer(2.11 里它设的是纵向速度 = 16×force×size,球/蜘蛛再 ×0.6)
+       加上 PlayLayer 里的调用顺序"先 propellPlayer、再 changeGravity" —— 也就是【先按旧重力方向
+       给速度,再翻重力】= 'before'。
+       ★ 我试过改成 'after'(先翻重力再给速度):拿球门(x=263)前面那两个蓝跳点的实测看,那样会
+       先把人往下压、等落台容错把人捞回台阶顶,再一路加速升到天花板(实测 y=13 贴顶),
+       反而【越过】了 x≈259 那块天花板小板、也错过了球门的入口 —— 比 'before' 差。 */
+    note: '[gdp@2.11 propellPlayer] 12.8 + 先按旧重力方向给速度再翻重力;力度可用 [ / ] 微调',
   },
   purple: {
     v: 16.0, flip: 'none',

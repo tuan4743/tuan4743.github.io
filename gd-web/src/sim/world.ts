@@ -533,6 +533,8 @@ export class World {
     const perFrame = Math.abs(this.vy) * Y_TIME_SCALE * FRAME;
     const n = perFrame > SUB * SUBSTEP_MAX ? Math.min(SUB * 8, Math.ceil(perFrame / SUBSTEP_MAX)) : SUB;
     const d = FRAME / n;
+    /* ★ 帧初位置:落台容错要用它(原版 m_lastPosition 就是每帧记一次,见 substep 里的说明) */
+    this.frameY0 = this.y;
     for (let i = 0; i < n; i++) this.substep(d, hold);
     this.tick++;
   }
@@ -560,6 +562,9 @@ export class World {
 
   /** 弹簧 / 跳环给的推力方向(0 = 没有推力飞行)。见 applyFallClamp */
   private boostDir: 1 | -1 | 0 = 0;
+
+  /** 帧初的脚底高度(落台容错的两路判定要用,见 substep 里的说明) */
+  private frameY0 = 0;
 
   private substep(dt: number, hold: boolean) {
     const s = dt * 60;                     // 帧当量:表里的常量按"每帧"给
@@ -729,25 +734,30 @@ export class World {
              用户看到的"容错直接飞上平台"就是它。现在最多修 15 单位,撞侧面老老实实死。 */
         const snapTol = (this.mode === 'ship' || this.mode === 'ufo' || this.mode === 'wave')
           ? 6 : (this.mini ? 10 : 15);
-        /* ★ 用【运动方向】挑擦过的是哪一面,用【重力方向】决定"落上去"还是"擦过去":
-             vy ≤ 0(往下):擦到砖的【顶面】附近(脚底离顶面 ≤ snapTol)
-             vy ≥ 0(往上):擦到砖的【底面】附近(头顶离底面 ≤ snapTol)
-           顺重力擦到 → 落到那个面上站住;逆重力擦到 → 什么也不做,擦过去。
-           ★ 原版依据(PlayerObject::collidedWithObjectInternal):
-             canSnap 只看几何(maxSnapY 与物件矩形比较),而"下落/上升"决定走哪个分支;
-             上升那一支里两个 if 都不成立 → 什么也不做 = 擦过去,既不判死也不抬上去。
-           ★ 球形态段 x=286 就靠这条:天花板下的黄板把球往下打,球往【下】擦到 (288,9)
-             那块实心线框的顶面附近 —— 球的重力朝上,所以它在自己的重力系里是"上升" →
-             擦过去;以前这里只按重力方向判,球直接被判死(用户:"原本能过的过不去了")。 */
-        const clearTop = this.y >= b.y1 - snapTol;               // 擦到砖顶面附近
-        const clearBot = this.y + this.box <= b.y0 + snapTol;    // 擦到砖底面附近
+        /* ★ 原版落台容错有【两路】(PlayerObject::collidedWithObjectInternal):
+             maxSnapY = playerBottom + snapUpThreshold;      ← 这一帧的位置
+             floatG   = maxSnapY - adjustedYDelta;           ← 用【整帧位移】倒推回帧初的位置
+             canSnap  = 两路任一越过物件顶面
+           ★ 注意是【整帧】:GD 每帧只在 4 个子步之后判一次碰撞,m_lastPosition 记的是帧初位置。
+             我们以前只看"当前子步的位置",高速下落时一帧就跨过容差、明明从顶面擦过去却判死 ——
+             用户那个"第二个蓝跳点会弹到平台上、我们却卡死在平台里面"就死在这:
+             蓝板把球往下压 19 单位(> 容差 15),但【帧初】脚底还在顶面附近,本该抬上去。 */
+        const reachDown = Math.max(this.y, this.frameY0) + snapTol;              // 向下:取更高的那个脚底
+        const reachUp = Math.min(this.y + this.box, this.frameY0 + this.box) - snapTol;   // 向上:取更低的那个头顶
+        /* ★ 原版对这两种擦碰的处理是【不一样】的(PlayerObject::collidedWithObjectInternal):
+             · 往下擦到砖【顶面】(canSnap):不分重力方向,一律把人放到顶面上站住
+               —— 位置 = objRect 顶面,+ 保留一点原来的纵向速度;
+             · 往上擦到砖【底面】:只有反重力时才贴到那个面上;正重力时什么也不做(擦过去)。
+           所以下面第一支【不管 gdir】都抬上去,第二支才分方向。 */
+        const clearTop = reachDown >= b.y1;               // 擦到砖顶面附近
+        const clearBot = reachUp <= b.y0;                 // 擦到砖底面附近
         if (this.vy <= 0 && clearTop) {
-          if (this.gdir > 0) { this.y = b.y1; this.vy = 0; this.onGround = true; }
-          continue;                                              // 逆重力 → 擦过去
+          this.y = b.y1; this.vy = 0; this.onGround = true;
+          continue;                                      // 放到顶面站住(不判死)
         }
         if (this.vy >= 0 && clearBot) {
           if (this.gdir < 0) { this.y = b.y0 - this.box; this.vy = 0; this.onGround = true; }
-          continue;                                              // 逆重力 → 擦过去
+          continue;                                      // 反重力贴底面;正重力擦过去
         }
         if (this.gdir > 0 && prevY >= b.y1 - 0.01 && this.y <= b.y1) continue;
         if (this.gdir < 0 && prevTop <= b.y0 + 0.01 && boxTop >= b.y0) continue;
