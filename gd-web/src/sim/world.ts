@@ -174,12 +174,14 @@ export class World {
           break;
         }
         case 'breakable': this.breakables.push(b); this.solids.push(b); break;
-        /* ⚠ 硬币 / 冲刺箭头:这里用的是【铺面给的整格盒】(b),不是 gdids 表里的 36×36。
-           这两行原来在下面还写了一遍(hbBox 版本),被 esbuild 报"重复 case,永远走不到"——
-           也就是说表里那对 36×36 从来没生效过,一直是整格在判。留个记录:
-           要改成表里那档得先确认原版箭头判定盒,而且改完必须重跑搜索(输入卷是按旧判定搜的)。 */
-        case 'coin': this.coins.push(b); break;
-        case 'arrow': this.arrows.push(b); break;
+        /* ★ 硬币 / 冲刺箭头:走【原表】的判定盒 —— 硬币 id 1329 = 40×40、
+           冲刺箭头 1704/1751 = 36×36(都是"以物件中心为心"的方盒)。
+           以前这里写的是整格 b(30×30),而且下面还重复写了一遍 hbBox 版本 ——
+           esbuild 一直警告"重复 case,后面那个永远走不到",也就是说表里那两档从来没生效过:
+           箭头/硬币实际比原版小一圈,触发得偏晚。现在删掉前面这两行,让下面的 hbBox 版本生效。
+           (3004/3005 紫箭/紫板原表里没有,仍用包围盒兜底。) */
+        case 'coin': this.coins.push(hbBox(o) ?? b); break;
+        case 'arrow': this.arrows.push(hbBox(o) ?? b); break;
         case 'clone': this.clones.push(b); break;
         case 'platform': {
           /* 单向平台:只从上面接住,不致死(自动铺面的浮空平台就是它)。
@@ -217,8 +219,6 @@ export class World {
           this.pads.push(hbBox(o) ?? b);
           break;
         }
-        case 'arrow': this.arrows.push(hbBox(o) ?? b); break;
-        case 'coin': this.coins.push(hbBox(o) ?? b); break;
         case 'force': this.forces.push(b); break;
         case 'pit': this.pits.push(b); break;
         case 'trigger': this.triggers.push(b); break;
