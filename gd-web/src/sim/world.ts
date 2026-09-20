@@ -703,7 +703,11 @@ export class World {
         if (this.armedOrbs.has(b)) continue;
         if (inn.x1 <= b.x0 || inn.x0 >= b.x1 || inn.y1 <= b.y0 || inn.y0 >= b.y1) continue;
         this.armedOrbs.add(b);
-        if (b.o.orb) this.applyTrigger(ORB[b.o.orb], true);
+        if (b.o.orb) {
+          /* ★ 用分形态的力度(原版 ringJump 的倍率表),别再用"方块那一档"套所有形态 */
+          const spec = ORB[b.o.orb];
+          this.applyTrigger({ v: this.orbVel(b.o.orb), flip: spec.flip }, true);
+        }
         break;
       }
     }
@@ -844,7 +848,9 @@ export class World {
    *    玩家被第一根弹簧弹起来之后,会自动落进下一根弹簧 —— 这就是"弹簧连不用出手"的原理。
    *  ★ 重力的翻转时机分两种(反编译口径):蓝的"先给速度再翻",绿的"先翻再给速度"。 */
   private applyTrigger(spec: { v: number; flip: 'none' | 'before' | 'after' | 'dash' }, consumePress = false) {
-    const v = spec.v * this.triggerScale();             // 迷你时力度 ×0.8
+    let v = spec.v * this.triggerScale();             // 迷你时力度 ×0.8
+    /* ★ 弹簧的球/蜘蛛折扣(原版 PlayerObject::propellPlayer:m_dYVel *= 0.6) */
+    if (this.mode === 'ball' || this.mode === 'spider') v *= 0.6;
     if (spec.flip === 'before') {
       this.vy = v * this.gdir;                          // 按【旧】重力方向给速度
       if (this.mode === 'cube') this.gdir = -this.gdir; // 然后才翻重力
@@ -859,6 +865,35 @@ export class World {
     if (this.mode === 'ship') this.vy = Math.max(-P.shipVyMax, Math.min(P.shipVyMax, this.vy));
     this.onGround = false;
     if (consumePress) this.pressFresh = false;
+  }
+
+  /** 跳环的分形态力度(原版 PlayerObject::ringJump 里的倍率表)。
+   *  ★ 我们以前所有形态都用"方块那一档",于是飞行/球/机器人段里的环力度全错 ——
+   *    用户说的"性能不对"里有一部分就是这里。表里的倍率是 × 起跳初速(jumpPower)。 */
+  private orbVel(kind: OrbKind): number {
+    const J = P.jump;
+    const mini = this.mini;
+    switch (kind) {
+      case 'pink':
+        return J * (this.mode === 'ship' ? 0.37 : this.mode === 'ufo' ? 0.42 : this.mode === 'ball' ? 0.77 : 0.72);
+      case 'red':
+        return J * (this.mode === 'ship' ? 1.0
+          : this.mode === 'ufo' ? (mini ? 1.36 : 1.02)
+            : (this.mode === 'ball' || this.mode === 'spider') ? 1.34
+              : this.mode === 'robot' ? 1.28 : 1.38);
+      case 'yellow':
+        return J * (this.mode === 'robot' ? 0.9 : 1.0);
+      case 'green':
+        return J * (this.mode === 'ship' ? 0.7 : 1.0);
+      case 'blue':
+        return J * 0.8;                                   // 重力环:固定 ×0.8,不随形态
+      case 'black':                                       // 冲刺(黑)环:按形态给绝对值
+        return this.mode === 'ufo' ? 11.2
+          : (this.mode === 'ship' || this.mode === 'wave') ? 14
+            : this.mode === 'spider' ? 16.5 : 15;
+      default:
+        return J;
+    }
   }
 
   get state(): RunState {
