@@ -172,6 +172,10 @@ export class World {
           break;
         }
         case 'breakable': this.breakables.push(b); this.solids.push(b); break;
+        /* ⚠ 硬币 / 冲刺箭头:这里用的是【铺面给的整格盒】(b),不是 gdids 表里的 36×36。
+           这两行原来在下面还写了一遍(hbBox 版本),被 esbuild 报"重复 case,永远走不到"——
+           也就是说表里那对 36×36 从来没生效过,一直是整格在判。留个记录:
+           要改成表里那档得先确认原版箭头判定盒,而且改完必须重跑搜索(输入卷是按旧判定搜的)。 */
         case 'coin': this.coins.push(b); break;
         case 'arrow': this.arrows.push(b); break;
         case 'clone': this.clones.push(b); break;

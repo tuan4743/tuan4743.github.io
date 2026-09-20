@@ -133,6 +133,21 @@ class Scene extends Phaser.Scene {
   fp = '';
   botMode = false;
   botStarted = false;
+  /** 【看 bot 通关】演示:把搜索出来的通关输入卷原样喂给模拟。
+   *  ★ 为什么不是"现场搜":这张图 3620 块,Node 侧用宏动作最优优先树搜索也要跑一分钟
+   *    (数据在 tools/autoplay.ts 的头注释里),浏览器里现搜会卡住页面。
+   *    所以页面里放的是那一次的【输入卷】——它和 Node 侧逐帧同源,回放指纹一致
+   *    (tools/verify-run.ts 每次都验)。玩家按键随时可以接管。 */
+  demoMode = false;
+  /** 想开演示(URL ?demo=1 或按 B);真正的切换发生在第一帧 update 里(那时世界已经建好) */
+  demoWanted = false;
+  demoTape: boolean[] | null = null;
+  demoTried = false;
+  demoLoaded = false;
+  demoEndX = 0;
+  demoErr = '';
+  /** 演示倍速:一帧渲染推几帧物理(物理照旧是定点 60Hz,只是"快进") */
+  demoSpeed = 8;
   baseTick = 0;                     // 这一条命的起点在音乐时间轴上的帧号(复活时跟着存档点走)
   airT = 0;                         // 空中停留了多久(给方块自转用)
   labels: Phaser.GameObjects.Text[] = [];
@@ -148,6 +163,7 @@ class Scene extends Phaser.Scene {
   private restartLatch = false;
   private godLatch = false;         // G 键:无敌模式
   private prevG = false;
+  private demoLatch = false;        // B 键:看 bot 通关(演示卷)
   private padLatch = 0;             // [ / ]:弹簧力度微调(-1 / +1 个单位,每个 5%)
   /** 无敌模式想要的状态 —— startRun() 会 new 一个 World,得把开关带过去 */
   godWanted = false;
@@ -232,10 +248,15 @@ class Scene extends Phaser.Scene {
 
   create() {
     this.g = this.add.graphics();
-    this.keys = this.input.keyboard!.addKeys('SPACE,UP,W,R,G') as Record<string, Phaser.Input.Keyboard.Key>;
+    this.keys = this.input.keyboard!.addKeys('SPACE,UP,W,R,G,B') as Record<string, Phaser.Input.Keyboard.Key>;
     /* ★ 无敌模式:页面按 G 切;也可以开局就用 URL 打开(?god=1),验收脚本直接改 __gd.world.god */
     this.godWanted = /(^|[?&])god=1(&|$)/.test(location.search);
     this.world.god = this.godWanted;
+    /* ?demo=1 —— 开局直接演示"bot 通关"(和按 B / 点右下角按钮等效)
+       ?demospeed=24 —— 演示倍速(默认 8;一帧渲染推 8 帧物理,输入卷 353 秒 → 44 秒看完) */
+    if (/(^|[?&])demo=1(&|$)/.test(location.search)) this.demoWanted = true;
+    const ds = /(^|[?&])demospeed=(\d+)/.exec(location.search);
+    if (ds) this.demoSpeed = Math.max(1, Math.min(40, Number(ds[2]) || 8));
     /* ?padmul=0.75 —— 弹簧力度微调(和按 [ / ] 等效),验收脚本也能用 URL 指定 */
     const pm = /(^|[?&])padmul=([\d.]+)/.exec(location.search);
     if (pm) { this.padMulWanted = Math.max(0.4, Math.min(1.5, Number(pm[2]) || 1)); this.world.padMul = this.padMulWanted; }
@@ -259,13 +280,15 @@ class Scene extends Phaser.Scene {
       if (ev.code === 'Space' || ev.code === 'ArrowUp' || ev.code === 'KeyW') this.confirmLatch = true;
       if (ev.code === 'KeyR') this.restartLatch = true;
       if (ev.code === 'KeyG') this.godLatch = true;
+      if (ev.code === 'KeyB') this.demoLatch = true;
       if (ev.code === 'BracketLeft') this.padLatch = -1;
       if (ev.code === 'BracketRight') this.padLatch = 1;
       if (/^Digit[1-7]$/.test(ev.code)) this.modeLatch = Number(ev.code.slice(5));
     }, true);
-    /* ★ 再给两个【能点的】按钮:键盘在某些环境里会被别的东西吃掉(用户实测 R/G 没反应),
+    /* ★ 再给几个【能点的】按钮:键盘在某些环境里会被别的东西吃掉(用户实测 R/G 没反应),
        按钮用鼠标/触屏都能按,而且状态直接写在按钮上 —— 不用猜到底开没开。 */
     document.getElementById('gd-god')?.addEventListener('click', () => { this.toggleGod(); this.blurSelf(); });
+    document.getElementById('gd-demo')?.addEventListener('click', () => { this.demoLatch = true; this.blurSelf(); });
     document.getElementById('gd-restart')?.addEventListener('click', () => { this.restartLatch = true; this.blurSelf(); });
     const ui = { fontFamily: 'ui-monospace, Consolas, monospace', align: 'center' as const };
     this.uiTitle = this.add.text(0, 0, '', { ...ui, fontSize: '44px', color: '#e2f6ff' }).setOrigin(0.5).setDepth(20).setVisible(false);
@@ -327,6 +350,12 @@ class Scene extends Phaser.Scene {
     this.prevG = !!k.G?.isDown;
     this.godLatch = false;
     if (gEdge) this.toggleGod();
+    /* B 键 / ?demo=1:看 bot 通关 */
+    if (this.demoLatch || this.demoWanted) {
+      this.demoLatch = false;
+      this.demoWanted = false;
+      this.toggleDemo();
+    }
     /* ★ 弹簧力度微调:[ 减 5%、] 加 5%(0.4 ~ 1.5)。蓝跳点到底该多大还没定死,
        让用户直接把数值调到手感对,比我们反复猜省事 —— HUD 上会显示"跳点×N"。
        ★ 走和 G/R 同一条路(真实 keydown 事件 + latch):Phaser 的 addKeys('OPEN_BRACKET')
@@ -357,6 +386,22 @@ class Scene extends Phaser.Scene {
 
   private godBtnEl: HTMLElement | null = null;
   private godBtnTxt = '';
+
+  /** 演示按钮上的字:没下好 / 下失败 / 开了 / 关了 —— 状态写在按钮上,不用猜 */
+  syncDemoButton() {
+    if (!this.demoBtnEl) this.demoBtnEl = document.getElementById('gd-demo');
+    const el = this.demoBtnEl;
+    if (!el) return;
+    const txt = this.demoMode
+      ? (this.demoTape ? '演示:开 ×' + this.demoSpeed : this.demoErr ? '演示:卷子加载失败' : '演示:载入中…')
+      : '看 bot 通关';
+    if (txt === this.demoBtnTxt) return;
+    this.demoBtnTxt = txt;
+    el.textContent = txt;
+    el.classList.toggle('is-on', this.demoMode);
+  }
+  private demoBtnEl: HTMLElement | null = null;
+  private demoBtnTxt = '';
 
   private syncGodButton() {
     if (!this.godBtnEl) this.godBtnEl = document.getElementById('gd-god');
@@ -415,12 +460,12 @@ class Scene extends Phaser.Scene {
     return this.viewH / (VIEW_H_BLOCKS * U);
   }
 
-  /** 推进 n 帧模拟(输入按当前模式取:机器人 / 键盘) */
+  /** 推进 n 帧模拟(输入按当前模式取:演示卷 / 机器人 / 键盘) */
   pump(n: number) {
     for (let i = 0; i < n; i++) {
       const w0 = this.world;
       if (w0.dead) {
-        if (this.botMode) {
+        if (this.botMode || this.demoMode) {
           /* 机器人验收:立刻复活,和 Node 侧一致 */
           const wasX = w0.checkX;
           w0.respawn();
@@ -433,9 +478,12 @@ class Scene extends Phaser.Scene {
           return;
         }
       }
-      const hold = this.botMode ? botThink(w0)
-        : !!(this.keys.SPACE?.isDown || this.keys.UP?.isDown || this.keys.W?.isDown);
-      if (this.botMode && !this.botStarted) {       // 开机器人 = 从干净的一局开始,方便和 Node 侧对指纹
+      /* 输入来源:演示卷按 tick 取(那卷输入是从 tick=0 全程录的),
+         否则反应式机器人,否则键盘。 */
+      const hold = this.demoMode ? this.demoHold(w0.tick)
+        : this.botMode ? botThink(w0)
+          : !!(this.keys.SPACE?.isDown || this.keys.UP?.isDown || this.keys.W?.isDown);
+      if ((this.botMode || this.demoMode) && !this.botStarted) {       // 开机器人 = 从干净的一局开始,方便和 Node 侧对指纹
         this.botStarted = true;
         this.started = true;
         this.world = new World(LEVEL);
@@ -456,10 +504,65 @@ class Scene extends Phaser.Scene {
         if (w0.done && !this.fp) this.fp = fingerprint(this.botStates);
       }
       if (w0.done) {
+        if (this.demoMode) {
+          /* 演示跑完 = 通关:停在这一帧,让"通关"两个字留在 HUD 上(R 可以重看) */
+          this.demoEndX = w0.x;
+          this.phase = 'done';
+          this.deathT = 0;
+          this.pauseMusic();
+          break;
+        }
         if (!this.botMode) { this.phase = 'poem'; this.poemT = 0; this.egg = false; this.pauseMusic(); }
         break;
       }
     }
+  }
+
+  /** 演示卷:第 tick 帧按不按。卷子比模拟短就一律松手(不该发生,但别越界) */
+  private demoHold(tick: number): boolean {
+    const t = this.demoTape;
+    return !!t && tick >= 0 && tick < t.length && t[tick];
+  }
+
+  /** 开/关【看 bot 通关】。开的时候如果卷子还没下载,先去下载(懒加载:平时不占带宽) */
+  toggleDemo() {
+    this.demoMode = !this.demoMode;
+    if (this.demoMode) {
+      this.loadTape();
+      this.world = new World(LEVEL);
+      this.world.god = this.godWanted;
+      this.world.padMul = this.padMulWanted;
+      this.botStarted = false;
+      this.botStates = [];
+      this.fp = '';
+      this.phase = 'running';
+      this.started = true;
+      this.baseTick = 0;
+      this.prevY = 0;
+      this.airT = 0;
+      this.camInit = false;
+      this.playMusicAt(0);
+    } else {
+      this.demoErr = '';
+      this.restartFromZero();
+    }
+    this.syncDemoButton();
+  }
+
+  /** 下载并解码通关输入卷(RLE → 每帧一个 bool) */
+  private loadTape() {
+    if (this.demoTried) return;
+    this.demoTried = true;
+    const url = (window as unknown as { __GD_TAPE?: string }).__GD_TAPE ?? '/assets/gd-tape.json';
+    fetch(url).then((r) => (r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))))
+      .then((j: { first: boolean; rle: number[] }) => {
+        const out: boolean[] = [];
+        let cur = j.first;
+        for (const n of j.rle) { for (let i = 0; i < n; i++) out.push(cur); cur = !cur; }
+        this.demoTape = out;
+        this.demoLoaded = true;
+      })
+      .catch((e: Error) => { this.demoErr = e.message; });
   }
 
   update(_t: number, dtMs: number) {
@@ -469,7 +572,7 @@ class Scene extends Phaser.Scene {
     /* 确认键每帧只读一次(边沿判定要按帧消费) */
     const confirm = this.confirmDown();
     const restart = this.restartPressed;
-    if (this.botMode && this.phase !== 'running') { this.phase = 'running'; this.started = true; }
+    if ((this.botMode || this.demoMode) && this.phase !== 'running') { this.phase = 'running'; this.started = true; }
     /* 调试:数字键现场换形态(1 方块 2 飞机 3 球 4 UFO 5 波浪 6 机器人 7 蜘蛛) */
     if (this.modeLatch) {
       const m = MODE_ORDER[this.modeLatch - 1];
@@ -511,8 +614,8 @@ class Scene extends Phaser.Scene {
       this.followCamera(); this.draw(); this.paintUi(); return;
     }
 
-    if (this.botMode) {
-      this.pump(8);                                    // 机器人验收:加速跑完(物理仍是定点步长)
+    if (this.botMode || this.demoMode) {
+      this.pump(this.botMode ? 8 : this.demoSpeed);     // 机器人/演示:加速跑完(物理仍是定点步长)
     } else if (this.dbgPause) {
       /* 冻住:只画不推(出图/调试用) */
     } else {
@@ -540,6 +643,7 @@ class Scene extends Phaser.Scene {
   /** HUD(DOM 里那条):每帧都刷 —— 以前只在"跑着"的分支里刷,死亡界面上的 HUD 是残留的旧值 */
   private paintHud() {
     this.syncGodButton();
+    this.syncDemoButton();
     const hud = document.getElementById('gd-hud');
     if (!hud) return;
     const w = this.world;
@@ -554,6 +658,11 @@ class Scene extends Phaser.Scene {
     if (this.phase === 'done') parts.push('通关');
     if (w.mode === 'ship') parts.push('按住 = 上升');
     if (w.god) parts.push('★ 无敌');
+    if (this.demoMode) {
+      const n = this.demoTape ? this.demoTape.length : 0;
+      parts.push(this.demoTape ? '演示 bot 通关 ×' + this.demoSpeed + '(' + (n / 60).toFixed(0) + 's 输入卷)'
+        : this.demoErr ? '演示卷加载失败:' + this.demoErr : '演示卷载入中…');
+    }
     if (Math.abs(w.padMul - 1) > 0.001) parts.push('跳点×' + w.padMul.toFixed(2));
     /* ★ 可见格数 + 取景框被外框挡掉的比例:和原版对不上时,一眼看出是缩放还是裁切问题 */
     const cam = this.cameras.main;
@@ -705,6 +814,12 @@ class Scene extends Phaser.Scene {
       started: this.started,
       phase: this.phase,
       god: this.world.god,
+      demoMode: this.demoMode,
+      demoTape: this.demoTape,
+      demoLoaded: this.demoLoaded,
+      demoErr: this.demoErr,
+      demoEndX: this.demoEndX,
+      tapeHold: (tick: number) => this.demoHold(tick),
     };
   }
 

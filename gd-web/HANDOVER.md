@@ -294,3 +294,62 @@ strings/clear/history/exit 等指令(大部分返回错误以契合故障),外�
 `custom.css` 里 `.magnetic-cursor` / `.magnetic-dot` 那套旧样式现在没人用了(元素不再创建)。
 排障/验收:控制台 `__mc`(位置/尺寸/实际绘制点/抖动/中心点半径/rot/是否磁吸)。
 验证脚本 `tools/verify/cursor-shot.mjs`:抖动幅度、呼吸范围、磁吸尺寸与转正、出图。
+
+---
+
+## 12. 机器人通关 + gdp 逐条审计(2026-09 这一轮)
+
+> ⚠ §6~§8 里的数字是【自动铺面】那一版(1686 块)。真实铺面 WATER(3620 块 / 353 秒)的现状见
+> `docs/cd03-water-import.md` 和本节。
+
+### 12.1 bot 能通关了:`tools/autoplay.ts`(带宏动作的最优优先树搜索)
+
+用户的问题:"还是得训练 bot 让 bot 能通关,关卡难度很高"。前面两代机器人都做不到:
+
+| 版本 | 做法 | 结果 |
+|---|---|---|
+| v1 `autoplay-greedy`(git 9b63d6d) | 每次决定试几种按法,**没有记忆** | 240 秒只到 x=216(**6%**),而且在同一根刺上死循环:四次死亡坐标一位不差 |
+| v2 树搜索 | 节点=快照+父指针,边=3 帧按键模式,启发=兜底试算的最远 x,最大堆做最优优先 | 60 秒到 **15.7%** |
+| **v3 宏动作**(现在这版) | 兜底策略能活着走完视界(90 帧)就把整段当一个动作落子;硬路段自动退回 3 帧粒度 | **60.8 秒通关**,输入卷 21187 帧(353 秒),回放 0 死亡 |
+
+关键数字:物理 16.4 µs/帧(开窗口裁剪)· 一次展开 ≈ 15 ms · 59 节点/秒 · 全程只展开 3590 个节点、28 个死胡同。
+死胡同最密的地方(说明关卡哪些段真的难):x=240(10 次)、300(4)、250(3)、310(2)、480(1)。
+
+```bash
+cd gd-web
+node tools/autoplay.ts --budget=900           # 搜索(默认 600 秒预算,一般 60~90 秒就出解)
+node tools/autoplay.ts --seed=../../.tmp/gd/water.best.tape.json   # 热启动:接着上次的最优前缀搜
+node tools/tape-pack.ts                       # 把解打包成 static/assets/gd-tape.json(123 KB → 11.9 KB,RLE)
+node tools/verify-run.ts                      # 回归门:回放这卷输入,必须还是 0 死亡通关
+```
+
+### 12.2 页面上的【看 bot 通关】
+
+- 右下角按钮 / **B 键** / `?demo=1`;倍速 `?demospeed=40`(默认 8 倍)。
+- 卷子 `static/assets/gd-tape.json` 懒加载 —— ⚠ **别放进 `static/assets/gd/`**:
+  那是 `vite.lib.config.ts` 的 outDir 且 `emptyOutDir: true`,`npm run build:embed` 会把它清空(踩过)。
+- 验收 `tools/verify/gd-demo-check.mjs` **9/9**:卷子解码 21187 帧、全程 attempts=1、
+  phase=done、x=3620.1/3620(100%)、tick 正好 21187、无报错;截图 `.tmp/gd/shots/demo-{mid,done}.png`。
+  ★ 浏览器跑到 x=3620.1 与 Node 侧逐帧一致 —— 两端物理同源,这条比指纹对比更直观。
+
+### 12.3 gdp 逐条审计:`docs/gdp-coverage.md`(86 条大表)
+
+数值层面基本对得上(弹簧 16×arg1、跳环倍率、flipGravity ×1.75、起跳 11.180032、终端 15、
+容差 15/10/6、各形态重力倍率、判定盒尺寸)。**对不上的是时机 / 时序 / 作用域**,头五条:
+
+1. `P.speedMul=[0.7,0.9,1.1,1.3,1.6]` 标着 [GDOpenGD] 但 OpenGD/gdp211 里都没有这张表,
+   只给了 `m_dXVel=[5.98,5.77,5.87,6.0,6.0]`,且两版源码互相冲突 ⇒ 该改成"每帧位移"并注明只能实测标定;
+2. `world.ts` 的 `spiderReach()=[60,90,120,135,120]` 把 `checkSnapJumpToObject` 的**方块台阶吸附表**
+   当成了蜘蛛可达距离;同时 `constants.ts` 的 `spiderBand=8` 从未被用 —— 同一件事两套来源;
+3. 弹簧/跳环的 `boostDir` 是自造量(GD 的豁免来自 `m_maybeIsBoosted` 分支)⇒ 黄板峰值 3.9 vs 4.4 块;
+4. 重力门把 vy 清零(原版 `flipGravity` 只 ×1.75、不清零);蓝板/蓝环"故意不乘 1.75"与 GD 不符;
+5. `m_jumpBuffered` 缓冲跳**没实现**,但 `world.ts` 的注释声称实现了。
+
+还有:飞船"按住"的符号抄的是 OpenGD 旧版;判定盒锚点应为"相对中心偏移"(我们一律取中心,
+刺族因此整体上移约 0.1 格);跳环缺 `if(isBall||isSpider) yAccel *= 0.7`;完全缺失的机制里有
+`checkSnapJumpToObject`(方块爬台阶/横向吸附)、`m_stateRingJump`、自定义环、坡道、dash 状态机、
+`boostPlayer`、移动平台载人、圆形判定(锯片)等 24 项;14 处标"未验证"(机制在 2.11 不存在,
+或反编译自相矛盾)。
+
+**改物理的流程(重要)**:任何一条改动都会让现有输入卷失效 —— 改完必须
+`autoplay.ts` 重搜(≈1 分钟)→ `tape-pack.ts` 重打包 → `verify-run.ts` + `gd-demo-check.mjs` 重验 → 提交。
