@@ -1173,7 +1173,16 @@ export class World {
 
   /** 跳环的分形态力度(原版 PlayerObject::ringJump 里的倍率表)。
    *  ★ 我们以前所有形态都用"方块那一档",于是飞行/球/机器人段里的环力度全错 ——
-   *    用户说的"性能不对"里有一部分就是这里。表里的倍率是 × 起跳初速(jumpPower)。 */
+   *    用户说的"性能不对"里有一部分就是这里。表里的倍率是 × 起跳初速(jumpPower)。
+   *  ★★ 两张源在【船的粉环】上冲突,已交叉核对过:
+   *     · gdp@2.11 `ringJump.cpp:84-93` 写的是 `if (isShip) new_y_accel *= 1.37`
+   *     · OpenGD `playerobject.cpp:476-491` 写的是 `case PlayerGamemodeShip: newYVel *= 0.37f`
+   *     其余每一项(粉的 UFO 0.42 / 球 0.77 / 默认 0.72、红的船 1.4(迷你)/鸟 1.02/1.36、
+   *     绿的船 0.7、黄 ×0.9(机器人)、蓝 0.8)两边完全一致。按"粉环 = 小跳"的语义取 OpenGD 的
+   *     0.37(1.37 会让船的粉环比红环还猛,而且原版船的纵速上限只有 shipVyMax,
+   *     1.37 会被钳成同一个值,分不出粉/红两档 —— 与实际手感不符)。
+   *     ★ 本条只影响"船段里的粉环";本关(WATER)的 127 个环**没有一个在飞行形态段里**
+   *       (统计:cube 121 / 机器人 5 / 球 1),所以这个取值对本关的通关卷没有任何影响。 */
   private orbVel(kind: OrbKind): number {
     const J = P.jump;
     const mini = this.mini;
@@ -1186,7 +1195,10 @@ export class World {
       case 'pink':
         return J * (this.mode === 'ship' ? 0.37 : this.mode === 'ufo' ? 0.42 : this.mode === 'ball' ? 0.77 : 0.72) * bs;
       case 'red':
-        return J * (this.mode === 'ship' ? 1.0
+        /* ★ 船的【迷你】红环是 ×1.4 而不是 ×1.0 —— 出处两边一致:
+           gdp@2.11 `ringJump.cpp:66-68` / OpenGD `playerobject.cpp:455-457`
+           `if (vehicleSize != 1.0f) newYVel *= 1.4;`(之后再乘迷你的 0.8)。 */
+        return J * (this.mode === 'ship' ? (mini ? 1.4 : 1.0)
           : this.mode === 'ufo' ? (mini ? 1.36 : 1.02)
             : (this.mode === 'ball' || this.mode === 'spider') ? 1.34
               : this.mode === 'robot' ? 1.28 : 1.38) * bs;
