@@ -99,6 +99,8 @@ export class World {
   checkX = 0; checkY = 0; checkMode: Mode = 'cube'; checkSize = 1;
   /** 最近一次跨过的形态门的中心 y(相机在飞行类形态里"钉视口"要用,原版口径) */
   portalY = 0;
+  /** 这张铺面是不是"GD 导出的真实关卡"(决定事件物件用相交判还是跨 x 判,见 hitEvent) */
+  private strict = false;
   /** ★ 跳环要"一次新的按键"才生效(原作口径:按一下消耗一次,按住不放串不起环)。
    *  按下的那一瞬间 pressFresh 置位,被一次起跳或一个环用掉;松手再按才会有新的一次。 */
   pressFresh = false;
@@ -121,6 +123,7 @@ export class World {
     const st = level.start;                       // 出生点(物件 31):不传就按铺面标的来
     if (startX == null) startX = (st?.b ?? 0) * U;
     if (startY == null) startY = (st?.r ?? 0) * U;
+    this.strict = !!level.fromGD;
     /* ★ 原版判定盒(照搬 LongData.cpp 的表):以【物件中心】为心、用表里的宽高。
        有这个表的物件一律用它 —— 之前的"贴图盒/整格/向外 0.5 格"都是我猜的,
        跳板宽 5~7 倍、跳环大近一倍、尖刺判高一倍,全是"本该能过却过不去"的来源。 */
@@ -715,7 +718,7 @@ export class World {
     /* --- 触发器:必须先真的跨过去(交叉判定),复活点落在它右边时不会误触发 --- */
     for (const b of this.portals) {
       if (this.armedPortals.has(b)) continue;
-      if (prevX + this.box <= b.x0 || this.x >= b.x1) continue;
+      if (!this.hitEvent(b, prevX)) continue;
       this.armedPortals.add(b);
       this.mode = (b.o.to ?? 'cube');
       /* ★ 相机要用:记下这个门的位置(原版进门时按门的 y 决定"视口钉在哪") */
@@ -726,13 +729,13 @@ export class World {
     }
     for (const b of this.speeds) {
       if (this.armedSpeeds.has(b)) continue;
-      if (prevX + this.box <= b.x0 || this.x >= b.x1) continue;
+      if (!this.hitEvent(b, prevX)) continue;
       this.armedSpeeds.add(b);
       this.speedIdx = Math.max(0, Math.min(P.speedMul.length - 1, b.o.speed ?? 1));
     }
     for (const b of this.gravs) {
       if (this.armedGravs.has(b)) continue;
-      if (prevX + this.box <= b.x0 || this.x >= b.x1) continue;
+      if (!this.hitEvent(b, prevX)) continue;
       this.armedGravs.add(b);
       /* ★ 原版的重力门是【指定方向】(向下门 / 向上门),不是"翻一下" ——
          连吃两个同样的门不该把人翻回去,所以这里按 gdir 直接设,没有 gdir 才退回"翻转"。 */
@@ -741,7 +744,7 @@ export class World {
     }
     for (const b of this.triggers) {
       if (this.armedTriggers.has(b)) continue;
-      if (prevX + this.box <= b.x0 || this.x >= b.x1) continue;
+      if (!this.hitEvent(b, prevX)) continue;
       this.armedTriggers.add(b);
       this.fire(b.o);
     }
@@ -750,7 +753,7 @@ export class World {
      * ★ 这关(WATER)有 7 个蓝入口、0 个橙出口 —— 按原版它们不生效(已写在文档里,等用户确认)。 */
     for (const b of this.teleports) {
       if (this.armedPortals.has(b)) continue;
-      if (prevX + this.box <= b.x0 || this.x >= b.x1) continue;
+      if (!this.hitEvent(b, prevX)) continue;
       this.armedPortals.add(b);
       if (b.o.exit) continue;                       // 出口不主动送人
       /* ★ 原版 2.2 的传送门自带【纵向偏移】(键 54,用户确认):进去就在这个门的纵向方向
@@ -769,7 +772,7 @@ export class World {
     }
     for (const b of this.sizes) {
       if (this.armedSizes.has(b)) continue;
-      if (prevX + this.box <= b.x0 || this.x >= b.x1) continue;
+      if (!this.hitEvent(b, prevX)) continue;
       this.armedSizes.add(b);
       /* 迷你门:体积 0.6(反编译口径 m_vehicleSize=m_vehicleSize);放大门 = mini:false → 回到 1.0 */
       this.sizeMul = b.o.mini === false ? 1 : P.miniSize;
@@ -777,7 +780,7 @@ export class World {
     }
     for (const b of this.checks) {
       if (this.armedChecks.has(b)) continue;
-      if (prevX + this.box <= b.x0 || this.x >= b.x1) continue;
+      if (!this.hitEvent(b, prevX)) continue;
       this.armedChecks.add(b);
       this.checkX = b.x0;
       this.checkY = this.y;                 // ★ 存档点记的是"人越过它时的位置"(原版口径)
@@ -833,6 +836,18 @@ export class World {
     this.gdir = -this.gdir;
     this.vy = -P.spiderVel * this.gdir;      // 极小的一点速度,方向朝"新的上方"
     this.onGround = true;
+  }
+
+  /** 事件物件(形态门/速度门/重力门/尺寸门/存档点/传送门/触发器)算不算"碰到了"。
+   *  ★ 真实铺面(GD 导出的关卡;`level.fromGD`)按【原版口径】:
+   *    玩家【外框】与物件判定盒【相交】—— 含高度!门的盒子是 34×86 单位(竖高),
+   *    站在门正下方是碰不到的(以前我们只判"跨过它的 x",不管高度,门在头顶也会触发)。
+   *  ★ 我们自己自动铺面的那套关卡,把门摆在 r=3/6 当"段首标记"用,靠的就是"跨过 x",
+   *    所以两种口径按来源分流 —— 两边的铺面都不会被搞坏。 */
+  private hitEvent(b: Box, prevX: number): boolean {
+    if (!this.strict) return !(prevX + this.box <= b.x0 || this.x >= b.x1);
+    const u = this.outer();
+    return u.x1 > b.x0 && u.x0 < b.x1 && u.y1 > b.y0 && u.y0 < b.y1;
   }
 
   private die() { if (!this.dead) { this.dead = true; this.deadT = 0; } }

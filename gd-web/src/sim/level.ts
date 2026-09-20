@@ -107,6 +107,8 @@ export interface Level {
   song: string;
   songOffset: number;
   beats?: number[]; // 生成时用的 onset 列表(秒),留着给调试/对齐用
+  /** ★ 这张铺面是 GD 导出的真实关卡(charts/*):事件物件按原版"外框相交"判触发 */
+  fromGD?: boolean;
   /** ★ 出生点(块)。GD 里由"起点标记"(物件 31)给出 —— 用户那关的起点在 (0, 10),
    *  也就是铺面第一段的【上一层】,不写这条的话人会在关卡底下跑、被压死。 */
   start?: { b: number; r: number };

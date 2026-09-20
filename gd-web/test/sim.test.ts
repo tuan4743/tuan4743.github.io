@@ -358,7 +358,7 @@ test('小刺与大刺:判定高度跟着 h 走(小刺 0.5、大刺 1.5)', () => 
   const hSmall = small.hazards[0].y1 - small.hazards[0].y0;
   const big = mk(1.5);
   const hBig = big.hazards[0].y1 - big.hazards[0].y0;
-  assert.ok(Math.abs(hSmall - 0.2 * U) < 0.01, '小刺判定高 ' + (hSmall / U).toFixed(2) + ' 块(原版表:39 → 5.6×6 单位 = 0.2 块高)');
+  assert.ok(Math.abs(hSmall - (5.6 / 30) * U) < 0.01, '小刺判定高 ' + (hSmall / U).toFixed(3) + ' 块(原版表 39 → h5.6 w6 单位 = 0.19 块高)');
   assert.ok(Math.abs(hBig - 0.7 * U) < 0.01, '大刺判定高 ' + (hBig / U).toFixed(2) + ' 块(表里没有 1.5 倍的大刺,按 12×21 单位估)');
   /* 大刺跳不过去(一跳峰值 2.17 块,内框够得着 1.05 块的大刺),小刺一跳就过 */
   const run = (w: World) => { for (let i = 0; i < 300 && !w.dead && w.x < 30 * U; i++) w.frame(i > 60 && i < 70); return w; };
