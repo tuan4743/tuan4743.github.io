@@ -39,7 +39,11 @@ console.log('分站推进:必过门 ' + doors.length + ' 个 · 每站 ' + PER +
 
 for (let i = 0; i < doors.length; i++) {
   const door = doors[i];
-  const goal = door.b + door.w / 2 + 2;                    // 到门口再往前 2 块就算过站
+  /* 到站 = 活着越过这个门的右边沿即可 —— 因为"跳过了门"本身就会被判死,
+     所以"活着过了右沿"就已经证明这个门生效了。以前写的是"门中心 +2 块",
+     实测站 21(重力门 605)走到 607.0 就卡住 —— 它其实【已经过了门】(门的右沿 606.07),
+     只是差 0.5 块没到我那个多余的阈值。 */
+  const goal = door.b + door.w + 0.5;
   let have = reached();
   if (have >= goal) continue;                             // 种子已经过了这一站
   const left = TOTAL - (Date.now() - t0) / 1000;
