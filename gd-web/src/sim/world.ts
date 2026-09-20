@@ -11,6 +11,10 @@ import { P, U, Y_TIME_SCALE, vxOf, arcSpan, ORB, PAD } from './constants.ts';
 import { hitboxOf } from './gdids.ts';
 import type { Level, Mode, Obj } from './level.ts';
 
+/** 每个物理子步最多走多少单位。最薄的实心是 468 线框(1.5 单位厚),取 1.2 < 1.5 ——
+ *  这样无论纵向速度多大,都不会"一步跨过一堵墙"(见 frame() 里的自适应切分)。 */
+const SUBSTEP_MAX = 1.2;
+
 export interface RunState {
   tick: number; x: number; y: number; vy: number; onGround: boolean;
   mode: Mode; gdir: number; speed: number; dead: boolean; done: boolean;
@@ -512,7 +516,15 @@ export class World {
     }
     if (this.fast) this.rebuildWindow();   // ★ 每帧把窗口滑到玩家身边(搜索式机器人靠它跑得动)
     this.stepAnims();                      // ★ 先让会动的东西动完,再跑物理(判定盒已同步)
-    for (let i = 0; i < SUB; i++) this.substep(FRAME / SUB, hold);
+    /* ★ 速度大的时候多切几刀再积分:线框的杆只有 1.5 单位厚,一步跨过去就是"穿模"
+       (用户:"蓝跳点还是有bug,貌似速度过快导致直接穿过了线框")。
+       每步最多走 MAX_STEP 单位 —— 正常速度下还是原来的 4 步,物理一点不变;
+       只有"弹簧推出去"那种高速帧才会切细,而且每一步都会跑完整的碰撞判定。
+       ★ 注意:这不做扫掠检测,只是把步长压到比最薄的实心还小,等价于"每步都不会跳过一堵墙"。 */
+    const perFrame = Math.abs(this.vy) * Y_TIME_SCALE * FRAME;
+    const n = perFrame > SUB * SUBSTEP_MAX ? Math.min(SUB * 8, Math.ceil(perFrame / SUBSTEP_MAX)) : SUB;
+    const d = FRAME / n;
+    for (let i = 0; i < n; i++) this.substep(d, hold);
     this.tick++;
   }
 
@@ -587,8 +599,11 @@ export class World {
       /* 球:重力 ×0.6;★ 只有在【地面上】点一下才跳 —— 原版是
          "先按旧重力方向给起跳初速 → 翻重力(速度减半)→ 再 ×0.6"。
          以前我们写成"原地翻重力 + 当前速度 ×0.6",等于球不会跳(用户:形态性能要还原)。 */
+      /* ★ 球是"按住就在每个落点翻一次" —— 原版用的是缓冲跳(m_jumpBuffered),
+         按住不放时每次落地都翻重力(所以球段都是按住过的)。我们以前要求"新按一下",
+         于是按住时球不翻、一路往下砸 —— 用户:"球形态的下落速度太离谱了,铅球吗?"。 */
       const size = this.mini ? 0.8 : 1;
-      if (hold && this.pressFresh && this.onGround) {
+      if (hold && this.onGround) {
         this.pressFresh = false;
         this.vy = P.jump * size * this.gdir;    // 旧重力方向的起跳初速
         this.gdir = -this.gdir;                 // 翻重力(原版 flipGravity 会把速度减半)
@@ -602,7 +617,9 @@ export class World {
     } else if (this.mode === 'spider') {
       /* 蜘蛛:点一下【传送到对面】再翻重力(反编译:搜索带厚度 = 体积 ×8) */
       if (hold && this.pressFresh) { this.spiderJump(); this.pressFresh = false; }
-      this.vy -= P.gravity * this.gdir * sY;
+      /* ★ 蜘蛛的重力也是 ×0.6(原版 updateJump:float_b 对 ball/spider/swing 一律 0.6)——
+         以前这里漏了乘,蜘蛛掉得跟方块一样快。 */
+      this.vy -= P.gravity * P.ballGravityMul * this.gdir * sY;
       this.applyFallClamp();
       this.y += this.vy * sY;
     } else {
@@ -898,16 +915,20 @@ export class World {
   private spiderJump() {
     const reach = this.spiderReach();
     const top = () => this.y + this.box;
+    /* ★ 横向用【窄框】判(内框 7.5 单位宽),不用整个 30 单位的外框:
+       外框会让人"和旁边一格的方块也算重叠",于是蜘蛛能横着一格跳到本来够不着的面上
+       —— 用户:"蜘蛛的碰撞箱太大了,导致直接跨过了一格的宽度"。 */
+    const hx0 = this.x + this.innerOff, hx1 = hx0 + this.innerSize;
     let best: number | null = null;
     if (this.gdir > 0) {
       /* 正重力:往【上】找最近的底面(方块底 / 平台底),必须在可达距离内 */
       for (const s of this.nearSolids) {
-        if (this.x + this.box <= s.x0 || this.x >= s.x1) continue;
+        if (hx1 <= s.x0 || hx0 >= s.x1) continue;
         if (s.y0 < top() + 1 || s.y0 > top() + reach) continue;
         if (best === null || s.y0 < best) best = s.y0;
       }
       for (const f of this.nearFloors) {
-        if (this.x + this.box <= f.x0 || this.x >= f.x1) continue;
+        if (hx1 <= f.x0 || hx0 >= f.x1) continue;
         if (f.y0 < top() + 1 || f.y0 > top() + reach) continue;
         if (best === null || f.y0 < best) best = f.y0;
       }
@@ -916,12 +937,12 @@ export class World {
     } else {
       /* 反重力:往【下】找最近的顶面,同样限可达距离 */
       for (const s of this.nearSolids) {
-        if (this.x + this.box <= s.x0 || this.x >= s.x1) continue;
+        if (hx1 <= s.x0 || hx0 >= s.x1) continue;
         if (s.y1 > this.y - 1 || s.y1 < this.y - reach) continue;
         if (best === null || s.y1 > best) best = s.y1;
       }
       for (const f of this.nearFloors) {
-        if (this.x + this.box <= f.x0 || this.x >= f.x1) continue;
+        if (hx1 <= f.x0 || hx0 >= f.x1) continue;
         if (f.y1 > this.y - 1 || f.y1 < this.y - reach) continue;
         if (best === null || f.y1 > best) best = f.y1;
       }
@@ -1063,10 +1084,14 @@ export class World {
  *     y 分量 = 箭头方向的 cos,再用 x 分量做一个下限(0.7)保证"永远在往前走"。
  *   于是 0 → 爬升 ≈ 1.43×水平速度、90 → 水平、180 → 俯冲。 */
 export function arrowDir(deg: number): { x: number; y: number } {
+  /* ★ GD 口径:未旋转(rot=0)的箭头指向【右】,rot 正角度顺时针(屏幕上往下)。
+     出图核对过 x=751 那支 rot=-45 是"右上 45°",x=367 那支 rot=90 是"正下"。
+     以前这里按"rot=0 朝上"算(还把横向夹在 sin 上),于是箭头指的方向和冲刺方向整体转了 90°
+     —— 用户:"箭头的方向反了,原版的箭头的初始方向是向右的"。
+     返回的是【世界坐标】(y 向上)的方向:rot>0(顺时针/向下)→ y 为负。 */
   const a = (deg * Math.PI) / 180;
-  const sx = Math.max(Math.sin(a), 0.7);       // 横向分量:永远不小于 0.7(不会往后退)
-  const cy = Math.cos(a);
-  return { x: sx, y: cy / sx };
+  const sx = Math.max(Math.cos(a), 0.7);       // 横向分量:永远不小于 0.7(不会往后退)
+  return { x: sx, y: -Math.sin(a) / sx };
 }
 
 /* ---------------- 空间索引 ----------------

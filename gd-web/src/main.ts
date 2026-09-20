@@ -1002,17 +1002,20 @@ class Scene extends Phaser.Scene {
           const acol = o.tp ? 0xc6a0ff : (o.arrow === 'pink' ? 0xff9fd0 : 0xa0ffd0);
           g.fillStyle(acol, 0.12).fillCircle(acx, acy, U * 0.55);
           g.lineStyle(3, acol, 0.95).strokeCircle(acx, acy, U * 0.42);
-          /* rot 0 = 朝上,顺时针(和线框的旋转口径一致) */
-          const a = -((o.rot ?? 0) * Math.PI) / 180 + Math.PI / 2;
+          /* ★ 屏幕上的角度 = 数据里的 rot(0 = 指向右,正角度顺时针 = 屏幕上往下)——
+             和 sim 里的 arrowDir 是同一套口径,画的和冲的方向才会一致。 */
+          const a = ((o.rot ?? 0) * Math.PI) / 180;
+          const dx = Math.cos(a), dy = Math.sin(a);
           const L = U * 0.5;
+          const tx = acx + dx * L * 0.62, ty = acy + dy * L * 0.62;     // 箭尖
           g.lineStyle(3, acol, 0.95);
           g.beginPath();
-          g.moveTo(acx - Math.sin(a) * 0 - Math.cos(a) * L * 0.6, acy + Math.sin(a) * L * 0.6);
-          g.lineTo(acx + Math.cos(a) * L * 0.6, acy - Math.sin(a) * L * 0.6);
-          g.moveTo(acx + Math.cos(a) * L * 0.6, acy - Math.sin(a) * L * 0.6);
-          g.lineTo(acx + Math.cos(a + 2.5) * L * 0.5, acy - Math.sin(a + 2.5) * L * 0.5);
-          g.moveTo(acx + Math.cos(a) * L * 0.6, acy - Math.sin(a) * L * 0.6);
-          g.lineTo(acx + Math.cos(a - 2.5) * L * 0.5, acy - Math.sin(a - 2.5) * L * 0.5);
+          g.moveTo(acx - dx * L * 0.5, acy - dy * L * 0.5);
+          g.lineTo(tx, ty);
+          g.moveTo(tx, ty);
+          g.lineTo(tx - dx * L * 0.45 + dy * L * 0.42, ty - dy * L * 0.45 - dx * L * 0.42);
+          g.moveTo(tx, ty);
+          g.lineTo(tx - dx * L * 0.45 - dy * L * 0.42, ty - dy * L * 0.45 + dx * L * 0.42);
           g.strokePath();
           break;
         }
