@@ -619,11 +619,16 @@ export class World {
       /* 球:重力 ×0.6;★ 只有在【地面上】点一下才跳 —— 原版是
          "先按旧重力方向给起跳初速 → 翻重力(速度减半)→ 再 ×0.6"。
          以前我们写成"原地翻重力 + 当前速度 ×0.6",等于球不会跳(用户:形态性能要还原)。 */
-      /* ★ 球是"按住就在每个落点翻一次" —— 原版用的是缓冲跳(m_jumpBuffered),
-         按住不放时每次落地都翻重力(所以球段都是按住过的)。我们以前要求"新按一下",
-         于是按住时球不翻、一路往下砸 —— 用户:"球形态的下落速度太离谱了,铅球吗?"。 */
+      /* ★ 球:一次【按键】只翻一次重力 —— 用的是原版的"缓冲跳":按下的那一下记一个标记,
+         落地时消费掉再翻重力。出处:gdp@2.11 updateJump 里球那一支明确写了
+             yVelocityTmp = m_yVelocity;
+             this->m_jumpBuffered = 0;        ← 翻完就把缓冲清掉
+             this->m_yVelocity = yVelocityTmp * 0.6;
+         所以【按住不放不会一直弹】:按住只会让它翻第一次(用户实测按住时"一直弹起落下鬼畜",
+         就是这个 —— 我上一版为了让球不那么"铅球"改成"按住就翻",反而把这条弄丢了)。
+         注意缓冲跳 ≠ 必须落地那一下按:空中按下的也算数(按下时标记,落地才消费)。 */
       const size = this.mini ? 0.8 : 1;
-      if (hold && this.onGround) {
+      if (hold && this.pressFresh && this.onGround) {
         this.pressFresh = false;
         this.vy = P.jump * size * this.gdir;    // 旧重力方向的起跳初速
         this.gdir = -this.gdir;                 // 翻重力

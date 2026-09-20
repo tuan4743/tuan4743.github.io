@@ -284,12 +284,21 @@ class Scene extends Phaser.Scene {
       this.labels.push(t);
     }
     /* ★ 形态门挂牌子:光看门框分不出切什么形态(用户:"形态门都是一个样式,我怎么知道这个门是什么")——
-       每个门头上挂一块写着形态名的小牌子,底色就是那个形态的颜色。位置每帧跟着门走(见 draw)。 */
+       每个门头上挂一块写着形态名的小牌子,底色就是那个形态的颜色。位置每帧跟着门走(见 draw)。
+       ★ 重力门同理:方向不同颜色不同(反重力蓝 / 常重力黄),牌子上直接写"反重力↑""重力↓"。 */
     for (const o of LEVEL.objects) {
-      if (o.kind !== 'portal' || !o.to) continue;
-      const to = o.to as Mode;
-      const col = PORTAL_COL[to] ?? 0xffe17a;
-      const t = this.add.text(0, 0, MODE_NAME[to] ?? to, {
+      let text = '';
+      let col = 0xffffff;
+      if (o.kind === 'portal' && o.to) {
+        const to = o.to as Mode;
+        text = MODE_NAME[to] ?? to;
+        col = PORTAL_COL[to] ?? 0xffe17a;
+      } else if (o.kind === 'gravity') {
+        const up = (o.gdir ?? 1) < 0;
+        text = up ? '反重力↑' : '重力↓';
+        col = up ? 0x6fc3ff : 0xffd166;
+      } else continue;
+      const t = this.add.text(0, 0, text, {
         fontFamily: 'ui-monospace, Consolas, monospace',
         fontSize: '16px',
         color: '#05070d',
@@ -967,15 +976,25 @@ class Scene extends Phaser.Scene {
           break;
         }
         case 'gravity': {
-          /* 重力门:向下 = 常重力(实心三角朝下),向上 = 反重力(空心三角朝上) */
+          /* 重力门:★ 以前两个方向都画成"淡紫色小三角 + 一圈淡淡的光",用户根本看不出是重力门、
+             更看不出往哪边翻。现在按原版配色做成【竖椭圆门 + 大箭头 + 门头牌子】:
+               反重力(向上,id 11)= 蓝;常重力(向下,id 10)= 黄。
+             门框尺寸用判定盒一致的口径(34×86 单位),撞上去的范围和看见的一致。 */
           const up = (o.gdir ?? 1) < 0;
-          const gcx = obx + U / 2, gcy = Y((o.r + o.h / 2) * U);
-          g.lineStyle(3, 0xc6a0ff, 0.95);
+          const col = up ? 0x6fc3ff : 0xffd166;
+          const gcx = obx + obw / 2, gcy = oBot - obh / 2;
+          g.fillStyle(col, 0.16).fillEllipse(gcx, gcy, PORTAL_W, PORTAL_H);
+          g.lineStyle(3, col, 0.95).strokeEllipse(gcx, gcy, PORTAL_W, PORTAL_H);
+          g.lineStyle(1, col, 0.45).strokeEllipse(gcx, gcy, PORTAL_W * 0.72, PORTAL_H * 0.8);
+          /* 门里一支大箭头:朝上 = 反重力,朝下 = 常重力;还配两条横线示意"哪边是地" */
+          g.lineStyle(4, col, 0.95);
           g.beginPath();
-          if (up) { g.moveTo(gcx - 9, gcy + 6); g.lineTo(gcx, gcy - 7); g.lineTo(gcx + 9, gcy + 6); }
-          else { g.moveTo(gcx - 9, gcy - 6); g.lineTo(gcx, gcy + 7); g.lineTo(gcx + 9, gcy - 6); }
+          const ay = up ? -1 : 1;                       // 屏幕上:up → 往上画
+          g.moveTo(gcx, gcy - ay * 14); g.lineTo(gcx, gcy + ay * 14);
+          g.moveTo(gcx - 9, gcy + ay * 4); g.lineTo(gcx, gcy + ay * 15); g.lineTo(gcx + 9, gcy + ay * 4);
           g.strokePath();
-          g.fillStyle(0xc6a0ff, 0.18).fillCircle(gcx, gcy, U * 0.5);
+          g.lineStyle(3, col, 0.8);
+          g.lineBetween(gcx - 12, gcy + ay * 22, gcx + 12, gcy + ay * 22);
           break;
         }
         case 'size': {

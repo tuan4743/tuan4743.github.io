@@ -297,6 +297,20 @@ test('球:重力只有 0.6 倍;★ 只有站在地面上点一下才跳(跳=先�
   for (let i = 0; i < 20 && !w2.dead; i++) w2.frame(false);
   assert.ok(w2.y > 1.5 * U, '反重力应该一路往上飞,y=' + (w2.y / U).toFixed(2) + ' 块');
 
+  /* ★ 按住不放【只翻一次】(原版:翻完就把 m_jumpBuffered 清掉)——
+     用户实测过"按住时球在两个面之间一直弹、鬼畜",那就是"按住每个落点都翻"。 */
+  const wHeld = new World(solo([
+    { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
+    { kind: 'block', b: 0, r: 6, w: 60, h: 1 },       // 上面来一层"天花板",让它有落点
+  ]));
+  wHeld.mode = 'ball'; wHeld.y = 1 * U; wHeld.onGround = true;
+  let flips = 0, g0 = wHeld.gdir;
+  for (let i = 0; i < 180 && !wHeld.dead; i++) {
+    wHeld.frame(true);                                 // ★ 全程按住
+    if (wHeld.gdir !== g0) { flips++; g0 = wHeld.gdir; }
+  }
+  assert.equal(flips, 1, '按住 180 帧应该只翻一次重力,实际翻了 ' + flips + ' 次');
+
   /* ★ 关卡顶【不是】天花板(原版口径:反重力撞到真方块才停)。给它一层天花板方块,应该贴在它下面。 */
   const w3 = new World(solo([
     { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
