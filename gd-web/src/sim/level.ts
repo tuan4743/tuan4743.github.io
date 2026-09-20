@@ -161,8 +161,11 @@ function jumpLead(speed: number): number {
   return arcSpan(P.jump, speed) - (P.innerOff + 6) / U;
 }
 
-/** 内框右缘碰到物件左缘的位置:玩家其实提前 0.625 块就"碰"到了它(弹簧/环都按这个算) */
-const TOUCH_LEAD = (P.innerOff + P.inner) / U;      // = 0.625 块
+/** 碰到就生效的那类(弹簧/跳环)真正的触发提前量:
+ *  原版用【外框】(30 单位)去撞物件的判定盒,而弹簧的判定盒是【整格】——
+ *  所以触发点 = 物件左缘 − 1 块。以前我们按"内框 + 贴图盒"算是 0.625 块,
+ *  差了 0.375 块,所有图案的落点都要跟着挪(用户:"跳点必须还原,不然地点不对")。 */
+const TOUCH_LEAD = P.box / U;                       // = 1.0 块
 
 /** 内判定框此刻脚底在哪个格子里 —— 环就放这一行,保证一定碰得到 */
 function orbRow(yUnits: number): number {

@@ -103,7 +103,14 @@ export const PAD: Record<PadKind, { v: number; flip: FlipWhen; note: string }> =
   pink: { v: 10.4, flip: 'none', note: '[GDOpenGD] 0.65×16 = 10.4' },
   red: { v: 20.0, flip: 'none', note: '[GDOpenGD] 1.25×16 = 20(峰值约 7 块)' },
   blue: { v: 12.8, flip: 'before', note: '[GDOpenGD] propell(0.8)=12.8,然后翻转重力' },
-  purple: { v: 16.0, flip: 'before', note: '[待核] 2.2 里没有独立分支,先按 1.0×16 处理' },
+  purple: {
+    v: 10.4, flip: 'none',
+    /* ★ 紫色地面跳点(140):原版数值查不到 —— OpenGD 只实现了 黄/蓝/粉/红 四种板。
+       用户那关 x≈202 有一块紫板,正上方 r=3 挂着倒刺(判定带 3.3~4.0 格):
+       起跳峰值必须 ≤ 2.3 格才钻得过去 → v ≤ 11.5。所以先取 pink 档 10.4,而且【不翻重力】
+       (翻重力会让人一路加速往上撞进那排刺)。用户若知道原版数值,一句话就能改。 */
+    note: '[待用户核] 按关卡地形反推:pink 档 10.4、不翻重力',
+  },
 };
 
 /** 初速 v 的一次起跳(平地出发)的滞空时间(秒)。★上升不夹终端速度 */

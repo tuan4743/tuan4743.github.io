@@ -176,7 +176,13 @@ export class World {
         case 'gravity': this.gravs.push(b); break;
         case 'check': this.checks.push(b); break;
         case 'orb': this.orbs.push(b); break;
-        case 'pad': this.pads.push(b); break;
+        case 'pad': {
+          /* ★ 弹簧的判定盒 = 【整格】(1×1,从底边往上一个格子)。
+             原版的弹簧 hitbox 就是整格,我们以前按贴图盒(1×0.2)判 —— 触发点晚了 0.8 格,
+             落点自然全错(用户:"碰撞箱必须要还原,不然地点不对")。 */
+          this.pads.push({ x0: b.x0, x1: b.x1, y0: b.y0, y1: b.y0 + U, o });
+          break;
+        }
         case 'force': this.forces.push(b); break;
         case 'pit': this.pits.push(b); break;
         case 'trigger': this.triggers.push(b); break;
@@ -392,10 +398,19 @@ export class World {
   get innerSize() { return P.inner * this.sizeMul; }
   get mini() { return this.sizeMul < 0.999; }
 
-  /** 内判定框(比外框小得多 —— 原作就是靠这个"看着撞上却没死") */
+  /** 内判定框(比外框小得多 —— 原作就是靠这个"看着撞上却没死")。
+   *  ★ 用途:撞实心/尖刺/锯片 判死亡(原版:内框 intersect → destroyPlayer)。 */
   private inner() {
     const off = this.innerOff;
     return { x0: this.x + off, x1: this.x + off + this.innerSize, y0: this.y + off, y1: this.y + off + this.innerSize };
+  }
+
+  /** 外框(30×30,迷你时 0.6)。
+   *  ★ 用途:**碰到就生效**的那一类(弹簧、跳环、门、速度门、硬币)——
+   *    原版用的是 playerOuterBounds.intersectsRect(objBounds),不是内框。
+   *    以前我们用内框判,等于所有弹簧/跳环都晚触发 0.375 格(用户:"跳点必须还原,不然地点不对")。 */
+  private outer() {
+    return { x0: this.x, x1: this.x + this.box, y0: this.y, y1: this.y + this.box };
   }
 
   reset(startX: number, mode: Mode, startY = 0) {
@@ -482,9 +497,15 @@ export class World {
       if (this.y < 0 || this.y + this.box > this.rows * U) { this.die(); return; }
       this.onGround = false;
     } else if (this.mode === 'ship') {
-      const acc = hold ? (this.gdir * P.shipAccelUp) : (this.gdir * P.shipAccelDown);
-      this.vy += acc * sY;
-      this.vy = Math.max(-P.shipVyMax, Math.min(P.shipVyMax, this.vy));
+      /* 飞机:照 OpenGD PlayerObject::updateJump 的 ship 分支 ——
+         加速度 = −重力 × flipMod × shipAccel × extraBoost / playerSize,
+         按住 shipAccel = −1.0(extraBoost:下落 0.5、否则 0.4),松开是 0.8(下落)/1.2(上升)。 */
+      const falling = this.vy * this.gdir < 0;
+      const shipAccel = hold ? -1.0 : (falling ? 0.8 : 1.2);
+      const extraBoost = (hold && falling) ? 0.5 : 0.4;
+      const size = this.mini ? 0.85 : 1;
+      this.vy -= P.gravity * this.gdir * shipAccel * extraBoost / size * sY;
+      this.vy = Math.max(P.flyDownMax / size, Math.min(P.flyUpMax / size, this.vy));
       this.y += this.vy * sY;
       if (this.y < 0 || this.y + this.box > this.rows * U) { this.die(); return; }
     } else if (this.mode === 'wave') {
@@ -494,15 +515,31 @@ export class World {
       this.y += this.vy * sY;
       if (this.y < 0 || this.y + this.box > this.rows * U) { this.die(); return; }
     } else if (this.mode === 'ufo') {
-      /* UFO:点一下给一个上冲,平时往下掉;在 GD 里它和飞机共用那套飞行夹取(上 8 / 下 -6.4) */
-      if (hold && this.pressFresh) { this.vy = P.ufoImpulse; this.pressFresh = false; }
-      this.vy -= P.gravity * sY;
-      this.vy = Math.max(P.flyDownMax, Math.min(P.flyUpMax, this.vy));
+      /* UFO:照 OpenGD —— 点一下是【赋值】:newVel = flipMod × (迷你?8:7) × 体积;
+         重力只有常重力的一半(上升 0.8 / 下落 1.2 再 ×0.5),所以飞着才跟手。 */
+      const size = this.mini ? 0.85 : 1;
+      if (hold && this.pressFresh) {
+        this.pressFresh = false;
+        this.vy = this.gdir * (this.mini ? 8 : 7) * size;
+      }
+      const falling = this.vy * this.gdir < 0;
+      this.vy -= P.gravity * this.gdir * (falling ? 0.8 : 1.2) * 0.5 / size * sY;
+      this.vy = Math.max(P.flyDownMax / size, Math.min(P.flyUpMax / size, this.vy));
       this.y += this.vy * sY;
       if (this.y < 0 || this.y + this.box > this.rows * U) { this.die(); return; }
     } else if (this.mode === 'ball') {
-      /* 球:重力 ×0.6;点一下【翻重力】并把垂直速度 ×0.6(反编译口径) */
-      if (hold && this.pressFresh) { this.gdir = -this.gdir; this.vy *= P.ballFlipVelMul; this.pressFresh = false; }
+      /* 球:重力 ×0.6;★ 只有在【地面上】点一下才跳 —— 原版是
+         "先按旧重力方向给起跳初速 → 翻重力(速度减半)→ 再 ×0.6"。
+         以前我们写成"原地翻重力 + 当前速度 ×0.6",等于球不会跳(用户:形态性能要还原)。 */
+      const size = this.mini ? 0.8 : 1;
+      if (hold && this.pressFresh && this.onGround) {
+        this.pressFresh = false;
+        this.vy = P.jump * size * this.gdir;    // 旧重力方向的起跳初速
+        this.gdir = -this.gdir;                 // 翻重力(原版 flipGravity 会把速度减半)
+        this.vy /= 2;
+        this.vy *= P.ballFlipVelMul;
+        this.onGround = false;
+      }
       this.vy -= P.gravity * P.ballGravityMul * this.gdir * sY;
       if (this.vy * this.gdir < 0) this.vy = Math.max(-P.vyMax, Math.min(P.vyMax, this.vy));
       this.y += this.vy * sY;
@@ -556,17 +593,19 @@ export class World {
         // 掉出世界 = 死(坑)
         if (this.y < -2.5 * U) { this.die(); return; }
       } else {
-        /* 反重力:场地顶就是一层实心天花板,方块/平台的底面也能贴住 */
-        support = this.rows * U;
+        /* 反重力:只有【真的方块/平台底面】能贴住 —— ★ 关卡顶不是天花板(原版口径:
+           反重力的人是往上"掉",撞到方块才停;一路飞出去就在关卡顶边界上判死)。
+           以前我们把"关卡顶"当成实心天花板,反重力的人会直接吸在顶上(OpenGD 里顶是死区)。 */
+        let sup: number | null = null;
         for (const f of this.nearFloors) {
           if (this.x + this.box <= f.x0 || this.x >= f.x1) continue;
-          if (prevTop <= f.y0 + 0.01 && boxTop >= f.y0 && f.y0 < support) support = f.y0;
+          if (prevTop <= f.y0 + 0.01 && boxTop >= f.y0 && (sup === null || f.y0 < sup)) sup = f.y0;
         }
         for (const b of this.nearSolids) {
           if (this.x + this.box <= b.x0 || this.x >= b.x1) continue;
-          if (prevTop <= b.y0 + 0.01 && boxTop >= b.y0 && b.y0 < support) support = b.y0;
+          if (prevTop <= b.y0 + 0.01 && boxTop >= b.y0 && (sup === null || b.y0 < sup)) sup = b.y0;
         }
-        if (this.vy >= 0) { this.y = support - this.box; this.vy = 0; this.onGround = true; }
+        if (sup !== null && this.vy >= 0) { this.y = sup - this.box; this.vy = 0; this.onGround = true; }
         else this.onGround = false;
         if (this.y + this.box > this.rows * U + 2.5 * U) { this.die(); return; }
       }
@@ -601,7 +640,7 @@ export class World {
      * 飞机 0.47 / UFO 0.58 / 摇摆 0.4 / 球+蜘蛛 0.6 / 机器人 0.9 / 方块 1.0。
      * 我们这里先做最直接的一种:给一个垂直加速度,叠加在重力之上。 */
     if (this.forces.length) {
-      const inn = this.inner();
+      const inn = this.outer();
       for (const b of this.forces) {
         if (inn.x1 <= b.x0 || inn.x0 >= b.x1 || inn.y1 <= b.y0 || inn.y0 >= b.y1) continue;
         this.vy += (b.o.fy ?? 0) * sY;
@@ -609,9 +648,10 @@ export class World {
       }
     }
 
-    /* --- 弹簧(跳板):碰到就生效,不用按键 —— "连续鼓点用弹簧连起来"靠的就是这条 --- */
+    /* --- 弹簧(跳板):碰到就生效,不用按键 —— "连续鼓点用弹簧连起来"靠的就是这条 ---
+     * ★ 用【外框】判(原版 playerOuterBounds.intersectsRect)。 */
     {
-      const inn = this.inner();
+      const inn = this.outer();
       for (const b of this.nearPads) {
         if (this.armedPads.has(b)) continue;
         if (inn.x1 <= b.x0 || inn.x0 >= b.x1 || inn.y1 <= b.y0 || inn.y0 >= b.y1) continue;
@@ -623,7 +663,7 @@ export class World {
 
     /* --- 硬币:碰到就收(收集向,不影响能不能过) --- */
     {
-      const inn = this.inner();
+      const inn = this.outer();
       for (const b of this.nearCoins) {
         if (this.gotCoins.has(b)) continue;
         if (inn.x1 <= b.x0 || inn.x0 >= b.x1 || inn.y1 <= b.y0 || inn.y0 >= b.y1) continue;
@@ -631,9 +671,9 @@ export class World {
       }
     }
 
-    /* --- 冲刺箭头 / 紫色上跳箭头:一次【新的按键】才生效(和跳环同族) --- */
+    /* --- 冲刺箭头 / 紫色上跳箭头:一次【新的按键】才生效(和跳环同族);外框判 --- */
     if (hold && this.pressFresh) {
-      const inn = this.inner();
+      const inn = this.outer();
       for (const b of this.nearArrows) {
         if (this.armedArrows.has(b)) continue;
         if (inn.x1 <= b.x0 || inn.x0 >= b.x1 || inn.y1 <= b.y0 || inn.y0 >= b.y1) continue;
@@ -649,9 +689,10 @@ export class World {
       }
     }
 
-    /* --- 跳环:要一次【新的按键】才生效 —— 空中二段跳靠它,而"按住不放"串不起一串环(原作口径) --- */
+    /* --- 跳环:要一次【新的按键】才生效 —— 空中二段跳靠它,而"按住不放"串不起一串环(原作口径) ---
+     * ★ 外框判(原版 playerOuterBounds) */
     if (hold && this.pressFresh) {
-      const inn = this.inner();
+      const inn = this.outer();
       for (const b of this.nearOrbs) {
         if (this.armedOrbs.has(b)) continue;
         if (inn.x1 <= b.x0 || inn.x0 >= b.x1 || inn.y1 <= b.y0 || inn.y0 >= b.y1) continue;

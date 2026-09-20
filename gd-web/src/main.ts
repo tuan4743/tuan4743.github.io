@@ -22,9 +22,9 @@ const HL = '#7ff0ff';
 const PAL = [0x7ff0ff, 0xffe17a, 0xa0ffd0, 0xc6a0ff, 0xff9fd0];
 const HLD = 0x7ff0ff;
 const WARN = 0xff9a6b;
-/** 视口高度(块)。★ 原版口径:设计分辨率 480×320、1 块 = 30 单位 → 一屏 10.67 格高。
- *  宽度由画幅比例决定(1280×720 → 约 19 格)。 */
-const VIEW_H_BLOCKS = 320 / 30;
+/** 视口高度(块)。★ 原版口径:设计分辨率 480×320、1 块 = 30 单位 → 10.67 格;
+ *  用户在原版里数到的是 11 格(取整),所以这里按 11 来 —— 一屏至少别比原版少。 */
+const VIEW_H_BLOCKS = 11;
 /* 相机纵向的原版常量(单位、朝上;出自 OpenGD 的 PlayLayer::updateCamera —— 用户要求照搬):
  *   方块形态:人被困在视野里的一条带子里 —— 下沿(cam + unk3)、上沿(cam + 屏幕高 − unk2),
  *             只有越出这条带子相机才动,一动就把人贴回带子边缘;
@@ -391,6 +391,20 @@ class Scene extends Phaser.Scene {
     if (this.phase === 'idle') parts.push('按空格开始');
     if (this.phase === 'done') parts.push('通关');
     if (w.mode === 'ship') parts.push('按住 = 上升');
+    /* ★ 可见格数:自己量一遍(内部分辨率)与"被外框窗口裁掉之后"的格数 ——
+       和原版对不上时,一眼能看出是"缩放不对"还是"画布被裁了"。 */
+    const cam = this.cameras.main;
+    const vhBlocks = (cam.height / cam.zoom) / U;
+    const cv = document.getElementById('gd-canvas');
+    let clipped = vhBlocks;
+    if (cv) {
+      const r = cv.getBoundingClientRect();
+      const host = cv.parentElement?.getBoundingClientRect();
+      const visH = host ? Math.min(r.height, host.height) : r.height;
+      if (r.height > 0) clipped = vhBlocks * (visH / r.height);
+    }
+    parts.push('可见 ' + vhBlocks.toFixed(1) + ' 格');
+    if (clipped < vhBlocks - 0.2) parts.push('窗口只露 ' + clipped.toFixed(1) + ' 格');
     parts.push(Math.round(this.fps) + ' fps');
     parts.push(this.audio && !this.audio.paused ? '♪ ' + this.audio.currentTime.toFixed(1) + 's' : '暂停');
     hud.textContent = parts.filter(Boolean).join(' · ');

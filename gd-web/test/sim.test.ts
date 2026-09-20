@@ -238,18 +238,42 @@ test('蓝环:翻转重力 —— 之后是"往上掉"', () => {
 /* ---------------- ③b 其它形态(球 / UFO / 波浪 / 机器人 / 蜘蛛) ---------------- */
 const floor60 = { kind: 'platform' as const, b: 0, r: -1, w: 60, h: 1 };
 
-test('球:点一下翻重力、重力只有 0.6 倍,而且会贴着天花板跑', () => {
+test('球:重力只有 0.6 倍;★ 只有站在地面上点一下才跳(跳=先给初速再翻重力,速度再减半 ×0.6)', () => {
   const w = new World(solo([floor60]));
   w.mode = 'ball'; w.y = 6 * U; w.onGround = false;
   for (let i = 0; i < 20; i++) w.frame(false);
   const fall = -w.vy;
   const cubeFall = P.gravity * 20;                       // 方块同样帧数掉出来的速度
   assert.ok(Math.abs(fall - cubeFall * P.ballGravityMul) < 2, '球的重力应该约 0.6 倍(20 帧后 vy=' + (-fall).toFixed(1) + ',方块同帧约 ' + cubeFall.toFixed(1) + ')');
-  w.frame(true);                                          // 点一下 → 翻重力
-  assert.equal(w.gdir, -1, '球点一下应该翻重力');
-  for (let i = 0; i < 90 && !w.dead; i++) w.frame(false);
-  assert.equal(w.dead, false, '翻重力之后不该摔死');
-  assert.ok(Math.abs(w.y - (ROWS * U - P.box)) < 0.5, '球应该贴到天花板上,y=' + (w.y / U).toFixed(2) + ' 块');
+  /* ★ 原版口径(OpenGD PlayerObject::updateJump 的 ball 分支):按下要"在地面上"才算跳,
+     空中按不会翻重力(以前我们写成了"随时翻")。 */
+  const gdir0 = w.gdir;
+  w.frame(true);
+  assert.equal(w.gdir, gdir0, '空中点一下不该翻重力(球只有落地才跳)');
+
+  /* 落地,再点一下:应该翻重力 + 往上弹(初速 = jump → 翻重力减半 → ×0.6) */
+  const w2 = new World(solo([floor60]));
+  w2.mode = 'ball'; w2.y = 6 * U; w2.onGround = false;
+  for (let i = 0; i < 120 && !w2.onGround; i++) w2.frame(false);
+  assert.equal(w2.onGround, true, '应该落到地面上');
+  w2.frame(true);
+  assert.equal(w2.gdir, -1, '在地面上点一下应该翻重力');
+  assert.ok(w2.vy > 0, '而且要给一个向上的初速,vy=' + w2.vy.toFixed(2));
+  const expect = P.jump * 0.5 * P.ballFlipVelMul;
+  assert.ok(Math.abs(w2.vy - expect) < 0.8,
+    '初速应该是 jump/2×0.6 ≈ ' + expect.toFixed(2) + ' 上下(实测 ' + w2.vy.toFixed(2) + ',含本帧已翻重力的那几步)');
+  for (let i = 0; i < 20 && !w2.dead; i++) w2.frame(false);
+  assert.ok(w2.y > 1.5 * U, '反重力应该一路往上飞,y=' + (w2.y / U).toFixed(2) + ' 块');
+
+  /* ★ 关卡顶【不是】天花板(原版口径:反重力撞到真方块才停)。给它一层天花板方块,应该贴在它下面。 */
+  const w3 = new World(solo([
+    { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
+    { kind: 'block', b: 0, r: 8, w: 60, h: 1 },
+  ]));
+  w3.mode = 'ball'; w3.y = 6 * U; w3.onGround = false; w3.gdir = -1;   // 直接给反重力,看它会不会停在方块底面
+  for (let i = 0; i < 200 && !w3.dead && !w3.onGround; i++) w3.frame(false);
+  assert.equal(w3.dead, false, '不该死');
+  assert.ok(Math.abs(w3.y + P.box - 8 * U) < 0.5, '应该贴在方块【底面】(y=' + (w3.y / U).toFixed(2) + ' + 1 块 = 8)');
 });
 
 test('UFO:点一下给一次上冲,松手会掉;上下限是 8 / -6.4', () => {
