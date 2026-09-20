@@ -60,7 +60,10 @@ for (let i = 0; i < doors.length; i++) {
      从它往回退才是真的在"前沿附近重新规划" */
   const maxSeed = seed ? seed.replace(/\.json$/, '') + '.max.json' : '';
   const maxSeedX = maxSeed && fs.existsSync(maxSeed) ? (JSON.parse(fs.readFileSync(maxSeed, 'utf8')).x ?? 0) : 0;
-  const back: Array<[number, number]> = [[45, -45], [30, -30], [15, -15]];
+  /* ★ 退避要能退到"犯错之前":最大的 45 块一直用不上 —— 站 22 的错在 x=555~562 掉下塔,
+     而前缀末端在 607,45 块只退到 562(还在错误之后),所以每次都从同一个坏状态重来。
+     现在先试 140 / 90 块这两种"整段重规划"。 */
+  const back: Array<[number, number]> = [[140, -140], [90, -90], [45, -45], [30, -30], [15, -15]];
   const tries: Array<{ tag: string; extra: string[] }> = seed
     ? [
       { tag: near ? '离目标很近,给双倍时间' : '', extra: [] },
