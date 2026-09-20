@@ -200,6 +200,12 @@ const ints = (s: string | undefined): number[] =>
   if (spec.inert) o.inert = true;
   if (spec.col != null) o.col = spec.col;
   if (spec.mini != null) o.mini = spec.mini;
+  /* ★ 传送门(747)自带的纵向偏移:键 54。用户口径:"出口就在传送门纵向方向上的某个位置,
+     偏移量是传送门自己的一个参数" —— 所以不用另放一个橙色出口物件。 */
+  if (spec.kind === 'teleport') {
+    const off = num(f['54'], 0);
+    if (off) o.tpy = off / 30;
+  }
   if (rot) o.rot = rot;
   if (flipX) o.flipX = true;
   if (flipY) o.flipY = true;
@@ -253,6 +259,7 @@ export function encodeObjects(objs: Obj[]): string {
     if (o.tp) ex.push('tp=1');
     if (o.inert) ex.push('inert=1');
     if (o.exit) ex.push('exit=1');
+    if (o.tpy != null) ex.push('tpy=' + n(o.tpy));
     if (o.mini != null) ex.push('mini=' + (o.mini ? 1 : 0));
     if (o.col != null) ex.push('col=' + o.col);
     if (o.z != null) ex.push('z=' + o.z);
@@ -292,6 +299,7 @@ export function decodeObjects(text: string): Obj[] {
         case 'tp': o.tp = true; break;
         case 'inert': o.inert = true; break;
         case 'exit': o.exit = true; break;
+        case 'tpy': o.tpy = Number(v); break;
         case 'mini': o.mini = v === '1'; break;
         case 'col': o.col = Number(v); break;
         case 'z': o.z = Number(v); break;

@@ -97,6 +97,8 @@ export class World {
   dead = false; done = false; deadT = 0;
   attempts = 1;
   checkX = 0; checkY = 0; checkMode: Mode = 'cube'; checkSize = 1;
+  /** 最近一次跨过的形态门的中心 y(相机在飞行类形态里"钉视口"要用,原版口径) */
+  portalY = 0;
   /** ★ 跳环要"一次新的按键"才生效(原作口径:按一下消耗一次,按住不放串不起环)。
    *  按下的那一瞬间 pressFresh 置位,被一次起跳或一个环用掉;松手再按才会有新的一次。 */
   pressFresh = false;
@@ -184,6 +186,9 @@ export class World {
       }
     }
     this.reset(startX, 'cube', startY);
+    /* ★ 存档点初值 = 出生点。以前这里留着 (0,0):第一次摔死之后 respawn() 会把人放回
+       y=0 —— 而这关的出生点在 y=10 的上一层,于是"复活在平台下面"(用户实测)。 */
+    this.checkX = startX; this.checkY = startY; this.checkMode = 'cube'; this.checkSize = 1;
     /* ---- 分组:给每个带 groups 的物件记一份"可动"记录,并把它的判定盒挂上去 ----
        ★ 一个物件可能有好几个判定盒(线框的每根杆、U 形的三条边):每个盒子各记一份,
          触发器一推,所有杆一起动 —— 只挂第一个盒子的话,线框会被"撕开"。 */
@@ -396,6 +401,7 @@ export class World {
   reset(startX: number, mode: Mode, startY = 0) {
     this.tick = 0;
     this.x = startX; this.y = startY; this.vy = 0; this.onGround = true;
+    this.portalY = startY;
     this.mode = mode; this.gdir = 1; this.speedIdx = 1;
     this.sizeMul = this.checkSize;      // 复活要恢复存档点时的体积(迷你/普通)
     this.dead = false; this.done = false; this.deadT = 0;
@@ -661,6 +667,8 @@ export class World {
       if (prevX + this.box <= b.x0 || this.x >= b.x1) continue;
       this.armedPortals.add(b);
       this.mode = (b.o.to ?? 'cube');
+      /* ★ 相机要用:记下这个门的位置(原版进门时按门的 y 决定"视口钉在哪") */
+      this.portalY = (b.y0 + b.y1) / 2;
       this.vy = 0;
       if (this.mode === 'ship') { this.y = Math.max(this.y, 3 * U); this.gdir = 1; }
       else this.onGround = false;
@@ -694,6 +702,13 @@ export class World {
       if (prevX + this.box <= b.x0 || this.x >= b.x1) continue;
       this.armedPortals.add(b);
       if (b.o.exit) continue;                       // 出口不主动送人
+      /* ★ 原版 2.2 的传送门自带【纵向偏移】(键 54,用户确认):进去就在这个门的纵向方向
+         挪那么远 —— 所以这关只有 7 个蓝门、没有橙色出口物件也能用。 */
+      if (b.o.tpy) {
+        this.y = Math.max(0, Math.min(this.rows * U - this.box, this.y + b.o.tpy * U));
+        this.vy = 0;
+        continue;
+      }
       const dst = this.exitOf(b);
       if (!dst) continue;                           // 没有配对出口 → 什么都不发生
       this.armedPortals.add(dst);

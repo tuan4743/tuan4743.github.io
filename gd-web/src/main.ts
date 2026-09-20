@@ -22,15 +22,25 @@ const HL = '#7ff0ff';
 const PAL = [0x7ff0ff, 0xffe17a, 0xa0ffd0, 0xc6a0ff, 0xff9fd0];
 const HLD = 0x7ff0ff;
 const WARN = 0xff9a6b;
-/** 视口高度(块)。★ 原版口径:一屏 10 格高 —— 铺面有 125 格高也不怕,靠纵向跟随镜头看。
- *  宽度由画幅比例决定(1280×720 → 17.78 格)。想改"一屏多高"就改这一条。 */
-const VIEW_H_BLOCKS = 10;
-/** 纵向跟随的死区(块):玩家在视口中心 ±dead 之内时镜头【不动】。
- *  ★ 这就是用户说的"某些形态视口被固定"的观感来源 —— 飞行类死区开大,微操时镜头是死的。
- *    真·锁死(wave/UFO 完全不跟)会把 12~16 格高的飞行段拍出画外,所以这里用大死区代替。 */
-const CAM_DEAD: Record<string, number> = {
-  cube: 2.0, ball: 2.2, robot: 2.2, spider: 2.2, ship: 2.6, ufo: 3.4, wave: 3.6,
-};
+/** 视口高度(块)。★ 原版口径:设计分辨率 480×320、1 块 = 30 单位 → 一屏 10.67 格高。
+ *  宽度由画幅比例决定(1280×720 → 约 19 格)。 */
+const VIEW_H_BLOCKS = 320 / 30;
+/* 相机纵向的原版常量(单位、朝上;出自 OpenGD 的 PlayLayer::updateCamera —— 用户要求照搬):
+ *   方块形态:人被困在视野里的一条带子里 —— 下沿(cam + unk3)、上沿(cam + 屏幕高 − unk2),
+ *             只有越出这条带子相机才动,一动就把人贴回带子边缘;
+ *   跑在【地面】(不是方块)上时:相机回落到地面高度(cam.y = 0 → 视野下边 = −90 单位);
+ *   飞行类 / 球:进门那一刻把视口中心钉死(m_fCameraYCenter)。 */
+const CAM_LOW = 90;                       // 上沿余量 3 格
+const CAM_MID = 120;                      // 下沿余量 4 格
+const CAM_GROUND_BOTTOM = -90;            // 站在地面上:视野下边(地面之上 3 格)
+const CAM_FLY_BELOW = 180;                // 进门时算"低空"的阈值(6 格)
+const CAM_FLY_CENTER = 150;               // 低空进门 → 视口中心固定在 5 格
+const CAM_BALL_BELOW = 150;
+const CAM_BALL_CENTER = 120;
+/** 视口【钉死】的形态(原版:除方块外都固定;用户点名 Wave/UFO 就是这样)。
+ *  ★ 机器人 / 蜘蛛:OpenGD 没给它们设中心(沿用上一个值),但用户那关这两段要纵爬 5~16 格,
+ *    钉死会把人拍出画外 —— 所以这两种按方块跟随。这两行是我们自己定的,已写进文档。 */
+const CAM_FIXED_MODES = new Set(['ship', 'ufo', 'wave', 'ball']);
 
 /** 从页面上挑这一局用哪张铺面:window.__GD_CHART = 'gen' 用老的自动铺面,其它用真实铺面 */
 function pickLevel(): Level {
@@ -92,9 +102,12 @@ class Scene extends Phaser.Scene {
   fps = 0;
   fixed = false;
   camX = 0;
-  camY = 0;                        // 镜头中心的世界 y(单位)
+  camY = 0;                        // (旧字段,留作兼容)
   camInit = false;                 // 第一帧直接贴到玩家身上(不然开场会从 0 滑过去)
-  camWorldY = 0;                   // 本帧实际用的镜头中心(夹取之后)
+  camWorldY = 0;                   // 本帧实际用的镜头中心(绘图空间,夹取之后)
+  camBottom = 0;                   // 视野【下边】的世界 y(单位)—— 原版相机算的就是这个
+  camCenter = 0;                   // 视口中心的世界 y:飞行类进门那一刻钉死(m_fCameraYCenter)
+  camMode: Mode = 'cube';          // 上一帧的形态:用来抓"刚进门"那一刻
   audio: HTMLAudioElement | null = null;
   started = false;                  // 起跑闸门:按了确认键才开跑
   audioErr = '';                    // play() 失败的原因(验收要看)
@@ -384,30 +397,66 @@ class Scene extends Phaser.Scene {
     hud.classList.toggle('is-dead', this.phase === 'dead');
   }
 
-  /** 取景:横向让玩家落在左侧 22% 处;纵向【跟随玩家】,带一段死区(见 CAM_DEAD)。
-   *  ★ 关卡高 125 格、视口只有 10 格 —— 不动镜头的话,超过 10 格高的内容全看不见。
-   *    死区让"站在原地小幅上下"时镜头纹丝不动(原版那种"视口被固定"的观感),
-   *    一旦出死区就平滑跟上,并且始终夹在 [半屏, 关卡高 − 半屏] 里,不会拍到虚空。
-   *  ★ 坐标:相机的 y 是【绘图空间】(y 向下、0 在关卡顶),而关卡/玩家是"世界 y"(向上)。
-   *    混用会拍到关卡外面去(踩过:整个画面只剩网格),所以这里统一换算一次。 */
+  /** 取景:照搬原版(OpenGD PlayLayer::updateCamera)——
+   *  ★ 横向:相机左边缘 = 玩家 x − 屏宽/2.5(即人站在屏幕左侧 40% 处);
+   *  ★ 方块形态:人被困在视野里的一条带子 [下边+120, 下边+屏高−90] 单位里,
+   *    越出下沿 → 下边 = 人 − 120;越出上沿 → 下边 = 人 − 屏高 + 90;跑在地面上 → 回落到 −90;
+   *  ★ 飞行类 / 球:进门那一刻把视口中心钉死(原版 m_fCameraYCenter),这就是"视口被固定";
+   *  ★ 最后夹在 [−90, 关卡高 − 屏高] 里,不会拍到关卡外面。
+   *  坐标:世界 y 朝上,Phaser 相机 y 是【绘图空间】(朝下、0 在关卡顶),最后换算一次。 */
   private followCamera() {
     const cam = this.cameras.main;
     const vw = cam.width / cam.zoom;
     const vh = cam.height / cam.zoom;
     const rowsU = LEVEL.rows * U;
-    this.camX = Math.max(vw / 2, this.world.x + vw * 0.22);
-    /* 镜头目标:玩家中心再往上抬一点(原版就是"看得见头顶",不是把人放正中间) */
-    const targetWorld = this.world.y + (P.box * this.world.sizeMul) / 2 + vh * 0.06;
-    const target = rowsU - targetWorld;
-    if (!this.camInit) { this.camY = target; this.camInit = true; }
-    const dead = (CAM_DEAD[this.world.mode] ?? 2.2) * U;
-    const want = Math.max(this.camY - dead, Math.min(this.camY + dead, target));
-    this.camY += (want - this.camY) * 0.35;                 // 平滑但不拖沓
-    let cy = this.camY;
-    if (rowsU >= vh) cy = Math.max(vh / 2, Math.min(rowsU - vh / 2, cy));
-    else cy = rowsU / 2;                                     // 关卡比视口还矮(老的自动铺面)→ 居中
-    this.camWorldY = cy;
-    cam.centerOn(this.camX, cy);
+    const w = this.world;
+
+    /* ---- 横向 ---- */
+    const left = Math.max(0, w.x - vw * 0.4);
+    this.camX = left + vw / 2;
+
+    /* ---- 形态切换:记下"进门时的视口中心"(原版 m_fCameraYCenter) ---- */
+    if (w.mode !== this.camMode) {
+      if (CAM_FIXED_MODES.has(w.mode)) {
+        const portalY = w.portalY;                       // 门的位置(世界 y)
+        if (w.mode === 'ball') {
+          this.camCenter = portalY < CAM_BALL_BELOW ? CAM_BALL_CENTER
+            : Math.floor((portalY + CAM_LOW) / U) * U - CAM_LOW;
+        } else {
+          this.camCenter = portalY < CAM_FLY_BELOW ? CAM_FLY_CENTER
+            : Math.floor((portalY + CAM_LOW) / U) * U - CAM_LOW;
+        }
+      }
+      this.camMode = w.mode;
+    }
+
+    /* ---- 纵向:视野下边(世界 y、单位) ---- */
+    const py = w.y + (P.box * w.sizeMul) / 2;            // 人中心
+    let bottom: number;
+    if (CAM_FIXED_MODES.has(w.mode)) {
+      bottom = this.camCenter - vh / 2;                  // 钉死:视口中心 = 进门时的高度
+    } else {
+      const flip = w.gdir < 0;
+      const unk2 = flip ? CAM_MID : CAM_LOW;             // 上沿余量
+      const unk3 = flip ? CAM_LOW : CAM_MID;             // 下沿余量
+      let c = this.camBottom;
+      if (py <= vh + c - unk2) {
+        if (py < unk3 + c) c = py - unk3;                // 掉出下沿 → 贴回下沿
+      } else {
+        c = py - vh + unk2;                              // 冲出上沿 → 贴回上沿
+      }
+      /* 跑在【地面】上(不是站在方块上):相机回落到地面高度(原版 cam.y = 0) */
+      if (!flip && w.onGround && w.y <= 0.001) c = CAM_GROUND_BOTTOM;
+      bottom = c;
+    }
+    if (!this.camInit) { this.camBottom = bottom; this.camCenter = bottom + vh / 2; this.camInit = true; }
+    const lo = Math.min(CAM_GROUND_BOTTOM, rowsU - vh);
+    const hi = Math.max(lo, rowsU - vh);
+    bottom = Math.max(lo, Math.min(hi, bottom));
+    this.camBottom = bottom;
+    this.camCenter = bottom + vh / 2;
+    this.camWorldY = rowsU - this.camCenter;             // 换算成 Phaser 相机的绘图空间 y
+    cam.centerOn(this.camX, this.camWorldY);
   }
 
   /** 三个界面(开场 / 死亡 / 通关)+ 终末之诗 + 彩蛋窗口:位置跟着相机取景走 */

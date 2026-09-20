@@ -62,6 +62,7 @@ export interface Obj {
   size?: number;    // text:字号缩放
   channel?: number; // teleport:频道号(蓝进橙出配对,默认 0)
   exit?: boolean;   // teleport:这个是【出口】(橙)而不是入口(蓝)
+  tpy?: number;     // teleport:出口的【纵向偏移】(块,键 54);用户口径:出口就在这个偏移处
   gdir?: 1 | -1;    // gravity:进这个门之后重力朝哪(1 = 向下/常重力,-1 = 向上)
   frame?: 'edge' | 'corner' | 'u';   // frame:画法(一条边 / L 形 / U 形)
   arrow?: 'green' | 'pink' | 'purple'; // arrow:是哪种冲刺箭头
