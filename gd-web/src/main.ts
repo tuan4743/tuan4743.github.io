@@ -418,13 +418,28 @@ class Scene extends Phaser.Scene {
     const cam = this.cameras.main;
     const vhBlocks = (cam.height / cam.zoom) / U;
     parts.push('可见 ' + vhBlocks.toFixed(1) + ' 格');
-    /* ★ 黑边自查:把"游戏盒子"和"外框图"两个矩形直接打在 HUD 上 ——
-       不用 DevTools,一眼看出盒子矮了多少/被顶上去了多少(黑边 = 盒子比外框窗口矮)。 */
-    const lostEl = document.querySelector('.lost');
-    const frEl = document.querySelector('.screen-frame');
-    if (lostEl && frEl) {
-      const a = lostEl.getBoundingClientRect(), f = frEl.getBoundingClientRect();
-      parts.push('盒 ' + Math.round(a.width) + '×' + Math.round(a.height) + '@' + Math.round(a.top) + ' 框 ' + Math.round(f.width) + '×' + Math.round(f.height) + '@' + Math.round(f.top));
+    /* ★ 黑边自查:把"画布"和"外框的透明窗口"两个矩形直接打在 HUD 上 ——
+       不用 DevTools,一眼看出画布比窗口矮多少/偏了多少(黑边 = 画布没能盖住窗口)。
+       窗口的四条边从 FrameFit 写在 CSS 变量里的 --ff-win-* 读(以前这里打的是
+       .screen-frame —— 那是【整块视口】,量出来永远等于视口,什么都说明不了)。 */
+    const cvEl = document.getElementById('gd-canvas');
+    const hostEl = cvEl?.parentElement ?? document.querySelector('.lost');
+    if (cvEl && hostEl) {
+      const cv = cvEl.getBoundingClientRect();
+      const cs = getComputedStyle(hostEl);
+      const px = (nm: string) => parseFloat(cs.getPropertyValue(nm)) || 0;
+      const wl = px('--ff-win-left'), wt = px('--ff-win-top');
+      const wr = px('--ff-win-right'), wb = px('--ff-win-bottom');
+      const ww = window.innerWidth - wl - wr, wh = window.innerHeight - wt - wb;
+      const seamB = (window.innerHeight - wb) - cv.bottom;      // >0 = 底下留了缝
+      const seamR = (window.innerWidth - wr) - cv.right;
+      const seamT = cv.top - wt;
+      parts.push('盒 ' + Math.round(cv.width) + '×' + Math.round(cv.height) + '@' + Math.round(cv.top)
+        + ' 窗 ' + Math.round(ww) + '×' + Math.round(wh) + '@' + Math.round(wt));
+      const seams = [['下', seamB], ['右', seamR], ['上', seamT]] as const;
+      const bad = seams.filter(([, v]) => Math.abs(v) > 1.5)
+        .map(([k, v]) => k + (v > 0 ? '缝 ' : '溢 ') + Math.abs(Math.round(v)));
+      if (bad.length) parts.push(bad.join(' '));
     }
     if (this.viewFrac < 0.995) parts.push('画布被挡 ' + Math.round((1 - this.viewFrac) * 100) + '%');
     parts.push(Math.round(this.fps) + ' fps');

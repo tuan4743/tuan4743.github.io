@@ -99,16 +99,15 @@ export const ORB: Record<OrbKind, { v: number; flip: FlipWhen; note: string }> =
 };
 
 export const PAD: Record<PadKind, { v: number; flip: FlipWhen; note: string }> = {
-  yellow: { v: 16.0, flip: 'none', note: '[GDOpenGD] 1.0×16,全场最高的一跳(峰值 4.45 块)' },
-  pink: { v: 10.4, flip: 'none', note: '[GDOpenGD] 0.65×16 = 10.4' },
-  red: { v: 20.0, flip: 'none', note: '[GDOpenGD] 1.25×16 = 20(峰值约 7 块)' },
-  blue: { v: 12.8, flip: 'before', note: '[GDOpenGD] propell(0.8)=12.8,然后翻转重力' },
+  yellow: { v: 16.0, flip: 'none', note: '[OpenGD PlayLayer:1398] propellPlayer(1.0) → 1.0×16(峰值 4.45 块)' },
+  pink: { v: 10.4, flip: 'none', note: '[OpenGD PlayLayer:1420] propellPlayer(0.65) → 0.65×16 = 10.4。★物件 140 = 粉色小跳板(GameObject.cpp:199「case 140: // pink pad」,粒子色 255,0,255),峰值约 1.88 块 —— 原版就是拿它过【低走廊】的' },
+  red: { v: 20.0, flip: 'none', note: '[OpenGD PlayLayer:1428] propellPlayer(1.25) → 1.25×16 = 20(峰值约 7 块)' },
+  blue: { v: 12.8, flip: 'before', note: '[OpenGD PlayLayer:1410] propellPlayer(0.8)=12.8,然后翻转重力' },
   purple: {
     v: 16.0, flip: 'none',
-    /* ★ 之前按"地形反推"把它降到 10.4,用户实测:"又不能跳上去了" —— 那是力度不够。
-       原版表里没有 140(2.2 的对象),但用户那关拿它当【普通紫板】用(不翻重力、不是蜘蛛板),
-       力度按黄板那一档(1.0×16)。等用户确认原版数值再定死。 */
-    note: '[待用户核] 按黄板力度 1.0×16、不翻重力(降成 10.4 会跳不上平台)',
+    /* 3005(2.2 的紫板)在本关里全部带 tp,走的是蜘蛛那套"瞬移到头顶方块",用不到这里的力度。
+       留着只是兜底:万一某关把它当普通板摆,别退化成 0。 */
+    note: '3005 在本关全带 tp(蜘蛛式瞬移),这里的力度实际用不到',
   },
 };
 

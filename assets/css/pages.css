@@ -1683,14 +1683,12 @@ body.scene-open .intro-panel.is-page {
     border-bottom-color: #ffffff;
 }
 
-/* ---------- 第三张盘:新引擎的画布(固定逻辑尺寸 1280x720,CSS 撑满显示器框)---------- */
-.lost.is-game { display: flex; flex-direction: column; justify-content: center; gap: 14px; }
-
+/* ---------- 第三张盘:新引擎的画布(固定逻辑尺寸 1280x720,CSS 撑满显示器框)----------
+   ★ 尺寸由 .lost-cv 的 width/height:100% !important 定死(见那一条的注释);
+     这里不要再写 height:auto / aspect-ratio —— 两个来源抢同一件事,
+     将来谁赢取决于优先级,又会长出"画布不填满盒子"那类 bug。 */
 .lost-stage #gd-canvas {
     display: block;
-    width: 100%;
-    height: auto;
-    aspect-ratio: 16 / 9;
     background: #05070d;
 }
 
@@ -1736,9 +1734,14 @@ html[data-gd="mobile"] .gd-mobile-note span {
     color: color-mix(in srgb, var(--intro-accent) 55%, transparent);
 }
 
-/* 第三张盘:舞台给底部四段图例留位置,别再和画布压在一起 */
-.lost.is-game .lost-stage { inset: 0 0 104px 0; }
-.lost.is-game .lost-skills { position: absolute; left: 0; right: 0; bottom: 10px; z-index: 2; margin: 0; }
+/* ★ 这里以前是 `.lost-stage { inset: 0 0 104px 0 }` —— 给底部那段"能力图例"
+   (.lost-skills)留位置。那段图例早就删了(lost.html 的注释里写着"已删"),可这 104 px 一直
+   留着:画布只占 .lost 的上半截,底下 104 px 露出 .lost 的深色底 —— 就是用户截图里那条
+   【黑条】(实测 .lost=1270×705,画布只有 1270×601,差的正好 104)。
+   现在舞台铺满 .lost(= 外框透明窗口 + 缝隙),画布跟着铺满,黑条没有了。
+   顺便:`.lost-wip__ref` 那段参考链接是 .lost 里唯一的常规流子元素(.lost.is-game 用
+   justify-content:center 居中),本来就一直压在画布底下看不见 —— 删掉这条 inset 也不影响它。 */
+.lost.is-game .lost-stage { inset: 0; }
 
 /* 第三张盘:HUD(进度 / 段落 / 尝试 / fps / 音乐时间)—— 引擎每帧更新它 */
 .lost-hud {
