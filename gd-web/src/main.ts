@@ -251,9 +251,25 @@ class Scene extends Phaser.Scene {
     return false;
   }
 
-  /** 可见宽度 = 由 VIEW_H_BLOCKS 与画幅比例决定(1280×720 → 17.78 块) */
+  /** 可见高度 = VIEW_H_BLOCKS 块 **在真正的窗口里**(不是整块画布)。
+   *  ★ 用户实测:"HUD 写着可见 11 格,但窗口只露 6.8 格" —— 画布比外框的透明窗口高,
+   *    多出来的部分被金属边框挡住了。所以这里自己量:画布矩形 vs 父盒矩形,算出真露出来的比例,
+   *    再把它折进缩放 —— 于是不管画布被裁多少,窗口里永远是 VIEW_H_BLOCKS 格。
+   *    (和 frame.webp 的自量思路一样:外框尺寸不可靠,就自己在运行时量。) */
+  viewFrac = 1;
+  private fracT = 0;
+  private measureFrac() {
+    const cv = document.getElementById('gd-canvas') as HTMLCanvasElement | null;
+    if (!cv) return;
+    const r = cv.getBoundingClientRect();
+    const host = cv.parentElement?.getBoundingClientRect();
+    if (!host || r.height <= 0) { this.viewFrac = 1; return; }
+    this.viewFrac = Math.max(0.2, Math.min(1, Math.min(r.height, host.height) / r.height));
+  }
+
+  /** 可见宽度 = 由 VIEW_H_BLOCKS 与画幅比例决定;被裁掉的部分用 viewFrac 补回来 */
   zoomOf() {
-    return 720 / (VIEW_H_BLOCKS * U);
+    return (720 * this.viewFrac) / (VIEW_H_BLOCKS * U);
   }
 
   /** 推进 n 帧模拟(输入按当前模式取:机器人 / 键盘) */
@@ -535,7 +551,14 @@ class Scene extends Phaser.Scene {
       this.fixed = true;
       cam.setViewport(0, 0, 1280, 720);
       cam.setSize(1280, 720);
+      this.measureFrac();
       cam.setZoom(this.zoomOf());
+    }
+    /* 每 20 帧(或刚开局)重新量一次"真露出来的比例":量出来变了就跟着改缩放 */
+    if (this.fixed && (this.fracT++ % 20 === 0)) {
+      const before = this.viewFrac;
+      this.measureFrac();
+      if (Math.abs(this.viewFrac - before) > 0.004) cam.setZoom(this.zoomOf());
     }
     const bx = w.x / U;
     const seg = LEVEL.segments.find((sg) => bx >= sg.from && bx < sg.to) || LEVEL.segments[0];

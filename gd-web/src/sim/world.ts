@@ -175,7 +175,14 @@ export class World {
         case 'speed': this.speeds.push(b); break;
         case 'gravity': this.gravs.push(b); break;
         case 'check': this.checks.push(b); break;
-        case 'orb': this.orbs.push(b); break;
+        case 'orb': {
+          /* ★ 跳环的判定要比贴图【大一圈】(用户实测反馈:"原版判定范围很大,这里连一档速度都
+             很难按到")。原版环是圆形判定、比它看起来大;我们按"物件盒向外各放 0.5 格"算,
+             也就是 1×1 的环 → 2×2 的触发区(玩家外框再叠 1 格,总共约 3 格的窗口)。 */
+          const pad = 0.5 * U;
+          this.orbs.push({ x0: b.x0 - pad, x1: b.x1 + pad, y0: b.y0 - pad, y1: b.y1 + pad, o });
+          break;
+        }
         case 'pad': {
           /* ★ 弹簧的判定盒 = 【整格】(1×1,从底边往上一个格子)。
              原版的弹簧 hitbox 就是整格,我们以前按贴图盒(1×0.2)判 —— 触发点晚了 0.8 格,

@@ -165,7 +165,9 @@ function jumpLead(speed: number): number {
  *  原版用【外框】(30 单位)去撞物件的判定盒,而弹簧的判定盒是【整格】——
  *  所以触发点 = 物件左缘 − 1 块。以前我们按"内框 + 贴图盒"算是 0.625 块,
  *  差了 0.375 块,所有图案的落点都要跟着挪(用户:"跳点必须还原,不然地点不对")。 */
-const TOUCH_LEAD = P.box / U;                       // = 1.0 块
+const PAD_LEAD = P.box / U;                          // 弹簧:外框撞整格 = 1.0 块
+/* 跳环:判定盒比贴图大一圈(见 sim/world.ts 的 orb),所以提前量再多 0.5 块 */
+const ORB_LEAD = PAD_LEAD + 0.5;                     // = 1.5 块
 
 /** 内判定框此刻脚底在哪个格子里 —— 环就放这一行,保证一定碰得到 */
 function orbRow(yUnits: number): number {
@@ -239,7 +241,7 @@ function patSpikeOrb(x: number, onsets: number[], speed: number, orbs: number): 
   const clear: Array<[number, number]> = [];
   for (let k = 0; k < orbs; k++) {
     const at = from + hop;                             // 环摆在顶点上
-    const trig = at - TOUCH_LEAD;                      // 真正的触发位置(内框右缘先碰到)
+    const trig = at - ORB_LEAD;                      // 真正的触发位置(外框先碰到放大后的环)
     const h = heightAt(trig - from, h0, P.jump, speed);
     push(objs, { kind: 'orb', b: at, r: orbRow(h * U), w: 1, h: 1, orb: 'yellow' });
     const next = arcOf(h, P.jump, speed);
@@ -265,7 +267,7 @@ function patPitOrb(x: number, pwidth: number, speed: number, holes: Array<[numbe
   const objs: Obj[] = [{ kind: 'pit', b: x, r: 0, w: pwidth, h: 1, need: true }];
   const hop = arcSpan(P.jump, speed) / 2;
   const at = jumpStart + hop;
-  const trig = at - TOUCH_LEAD;
+  const trig = at - ORB_LEAD;
   const h = heightAt(trig - jumpStart, 0, P.jump, speed);
   push(objs, { kind: 'orb', b: at, r: orbRow(h * U), w: 1, h: 1, orb: 'yellow' });
   const land = trig + arcOf(h, P.jump, speed).land;
@@ -288,7 +290,7 @@ function patPadRun(x: number, onsets: number[], speed: number, rnd: () => number
      ★ 要取【下落时穿过 0.625 块】的最后一处:从 0 开始扫的话 d=0.02 就"低于 0.625"了,
        会把临界值算成 0.02,弹簧间距直接乱掉(实测:算错之后 5.25 块的间距让玩家从弹簧头顶飞过)。 */
   let armAt = 0;
-  for (let d = 0.02; d < span; d += 0.02) { if (heightAt(d, 0, pv, speed) >= TOUCH_LEAD) armAt = d; }
+  for (let d = 0.02; d < span; d += 0.02) { if (heightAt(d, 0, pv, speed) >= PAD_LEAD) armAt = d; }
   const lo = Math.max(armAt - 0.4, span * 0.8), hi = span;   // 上界 = 跨距:中间不留"在地上跑"的空档
   const pads: number[] = [x];
   for (let k = 1; k < n; k++) {
@@ -306,7 +308,7 @@ function patPadRun(x: number, onsets: number[], speed: number, rnd: () => number
   for (let k = 0; k < n; k++) {
     push(objs, { kind: 'pad', b: pads[k], r: 0, w: 1, h: 1, pad: 'yellow' });
     if (k === 0) continue;                              // 约束①
-    const c0 = pads[k] - TOUCH_LEAD + arc.c0, c1 = pads[k] - TOUCH_LEAD + arc.c1;
+    const c0 = pads[k] - PAD_LEAD + arc.c0, c1 = pads[k] - PAD_LEAD + arc.c1;
     for (const o of onsets) {
       if (o < Math.max(c0, pads[k] + 1.2) || o > c1) continue;   // 别压在自己这根弹簧上
       if (k + 1 < n && o > pads[k + 1] - 1.4) continue;          // 也别贴着下一根
@@ -315,7 +317,7 @@ function patPadRun(x: number, onsets: number[], speed: number, rnd: () => number
       push(objs, { kind: 'spike', b: o, r: 0, w: 1, h: 1 });
     }
   }
-  const land = pads[pads.length - 1] - TOUCH_LEAD + span;
+  const land = pads[pads.length - 1] - PAD_LEAD + span;
   return { objs, x, end: safeEnd(land, speed), land };
 }
 
