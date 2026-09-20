@@ -29,7 +29,7 @@ import { WATER_CHART } from '../src/sim/charts/water.ts';
 import { generateLevel } from '../src/sim/level.ts';
 import { World, botThink, type WorldSnap } from '../src/sim/world.ts';
 import { replay, fingerprint } from '../src/sim/replay.ts';
-import { U } from '../src/sim/constants.ts';
+import { U, vxOf } from '../src/sim/constants.ts';
 import type { Level } from '../src/sim/level.ts';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -39,7 +39,14 @@ const arg = (name: string, dflt = '') => {
   return hit ? hit.split('=').slice(1).join('=') : dflt;
 };
 const STEP = Number(arg('step', 3));            // 一次精细决定推进几帧(候选 = 2^STEP 种按键模式)
-const HORIZON = Number(arg('horizon', 90));     // 兜底试算多长(帧)= 宏动作最长多少帧
+/* ★ 视界按【块】给,不是按帧 —— 帧数要按当前速度档换算。
+ *  踩过的坑:固定 90 帧在速度档 4 能盖 14 块,在速度档 0(4.19 单位/帧)只盖 6.3 块;
+ *  于是慢速段的"一整段走廊"根本落不进一个宏里,搜索只能靠一串 3 帧的小步往前摸,
+ *  在 x=345 那条刺走廊上卡了几万个节点。改成按块给(默认 28 块):速度 0 时 ≈200 帧、
+ *  速度 4 时 ≈87 帧 —— 实测同一段从 340.5 直接过到 350.4。
+ *  ★ 但这条不是单调的:12/16/20/24/28 块分别走到 349.4 / 345.2 / 341.1 / 336.9 / 350.4 ——
+ *  换个视界等于换一套宏动作,落点会变。所以分站驱动的重试清单里也要换视界(见 autoplay-stage)。 */
+const HORIZON_BLOCKS = Number(arg('horizon', 28));
 const BEAM = Number(arg('beam', 4));            // 一个节点最多推出几个子节点
 const MACRO = arg('macro', '1') === '1';        // 宏动作:兜底活着走完视界就整段落子
 const MINMACRO = Number(arg('minmacro', 2)) * U;// 宏动作至少要前进这么多(单位)
@@ -258,6 +265,12 @@ function focusFrontier() {
 
 /* ---------------- 试算 ---------------- */
 const rollTape: boolean[] = [];        // 兜底那一段的按键(通关 / 宏动作都要它)
+/** 视界(块)→ 帧:跟着当前速度档走。速度档越高,同样的帧数盖得越远。 */
+const horizonFrames = () => {
+  const vx = vxOf(w.speedIdx) || 5.2;
+  return Math.max(30, Math.min(420, Math.round(HORIZON_BLOCKS * U / vx)));
+};
+const HORIZON = 90;                    // 兜底值(种子回放按段切分时用)
 interface Roll { maxX: number; alive: boolean; done: boolean; stalled: boolean; frames: number }
 function rollout(mode: 'idle' | 'bot', frames: number, collect: boolean): Roll {
   let maxX = w.x, still = 0, i = 0;
@@ -294,13 +307,14 @@ function walkEdge(c: Cand): EdgeOut {
   if (!constraintOk()) return { snap: null, endSnap: null, tap: [], score: w.x, done: false, why: (roofAt && w.y + w.box > roofAt(w.x) * U) ? 'roof' : 'skip' };   // 过顶 / 跳过了必过门
   const snap = w.snapshot();
 
-  let r = rollout(c.mode, HORIZON, true);
+  const hz = horizonFrames();          // ★ 视界按块换算成帧(见 horizonFrames 的说明)
+  let r = rollout(c.mode, hz, true);
   /* 选中的兜底活不下去 → 换另一种兜底再试一次(松手不行就请反应式机器人,反之亦然) */
   if (!r.alive && !r.done) {
     const other: 'idle' | 'bot' = c.mode === 'idle' ? 'bot' : 'idle';
     const first = rollTape.slice();
     rollTape.length = 0;
-    const r2 = rollout(other, HORIZON, true);
+    const r2 = rollout(other, hz, true);
     if (r2.maxX > r.maxX || r2.done) r = r2;
     else { rollTape.length = 0; for (const h of first) rollTape.push(h); }
   }

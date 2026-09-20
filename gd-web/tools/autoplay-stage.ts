@@ -60,6 +60,7 @@ for (let i = 0; i < doors.length; i++) {
      从它往回退才是真的在"前沿附近重新规划" */
   const maxSeed = seed ? seed.replace(/\.json$/, '') + '.max.json' : '';
   const maxSeedX = maxSeed && fs.existsSync(maxSeed) ? (JSON.parse(fs.readFileSync(maxSeed, 'utf8')).x ?? 0) : 0;
+  const horizonTries: Array<[number, number]> = [[16, -30], [12, -30], [36, -30]];
   /* ★ 退避要能退到"犯错之前":最大的 45 块一直用不上 —— 站 22 的错在 x=555~562 掉下塔,
      而前缀末端在 607,45 块只退到 562(还在错误之后),所以每次都从同一个坏状态重来。
      现在先试 140 / 90 块这两种"整段重规划"。 */
@@ -75,6 +76,13 @@ for (let i = 0; i < doors.length; i++) {
         tag: '从最远前沿退回 ' + Math.abs(off) + ' 块重开',
         extra: ['--startfrom=' + maxSeed + ',' + (maxSeedX + off).toFixed(1)],
       })) : []),
+      /* ★ 视界也要换着试:换个视界等于换一套宏动作,落点全变 ——
+         实测同一条刺走廊,视界 12/16/20/24/28 块分别走到 349.4 / 345.2 / 341.1 / 336.9 / 350.4,
+         不是"越长越好",而是"多试几个就有一个能过"。 */
+      ...horizonTries.map(([hz, off]) => ({
+        tag: '视界换 ' + hz + ' 块 + 退回 ' + Math.abs(off) + ' 块',
+        extra: ['--horizon=' + hz, '--startfrom=' + seed + ',' + Math.max(5, seedX + off).toFixed(1)],
+      })),
       { tag: '种子剪尾 20 块重规划', extra: ['--seedtrim=20'] },
     ]
     : [{ tag: '', extra: [] }];
