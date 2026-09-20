@@ -328,7 +328,7 @@ export class World {
       sets: [
         [...this.armedChecks], [...this.armedPortals], [...this.armedSpeeds], [...this.armedSizes],
         [...this.armedGravs], [...this.armedOrbs], [...this.armedPads], [...this.armedArrows],
-        [...this.armedTriggers], [...this.broken], [...this.gotCoins],
+        [...this.armedTriggers], [...this.broken], [...this.gotCoins], [...this.handledPortals],
       ],
     };
   }
@@ -343,12 +343,13 @@ export class World {
     this.tint = s.tint; this.tintGround = s.tintGround; this.flash = s.flash;
     this.dash = s.dash ? { ...s.dash } : null;
     this.snapObj = s.snapObj; this.snapDist = s.snapDist;
-    const [c, p, sp, sz, gv, ob, pd, aw, tg, br, gc] = s.sets;
+    const [c, p, sp, sz, gv, ob, pd, aw, tg, br, gc, hp] = s.sets;
     this.armedChecks = new Set(c); this.armedPortals = new Set(p); this.armedSpeeds = new Set(sp);
     this.armedSizes = new Set(sz); this.armedGravs = new Set(gv); this.armedOrbs = new Set(ob);
     this.armedPads = new Set(pd); this.armedArrows = new Set(aw); this.armedTriggers = new Set(tg);
     this.broken.clear(); for (const b of br) this.broken.add(b);
     this.gotCoins.clear(); for (const b of gc) this.gotCoins.add(b);
+    this.handledPortals.clear(); for (const b of hp ?? []) this.handledPortals.add(b);
   }
 
   /** 这块可破坏砖已经碎了吗(渲染层用:碎了就不画) */
@@ -474,6 +475,7 @@ export class World {
     /* 碎掉的砖块 / 吃掉的硬币 / 进行中的冲刺都回到初始状态(和原作"重开一局"一致) */
     this.broken.clear();
     this.gotCoins.clear();
+    this.handledPortals.clear();
     this.dash = null;
     this.snapObj = null; this.snapDist = 0;      // 重开一局:落块吸附的记忆也清空
     /* 重来 = 会动的东西回到原位、颜色与闪烁清空(和原作"重开一局"一致) */
@@ -574,6 +576,15 @@ export class World {
 
   /** 帧初的脚底高度(落台容错的两路判定要用,见 substep 里的说明) */
   private frameY0 = 0;
+
+  /** ★ 只给【搜索工具】用的记账:哪些门在"越过的那一刻"已经算数了(碰到了,或者当时
+   *  碰不碰都一样 —— 已经是那个形态/重力/速度/体积)。
+   *  为什么必须记账、而且必须【在越过的那一刻】判:这个判定依赖当时的玩家状态,
+   *  而状态会变 —— 实测反例:某重力门在越过时玩家重力正好是它要的那一档(算数 ✓),
+   *  三十块之后玩家被球点翻成反重力,再回头按"当前状态"判,那个门就变成"没生效"了,
+   *  于是搜索在那个节点上 16 个候选全被判"跳过门"、前沿直接枯死(日志里一排 K跳门)。
+   *  这个集合只影响搜索的剪枝,不参与物理(和 god / padMul 一个性质)。 */
+  readonly handledPortals = new Set<Box>();
 
   /* ---------------- 方块落块时的横向吸附 ----------------
    * 出处:gdp master `PlayerObject_checkSnapJumpToObject.cpp`(调用点在同文件的

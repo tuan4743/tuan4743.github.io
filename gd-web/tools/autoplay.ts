@@ -128,14 +128,8 @@ if (ROOFARG === 'auto') {
  *    天花板(roof)【不】在这里判:它只约束"留下的状态",帧与帧之间的抛物线允许过顶。 */
 function step(hold: boolean) {
   w.frame(hold);
-  if (!NOSKIP || w.dead || w.done) return;
-  const armed = armedOf(w);
-  for (const b of mustPass) {
-    if (w.x < b.x1) break;                       // 还没完全越过这个门
-    if (armed.has(b) || portalSatisfied(b, w)) continue;
-    w.dead = true;                               // 完全越过了却没让它生效 → 这条路作废
-    return;
-  }
+  if (w.dead || w.done) return;
+  if (!gateOk()) w.dead = true;                    // 越过了门却没让它生效 → 这条路作废
 }
 
 /** ★ 约束只在【要留下的状态】上判,不在试算途中判。
@@ -158,16 +152,26 @@ function portalSatisfied(b: Box, world: World): boolean {
   return false;
 }
 
-function constraintOk(): boolean {
-  if (roofAt && w.y + w.box > roofAt(w.x) * U) return false;    // 飞出了局部天花板
+/** 门口约束的核心判据(step 与 constraintOk 共用,规则必须完全一致)。
+ *  ★ "算数"要在【越过的那一刻】记进 handledPortals:这个判定依赖当时的玩家状态,
+ *    而状态会变 —— 重力门在越过时重力正好对得上(算数 ✓),三十块之后被球点翻成反重力,
+ *    再按"当前状态"回头判就变成"没生效",于是那个节点上 16 个候选全被判跳过门、前沿枯死。
+ *    记进 handledPortals 之后,后面再问就一律放行,而且【不碰物理】的 armedPortals。 */
+function gateOk(): boolean {
   if (!NOSKIP) return true;
   const armed = armedOf(w);
   for (const b of mustPass) {
-    if (w.x < b.x1) break;
-    if (armed.has(b) || portalSatisfied(b, w)) continue;
-    return false;
+    if (w.x < b.x1) break;                                  // 还没完全越过这个门
+    if (armed.has(b) || w.handledPortals.has(b)) continue;
+    if (portalSatisfied(b, w)) { w.handledPortals.add(b); continue; }
+    return false;                                           // 越过了却没让它生效 → 作废
   }
   return true;
+}
+
+function constraintOk(): boolean {
+  if (roofAt && w.y + w.box > roofAt(w.x) * U) return false;    // 飞出了局部天花板
+  return gateOk();
 }
 
 /* ---------------- ★ 朝门口的梯度(只有"跳过就判死"是不够的) ----------------
