@@ -326,13 +326,22 @@ test('机器人:起跳只有方块的一半,但按住不放能"浮"一段(抵消
   assert.ok(peakHold > peakTap * 1.6, '按住应该浮得更高(轻点 ' + (peakTap / U).toFixed(2) + ' 块 → 按住 ' + (peakHold / U).toFixed(2) + ' 块)');
 });
 
-test('蜘蛛:点一下传到对面(地板 ↔ 天花板),并翻重力', () => {
-  const w = new World(solo([floor60, { kind: 'platform', b: 0, r: 6, w: 60, h: 1 }]));
+test('蜘蛛:点一下传到对面(够得着的天花板),并翻重力;够不到就不动', () => {
+  /* ★ 可达距离照原版 checkSnapJumpToObject:常速只有 3 格(90 单位),
+     所以这里把天花板摆在伸手够得到的地方(3 格)。 */
+  const w = new World(solo([floor60, { kind: 'platform', b: 0, r: 3, w: 60, h: 1 }]));
   w.mode = 'spider';
   for (let i = 0; i < 10; i++) w.frame(false);
   w.frame(true);
   assert.equal(w.gdir, -1, '蜘蛛点一下应该翻重力');
-  assert.ok(w.y / U > 4, '应该被传到上面那层(y=' + (w.y / U).toFixed(2) + ' 块)');
+  assert.ok(w.y / U > 1.5, '应该被传到上面那层(y=' + (w.y / U).toFixed(2) + ' 块)');
+  /* 够不到的天花板(r=6,离 5 格 > 3 格可达)→ 什么也不该发生 */
+  const far = new World(solo([floor60, { kind: 'platform', b: 0, r: 8, w: 60, h: 1 }]));
+  far.mode = 'spider';
+  for (let i = 0; i < 10; i++) far.frame(false);
+  const g0 = far.gdir;
+  far.frame(true);
+  assert.equal(far.gdir, g0, '天花板够不到时不该翻重力(原版就是"没得贴就继续掉")');
   w.frame(false);
   w.frame(true);
   assert.equal(w.gdir, 1, '再点一下应该翻回来');

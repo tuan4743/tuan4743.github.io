@@ -788,41 +788,48 @@ export class World {
     void prevVy;
   }
 
-  /** 蜘蛛点一下:在"当前重力的反方向"那个带子里找最近的一层地面/方块底面,传送过去再翻重力 */
+  /** 蜘蛛点一下:在"当前重力的反方向"找最近的落脚面,传送过去再翻重力。
+   *  ★ 可达距离照搬原版 `PlayerObject::checkSnapJumpToObject` 的距离表(再翻重力):
+   *      速度档 0.7 → 2 格;0.9(常速) → 3 格;1.1 → 4 格;1.3 → 4.5 格;1.6 → 4 格。
+   *    以前我用的是自定的"8 格搜索带" —— 够得太远,蜘蛛段的手感/落点全不对(用户点名的"性能不对")。
+   *    够不到任何面时【什么也不做】(原版也是:没有天花板可贴就继续掉)。 */
+  private spiderReach(): number {
+    return [60, 90, 120, 135, 120][Math.max(0, Math.min(4, this.speedIdx))] ?? 90;
+  }
+
   private spiderJump() {
-    const band = P.spiderBand * U;
+    const reach = this.spiderReach();
     const top = () => this.y + this.box;
     let best: number | null = null;
     if (this.gdir > 0) {
-      /* 正重力:往【上】找最近的底面(方块底 / 平台底 / 场地顶) */
-      best = this.rows * U;
+      /* 正重力:往【上】找最近的底面(方块底 / 平台底),必须在可达距离内 */
       for (const s of this.nearSolids) {
         if (this.x + this.box <= s.x0 || this.x >= s.x1) continue;
-        if (s.y0 < top() + 1) continue;
+        if (s.y0 < top() + 1 || s.y0 > top() + reach) continue;
         if (best === null || s.y0 < best) best = s.y0;
       }
       for (const f of this.nearFloors) {
         if (this.x + this.box <= f.x0 || this.x >= f.x1) continue;
-        if (f.y0 < top() + 1) continue;
+        if (f.y0 < top() + 1 || f.y0 > top() + reach) continue;
         if (best === null || f.y0 < best) best = f.y0;
       }
+      if (best === null) return;                       // 够不到 → 不传送、不翻重力
       this.y = best - this.box;
     } else {
-      /* 反重力:往【下】找最近的顶面 */
-      best = 0;
+      /* 反重力:往【下】找最近的顶面,同样限可达距离 */
       for (const s of this.nearSolids) {
         if (this.x + this.box <= s.x0 || this.x >= s.x1) continue;
-        if (s.y1 > this.y - 1) continue;
+        if (s.y1 > this.y - 1 || s.y1 < this.y - reach) continue;
         if (best === null || s.y1 > best) best = s.y1;
       }
       for (const f of this.nearFloors) {
         if (this.x + this.box <= f.x0 || this.x >= f.x1) continue;
-        if (f.y1 > this.y - 1) continue;
+        if (f.y1 > this.y - 1 || f.y1 < this.y - reach) continue;
         if (best === null || f.y1 > best) best = f.y1;
       }
+      if (best === null) return;
       this.y = best;
     }
-    void band;
     this.gdir = -this.gdir;
     this.vy = -P.spiderVel * this.gdir;      // 极小的一点速度,方向朝"新的上方"
     this.onGround = true;
