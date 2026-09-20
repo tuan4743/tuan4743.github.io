@@ -1,11 +1,14 @@
-/* 诊断:回放一卷输入,把"它到底过没过每一个必过门"逐条列出来。
- * 用法:cd gd-web && node tools/diag-tape.ts <卷子.json> [只看 x>=多少块]
+/* 诊断:回放一卷输入,把"它到底过没过每一个必过门"逐条列出来,顺带打轨迹。
+ * 用法:cd gd-web && node tools/diag-tape.ts <卷子.json> [只看 x>=多少块] [逐帧窗口的终点块]
  *
- * 为什么要它:分站驱动判"到没到站"用的是几何阈值(门右沿 +0.5 块),
- * 而真正该问的是"这一卷有没有让这个门生效" —— 这两件事在门口附近会差 0.4 块,
- * 结果可能明明过了门却被判"没过",白白重搜一整站。 */
+ * 为什么要它:分站驱动判"到没到站"以前用的是几何阈值(门右沿 +0.5 块),
+ * 而真正该问的是"这一卷有没有让这个门生效" —— 塔段那卷走在地面 y=0 却把 maxX 顶到 607,
+ * 于是"607 之前全过了"的假象让驱动器一整轮都没再去搜塔上的门。
+ * 审计逻辑在 tools/audit.ts,和分站驱动共用一份,不许两边各写一套。
+ * 给了第三个参数就打【逐帧窗口】—— 塔段要看清"哪一帧哪个弹簧生效",4 块一抽根本看不清。 */
 import { WATER_CHART } from '../src/sim/charts/water.ts';
 import { World } from '../src/sim/world.ts';
+import { auditTape } from './audit.ts';
 import { U } from '../src/sim/constants.ts';
 import fs from 'node:fs';
 
@@ -14,54 +17,44 @@ const FROM = Number(process.argv[3] ?? 0);
 const TO = process.argv[4] != null ? Number(process.argv[4]) : null;
 const j = JSON.parse(fs.readFileSync(FILE, 'utf8'));
 const tape: boolean[] = j.tape;
-const lv = WATER_CHART;
-const w = new World(lv);
-const mustPass = w.portals
-  .filter((b) => ['portal', 'gravity', 'speed', 'size'].includes(b.o.kind))
-  .sort((a, b) => a.x1 - b.x1);
+const a = auditTape(WATER_CHART, tape);
+console.log('卷子 ' + FILE + ':写了 x=' + j.x + ' maxX=' + j.maxX);
+console.log('回放 ' + a.frames + '/' + tape.length + ' 帧 → x=' + a.x.toFixed(2) + ' y=' + a.y.toFixed(2)
+  + ' 形态=' + a.mode + ' gdir=' + a.gdir + ' 速度档=' + a.speedIdx
+  + (a.dead ? ' 【死了】' : a.done ? ' 【通关】' : ''));
+console.log('必过门 ' + a.total + ' 个:生效 ' + a.armed.size + ' · 跳过 ' + a.skipped.size
+  + (a.skipped.size ? ' ← 有门没生效,这条路不算按铺面路线走' : ' ✓ 全部生效'));
 
-let frames = 0;
+/* 轨迹:每前进 4 块记一次(或者打 FROM~TO 的逐帧窗口) */
+const w = new World(WATER_CHART);
 const trace: string[] = [];
 const fine: string[] = [];
-let lastX = -1e9;
-let fi = 0;
+let lastX = -1e9, fi = 0;
 for (const h of tape) {
   if (w.dead || w.done) break;
   w.frame(h);
-  frames++; fi++;
-  /* 窗口内逐帧打(塔段要看"哪一帧哪个弹簧生效",4 块一抽根本看不清) */
+  fi++;
+  const bx = w.x / U;
   if (TO != null) {
-    const bx = w.x / U;
     if (bx >= FROM && bx <= TO) {
       fine.push(fi + ':' + bx.toFixed(2) + ',' + (w.y / U).toFixed(2) + w.mode[0]
         + (w.gdir < 0 ? '↑' : '↓') + 'vy' + (w.vy / U).toFixed(1) + (h ? 'H' : '.') + (w.onGround ? 'G' : ''));
     }
-    continue;
-  }
-  /* 轨迹抽样:每前进 4 块记一次 —— "这一卷是在塔上还是在底下跑"必须看得见 */
-  if (w.x / U >= lastX + 4) {
-    lastX = w.x / U;
-    trace.push((w.x / U).toFixed(0) + ':' + (w.y / U).toFixed(1) + w.mode[0] + (w.gdir < 0 ? '↑' : ''));
+  } else if (bx >= lastX + 4) {
+    lastX = bx;
+    trace.push(bx.toFixed(0) + ':' + (w.y / U).toFixed(1) + w.mode[0] + (w.gdir < 0 ? '↑' : ''));
   }
 }
-console.log('卷子 ' + FILE + ':写了 x=' + j.x + ' maxX=' + j.maxX);
-console.log('回放 ' + frames + '/' + tape.length + ' 帧 → x=' + (w.x / U).toFixed(2)
-  + ' y=' + (w.y / U).toFixed(2) + ' 形态=' + w.mode + ' gdir=' + w.gdir
-  + ' 速度档=' + w.speedIdx + (w.dead ? ' 【死了】' : w.done ? ' 【通关】' : ''));
-console.log('轨迹(x:y形态,↑=反重力): ' + trace.join(' '));
 if (TO != null) console.log('窗口 ' + FROM + '~' + TO + ' 逐帧(帧:x,y形态方向 vy 按键 G=贴地):\n  ' + fine.join('\n  '));
+else console.log('轨迹(x:y形态,↑=反重力): ' + trace.join(' '));
 
-console.log('\n必过门逐条(门 x 右沿 → 回放结果):');
-for (const b of mustPass) {
-  const bx = b.x0 / U;
-  if (bx < FROM) continue;
-  const armed = w.armedPortals.has(b);
-  const handled = w.handledPortals.has(b);
-  const passed = w.x >= b.x1;
-  const mark = !passed ? '没走到' : handled ? '★生效(越过时记下的)' : armed ? '生效(armed)' : '✗跳过了';
-  console.log('  x0=' + (b.x0 / U).toFixed(2).padStart(8) + ' x1=' + (b.x1 / U).toFixed(2)
-    + ' y0=' + (b.y0 / U).toFixed(2) + ' y1=' + (b.y1 / U).toFixed(2) + '  ' + String(b.o.kind).padEnd(8)
-    + (b.o.kind === 'portal' ? '→' + b.o.to : b.o.kind === 'speed' ? 'speed=' + b.o.speed
-      : b.o.kind === 'gravity' ? 'gdir=' + b.o.gdir : b.o.kind === 'size' ? 'size=' + b.o.size : '')
-    + '  ' + mark);
+console.log('\n门逐条(按右沿排,只看 x≥' + FROM + '):');
+for (const o of a.order) {
+  if (o.b < FROM) continue;
+  const ok = a.armed.has(o) ? '✓生效' : a.skipped.has(o) ? '✗跳过了' : '—没走到';
+  const what = o.kind === 'portal' ? '→' + o.to
+    : o.kind === 'speed' ? 'speed=' + o.speed
+      : o.kind === 'gravity' ? 'gdir=' + o.gdir
+        : o.kind === 'size' ? 'size=' + o.size : '';
+  console.log('  b=' + o.b.toFixed(2).padStart(8) + '  ' + o.kind.padEnd(8) + what.padEnd(12) + ok);
 }

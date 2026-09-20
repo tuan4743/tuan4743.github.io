@@ -86,9 +86,18 @@ const MUSTPASS = (arg('noskip', 'portal,gravity,speed,size') || '').split(',').f
 const START = arg('start', '');
 const startAt = START ? START.split(',').map(Number) : null;
 const startX = startAt ? startAt[0] * U : 0;
-const mustPass = w.portals
-  .filter((b) => MUSTPASS.includes(b.o.kind) && b.x1 > startX)
-  .sort((a, b) => a.x1 - b.x1);
+/* ---------------- ★ 必过门清单:四类门【分散在四个表里】,别只拿 portals ----------------
+ * 踩过的坑(很隐蔽):这里原来写的是 `w.portals.filter(...)`,而仿真把四类门分开放 ——
+ *   portal 在 w.portals(46 个)、重力门在 w.gravs、速度门在 w.speeds、尺寸门在 w.sizes。
+ *   于是 "必过门 46 个(portal/gravity/speed/size)" 这句提示里的后三类【一个都没在查】:
+ *   搜索可以随便跳过重力门/速度门,而打印出来的清单看着像是都管了。
+ *   (发现它的路径也很绕:分站驱动按铺面表数出 108 个门,却永远等不到 speed 门"生效",
+ *    在 x=1.5 那一站空转 —— 因为仿真那边根本没把它放进必过门。)
+ * 门的【顺序】按右沿 x1 排,gateOk 里那句 `if (w.x < b.x1) break` 依赖这个顺序。 */
+const isDoorObj = (o: { kind: string }) => o.kind === 'portal' || o.kind === 'gravity' || o.kind === 'speed' || o.kind === 'size';
+const allDoors: Box[] = [...w.portals, ...w.gravs, ...w.speeds, ...w.sizes].sort((a, b) => a.x1 - b.x1);
+const mustPass = allDoors
+  .filter((b) => MUSTPASS.includes(b.o.kind) && b.x1 > startX);
 const armedOf = (world: World) => (world as unknown as { armedPortals: Set<unknown> }).armedPortals;
 const NOSKIP = mustPass.length > 0;
 console.log('必过门 ' + mustPass.length + ' 个(' + MUSTPASS.join('/') + ')· 跳过即判死');

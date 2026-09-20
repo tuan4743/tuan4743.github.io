@@ -27,11 +27,11 @@
  *    55~58 块),旧档位只给 45 和 72,一个退到错误之后、一个退到错误之前 17 块。
  *    现在按 15 块一档退,先试离前沿近的。
  * ============================================================ */
-import { spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import { WATER_CHART } from '../src/sim/charts/water.ts';
 import { World } from '../src/sim/world.ts';
-import { U } from '../src/sim/constants.ts';
+import { auditTape, doorBoxes, type Audit } from './audit.ts';
 import type { Obj } from '../src/sim/level.ts';
 
 const arg = (name: string, dflt: string) => {
@@ -42,6 +42,9 @@ const PER = Number(process.argv[2] ?? 90);
 const TOTAL = Number(process.argv[3] ?? 3600);
 const FREE = process.argv.includes('--free');            // 允许"飞过去"的路线(不要求碰到每个门)
 const WAY = Number(arg('way', 12));                      // 门之间每多少块插一个路标
+/* --par=N —— 一个站的重试并发几个(机器 16 核,搜索本身是单进程的)。
+   每一批从同一份 BEST 出发、各写各的文件,批完挑一个赢家提升成 BEST。 */
+const PAR = Math.max(1, Number(arg('par', 4)));
 const BEST = FREE ? '../../.tmp/gd/water-free.best.json' : '../../.tmp/gd/water-route.best.json';
 const SOL = FREE ? '../../.tmp/gd/water-free.solution.json' : '../../.tmp/gd/water-route.solution.json';
 const MAXB = BEST.replace(/\.json$/, '') + '.max.json';
@@ -49,46 +52,27 @@ const MAXB = BEST.replace(/\.json$/, '') + '.max.json';
 /* ---------------- 必过门 + 路标 ---------------- */
 const isDoor = (o: Obj) => o.kind === 'portal' || o.kind === 'gravity' || o.kind === 'speed' || o.kind === 'size';
 const doors = WATER_CHART.objects.filter(isDoor).sort((a, b) => a.b - b.b);
-/** 门 → "生效"判据(和 autoplay 的 portalSatisfied 一字不差):
- *  门只在你【状态真的变了】的时候才算生效,已经是那个状态时滚过去什么都不会发生。 */
-const satisfied = (o: Obj, w: World): boolean => {
-  if (o.kind === 'portal') return w.mode === o.to;
-  if (o.kind === 'gravity') return w.gdir === (o.gdir ?? 1);
-  if (o.kind === 'speed') return w.speedIdx === (o.speed ?? 1);
-  if (o.kind === 'size') return w.sizeMul !== 1;
-  return false;
-};
 
 /** 回放一卷输入,数出【真的生效了的门】和走到哪。
- *  ★ 这是独立复核:不信搜索进程自己记的账(handledPortals 在搜索里是"算过的账"),
- *    自己拿一份干净的 World 从头回放 —— 物理是唯一裁判,和 verify-run 同一个口径。 */
-function audit(file: string) {
+ *  ★ 审计逻辑在 tools/audit.ts —— 和 diag-tape 共用一份,不许两边各写一套。
+ *    它做的事就是"独立复核":不信搜索进程自己记的账(handledPortals 是它算过的账),
+ *    拿一份干净的 World 从头回放,在【越过那一刻】按"armed 或碰不碰都一样"判一次。
+ *  ★ 结果要缓存:一次审计 = 从头回放几千帧 × 108 个门,而 337 个站里绝大多数是
+ *    "早就过了、直接跳过" —— 每个站都重算两遍的话,光是空转就几十秒(实测 337 站要 70 秒)。 */
+const auditCache = new Map<string, { key: string; a: Audit | null }>();
+function audit(file: string): Audit | null {
   if (!file || !fs.existsSync(file)) return null;
+  const st = fs.statSync(file);
+  const key = st.mtimeMs + ':' + st.size;
+  const hit = auditCache.get(file);
+  if (hit && hit.key === key) return hit.a;
   const j = JSON.parse(fs.readFileSync(file, 'utf8'));
-  const tape: boolean[] = j.tape ?? [];
-  const w = new World(WATER_CHART);
-  const armed = new Set<number>();
-  let frames = 0;
-  for (const h of tape) {
-    if (w.dead || w.done) break;
-    w.frame(h);
-    frames++;
-    for (let i = 0; i < boxes.length; i++) {
-      if (armed.has(i)) continue;
-      const b = boxes[i];
-      if (w.x < b.x1) continue;                       // 还没完全越过这个门
-      if (w.armedPortals.has(b) || satisfied(b.o, w)) armed.add(i);
-    }
-  }
-  return { x: w.x / U, y: w.y / U, mode: w.mode, dead: w.dead, done: w.done, armed, frames };
+  const a = auditTape(WATER_CHART, j.tape ?? []);
+  auditCache.set(file, { key, a });
+  return a;
 }
 
-const probe = new World(WATER_CHART);
-const boxes = probe.portals
-  .filter((b) => isDoor(b.o))
-  .sort((a, b) => a.x1 - b.x1);
-const doorIdx = new Map<Obj, number>();
-doors.forEach((o, i) => doorIdx.set(o, i));
+const doorCount = doorBoxes(new World(WATER_CHART)).length;
 
 interface Station { x: number; door: number }         // door = -1 表示"路标"
 const stations: Station[] = [];
@@ -116,7 +100,7 @@ for (let i = 0; i < stations.length; i++) {
   const am = audit(MAXB);
   /* 到站判据:门站看"门生效了没有",路标看图卷走到哪(两条前缀都算) —— 见文件头 ① */
   const passed = st.door >= 0
-    ? !!(a?.armed.has(st.door) || am?.armed.has(st.door))
+    ? !!(a?.armed.has(doors[st.door]) || am?.armed.has(doors[st.door]))
     : Math.max(a?.x ?? 0, am?.x ?? 0) >= st.x;
   if (passed) continue;
   const left = TOTAL - (Date.now() - t0) / 1000;
@@ -159,34 +143,83 @@ for (let i = 0; i < stations.length; i++) {
     ]
     : [{ tag: '', extra: [] }];
   let okThis = false;
-  for (const tr of tries) {
-    const args = ['tools/autoplay.ts', '--budget=' + per, '--quiet=1', '--goal=' + st.x.toFixed(1),
-      '--best=' + BEST, '--tape=' + SOL];
-    if (seed && !tr.extra.some((e) => e.startsWith('--startfrom'))) args.push('--seed=' + seed);
-    for (const e of tr.extra) args.push(e);
-    if (FREE) args.push('--noskip=');
-    console.log('\n--- ' + at(i) + ':' + (st.door >= 0
-      ? '目标 x=' + st.x.toFixed(1) + '(' + (doors[st.door].kind === 'portal' ? '形态→' + doors[st.door].to : doors[st.door].kind) + ')'
-      : '路标 x=' + st.x.toFixed(1))
-      + ' · 前缀走到 ' + routeX.toFixed(1) + '(最远活 ' + maxX.toFixed(1) + ')'
-      + ' · 预算 ' + budget.toFixed(0) + 's' + (tr.tag ? ' · ' + tr.tag : ''));
-    spawnSync(process.execPath, args, { stdio: 'inherit', cwd: process.cwd() });
-    const a2 = audit(BEST);
-    const am2 = audit(MAXB);
-    const pass2 = st.door >= 0
-      ? !!(a2?.armed.has(st.door) || am2?.armed.has(st.door))
-      : Math.max(a2?.x ?? 0, am2?.x ?? 0) >= st.x;
-    const where = a2 ? ('前缀 ' + a2.x.toFixed(1) + ' y=' + a2.y.toFixed(1) + ' ' + a2.mode
-      + ' · 门生效 ' + a2.armed.size + ' 个') : '前缀没了';
-    if (pass2) { console.log('    ✓ 过站(' + where + ')'); okThis = true; break; }
-    console.log('    ✗ 没过(' + where + ')');
+  let ti = 0;
+  console.log('\n--- ' + at(i) + ':' + (st.door >= 0
+    ? '目标 x=' + st.x.toFixed(1) + '(' + (doors[st.door].kind === 'portal' ? '形态→' + doors[st.door].to : doors[st.door].kind) + ')'
+    : '路标 x=' + st.x.toFixed(1))
+    + ' · 前缀走到 ' + routeX.toFixed(1) + '(最远活 ' + maxX.toFixed(1) + ')'
+    + ' · 预算 ' + per.toFixed(0) + 's · 并发 ' + PAR + ' · 共 ' + tries.length + ' 次重试');
+  /* ★ 一台机器 16 个核,而搜索是单进程的 —— 一个站一个站地等,等于把 15 个核晾着。
+     现在把重试清单【按批并发】跑:同一批都从当前的 BEST 出发(各自写自己的 best/tape 文件),
+     跑完按"生效的门更多 → 走得 x 更远"挑一个赢家,提升成新的 BEST,再开下一批。
+     顺带把"最远活的那卷要提升成主种子"这件事自动化了 ——
+     以前得人工判断(塔段那次:主种子 606.7 在地面,最远活的 622.1 才是真路线,
+     手工 copy 进 water-route.best.json 之后才继续得下去)。 */
+  while (ti < tries.length && !okThis) {
+    const batch = tries.slice(ti, Math.min(ti + PAR, tries.length));
+    ti += batch.length;
+    const jobs = batch.map((tr, k) => {
+      const partBest = BEST + '.p' + k;
+      const args = ['tools/autoplay.ts', '--budget=' + per, '--quiet=1', '--goal=' + st.x.toFixed(1),
+        '--best=' + partBest, '--tape=' + SOL + '.p' + k];
+      if (seed && !tr.extra.some((e) => e.startsWith('--startfrom'))) args.push('--seed=' + seed);
+      for (const e of tr.extra) args.push(e);
+      if (FREE) args.push('--noskip=');
+      console.log('  → 并发 ' + (k + 1) + '/' + batch.length + (tr.tag ? ' · ' + tr.tag : ' · 接着上次'));
+      return spawn(process.execPath, args, { stdio: ['ignore', 'pipe', 'pipe'], cwd: process.cwd(), k });
+    });
+    const outs = await Promise.all(jobs.map((p) => new Promise<string>((res) => {
+      let s = '';
+      p.stdout?.on('data', (d) => { s += String(d); });
+      p.stderr?.on('data', (d) => { s += String(d); });
+      p.on('close', () => res(s));
+    })));
+
+    /* 挑赢家:先看"这一站的目标达没达成",再看【有没有跳过门】(跳门的那卷对"铺面路线"没意义),
+       然后比生效的门数,最后比走得远不远 */
+    let win: { file: string; x: number; doors: number; skip: number; pass: boolean } | null = null;
+    for (let k = 0; k < batch.length; k++) {
+      /* ★ sidecar 的路径要和 autoplay 写的一致:`<best 去掉 .json> + .max.json`
+         (踩过:这里原来写 MAXB + '.p' + k = "...best.max.json.p1",和实际文件名
+          "…best.json.p1.max.json" 对不上 → 最远活的那卷根本没参与评选,
+          赢家永远是"主种子那卷";而塔段那种段落里,真正的路线恰恰在最远活那卷里)。 */
+      const partMax = (BEST + '.p' + k).replace(/\.json$/, '') + '.max.json';
+      for (const f of [BEST + '.p' + k, partMax]) {
+        const aa = audit(f);
+        if (!aa) continue;
+        const pass = st.door >= 0 ? aa.armed.has(doors[st.door]) : aa.x >= st.x;
+        const cur = { file: f, x: aa.x, doors: aa.armed.size, skip: aa.skipped.size, pass };
+        const better = !win
+          || (cur.pass && !win.pass)
+          || (cur.pass === win.pass && (
+            cur.skip < win.skip
+            || (cur.skip === win.skip && (cur.doors > win.doors
+              || (cur.doors === win.doors && cur.x > win.x)))));
+        if (better) win = cur;
+      }
+      const tail = outs[k].split('\n').filter((l) => /最远|到站|通关|指纹/.test(l)).slice(-2).join(' | ');
+      console.log('    ' + (k + 1) + ') ' + tail.trim());
+    }
+    if (win) {
+      /* 赢家提升成主种子,并且【两份都写成它】:
+         · BEST 是下一批的 --seed;
+         · .max.json 是下一次"从最远前沿退回"的起点。
+         两份都指向同一个最好结果,下一次搜索会各自刷新它们(saveBest 里那两条线)。 */
+      fs.copyFileSync(win.file, BEST);
+      fs.copyFileSync(win.file, MAXB);
+      auditCache.clear();
+      const a2 = audit(BEST);
+      console.log('    ★ 本批赢家 x=' + win.x.toFixed(1) + ' · 门生效 ' + win.doors + '/' + doorCount
+        + ' · 跳门 ' + win.skip + ' · 形态=' + (a2?.mode ?? '?') + (win.pass ? ' ✓ 过站' : ' ✗ 没过'));
+      if (win.pass) okThis = true;
+    }
     seed = fs.existsSync(BEST) ? BEST : seed;
   }
   if (!okThis) {
     const aa = audit(BEST);
     console.log('卡在 ' + at(i) + ' 站(目标 x=' + st.x.toFixed(1) + '),后面先不推了');
     if (aa) console.log('  前缀终点 x=' + aa.x.toFixed(2) + ' y=' + aa.y.toFixed(2) + ' ' + aa.mode
-      + (aa.dead ? ' 【死了】' : '') + ' · 已生效的门 ' + aa.armed.size + '/' + boxes.length);
+      + (aa.dead ? ' 【死了】' : '') + ' · 已生效的门 ' + aa.armed.size + '/' + doorCount);
     break;
   }
   seed = fs.existsSync(BEST) ? BEST : seed;
@@ -195,5 +228,5 @@ for (let i = 0; i < stations.length; i++) {
 const fin = audit(BEST);
 console.log('\n用时 ' + ((Date.now() - t0) / 1000).toFixed(0) + 's · 前缀 ' + BEST
   + (fin ? ' · 走到 x=' + fin.x.toFixed(2) + ' y=' + fin.y.toFixed(2) + ' ' + fin.mode
-    + ' · 生效门 ' + fin.armed.size + '/' + boxes.length
+    + ' · 生效门 ' + fin.armed.size + '/' + doorCount
     + (fin.dead ? ' 【死了】' : '') + (fin.done ? ' 【通关】' : '') : ' · (无前缀文件)'));
