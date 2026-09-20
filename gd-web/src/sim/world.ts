@@ -799,12 +799,24 @@ export class World {
     }
 
     /* --- 弹簧(跳板):碰到就生效,不用按键 —— "连续鼓点用弹簧连起来"靠的就是这条 ---
-     * ★ 用【外框】判(原版 playerOuterBounds.intersectsRect)。 */
+     * ★ 用【外框】判(原版 playerOuterBounds.intersectsRect)。
+     * ★★ 蓝色重力跳点带【朝向】—— 出处 gdp@2.11 checkCollisions.cpp 的 kBlueBump 分支:
+     *      if (player->isUpsideDown ^ !local_isPadUpsideDown(gameObj)) { …propellPlayer(0.8)…flipFravity… }
+     *    也就是:正着装的板只对【正重力】的人生效,倒着装的(rot180)只对【反重力】的人生效;
+     *    朝向不对时它【什么也不做,也不算被吃掉】。其它颜色的板没有这个条件(走的是 bumpPlayer)。
+     *    我们以前不看朝向:反重力的人踩在地面板上会被"往下推"(板把他往自己那一侧的反方向打),
+     *    倒装的板也会对着正重力的人乱开 —— 实测爬塔那一段(550/554/561/565/569 一串蓝板)
+     *    前缀就是被这种"不该生效的板"打下去的。 */
     {
       const inn = this.outer();
       for (const b of this.nearPads) {
         if (this.armedPads.has(b)) continue;
         if (inn.x1 <= b.x0 || inn.x0 >= b.x1 || inn.y1 <= b.y0 || inn.y0 >= b.y1) continue;
+        if (b.o.pad === 'blue') {
+          const deg = (((b.o.rot ?? 0) % 360) + 360) % 360;
+          const padUpsideDown = deg === 180;
+          if ((this.gdir < 0) !== padUpsideDown) continue;   // 朝向不对:不生效、也不消耗
+        }
         this.armedPads.add(b);
         if (b.o.tp) this.spiderJump();                     // 紫色地面跳点:瞬移到头顶方块 + 翻重力
         else if (b.o.pad) this.applyTrigger(PAD[b.o.pad]);
