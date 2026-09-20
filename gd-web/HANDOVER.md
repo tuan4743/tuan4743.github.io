@@ -335,21 +335,35 @@ node tools/verify-run.ts                      # 回归门:回放这卷输入,必
 ### 12.3 gdp 逐条审计:`docs/gdp-coverage.md`(86 条大表)
 
 数值层面基本对得上(弹簧 16×arg1、跳环倍率、flipGravity ×1.75、起跳 11.180032、终端 15、
-容差 15/10/6、各形态重力倍率、判定盒尺寸)。**对不上的是时机 / 时序 / 作用域**,头五条:
+容差 15/10/6、各形态重力倍率、判定盒尺寸)。**对不上的是时机 / 时序 / 作用域**:
 
-1. `P.speedMul=[0.7,0.9,1.1,1.3,1.6]` 标着 [GDOpenGD] 但 OpenGD/gdp211 里都没有这张表,
-   只给了 `m_dXVel=[5.98,5.77,5.87,6.0,6.0]`,且两版源码互相冲突 ⇒ 该改成"每帧位移"并注明只能实测标定;
-2. `world.ts` 的 `spiderReach()=[60,90,120,135,120]` 把 `checkSnapJumpToObject` 的**方块台阶吸附表**
-   当成了蜘蛛可达距离;同时 `constants.ts` 的 `spiderBand=8` 从未被用 —— 同一件事两套来源;
-3. 弹簧/跳环的 `boostDir` 是自造量(GD 的豁免来自 `m_maybeIsBoosted` 分支)⇒ 黄板峰值 3.9 vs 4.4 块;
-4. 重力门把 vy 清零(原版 `flipGravity` 只 ×1.75、不清零);蓝板/蓝环"故意不乘 1.75"与 GD 不符;
-5. `m_jumpBuffered` 缓冲跳**没实现**,但 `world.ts` 的注释声称实现了。
+**已修(本轮,都重新搜过输入卷 + 过了两道门):**
 
-还有:飞船"按住"的符号抄的是 OpenGD 旧版;判定盒锚点应为"相对中心偏移"(我们一律取中心,
-刺族因此整体上移约 0.1 格);跳环缺 `if(isBall||isSpider) yAccel *= 0.7`;完全缺失的机制里有
-`checkSnapJumpToObject`(方块爬台阶/横向吸附)、`m_stateRingJump`、自定义环、坡道、dash 状态机、
-`boostPlayer`、移动平台载人、圆形判定(锯片)等 24 项;14 处标"未验证"(机制在 2.11 不存在,
-或反编译自相矛盾)。
+- ✅ **翻重力一律 ×1.75**(gdp@2.11 `flipGravity.cpp:19`):蓝板 `12.8 → 22.4`、蓝环 `8.94 → 15.65`
+  (球/蜘蛛再 ×0.7 → 10.96)。顺序也照源码:蓝板 = `propellPlayer` 之后再 `flipGravity`
+  (`checkCollisions.cpp:239-240`)、蓝环 = 先赋 yAccel 最后才翻(`ringJump.cpp:117→132`)。
+  ⚠ OpenGD `playerobject.cpp:540` 写的是 `m_dYVel /= 2` —— 两版冲突,取 gdp@2.11(球的起跳按这条修好过)。
+- ✅ **重力门不再清零速度**(`checkCollisions.cpp:194/204` + `flipGravity.cpp:2,19,49`):
+  方向真变了才 `vy *= 1.75` 并 `onGround = false`;进门时正在下落的动量现在保得住。
+- ✅ **球/蜘蛛的普通跳环 ×0.7**(`ringJump.cpp:127-130`,OpenGD `playerobject.cpp:522-526` 同款);
+  黑(冲刺)环走另一条分支,不吃这 7 折。
+- 力度觉得不对就用页面上的 `[` / `]`(padMul 0.4~1.5)—— 改物理之前先用手感微调。
+
+**还没动:**
+
+1. `P.speedMul=[0.7,0.9,1.1,1.3,1.6]` 标着 [GDOpenGD] 但两版源码里都没有这张表(只有 `m_dXVel`),
+   且互相冲突 ⇒ 该改成"每帧位移"并注明只能实测标定;
+2. `spiderReach()=[60,90,120,135,120]` 把 `checkSnapJumpToObject` 的**方块台阶吸附表**当成了蜘蛛可达距离;
+   同时 `constants.ts` 的 `spiderBand=8` 从未被用 —— 同一件事两套来源;
+3. 弹簧/跳环的 `boostDir` 与 GD 的 `m_isRising` 语义近似(GD 上升支本来就不夹终端速度),
+   但黄板峰值 3.9 vs 社区口径 4.4 块 —— 差额可能出在 `Y_TIME_SCALE=0.9` 上,待定;
+4. `m_jumpBuffered` **没实现**(注释声称实现了);空中起跳的 `jumpPower = 1/32` 也没有;
+5. 飞船"按住"的符号抄的是 OpenGD 旧版(gdp211:step=0.4、multiplier=−1)。
+
+完全缺失的机制 24 项(`checkSnapJumpToObject` 方块爬台阶/横向吸附、`m_stateRingJump`、自定义环、坡道、
+dash 状态机、`boostPlayer`、移动平台载人、圆形判定…)与 14 处"未验证"见报告原文。
 
 **改物理的流程(重要)**:任何一条改动都会让现有输入卷失效 —— 改完必须
-`autoplay.ts` 重搜(≈1 分钟)→ `tape-pack.ts` 重打包 → `verify-run.ts` + `gd-demo-check.mjs` 重验 → 提交。
+`autoplay.ts` 重搜(≈1~2 分钟)→ `tape-pack.ts` 重打包 → `verify-run.ts` + `gd-demo-check.mjs` 重验 → 提交。
+本轮三条改完后重搜:106.8 秒通关(改之前 60.8 秒 —— 物理变难了),输入卷仍是 21187 帧,
+指纹 `cda117a3 → cb300414`。

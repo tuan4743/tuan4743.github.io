@@ -885,9 +885,17 @@ export class World {
       this.armedGravs.add(b);
       /* ★ 原版的重力门是【指定方向】(向下门 / 向上门),不是"翻一下" ——
          连吃两个同样的门不该把人翻回去,所以这里按 gdir 直接设,没有 gdir 才退回"翻转"。
-         速度还是清零(和弹簧那条一样:先不套 flipGravity 的 ×1.75,见 applyTrigger 的注释)。 */
-      this.gdir = b.o.gdir ?? -this.gdir;
-      this.vy = 0;
+         ★ 速度不清零:出处 gdp@2.11 checkCollisions.cpp:194/204(重力门只是调 flipGravity)
+           + flipGravity.cpp:19 `m_yAccel *= 1.75` + 末尾 `m_onGround = false`;
+           而且 flipGravity.cpp:2 是 `if (m_upsideDown != upsideDown)` —— 方向没变就什么都不做。
+         以前我们写的是 `vy = 0`:进门那一刻纵向动量被抹掉,过门后的抛物线整个不对
+         (进门时正在下落的话,原版会带着 1.75 倍的动量往下走,我们却从静止开始)。 */
+      const want = b.o.gdir ?? -this.gdir;
+      if (want !== this.gdir) {
+        this.gdir = want;
+        this.vy *= FLIP_VEL_MUL;
+        this.onGround = false;
+      }
     }
     for (const b of this.triggers) {
       if (this.armedTriggers.has(b)) continue;
@@ -1052,10 +1060,16 @@ export class World {
     if (spec.flip === 'before') {
       this.vy = v * this.gdir;                    // 按【旧】重力方向给速度
       this.gdir = -this.gdir;                     // 然后才翻重力
-      /* ★ 这里【故意不乘】FLIP_VEL_MUL:原版 flipGravity 里确实有 `m_yAccel *= 1.75`,
-         但弹簧这条路上乘上去会明显过冲(用户实测本来就嫌蓝板"力度太大",乘 1.75 更冲),
-         而且拿本关几何反推也对不上。所以弹簧/重力门这条先维持"只翻转、不改速度",
-         力度用页面上的 [ / ] 微调(见 padMul),等拿到 2.2 的 propellPlayer 再说。 */
+      /* ★ 翻重力要乘 1.75 —— 出处 gdp@2.11 flipGravity.cpp:19 `m_yAccel *= 1.75`
+         (只有方向真的变了才进那段,所以这里的 -gdir 一定变了)。
+         顺序也对得上两条路:
+           · 蓝板 checkCollisions.cpp:239-240 = propellPlayer(0.8) 之后才 flipFravity → 先赋值再翻;
+           · 蓝环 ringJump.cpp:117→132 = 先赋值 yAccel,最后才 kBlueRing 的 flipGravity。
+         以前这里【故意不乘】,理由是"用户嫌蓝板力度太大" —— 但那是把 12.8 当成了全部;
+         原版给的就是 12.8×1.75 = 22.4,力度应该用页面上的 [ / ] 往【小】调,而不是改物理。
+         (OpenGD 的 playerobject.cpp:540 写的是 m_dYVel /= 2.f —— 两版源码在这一条上冲突,
+          我们取 gdp@2.11 的反编译口径:球的起跳就是按这条修好的,实测也支持它。) */
+      this.vy *= FLIP_VEL_MUL;
     } else if (spec.flip === 'after') {
       this.gdir = -this.gdir;                     // 先翻重力
       this.vy = v * this.gdir;                    // 再按【新】重力方向给速度
@@ -1078,26 +1092,31 @@ export class World {
   private orbVel(kind: OrbKind): number {
     const J = P.jump;
     const mini = this.mini;
+    /* ★ 球 / 蜘蛛的跳环再打 7 折 —— 出处 gdp@2.11 ringJump.cpp:127-130
+       `if (isBall || isSpider) { yAccel *= 0.7; isHolding = false; }`
+       (OpenGD playerobject.cpp:522-526 同款)。注意它【只管普通环】:
+       黑(冲刺)环走的是另一条分支(ringJump.cpp:32-58),不乘 0.7。 */
+    const bs = (this.mode === 'ball' || this.mode === 'spider') ? 0.7 : 1;
     switch (kind) {
       case 'pink':
-        return J * (this.mode === 'ship' ? 0.37 : this.mode === 'ufo' ? 0.42 : this.mode === 'ball' ? 0.77 : 0.72);
+        return J * (this.mode === 'ship' ? 0.37 : this.mode === 'ufo' ? 0.42 : this.mode === 'ball' ? 0.77 : 0.72) * bs;
       case 'red':
         return J * (this.mode === 'ship' ? 1.0
           : this.mode === 'ufo' ? (mini ? 1.36 : 1.02)
             : (this.mode === 'ball' || this.mode === 'spider') ? 1.34
-              : this.mode === 'robot' ? 1.28 : 1.38);
+              : this.mode === 'robot' ? 1.28 : 1.38) * bs;
       case 'yellow':
-        return J * (this.mode === 'robot' ? 0.9 : 1.0);
+        return J * (this.mode === 'robot' ? 0.9 : 1.0) * bs;
       case 'green':
-        return J * (this.mode === 'ship' ? 0.7 : 1.0);
+        return J * (this.mode === 'ship' ? 0.7 : 1.0) * bs;
       case 'blue':
-        return J * 0.8;                                   // 重力环:固定 ×0.8,不随形态
-      case 'black':                                       // 冲刺(黑)环:按形态给绝对值
+        return J * 0.8 * bs;                              // 重力环:固定 ×0.8,不随形态(球/蜘蛛再 ×0.7)
+      case 'black':                                       // 冲刺(黑)环:按形态给绝对值,不吃那 7 折
         return this.mode === 'ufo' ? 11.2
           : (this.mode === 'ship' || this.mode === 'wave') ? 14
             : this.mode === 'spider' ? 16.5 : 15;
       default:
-        return J;
+        return J * bs;
     }
   }
 
