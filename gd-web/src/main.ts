@@ -25,6 +25,16 @@ const WARN = 0xff9a6b;
 /** 视口高度(块)。★ 原版口径:设计分辨率 480×320、1 块 = 30 单位 → 10.67 格;
  *  用户在原版里数到的是 11 格(取整),所以这里按 11 来 —— 一屏至少别比原版少。 */
 const VIEW_H_BLOCKS = 11;
+/** 渲染分辨率系数:缓冲高度 = 720 × 这个值(缓冲宽度由盒子的长宽比推出来)。
+ *  1.0 = 不降画质;调小可以少画点像素换帧率(方块在屏幕上还是一样大,只是略软)。 */
+const RENDER_SCALE = 1;
+/** 渲染缓冲的像素上限(宽×高):超过就等比缩一档。
+ *  1280×720 ≈ 92 万,这里给到 115 万 —— 常规窗口用不到,
+ *  但盒子特别宽时(显示器贴图是被拉伸填满视口的,宽屏比例能到 2.4:1)能兜住帧率。 */
+const BUF_BUDGET = 1_150_000;
+/** 绘制裁剪的余量(单位):触发器会推物件,粗筛时留出一块,
+ *  免得"屏幕外正被推进来"的东西被提前剔掉。 */
+const CULL_MARGIN = 24 * 30;
 /* 相机纵向的原版常量(单位、朝上;出自 OpenGD 的 PlayLayer::updateCamera —— 用户要求照搬):
  *   方块形态:人被困在视野里的一条带子里 —— 下沿(cam + unk3)、上沿(cam + 屏幕高 − unk2),
  *             只有越出这条带子相机才动,一动就把人贴回带子边缘;
@@ -260,18 +270,36 @@ class Scene extends Phaser.Scene {
   viewFrac = 1;
   /** 露出来的那一条在画布里的位置(buffer 像素) */
   viewTop = 0;
+  /** 渲染缓冲的高度(buffer 像素);zoom = viewH / (11 格 × 30 单位) */
   viewH = 720;
+  /** 渲染缓冲的宽度:★ 必须由【盒子的长宽比】推出来。
+   *  以前固定 1280(CSS 再拉伸到盒子上),而盒子(显示器透明窗口)根本不是 16:9 ——
+   *  实测 1440×900 时是 1.80:1、用户那块屏上更宽,于是水平被拉长、垂直被压扁,
+   *  **方块看着就是长方体而不是正方体**(用户实测)。缓冲和盒子同比例 → 拉伸是等比的。 */
+  bufW = 1280;
+  /** 这一帧真正画出来的物件数(HUD 用;帧率不对时先看它) */
+  drawn = 0;
   private fracT = 0;
 
   private measureFrac() {
     const cv = document.getElementById('gd-canvas') as HTMLCanvasElement | null;
     const r = cv?.getBoundingClientRect();
-    const host = cv?.parentElement?.getBoundingClientRect();
-    if (!cv || !r || !host || r.height <= 0 || r.width <= 0) { this.viewFrac = 1; this.viewTop = 0; this.viewH = 720; return; }
+    if (!cv || !r || r.height <= 0 || r.width <= 0) {
+      this.viewFrac = 1; this.viewTop = 0; this.viewH = 720; this.bufW = 1280; return;
+    }
+    this.viewH = Math.round(720 * RENDER_SCALE);
+    let w = Math.round(this.viewH * (r.width / r.height));
+    /* ★ 像素预算:盒子越宽,缓冲就越宽(比例必须跟着盒子,不然方块会变长方形)。
+       但盒子可能非常宽 —— 那就整体缩一档(等比缩,比例不变),别让填充率拖垮帧率。 */
+    const px = w * this.viewH;
+    if (px > BUF_BUDGET) {
+      const k = Math.sqrt(BUF_BUDGET / px);
+      this.viewH = Math.max(240, Math.round(this.viewH * k));
+      w = Math.max(320, Math.round(w * k));
+    }
+    this.bufW = Math.max(320, w);
     this.viewFrac = 1;
     this.viewTop = 0;
-    this.viewH = 720;                 // ★ 回到固定 16:9 缓冲:上一版按盒子长宽比算,
-                                      //   结果块变得比原版大一圈(用户:"cube 怎么这么大")
   }
 
   /** 可见宽度 = 由 VIEW_H_BLOCKS 与画幅比例决定;取景框只覆盖"露出来的那一条" */
@@ -442,6 +470,8 @@ class Scene extends Phaser.Scene {
       if (bad.length) parts.push(bad.join(' '));
     }
     if (this.viewFrac < 0.995) parts.push('画布被挡 ' + Math.round((1 - this.viewFrac) * 100) + '%');
+    /* ★ 缓冲尺寸 + 实际画了几个物件:帧率不对时一眼看出是"画太多"还是"像素太多" */
+    parts.push('缓冲 ' + this.bufW + '×' + this.viewH + ' 绘 ' + this.drawn);
     parts.push(Math.round(this.fps) + ' fps');
     parts.push(this.audio && !this.audio.paused ? '♪ ' + this.audio.currentTime.toFixed(1) + 's' : '暂停');
     hud.textContent = parts.filter(Boolean).join(' · ');
@@ -573,19 +603,20 @@ class Scene extends Phaser.Scene {
     /* ★ 先让缓冲跟着盒子的长宽比走,再把画布的 CSS 尺寸按回 100%×100% ——
        顺序不能反:Phaser 的 ScaleManager 会在 resize 时把 canvas 的行内样式又写成
        "1280px/xxx px",那正是底部那条黑条(画布固定高、装不下窗口)的来源。 */
-    if (this.scale.height !== this.viewH || this.scale.width !== 1280) this.scale.resize(1280, this.viewH);
+    if (this.scale.height !== this.viewH || this.scale.width !== this.bufW) this.scale.resize(this.bufW, this.viewH);
     const cv = document.getElementById('gd-canvas') as HTMLCanvasElement | null;
     if (cv) {
       cv.style.width = '100%';
       cv.style.height = '100%';
     }
-    cam.setViewport(0, 0, 1280, this.viewH);
-    cam.setSize(1280, this.viewH);
+    cam.setViewport(0, 0, this.bufW, this.viewH);
+    cam.setSize(this.bufW, this.viewH);
     cam.setZoom(this.zoomOf());
   }
 
   draw() {
     const g = this.g, w = this.world, cam = this.cameras.main;
+    this.drawn = 0;
     /* ★ 真正的病根在【viewport】:create() 时父容器还没量到尺寸,相机的 viewport 被定成
        320×180(恰好四分之一),渲染就被裁在左上角一小块里 —— 只改 setSize 没用,得设 viewport。 */
     if (!this.fixed) {
@@ -594,11 +625,11 @@ class Scene extends Phaser.Scene {
       this.applyViewport(cam);
       window.addEventListener('resize', () => { this.measureFrac(); this.applyViewport(cam); });
     }
-    /* 每 20 帧(或刚开局)重新量一次:露出来的那一条变了就跟着改取景框 */
+    /* 每 20 帧(或刚开局)重新量一次:露出来的那一条/缓冲比例变了就跟着改取景框 */
     if (this.fixed && (this.fracT++ % 20 === 0)) {
-      const before = [this.viewTop, this.viewH];
+      const before = [this.viewTop, this.viewH, this.bufW];
       this.measureFrac();
-      if (before[0] !== this.viewTop || before[1] !== this.viewH) this.applyViewport(cam);
+      if (before[0] !== this.viewTop || before[1] !== this.viewH || before[2] !== this.bufW) this.applyViewport(cam);
     }
     const bx = w.x / U;
     const seg = LEVEL.segments.find((sg) => bx >= sg.from && bx < sg.to) || LEVEL.segments[0];
@@ -637,14 +668,19 @@ class Scene extends Phaser.Scene {
     for (let pass = 0; pass < 2; pass++) {
     for (const o of LEVEL.objects) {
       if ((o.kind === 'deco') !== (pass === 0)) continue;
-      /* ★ 会动的东西(触发器推的)按运行时偏移画;判定盒在 sim 里已经同步过了 */
+      if (o.kind === 'trigger') continue;         // 触发器是个逻辑物件,不画
+      /* ★ 先用【静态坐标】粗筛,再问触发器偏移 —— offsetOf 以前放在最前面,
+         8980 个物件每个都问一次(而且它自己还是线性扫),是帧率掉下来的主因。
+         留一块余量:会动的物件可能从屏幕外推进来。 */
+      if ((o.b + o.w) * U < x0 - CULL_MARGIN || o.b * U > x1 + CULL_MARGIN) continue;
+      /* 会动的东西(触发器推的)按运行时偏移画;判定盒在 sim 里已经同步过了 */
       const off = w.offsetOf(o);
       const obx = (o.b + off.dx) * U, obw = o.w * U, obh = o.h * U;
       const oTop = Y((o.r + o.h + off.dy) * U);   // 格子上边(绘图空间)
       const oBot = Y((o.r + off.dy) * U);         // 格子下边
       if (obx + obw < x0 || obx > x1) continue;
       if ((o.r + o.h + off.dy) * U < lowY || (o.r + off.dy) * U > highY) continue;
-      if (o.kind === 'trigger') continue;         // 触发器是个逻辑物件,不画
+      this.drawn++;
       switch (o.kind) {
         case 'platform':
           if (o.r < 0) {

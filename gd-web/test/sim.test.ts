@@ -82,17 +82,35 @@ test('平台:从上面落下会站住(脚底 = 台面),而且不致死', () => {
   assert.ok(Math.abs(w.y - 2 * U) < 0.001, '脚底应该停在台面 2 块处,实际 ' + (w.y / U).toFixed(3));
 });
 
-test('实心方块:★ 一格台阶能蹭上去(落台容错)、三格墙侧撞死、从上面落下能站住', () => {
-  /* 原版 collidedWithObject:在下落(vy≤0)、人又在砖上方、外框顶越过砖中线时 → 抬到砖顶面。 */
+test('实心方块:★ 落台容错的容差是 15 单位(原版 snapUpThreshold)、撞侧面该死、从上面落下能站住', () => {
+  /* 出处:gdp 反编译 PlayerObject_collidedWithObjectInternal ——
+       snapUpThreshold:正常/大形态 15、迷你 10、飞行类 6;
+       判定是 maxSnapY = playerBottom + snapUpThreshold 越过物件顶面。
+     ★ 也就是说容错【只修脚底离顶面那一点点】:站地面上撞一格台阶(差 30 单位)在原版是撞死,
+       不会"自动上台阶"。我们上一版按"外框顶越过砖中线"判,一格台阶能被整块抬上去 ——
+       用户看到的"容错直接飞上平台"就是它。 */
+  const lv1 = solo([
+    { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
+    { kind: 'block', b: 20, r: 1, w: 2, h: 2 },      // 顶面 = 3 块 = 90 单位
+  ]);
+  const near = new World(lv1);
+  near.x = 20.6 * U; near.y = 3 * U - 12; near.vy = -1; near.onGround = false;   // 差 12 单位(容差内)
+  near.frame(false);                                    // 只看第一帧:再往后人就跑出这块砖的右边掉下去了
+  assert.equal(near.dead, false, '差 12 单位(容差内)不该死');
+  assert.ok(Math.abs(near.y - 3 * U) < 1, '应该被抬到 3 块处,实际 ' + (near.y / U).toFixed(3));
+
+  const far = new World(lv1);
+  far.x = 20.6 * U; far.y = 3 * U - 25; far.vy = -1; far.onGround = false;       // 差 25 单位(超容差)
+  for (let i = 0; i < 20 && !far.dead; i++) far.frame(false);
+  assert.equal(far.dead, true, '差 25 单位(超出容差)应该撞死');
+
   const step = solo([
     { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
-    { kind: 'block', b: 20, r: 0, w: 2, h: 1 },
+    { kind: 'block', b: 20, r: 0, w: 2, h: 1 },      // 一格高的台阶:跑过去差 30 单位
   ]);
-  const a = new World(step);
-  let aPeak = 0;
-  for (let i = 0; i < 240 && !a.dead; i++) { a.frame(false); aPeak = Math.max(aPeak, a.y); }
-  assert.equal(a.dead, false, '一格台阶不该死');
-  assert.ok(aPeak >= 0.99 * U, '应该被抬到台阶顶面(走过去会落回地面),最高 ' + (aPeak / U).toFixed(2));
+  const walk = new World(step);
+  for (let i = 0; i < 240 && !walk.dead; i++) walk.frame(false);
+  assert.equal(walk.dead, true, '地面上撞一格台阶应该死(原版没有自动上台阶)');
 
   const wall = solo([
     { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },

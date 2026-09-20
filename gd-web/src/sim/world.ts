@@ -41,6 +41,9 @@ interface Movable {
   dx: number; dy: number;
 }
 
+/** 不动的物件共享这一个零偏移 —— offsetOf 每帧要被问上万次,别再每次 new 一个对象 */
+const ZERO_OFF = { dx: 0, dy: 0 };
+
 /** 一次触发产生的动画(位移 / 往返) */
 interface Anim {
   ms: Movable[];
@@ -230,6 +233,7 @@ export class World {
       }];
       for (const m of list) {
         this.movables.push(m);
+        this.movableOf.set(o, m);
         for (const g of o.groups) {
           const arr = this.byGroup.get(g);
           if (arr) arr.push(m); else this.byGroup.set(g, [m]);
@@ -239,10 +243,15 @@ export class World {
   }
 
   /** 物件现在的运行时偏移(渲染层按它画;判定盒已经跟着偏移走过了) */
+  /** 取某个物件当前的触发器偏移(渲染层每帧要问 8980 个物件两遍)。
+   *  ★ 以前这里是 `for (const m of this.movables)` 线性扫 —— 本关有 1167 个可动物件,
+   *    于是每帧 2×8980×1167 ≈ 2100 万次比较,量出来单这一项就 99 ms/帧(用户:"帧率有点低")。
+   *    改成构造时建一张 Map:O(1),不动的东西直接返回共享的零偏移(不分配对象)。 */
   offsetOf(o: Obj): { dx: number; dy: number } {
-    for (const m of this.movables) if (m.o === o) return { dx: m.dx, dy: m.dy };
-    return { dx: 0, dy: 0 };
+    const m = this.movableOf.get(o);
+    return m ? { dx: m.dx, dy: m.dy } : ZERO_OFF;
   }
+  private readonly movableOf = new Map<Obj, Movable>();
 
   /* ---------------- 窗口裁剪(搜索式机器人要靠它把 8000 个盒子裁成身边几十个) ----------------
    * 物理与机器人都只跟"玩家附近"的东西打交道,所以每帧重建一次窗口就够:
@@ -634,17 +643,29 @@ export class World {
           continue;
         }
         if (inn.x1 <= b.x0 || inn.x0 >= b.x1 || inn.y1 <= b.y0 || inn.y0 >= b.y1) continue;
-        /* ★ 原版【落台容错】——三条前提一起满足才生效(上一版我只抄了第三条,所以从下面
-           蹭到侧面也会被抬上去;这一版把前提补齐):
-             ① 人得在砖【上面】(脚底不低于砖底)  ② 正在【下落】(vy ≤ 0)
-             ③ 外框顶越过砖的中线
-           → 抬到砖顶面站住。这就是"跳点弹上去差一点也能上平台"的手感。
-           反重力方向对称(贴到底面)。 */
-        const mid = (b.y0 + b.y1) / 2;
-        if (this.gdir > 0 && this.vy <= 0 && this.y >= b.y0 - 0.01 && boxTop >= mid) {
+        /* ★ 原版【落台容错】的真正口径 —— 从 gdp 反编译的
+           PlayerObject::collidedWithObjectInternal 里抠出来的(不是猜的):
+             double snapUpThreshold = 10.0;
+             if (m_stateScale >= 1) snapUpThreshold = 15.0;                     // 正常/大形态
+             if (isFly && !m_isPlatformer) snapUpThreshold = gravityMult * 6.0; // 飞行类
+             ...
+             playerBottom = getPositionY() - 高/2;
+             maxSnapY = playerBottom + snapUpThreshold;
+             floatG   = maxSnapY - 本帧位移;
+             canSnap  = maxSnapY 或 floatG 越过 objRect 的顶面;
+           也就是:容错只是"脚底离顶面还差不到 tol 的那点小修正" ——
+             · 正常/大形态 tol = 15 单位(半格)
+             · 迷你 tol = 10
+             · 飞行类(飞机/UFO/波浪) tol = 6
+           ★ 我们上一版写的是"外框顶越过砖的中线":那对 1 格高的砖允许抬 30 单位,
+             而且【贴着砖侧面往下蹭】也满足 → 人就被整块"抬"到平台上,
+             用户看到的"容错直接飞上平台"就是它。现在最多修 15 单位,撞侧面老老实实死。 */
+        const snapTol = (this.mode === 'ship' || this.mode === 'ufo' || this.mode === 'wave')
+          ? 6 : (this.mini ? 10 : 15);
+        if (this.gdir > 0 && this.vy <= 0 && this.y >= b.y1 - snapTol) {
           this.y = b.y1; this.vy = 0; this.onGround = true; continue;
         }
-        if (this.gdir < 0 && this.vy >= 0 && boxTop <= b.y1 + 0.01 && this.y <= mid) {
+        if (this.gdir < 0 && this.vy >= 0 && this.y + this.box <= b.y0 + snapTol) {
           this.y = b.y0 - this.box; this.vy = 0; this.onGround = true; continue;
         }
         if (this.gdir > 0 && prevY >= b.y1 - 0.01 && this.y <= b.y1) continue;
