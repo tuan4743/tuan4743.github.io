@@ -262,34 +262,21 @@ class Scene extends Phaser.Scene {
   viewTop = 0;
   viewH = 720;
   private fracT = 0;
-  private fitted = false;
-  /** ★ 外框那 38%:直接从 FrameFit 量好的窗口内缩量(--ff-win-*,视口 px)把游戏盒子摆正 ——
-   *  盒子 = 窗口之后,画布就不再被挡,黑条自然没了(viewFrac 回到 1,applyViewport 也就是整块)。 */
-  private fitBox() {
-    const lost = document.querySelector('.lost') as HTMLElement | null;
-    if (!lost) return;
-    const root = document.documentElement;
-    const v = (n: string) => root.style.getPropertyValue(n) || getComputedStyle(root).getPropertyValue(n);
-    const t = parseFloat(v('--ff-win-top')), r = parseFloat(v('--ff-win-right'));
-    const b = parseFloat(v('--ff-win-bottom')), l = parseFloat(v('--ff-win-left'));
-    if (![t, r, b, l].every((x) => isFinite(x) && x >= 0)) return;      // FrameFit 没跑 → 保持原样
-    /* +1px 内缩:免得金属边框的抗锯齿边压在画面上 */
-    lost.style.inset = (t + 1) + 'px ' + (r + 1) + 'px ' + (b + 1) + 'px ' + (l + 1) + 'px';
-  }
 
   private measureFrac() {
     const cv = document.getElementById('gd-canvas') as HTMLCanvasElement | null;
     const r = cv?.getBoundingClientRect();
     const host = cv?.parentElement?.getBoundingClientRect();
-    if (!cv || !r || !host || r.height <= 0) { this.viewFrac = 1; this.viewTop = 0; this.viewH = 720; return; }
-    /* 画布在 CSS 里被拉伸显示;换算回 buffer 像素要看缩放比 */
+    if (!cv || !r || !host || r.height <= 0 || r.width <= 0) { this.viewFrac = 1; this.viewTop = 0; this.viewH = 720; return; }
     const k = 720 / r.height;
-    const topCss = Math.max(0, host.top - r.top);            // 上面被挡掉多少(CSS px)
-    const botCss = Math.max(0, r.bottom - host.bottom);      // 下面被挡掉多少
+    const topCss = Math.max(0, host.top - r.top);
+    const botCss = Math.max(0, r.bottom - host.bottom);
     const visCss = Math.max(1, r.height - topCss - botCss);
     this.viewFrac = Math.max(0.2, Math.min(1, visCss / r.height));
-    this.viewTop = Math.round(topCss * k);
-    this.viewH = Math.max(60, Math.round(visCss * k));
+    this.viewTop = 0;
+    /* ★ 取景高度按【盒子的长宽比】算:画布缓冲是 1280 宽,盒子 1270×601 的话高度就取 606 ——
+       这样"缓冲像素 : CSS 像素"横竖一致,方块不会被纵向压扁(以前固定 720 会被压 17%)。 */
+    this.viewH = Math.max(120, Math.round(1280 * (visCss / r.width)));
   }
 
   /** 可见宽度 = 由 VIEW_H_BLOCKS 与画幅比例决定;取景框只覆盖"露出来的那一条" */
@@ -559,9 +546,20 @@ class Scene extends Phaser.Scene {
     };
   }
 
-  /** 把相机的取景框设成"画布里真正露出来的那一条"(被外框挡住的部分干脆不渲染) */
+  /** 把相机的取景框设成"画布里真正露出来的那一条"(被外框挡住的部分干脆不渲染)。
+   *  ★ 另外把画布的 CSS 尺寸按回 100%×100%:Phaser 的 ScaleManager(mode: NONE)会把
+   *    canvas 的行内样式写成 1280px×720px —— 于是画布固定 720 px 高,而外框窗口只有
+   *    ~525 px,多出来的 38% 就被金属边框挡住(用户截图:HUD 写着"画布被挡 38%",
+   *    底下还露出一条黑条,关卡底部的刺全被裁掉)。这一句才是真正的病根。 */
   private applyViewport(cam: Phaser.Cameras.Scene2D.Camera) {
-    cam.setViewport(0, this.viewTop, 1280, this.viewH);
+    const cv = document.getElementById('gd-canvas') as HTMLCanvasElement | null;
+    if (cv && (cv.style.height !== '100%' || cv.style.width !== '100%')) {
+      cv.style.width = '100%';
+      cv.style.height = '100%';
+    }
+    /* ★ 缓冲也跟着取景高度走:缓冲 = 盒子(不然缓冲多出来的部分就是那条黑边) */
+    if (this.scale.height !== this.viewH || this.scale.width !== 1280) this.scale.resize(1280, this.viewH);
+    cam.setViewport(0, 0, 1280, this.viewH);
     cam.setSize(1280, this.viewH);
     cam.setZoom(this.zoomOf());
   }
@@ -572,14 +570,12 @@ class Scene extends Phaser.Scene {
        320×180(恰好四分之一),渲染就被裁在左上角一小块里 —— 只改 setSize 没用,得设 viewport。 */
     if (!this.fixed) {
       this.fixed = true;
-      this.fitBox();                       // 先把游戏盒子摆到外框窗口里(消掉被挡的 38%)
       this.measureFrac();
       this.applyViewport(cam);
-      window.addEventListener('resize', () => { this.fitBox(); this.measureFrac(); this.applyViewport(cam); });
+      window.addEventListener('resize', () => { this.measureFrac(); this.applyViewport(cam); });
     }
     /* 每 20 帧(或刚开局)重新量一次:露出来的那一条变了就跟着改取景框 */
     if (this.fixed && (this.fracT++ % 20 === 0)) {
-      if (!this.fitted) { this.fitted = true; this.fitBox(); }
       const before = [this.viewTop, this.viewH];
       this.measureFrac();
       if (before[0] !== this.viewTop || before[1] !== this.viewH) this.applyViewport(cam);
@@ -632,7 +628,10 @@ class Scene extends Phaser.Scene {
       switch (o.kind) {
         case 'platform':
           if (o.r < 0) {
-            /* 地面:厚条 + 顶部亮线 + 斜纹(和平台、方块一眼分开) */
+            /* 地面:厚条 + 顶部亮线 + 斜纹。★ 填得实一点(0.72)—— 原版地面是【不透明】的,
+               y<0 的东西(比如这关里放在 y=−0.1 的那个 67)是被地面挡住的、玩家看不见;
+               我们以前用 0.13 的淡填,底下那一排"蓝色跳点"就透出来了。 */
+            g.fillStyle(0x0a0f18, 0.92).fillRect(obx, oTop, obw, obh);
             g.fillStyle(tint, 0.13).fillRect(obx, oTop, obw, obh);
             g.lineStyle(2, tint, 0.9).lineBetween(obx, oTop + 1, obx + obw, oTop + 1);
             g.lineStyle(1, tint, 0.22);
@@ -700,17 +699,22 @@ class Scene extends Phaser.Scene {
           break;
         }
         case 'pad': {
-          /* 弹簧(跳板):底座 + 两层朝上的箭形 —— 不用猜它会不会弹你 */
+          /* 弹簧(跳板):★ 画成【薄薄一块贴在底边】—— 原版跳点视觉上只有小半格高。
+             以前我画的是"0.95 格高的底座 + 两道大箭头",看着像一块大板子,
+             而且箭头还往上戳出物件盒 —— 用户把地面线上那块(67 放在 y=−0.1、被地面挡住的)
+             当成了"多出来的蓝色跳点"。 */
           const col = PAD_COL[o.pad ?? 'yellow'] ?? 0xffe17a;
-          g.fillStyle(col, 0.22).fillRect(obx + 1, oBot - U * 0.95, obw - 2, U * 0.95);
-          g.fillStyle(col, 0.95).fillRect(obx + 2, oBot - 7, obw - 4, 7);
-          g.lineStyle(3, col, 0.95);
-          for (let i = 0; i < 2; i++) {
-            const yy = oBot - 11 - i * 9;
-            g.beginPath();
-            g.moveTo(obx + 6, yy); g.lineTo(obx + U / 2, yy - 8); g.lineTo(obx + obw - 6, yy);
-            g.strokePath();
-          }
+          const th = Math.max(6, obh);                       // 贴图厚度 = 物件盒(0.2 格 = 6 单位)
+          g.fillStyle(col, 0.85).fillRect(obx + 1, oBot - th, obw - 2, th);
+          g.lineStyle(1, col, 0.9).strokeRect(obx + 1.5, oBot - th + 0.5, obw - 3, th - 1);
+          /* 一道朝上的箭头(倒挂的朝下),压在底座上,不出物件盒 */
+          const up = ((o.rot ?? 0) % 360 + 360) % 360 !== 180;
+          g.lineStyle(2, col, 0.95);
+          g.beginPath();
+          const cy0 = oBot - th / 2;
+          if (up) { g.moveTo(obx + 5, cy0 + 2); g.lineTo(obx + obw / 2, cy0 - 3); g.lineTo(obx + obw - 5, cy0 + 2); }
+          else { g.moveTo(obx + 5, cy0 - 2); g.lineTo(obx + obw / 2, cy0 + 3); g.lineTo(obx + obw - 5, cy0 - 2); }
+          g.strokePath();
           break;
         }
         case 'orb': {
