@@ -252,24 +252,34 @@ class Scene extends Phaser.Scene {
   }
 
   /** 可见高度 = VIEW_H_BLOCKS 块 **在真正的窗口里**(不是整块画布)。
-   *  ★ 用户实测:"HUD 写着可见 11 格,但窗口只露 6.8 格" —— 画布比外框的透明窗口高,
-   *    多出来的部分被金属边框挡住了。所以这里自己量:画布矩形 vs 父盒矩形,算出真露出来的比例,
-   *    再把它折进缩放 —— 于是不管画布被裁多少,窗口里永远是 VIEW_H_BLOCKS 格。
-   *    (和 frame.webp 的自量思路一样:外框尺寸不可靠,就自己在运行时量。) */
+   *  ★ 用户实测:"可见 11 格,窗口只露 6.8 格" —— 画布比外框的透明窗口高,多出来的部分被
+   *    金属边框挡住。上一版我的做法是"把缩放调小、让窗口里凑够 11 格",结果相机是按整块画布
+   *    定位的,人直接被挤到窗口外面去了("cube 底下不再显示")。
+   *    正确做法:**把相机的取景框(viewport)直接设成露出来的那一条**,再让那一条里正好 11 格
+   *    —— 相机逻辑、人物位置、判定全都跟着这条走,窗口外画什么都不影响。 */
   viewFrac = 1;
+  /** 露出来的那一条在画布里的位置(buffer 像素) */
+  viewTop = 0;
+  viewH = 720;
   private fracT = 0;
   private measureFrac() {
     const cv = document.getElementById('gd-canvas') as HTMLCanvasElement | null;
-    if (!cv) return;
-    const r = cv.getBoundingClientRect();
-    const host = cv.parentElement?.getBoundingClientRect();
-    if (!host || r.height <= 0) { this.viewFrac = 1; return; }
-    this.viewFrac = Math.max(0.2, Math.min(1, Math.min(r.height, host.height) / r.height));
+    const r = cv?.getBoundingClientRect();
+    const host = cv?.parentElement?.getBoundingClientRect();
+    if (!cv || !r || !host || r.height <= 0) { this.viewFrac = 1; this.viewTop = 0; this.viewH = 720; return; }
+    /* 画布在 CSS 里被拉伸显示;换算回 buffer 像素要看缩放比 */
+    const k = 720 / r.height;
+    const topCss = Math.max(0, host.top - r.top);            // 上面被挡掉多少(CSS px)
+    const botCss = Math.max(0, r.bottom - host.bottom);      // 下面被挡掉多少
+    const visCss = Math.max(1, r.height - topCss - botCss);
+    this.viewFrac = Math.max(0.2, Math.min(1, visCss / r.height));
+    this.viewTop = Math.round(topCss * k);
+    this.viewH = Math.max(60, Math.round(visCss * k));
   }
 
-  /** 可见宽度 = 由 VIEW_H_BLOCKS 与画幅比例决定;被裁掉的部分用 viewFrac 补回来 */
+  /** 可见宽度 = 由 VIEW_H_BLOCKS 与画幅比例决定;取景框只覆盖"露出来的那一条" */
   zoomOf() {
-    return (720 * this.viewFrac) / (VIEW_H_BLOCKS * U);
+    return this.viewH / (VIEW_H_BLOCKS * U);
   }
 
   /** 推进 n 帧模拟(输入按当前模式取:机器人 / 键盘) */
@@ -407,20 +417,11 @@ class Scene extends Phaser.Scene {
     if (this.phase === 'idle') parts.push('按空格开始');
     if (this.phase === 'done') parts.push('通关');
     if (w.mode === 'ship') parts.push('按住 = 上升');
-    /* ★ 可见格数:自己量一遍(内部分辨率)与"被外框窗口裁掉之后"的格数 ——
-       和原版对不上时,一眼能看出是"缩放不对"还是"画布被裁了"。 */
+    /* ★ 可见格数 + 取景框被外框挡掉的比例:和原版对不上时,一眼看出是缩放还是裁切问题 */
     const cam = this.cameras.main;
     const vhBlocks = (cam.height / cam.zoom) / U;
-    const cv = document.getElementById('gd-canvas');
-    let clipped = vhBlocks;
-    if (cv) {
-      const r = cv.getBoundingClientRect();
-      const host = cv.parentElement?.getBoundingClientRect();
-      const visH = host ? Math.min(r.height, host.height) : r.height;
-      if (r.height > 0) clipped = vhBlocks * (visH / r.height);
-    }
     parts.push('可见 ' + vhBlocks.toFixed(1) + ' 格');
-    if (clipped < vhBlocks - 0.2) parts.push('窗口只露 ' + clipped.toFixed(1) + ' 格');
+    if (this.viewFrac < 0.995) parts.push('画布被挡 ' + Math.round((1 - this.viewFrac) * 100) + '%');
     parts.push(Math.round(this.fps) + ' fps');
     parts.push(this.audio && !this.audio.paused ? '♪ ' + this.audio.currentTime.toFixed(1) + 's' : '暂停');
     hud.textContent = parts.filter(Boolean).join(' · ');
@@ -543,22 +544,27 @@ class Scene extends Phaser.Scene {
     };
   }
 
+  /** 把相机的取景框设成"画布里真正露出来的那一条"(被外框挡住的部分干脆不渲染) */
+  private applyViewport(cam: Phaser.Cameras.Scene2D.Camera) {
+    cam.setViewport(0, this.viewTop, 1280, this.viewH);
+    cam.setSize(1280, this.viewH);
+    cam.setZoom(this.zoomOf());
+  }
+
   draw() {
     const g = this.g, w = this.world, cam = this.cameras.main;
     /* ★ 真正的病根在【viewport】:create() 时父容器还没量到尺寸,相机的 viewport 被定成
        320×180(恰好四分之一),渲染就被裁在左上角一小块里 —— 只改 setSize 没用,得设 viewport。 */
     if (!this.fixed) {
       this.fixed = true;
-      cam.setViewport(0, 0, 1280, 720);
-      cam.setSize(1280, 720);
       this.measureFrac();
-      cam.setZoom(this.zoomOf());
+      this.applyViewport(cam);
     }
-    /* 每 20 帧(或刚开局)重新量一次"真露出来的比例":量出来变了就跟着改缩放 */
+    /* 每 20 帧(或刚开局)重新量一次:露出来的那一条变了就跟着改取景框 */
     if (this.fixed && (this.fracT++ % 20 === 0)) {
-      const before = this.viewFrac;
+      const before = [this.viewTop, this.viewH];
       this.measureFrac();
-      if (Math.abs(this.viewFrac - before) > 0.004) cam.setZoom(this.zoomOf());
+      if (before[0] !== this.viewTop || before[1] !== this.viewH) this.applyViewport(cam);
     }
     const bx = w.x / U;
     const seg = LEVEL.segments.find((sg) => bx >= sg.from && bx < sg.to) || LEVEL.segments[0];
