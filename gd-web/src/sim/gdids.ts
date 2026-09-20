@@ -92,13 +92,15 @@ export function hitboxOf(o: Obj): [number, number] | null {
   }
 }
 
-/** 线框的实心杆(块坐标)。
+/** 线框的实心外框(块坐标)。
  *  468 单边:物件自己就是那根杆(横杆 1×0.05 / 竖杆 0.05×1),直接用它的包围盒;
- *  469 邻边(L)/ 470 三边(U):整格包围盒 + 旋转决定是哪几条边(顺时针:0 = 上,90 = 右)。
- *  判定和绘制都走这里 —— 两边用同一份几何,才不会"看着能站、实际穿过去"。 */
+ *  469 邻边(L)/ 470 三边(U):整格包围盒 + 旋转决定是哪几条边(顺时针:0 = 上,90 = 右);
+ *  662 整框(box):整个包围盒就是一圈边框(1×0.5)。
+ *  ★ 这只是【画法】:判定一律用物件自己的包围盒
+ *    —— 原版 LongData 那张表就是这么给的(见 sim/world.ts 的 case 'frame')。 */
 export function frameRects(o: Obj): Array<{ x0: number; x1: number; y0: number; y1: number }> {
   const X0 = o.b * U, X1 = (o.b + o.w) * U, Y0 = o.r * U, Y1 = (o.r + o.h) * U;
-  if (!o.frame || o.frame === 'edge') return [{ x0: X0, x1: X1, y0: Y0, y1: Y1 }];
+  if (!o.frame || o.frame === 'edge' || o.frame === 'box') return [{ x0: X0, x1: X1, y0: Y0, y1: Y1 }];
   const base = o.frame === 'corner' ? ['N', 'W'] : ['N', 'W', 'S'];
   const seq = ['N', 'E', 'S', 'W'];
   const k = ((Math.round((o.rot ?? 0) / 90) % 4) + 4) % 4;
@@ -117,7 +119,7 @@ export interface Spec {
   w?: number; h?: number;       // 默认包围盒(块),缺省 1×1;刺的 h 同时就是【刺的高度】
   scaled?: boolean;             // 128/129 是不是缩放(锯片这类)
   orb?: OrbKind; pad?: PadKind; to?: Mode; speed?: number; gdir?: 1 | -1;
-  frame?: 'edge' | 'corner' | 'u';
+  frame?: 'edge' | 'corner' | 'u' | 'box';
   arrow?: 'green' | 'pink' | 'purple';
   art?: number;                 // 装饰图号(绘制时按它挑画法)
   tp?: boolean;                 // 瞬移到头顶的那个方块 + 翻重力(3004 / 3005)
@@ -136,11 +138,16 @@ export const GD_SPEC: Record<number, Spec> = {
   143: { kind: 'breakable', note: '可破坏砖块(撞到即碎,不能当实心否则必死)' },
 
   /* ---- 线框:468 一条边 / 469 邻边 / 470 三边 / 662 平台 / 661 小方块 ---- */
-  468: { kind: 'frame', frame: 'edge', note: '单边线框(细杆;rot 0=上边 90=右边 180=下边 270=左边)' },
-  469: { kind: 'frame', frame: 'corner', note: '邻边线框(L 形:rot 0 = 上边+左边)' },
-  470: { kind: 'frame', frame: 'u', note: '三边线框(U 形:rot 0 = 上+左+下)' },
-  662: { kind: 'platform', w: 1, h: 0.5, note: '线框平台(单向,只有顶面接人)' },
-  661: { kind: 'frame', frame: 'corner', w: 0.5, h: 0.5, note: '小线框方块(半格)' },
+  468: { kind: 'frame', frame: 'edge', note: '单边线框(细杆;rot 0=上边 90=右边 180=下边 270=左边)。原版表 468 = 30×1.5,和我们的包围盒一致' },
+  469: { kind: 'frame', frame: 'corner', note: '邻边线框(L 形贴图;★ 原版表给的是【整格 30×30】,判定按整格实心)' },
+  470: { kind: 'frame', frame: 'u', note: '三边线框(U 形贴图;★ 原版表同样是【整格 30×30】实心)' },
+  /* 467/471/475 这关没用上,补进来只为"以后别的铺面用到时不静默丢"。
+     467/471 原版是整格实心,用 'u' 是为了让包围盒真的是 1×1(画法差一条边,判定是对的) */
+  467: { kind: 'frame', frame: 'u', note: '(未在本关出现)整格线框,原版表 30×30' },
+  471: { kind: 'frame', frame: 'u', note: '(未在本关出现)整格线框,原版表 30×30' },
+  475: { kind: 'frame', frame: 'edge', note: '(未在本关出现)单边线框,原版表 30×1.5' },
+  662: { kind: 'platform', w: 1, h: 0.5, note: '半格线框块(1×0.5)。★ 原版表给的是 30×15 的外框(尺寸和我们的包围盒一致)' },
+  661: { kind: 'frame', frame: 'corner', w: 0.5, h: 0.5, note: '小线框方块(半格;原版表 15×15,判定按整块实心)' },
 
   /* ---- 尖刺:高度差就是"大/小刺" ---- */
   8: { kind: 'spike', note: '普通尖刺' },
@@ -359,7 +366,7 @@ export function decodeObjects(text: string): Obj[] {
         case 'rot': o.rot = Number(v); break;
         case 'fx': o.flipX = true; break;
         case 'fy': o.flipY = true; break;
-        case 'fm': o.frame = v as 'edge' | 'corner' | 'u'; break;
+        case 'fm': o.frame = v as 'edge' | 'corner' | 'u' | 'box'; break;
         case 'ar': o.arrow = v as 'green' | 'pink' | 'purple'; break;
         case 'art': o.art = Number(v); break;
         case 'tp': o.tp = true; break;

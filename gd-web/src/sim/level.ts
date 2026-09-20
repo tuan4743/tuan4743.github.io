@@ -64,7 +64,7 @@ export interface Obj {
   exit?: boolean;   // teleport:这个是【出口】(橙)而不是入口(蓝)
   tpy?: number;     // teleport:出口的【纵向偏移】(块,键 54);用户口径:出口就在这个偏移处
   gdir?: 1 | -1;    // gravity:进这个门之后重力朝哪(1 = 向下/常重力,-1 = 向上)
-  frame?: 'edge' | 'corner' | 'u';   // frame:画法(一条边 / L 形 / U 形)
+  frame?: 'edge' | 'corner' | 'u' | 'box';   // frame:画法(一条边 / L 形 / U 形 / 整框)。判定一律用包围盒
   arrow?: 'green' | 'pink' | 'purple'; // arrow:是哪种冲刺箭头
   tp?: boolean;     // pad/arrow:瞬移到头顶的方块 + 翻重力(紫的那两种)
   inert?: boolean;  // 只标记、不生效(clone 门、占位物件)

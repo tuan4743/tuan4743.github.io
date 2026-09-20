@@ -825,7 +825,9 @@ class Scene extends Phaser.Scene {
           break;
         }
         case 'frame': {
-          /* 线框:判定就是这几根细杆(见 sim/gdids.ts 的 frameRects)—— 画的和判定的是同一份几何 */
+          /* 线框:这里只管【画】—— 按 frameRects 画出看得见的那 1~3 条边。
+             ★ 判定【不再】用这份几何:原版表里 469/470/471 的外框是整格 30×30、661 是 15×15,
+               L 形/U 形只是贴图(见 sim/world.ts 的 case 'frame')。 */
           g.lineStyle(2, tint, 0.9);
           for (const r of frameRects({ ...o, b: o.b + off.dx, r: o.r + off.dy })) {
             g.strokeRect(r.x0, Y(r.y1), r.x1 - r.x0, r.y1 - r.y0);

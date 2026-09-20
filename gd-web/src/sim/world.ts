@@ -8,7 +8,7 @@
  */
 
 import { P, U, Y_TIME_SCALE, vxOf, arcSpan, ORB, PAD } from './constants.ts';
-import { frameRects, hitboxOf } from './gdids.ts';
+import { hitboxOf } from './gdids.ts';
 import type { Level, Mode, Obj } from './level.ts';
 
 export interface RunState {
@@ -141,20 +141,31 @@ export class World {
       switch (o.kind) {
         case 'block': this.solids.push(b); break;
         case 'frame': {
-          /* 线框:实心细杆。判定盒按 frameRects 展开(469/470 会展开成 2~3 根杆),
-             每根杆都挂着【同一个 Obj】—— 触发器推它时所有杆一起动,线框不会被撕开。 */
-          for (const r of frameRects(o)) {
-            const bar: Box = { x0: r.x0, x1: r.x1, y0: r.y0, y1: r.y1, o };
-            this.frames.push(bar);
-            this.solids.push(bar);
-          }
+          /* ★ 原版口径:线框族(467~475 / 661~663)的判定盒就是 LongData.cpp 那张表给的【外框】——
+             OpenGD GameObject.cpp:751-772 把它直接 setOuterBounds,碰撞用的就是它:
+               468 / 475 → 30×1.5(细杆,我们自己的包围盒就是 1 格×0.05 格 = 30×1.5 ✓)
+               469 / 470 / 471 → 30×30(【整格实心】)
+               661 → 15×15、662/663 → 30×15
+             L 形 / U 形只是【贴图】,判定是整格。我们以前按"看得见的 2~3 根杆"判,
+             于是 L 形那块剩下的空档能直接穿过去 —— 用户报的"线框平台碰撞逻辑错误"。
+             现在:判定 = 物件自己的包围盒(和表一致);画法照旧走 frameRects(见 main.ts),
+             所以还是"线框"的样子,只是不再漏。 */
+          this.frames.push(b);
+          this.solids.push(b);
           break;
         }
         case 'breakable': this.breakables.push(b); this.solids.push(b); break;
         case 'coin': this.coins.push(b); break;
         case 'arrow': this.arrows.push(b); break;
         case 'clone': this.clones.push(b); break;
-        case 'platform': this.floors.push(b); break;
+        case 'platform': {
+          /* 单向平台:只从上面接住,不致死(自动铺面的浮空平台就是它)。
+             ★ 662(半格线框块)不在这里 —— 它在原版是【实心】的,走 kind 'frame' + fm=box,
+               见下面的 case 'frame'。以前把 662 也归到这一类,人能从下面直接穿上去
+               (用户:"能直接从几格高的平台下面飞到上面")。 */
+          this.floors.push(b);
+          break;
+        }
         case 'spike': {
           /* ★ 用原版判定盒(表里 8→12×6、39→5.6×6、103→7.6×4、392→4.8×2.6),
              以物件中心为心;横着的刺(rot 90/270)宽高对调。
@@ -198,8 +209,8 @@ export class World {
        y=0 —— 而这关的出生点在 y=10 的上一层,于是"复活在平台下面"(用户实测)。 */
     this.checkX = startX; this.checkY = startY; this.checkMode = 'cube'; this.checkSize = 1;
     /* ---- 分组:给每个带 groups 的物件记一份"可动"记录,并把它的判定盒挂上去 ----
-       ★ 一个物件可能有好几个判定盒(线框的每根杆、U 形的三条边):每个盒子各记一份,
-         触发器一推,所有杆一起动 —— 只挂第一个盒子的话,线框会被"撕开"。 */
+       ★ 一个物件挂几个盒子,这里就记几份(线框以前会展开成好几根杆)。
+         现在线框的判定也回到"整格一个盒子",所以通常是一物一盒。 */
     const boxesOf = new Map<Obj, Box[]>();
     for (const list of [this.solids, this.floors, this.hazards, this.orbs, this.pads, this.forces, this.pits, this.coins, this.arrows]) {
       for (const b of list) {
