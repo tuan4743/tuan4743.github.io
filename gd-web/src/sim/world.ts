@@ -15,6 +15,15 @@ import type { Level, Mode, Obj } from './level.ts';
  *  这样无论纵向速度多大,都不会"一步跨过一堵墙"(见 frame() 里的自适应切分)。 */
 const SUBSTEP_MAX = 1.2;
 
+/** ★ 翻重力时纵向速度的倍率 —— 出处:gdp(2.11 反编译)PlayerObject::flipGravity
+ *      `m_yAccel *= 1.75;`
+ *  这里的 `yAccel` 就是【纵向速度】(同文件里它被当成速度用:飞船夹 ±8/−6.4、
+ *  波浪 = ±水平速度、UFO 冲量 ±7/8、黑环 ±15,全对得上)。
+ *  我们以前在球的起跳里写了 `vy /= 2`(注释还写着"原版 flipGravity 会把速度减半")——
+ *  那是凭空猜的,方向都反了:真实规则是【×1.75】。所以凡是"翻重力"的地方都要乘它:
+ *  球的点按起跳、蓝板/蓝环(赋值之后再翻)、重力门。 */
+const FLIP_VEL_MUL = 1.75;
+
 export interface RunState {
   tick: number; x: number; y: number; vy: number; onGround: boolean;
   mode: Mode; gdir: number; speed: number; dead: boolean; done: boolean;
@@ -612,9 +621,9 @@ export class World {
       if (hold && this.onGround) {
         this.pressFresh = false;
         this.vy = P.jump * size * this.gdir;    // 旧重力方向的起跳初速
-        this.gdir = -this.gdir;                 // 翻重力(原版 flipGravity 会把速度减半)
-        this.vy /= 2;
-        this.vy *= P.ballFlipVelMul;
+        this.gdir = -this.gdir;                 // 翻重力
+        this.vy *= FLIP_VEL_MUL;                // ★ 原版 flipGravity:m_yAccel *= 1.75
+        this.vy *= P.ballFlipVelMul;            // ★ 再按球那一档 ×0.6(原版 updateJump)
         this.onGround = false;
       }
       this.vy -= P.gravity * P.ballGravityMul * this.gdir * sY;
@@ -856,7 +865,8 @@ export class World {
       if (!this.hitEvent(b, prevX)) continue;
       this.armedGravs.add(b);
       /* ★ 原版的重力门是【指定方向】(向下门 / 向上门),不是"翻一下" ——
-         连吃两个同样的门不该把人翻回去,所以这里按 gdir 直接设,没有 gdir 才退回"翻转"。 */
+         连吃两个同样的门不该把人翻回去,所以这里按 gdir 直接设,没有 gdir 才退回"翻转"。
+         速度还是清零(和弹簧那条一样:先不套 flipGravity 的 ×1.75,见 applyTrigger 的注释)。 */
       this.gdir = b.o.gdir ?? -this.gdir;
       this.vy = 0;
     }
@@ -1018,11 +1028,15 @@ export class World {
          所以这一档维持 0.6(和 OpenGD 的 propellPlayer 一致)。 */
     if (this.mode === 'ball' || this.mode === 'spider') v *= 0.6;
     if (spec.flip === 'before') {
-      this.vy = v * this.gdir;                          // 按【旧】重力方向给速度
-      this.gdir = -this.gdir;                           // 然后才翻重力
+      this.vy = v * this.gdir;                    // 按【旧】重力方向给速度
+      this.gdir = -this.gdir;                     // 然后才翻重力
+      /* ★ 这里【故意不乘】FLIP_VEL_MUL:原版 flipGravity 里确实有 `m_yAccel *= 1.75`,
+         但弹簧这条路上乘上去会明显过冲(用户实测本来就嫌蓝板"力度太大",乘 1.75 更冲),
+         而且拿本关几何反推也对不上。所以弹簧/重力门这条先维持"只翻转、不改速度",
+         力度用页面上的 [ / ] 微调(见 padMul),等拿到 2.2 的 propellPlayer 再说。 */
     } else if (spec.flip === 'after') {
-      this.gdir = -this.gdir;                           // 先翻重力
-      this.vy = v * this.gdir;                          // 再按【新】重力方向给速度
+      this.gdir = -this.gdir;                     // 先翻重力
+      this.vy = v * this.gdir;                    // 再按【新】重力方向给速度
     } else if (spec.flip === 'dash') {
       this.vy = -v * this.gdir;                         // 冲刺环:朝重力方向砸下去(常重力下 -15)
     } else {

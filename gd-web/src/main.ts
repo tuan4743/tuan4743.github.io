@@ -148,8 +148,7 @@ class Scene extends Phaser.Scene {
   private restartLatch = false;
   private godLatch = false;         // G 键:无敌模式
   private prevG = false;
-  private prevBrL = false;          // 弹簧力度微调([ / ])
-  private prevBrR = false;
+  private padLatch = 0;             // [ / ]:弹簧力度微调(-1 / +1 个单位,每个 5%)
   /** 无敌模式想要的状态 —— startRun() 会 new 一个 World,得把开关带过去 */
   godWanted = false;
   /** 弹簧力度微调(和 godWanted 一样:换世界时要带过去) */
@@ -233,7 +232,7 @@ class Scene extends Phaser.Scene {
 
   create() {
     this.g = this.add.graphics();
-    this.keys = this.input.keyboard!.addKeys('SPACE,UP,W,R,G,OPEN_BRACKET,CLOSED_BRACKET') as Record<string, Phaser.Input.Keyboard.Key>;
+    this.keys = this.input.keyboard!.addKeys('SPACE,UP,W,R,G') as Record<string, Phaser.Input.Keyboard.Key>;
     /* ★ 无敌模式:页面按 G 切;也可以开局就用 URL 打开(?god=1),验收脚本直接改 __gd.world.god */
     this.godWanted = /(^|[?&])god=1(&|$)/.test(location.search);
     this.world.god = this.godWanted;
@@ -260,6 +259,8 @@ class Scene extends Phaser.Scene {
       if (ev.code === 'Space' || ev.code === 'ArrowUp' || ev.code === 'KeyW') this.confirmLatch = true;
       if (ev.code === 'KeyR') this.restartLatch = true;
       if (ev.code === 'KeyG') this.godLatch = true;
+      if (ev.code === 'BracketLeft') this.padLatch = -1;
+      if (ev.code === 'BracketRight') this.padLatch = 1;
       if (/^Digit[1-7]$/.test(ev.code)) this.modeLatch = Number(ev.code.slice(5));
     }, true);
     /* ★ 再给两个【能点的】按钮:键盘在某些环境里会被别的东西吃掉(用户实测 R/G 没反应),
@@ -318,13 +319,13 @@ class Scene extends Phaser.Scene {
     this.godLatch = false;
     if (gEdge) this.toggleGod();
     /* ★ 弹簧力度微调:[ 减 5%、] 加 5%(0.4 ~ 1.5)。蓝跳点到底该多大还没定死,
-       让用户直接把数值调到手感对,比我们反复猜省事 —— HUD 上会显示"跳点×N"。 */
-    const brL = !!k.OPEN_BRACKET?.isDown, brR = !!k.CLOSED_BRACKET?.isDown;
-    const dPad = (brL && !this.prevBrL ? -0.05 : 0) + (brR && !this.prevBrR ? 0.05 : 0);
-    this.prevBrL = brL; this.prevBrR = brR;
-    if (dPad) {
-      this.padMulWanted = Math.round(Math.max(0.4, Math.min(1.5, this.padMulWanted + dPad)) * 100) / 100;
+       让用户直接把数值调到手感对,比我们反复猜省事 —— HUD 上会显示"跳点×N"。
+       ★ 走和 G/R 同一条路(真实 keydown 事件 + latch):Phaser 的 addKeys('OPEN_BRACKET')
+       实测收不到(按 ] 有效、按 [ 无效),别在这上面浪费时间。 */
+    if (this.padLatch) {
+      this.padMulWanted = Math.round(Math.max(0.4, Math.min(1.5, this.padMulWanted + this.padLatch * 0.05)) * 100) / 100;
       this.world.padMul = this.padMulWanted;
+      this.padLatch = 0;
     }
     if (this.confirmLatch) { this.confirmLatch = false; this.clicked = false; return true; }
     if (edge) { this.clicked = false; return true; }
