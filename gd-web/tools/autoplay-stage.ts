@@ -46,18 +46,34 @@ for (let i = 0; i < doors.length; i++) {
   if (left <= 5) { console.log('总预算用完,停在第 ' + i + ' 站(x=' + have.toFixed(1) + ')'); break; }
   const budget = Math.min(PER, left);
   /* 一站最多试几次:先按种子接着搜,失败就【退到岔路口重开前沿】(--startfrom),
-     再失败才剪种子尾巴。顺序有讲究:实测卡住多半是"前缀末端是死状态",重开前沿最有效。 */
+     再失败才剪种子尾巴。顺序有讲究:实测卡住多半是"前缀末端是死状态",重开前沿最有效。
+     ★ 离目标很近(差 ≤6 块)时给双倍时间:这种时候往往是"就差一点点时机",
+       实测站 18 走到 525.7、目标 527.5,60 秒不够,多给一倍就过去了。 */
+  const near = goal - have <= 6;
+  const per = near ? budget * 2 : budget;
+  const seedX = seed && fs.existsSync(seed) ? (JSON.parse(fs.readFileSync(seed, 'utf8')).x ?? 0) : 0;
+  /* ★ "活着走到最远"那条路的种子(见 autoplay.ts 里的说明):主种子常落后它几十块,
+     从它往回退才是真的在"前沿附近重新规划" */
+  const maxSeed = seed ? seed.replace(/\.json$/, '') + '.max.json' : '';
+  const maxSeedX = maxSeed && fs.existsSync(maxSeed) ? (JSON.parse(fs.readFileSync(maxSeed, 'utf8')).x ?? 0) : 0;
+  const back: Array<[number, number]> = [[45, -45], [30, -30], [15, -15]];
   const tries: Array<{ tag: string; extra: string[] }> = seed
     ? [
-      { tag: '', extra: [] },
-      { tag: '退回 45 块重开前沿', extra: ['--startfrom=' + seed + ',' + Math.max(1, door.b - 45).toFixed(1)] },
-      { tag: '退回 15 块重开前沿', extra: ['--startfrom=' + seed + ',' + Math.max(1, door.b - 15).toFixed(1)] },
+      { tag: near ? '离目标很近,给双倍时间' : '', extra: [] },
+      ...back.filter(([, off]) => seedX + off > 5).map(([label, off]) => ({
+        tag: '退回 ' + Math.abs(off) + ' 块重开前沿',
+        extra: ['--startfrom=' + seed + ',' + (seedX + off).toFixed(1)],
+      })),
+      ...(maxSeedX > 5 ? back.filter(([, off]) => maxSeedX + off > 5).map(([label, off]) => ({
+        tag: '从最远前沿退回 ' + Math.abs(off) + ' 块重开',
+        extra: ['--startfrom=' + maxSeed + ',' + (maxSeedX + off).toFixed(1)],
+      })) : []),
       { tag: '种子剪尾 20 块重规划', extra: ['--seedtrim=20'] },
     ]
     : [{ tag: '', extra: [] }];
   let okThis = false;
   for (const tr of tries) {
-    const args = ['tools/autoplay.ts', '--budget=' + budget, '--quiet=1', '--goal=' + goal.toFixed(1),
+    const args = ['tools/autoplay.ts', '--budget=' + per, '--quiet=1', '--goal=' + goal.toFixed(1),
       '--best=' + BEST, '--tape=' + SOL];
     if (seed && !tr.extra.some((e) => e.startsWith('--startfrom'))) args.push('--seed=' + seed);
     for (const e of tr.extra) args.push(e);

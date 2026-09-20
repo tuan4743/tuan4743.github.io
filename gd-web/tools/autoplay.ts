@@ -313,7 +313,7 @@ function tapeOf(n: Node): boolean[] {
 
 /* ---------------- 热启动:把一条已知可行的输入卷铺成一条链,推进堆 ---------------- */
 let nodes = 0, deadEnds = 0, dups = 0, bestAlive = 0, macros = 0, bestNode: Node | null = null;
-let bestScore = -Infinity, maxAliveX = 0;
+let bestScore = -Infinity, maxAliveX = 0, maxNode: Node | null = null;
 if (SEED && fs.existsSync(SEED)) {
   let t: boolean[] = JSON.parse(fs.readFileSync(SEED, 'utf8')).tape;
   /* --seedtrim=块 —— 把种子的尾巴剪掉这么多块再接着搜。
@@ -419,6 +419,19 @@ function saveBest() {
     fs.existsSync(BESTTAPE) ? JSON.parse(fs.readFileSync(BESTTAPE, 'utf8')) : null;
   const newX = bestNode.snap.x / U;
   const newMax = Math.max(maxAliveX, bestNode.snap.x) / U;
+  /* ★ 另外把【活着走到最远】那条路也单独存一份(<best>.max.json):
+     它未必"走在正路上"(所以不当主种子),但它是真正的搜索前沿 ——
+     主种子常常落后它几十块(实测卷子 488.3、进度 525.8),
+     分站搜要重开前沿时,从"前沿再往回退"比从"主种子再往回退"有用得多。 */
+  if (maxNode && maxAliveX / U >= newMax - 1e-6) {
+    const mt = tapeOf(maxNode);
+    const chk = new World(lv);
+    for (const h of mt) { if (chk.dead || chk.done) break; chk.frame(h); }
+    if (Math.abs(chk.x - maxNode.snap.x) <= 1) {
+      fs.writeFileSync(BESTTAPE.replace(/\.json$/, '') + '.max.json',
+        JSON.stringify({ level: lv.name, tape: mt, x: maxNode.snap.x / U, maxX: newMax }));
+    }
+  }
   if (prev && typeof prev.score === 'number' && bestScore < prev.score - 1e-6) {
     if (newMax > (prev.maxX ?? 0)) { prev.maxX = newMax; fs.writeFileSync(BESTTAPE, JSON.stringify(prev)); }
     return;
@@ -495,7 +508,7 @@ while (nodes < MAXNODES) {
        为什么必须分开:分数里含"朝门口对齐"的扣分,所以一条"走到 x=490 但偏离门口 3.5 块"的路,
        分数可能低于"走到 485 但正好对着门口"的路。要是拿分数最高的那条的 x 当进度,
        就会误判"这一站没过"(实测卡在站 14:实际已经过了 x=490,却一直报 485.2)。 */
-    if (k.snap.x > maxAliveX) maxAliveX = k.snap.x;
+    if (k.snap.x > maxAliveX) { maxAliveX = k.snap.x; maxNode = n; }
     /* ★ 同分时取更远的那个:分数在一整段路上是【平台期】(朝门口对齐的扣分不变),
        只认 `>` 的话最佳节点会永远停在平台期的第一个节点上 ——
        实测"从 x=481 起搜"明明走到了 484.8,报出来却是 481.4,写进种子的也是 481.4。 */
