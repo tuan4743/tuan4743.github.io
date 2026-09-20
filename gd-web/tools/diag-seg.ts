@@ -10,6 +10,8 @@ import { U } from '../src/sim/constants.ts';
 const START = Number(process.argv[2] ?? 210);
 const DEC = Number(process.argv[3] ?? 600);
 const QUIET = process.argv[4] === '1';
+const MODE = (process.argv[5] ?? 'cube') as 'cube' | 'ship' | 'ball' | 'ufo' | 'wave' | 'robot' | 'spider';
+const Y0 = process.argv[6] != null ? Number(process.argv[6]) : 0.5;      // 出发时脚底高度(块)
 const HOLDS = [1, 2, 3, 4, 5, 6, 8, 10, 13, 16, 20, 26, 34, 44, 60, 90];
 const HORIZON = 75;
 
@@ -17,10 +19,11 @@ const lv = WATER_CHART;
 const w = new World(lv);
 w.windowed = true;
 w.x = START * U;
-w.y = 0.5 * U;
+w.y = Y0 * U;
 w.vy = 0;
 w.onGround = true;
 w.dead = false;
+w.mode = MODE;
 w.checkX = w.x;
 w.checkY = w.y;
 

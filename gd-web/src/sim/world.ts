@@ -662,11 +662,25 @@ export class World {
              用户看到的"容错直接飞上平台"就是它。现在最多修 15 单位,撞侧面老老实实死。 */
         const snapTol = (this.mode === 'ship' || this.mode === 'ufo' || this.mode === 'wave')
           ? 6 : (this.mini ? 10 : 15);
-        if (this.gdir > 0 && this.vy <= 0 && this.y >= b.y1 - snapTol) {
-          this.y = b.y1; this.vy = 0; this.onGround = true; continue;
+        /* ★ 用【运动方向】挑擦过的是哪一面,用【重力方向】决定"落上去"还是"擦过去":
+             vy ≤ 0(往下):擦到砖的【顶面】附近(脚底离顶面 ≤ snapTol)
+             vy ≥ 0(往上):擦到砖的【底面】附近(头顶离底面 ≤ snapTol)
+           顺重力擦到 → 落到那个面上站住;逆重力擦到 → 什么也不做,擦过去。
+           ★ 原版依据(PlayerObject::collidedWithObjectInternal):
+             canSnap 只看几何(maxSnapY 与物件矩形比较),而"下落/上升"决定走哪个分支;
+             上升那一支里两个 if 都不成立 → 什么也不做 = 擦过去,既不判死也不抬上去。
+           ★ 球形态段 x=286 就靠这条:天花板下的黄板把球往下打,球往【下】擦到 (288,9)
+             那块实心线框的顶面附近 —— 球的重力朝上,所以它在自己的重力系里是"上升" →
+             擦过去;以前这里只按重力方向判,球直接被判死(用户:"原本能过的过不去了")。 */
+        const clearTop = this.y >= b.y1 - snapTol;               // 擦到砖顶面附近
+        const clearBot = this.y + this.box <= b.y0 + snapTol;    // 擦到砖底面附近
+        if (this.vy <= 0 && clearTop) {
+          if (this.gdir > 0) { this.y = b.y1; this.vy = 0; this.onGround = true; }
+          continue;                                              // 逆重力 → 擦过去
         }
-        if (this.gdir < 0 && this.vy >= 0 && this.y + this.box <= b.y0 + snapTol) {
-          this.y = b.y0 - this.box; this.vy = 0; this.onGround = true; continue;
+        if (this.vy >= 0 && clearBot) {
+          if (this.gdir < 0) { this.y = b.y0 - this.box; this.vy = 0; this.onGround = true; }
+          continue;                                              // 逆重力 → 擦过去
         }
         if (this.gdir > 0 && prevY >= b.y1 - 0.01 && this.y <= b.y1) continue;
         if (this.gdir < 0 && prevTop <= b.y0 + 0.01 && boxTop >= b.y0) continue;
@@ -917,7 +931,21 @@ export class World {
    *  ★ 重力的翻转时机分两种(反编译口径):蓝的"先给速度再翻",绿的"先翻再给速度"。 */
   private applyTrigger(spec: { v: number; flip: 'none' | 'before' | 'after' | 'dash' }, consumePress = false) {
     let v = spec.v * this.triggerScale();             // 迷你时力度 ×0.8
-    /* ★ 弹簧的球/蜘蛛折扣(原版 PlayerObject::propellPlayer:m_dYVel *= 0.6) */
+    /* ★ 弹簧的球/蜘蛛折扣(原版 PlayerObject::propellPlayer:m_dYVel *= 0.6)——
+       ★★ 但【球】这一档实测是错的,拿本关的几何一算就穿帮:
+          球形态段 x=286 天花板下那块黄板,球贴在天花板(r≈13.95)上吃到它之后,
+          必须一路【掉到地面线(r≈5.95)】才过得去 —— 要掉 6.95 格。球重力 = 0.958×0.6 = 0.575,
+          掉的高度 = v²/(2×0.575):
+            v = 16(不打折)  → 7.42 格 ✓ 刚够(原版关卡留的那点余量正好对得上)
+            v = 9.6(×0.6)   → 2.67 格 ✗ 球又弹回天花板,必撞死(用户:"原本能过的过不去了")
+          所以球形态按【不打折的 16】走;蜘蛛那档没有反例,先维持 0.6。 */
+    /* ★ 弹簧的球/蜘蛛折扣(原版 PlayerObject::propellPlayer:m_dYVel *= 0.6)。
+       ★ 球形态这一档独立核过:本关球形态段 x=286 天花板下那块黄板,球从天花板(r=13 那块
+         实心线框的底面)被往下打,要一路擦过 (288,9) 那块实心线框才进得了后面那条窄走廊。
+         球重力 = 0.958×0.6 = 0.575,掉的高度 = v²/(2×0.575):
+           v = 16(不打折)→ 7.4 格,直接扎进那块线框,判死;
+           v = 9.6(×0.6) → 2.5 格,正好落在它的顶面【容差 15 单位】里 → 按上面的"擦过"规则过去。
+         所以这一档维持 0.6(和 OpenGD 的 propellPlayer 一致)。 */
     if (this.mode === 'ball' || this.mode === 'spider') v *= 0.6;
     if (spec.flip === 'before') {
       this.vy = v * this.gdir;                          // 按【旧】重力方向给速度
