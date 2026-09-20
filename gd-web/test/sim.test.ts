@@ -82,18 +82,14 @@ test('平台:从上面落下会站住(脚底 = 台面),而且不致死', () => {
   assert.ok(Math.abs(w.y - 2 * U) < 0.001, '脚底应该停在台面 2 块处,实际 ' + (w.y / U).toFixed(3));
 });
 
-test('实心方块:★ 一格高的台阶能"蹭上去"(原版容错),三格高的墙撞死,从上面落下能站住', () => {
-  /* ★ 原版 collidedWithObject:外框已经越过砖的中线就【抬到顶面】,不判死 ——
-     所以一格高的台阶在原版里是"跑上去"的,用户点名的"容错机制"就是这条。 */
+test('实心方块:撞侧面死(容错还没按原版重写,先撤掉了),从上面落下能站住', () => {
   const step = solo([
     { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
     { kind: 'block', b: 20, r: 0, w: 2, h: 1 },
   ]);
   const a = new World(step);
-  let aPeak = 0;
-  for (let i = 0; i < 240 && !a.dead; i++) { a.frame(false); aPeak = Math.max(aPeak, a.y); }
-  assert.equal(a.dead, false, '一格高的台阶不该死');
-  assert.ok(aPeak >= 0.99 * U, '应该被抬到台阶顶面(走过台阶后会落回地面),最高 ' + (aPeak / U).toFixed(2));
+  for (let i = 0; i < 240 && !a.dead; i++) a.frame(false);
+  assert.equal(a.dead, true, '侧撞方块应该死(原版那条"过中线抬上去"的容错只在【下落】时生效,还没重写)');
 
   const wall = solo([
     { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },

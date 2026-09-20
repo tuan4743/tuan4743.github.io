@@ -268,15 +268,10 @@ class Scene extends Phaser.Scene {
     const r = cv?.getBoundingClientRect();
     const host = cv?.parentElement?.getBoundingClientRect();
     if (!cv || !r || !host || r.height <= 0 || r.width <= 0) { this.viewFrac = 1; this.viewTop = 0; this.viewH = 720; return; }
-    const k = 720 / r.height;
-    const topCss = Math.max(0, host.top - r.top);
-    const botCss = Math.max(0, r.bottom - host.bottom);
-    const visCss = Math.max(1, r.height - topCss - botCss);
-    this.viewFrac = Math.max(0.2, Math.min(1, visCss / r.height));
+    this.viewFrac = 1;
     this.viewTop = 0;
-    /* ★ 取景高度按【盒子的长宽比】算:画布缓冲是 1280 宽,盒子 1270×601 的话高度就取 606 ——
-       这样"缓冲像素 : CSS 像素"横竖一致,方块不会被纵向压扁(以前固定 720 会被压 17%)。 */
-    this.viewH = Math.max(120, Math.round(1280 * (visCss / r.width)));
+    this.viewH = 720;                 // ★ 回到固定 16:9 缓冲:上一版按盒子长宽比算,
+                                      //   结果块变得比原版大一圈(用户:"cube 怎么这么大")
   }
 
   /** 可见宽度 = 由 VIEW_H_BLOCKS 与画幅比例决定;取景框只覆盖"露出来的那一条" */
