@@ -418,6 +418,14 @@ class Scene extends Phaser.Scene {
     const cam = this.cameras.main;
     const vhBlocks = (cam.height / cam.zoom) / U;
     parts.push('可见 ' + vhBlocks.toFixed(1) + ' 格');
+    /* ★ 黑边自查:把"游戏盒子"和"外框图"两个矩形直接打在 HUD 上 ——
+       不用 DevTools,一眼看出盒子矮了多少/被顶上去了多少(黑边 = 盒子比外框窗口矮)。 */
+    const lostEl = document.querySelector('.lost');
+    const frEl = document.querySelector('.screen-frame');
+    if (lostEl && frEl) {
+      const a = lostEl.getBoundingClientRect(), f = frEl.getBoundingClientRect();
+      parts.push('盒 ' + Math.round(a.width) + '×' + Math.round(a.height) + '@' + Math.round(a.top) + ' 框 ' + Math.round(f.width) + '×' + Math.round(f.height) + '@' + Math.round(f.top));
+    }
     if (this.viewFrac < 0.995) parts.push('画布被挡 ' + Math.round((1 - this.viewFrac) * 100) + '%');
     parts.push(Math.round(this.fps) + ' fps');
     parts.push(this.audio && !this.audio.paused ? '♪ ' + this.audio.currentTime.toFixed(1) + 's' : '暂停');

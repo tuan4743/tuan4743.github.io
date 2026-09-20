@@ -623,10 +623,19 @@ export class World {
           continue;
         }
         if (inn.x1 <= b.x0 || inn.x0 >= b.x1 || inn.y1 <= b.y0 || inn.y0 >= b.y1) continue;
-        /* ⚠ 上一版这里加过"过中线就抬上顶面"的容错 —— 写错了:原版那条只在【下落】时生效,
-           我写成了"任何接触都抬",于是从几格高的平台【下面】蹭到侧面也会被瞬间抬到顶上
-           (用户实测:"能直接从几格高的平台下面飞到上面,玩起来也卡手")。先撤掉,等按原版
-           collidedWithObject 的完整分支(下落判定 + MinYP/MaxYP 比较)重写。 */
+        /* ★ 原版【落台容错】——三条前提一起满足才生效(上一版我只抄了第三条,所以从下面
+           蹭到侧面也会被抬上去;这一版把前提补齐):
+             ① 人得在砖【上面】(脚底不低于砖底)  ② 正在【下落】(vy ≤ 0)
+             ③ 外框顶越过砖的中线
+           → 抬到砖顶面站住。这就是"跳点弹上去差一点也能上平台"的手感。
+           反重力方向对称(贴到底面)。 */
+        const mid = (b.y0 + b.y1) / 2;
+        if (this.gdir > 0 && this.vy <= 0 && this.y >= b.y0 - 0.01 && boxTop >= mid) {
+          this.y = b.y1; this.vy = 0; this.onGround = true; continue;
+        }
+        if (this.gdir < 0 && this.vy >= 0 && boxTop <= b.y1 + 0.01 && this.y <= mid) {
+          this.y = b.y0 - this.box; this.vy = 0; this.onGround = true; continue;
+        }
         if (this.gdir > 0 && prevY >= b.y1 - 0.01 && this.y <= b.y1) continue;
         if (this.gdir < 0 && prevTop <= b.y0 + 0.01 && boxTop >= b.y0) continue;
         this.die(); return;

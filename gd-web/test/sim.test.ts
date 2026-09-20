@@ -82,14 +82,17 @@ test('平台:从上面落下会站住(脚底 = 台面),而且不致死', () => {
   assert.ok(Math.abs(w.y - 2 * U) < 0.001, '脚底应该停在台面 2 块处,实际 ' + (w.y / U).toFixed(3));
 });
 
-test('实心方块:撞侧面死(容错还没按原版重写,先撤掉了),从上面落下能站住', () => {
+test('实心方块:★ 一格台阶能蹭上去(落台容错)、三格墙侧撞死、从上面落下能站住', () => {
+  /* 原版 collidedWithObject:在下落(vy≤0)、人又在砖上方、外框顶越过砖中线时 → 抬到砖顶面。 */
   const step = solo([
     { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
     { kind: 'block', b: 20, r: 0, w: 2, h: 1 },
   ]);
   const a = new World(step);
-  for (let i = 0; i < 240 && !a.dead; i++) a.frame(false);
-  assert.equal(a.dead, true, '侧撞方块应该死(原版那条"过中线抬上去"的容错只在【下落】时生效,还没重写)');
+  let aPeak = 0;
+  for (let i = 0; i < 240 && !a.dead; i++) { a.frame(false); aPeak = Math.max(aPeak, a.y); }
+  assert.equal(a.dead, false, '一格台阶不该死');
+  assert.ok(aPeak >= 0.99 * U, '应该被抬到台阶顶面(走过去会落回地面),最高 ' + (aPeak / U).toFixed(2));
 
   const wall = solo([
     { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
