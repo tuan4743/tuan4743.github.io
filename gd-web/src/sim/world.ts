@@ -717,12 +717,20 @@ export class World {
       if (this.armedPortals.has(b)) continue;
       if (!this.hitEvent(b, prevX)) continue;
       this.armedPortals.add(b);
-      this.mode = (b.o.to ?? 'cube');
-      /* ★ 相机要用:记下这个门的位置(原版进门时按门的 y 决定"视口钉在哪") */
+      const to = (b.o.to ?? 'cube');
+      /* ★ 原版口径(PlayLayer::changeGameMode + PlayerObject::setGamemode):
+         形态门【只改形态】,不动运动状态 —— 速度保留(只有飞机形态 m_dYVel /= 2)、
+         重力方向保留、位置不吸附。
+         以前我们写的是 vy=0 + 飞机强行抬到 3 格 + gdir 拉回正常 → 进门那一刻的运动被清掉,
+         于是"第一个球门无解"(用户实测:球进门后起不来)。 */
+      this.mode = to;
       this.portalY = (b.y0 + b.y1) / 2;
-      this.vy = 0;
-      if (this.mode === 'ship') { this.y = Math.max(this.y, 3 * U); this.gdir = 1; }
-      else this.onGround = false;
+      if (to === 'ship') this.vy /= 2;                                  // setGamemode: 速度减半
+      if (to === 'cube' || to === 'ship') this.onGround = false;        // 只有这两种清落地标记
+      /* ⚠ 兼容:我们自己【自动铺面】的那套老关卡(非 GD 导出)是围着"进门把人抬到 3 格"
+         建的,门改成忠实行为后它在第一个飞机缝前会撞死。真实铺面(level.fromGD)走原版口径,
+         老关卡保留旧的抬升 —— 两边都不坏。 */
+      if (!this.strict && to === 'ship' && this.y < 3 * U) this.y = 3 * U;
     }
     for (const b of this.speeds) {
       if (this.armedSpeeds.has(b)) continue;

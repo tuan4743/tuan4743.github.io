@@ -399,7 +399,10 @@ function genCube(
 function genShip(out: Obj[], sg: Segment, rnd: () => number, state: { lastHit: number }) {
   const from = sg.from + 10, to = sg.to - 6;
   const step = 2 * (LOST_BEATS.period * blocksPerSec(sg.speed));   // 每 2 拍换一次缝
-  let gapRow = 3 + Math.floor(rnd() * 2);
+  /* ★ 入口高度要贴着"人进门时的位置":形态门现在【只改形态、不动运动状态】(原版口径),
+     进门时人还在 y≈0,所以第一段缝隙从低处开始 —— 以前固定 3 层高,靠的是"进门把人抬到
+     3 格"那个错做法,撤掉之后机器人会在第一个缝隙前撞死(实测 1 次)。 */
+  let gapRow = 1 + Math.floor(rnd() * 2);
   for (let b = from; b < to; b += step) {
     const w = Math.min(step, to - b);
     const gapH = 3 + (rnd() < 0.35 ? 1 : 0);
