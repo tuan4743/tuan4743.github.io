@@ -467,8 +467,22 @@ function saveBest() {
   for (const h of tape) { if (check.dead || check.done) break; check.frame(h); }
   const drift = Math.abs(check.x - bestNode.snap.x);
   if (drift > 1) {
+    /* 调搜索用:逐帧比对,找出【第一帧分岔】在哪 —— 只说"差 46 块"是不够的 */
+    const a = new World(lv), b = new World(lv);
+    const step = (world: World, dead: boolean): boolean => dead;
+    let firstBad = -1;
+    for (let i = 0; i < tape.length; i++) {
+      if (a.dead || b.dead) break;
+      a.frame(tape[i]); b.frame(tape[i]);
+      if (Math.abs(a.x - b.x) > 1e-6 || Math.abs(a.y - b.y) > 1e-6 || a.dead !== b.dead) { firstBad = i; break; }
+    }
+    void step;
+    fs.writeFileSync(BESTTAPE.replace(/\.json$/, '') + '.bad.json',
+      JSON.stringify({ level: lv.name, tape, x: bestNode.snap.x / U }));
     console.log('⚠ 存盘自检不过:回放走到 ' + (check.x / U).toFixed(1) + ' 块,节点状态是 '
-      + (bestNode.snap.x / U).toFixed(1) + ' 块(差 ' + (drift / U).toFixed(2) + ' 块)—— 输入卷拼错了,不写文件');
+      + (bestNode.snap.x / U).toFixed(1) + ' 块(差 ' + (drift / U).toFixed(2) + ' 块)'
+      + (firstBad >= 0 ? ' · 两个同样的 World 回放同一卷在第 ' + firstBad + ' 帧就分岔(说明 World 本身不确定!)' : '')
+      + ' —— 输入卷拼错了,不写文件');
     return;
   }
   /* ★ 进度(可以走得更远)和卷子(要留最好的那条)是两件事,得分开写:

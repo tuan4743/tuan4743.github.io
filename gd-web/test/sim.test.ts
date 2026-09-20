@@ -128,6 +128,32 @@ test('实心方块:★ 落台容错的容差是 15 单位(原版 snapUpThreshold
   assert.ok(Math.abs(b.y - U) < 0.001, '应该站在方块顶面 1 块处,实际 ' + (b.y / U).toFixed(3));
 });
 
+test('落块吸附:连台阶时把 x 拉回上一次落点的相对位置(出处 gdp checkSnapJumpToObject)', () => {
+  /* 原版每落到新方块上会看它和【上一次落的那块】差多少:速度档 1(0.9×)时
+     littleStair = 120 单位 = 4 块右 + 1 块上,容差 threshold = 1 —— 正好差这一档就把人的 x
+     拉回"和上次落点相同的相对位置",最多挪 1 单位。这里用两块方块验它:
+       A(0,0) → B(4,1) 是标准台阶(吸附生效);B'(5,1) 差 150 单位(不匹配,作为对照)。 */
+  const mk = (bx: number) => solo([
+    { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
+    { kind: 'block', b: 0, r: 0, w: 1, h: 1 },
+    { kind: 'block', b: bx, r: 1, w: 1, h: 1 },
+  ]);
+  const land = (bx: number, off: number) => {
+    const w = new World(mk(bx));
+    w.x = 5; w.y = U; w.vy = 0; w.onGround = true;
+    for (let i = 0; i < 3; i++) w.frame(false);           // 先在 A 上落稳,记下相对位置
+    w.x = bx * U + off;                                   // 摆到 B 正上方
+    w.y = 2 * U; w.vy = -0.5; w.onGround = false;
+    w.frame(false); w.frame(false);
+    return w.x;
+  };
+  const snapped = land(4, 5);          // 标准台阶 → 吸附
+  const control = land(5, 5);          // 差 150 单位 → 不吸附
+  assert.ok(Math.abs((snapped - control) + 30) <= 1.5,
+    '台阶那一档应该把 x 往右拉约 1 单位(相对对照),实测吸附 ' + snapped.toFixed(2)
+    + ' vs 对照 ' + control.toFixed(2) + '(两者相差应≈−30+1)');
+});
+
 test('坑:没有地板就掉下去,掉出世界算死', () => {
   const lv = solo([{ kind: 'platform', b: 0, r: -1, w: 18, h: 1 }]);   // 18 块之后是坑
   const w = new World(lv);

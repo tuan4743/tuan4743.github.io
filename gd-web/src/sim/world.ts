@@ -44,6 +44,8 @@ export interface WorldSnap {
   boostDir: 1 | -1 | 0;
   tint: number | null; tintGround: boolean; flash: number;
   dash: { ang: number; kind: 'green' | 'pink' | 'purple'; t: number } | null;
+  /** 落块横向吸附用:上一次落在哪块上、当时的相对位置 */
+  snapObj: Obj | null; snapDist: number;
   sets: Array<Array<Box>>;
 }
 
@@ -322,6 +324,7 @@ export class World {
       boostDir: this.boostDir,
       tint: this.tint, tintGround: this.tintGround, flash: this.flash,
       dash: this.dash ? { ...this.dash } : null,
+      snapObj: this.snapObj, snapDist: this.snapDist,
       sets: [
         [...this.armedChecks], [...this.armedPortals], [...this.armedSpeeds], [...this.armedSizes],
         [...this.armedGravs], [...this.armedOrbs], [...this.armedPads], [...this.armedArrows],
@@ -339,6 +342,7 @@ export class World {
     this.boostDir = s.boostDir;
     this.tint = s.tint; this.tintGround = s.tintGround; this.flash = s.flash;
     this.dash = s.dash ? { ...s.dash } : null;
+    this.snapObj = s.snapObj; this.snapDist = s.snapDist;
     const [c, p, sp, sz, gv, ob, pd, aw, tg, br, gc] = s.sets;
     this.armedChecks = new Set(c); this.armedPortals = new Set(p); this.armedSpeeds = new Set(sp);
     this.armedSizes = new Set(sz); this.armedGravs = new Set(gv); this.armedOrbs = new Set(ob);
@@ -471,6 +475,7 @@ export class World {
     this.broken.clear();
     this.gotCoins.clear();
     this.dash = null;
+    this.snapObj = null; this.snapDist = 0;      // 重开一局:落块吸附的记忆也清空
     /* 重来 = 会动的东西回到原位、颜色与闪烁清空(和原作"重开一局"一致) */
     this.anims = [];
     this.flash = 0;
@@ -569,6 +574,45 @@ export class World {
 
   /** 帧初的脚底高度(落台容错的两路判定要用,见 substep 里的说明) */
   private frameY0 = 0;
+
+  /* ---------------- 方块落块时的横向吸附 ----------------
+   * 出处:gdp master `PlayerObject_checkSnapJumpToObject.cpp`(调用点在同文件的
+   * collidedWithObjectInternal:`if (vType == Cube) checkSnapJumpToObject(object);`)。
+   * 原版每落到一块新方块上,会看它和【上一次落的那块】差多少:
+   *   littleStair / downStair / bigStair 三档(按 m_playerSpeed 与体积查表,单位 = 格 × 30),
+   *   一旦正好差这么一档(±threshold 容差),就把人的 x 拉回"和上次落点相同的相对位置",
+   *   最多挪 threshold(1~2 单位)。这就是原版连续跑台阶时落脚点特别一致的原因。
+   * ★ 只有方块形态调(m_vehicleSize 决定 littleStair/threshold 那两档)。 */
+  private snapObj: Obj | null = null;
+  private snapDist = 0;
+  private checkSnapJumpToObject(o: Obj) {
+    if (this.mode !== 'cube') return;
+    const objX = o.b * U, objY = o.r * U;
+    const posX = this.x;
+    const prev = this.snapObj;
+    if (prev && prev !== o) {
+      const sp = P.speedMul[this.speedIdx] ?? 1.1;      // m_playerSpeed
+      const big = !this.mini;                           // m_vehicleSize == 1.0
+      let threshold: number, bigStair: number, downStair: number, littleStair: number;
+      if (sp === 0.9) { threshold = 1; bigStair = 90; downStair = 150; littleStair = big ? 120 : 90; }
+      else if (sp === 0.7) { threshold = 1; bigStair = 60; downStair = 120; littleStair = 90; }
+      else if (sp === 1.1) { threshold = 2; bigStair = 120; downStair = 195; littleStair = big ? 150 : 90; }
+      else if (sp === 1.3) { threshold = 2; bigStair = 135; downStair = 225; littleStair = 90; }
+      else if (big) { threshold = 2; bigStair = 135; downStair = 225; littleStair = 180; }
+      else { threshold = 1; bigStair = 90; downStair = 150; littleStair = 120; }
+      const bl = this.gdir * 30;                        // flipMod() * 30
+      const dx = objX - prev.b * U, dy = objY - prev.r * U;
+      if ((Math.abs(dx - littleStair) <= threshold && Math.abs(dy - bl) <= threshold)
+        || (Math.abs(dx - downStair) <= threshold && Math.abs(dy + bl) <= threshold)
+        || (Math.abs(dx - bigStair) <= threshold && Math.abs(dy - bl * 2) <= threshold)) {
+        let nx = objX + this.snapDist;
+        if (Math.abs(nx - posX) > threshold) nx = nx <= posX ? posX - threshold : posX + threshold;
+        this.x = nx;
+      }
+    }
+    this.snapObj = o;
+    this.snapDist = posX - objX;
+  }
 
   private substep(dt: number, hold: boolean) {
     const s = dt * 60;                     // 帧当量:表里的常量按"每帧"给
@@ -684,17 +728,27 @@ export class World {
     if (this.mode !== 'ship' && this.mode !== 'ufo' && this.mode !== 'wave') {
       const boxTop = this.y + this.box, prevTop = prevY + this.box;
       let support: number | null = null;
+      let supportBox: Box | null = null;
+      /* ★ 同高时取【最靠左】的那块 —— 必须有个与列表顺序无关的判据:
+         地面是几十块同高的方块拼起来的,以前"谁先被遍历到就算谁",而窗口裁剪后的
+         nearSolids 列表顺序和完整列表不一样 → 落块吸附(用 supportBox 记"上次落的哪块")
+         在裁剪模式和非裁剪模式下会分岔。踩过:搜索(裁剪)拼出来的输入卷,用完整物理回放
+         只走到 270.1 块,而节点状态在 316.7 块 —— 存盘自检当场拦下。 */
+      const better = (y: number, b: Box) => support === null || y > support
+        || (Math.abs(y - support) < 1e-9 && supportBox !== null && b.x0 < supportBox.x0);
       if (this.gdir > 0) {
         for (const f of this.nearFloors) {
           if (this.x + this.box <= f.x0 || this.x >= f.x1) continue;
-          if (prevY >= f.y1 - 0.01 && this.y <= f.y1) { if (support === null || f.y1 > support) support = f.y1; }
+          if (prevY >= f.y1 - 0.01 && this.y <= f.y1 && better(f.y1, f)) { support = f.y1; supportBox = f; }
         }
         for (const b of this.nearSolids) {
           if (this.x + this.box <= b.x0 || this.x >= b.x1) continue;
-          if (prevY >= b.y1 - 0.01 && this.y <= b.y1) { if (support === null || b.y1 > support) support = b.y1; }
+          if (prevY >= b.y1 - 0.01 && this.y <= b.y1 && better(b.y1, b)) { support = b.y1; supportBox = b; }
         }
-        if (support !== null && this.vy <= 0) { this.y = support; this.vy = 0; this.onGround = true; }
-        else this.onGround = false;
+        if (support !== null && this.vy <= 0) {
+          this.y = support; this.vy = 0; this.onGround = true;
+          if (supportBox) this.checkSnapJumpToObject(supportBox.o);       // ★ 落块横向吸附
+        } else this.onGround = false;
 
         // 掉出世界 = 死(坑)
         if (this.y < -2.5 * U) { this.die(); return; }
@@ -703,16 +757,21 @@ export class World {
            反重力的人是往上"掉",撞到方块才停;一路飞出去就在关卡顶边界上判死)。
            以前我们把"关卡顶"当成实心天花板,反重力的人会直接吸在顶上(OpenGD 里顶是死区)。 */
         let sup: number | null = null;
+        let supBox: Box | null = null;
+        const betterUp = (y: number, b: Box) => sup === null || y < sup
+          || (Math.abs(y - sup) < 1e-9 && supBox !== null && b.x0 < supBox.x0);      // 同上:同高取最靠左
         for (const f of this.nearFloors) {
           if (this.x + this.box <= f.x0 || this.x >= f.x1) continue;
-          if (prevTop <= f.y0 + 0.01 && boxTop >= f.y0 && (sup === null || f.y0 < sup)) sup = f.y0;
+          if (prevTop <= f.y0 + 0.01 && boxTop >= f.y0 && betterUp(f.y0, f)) { sup = f.y0; supBox = f; }
         }
         for (const b of this.nearSolids) {
           if (this.x + this.box <= b.x0 || this.x >= b.x1) continue;
-          if (prevTop <= b.y0 + 0.01 && boxTop >= b.y0 && (sup === null || b.y0 < sup)) sup = b.y0;
+          if (prevTop <= b.y0 + 0.01 && boxTop >= b.y0 && betterUp(b.y0, b)) { sup = b.y0; supBox = b; }
         }
-        if (sup !== null && this.vy >= 0) { this.y = sup - this.box; this.vy = 0; this.onGround = true; }
-        else this.onGround = false;
+        if (sup !== null && this.vy >= 0) {
+          this.y = sup - this.box; this.vy = 0; this.onGround = true;
+          if (supBox) this.checkSnapJumpToObject(supBox.o);               // ★ 反重力贴底也算落块
+        } else this.onGround = false;
         if (this.y + this.box > this.rows * U + 2.5 * U) { this.die(); return; }
       }
 
