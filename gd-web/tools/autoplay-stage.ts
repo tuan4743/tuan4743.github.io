@@ -119,11 +119,28 @@ for (let i = 0; i < stations.length; i++) {
   /* 退避档:15 块一档,从离前沿最近的开始 —— 见文件头 ③ */
   const back: number[] = [];
   for (let off = 15; off <= 150; off += 15) back.push(off);
-  const horizonVariants: Array<[number, number]> = [[16, -30], [12, -30], [20, -45], [36, -60]];
+  /* ★ 视界也要换着试:换个视界等于换一套宏动作,落点全变 ——
+     实测同一条刺走廊,视界 12/16/20/24/28 块分别走到 349.4 / 345.2 / 341.1 / 336.9 / 350.4,
+     不是"越长越好",而是"多试几个就有一个能过"。塔段更极端:从 543 起搜,
+     视界 12 走到 567.9、16 只到 559.4、**20 一路到 622.1(过了 UFO 门)**。
+     ★ 所以视界变体要【排在小退避旁边】先试:一批 4 个,头一批就该覆盖
+     "接着搜 / 退 15 / 退 30 / 换视界" 这四种最可能中的走法,
+     而不是把 20 个退避试完才轮到换视界(那要等 5 批 = 5 分钟)。 */
+  const hzOf = (hz: number, off: number) => ({ hz, off });
+  const earlyHz = [hzOf(20, -30), hzOf(16, -30), hzOf(12, -15), hzOf(36, -45)];
+  const lateHz = [hzOf(16, -75), hzOf(12, -75), hzOf(20, -105), hzOf(36, -120)];
   const tries: Array<{ tag: string; extra: string[] }> = seed
     ? [
-      { tag: near ? '离目标很近,给双倍时间' : '', extra: [] },
-      ...back.filter((off) => seedX - off > 5).map((off) => ({
+      { tag: near ? '离目标很近,给双倍时间' : '接着上次的卷子搜', extra: [] },
+      ...back.slice(0, 2).filter((off) => seedX - off > 5).map((off) => ({
+        tag: '退回 ' + off + ' 块重开前沿',
+        extra: ['--startfrom=' + BEST + ',' + (seedX - off).toFixed(1)],
+      })),
+      ...earlyHz.map(({ hz, off }) => ({
+        tag: '视界换 ' + hz + ' 块 + 退回 ' + Math.abs(off) + ' 块',
+        extra: ['--horizon=' + hz, '--startfrom=' + BEST + ',' + Math.max(5, seedX + off).toFixed(1)],
+      })),
+      ...back.slice(2).filter((off) => seedX - off > 5).map((off) => ({
         tag: '退回 ' + off + ' 块重开前沿',
         extra: ['--startfrom=' + BEST + ',' + (seedX - off).toFixed(1)],
       })),
@@ -131,15 +148,24 @@ for (let i = 0; i < stations.length; i++) {
         tag: '从最远前沿退回 ' + off + ' 块重开',
         extra: ['--startfrom=' + MAXB + ',' + (maxSeedX - off).toFixed(1)],
       })) : []),
-      /* ★ 视界也要换着试:换个视界等于换一套宏动作,落点全变 ——
-         实测同一条刺走廊,视界 12/16/20/24/28 块分别走到 349.4 / 345.2 / 341.1 / 336.9 / 350.4,
-         不是"越长越好",而是"多试几个就有一个能过"。塔段也是:从 543 起搜,
-         视界 12 走到 567.9(上了塔),视界 16 只到 559.4。 */
-      ...horizonVariants.map(([hz, off]) => ({
+      ...lateHz.map(({ hz, off }) => ({
         tag: '视界换 ' + hz + ' 块 + 退回 ' + Math.abs(off) + ' 块',
         extra: ['--horizon=' + hz, '--startfrom=' + BEST + ',' + Math.max(5, seedX + off).toFixed(1)],
       })),
       { tag: '种子剪尾 20 块重规划', extra: ['--seedtrim=20'] },
+      /* ★ 第二口气:前面那些都是"同一个搜索换个起点/换个视界"。
+         真啃不动的时候得换【搜索本身的形状】—— 步进细一点、束宽一点、接近窗口长一点、
+         前沿聚焦松一点、重启勤一点。这些参数各自都会大幅改变搜索的展开顺序,
+         换一套等于"换一种摸法"(实测:整关搜索卡在 x=421 时,正是"前沿聚焦"和"分阶段重启"
+         这两条把死局救回来的)。注意:这里【不碰】任何物理旋钮(--padmul 之类只在定点实验里用)。 */
+      ...(seed ? [
+        { tag: '细步进 step=2 beam=6', extra: ['--step=2', '--beam=6', '--startfrom=' + BEST + ',' + Math.max(5, seedX - 30).toFixed(1)] },
+        { tag: '粗步进 step=4 beam=3', extra: ['--step=4', '--beam=3', '--startfrom=' + BEST + ',' + Math.max(5, seedX - 30).toFixed(1)] },
+        { tag: '接近窗口拉到 220 块', extra: ['--approach=220', '--startfrom=' + BEST + ',' + Math.max(5, seedX - 45).toFixed(1)] },
+        { tag: '前沿聚焦放宽 window=80', extra: ['--window=80', '--startfrom=' + BEST + ',' + Math.max(5, seedX - 60).toFixed(1)] },
+        { tag: '勤重启 phase=18s', extra: ['--phase=18', '--startfrom=' + BEST + ',' + Math.max(5, seedX - 60).toFixed(1)] },
+        { tag: '长视界 44 块', extra: ['--horizon=44', '--startfrom=' + BEST + ',' + Math.max(5, seedX - 90).toFixed(1)] },
+      ] : []),
     ]
     : [{ tag: '', extra: [] }];
   let okThis = false;
@@ -160,6 +186,12 @@ for (let i = 0; i < stations.length; i++) {
     ti += batch.length;
     const jobs = batch.map((tr, k) => {
       const partBest = BEST + '.p' + k;
+      const partMax = partBest.replace(/\.json$/, '') + '.max.json';
+      /* ★ 先把这一批的输出文件删掉:不删的话,某个参与者万一崩了,
+         审计就会读到【上一批剩下的旧文件】,把旧成绩当成新成绩(踩过:批里出现 0.0 块的怪结果)。 */
+      for (const f of [partBest, partMax, SOL + '.p' + k]) {
+        try { fs.rmSync(f, { force: true }); } catch { /* 删不掉就算了 */ }
+      }
       const args = ['tools/autoplay.ts', '--budget=' + per, '--quiet=1', '--goal=' + st.x.toFixed(1),
         '--best=' + partBest, '--tape=' + SOL + '.p' + k];
       if (seed && !tr.extra.some((e) => e.startsWith('--startfrom'))) args.push('--seed=' + seed);
@@ -168,11 +200,16 @@ for (let i = 0; i < stations.length; i++) {
       console.log('  → 并发 ' + (k + 1) + '/' + batch.length + (tr.tag ? ' · ' + tr.tag : ' · 接着上次'));
       return spawn(process.execPath, args, { stdio: ['ignore', 'pipe', 'pipe'], cwd: process.cwd(), k });
     });
-    const outs = await Promise.all(jobs.map((p) => new Promise<string>((res) => {
+    const outs = await Promise.all(jobs.map((p, k) => new Promise<string>((res) => {
       let s = '';
       p.stdout?.on('data', (d) => { s += String(d); });
       p.stderr?.on('data', (d) => { s += String(d); });
-      p.on('close', () => res(s));
+      p.on('close', () => {
+        /* 每个参与者的完整输出留一份 —— 出问题时"到底死在哪一块"要看它的死胡同直方图,
+           只留一行摘要等于把线索丢了。 */
+        try { fs.writeFileSync(BEST + '.p' + k + '.log', s); } catch { /* 磁盘满/占用就算了 */ }
+        res(s);
+      });
     })));
 
     /* 挑赢家:先看"这一站的目标达没达成",再看【有没有跳过门】(跳门的那卷对"铺面路线"没意义),
