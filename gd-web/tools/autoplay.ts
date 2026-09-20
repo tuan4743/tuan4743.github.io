@@ -120,14 +120,20 @@ if (ROOFARG === 'auto') {
   roofAt = () => lvl;
   console.log('天花板:y = ' + ROOFARG + ' 块');
 }
+/** 推进一帧(种子回放用:带约束,能在种子坏掉时第一时间发现)
+ *  ★ 判据必须和 constraintOk 的【门口那一半】完全一致(armed 或"碰不碰都一样")——
+ *    踩过:这里少了 portalSatisfied,于是种子回放比搜索更严:一卷本来合法的输入卷
+ *    (球贴着地面滚过 y=10 那个冗余球门)在回放时被当场判死,而文件里写着它到 523.4 块。
+ *    后果是"热启动只铺到 493.1"、搜索从上一站重新摸,分站推进几乎原地打转。
+ *    天花板(roof)【不】在这里判:它只约束"留下的状态",帧与帧之间的抛物线允许过顶。 */
 function step(hold: boolean) {
   w.frame(hold);
   if (!NOSKIP || w.dead || w.done) return;
   const armed = armedOf(w);
   for (const b of mustPass) {
     if (w.x < b.x1) break;                       // 还没完全越过这个门
-    if (armed.has(b)) continue;                  // 碰到了 ✓
-    w.dead = true;                               // 完全越过了却没碰到 → 这条路作废
+    if (armed.has(b) || portalSatisfied(b, w)) continue;
+    w.dead = true;                               // 完全越过了却没让它生效 → 这条路作废
     return;
   }
 }
@@ -441,6 +447,7 @@ if (!heap.length) {
       w.x = startAt[0] * U; w.y = startAt[1] * U; w.vy = 0; w.onGround = false;
       w.mode = (arg('startmode', 'cube') as typeof w.mode);
       w.speedIdx = Number(arg('startspeed', 1));      // 诊断用:指定速度档(0 最慢 … 4 最快)
+      w.gdir = Number(arg('startgdir', 1)) < 0 ? -1 : 1;   // 诊断用:指定重力方向(反重力段要它)
       w.checkX = w.x; w.checkY = w.y;
       console.log('半路起搜:x=' + startAt[0] + ' y=' + startAt[1] + ' 形态=' + w.mode
         + ' · 之后的必过门 ' + mustPass.length + ' 个(最近一个 x=' + (mustPass[0] ? (mustPass[0].x1 / U).toFixed(1) : '-') + ')');
