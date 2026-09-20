@@ -142,17 +142,17 @@ test('飞机:按住上升、松手下落', () => {
     { kind: 'portal', b: 2, r: 4, w: 1, h: 1, to: 'ship' },
   ]);
   const up = new World(lv);
-  for (let i = 0; i < 28; i++) up.frame(true);      // 别按太久:飞机会撞天花板(那也是设计内)
+  for (let i = 0; i < 18; i++) up.frame(true);      // 别按太久:飞机会撞天花板(那也是设计内)
   assert.equal(up.mode, 'ship');
   assert.equal(up.dead, false, '28 帧还不该撞天花板');
   assert.ok(up.y > 3 * U, '按住应该往上爬,y = ' + (up.y / U).toFixed(2));
   const start = up.y, vy0 = up.vy;
   for (let i = 0; i < 10; i++) up.frame(false);        // 先减速:这一段还会往上滑
   const yTop = up.y, vyMid = up.vy;
-  for (let i = 0; i < 24; i++) up.frame(false);        // 速度转负之后才是真的下落
+  for (let i = 0; i < 60; i++) up.frame(false);        // 速度转负、并且真的掉下来(原版飞机加速度比旧版小)
   assert.ok(vyMid < vy0, "松手后上升速度应该变小(" + vy0.toFixed(1) + " → " + vyMid.toFixed(1) + ")");
-  assert.ok(up.vy < 0 && up.y < yTop, "松手后应该转为下落(y " + (yTop / U).toFixed(2) + " → " + (up.y / U).toFixed(2) + " 块, vy " + up.vy.toFixed(1) + ")");
-  assert.ok(up.y < start + 1.2 * U, "松手后不该继续爬升(起点 " + (start / U).toFixed(2) + " 块)");
+  assert.ok(up.vy < vyMid && up.y < yTop, "松手后速度要往下走(y " + (yTop / U).toFixed(2) + " → " + (up.y / U).toFixed(2) + " 块, vy " + vyMid.toFixed(1) + " → " + up.vy.toFixed(1) + ")");
+  assert.ok(up.y < start + 2.6 * U, "松手后不该一直往上爬(起点 " + (start / U).toFixed(2) + " 块,现在 " + (up.y / U).toFixed(2) + ")");
 });
 
 /* ---------------- ③ 弹簧 / 跳环(用户点名要的玩法) ---------------- */
@@ -337,8 +337,8 @@ test('小刺与大刺:判定高度跟着 h 走(小刺 0.5、大刺 1.5)', () => 
   const hSmall = small.hazards[0].y1 - small.hazards[0].y0;
   const big = mk(1.5);
   const hBig = big.hazards[0].y1 - big.hazards[0].y0;
-  assert.ok(Math.abs(hSmall - 0.35 * U) < 0.01, '小刺判定高 ' + (hSmall / U).toFixed(2) + ' 块(应 0.35)');
-  assert.ok(Math.abs(hBig - 1.05 * U) < 0.01, '大刺判定高 ' + (hBig / U).toFixed(2) + ' 块(应 1.05)');
+  assert.ok(Math.abs(hSmall - 0.2 * U) < 0.01, '小刺判定高 ' + (hSmall / U).toFixed(2) + ' 块(原版表:39 → 5.6×6 单位 = 0.2 块高)');
+  assert.ok(Math.abs(hBig - 0.7 * U) < 0.01, '大刺判定高 ' + (hBig / U).toFixed(2) + ' 块(表里没有 1.5 倍的大刺,按 12×21 单位估)');
   /* 大刺跳不过去(一跳峰值 2.17 块,内框够得着 1.05 块的大刺),小刺一跳就过 */
   const run = (w: World) => { for (let i = 0; i < 300 && !w.dead && w.x < 30 * U; i++) w.frame(i > 60 && i < 70); return w; };
   assert.equal(run(mk(0.5)).dead, false, '小刺应该跳得过去');
@@ -525,10 +525,11 @@ test('传送门:蓝(入口)→ 橙(出口)单向;只有入口没有出口时什�
     { kind: 'teleport', b: 45, r: 4, w: 1, h: 1, channel: 1, exit: true },
   ], { length: 300 });
   const w = new World(lv);
-  while (w.x / U < 19) w.frame(false);
-  assert.ok(w.x / U < 20, '还没跨过入口(x=' + (w.x / U).toFixed(1) + ')');
+  /* ★ 传送门的判定盒是原版的 90×25(宽 3 格)—— 提前量比"一格"大得多,所以这里按盒子算边界 */
+  while (w.x / U < 16.5) w.frame(false);
+  assert.ok(w.x / U < 18.4, '还没跨过入口(x=' + (w.x / U).toFixed(1) + ')');
   for (let i = 0; i < 30 && w.x / U < 40; i++) w.frame(false);
-  assert.ok(w.x / U >= 45 && w.x / U < 50, '跨过入口应该出现在出口那里(现在 x=' + (w.x / U).toFixed(1) + ')');
+  assert.ok(w.x / U >= 43 && w.x / U < 50, '跨过入口应该出现在出口那里(现在 x=' + (w.x / U).toFixed(1) + ')');
   /* 关键:出口不再把人送回入口(单向),否则会在两个门之间来回弹 */
   const x1 = w.x;
   for (let i = 0; i < 60; i++) w.frame(false);

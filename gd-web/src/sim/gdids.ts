@@ -26,6 +26,71 @@ import { U } from './constants.ts';
 /** 单边线框(468)的杆厚(块)。GD 里线框是"细杆",不是整格 —— 按细杆做,蜘蛛才踩得对。 */
 export const FRAME_THICK = 0.05;
 
+/* ---------------- 原版判定盒表(照搬) ----------------
+ * 出处:OpenGD `Source/LongData.cpp` 的 `GameObject::_pHitboxes`(按 ID 写死的表),
+ * 值是【单位】(1 格 = 30 单位),格式 {w, h, x, y}。我们只取【宽高】,
+ * 并且把盒子放在物件【中心】—— 原表里那对 (x,y) 是相对贴图锚点的偏移,
+ * 口径依赖各家贴图,拿不准的就不猜(这一条已在文档里标注,等用户核对)。
+ *
+ * 为什么必须照搬:之前我按"贴图盒/整格/向外 0.5 格"猜,跳板宽了 5~7 倍、跳环大了近一倍、
+ * 尖刺判高一倍 —— 弹簧与跳环一律【提前触发】,整条弧线的落点全错
+ * (用户:"有些地方原本应该能过去,现在过不去")。 */
+export const GD_HITBOX: {
+  spike: Record<string, [number, number]>;     // 按刺的尺寸档(h)
+  pad: Record<string, [number, number]>;       // 按颜色
+  orb: [number, number];
+  arrow: [number, number];
+  saw: [number, number];
+  coin: [number, number];
+  portal: [number, number];
+  gravity: [number, number];
+  size: [number, number];
+  speed: Record<number, [number, number]>;     // 按速度档
+  teleport: [number, number];
+  check: [number, number];
+  block: [number, number];
+} = {
+  /* 尖刺:id 8 → 12×6、39 → 5.6×6、103 → 7.6×4、392 → 4.8×2.6 */
+  spike: { '1': [12, 6], '1.5': [12, 21], '0.5': [5.6, 6], '0.25': [7.6, 4], '0.0625': [4.8, 2.6] },
+  /* 跳板:35 黄 4×25、67 蓝 6×25、140 紫 5×25(3005 是 2.2 的,表里没有 → 按 140 处理) */
+  pad: { yellow: [4, 25], blue: [6, 25], purple: [5, 25], red: [7, 29], pink: [4, 25] },
+  /* 跳环与冲刺箭头:36/84/141/1022/1330 → 36×36;1704/1751 → 36×36 */
+  orb: [36, 36],
+  arrow: [36, 36],
+  /* 锯片:1705 → 85×44、1706 → 60×60 */
+  saw: [85, 44],
+  coin: [40, 40],
+  /* 形态门 12/13/47/111/660/745/1331 → 86×34 */
+  portal: [86, 34],
+  gravity: [75, 25],
+  size: [90, 31],
+  /* 速度门:200 → 44×35、201 → 56×33、202 → 56×51、203 → 56×65、1334 → 56×69 */
+  speed: { 0: [44, 35], 1: [56, 33], 2: [56, 51], 3: [56, 65], 4: [56, 69] },
+  teleport: [90, 25],
+  check: [30, 30],
+  block: [30, 30],
+};
+
+/** 取某个物件的原版判定盒(单位);表里没有的返回 null(调用方按原来的几何算) */
+export function hitboxOf(o: Obj): [number, number] | null {
+  switch (o.kind) {
+    case 'spike': return GD_HITBOX.spike[String(o.h)] ?? null;
+    case 'pad': return GD_HITBOX.pad[o.pad ?? 'yellow'] ?? null;
+    case 'orb': return GD_HITBOX.orb;
+    case 'arrow': return GD_HITBOX.arrow;
+    case 'saw': return o.w > 1.5 ? [60, 60] : GD_HITBOX.saw;      // 1706 小锯片 = 60×60
+    case 'coin': return GD_HITBOX.coin;
+    case 'portal': return GD_HITBOX.portal;
+    case 'gravity': return GD_HITBOX.gravity;
+    case 'size': return GD_HITBOX.size;
+    case 'speed': return GD_HITBOX.speed[o.speed ?? 1] ?? null;
+    case 'teleport': return GD_HITBOX.teleport;
+    case 'check': return GD_HITBOX.check;
+    case 'block': case 'breakable': case 'frame': return GD_HITBOX.block;
+    default: return null;
+  }
+}
+
 /** 线框的实心杆(块坐标)。
  *  468 单边:物件自己就是那根杆(横杆 1×0.05 / 竖杆 0.05×1),直接用它的包围盒;
  *  469 邻边(L)/ 470 三边(U):整格包围盒 + 旋转决定是哪几条边(顺时针:0 = 上,90 = 右)。

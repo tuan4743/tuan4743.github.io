@@ -8,7 +8,7 @@
  */
 
 import { P, U, Y_TIME_SCALE, vxOf, arcSpan, ORB, PAD } from './constants.ts';
-import { frameRects } from './gdids.ts';
+import { frameRects, hitboxOf } from './gdids.ts';
 import type { Level, Mode, Obj } from './level.ts';
 
 export interface RunState {
@@ -121,6 +121,18 @@ export class World {
     const st = level.start;                       // 出生点(物件 31):不传就按铺面标的来
     if (startX == null) startX = (st?.b ?? 0) * U;
     if (startY == null) startY = (st?.r ?? 0) * U;
+    /* ★ 原版判定盒(照搬 LongData.cpp 的表):以【物件中心】为心、用表里的宽高。
+       有这个表的物件一律用它 —— 之前的"贴图盒/整格/向外 0.5 格"都是我猜的,
+       跳板宽 5~7 倍、跳环大近一倍、尖刺判高一倍,全是"本该能过却过不去"的来源。 */
+    const hbBox = (o: Obj): Box | null => {
+      const hb = hitboxOf(o);
+      if (!hb) return null;
+      let [w, h] = hb;
+      const rot = (((o.rot ?? 0) % 360) + 360) % 360;
+      if (rot === 90 || rot === 270) { const t = w; w = h; h = t; }   // 横过来:宽高对调
+      const cx = (o.b + o.w / 2) * U, cy = (o.r + o.h / 2) * U;
+      return { x0: cx - w / 2, x1: cx + w / 2, y0: cy - h / 2, y1: cy + h / 2, o };
+    };
     for (const o of level.objects) {
       const b: Box = { x0: o.b * U, x1: (o.b + o.w) * U, y0: o.r * U, y1: (o.r + o.h) * U, o };
       switch (o.kind) {
@@ -141,60 +153,40 @@ export class World {
         case 'clone': this.clones.push(b); break;
         case 'platform': this.floors.push(b); break;
         case 'spike': {
-          /* ★ 判定高度 = 0.7 × 物件高度:于是"小刺 / 大刺"只是 h 不同(1.0 / 0.5 / 1.5),
-             碰撞盒自动跟着变 —— 不用为每种刺再写一套判定。
-             ★ 旋转/翻转也要认:GD 里天花板上的刺就是同一个物件转了 180°(或 flipY),
-               判定得跟着挂到格子【顶面】,否则人贴着天花板能从刺里穿过去;
-               横着的刺(rot 90/270)改成"占半边宽、整格高"。 */
-          const rot = (((o.rot ?? 0) % 360) + 360) % 360;
-          const down = !!o.flipY || rot === 180;
-          if (rot === 90 || rot === 270) {
-            const bw = 0.7 * o.w * U;
-            const baseLeft = rot === 90;        // 顺时针 90°:尖端朝右 → 占格子左半边
-            this.hazards.push({
-              x0: baseLeft ? b.x0 : b.x1 - bw, x1: baseLeft ? b.x0 + bw : b.x1,
-              y0: b.y0, y1: b.y1, o,
-            });
-          } else {
-            const inset = (1 - P.spikeHitScale) / 2 * (o.w * U);
-            const bh = 0.7 * o.h * U;
-            this.hazards.push({
-              x0: b.x0 + inset, x1: b.x1 - inset,
-              y0: down ? b.y1 - bh : b.y0, y1: down ? b.y1 : b.y0 + bh, o,
-            });
-          }
+          /* ★ 用原版判定盒(表里 8→12×6、39→5.6×6、103→7.6×4、392→4.8×2.6),
+             以物件中心为心;横着的刺(rot 90/270)宽高对调。
+             以前按"0.7×高度、贴格子底边"算,判得比原版高一倍多 —— 本该能蹭过去的判死。 */
+          this.hazards.push(hbBox(o) ?? b);
           break;
         }
         case 'saw': {
-          /* 锯片:整格都吃人(只往里收一点,免得"看着没碰到就死") */
-          const inset = 0.14 * (o.w * U);
-          this.hazards.push({ x0: b.x0 + inset, x1: b.x1 - inset, y0: b.y0 + inset, y1: b.y1 - inset, o });
+          /* 锯片:原版 1705 → 85×44(2.8×1.5 格)、1706 → 60×60 —— 都走表 */
+          this.hazards.push(hbBox(o) ?? b);
           break;
         }
-        case 'portal': this.portals.push(b); break;
-        case 'speed': this.speeds.push(b); break;
-        case 'gravity': this.gravs.push(b); break;
-        case 'check': this.checks.push(b); break;
+        case 'portal': this.portals.push(hbBox(o) ?? b); break;
+        case 'speed': this.speeds.push(hbBox(o) ?? b); break;
+        case 'gravity': this.gravs.push(hbBox(o) ?? b); break;
+        case 'check': this.checks.push(hbBox(o) ?? b); break;
         case 'orb': {
-          /* ★ 跳环的判定要比贴图【大一圈】(用户实测反馈:"原版判定范围很大,这里连一档速度都
-             很难按到")。原版环是圆形判定、比它看起来大;我们按"物件盒向外各放 0.5 格"算,
-             也就是 1×1 的环 → 2×2 的触发区(玩家外框再叠 1 格,总共约 3 格的窗口)。 */
-          const pad = 0.5 * U;
-          this.orbs.push({ x0: b.x0 - pad, x1: b.x1 + pad, y0: b.y0 - pad, y1: b.y1 + pad, o });
+          /* ★ 跳环:原版 36×36(1.2 格)。我上一版放大到 2 格(60×60)是错的 —— 环提前 0.3 格
+             触发,链式环的节奏全乱(用户:"连一档速度都很难按到"其实是"按早了/按晚了都对不上")。 */
+          this.orbs.push(hbBox(o) ?? b);
           break;
         }
         case 'pad': {
-          /* ★ 弹簧的判定盒 = 【整格】(1×1,从底边往上一个格子)。
-             原版的弹簧 hitbox 就是整格,我们以前按贴图盒(1×0.2)判 —— 触发点晚了 0.8 格,
-             落点自然全错(用户:"碰撞箱必须要还原,不然地点不对")。 */
-          this.pads.push({ x0: b.x0, x1: b.x1, y0: b.y0, y1: b.y0 + U, o });
+          /* ★ 弹簧:原版是一根【很窄的竖条】—— 黄 4×25、蓝 6×25、紫 5×25 单位。
+             我上一版做成整格(30×30),宽了 5~7 倍,弹簧一律提前触发。 */
+          this.pads.push(hbBox(o) ?? b);
           break;
         }
+        case 'arrow': this.arrows.push(hbBox(o) ?? b); break;
+        case 'coin': this.coins.push(hbBox(o) ?? b); break;
         case 'force': this.forces.push(b); break;
         case 'pit': this.pits.push(b); break;
         case 'trigger': this.triggers.push(b); break;
-        case 'size': this.sizes.push(b); break;
-        case 'teleport': this.teleports.push(b); break;
+        case 'size': this.sizes.push(hbBox(o) ?? b); break;
+        case 'teleport': this.teleports.push(hbBox(o) ?? b); break;
         case 'deco': this.decos.push(o); break;
       }
     }
