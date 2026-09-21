@@ -1917,6 +1917,9 @@ export function boot(target: string | HTMLCanvasElement, opts: { song?: string }
     type: useCanvas ? Phaser.WEBGL : Phaser.AUTO,
     ...(useCanvas ? { canvas: target as HTMLCanvasElement } : { parent: target as string }),
     backgroundColor: 'rgba(0,0,0,0)',        // ★ 画布透明(见 create 里 setBackgroundColor 的说明)
+    /* ★★ transparent 必须显式开:只写 backgroundColor 是透明的还不够,WebGL 每帧 clear 时
+       仍然按不透明处理 ⇒ 画布底下那层 DOM 远景/近景被挡住(用户:"远景/近景没有出来")。 */
+    transparent: true,
     /* ★ 用 NONE + 固定尺寸:之前用 FIT/RESIZE,Phaser 量出来的父容器宽度不对
        (相机视口被算成 320×720,画面只在左边一条里),干脆不让它去量 ——
        画幅由页面 CSS 决定,内部分辨率固定 1280×720。 */

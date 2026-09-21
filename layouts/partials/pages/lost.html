@@ -15,8 +15,20 @@
         <img class="fx-layer fx-city" src="/assets/water/city.png" alt="" aria-hidden="true">
         <canvas id="gd-canvas" class="lost-cv" width="1280" height="720" aria-label="几何冲刺式关卡"></canvas>
         <div class="fx-fog" aria-hidden="true"></div>
-        <img class="fx-layer fx-rays" src="/assets/water/rays.png" alt="" aria-hidden="true">
+        {{/* ★ 动态光束:不用静态贴图(用户:"静态贴图太蠢了")—— 三条从上方斜射下来的光带,
+             用 CSS 渐变 + 位移动画做呼吸/摇摆;screen 混合不挡画面 */}}
+        <div class="fx-beams" aria-hidden="true"><i></i><i></i><i></i></div>
+        {{/* ★ 涟漪:SVG 湍流 + 位移(真实折射感),用 animate 慢慢漂 */}}
+        <svg class="fx-ripple" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+            <filter id="gdRipple" x="-10%" y="-10%" width="120%" height="120%">
+                <feTurbulence type="fractalNoise" baseFrequency="0.008 0.016" numOctaves="2" seed="7" result="n">
+                    <animate attributeName="baseFrequency" dur="18s" values="0.008 0.016;0.012 0.022;0.008 0.016" repeatCount="indefinite" />
+                </feTurbulence>
+                <feDisplacementMap in="SourceGraphic" in2="n" scale="9" xChannelSelector="R" yChannelSelector="G" />
+            </filter>
+        </svg>
         <div class="lost-lyric" id="gd-lyric"></div>
+        <div class="fx-smear" aria-hidden="true"></div>
         <div class="lost-veil" aria-hidden="true"></div>
         <div id="gd-hud" class="lost-hud">方块 · 0%</div>
         <div class="lost-tip">按一下开始 · 空格 / ↑ = 跳(飞机按住上升)· R = 重来 · G = 无敌(已限制在预定轨道内,飞不出关卡走廊) · B = 看 bot 通关 · [ / ] 或 −/+ = 弹簧力度微调(测试用)</div>
@@ -44,4 +56,4 @@
         <a href="https://geometrydash.com/game" target="_blank" rel="noopener noreferrer">geometrydash.com/game</a>
     </p>
 </div>
-<script defer src="/assets/gd/gd.js?v=g25"></script>
+<script defer src="/assets/gd/gd.js?v=g26"></script>

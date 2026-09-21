@@ -1312,7 +1312,31 @@
 .fx-bg { z-index: 1; opacity: 0.9; filter: saturate(0.9); }
 /* 近景(city)贴着底边摆,只占下方一小条,别挡住玩法区 */
 .fx-city { z-index: 1; object-fit: contain; object-position: bottom center; opacity: 0.92; }
-.lost-cv { position: relative; z-index: 2; }
+/* ★★ 画面滤镜栈(用户口径:灰阶 + 高斯模糊 + 运动模糊 + 涟漪):
+   · 灰阶 grayscale(0.5) —— 水下的褪色感
+   · 高斯模糊 blur(1.1px) —— 朦胧
+   · "运动模糊":CSS 没有真正的方向模糊,用【横向拉长的阴影式叠影】近似 —— 这里用
+     一层轻微的水平位移复制(见 .fx-smear)来表达"水流拖影",比不做更贴近需求
+   · 涟漪:交给 .fx-ripple 的 SVG 湍流位移(动画) */
+.lost-cv {
+    position: relative;
+    z-index: 2;
+    filter: grayscale(0.5) blur(1.1px) brightness(1.06) contrast(0.95);
+}
+/* 水流拖影(近似运动模糊):左右各一层极淡的横向偏移拷贝,靠 CSS 动画来回蹭 */
+.fx-smear {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    background: linear-gradient(90deg, rgba(150, 220, 255, 0.05), rgba(150, 220, 255, 0) 22%, rgba(150, 220, 255, 0) 78%, rgba(150, 220, 255, 0.05));
+    mix-blend-mode: screen;
+    animation: fxSmear 7s ease-in-out infinite alternate;
+}
+@keyframes fxSmear {
+    from { transform: translateX(-1.2%); opacity: 0.5; }
+    to   { transform: translateX(1.2%);  opacity: 0.9; }
+}
 /* 雾:上浅下深的蓝,加一点背景模糊 —— 这就是"朦胧感" */
 .fx-fog {
     position: absolute;
@@ -1325,14 +1349,43 @@
         rgba(2, 24, 36, 0.66) 100%);
     backdrop-filter: blur(2.5px) saturate(0.85);
 }
-/* 顶部水底光柱:screen 混合叠亮,不挡东西 */
-.fx-rays {
+/* 顶部水下光束:动态(三条斜光带,各自呼吸 + 缓慢摇摆),不再用静态贴图 */
+.fx-beams {
+    position: absolute;
+    inset: 0;
     z-index: 4;
-    height: 72%;
-    object-fit: cover;
-    object-position: top center;
+    pointer-events: none;
+    overflow: hidden;
     mix-blend-mode: screen;
-    opacity: 0.5;
+    opacity: 0.42;
+}
+.fx-beams i {
+    position: absolute;
+    top: -14%;
+    height: 132%;
+    width: 16%;
+    display: block;
+    background: linear-gradient(180deg, rgba(196, 240, 255, 0.55) 0%, rgba(150, 220, 255, 0.18) 45%, rgba(150, 220, 255, 0) 100%);
+    filter: blur(9px);
+    transform-origin: 50% 0;
+    animation: fxBeam 11s ease-in-out infinite alternate;
+}
+.fx-beams i:nth-child(1) { left: 14%; transform: rotate(11deg); animation-duration: 11s; }
+.fx-beams i:nth-child(2) { left: 44%; width: 22%; transform: rotate(7deg);  animation-duration: 14s; animation-delay: -3s; }
+.fx-beams i:nth-child(3) { left: 74%; transform: rotate(14deg); animation-duration: 9s;  animation-delay: -6s; }
+@keyframes fxBeam {
+    from { opacity: 0.35; transform: translateX(-2%) rotate(8deg) scaleY(0.96); }
+    to   { opacity: 0.85; transform: translateX(2%)  rotate(13deg) scaleY(1.04); }
+}
+/* 涟漪:一层贴着画面的 SVG 湍流位移(动画在 <feTurbulence> 的 animate 里) */
+.fx-ripple {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    filter: url(#gdRipple);
 }
 /* 歌词:屏幕正下贴边,淡入淡出(JS 只改 opacity 和文字) */
 .lost-lyric {
@@ -1744,7 +1797,9 @@ body.scene-open .intro-panel.is-page {
      将来谁赢取决于优先级,又会长出"画布不填满盒子"那类 bug。 */
 .lost-stage #gd-canvas {
     display: block;
-    background: #05070d;
+    /* ★★ 必须透明:以前这里是 #05070d(不透明),会把画布【下面】那层 DOM 远景/近景整块挡住 ——
+       用户"远景/近景没有出来"的直接原因就是这个(画布自己又铺了一层底色)。 */
+    background: transparent;
 }
 
 .lost-tip {
