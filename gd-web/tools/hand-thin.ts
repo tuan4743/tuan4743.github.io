@@ -50,3 +50,21 @@ for (const vy of [0.2, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]) {
     + (w.dead ? ' 【死了】' : ''));
 }
 console.log('参考:终端速度 15 单位/帧 = 0.5 块/帧;snapTol = 15 单位 = 0.5 块');
+
+/* ★★ 顺带查一件更要紧的事:飞行类(UFO/飞机/波浪)碰到【大块实心】到底会不会死?
+   代码结构上,实心侧撞判定(撞侧面即死)整段写在 `if (mode !== ship/ufo/wave)` 里面 ——
+   如果那样,飞行类就是"穿墙不死的"。这里用一个干净的复现问一遍(不经过 reset 的 onGround 陷阱)。 */
+console.log('\n飞行类 vs 实心(干净复现:onGround=false,从空中往下撞地面方块):');
+for (const mode of ['cube', 'ufo'] as const) {
+  const w = new World(WATER_CHART);
+  const X0 = 700;
+  w.reset(X0 * U, mode, 6 * U);
+  w.speedIdx = 1;
+  w.gdir = 1;
+  w.vy = 0;
+  w.onGround = false;
+  for (let f = 0; f < 200 && !w.dead && !w.onGround && w.y > -3 * U; f++) w.frame(false);
+  console.log('  ' + mode.padEnd(5) + ' → ' + (w.dead ? '✗ 死了(正确)' : w.onGround ? '⚠ 落在实心上没死(y='
+    + (w.y / U).toFixed(2) + ')' : '⚠ 还在掉(y=' + (w.y / U).toFixed(2) + ')')
+    + ' · 死在 y=' + (w.y / U).toFixed(2) + '(撞方块应为 ≈0;掉出世界才是 ≈-2.5)');
+}

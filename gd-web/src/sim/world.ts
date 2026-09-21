@@ -156,6 +156,17 @@ export class World {
    *  用 `tools/hazbox-audit.ts` 数"改外框会多死多少帧"(当前自由路线:55/2970 帧,最深压进 0.31 块)。
    *  `autoplay.ts --hazbox=outer` 打开。 */
   hazBoxIsOuter = false;
+  /** 飞行类(飞机/UFO/波浪):不落地、碰到实心即死(见实心侧撞那一段的注释) */
+  get isFlyMode() { return this.mode === 'ship' || this.mode === 'ufo' || this.mode === 'wave'; }
+  /** ★★ 飞行类碰实心是否即死。默认【按关卡来源】:
+   *   · GD 导出的真实关卡(.dat)= 开 —— 这是原版行为,必须照搬;
+   *   · 我们自己生成的铺面(`generateLevel`)= 关 —— 生成器的飞行段还是按旧物理铺的
+   *     (实测:一开就 2108 次死亡、只能走到 x=354.5),等生成器按新物理重新校验后再打开。
+   *  见 HANDOVER §13.25。 */
+  flySolid = false;
+  /** ★ 临时定点用:把实心碰撞每一支的判断过程记到 solidTrace(默认关;tools/probe-rod.ts 会打开) */
+  traceSolid = false;
+  readonly solidTrace: string[] = [];
   speedIdx = 1;
   dead = false; done = false; deadT = 0;
   attempts = 1;
@@ -181,12 +192,14 @@ export class World {
   private armedArrows = new Set<Box>();
   private armedTriggers = new Set<Box>();
 
-  constructor(level: Level, startX?: number, startY?: number, opts?: { sawUnscaled?: boolean; hazOuter?: boolean }) {
+  constructor(level: Level, startX?: number, startY?: number, opts?: { sawUnscaled?: boolean; hazOuter?: boolean; flySolid?: boolean }) {
     this.level = level;
     /* ★ 定点实验开关必须在【建判定盒之前】生效 —— 锯片的盒子是构造时算好的,
        参数化之后再打开开关是没用的(踩过:--sawbase=1 一度完全没起作用)。 */
     this.sawUnscaled = !!opts?.sawUnscaled;
     this.hazBoxIsOuter = !!opts?.hazOuter;
+    /* ★ 飞行类碰实心即死:真实关卡默认开(照搬原版),自铺面默认关(见字段注释) */
+    this.flySolid = opts?.flySolid ?? !!level.fromGD;
     const st = level.start;                       // 出生点(物件 31):不传就按铺面标的来
     if (startX == null) startX = (st?.b ?? 0) * U;
     if (startY == null) startY = (st?.r ?? 0) * U;
@@ -880,6 +893,12 @@ export class World {
          ★ 可破坏砖块撞到是【碎掉】而不是死 —— 不实现它,玩家会直接撞死在这条铺面上。 */
       const inn = this.inner();
       for (const b of this.nearSolids) {
+        if (this.traceSolid && b.o.kind === 'frame') {
+          this.solidTrace.push('x-overlap y=' + (this.y / U).toFixed(3) + ' mode=' + this.mode
+            + ' box y[' + (b.y0 / U).toFixed(3) + ',' + (b.y1 / U).toFixed(3) + ']'
+            + ' innY[' + (inn.y0 / U).toFixed(3) + ',' + (inn.y1 / U).toFixed(3) + ']'
+            + ' yOverlap=' + (inn.y1 > b.y0 && inn.y0 < b.y1));
+        }
         if (b.o.kind === 'breakable') {
           if (this.broken.has(b)) continue;
           if (inn.x1 <= b.x0 || inn.x0 >= b.x1 || inn.y1 <= b.y0 || inn.y0 >= b.y1) continue;
@@ -923,6 +942,26 @@ export class World {
            所以下面第一支【不管 gdir】都抬上去,第二支才分方向。 */
         const clearTop = reachDown >= b.y1;               // 擦到砖顶面附近
         const clearBot = reachUp <= b.y0;                 // 擦到砖底面附近
+        /* ★★ 飞行类(飞机/UFO/波浪):碰到实心就是死 —— 原版里"飞进砖里"必死(波浪段的墙就是靠这条)。
+           ★ 以前这一整段写在 `if (mode !== ship/ufo/wave)` 的 guard 里,结果是飞行类【穿墙不死】:
+             实测(2026-09,tools/fly-solid.ts):
+               · 合成关卡里 UFO/飞机/波浪 从 y=6 落下,穿过 6 格厚实心,一路掉到世界底边 y<0 才死;
+               · 真关卡里波浪从 x=540 一路穿过塔段那堵竖墙(x=546.97,y=0.5~6.5)飞到 x=552、y=14 还活着。
+             容错口径仍按反编译:飞行类的 snapUpThreshold = gravityMult×6.0(6 单位 = 0.2 块),
+             所以"擦着顶/底 6 单位以内"不算撞;超出就是撞死。 */
+        if (this.flySolid && this.isFlyMode) {
+          if (clearTop || clearBot) continue;
+          this.die(); return;
+        }
+        /* ★ 临时定点用:把这一支的判断过程记下来(默认关;tools/probe-rod.ts 打它)。
+           排查"UFO 穿过细杆"时必须有这个 —— 光看帧末状态推不出走的是哪一支。 */
+        if (this.traceSolid) {
+          this.solidTrace.push('sub y=' + (this.y / U).toFixed(3) + ' vy=' + this.vy.toFixed(2)
+            + ' mode=' + this.mode + ' box y[' + (b.y0 / U).toFixed(3) + ',' + (b.y1 / U).toFixed(3) + ']'
+            + ' reachDown=' + reachDown.toFixed(2) + ' clearTop=' + clearTop
+            + ' reachUp=' + reachUp.toFixed(2) + ' clearBot=' + clearBot
+            + ' prevY=' + prevY.toFixed(2) + ' gdir=' + this.gdir);
+        }
         if (this.vy <= 0 && clearTop) {
           this.y = b.y1; this.vy = 0; this.onGround = true;
           continue;                                      // 放到顶面站住(不判死)
@@ -933,6 +972,25 @@ export class World {
         }
         if (this.gdir > 0 && prevY >= b.y1 - 0.01 && this.y <= b.y1) continue;
         if (this.gdir < 0 && prevTop <= b.y0 + 0.01 && boxTop >= b.y0) continue;
+        this.die(); return;
+      }
+    }
+
+    /* ★★ 飞行类(飞机/UFO/波浪):碰到实心就是死 —— 原版里"飞进砖里"必死(波浪段的墙就是靠这条)。
+       ★ 这一段必须写在上面 `if (mode !== 飞行类)` 那个 guard 的【外面】:以前整段实心判定都在里面,
+         结果是飞行类【穿墙不死】。实测(2026-09,tools/fly-solid.ts):
+           · 合成关卡:UFO/飞机/波浪 从 y=6 落下,穿过 6 格厚实心,一直掉到世界底边 y<0 才死;
+           · 真关卡:波浪从 x=540 穿过塔段那堵竖墙(x=546.97,y=0.5~6.5),到 x=552、y=14 还活着。
+       容错按反编译:飞行类 snapUpThreshold = gravityMult×6.0(6 单位 = 0.2 块)——
+       "擦着顶/底 6 单位以内"不算撞,超出就是撞死。 */
+    if (this.flySolid && this.isFlyMode) {
+      const inn = this.inner();
+      const TOL = 6;
+      for (const b of this.nearSolids) {
+        if (inn.x1 <= b.x0 || inn.x0 >= b.x1 || inn.y1 <= b.y0 || inn.y0 >= b.y1) continue;
+        const down = Math.max(this.y, this.frameY0) + TOL;
+        const up = Math.min(this.y + this.box, this.frameY0 + this.box) - TOL;
+        if (down >= b.y1 || up <= b.y0) continue;                  // 擦过去(6 单位容错)
         this.die(); return;
       }
     }
