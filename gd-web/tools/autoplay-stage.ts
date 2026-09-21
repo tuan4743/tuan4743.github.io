@@ -239,12 +239,16 @@ for (let i = 0; i < stations.length; i++) {
         if (!aa) continue;
         const pass = (FREE || st.door < 0) ? aa.x >= st.x : aa.armed.has(doors[st.door]);
         const cur = { file: f, x: aa.x, doors: aa.armed.size, skip: aa.skipped.size, pass };
+        /* ★ 排序:过站 → 【生效门数(路线走了多远)】 → 走得远 → 跳门少。
+           跳门放到最后比:判据修好之后,一条【前十块就跳了门】的短卷子在"跳门少"这一条上
+           会赢过真实推进到 1061 的长卷子 —— 实测驱动就是这么把路线从 1061 回退到 657.9 的。
+           搜索本身有 gateOk 兜着(新卷子不会跳门),所以"跳门"只该当兜底判据。 */
         const better = !win
           || (cur.pass && !win.pass)
           || (cur.pass === win.pass && (
-            cur.skip < win.skip
-            || (cur.skip === win.skip && (cur.doors > win.doors
-              || (cur.doors === win.doors && cur.x > win.x)))));
+            cur.doors > win.doors
+            || (cur.doors === win.doors && (cur.x > win.x
+              || (cur.x === win.x && cur.skip < win.skip)))));
         if (better) win = cur;
       }
       const tail = outs[k].split('\n').filter((l) => /最远|到站|通关|指纹/.test(l)).slice(-2).join(' | ');
