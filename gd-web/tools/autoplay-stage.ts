@@ -225,9 +225,20 @@ for (let i = 0; i < stations.length; i++) {
       });
     })));
 
-    /* 挑赢家:先看"这一站的目标达没达成",再看【有没有跳过门】(跳门的那卷对"铺面路线"没意义),
-       然后比生效的门数,最后比走得远不远 */
-    let win: { file: string; x: number; doors: number; skip: number; pass: boolean } | null = null;
+    /* ★ 挑赢家:先看"这一站的目标达没达成",再看【有没有跳过门】(跳门的那卷对"铺面路线"没意义),
+       然后比生效的门数,最后比走得远不远。
+       ★★ 2026-09 补:候选里【必须包含当前的 BEST/MAXB 本身】。以前只在本批参与者之间排序,
+       于是"一条过站了但走得近"的卷子会把已经过站的 BEST 覆盖掉 —— 实测:
+       手动从 x=337(通道内部)推进到 x=352.1/8 门的卷子,被本批赢家 342.1/7 门覆盖。
+       现在提升的前提是"真的比现状好",驱动只会前进不会倒退。 */
+    const cur = (file: string) => {
+      const aa = audit(file);
+      if (!aa) return null;
+      const pass = (FREE || st.door < 0) ? aa.x >= st.x : aa.armed.has(doors[st.door]);
+      return { file, x: aa.x, doors: aa.armed.size, skip: aa.skipped.size, pass };
+    };
+    let win: { file: string; x: number; doors: number; skip: number; pass: boolean } | null
+      = cur(BEST) ?? cur(MAXB);
     for (let k = 0; k < batch.length; k++) {
       /* ★ sidecar 的路径要和 autoplay 写的一致:`<best 去掉 .json> + .max.json`
          (踩过:这里原来写 MAXB + '.p' + k = "...best.max.json.p1",和实际文件名
@@ -235,21 +246,19 @@ for (let i = 0; i < stations.length; i++) {
           赢家永远是"主种子那卷";而塔段那种段落里,真正的路线恰恰在最远活那卷里)。 */
       const partMax = (BEST + '.p' + k).replace(/\.json$/, '') + '.max.json';
       for (const f of [BEST + '.p' + k, partMax]) {
-        const aa = audit(f);
-        if (!aa) continue;
-        const pass = (FREE || st.door < 0) ? aa.x >= st.x : aa.armed.has(doors[st.door]);
-        const cur = { file: f, x: aa.x, doors: aa.armed.size, skip: aa.skipped.size, pass };
+        const c2 = cur(f);
+        if (!c2) continue;
         /* ★ 排序:过站 → 【生效门数(路线走了多远)】 → 走得远 → 跳门少。
            跳门放到最后比:判据修好之后,一条【前十块就跳了门】的短卷子在"跳门少"这一条上
            会赢过真实推进到 1061 的长卷子 —— 实测驱动就是这么把路线从 1061 回退到 657.9 的。
            搜索本身有 gateOk 兜着(新卷子不会跳门),所以"跳门"只该当兜底判据。 */
         const better = !win
-          || (cur.pass && !win.pass)
-          || (cur.pass === win.pass && (
-            cur.doors > win.doors
-            || (cur.doors === win.doors && (cur.x > win.x
-              || (cur.x === win.x && cur.skip < win.skip)))));
-        if (better) win = cur;
+          || (c2.pass && !win.pass)
+          || (c2.pass === win.pass && (
+            c2.doors > win.doors
+            || (c2.doors === win.doors && (c2.x > win.x
+              || (c2.x === win.x && c2.skip < win.skip)))));
+        if (better) win = c2;
       }
       const tail = outs[k].split('\n').filter((l) => /最远|到站|通关|指纹/.test(l)).slice(-2).join(' | ');
       console.log('    ' + (k + 1) + ') ' + tail.trim());
