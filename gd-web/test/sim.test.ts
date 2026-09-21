@@ -445,6 +445,48 @@ test('锯片:整格吃人 —— 从旁边跑过去会死,从下面钻过去没�
   assert.ok(hi.x > 25 * U, '应该跑过去了');
 });
 
+test('锯片(真 ID 1705 + 缩放):判定是【圆】(半径查表),不是贴图盒', () => {
+  /* 出处:OpenGD `LongData.cpp:461` 的 `_pHitboxRadius`(1705 → 32.3 单位 = 1.077 块)
+     + `playlayer.cpp:1491-1503`(有半径的走 intersectsCircle,没半径的走矩形)。
+     贴图盒是 44×85 单位(1.47×2.83 块)—— 拿它当判定会把这块"角"判死。 */
+  const sawAt = (r: number) => new World(solo([
+    { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
+    { kind: 'saw', id: 1705, b: 20, r, w: 44 / 30, h: 85 / 30 },
+  ]));
+  const w = sawAt(0);
+  assert.equal(w.circles.length, 1, '带 1705 的锯片必须进圆形表');
+  assert.ok(Math.abs(w.circles[0].r / U - 32.3 / 30) < 1e-6,
+    '半径 = 表里的 32.3 单位(1.077 块),实测 ' + (w.circles[0].r / U).toFixed(3));
+  assert.ok(Math.abs(w.circles[0].r / U - 1.077) < 0.01, '半径不是 85/2 单位(那才是矩形的一半)');
+
+  /* 从旁边跑过去会死 —— 圆心就在路上 */
+  for (let i = 0; i < 300 && !w.dead; i++) w.frame(false);
+  assert.equal(w.dead, true, '贴着地面撞上锯片圆心当然死');
+
+  /* ★ 关键 A/B:圆心 21.5、半径 = 32.3×1.52/30 = 1.636 块 → 圆顶 23.14;贴图盒顶 23.65。
+     站在顶面 23.2 的台面上滚过去:圆顶比 23.2 还低 0.06 块 → 圆口径【活着】;
+     旧口径(贴图盒 + 玩家内框:内框下沿 = 中心 − 0.125 = 23.575 < 23.653)= 【判死】。
+     这 0.14 块就是这一段"以前搜不过去、现在能过"的全部原因(见 tools/check-wall.ts)。 */
+  const SC = 1.52, TB = 23.2;
+  const roll = new World(solo([
+    { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
+    { kind: 'platform', b: 0, r: TB - 1, w: 40, h: 1 },
+    { kind: 'saw', id: 1705, b: 20, r: 21.5 - (85 / 30) * SC / 2, w: (44 / 30) * SC, h: (85 / 30) * SC },
+  ]));
+  const rc = roll.circles[0];
+  assert.ok(Math.abs(rc.r - 32.3 * SC) < 0.01,
+    '半径 = 32.3 × 1.52 = ' + (32.3 * SC).toFixed(2) + ' 单位,实测 ' + rc.r.toFixed(2));
+  assert.ok(Math.abs(rc.cy / U - 21.5) < 0.001, '圆心在物件中心 y=21.5,实测 ' + (rc.cy / U).toFixed(3));
+  const circleH = (2 * rc.r) / U, spriteH = (85 / 30) * SC, spriteW = (44 / 30) * SC;
+  assert.ok(circleH < spriteH - 0.9, '圆高 ' + circleH.toFixed(2) + ' 块 < 贴图盒高 ' + spriteH.toFixed(2));
+  assert.ok(circleH > spriteW + 0.9, '圆宽 ' + circleH.toFixed(2) + ' 块 > 贴图盒宽 ' + spriteW.toFixed(2));
+  for (let i = 0; i < 300 && !roll.dead && roll.x < 30 * U; i++) roll.frame(false);
+  assert.equal(roll.dead, false, '贴着圆顶 0.06 块滚过去是活的(y=' + (roll.y / U).toFixed(2) + ')');
+  assert.ok(roll.x > 25 * U, '而且要真的滚过去,x=' + (roll.x / U).toFixed(1));
+  const oldNeed = 21.5 + spriteH / 2 + 0.125;          // 旧口径:贴图盒顶 + 内框半高
+  assert.ok(oldNeed > TB + 0.5, '旧口径要求中心 > ' + oldNeed.toFixed(3) + ',人在 ' + (TB + 0.5).toFixed(2) + ' → 旧口径判死');
+});
+
 test('黑环(冲刺):不管当前速度,直接把垂直速度设成 15 并朝重力方向', () => {
   const lv = solo([
     { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },

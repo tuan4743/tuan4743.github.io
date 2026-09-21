@@ -61,10 +61,9 @@ export const GD_HITBOX: {
   /* 跳环与冲刺箭头:36/84/141/1022/1330 → 36×36;1704/1751 → 36×36 */
   orb: [36, 36],
   arrow: [36, 36],
-  /* 锯片:★ 判定 = 物件自己的包围盒(基础块 × 缩放),不再用固定的 44×85 ——
-     那张表里的数值本来就是"基础块",缩放要乘上去;以前不管缩放一律 44×85,scale=2 的锯片
-     判定比画出来的还小一半。走 default(null)→ 调用方用 bbox。 */
-  /* 锯片(旧口径,留个记录):1705 → 44×85 单位、1706 → 60×60 */
+  /* 锯片:★ 真正的判定不是矩形 —— 见下面的 GD_HITBOX_RADIUS(圆)。
+     `_pHitboxes` 表里 1705 → 44×85、1706 → 60×60 是【贴图外框】,拿它当判定会偏高:
+     本关 x=1053.5 那个 scale=1.52 的锯片,危险盒顶部 23.65 → 23.14(低 0.52 块),玩家中心门槛 23.78 → 23.64;真正的差别在"方块跳过这个坑"上:旧口径需要 10.0 帧净空而窗口只有 10.1 帧(差一点点就判死),新口径需要 16.1 帧、窗口 13.4 帧(留 2.7 帧余量)。 */
   saw: [44, 85],
   coin: [40, 40],
   /* 形态门 12/13/47/111/660/745/1331 → h86 w34(竖高的门) */
@@ -79,8 +78,33 @@ export const GD_HITBOX: {
 };
 
 /** 锯片的【基础判定盒】(单位,不乘缩放)。定点实验用:原版到底会不会把判定盒一起放大,
- *  缺直接证据 —— 见 world.ts 的 `sawUnscaled` 与 HANDOVER §13.15。 */
+ *  缺直接证据 —— 见 world.ts 的 `sawUnscaled` 与 HANDOVER §13.15。
+ *  ★ 注意:这条是【旧口径】。锯片真正的判定是圆,见 GD_HITBOX_RADIUS。 */
 export const GD_SAW_BASE: [number, number] = [GD_HITBOX.saw[0], GD_HITBOX.saw[1]];
+
+/* ★★ 圆形判定半径表 —— 出处 OpenGD `Source/LongData.cpp:461-466`
+ *    `GameObject::_pHitboxRadius`(和 `_pHitboxes` 并列的第二张表),单位同上(1 块 = 30 单位)。
+ *    圆表里的物件【不是】用矩形判定的:OpenGD `PlayLayer::update`(playlayer.cpp:1491-1503)写得很直白 ——
+ *        if (hazard->_radius > 0)
+ *            playerOuterBounds.intersectsCircle(hazard->getPosition() + Vec2(15,15), hazard->_radius) → 死
+ *        else if (playerOuterBounds.intersectsRect(hazard->getOuterBounds()))                   → 死
+ *    也就是:锯片族 = 【玩家外框(30×30) vs 圆心在物件中心、半径查表的圆】。
+ *    我们以前拿 `_pHitboxes` 的矩形当判定,还把缩放乘上去 —— 圆表里的锯片全是"细高"矩形(85×44),
+ *    缩放后竖直方向能有 4 块多,于是整关所有锯片都比原版【高一倍】,该过的门缝全被吃掉。
+ *    例:1705 半径 32.3 单位 = 1.08 块(直径 2.15 块),而矩形盒是 2.83 块高。 */
+export const GD_HITBOX_RADIUS: Record<number, number> = {
+  88: 32.3, 89: 21.6, 98: 12, 183: 15.48, 184: 20.4, 185: 3, 186: 32.3, 187: 21.96, 188: 12.6,
+  397: 28.9, 398: 17.6, 399: 12.9, 675: 32, 676: 17.68, 677: 12.48, 678: 30.4, 679: 18.72, 680: 10.8,
+  740: 32.3, 741: 21.96, 742: 12.6, 918: 24, 1582: 4, 1583: 4, 1619: 25, 1620: 15,
+  1701: 6, 1702: 6, 1703: 6, 1705: 32.3, 1706: 21.6, 1707: 12, 1708: 28.9, 1709: 17.6, 1710: 12.9,
+  1734: 32, 1735: 17.68, 1736: 12.48,
+};
+
+/** 某个 ID 的圆形判定半径(单位);不是圆表物件就返回 null */
+export function circleRadiusOf(id: number | undefined): number | null {
+  if (id == null) return null;
+  return GD_HITBOX_RADIUS[id] ?? null;
+}
 
 /** 取某个物件的原版判定盒(单位);表里没有的返回 null(调用方按原来的几何算) */
 export function hitboxOf(o: Obj): [number, number] | null {
@@ -290,7 +314,17 @@ const ints = (s: string | undefined): number[] =>
     b: x - w / 2,
     r: y - h / 2,
     w, h,
+    id,
   };
+  /* ★ 圆表物件(锯片族):判定是圆,半径查 `_pHitboxRadius`,圆心 = 物件中心。
+     缩放这一层原版没有直接证据(OpenGD 的 `_radius` 不乘缩放),所以两个值都留着:
+     默认按缩放(和贴图一致),`--sawbase=1` 走不缩放(OpenGD 原样)。 */
+  const rr = GD_HITBOX_RADIUS[id];
+  if (rr != null) {
+    const sx = num(f['128'], 1), sy = num(f['129'], 1);
+    o.rad0 = rr;
+    o.rad = rr * (Math.abs(sx) + Math.abs(sy)) / 2;
+  }
   if (spec.orb) o.orb = spec.orb;
   if (spec.pad) o.pad = spec.pad;
   if (spec.exit) o.exit = true;
@@ -365,6 +399,9 @@ export function encodeObjects(objs: Obj[]): string {
     if (o.exit) ex.push('exit=1');
     if (o.tpy != null) ex.push('tpy=' + n(o.tpy));
     if (o.mini != null) ex.push('mini=' + (o.mini ? 1 : 0));
+    /* ★ 圆判定物件(锯片族)必须带上 ID —— 半径是按 ID 查 GD_HITBOX_RADIUS 的,
+       紧凑文本里丢了 ID 就只能退回矩形判定(踩过:整关照旧按矩形判,门缝全被吃掉)。 */
+    if (o.id != null && GD_HITBOX_RADIUS[o.id] != null) ex.push('id=' + o.id);
     if (o.col != null) ex.push('col=' + o.col);
     if (o.z != null) ex.push('z=' + o.z);
     if (o.groups?.length) ex.push('g=' + o.groups.join('.'));
@@ -405,6 +442,18 @@ export function decodeObjects(text: string): Obj[] {
         case 'exit': o.exit = true; break;
         case 'tpy': o.tpy = Number(v); break;
         case 'mini': o.mini = v === '1'; break;
+        /* 圆判定:ID 够了 —— 半径、缩放都从 GD_HITBOX_RADIUS / GD_SPEC 现算 */
+        case 'id': {
+          o.id = Number(v);
+          const rr = GD_HITBOX_RADIUS[o.id];
+          if (rr != null) {
+            const spec = GD_SPEC[o.id];
+            const sx = spec?.w ? o.w / spec.w : 1, sy = spec?.h ? o.h / spec.h : 1;
+            o.rad0 = rr;
+            o.rad = rr * (Math.abs(sx) + Math.abs(sy)) / 2;
+          }
+          break;
+        }
         case 'col': o.col = Number(v); break;
         case 'z': o.z = Number(v); break;
         case 'g': o.groups = v.split('.').map(Number); break;

@@ -69,6 +69,9 @@ export interface Obj {
   tp?: boolean;     // pad/arrow:瞬移到头顶的方块 + 翻重力(紫的那两种)
   inert?: boolean;  // 只标记、不生效(clone 门、占位物件)
   art?: number;     // deco:GD 物件号(按它挑画法)
+  id?: number;      // ★ 原始 GD 物件号(1 键)。判定表按 ID 查,所以必须留着
+  rad?: number;     // ★ 圆形判定半径(单位,已乘缩放)—— 锯片族走圆,不走矩形(见 gdids.GD_HITBOX_RADIUS)
+  rad0?: number;    // 圆形判定的【基础】半径(不乘缩放),定点实验用
   col?: number;     // 显示色覆盖(0xRRGGBB)
   z?: number;       // 图层(155):1..5 前景、8 背景 —— 只影响绘制顺序
   rot?: number;     // 旋转角(度,顺时针为正);线框/装饰靠它定位

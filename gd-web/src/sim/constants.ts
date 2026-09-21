@@ -122,6 +122,29 @@ export const PAD: Record<PadKind, { v: number; flip: FlipWhen; note: string }> =
   },
 };
 
+/** ★ 跳跃初速 + 【方块】重力:两者都【按速度档查表】——
+ *  出处 gdp master `PlayerObject_updateTimeMod.cpp:8-26`(updateTimeMod 每次换挡都重设):
+ *    speedMul 0.7 → m_yStart 10.620032  · m_gravity 0.940199
+ *    speedMul 0.9 → m_yStart 11.1800318 · m_gravity 0.958199024   ← 默认档(本关出生档)
+ *    speedMul 1.1 → m_yStart 11.420032  · m_gravity 0.957199
+ *    speedMul 1.3 / 1.6 → m_yStart 11.230032 · m_gravity 0.961199
+ *  ★ 只有【方块】吃 m_gravity:反编译 `updateJump.cpp:93` 写的是
+ *      `double local_gravity = this->isCube ? gravity : 0.958199;`
+ *    —— 别的形态(球/蜘蛛/飞船/UFO/机器人/波浪)一律用固定的 0.958199,
+ *      所以"球重力 = 0.958199×0.6"这类算法不受这张表影响。
+ *  ★ 我们以前全用 0.958199 + 11.18:在 0.7/1.1/1.3/1.6 档上重力差 0.3%~2%、跳跃初速差 0.4%~5%,
+ *    一整套弧线(尤其长距离的)都会偏 —— 用户问"重力加速度对吗"时查出来的就是这个。 */
+export const SPEED_YSTART = [10.620032, 11.1800318, 11.420032, 11.230032, 11.230032];
+export const SPEED_CUBE_GRAVITY = [0.940199, 0.958199024, 0.957199, 0.961199, 0.961199];
+/** 按速度档取跳跃初速(越界就退回默认档) */
+export function jumpOf(speedIdx: number): number {
+  return SPEED_YSTART[speedIdx] ?? SPEED_YSTART[1];
+}
+/** 按速度档取【方块】的重力(别的形态请继续用 P.gravity) */
+export function cubeGravityOf(speedIdx: number): number {
+  return SPEED_CUBE_GRAVITY[speedIdx] ?? SPEED_CUBE_GRAVITY[1];
+}
+
 /** 初速 v 的一次起跳(平地出发)的滞空时间(秒)。★上升不夹终端速度 */
 export const airtimeOf = (v: number): number => (2 * v / (P.gravity * Y_TIME_SCALE)) / 60;
 

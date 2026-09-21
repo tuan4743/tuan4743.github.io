@@ -7,8 +7,8 @@
  * 坐标:一律用 GD 口径的【单位】(1 块 = 30 单位),x 向右、y 向上,玩家 (x,y) 是【左下角】。
  */
 
-import { P, U, Y_TIME_SCALE, vxOf, arcSpan, ORB, PAD } from './constants.ts';
-import { hitboxOf, GD_SAW_BASE } from './gdids.ts';
+import { P, U, Y_TIME_SCALE, vxOf, arcSpan, ORB, PAD, jumpOf, cubeGravityOf } from './constants.ts';
+import { hitboxOf, circleRadiusOf, GD_SPEC } from './gdids.ts';
 import type { Level, Mode, Obj } from './level.ts';
 
 /** 每个物理子步最多走多少单位。最薄的实心是 468 线框(1.5 单位厚),取 1.2 < 1.5 ——
@@ -49,6 +49,10 @@ export interface RunState {
 }
 
 interface Box { x0: number; x1: number; y0: number; y1: number; o: Obj }
+
+/** ★ 圆形危险物(锯片族):cx/cy 是【圆心】(= 物件中心),r 是半径(单位)。
+ *  box 是它的外接矩形,只给"机器人看危险物"那类粗判据用 —— 判定本身走圆。 */
+export interface CircleHazard { cx: number; cy: number; r: number; box: Box; o: Obj }
 
 /** World 的可存档状态(搜索式机器人:回放、试验、回退都靠它) */
 export interface WorldSnap {
@@ -102,7 +106,12 @@ export class World {
   readonly arrows: Box[] = [];      // 冲刺箭头 / 紫色上跳箭头
   readonly clones: Box[] = [];      // 克隆门(只标记,不生效)
   readonly floors: Box[] = [];      // 平台/地面:只从上面接住,不致死
-  readonly hazards: Box[] = [];     // 尖刺
+  readonly hazards: Box[] = [];     // 尖刺(矩形判定)
+  /* ★★ 圆形判定(锯片族):圆心 = 物件中心,半径查 gdids.GD_HITBOX_RADIUS。
+     出处 OpenGD playlayer.cpp:1491-1503 —— 有 `_radius` 的物件走 intersectsCircle,
+     没半径的才走矩形。以前我们拿 `_pHitboxes` 的矩形当锯齿判定(还把缩放乘上去),
+     竖直方向大了一倍多,整关"该过的缝"全被吃掉。 */
+  readonly circles: CircleHazard[] = [];
   readonly portals: Box[] = [];
   readonly speeds: Box[] = [];
   readonly gravs: Box[] = [];
@@ -132,10 +141,10 @@ export class World {
    *  理由见文件头 FLIP_VEL_MUL 那段(关卡 A/B 实测 + 版本 + 手感三条)。
    *  只给【定点实验】用:想知道某一段按另一边才过得去,就设成 1.75 再搜一遍。 */
   flipMul = FLIP_VEL_MUL;
-  /** ★ 定点实验:锯片判定盒用【不缩放的基础尺寸】(默认 false = 跟着缩放走)。
-   *  本关 x=1052.4 那个 scale=1.5 的锯片,判定盒高 4.3 块(缩放后);而波浪段要求
-   *  "从它上面贴着过"的门缝只有 0.15 块 —— 打开这个开关等于问一句
-   *  "原版到底把判定盒放大了没有"(见 HANDOVER §13.15 的 A/B)。 */
+  /** ★ 定点实验:圆判定的半径【不乘缩放】(默认 false = 跟着缩放走,和贴图一致)。
+   *  证据:OpenGD 的 `_radius` 从表里取来之后没有再乘缩放(playlayer.cpp:380、1494);
+   *  但整个引擎的判定盒(矩形那套)是乘缩放的(gameobject.cpp:766 的 tr.scale),
+   *  锯片贴图放大却判定不变说不过去 —— 所以默认乘,`--sawbase=1` 走 OpenGD 原样。 */
   sawUnscaled = false;
   speedIdx = 1;
   dead = false; done = false; deadT = 0;
@@ -227,17 +236,36 @@ export class World {
           break;
         }
         case 'saw': {
-          /* 锯片:原版 1705 → 85×44(2.8×1.5 格)、1706 → 60×60 —— 都走表。
-             ★ 定点实验旋钮 `sawUnscaled`:贴图外框是【基础尺寸 × 缩放(128/129)】,
-               但"原版会不会把判定盒也一起放大"这一点没有直接证据。打开它 = 判定盒
-               用【不缩放的基础尺寸】并以物件中心对齐(见下面的注释与 HANDOVER §13.15)。 */
-          let box = hbBox(o) ?? b;
-          if (this.sawUnscaled) {
-            const [bw, bh] = GD_SAW_BASE;
-            const cx = (o.b + o.w / 2) * U, cy = (o.r + o.h / 2) * U;
-            box = { x0: cx - bw / 2, x1: cx + bw / 2, y0: cy - bh / 2, y1: cy + bh / 2, o };
+          /* ★★ 锯片的判定是【圆】,不是矩形 —— 这是"波浪贴着方块门下沿过"的钥匙。
+             出处:OpenGD `LongData.cpp:461` 的 `_pHitboxRadius`(半径表)
+                  + `playlayer.cpp:1491-1503`(有半径的走 intersectsCircle,没半径的才走矩形)。
+             以前用 `_pHitboxes` 的 85x44 矩形再乘缩放(危险盒顶部 23.65),圆只有 23.14;
+             再叠上"旧代码拿玩家内框判、新代码按原版拿外框判",中心门槛从 23.78 降到 23.64 ——
+             看着只差 0.14 块,但方块跳坑的净空需求从 10.0 帧变成 16.1 帧(窗口 13.4 帧),
+             于是这段从"差一点点就无解"变成"留 2.7 帧余量"。
+             ★ 半径乘缩放(和矩形那套一致);`--sawbase=1` 走 OpenGD 的不缩放原样。
+             ★ 表里查不到半径的锯片(自铺面的合成关卡)退回原来的包围盒矩形。 */
+          const cx = (o.b + o.w / 2) * U, cy = (o.r + o.h / 2) * U;
+          /* 半径来源:①铺面里存好的 rad/rad0;②只有 id 时现算(缩放 = 物件 w/h ÷ 表里的基础 w/h)。
+             两条路都要有:紧凑铺面文本会带上 id,手搭的合成关卡只写 id。 */
+          let base = o.rad0 ?? null, scaled = o.rad ?? null;
+          if (base == null && o.id != null) {
+            base = circleRadiusOf(o.id);
+            if (base != null) {
+              const spec = GD_SPEC[o.id];
+              const sx = spec?.w ? o.w / spec.w : 1, sy = spec?.h ? o.h / spec.h : 1;
+              scaled = base * (Math.abs(sx) + Math.abs(sy)) / 2;
+            }
           }
-          this.hazards.push(box);
+          if (base != null || scaled != null) {
+            const r = this.sawUnscaled ? (base ?? scaled!) : (scaled ?? base!);
+            this.circles.push({
+              cx, cy, r, o,
+              box: { x0: cx - r, x1: cx + r, y0: cy - r, y1: cy + r, o },
+            });
+            break;
+          }
+          this.hazards.push(b);
           break;
         }
         case 'portal': this.portals.push(hbBox(o) ?? b); break;
@@ -272,7 +300,7 @@ export class World {
        ★ 一个物件挂几个盒子,这里就记几份(线框以前会展开成好几根杆)。
          现在线框的判定也回到"整格一个盒子",所以通常是一物一盒。 */
     const boxesOf = new Map<Obj, Box[]>();
-    for (const list of [this.solids, this.floors, this.hazards, this.orbs, this.pads, this.forces, this.pits, this.coins, this.arrows]) {
+    for (const list of [this.solids, this.floors, this.hazards, this.orbs, this.pads, this.forces, this.pits, this.coins, this.arrows, this.circles.map((c) => c.box)]) {
       for (const b of list) {
         const arr = boxesOf.get(b.o);
         if (arr) arr.push(b); else boxesOf.set(b.o, [b]);
@@ -327,6 +355,7 @@ export class World {
         solids: new XIndex(this.solids), floors: new XIndex(this.floors), hazards: new XIndex(this.hazards),
         pads: new XIndex(this.pads), orbs: new XIndex(this.orbs), coins: new XIndex(this.coins),
         arrows: new XIndex(this.arrows),
+        circles: new XIndex(this.circles.map((c) => c.box)),
       };
       for (const k of Object.keys(this.idx)) this.win[k] = [];
     }
@@ -342,6 +371,7 @@ export class World {
   get nearOrbs(): Box[] { return this.fast ? this.win.orbs : this.orbs; }
   get nearCoins(): Box[] { return this.fast ? this.win.coins : this.coins; }
   get nearArrows(): Box[] { return this.fast ? this.win.arrows : this.arrows; }
+  get nearCircles(): Box[] { return this.fast ? this.win.circles : this.circles.map((c) => c.box); }
 
   private rebuildWindow() {
     const idx = this.idx;
@@ -748,7 +778,10 @@ export class World {
          起跳会消耗掉这次按键,所以"按着不放"串不起跳环(和原作一致)。
          机器人起跳只有普通的一半,但按住不放可以"抵消重力"一段时间(浮着走)。 */
       if (hold && this.onGround) {
-        const power = this.mode === 'robot' ? P.jump * P.robotJumpMul : P.jump;
+        /* ★ 起跳初速按速度档查表(gdp master updateTimeMod.cpp:8-26 的 m_yStart)——
+           以前固定用 11.1800318,在 0.7 档上差 5%(10.62)、1.1 档差 2%(11.42)。 */
+        const power = this.mode === 'robot'
+          ? jumpOf(this.speedIdx) * P.robotJumpMul : jumpOf(this.speedIdx);
         this.vy = power * this.gdir;
         this.onGround = false;
         this.pressFresh = false;
@@ -762,7 +795,9 @@ export class World {
            以前这里漏了:机器人掉得和方块一样快(用户:"各形态的性能也必须还原")。 */
         if (!floating) this.vy -= P.gravity * P.robotGravityMul * this.gdir * sY;   // 浮着的时候重力被抵消
       } else {
-        this.vy -= P.gravity * this.gdir * sY;
+        /* ★ 方块的重力也是【按速度档查表】的 m_gravity(updateTimeMod.cpp:8-26);
+           其它形态(球/蜘蛛/飞船/UFO/波浪)用固定 0.958199 —— 见 constants 里那张表的注释。 */
+        this.vy -= cubeGravityOf(this.speedIdx) * this.gdir * sY;
       }
       /* ★ 终端速度只夹【下落】方向(原作在 falling 分支里夹):
          所以黄弹簧的 16 能原样生效,峰值才有 4.45 块,而不是被夹到 3.9。
@@ -889,6 +924,20 @@ export class World {
       const inn = this.inner();
       for (const hz of this.nearHazards) {
         if (inn.x1 > hz.x0 && inn.x0 < hz.x1 && inn.y1 > hz.y0 && inn.y0 < hz.y1) { this.die(); return; }
+      }
+    }
+
+    /* --- 锯片族(圆形判定):★ 用【外框】判 —— 出处 OpenGD playlayer.cpp:1494-1502
+     *     `if (hazard->_radius > 0) playerOuterBounds.intersectsCircle(圆心, 半径)`
+     *     圆心 = 物件中心,半径 = GD_HITBOX_RADIUS × 缩放(存的是它的外接方框,见 circles)。
+     *     判定 = 圆心到【外框】的最近距离 < 半径。 */
+    if (this.circles.length) {
+      const out = this.outer();
+      for (const b of this.nearCircles) {
+        const cx = (b.x0 + b.x1) / 2, cy = (b.y0 + b.y1) / 2, r = (b.x1 - b.x0) / 2;
+        const dx = cx < out.x0 ? out.x0 - cx : (cx > out.x1 ? cx - out.x1 : 0);
+        const dy = cy < out.y0 ? out.y0 - cy : (cy > out.y1 ? cy - out.y1 : 0);
+        if (dx * dx + dy * dy < r * r) { this.die(); return; }
       }
     }
 
@@ -1353,7 +1402,7 @@ export function botThink(w: World): boolean {
      内框左缘在 x + innerOff 处,所以起跳后它能前进的距离 = 一跳跨度 − innerOff − 余量。
      ★ 跨距必须跟着【当前速度档】走:速度越快,同样的滞空时间跑得越远。
        老版本这里写死了常速的跨距,在 1.24 倍速那段就会早跳(level.ts 的图案几何也用同一条公式)。 */
-  const span = arcSpan(P.jump, w.speedIdx) * U;
+  const span = arcSpan(jumpOf(w.speedIdx), w.speedIdx) * U;
   const reach = span - w.innerOff - 6;
   /* 跳环:空中二段跳要按一下 —— 而且必须是【新的一下】(按住不放串不起环,和原作一致)。
      环在眼前、高度又对得上时:手上有"没用掉的一下"就按着,没有就先松一帧再按。
@@ -1366,7 +1415,9 @@ export function botThink(w: World): boolean {
     return w.pressFresh ? true : !w.prevHold;
   }
   let best: { x0: number; x1: number } | null = null;
-  for (const o of [...w.nearHazards.filter((h) => h.y0 < 2 * U), ...w.nearSolids.filter((s) => s.y1 <= 2 * U)]) {
+  for (const o of [...w.nearHazards.filter((h) => h.y0 < 2 * U),
+    ...w.nearCircles.filter((h) => h.y0 < 2 * U),
+    ...w.nearSolids.filter((s) => s.y1 <= 2 * U)]) {
     /* ★ "已经过去了"要按【内框】判:危险判定框的右边缘一旦退到内框左缘后面,就真的踩不到了。
        按外框判(老写法)会让机器人为一根刚过去 0.3 块的刺按住不放,落地瞬间被动起跳,
        而那一跳的落点正好压在下一个障碍上 —— 实测就是这么死的。 */

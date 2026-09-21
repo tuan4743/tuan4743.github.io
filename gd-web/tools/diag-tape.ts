@@ -55,6 +55,6 @@ for (const o of a.order) {
   const what = o.kind === 'portal' ? '→' + o.to
     : o.kind === 'speed' ? 'speed=' + o.speed
       : o.kind === 'gravity' ? 'gdir=' + o.gdir
-        : o.kind === 'size' ? 'size=' + o.size : '';
+        : o.kind === 'size' ? 'size=' + (o.mini === false ? 'normal' : 'mini') : '';
   console.log('  b=' + o.b.toFixed(2).padStart(8) + '  ' + o.kind.padEnd(8) + what.padEnd(12) + ok);
 }

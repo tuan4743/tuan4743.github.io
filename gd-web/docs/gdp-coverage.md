@@ -191,8 +191,11 @@
     `gdp\...Internal.cpp:219,281-291,394-420`。我们每次只处理当帧的方块。
 14. **`isSafeFlip` / `isSafeMode`(天花板/地面受限区的安全翻转判定)**
     `checkCollisions.cpp:79,113,460`。没有对应实现。
-15. **`objectIntersectsCircle` + `_radius`(圆形判定物件,锯片族)**
-    `checkCollisions.cpp:175,445`;`longdata.cpp:465` `_pHitboxRadius`(1705→32.3、1706→21.6)。我们的锯片是**方盒**(`gdids.ts:61-65,170-172`)。
+15. ~~**`objectIntersectsCircle` + `_radius`(圆形判定物件,锯片族)**~~
+    **✅ 2026-09 已补齐**:`gdids.ts` 的 `GD_HITBOX_RADIUS`(照抄 `longdata.cpp:461-466`)+
+    `world.ts` 的 `circles` / 死亡判定"玩家**外框** vs 圆"(出处 OpenGD `playlayer.cpp:1491-1503`:
+    有半径的走 `intersectsCircle`,没半径的才走矩形)。本关 552 个锯片(1705×550、1706×2)全部走圆;
+    见 HANDOVER §13.18。**剩下的**:玩家侧 `spikes` 仍用内框(原版危险物统一用外框,见 §13.11 待办)。
 16. **`usesOrientedBox` / `OBB2D::overlaps1Way`(旋转物件的定向包围盒)**
     `checkCollisions.cpp:177-182,447-449`。我们一律轴对齐盒,旋转只做宽高对调。
 17. **`isUnloaded` / `toggledOff` / 分组禁用(`getGroupDisabled`)**
@@ -241,8 +244,9 @@
    原版 286/287 有真实判定盒 `{91,41,-20.5,-45.5}`(`longdata.cpp:185-186`)和克隆/回收逻辑,我们完全跳过。
 10. **`check` 存档点判定盒 `[30,30]`** — `gdids.ts:74,215`
     `longdata.cpp` 里**没有 2063**(它是 2.2 物件)。这个 30×30 是猜的。
-11. **`saw` 判定 = 自身包围盒** — `gdids.ts:61-65,85,170-172`
-    原版有 `1705→85×44`、`1706→60×60` 的表值(`longdata.cpp:388-389`),外加 `_pRadius` 的**圆形判定**(`:465`)。我们放弃了表值改用自己的缩放包围盒(注释 `gdids.ts:61-63` 承认是"不再用固定的 44×85")。
+11. ~~**`saw` 判定 = 自身包围盒**~~ — **✅ 2026-09 已按原版改正**:`gdids.ts` 的 `saw` 只用于**画法**,
+    判定走 `GD_HITBOX_RADIUS`(1705→32.3 单位 = 1.077 块、1706→21.6)+ 缩放,圆心 = 物件中心;
+    `_pHitboxes` 的 `1705→85×44`(`longdata.cpp:388`)是**贴图外框**,不再当判定用。见 HANDOVER §13.18。
 12. **`miniTriggerMul` 的作用域** — `world.ts:1024,1031`
     ×0.8 在 GD 里只在通用跳环支(`ringJump.cpp:116`),我们对**黑环也乘**。
 13. **`ball` 在弹簧/黑环上的 ×0.6 / ×0.7** — `world.ts:1047`(弹簧 ✓)、**黑环缺 ×0.7**(`ringJump.cpp:127-130`);`constants.ts:1033-1046` 的注释里**同一条规则写了两遍、结论相反**(第一段说"球不打折 16",第二段说"维持 0.6"),这是代码里唯一自相矛盾的地方。
