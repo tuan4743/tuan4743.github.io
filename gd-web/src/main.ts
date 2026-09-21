@@ -732,26 +732,29 @@ class Scene extends Phaser.Scene {
    *  ③ 像素预算:太宽就整体缩一档(等比缩,比例不变),别让填充率拖垮帧率。 */
   private measureFrac() {
     const cv = document.getElementById('gd-canvas') as HTMLCanvasElement | null;
-    /* ★★ 长宽比一律用【窗口】算,不用 canvas / 父容器的 rect ——
-       它们里面装着 canvas,量出来是"上一次的结果",会自我循环(实测:窄窗口下越量越扁,
-       缓冲被算成 316×3643 那种怪物)。窗口尺寸是外部真值,不会循环。 */
-    const winW = Math.max(1, window.innerWidth);
-    const winH = Math.max(1, window.innerHeight);
-    /* 竖屏/极窄:按至少 1.2:1 渲染(两侧留黑),不然横向只剩两三个方块,根本没法玩 */
-    const aspect = Math.max(1.2, winW / winH);
+    /* ★★ 量【舞台】(#gd-canvas 的宿主 .lost-stage),不是窗口、也不是 canvas 自己:
+       量 canvas 会自我循环;量窗口在"页面里画布只占一块"的版式下会算大(实测 150 宽窗口下
+       算出的画布只有 52×43 —— 用户看到的就是"啥都没有")。
+       画布在 applyViewport 里被设成 position:absolute,不再影响宿主尺寸 ⇒ 量宿主是稳的。 */
+    const host = (document.querySelector('.lost-stage') as HTMLElement | null)
+      ?? (cv?.parentElement as HTMLElement | null);
+    const rw = Math.max(1, host?.clientWidth || window.innerWidth);
+    const rh = Math.max(1, host?.clientHeight || window.innerHeight);
+    /* 缓冲比例 = 宿主比例(上下限兜一下极端值),这样画布铺满宿主也不会被拉伸变形 */
+    const aspect = Math.max(0.25, Math.min(4, rw / rh));
     let h = Math.round(720 * RENDER_SCALE);
     let w = Math.round(h * aspect);
+    if (w < 320) { w = 320; h = Math.max(200, Math.round(320 / aspect)); }
     const px = w * h;
-    if (px > BUF_BUDGET) {                       // 太宽就整体缩一档(等比,比例不变)
+    if (px > BUF_BUDGET) {                       // 太宽/太高就整体缩一档(等比,比例不变)
       const k = Math.sqrt(BUF_BUDGET / px);
-      h = Math.max(240, Math.round(h * k));
-      w = Math.max(320, Math.round(w * k));
+      h = Math.max(180, Math.round(h * k));
+      w = Math.max(240, Math.round(w * k));
     }
     this.viewH = h;
     this.bufW = w;
     this.viewFrac = 1;
     this.viewTop = 0;
-    void cv;
   }
 
   /** 可见宽度 = 由 VIEW_H_BLOCKS 与画幅比例决定;取景框只覆盖"露出来的那一条" */
@@ -1303,23 +1306,15 @@ class Scene extends Phaser.Scene {
        以前无条件写 100%×100%:外框比例和缓冲比例不一致时,浏览器替我们"拉伸",
        看起来就是画面偏到左上角 + 方块变长方形(用户实测的"整体偏移")。 */
     if (cv) {
-      /* 画布按缓冲的比例放进外框(装不下就留黑边)并居中 */
-      const host = (cv.parentElement ?? cv) as HTMLElement;
-      const rw = Math.max(1, host.clientWidth || window.innerWidth);
-      const rh = Math.max(1, host.clientHeight || window.innerHeight);
-      const aspect = this.bufW / this.viewH;
-      let dw = rw, dh = rh;
-      if (rw / rh > aspect) dw = rh * aspect; else dh = rw / aspect;
-      /* ★★ 必须用 setProperty(..., 'important'):
-         页面 CSS 里为了压住 Phaser 写的行内样式,有 `width/height: 100% !important` ——
-         普通行内样式会被它盖掉(实测:画布永远等于外框 2.0:1,而缓冲是窗口比例,于是又错开了)。
-         行内 + important 的优先级高于样式表 + important,这样才是我们说了算 ✓ */
-      cv.style.setProperty('width', Math.round(dw) + 'px', 'important');
-      cv.style.setProperty('height', Math.round(dh) + 'px', 'important');
+      /* ★★ 画布【铺满宿主】:buffer 的比例已经等于宿主比例(见 measureFrac)⇒ 铺满也不会变形,
+         而且不会像"按比例往里缩"那样缩成一小块(上一版就是这么把画面缩成 52×43 的 ✗)。
+         用 setProperty(...,'important') 压过页面 CSS 里那句 width/height:100% !important。 */
+      cv.style.setProperty('width', '100%', 'important');
+      cv.style.setProperty('height', '100%', 'important');
       cv.style.position = 'absolute';
-      cv.style.left = '50%';
-      cv.style.top = '50%';
-      cv.style.transform = 'translate(-50%, -50%)';
+      cv.style.left = '0';
+      cv.style.top = '0';
+      cv.style.transform = 'none';
     }
     cam.setViewport(0, 0, this.bufW, this.viewH);
     cam.setSize(this.bufW, this.viewH);
