@@ -78,6 +78,10 @@ export const GD_HITBOX: {
   block: [30, 30],
 };
 
+/** 锯片的【基础判定盒】(单位,不乘缩放)。定点实验用:原版到底会不会把判定盒一起放大,
+ *  缺直接证据 —— 见 world.ts 的 `sawUnscaled` 与 HANDOVER §13.15。 */
+export const GD_SAW_BASE: [number, number] = [GD_HITBOX.saw[0], GD_HITBOX.saw[1]];
+
 /** 取某个物件的原版判定盒(单位);表里没有的返回 null(调用方按原来的几何算) */
 export function hitboxOf(o: Obj): [number, number] | null {
   switch (o.kind) {

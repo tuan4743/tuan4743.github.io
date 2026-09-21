@@ -170,6 +170,14 @@ for (let i = 0; i < stations.length; i++) {
         { tag: '前沿聚焦放宽 window=80', extra: ['--window=80', '--startfrom=' + BEST + ',' + Math.max(5, seedX - 60).toFixed(1)] },
         { tag: '勤重启 phase=18s', extra: ['--phase=18', '--startfrom=' + BEST + ',' + Math.max(5, seedX - 60).toFixed(1)] },
         { tag: '长视界 44 块', extra: ['--horizon=44', '--startfrom=' + BEST + ',' + Math.max(5, seedX - 90).toFixed(1)] },
+        /* ★ 第三批:专治"门缝只有零点几块"的卡点(x=1060 的 robot 门就是):
+           · 关宏落子 —— 宏一动就跳几十帧,缝隙里的时机根本没法微调;
+           · step=1 束宽 16 —— 每一帧都能改主意;
+           · 关掉"久不推进就回退"—— 回退阶梯在这种地方是反效果:它会把前沿一路砍回
+             一百多块之前(实测砍到 x=760),搜索又从头摸一遍;
+           · 接近容差压到 0.1 块 —— 让"贴着门缝"和"差半块"在分数上真的分得开。 */
+        { tag: '★ 缝隙模式:无宏 + step1 + 不回退', extra: ['--step=1', '--beam=16', '--macro=0', '--rewindafter=999999', '--startfrom=' + BEST + ',' + Math.max(5, seedX - 14).toFixed(1)] },
+        { tag: '★ 缝隙模式 + 容差 0.1', extra: ['--step=1', '--beam=16', '--macro=0', '--rewindafter=999999', '--pulltol=0.1', '--startfrom=' + BEST + ',' + Math.max(5, seedX - 20).toFixed(1)] },
       ] : []),
     ]
     : [{ tag: '', extra: [] }];

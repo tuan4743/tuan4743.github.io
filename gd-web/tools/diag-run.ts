@@ -46,7 +46,7 @@ const overlapped = (): string[] => {
 
 const w = new World(WATER_CHART);
 w.windowed = true;
-w.x = X * U; w.y = Y * U; w.vy = 0; w.onGround = true;
+w.x = X * U; w.y = Y * U; w.vy = Number(process.argv[10] ?? 0) * U; w.onGround = true;
 w.mode = MODE; w.gdir = GDIR; w.speedIdx = SPEED;
 w.checkX = w.x; w.checkY = w.y;
 

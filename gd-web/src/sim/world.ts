@@ -8,7 +8,7 @@
  */
 
 import { P, U, Y_TIME_SCALE, vxOf, arcSpan, ORB, PAD } from './constants.ts';
-import { hitboxOf } from './gdids.ts';
+import { hitboxOf, GD_SAW_BASE } from './gdids.ts';
 import type { Level, Mode, Obj } from './level.ts';
 
 /** 每个物理子步最多走多少单位。最薄的实心是 468 线框(1.5 单位厚),取 1.2 < 1.5 ——
@@ -132,6 +132,11 @@ export class World {
    *  理由见文件头 FLIP_VEL_MUL 那段(关卡 A/B 实测 + 版本 + 手感三条)。
    *  只给【定点实验】用:想知道某一段按另一边才过得去,就设成 1.75 再搜一遍。 */
   flipMul = FLIP_VEL_MUL;
+  /** ★ 定点实验:锯片判定盒用【不缩放的基础尺寸】(默认 false = 跟着缩放走)。
+   *  本关 x=1052.4 那个 scale=1.5 的锯片,判定盒高 4.3 块(缩放后);而波浪段要求
+   *  "从它上面贴着过"的门缝只有 0.15 块 —— 打开这个开关等于问一句
+   *  "原版到底把判定盒放大了没有"(见 HANDOVER §13.15 的 A/B)。 */
+  sawUnscaled = false;
   speedIdx = 1;
   dead = false; done = false; deadT = 0;
   attempts = 1;
@@ -157,8 +162,11 @@ export class World {
   private armedArrows = new Set<Box>();
   private armedTriggers = new Set<Box>();
 
-  constructor(level: Level, startX?: number, startY?: number) {
+  constructor(level: Level, startX?: number, startY?: number, opts?: { sawUnscaled?: boolean }) {
     this.level = level;
+    /* ★ 定点实验开关必须在【建判定盒之前】生效 —— 锯片的盒子是构造时算好的,
+       参数化之后再打开开关是没用的(踩过:--sawbase=1 一度完全没起作用)。 */
+    this.sawUnscaled = !!opts?.sawUnscaled;
     const st = level.start;                       // 出生点(物件 31):不传就按铺面标的来
     if (startX == null) startX = (st?.b ?? 0) * U;
     if (startY == null) startY = (st?.r ?? 0) * U;
@@ -219,8 +227,17 @@ export class World {
           break;
         }
         case 'saw': {
-          /* 锯片:原版 1705 → 85×44(2.8×1.5 格)、1706 → 60×60 —— 都走表 */
-          this.hazards.push(hbBox(o) ?? b);
+          /* 锯片:原版 1705 → 85×44(2.8×1.5 格)、1706 → 60×60 —— 都走表。
+             ★ 定点实验旋钮 `sawUnscaled`:贴图外框是【基础尺寸 × 缩放(128/129)】,
+               但"原版会不会把判定盒也一起放大"这一点没有直接证据。打开它 = 判定盒
+               用【不缩放的基础尺寸】并以物件中心对齐(见下面的注释与 HANDOVER §13.15)。 */
+          let box = hbBox(o) ?? b;
+          if (this.sawUnscaled) {
+            const [bw, bh] = GD_SAW_BASE;
+            const cx = (o.b + o.w / 2) * U, cy = (o.r + o.h / 2) * U;
+            box = { x0: cx - bw / 2, x1: cx + bw / 2, y0: cy - bh / 2, y1: cy + bh / 2, o };
+          }
+          this.hazards.push(box);
           break;
         }
         case 'portal': this.portals.push(hbBox(o) ?? b); break;

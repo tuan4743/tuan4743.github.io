@@ -63,7 +63,10 @@ const DBG = arg('dbg', '0') === '1';        // --dbg=1:每次存盘打印"选中
 let dbgW: World | null = null;              // --dbg 用的替身世界(见 saveBest 里的说明)
 const lv: Level = WANT === 'gen' ? generateLevel({ seed: 20260913 }) : WATER_CHART;
 
-const w = new World(lv);
+/* --sawbase=1 —— 锯片判定盒用【不缩放的基础尺寸】(定点实验:原版会不会把判定盒一起放大)。
+   ★ 必须传进构造函数:锯片的判定盒是构造时算好的,建完再改字段没用。 */
+const w = new World(lv, undefined, undefined, { sawUnscaled: arg('sawbase', '0') === '1' });
+if (w.sawUnscaled) console.log('锯片判定盒:不缩放(基础尺寸)');
 w.windowed = true;                    // 窗口裁剪:搜索要回放上千万帧,必须裁
 /* --padmul=N —— 弹簧/跳环力度微调(和页面上的 [ / ] 同一个旋钮),用来做定点实验:
    "这一段到底要多大力度才过得去"比"猜一个常数"靠谱得多。 */
@@ -74,6 +77,7 @@ if (PADMUL !== 1) { w.padMul = PADMUL; console.log('弹簧力度 ×' + PADMUL); 
    (源冲突:gdp@2.11 `flipGravity.cpp:19 m_yAccel *= 1.75` vs OpenGD `playerobject.cpp:540 m_dYVel /= 2`。) */
 const FLIPMUL = Number(arg('flipmul', 0));
 if (FLIPMUL > 0 && FLIPMUL !== w.flipMul) { w.flipMul = FLIPMUL; console.log('翻重力速度倍率 ×' + FLIPMUL); }
+/* --sawbase 见上面新建 World 的地方(必须走构造函数) */
 
 /* ---------------- ★ 不许跳过事件门(否则搜出来的"通关"是飞过去的,证明不了任何东西) ----------------
  * 踩过的坑:第一版搜索报"通关",可回放一看 —— 玩家在第 2000 帧左右进了 UFO,
@@ -200,6 +204,8 @@ function constraintOk(): boolean {
  *   翻着重力的 UFO、在 y≈16 一路飞 —— 60 块的窗口来不及把它压回门口高度,搜索卡在 333.3;
  *   改成 120 块同一段直接过到 340.1。慢速/纵向落差大的段落需要更早开始"往门口凑"。 */
 const APPROACH = Number(arg('approach', 120)) * U;
+/** 朝门口靠拢那条启发留的纵向容差(块)。见 portalPull 里的说明:0.5 是"门缝很窄"的段落需要的粒度。 */
+const PULLTOL = Number(arg('pulltol', 0.5));
 function vertGap(u: { y0: number; y1: number }, b: { y0: number; y1: number }): number {
   return Math.max(0, Math.max(b.y0 - u.y1, u.y0 - b.y1));
 }
@@ -229,7 +235,12 @@ function portalPull(): number {
      (线性权重实测不够:掉下塔的前缀照样以 556 分排在"留在塔上"的 551 分前面,
       于是搜索一路沿着地面路线走到死胡同 x=607,而那个 UFO 门挂在 y=23。) */
   const gap = vertGap({ x0: w.x, x1: w.x + w.box, y0: w.y, y1: w.y + w.box }, next);
-  const gapB = Math.max(0, gap / U - 2);
+  /* ★ 容差(默认 0.5 块)—— 以前是 2 块,那是为了"别把'就在门口附近差一点'的路罚得太狠"。
+     可到了"门缝只有零点几块"的地方,2 块容差等于【梯度是平的】:
+     实测 x=1060 的 robot 门(盒 y[22.07,24.93]),玩家在 y=25 和 y=26 拿到的扣分【都是 0】,
+     搜索完全没有"往下贴"的动力 —— 而它需要的是精确到 0.3 块的高度。
+     现在默认 0.5;`--pulltol=N` 还能调(整关搜索那种"只求大致对齐"的场合可以放大)。 */
+  const gapB = Math.max(0, gap / U - PULLTOL);
   return Math.min(gapB * gapB * 2, 900) * U;
 }
 
@@ -505,7 +516,7 @@ if (!heap.length) {
     w.resetToStart();
     if (startAt) {
       /* 半路起搜:把人放到指定位置/形态(诊断用)。y 用块、x 用块。 */
-      w.x = startAt[0] * U; w.y = startAt[1] * U; w.vy = 0; w.onGround = false;
+      w.x = startAt[0] * U; w.y = startAt[1] * U; w.vy = Number(arg('startvy', 0)) * U; w.onGround = false;
       w.mode = (arg('startmode', 'cube') as typeof w.mode);
       w.speedIdx = Number(arg('startspeed', 1));      // 诊断用:指定速度档(0 最慢 … 4 最快)
       w.gdir = Number(arg('startgdir', 1)) < 0 ? -1 : 1;   // 诊断用:指定重力方向(反重力段要它)
