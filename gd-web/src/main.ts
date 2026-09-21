@@ -253,13 +253,19 @@ class Scene extends Phaser.Scene {
       case 'pad': return o.pad ? (o.pad === 'purple' ? null : 'pad_' + o.pad) : null;
       case 'check': return 'checkpoint';
       case 'coin': return 'coin';
+      /* 砖块:用户口径"砖块用第一版" = block001 那套。同一套 7 块是原版按邻居自动拼的,
+         位置对应关系 plist 里没有(要从像素上推,工具里那一步先没做出来)⇒ 先用其中一块平铺,
+         视觉上等价于以前的矢量方块(每格一块),等拼接表做出来再换。 */
+      case 'block': return 'block4';
+      /* 跳环:用户口径"环除了颜色没区别,除了绿环和黑环" ⇒ 一张底图染色,绿环单独用 gravJumpRing */
+      case 'orb': return o.orb === 'green' ? 'ringGreen' : 'ringY';
       case 'spike': return o.id === 39 ? 'spike02' : o.id === 103 ? 'spike03' : o.id === 392 ? 'spike04' : 'spike01';
       default: return null;
     }
   }
 
   /** 取一个池子里的 Image 摆好;返回 false 表示这帧没画(调用方走矢量兜底) */
-  private drawArtObject(o: Obj, key: string, dx: number, dy: number, cwU: number, chU: number): boolean {
+  private drawArtObject(o: Obj, key: string, dx: number, dy: number, cwU: number, chU: number, tintCol = 0xffffff): boolean {
     const tex = this.textures.get('gd-art');
     const fr = tex && tex.has(key) ? tex.get(key) : null;
     if (!fr) return false;
@@ -271,7 +277,7 @@ class Scene extends Phaser.Scene {
     img.setVisible(true).setTexture('gd-art', key).setPosition(dx, dy);
     img.setRotation(((o.rot ?? 0) * Math.PI) / 180);
     img.setDisplaySize(fr.width * k, fr.height * k);
-    img.setTint(0xffffff);
+    img.setTint(tintCol);
     return true;
   }
   /** 验收用:update 被调了几次、Phaser 喂进来的 delta 是多少 */
@@ -1306,7 +1312,7 @@ class Scene extends Phaser.Scene {
       this.drawn++;
       /* ★ 有贴图的物件直接画贴图(锯片/弹簧板/存档点/硬币/刺),没贴图的走下面的矢量画法 */
       const artKey = this.artKeyOf(o);
-      if (artKey && this.drawArtObject(o, artKey, obx + obw / 2, oBot - obh / 2, obw, obh)) continue;
+      if (artKey && this.drawArtObject(o, artKey, obx + obw / 2, oBot - obh / 2, obw, obh, o.kind === 'block' ? tint : 0xffffff)) continue;
       switch (o.kind) {
         case 'platform':
           if (o.r < 0) {
