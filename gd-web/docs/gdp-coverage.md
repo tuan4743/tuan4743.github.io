@@ -108,7 +108,7 @@
 
 | # | gdp 里的规则 | 我们实现 | 判定 | 差在哪 |
 |---|---|---|---|---|
-| 57 | 危险物(刺/锯):玩家**内框**与 `loopObject->getObjectRect()` —— 即物件**外框**相交即死 (`checkCollisions.cpp:443-452`) | `world.ts:773-779` 内框 × 刺盒 | **一致** | — |
+| 57 | 危险物(刺/锯):`playerRect = player->getObjectRect()`(和实心碰撞**同一个** rect),然后 `(playerTouchesObject(playerRect, obj->getObjectRect()) && obj->hitboxRect <= 0) \|\| objectIntersectsCircle(player, obj)` (`checkCollisions.cpp:440-445`) | `world.ts` 刺走**内框** 7.5×7.5、锯片(圆)走**外框** 30×30 | **口径待定(已量化)** | 原文用的是**一个** rect,没说内/外;OpenGD 把危险物定成**外框**(`playlayer.cpp:1494-1502`)、内框留给实心交互。我们刺走内框 = 更宽松。**2026-09 量化过**:若改外框,当前自由路线多 55/2970 帧死亡(最深压进 0.31 块)、正规路线多 33/2271 帧,且两条卷子都会在第 18 帧(x=2.5,出生走廊那根吊刺)死掉。**决定:维持内框**——社区 mod「Accurate Hitboxes」的说明是"让危险判定尽量准,**可能让某些关卡变得不可能**",说明原版危险判定本身偏宽松;这条留 `--hazbox=outer` 做 A/B(见 `tools/hazbox-audit.ts`、HANDOVER §13.19) |
 | 58 | 刺的判定盒(id 8 `{12,6,-3,-6}`、39 `{5.6,6,-3,-2.8}`、103 `{7.6,4,-2,-3.8}`、392 `{4.8,2.6,-1.3,-2.4}`)(`longdata.cpp:30,50,93,225`) | `gdids.ts:54`;`world.ts:186-192` | **尺寸一致 / 锚点数值不同** | 宽高全对。原表 y 偏移为负 ⇒ 盒贴在格子**下沿**;我们以中心为心(`world.ts:147-155`)⇒ **刺盒整体上移 3 单位(0.1 格)**。刺 8:GD 盒 y∈[中心-6, 中心],我们 y∈[中心-3, 中心+3] |
 | 59 | 可破坏砖:`isBreakable` 走"摧毁而非死亡" (`world.ts:716-721` 对应 `gdp211 checkCollisions.cpp` 无专门支路,OpenGD 走 `collidedWithObject`) | `world.ts:715-721` 内框相交即碎 | **一致**(行为) | — |
 | 60 | 实心侧面撞死:内框 × `getObjectRect(0.3,0.3)` 再判死 (`gdp\...Internal.cpp:616-652`) | `world.ts:722,769` 内框相交即死 | **一致**(口径近似) | GD 最后一道是**缩到 0.3 的迷你盒**(9×9),我们直接用 7.5×7.5 内框。9×9 比 7.5×7.5 略宽 ⇒ GD 判死略更严 |

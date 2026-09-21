@@ -146,6 +146,16 @@ export class World {
    *  但整个引擎的判定盒(矩形那套)是乘缩放的(gameobject.cpp:766 的 tr.scale),
    *  锯片贴图放大却判定不变说不过去 —— 所以默认乘,`--sawbase=1` 走 OpenGD 原样。 */
   sawUnscaled = false;
+  /** ★ 定点实验:刺用【外框 30×30】判(默认 false = 内框 7.5×7.5)。
+   *  两份反编译在这一点上冲突,谁也没法一锤定音:
+   *    · gdp@2.11 `checkCollisions.cpp:440-445` —— 危险物用 `player->getObjectRect()`,
+   *      和实心碰撞【同一个盒子】;
+   *    · OpenGD `playlayer.cpp:1494-1502` —— 危险物用 `playerOuterBounds`(外框),
+   *      而它把内框留给实心交互(`playerobject.cpp:716,750,777`)。
+   *  我们现在的组合是"实心外框 + 刺内框"(两边各取了宽松的那一半),所以这条差值必须能量化:
+   *  用 `tools/hazbox-audit.ts` 数"改外框会多死多少帧"(当前自由路线:55/2970 帧,最深压进 0.31 块)。
+   *  `autoplay.ts --hazbox=outer` 打开。 */
+  hazBoxIsOuter = false;
   speedIdx = 1;
   dead = false; done = false; deadT = 0;
   attempts = 1;
@@ -171,11 +181,12 @@ export class World {
   private armedArrows = new Set<Box>();
   private armedTriggers = new Set<Box>();
 
-  constructor(level: Level, startX?: number, startY?: number, opts?: { sawUnscaled?: boolean }) {
+  constructor(level: Level, startX?: number, startY?: number, opts?: { sawUnscaled?: boolean; hazOuter?: boolean }) {
     this.level = level;
     /* ★ 定点实验开关必须在【建判定盒之前】生效 —— 锯片的盒子是构造时算好的,
        参数化之后再打开开关是没用的(踩过:--sawbase=1 一度完全没起作用)。 */
     this.sawUnscaled = !!opts?.sawUnscaled;
+    this.hazBoxIsOuter = !!opts?.hazOuter;
     const st = level.start;                       // 出生点(物件 31):不传就按铺面标的来
     if (startX == null) startX = (st?.b ?? 0) * U;
     if (startY == null) startY = (st?.r ?? 0) * U;
@@ -925,7 +936,7 @@ export class World {
 
     /* --- 尖刺:内框相交就死 --- */
     {
-      const inn = this.inner();
+      const inn = this.hazBoxIsOuter ? this.outer() : this.inner();
       for (const hz of this.nearHazards) {
         if (inn.x1 > hz.x0 && inn.x0 < hz.x1 && inn.y1 > hz.y0 && inn.y0 < hz.y1) { this.die(); return; }
       }
@@ -979,7 +990,7 @@ export class World {
         }
         this.armedPads.add(b);
         if (b.o.tp) this.spiderJump();                     // 紫色地面跳点:瞬移到头顶方块 + 翻重力
-        else if (b.o.pad) this.applyTrigger(PAD[b.o.pad]);
+        else if (b.o.pad) this.applyTrigger({ ...PAD[b.o.pad], isPad: true });
       }
     }
 
@@ -1214,7 +1225,8 @@ export class World {
    *  ★ 用【绝对赋值】而不是叠加:于是弹簧连的每一跳几何完全一样,
    *    玩家被第一根弹簧弹起来之后,会自动落进下一根弹簧 —— 这就是"弹簧连不用出手"的原理。
    *  ★ 重力的翻转时机分两种(反编译口径):蓝的"先给速度再翻",绿的"先翻再给速度"。 */
-  private applyTrigger(spec: { v: number; flip: 'none' | 'before' | 'after' | 'dash' }, consumePress = false) {
+  private applyTrigger(spec: { v: number; flip: 'none' | 'before' | 'after' | 'dash'; isPad?: boolean }, consumePress = false) {
+    const isPad = !!spec.isPad;
     let v = spec.v * this.triggerScale() * this.padMul;   // 迷你 ×0.8;padMul 是页面上的力度微调
     /* ★ 弹簧的球/蜘蛛折扣(原版 PlayerObject::propellPlayer:m_dYVel *= 0.6)——
        ★★ 但【球】这一档实测是错的,拿本关的几何一算就穿帮:
@@ -1231,7 +1243,14 @@ export class World {
            v = 16(不打折)→ 7.4 格,直接扎进那块线框,判死;
            v = 9.6(×0.6) → 2.5 格,正好落在它的顶面【容差 15 单位】里 → 按上面的"擦过"规则过去。
          所以这一档维持 0.6(和 OpenGD 的 propellPlayer 一致)。 */
-    if (this.mode === 'ball' || this.mode === 'spider') v *= 0.6;
+    /* ★★ 球/蜘蛛的 0.6 折扣【只给弹簧】,不给跳环 —— 这是两条不同的代码路径:
+         · 弹簧 `PlayerObject::propellPlayer`(gdp@2.11 `propellPlayer.cpp:8-10`):
+             m_yAccel = 16×力度×重力方向×(迷你?0.8:1.0),然后 `if (isBall||isSpider) *= 0.6`
+         · 跳环 `PlayerObject::ringJump`(gdp@2.11 `ringJump.cpp:115-130`):迷你的 0.8 一样有,
+           但球/蜘蛛的折扣是 ×0.7(不是 0.6),而且是在分颜色倍率【之后】才乘。
+       以前我们把 0.6 写在 applyTrigger 里 —— 于是球吃一次环要连挨 0.7 和 0.6 两刀(0.42),
+       比原版小 40%。现在 0.6 只留在弹簧那条调用上(`isPad`)。 */
+    if (isPad && (this.mode === 'ball' || this.mode === 'spider')) v *= 0.6;
     if (spec.flip === 'before') {
       this.vy = v * this.gdir;                    // 按【旧】重力方向给速度
       this.gdir = -this.gdir;                     // 然后才翻重力

@@ -487,6 +487,49 @@ test('锯片(真 ID 1705 + 缩放):判定是【圆】(半径查表),不是贴图
   assert.ok(oldNeed > TB + 0.5, '旧口径要求中心 > ' + oldNeed.toFixed(3) + ',人在 ' + (TB + 0.5).toFixed(2) + ' → 旧口径判死');
 });
 
+test('球吃环 ×0.7、吃弹簧 ×0.6 —— 两条路径的折扣【不能叠着乘】', () => {
+  /* 出处(gdp@2.11):
+     · 跳环 `ringJump.cpp:127-130`:`if (isBall || isSpider) { yAccel *= 0.7; isHolding = false; }`
+       —— 而且是在分颜色倍率【之后】乘,黄色环本身是 ×1.0。
+     · 弹簧 `propellPlayer.cpp:6-10`:`m_yAccel = 16×力度×重力方向×(迷你?0.8:1.0)`,然后球/蜘蛛 ×0.6。
+     以前我们把 0.6 写在两条路共用的 applyTrigger 里 → 球吃一个黄环只剩 11.18×0.7×0.6 = 4.7,
+     比原版的 7.83 小 40%。 */
+  const orbWorld = () => {
+    const w = new World(solo([
+      { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
+      { kind: 'orb', b: 2, r: 1, w: 1, h: 1, orb: 'yellow' },
+    ]));
+    w.reset(2 * U, 'ball', 1 * U);
+    w.vy = 0; w.onGround = false;
+    return w;
+  };
+  const o = orbWorld();
+  o.frame(true);
+  /* 注意:一帧里环先生效、后面 3 个子步还要吃重力,所以读到的数会比纯冲量小 0.2~0.5 */
+  assert.ok(Math.abs(o.vy) > 7.2 && Math.abs(o.vy) < 7.9,
+    '球吃黄环 ≈ jumpPower×0.7 = ' + (P.jump * 0.7).toFixed(3) + '(帧内还要落一点),实测 '
+    + Math.abs(o.vy).toFixed(3) + ';旧的"叠乘 0.6"只会有 ' + (P.jump * 0.7 * 0.6).toFixed(2));
+
+  const padWorld = (mode: 'ball' | 'cube') => {
+    const w = new World(solo([
+      { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
+      { kind: 'pad', b: 3, r: 0, w: 1, h: 1, pad: 'yellow' },
+    ]));
+    w.reset(0, mode, 0);
+    return w;
+  };
+  const p = padWorld('ball');
+  for (let i = 0; i < 400 && !p.dead && Math.abs(p.vy) < 1; i++) p.frame(false);
+  assert.ok(Math.abs(p.vy) > 8.9 && Math.abs(p.vy) < 9.7,
+    '球吃黄弹簧 = 16×0.6 = 9.6,实测 ' + Math.abs(p.vy).toFixed(3));
+
+  /* 方块吃同一根弹簧不打折 */
+  const c = padWorld('cube');
+  for (let i = 0; i < 400 && !c.dead && Math.abs(c.vy) < 1; i++) c.frame(false);
+  assert.ok(Math.abs(c.vy) > 15.3 && Math.abs(c.vy) < 16.05,
+    '方块吃黄弹簧 = 16,实测 ' + Math.abs(c.vy).toFixed(3));
+});
+
 test('黑环(冲刺):不管当前速度,直接把垂直速度设成 15 并朝重力方向', () => {
   const lv = solo([
     { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },

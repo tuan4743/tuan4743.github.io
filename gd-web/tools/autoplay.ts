@@ -65,8 +65,12 @@ const lv: Level = WANT === 'gen' ? generateLevel({ seed: 20260913 }) : WATER_CHA
 
 /* --sawbase=1 —— 锯片判定盒用【不缩放的基础尺寸】(定点实验:原版会不会把判定盒一起放大)。
    ★ 必须传进构造函数:锯片的判定盒是构造时算好的,建完再改字段没用。 */
-const w = new World(lv, undefined, undefined, { sawUnscaled: arg('sawbase', '0') === '1' });
+const w = new World(lv, undefined, undefined, {
+  sawUnscaled: arg('sawbase', '0') === '1',
+  hazOuter: arg('hazbox', 'inner') === 'outer',
+});
 if (w.sawUnscaled) console.log('锯片判定盒:不缩放(基础尺寸)');
+if (w.hazBoxIsOuter) console.log('刺的判定:用【外框 30×30】(默认是内框 7.5×7.5)');
 w.windowed = true;                    // 窗口裁剪:搜索要回放上千万帧,必须裁
 /* --padmul=N —— 弹簧/跳环力度微调(和页面上的 [ / ] 同一个旋钮),用来做定点实验:
    "这一段到底要多大力度才过得去"比"猜一个常数"靠谱得多。 */
