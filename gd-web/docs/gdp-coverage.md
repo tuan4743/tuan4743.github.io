@@ -306,6 +306,12 @@
 - **爬台阶(`checkSnapJumpToObject`)**:只在 `mode==='cube'` 且命中台阶容差窗口时吸附 x。这是"该走过去却撞死"的最大剩余来源,但需要先把"水平吸附"接进 `substep` 的实心碰撞分支,成本中等。
 - **反重力下球/蜘蛛的受限区**:`isRestricted()`(`checkCollisions.cpp:1-3,36,49-136`)只在 `isUpsideDown` 时才把球/蜘蛛从"地面吸附"切到 `groundRestrictionY/ceilingRestrictionY` 受限区(常重力下 `!isUpsideDown` 让大条件恒真,与方块同支 ⇒ 现在这样写是对的)。要照搬得先引入"地面线"概念,成本高,建议先只记档。
 
+- ~~**坡道(slope)全家**~~ / ~~**定向包围盒(OBB)**~~ —— **✅ 2026-09 核对:本关用不到**。
+  · 坡道:`tools/id-audit.ts WATER` 的结果是**只有 id 31(出生点)不在识别表里**,`gdids.ts` 里也没有任何 slope 条目
+    ⇒ 本关**没有任何坡道物件**,`m_slopeVelocity` / `isOnSlope` 那套"未实现"对本关判定零影响;
+  · OBB:`tools/scale-audit.ts` 数过本关的旋转 —— 全是 90 的倍数,唯一例外是 7 支斜放的冲刺箭头,
+    而箭头的判定盒是**居中的 36×36 方形**(旋转不变)⇒ 同样零影响。
+  (两条都属于"潜在缺口、本关不触发",已在 HANDOVER §13.20 记档;以后导入别的关卡要重新核。)
 ---
 
 ## 附:审计方法与可信度说明
