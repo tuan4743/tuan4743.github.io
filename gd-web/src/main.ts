@@ -301,15 +301,25 @@ class Scene extends Phaser.Scene {
       })
       .catch((e: Error) => { console.warn('[gd] 轨道没加载到,无敌只贴边界:' + e.message); });
   }
-  /** 无敌状态下把人夹回轨道:超出上/下边界就拉回来,并清掉朝外的纵向速度(横向不管) */
+  /** 无敌状态下把人夹回轨道。
+   *  ★★ 2026-09 修(用户:"轨道是固定y轴,导致直接卡住"):第一版是【硬夹】——
+   *  超界就把 y 直接赋值到边界。可走廊本身是几何规划出来的,某些位置上它就是贴着砖/在半空,
+   *  硬夹等于每帧把人塞进那块几何里 ⇒ 人卡在墙里动不了 ✗。
+   *  现在改成【软推】:每帧最多推 0.5 块(30 单位/秒),并清掉朝外的纵向速度 ——
+   *  不瞬移、不穿模,推不进去就自然停在那儿,绝不会卡死 ✓。 */
   private clampToGuide() {
     const w = this.world;
     if (!w.god) return;
     const gy = this.guideYAt(w.x / U);
     if (gy == null) return;
-    const hi = (gy + GUIDE_BAND) * U, lo = (gy - GUIDE_BAND) * U;
-    if (w.y > hi) { w.y = hi; if (w.vy > 0) w.vy = 0; }
-    else if (w.y < lo) { w.y = lo; if (w.vy < 0) w.vy = 0; }
+    const cy = (w.y + w.box / 2) / U;                 // 用玩家【中心】(块)比,别拿脚底比
+    const over = cy - gy;
+    if (Math.abs(over) <= GUIDE_BAND) return;
+    const dir = over > 0 ? -1 : 1;                    // 往轨道那一侧推
+    const push = Math.min(0.5, Math.abs(over) - GUIDE_BAND) * U;
+    w.y += dir * push;
+    if (dir < 0 && w.vy > 0) w.vy = 0;
+    if (dir > 0 && w.vy < 0) w.vy = 0;
   }
 
   /** 把一个池子里的 Image 摆好;返回 false 表示这帧没画(调用方走矢量兜底) */
