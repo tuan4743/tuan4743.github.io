@@ -23,7 +23,11 @@ console.log('原卷 ' + src.tape.length + ' 帧 · 截到 ' + tail.from + ' 帧 
 /* 回放自检:顺便把"门生效了没有"和末态一起报出来 */
 const w = new World(WATER_CHART);
 const all = [...w.portals, ...w.gravs, ...w.speeds, ...w.sizes];
-let armed = 0, skipped = 0;
+/* ★ 豁免门(--skipok=<左沿 x,...>):这些门物理上吃不到(见 tools/autoplay.ts 的 SKIPOK 说明),
+   跳过它们不算"跳过"。不传就还是老口径:只要有一个跳过就拒写。 */
+const SKIPOK = (process.argv[5] ?? '').split(',').map((s) => Number(s.trim())).filter((n) => Number.isFinite(n));
+const isExempt = (b: { o: { b: number } }) => SKIPOK.some((x) => Math.abs(b.o.b - x) < 0.6);
+let armed = 0, skipped = 0, exempt = 0;
 const done0 = new Set<unknown>();
 for (const h of tape) {
   if (w.dead || w.done) break;
@@ -37,12 +41,14 @@ for (const h of tape) {
         : b.o.kind === 'speed' ? w.speedIdx === (b.o.speed ?? 1)
           : b.o.kind === 'size' ? (b.o.mini === false ? w.sizeMul === 1 : w.sizeMul !== 1)
             : false;
-    if (w.armedPortals.has(b) || sat) armed++; else skipped++;
+    if (w.armedPortals.has(b) || sat) armed++;
+    else if (isExempt(b)) exempt++;
+    else skipped++;
   }
 }
 console.log('回放:' + (w.dead ? '【死了】' : w.done ? '【通关】' : '活着') + ' · x=' + (w.x / U).toFixed(2)
   + ' y=' + (w.y / U).toFixed(2) + ' ' + w.mode + (w.gdir < 0 ? '↑' : '↓')
-  + ' · 门 生效 ' + armed + ' / 跳过 ' + skipped);
+  + ' · 门 生效 ' + armed + ' / 跳过 ' + skipped + (exempt ? ' / 豁免绕过 ' + exempt : ''));
 if (skipped) {
   console.log('⚠ 有跳过的门 —— 这卷不能当路线种子(gateOk 会在搜索里判死它)');
   process.exit(2);

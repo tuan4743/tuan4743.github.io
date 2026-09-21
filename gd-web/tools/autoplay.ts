@@ -83,7 +83,13 @@ const PADMUL = Number(arg('padmul', 1));
  *    因为这一段的"合理接近路线"本来就在 y≈9~11(缝里),离门中心 4~5 块,被提前剪掉了。
  *    现在只压最后 10 块:那一段人必须已经在门的高度上,剪掉"还在飞高"的状态才是对的。
  *  这不是物理(不改 World),只约束"留下的状态";不带它的物理上输入卷照样成立。 */
-const GOALY = arg('goaly', '') ? Number(arg('goaly')) : null;
+/* ★ 2026-09 修:以前 `--goaly=NaN`(驱动算门高度时取错了字段,Obj 上没有 y0/y1)会走进来,
+   GOALY 变成 NaN —— 硬走廊因为 `NaN > x` 恒为 false 而静默失效,【软走廊】更糟:
+   pen = 8 × NaN = NaN,优先级变成 NaN,堆序直接乱掉(实测正规第 49 站就是靠这条"空转变异"顶在最前的)。
+   现在非有限值一律当"没给",并在解析处直接报警。 */
+const GOALY_RAW = arg('goaly', '');
+const GOALY = GOALY_RAW !== '' && Number.isFinite(Number(GOALY_RAW)) ? Number(GOALY_RAW) : null;
+if (GOALY_RAW !== '' && GOALY == null) console.error('✗ --goaly=' + GOALY_RAW + ' 不是有限数,已忽略(检查调用方算的门高度)');
 const GOALY_FROM = Number(arg('goalyfrom', 10));      // 从目标前多少块开始压
 const GOALY_WIN = Number(arg('goalywin', 4));         // 允许的中心 y 偏差(块)
 /** 软走廊:每偏离门高 1 块扣多少"单位"(1 块 = 30 单位 ⇒ 3 表示偏 1 块等于少走 3 块 x) */
@@ -125,11 +131,25 @@ const startX = startAt ? startAt[0] * U : 0;
  * 门的【顺序】按右沿 x1 排,gateOk 里那句 `if (w.x < b.x1) break` 依赖这个顺序。 */
 const isDoorObj = (o: { kind: string }) => o.kind === 'portal' || o.kind === 'gravity' || o.kind === 'speed' || o.kind === 'size';
 const allDoors: Box[] = [...w.portals, ...w.gravs, ...w.speeds, ...w.sizes].sort((a, b) => a.x1 - b.x1);
+/* ★ --skipok=<门的左沿 x,逗号分隔> —— 允许【绕过去】的门(默认一个都不允许)。
+   为什么需要它:这张图 x=1054 的方块门 + x=1055 的速度门【物理上无法既吃门又活下来】:
+     门底沿 y=24.07,门底下那块空间被 (1053.5,21.5) r=1.64 的锯片顶到 y=23.14 —— 只剩 0.93 块;
+     波浪(45°)贴着锯片顶、从门底钻过去才能在 x=1060 吃到【机器人门】(y 22.07~24.93)。
+     而吃了方块门就做不到:进门时重力朝上(gdir=-1)、方块进门后只会往上飘
+     (实测进门点 y≈24.0,到 x=1059.55 已经 y=26.98,而门顶只有 24.93;这段又没有重力门可以翻回来),
+     所以"吃方块门 → 再吃机器人门"是不存在的走法。见 HANDOVER §13.29 的判定与 tools/micro-search.ts。
+   ★ 只豁免白名单里的门;别的门照旧一律必过 —— 否则闸门就形同虚设。 */
+const SKIPOK = (arg('skipok', '') || '').split(',').map((s) => Number(s.trim())).filter((n) => Number.isFinite(n));
+const exempt = allDoors.filter((b) => SKIPOK.some((x) => Math.abs(b.o.b - x) < 0.6));
 const mustPass = allDoors
-  .filter((b) => MUSTPASS.includes(b.o.kind) && b.x1 > startX);
+  .filter((b) => MUSTPASS.includes(b.o.kind) && b.x1 > startX && !exempt.includes(b));
 const armedOf = (world: World) => (world as unknown as { armedPortals: Set<unknown> }).armedPortals;
 const NOSKIP = mustPass.length > 0;
-console.log('必过门 ' + mustPass.length + ' 个(' + MUSTPASS.join('/') + ')· 跳过即判死');
+console.log('必过门 ' + mustPass.length + ' 个(' + MUSTPASS.join('/') + ')· 跳过即判死'
+  + (exempt.length ? ' · 豁免 ' + exempt.length + ' 个(x=' + exempt.map((b) => b.o.b).join('/') + ')' : ''));
+if (SKIPOK.length && exempt.length !== SKIPOK.length) {
+  console.error('✗ --skipok 里有 ' + (SKIPOK.length - exempt.length) + ' 个 x 没对上任何门,检查写法');
+}
 
 /** ★ 局部天花板(--roof=auto,默认开):
  *  这张图里到处是"开口的竖井" —— 球/蜘蛛/飞机翻个重力就能一路飞到 y=75、120 去,

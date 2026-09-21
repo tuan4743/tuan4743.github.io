@@ -74,6 +74,19 @@ function audit(file: string): Audit | null {
 }
 
 const doorCount = doorBoxes(new World(WATER_CHART)).length;
+/* ★ 允许【绕过去】的门(左沿 x):这张图 x=1054 的方块门 + x=1055 的速度门物理上没法既吃门又活下来
+   —— 门底 y=24.07、门下面那块被 (1053.5,21.5) r=1.64 的锯片顶到 23.14,只剩 0.93 块;
+   波浪贴锯片顶从门底钻过去才能在 x=1060 吃到机器人门,而吃了方块门就只会被反重力飘上去
+   (实测进门 y≈24.0 → x=1059.55 时 y=26.98 > 门顶 24.93)。判定与按键串见 tools/micro-search.ts。
+   所以这两站只能按"豁免"处理:驱动不追它们的 armed,搜索也不把它们算作"跳过"。 */
+const SKIPOK = [1054, 1055];
+const isExempt = (o: Obj) => SKIPOK.some((x) => Math.abs(o.b - x) < 0.6);
+const exemptDoors = doors.filter(isExempt);
+/* ★ 门的【高度】必须从判定盒拿 —— Obj 上只有 b(左缘)/r(底行),没有 y0/y1。
+   2026-09 踩过:高度走廊那一串变体全在算 doors[i].y0 + doors[i].y1 = NaN,
+   于是 `--goaly=NaN` 静默失效(硬走廊不剪、软走廊把优先级算成 NaN),
+   驱动还以为自己在试"高度走廊",实际是在空转。 */
+const doorBox = doorBoxes(new World(WATER_CHART));
 
 /** ★ 自动救站:在卷子里找【最接近目标门高度】的那一点(块坐标)。
  *  为什么要有它:本轮两次人工救站的起点都是这么来的 ——
@@ -110,8 +123,18 @@ const stations: Station[] = [];
     prev = goal;
   }
 }
+/* ★ 收尾段:站表只到【最后一扇门】为止,而"通关"的判据是 x ≥ level.length。
+   实测(free,2026-09):前缀走到 3441.7(最后一扇门刚过)之后,驱动认为 142 站全到,
+   于是连续两次启动都在 21 秒内空转退出 —— 离终点还剩 178 块却没人推。
+   补上到终点为止的路标,再加一个【越线站】,让驱动必须以 done 收尾。 */
+const levelEnd = new World(WATER_CHART).level.length;
+{
+  const lastX = stations.length ? stations[stations.length - 1].x : 0;
+  for (let x = lastX + WAY; x < levelEnd; x += WAY) stations.push({ x, door: -1 });
+  stations.push({ x: levelEnd, door: -1 });      // 越线站:只有 done(通关)才可能被判过
+}
 console.log('分站推进 v2:必过门 ' + doors.length + ' 个 + 路标 → 共 ' + stations.length
-  + ' 站(路标间距 ' + WAY + ' 块)· 每站 ' + PER + 's · 总预算 ' + TOTAL + 's');
+  + ' 站(路标间距 ' + WAY + ' 块)· 关卡长 ' + levelEnd + ' 块 · 每站 ' + PER + 's · 总预算 ' + TOTAL + 's');
 
 const t0 = Date.now();
 let ctxSplits = 0;                                      // "劈半"次数(卡住时把路标劈成两半)
@@ -128,9 +151,17 @@ for (let i = 0; i < stations.length; i++) {
      ★ free 模式例外:那条路线【本来就允许跳过门】(--noskip= 关掉了硬约束),
        所以对它只能用几何判据(x 走过去就算到站),否则驱动会一直等一个永远不会 armed 的门
        (踩过:free 重搜时在站 #37 卡了十几分钟,一直重试"退回 N 块重开")。 */
-  const stPass = (aa: Audit | null, am: Audit | null) => (FREE || st.door < 0)
-    ? Math.max(aa?.x ?? 0, am?.x ?? 0) >= st.x
-    : !!(aa?.armed.has(doors[st.door]) || am?.armed.has(doors[st.door]));
+  /* ★ 通关本身就是【最后一站(越线站)】的判据:实测 free 决胜卷 done=true、终点 3620.08,
+     而路标站的几何判据拿的是"存下来的前缀"(3619.82,比终点差 0.18 块)——
+     于是驱动在最后一站反复重搜,日志还打"✗ 没过"(踩过:free15 那轮 1248 秒里最后 4 次白跑)。 */
+  const stPass = (aa: Audit | null, am: Audit | null) => (aa?.done || am?.done)
+    ? true
+    : (FREE || st.door < 0)
+      ? Math.max(aa?.x ?? 0, am?.x ?? 0) >= st.x
+      : isExempt(doors[st.door])
+        /* 豁免门:前缀已经【走过它 1 块以上】就算过站(它永远不会 armed,不等它) */
+        ? Math.max(aa?.x ?? 0, am?.x ?? 0) >= doors[st.door].b + 1
+        : !!(aa?.armed.has(doors[st.door]) || am?.armed.has(doors[st.door]));
   const passed = stPass(a, am);
   if (passed) continue;
   const left = TOTAL - (Date.now() - t0) / 1000;
@@ -218,7 +249,8 @@ for (let i = 0; i < stations.length; i++) {
              · 【从卷子里最接近门高度的那一点重开】—— 人工救站就是这么干的,现在自动算;
              · --goaly=<门高度> —— 离目标 10 块以内、中心离门中心超过 4 块的状态不留。 */
         ...(st.door >= 0 ? (() => {
-          const doorCy = ((doors[st.door].y0 + doors[st.door].y1) / 2) / U;
+          const db = doorBox[st.door];
+          const doorCy = ((db.y0 + db.y1) / 2) / U;
           const ap = closestHeightX(BEST, doorCy, Math.max(5, seedX - 150), seedX + 1);
           const out: Array<{ tag: string; extra: string[] }> = [];
           if (ap && ap.x < seedX - 3) {
@@ -291,6 +323,7 @@ for (let i = 0; i < stations.length; i++) {
       if (seed && !tr.extra.some((e) => e.startsWith('--startfrom'))) args.push('--seed=' + seed);
       for (const e of tr.extra) args.push(e);
       if (FREE) args.push('--noskip=');
+      else if (SKIPOK.length) args.push('--skipok=' + SKIPOK.join(','));
       console.log('  → 并发 ' + (k + 1) + '/' + batch.length + (tr.tag ? ' · ' + tr.tag : ' · 接着上次'));
       return spawn(process.execPath, args, { stdio: ['ignore', 'pipe', 'pipe'], cwd: process.cwd(), k });
     });
@@ -315,8 +348,14 @@ for (let i = 0; i < stations.length; i++) {
     const cur = (file: string) => {
       const aa = audit(file);
       if (!aa) return null;
-      const pass = (FREE || st.door < 0) ? aa.x >= st.x : aa.armed.has(doors[st.door]);
-      return { file, x: aa.x, doors: aa.armed.size, skip: aa.skipped.size, pass };
+      const pass = (FREE || st.door < 0)
+        ? aa.x >= st.x
+        : isExempt(doors[st.door]) ? aa.x >= doors[st.door].b + 1 : aa.armed.has(doors[st.door]);
+      /* ★ 豁免门要算进"生效门数":它们物理上吃不到,只按 armed.size 比会把
+         "绕过去、走得更远"的卷子判输给"停在门口"的卷子(见 SKIPOK 的说明)。
+         口径 = 真的生效的门数 + 已经被【走过】的豁免门数。 */
+      const bypassed = exemptDoors.filter((o) => aa.x >= o.b + 1).length;
+      return { file, x: aa.x, doors: aa.armed.size + bypassed, skip: aa.skipped.size, pass };
     };
     let win: { file: string; x: number; doors: number; skip: number; pass: boolean } | null
       = cur(BEST) ?? cur(MAXB);
