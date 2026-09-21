@@ -52,7 +52,31 @@ const CAM_BALL_CENTER = 120;
  *    钉死会把人拍出画外 —— 所以这两种按方块跟随。这两行是我们自己定的,已写进文档。 */
 const CAM_FIXED_MODES = new Set(['ship', 'ufo', 'wave', 'ball']);
 
-/** 解析 TexturePacker 的 .plist(XML)→ Phaser 的 JSON 图集 frames 表。
+/* ---------------- ★ 形态贴图(static/icons)----------------
+ * ★★ 结论(2026-09 实测,写给以后的人):
+ *   这套图集是【真·GD 玩家图集】,但它是**按部件拆开**的 —— 同一形态的 `_2_`(第二色)、`_extra_`(碎点)、
+ *   `_glow_`(描边)以及 02/03/04 那几帧(腿/眼睛/面罩…)**画布尺寸各不相同**,靠 `spriteOffset` 对齐;
+ *   要拼出一个正确的形态,需要 GD 的**部件合成表**(哪些部件叠在一起、哪几帧是动画),我们没有。
+ *   实测把"帧号轮播"当动画 = 一会儿只有腿、一会儿只有眼睛(用户报的"spider的贴图是乱的"就是这个),
+ *   而"取最大的一帧当整只角色"也不行(spider 拿到的是身体、robot 拿到的是面罩)。
+ *   ⇒ 默认**不启用**图集,玩家仍旧走矢量画法(至少形状是对的);想试图集就加 `?icons=1`。
+ *   另外这套素材有【两处文件错配】(实测按 plist 里的 metadata.size 对出来的):
+ *     · cube.png(208×252) 与 cube.plist(声明 252×244)对不上 —— 应该换回配套的那张;
+ *     · GameSheet.png(3091×2048) 与 GameSheet.plist(声明 3081×2048)对不上,
+ *       而 GameSheet_old.png(3081×2048)正好对得上 ⇒ 要用物件图集请用 old 那张(或重新导出)。
+ *   下面的加载器会自动挑"尺寸与 plist 声明一致"的那张 png,挑不到就跳过(不会画出错位的图)。 */
+const ICON_ENABLED = /(^|[?&])icons=1(&|$)/.test(location.search);
+const ICON_ATLAS: Array<{ mode: Mode; key: string; file: string }> = [
+  { mode: 'cube', key: 'icon-cube', file: 'cube' },
+  { mode: 'ship', key: 'icon-ship', file: 'ship' },
+  { mode: 'ball', key: 'icon-ball', file: 'ball' },
+  { mode: 'ufo', key: 'icon-ufo', file: 'bird' },
+  { mode: 'wave', key: 'icon-wave', file: 'dart' },
+  { mode: 'robot', key: 'icon-robot', file: 'robot' },
+  { mode: 'spider', key: 'icon-spider', file: 'spider' },
+];
+
+/** 解析 TexturePacker 的 .plist(XML)→ 帧表(含旋转标记与 spriteOffset)。
  *  为什么要自己写:Phaser 4.2 的 `load.atlasXML` 只加载图片、不解析 plist(见 buildIcons 的注释)。 */
 function parsePlistFrames(xml: string): Record<string, {
   frame: { x: number; y: number; w: number; h: number };
@@ -66,7 +90,7 @@ function parsePlistFrames(xml: string): Record<string, {
   const kids = Array.from(root.children);
   const fi = kids.findIndex((e) => e.tagName === 'key' && e.textContent === 'frames');
   if (fi < 0) return null;
-  const out: Record<string, { frame: { x: number; y: number; w: number; h: number }; rotated: boolean; sourceSize: { w: number; h: number }; spriteSourceSize: { x: number; y: number; w: number; h: number } }> = {};
+  const out: NonNullable<ReturnType<typeof parsePlistFrames>> = {};
   const list = Array.from(kids[fi + 1].children);
   for (let j = 0; j < list.length; j++) {
     if (list[j].tagName !== 'key') continue;
@@ -101,24 +125,8 @@ const LEVEL: Level = pickLevel();
 /** 真实关卡的"块 → 秒"时间轴(见 Scene.tAtX 的说明):按速度门积分,复活时靠它把音乐 seek 到位 */
 const REAL_T_AXIS = makeRealTimeAxis(LEVEL);
 
-/* ---------------- ★ 形态贴图(用户:"贴图在 static/icons,形态没有上色")----------------
- * 页面里放的是 GD 官方的玩家图集(TexturePacker plist,七种形态各一张):
- *   主色层 xxx_001.png(col1)· 第二色层 xxx_2_001.png(col2)· 发光层 xxx_glow_001.png
- *   (机器人/蜘蛛有多帧:robot_01_01..04、spider_13_01..04,蜘蛛那 4 帧是腿的动作)
- * 以前七种形态都是矢量画的同一种浅色 —— 看不出是什么形态。现在按形态挂真图集并按 GD 的
- * 双色体系上色;颜色可用 ?col1=RRGGBB&col2=RRGGBB 覆盖(和 ?padmul= 一样,方便现场调)。
- * 图集没加载完时仍旧走矢量兜底(见 draw 里的 playerVec)。 */
-const ICON_ATLAS: Array<{ mode: Mode; key: string; file: string }> = [
-  { mode: 'cube', key: 'icon-cube', file: 'cube' },
-  { mode: 'ship', key: 'icon-ship', file: 'ship' },
-  { mode: 'ball', key: 'icon-ball', file: 'ball' },
-  { mode: 'ufo', key: 'icon-ufo', file: 'bird' },
-  { mode: 'wave', key: 'icon-wave', file: 'dart' },
-  { mode: 'robot', key: 'icon-robot', file: 'robot' },
-  { mode: 'spider', key: 'icon-spider', file: 'spider' },
-];
-/** 各形态的默认双色(主色 / 第二色)。GD 里玩家图标是双色的,这一关的观感是"冷色全息科技风",
- *  所以取青蓝家族;要还原原作那种绿+蓝,URL 里给 ?col1=00ff00&col2=00ffff 即可。 */
+/* ---------------- ★ 各形态的默认双色(主色 / 第二色) ----------------
+ *  GD 里玩家图标是双色的:`?icons=1` 试图集时按它上色,`?col1=RRGGBB&col2=RRGGBB` 可覆盖。 */
 const ICON_COL: Record<Mode, [number, number]> = {
   cube: [0x8ef7ff, 0x2f6bff],
   ship: [0xbdf3ff, 0x3f7cff],
@@ -222,11 +230,12 @@ class Scene extends Phaser.Scene {
   demoSpeed = 1;
   /** 演示的时间累积器(秒)—— 按真实时间推进,和刷新率无关 */
   demoAcc = 0;
-  /** 形态图集(static/icons)建好的图层:主色 / 第二色 / 细节 / 发光。见 buildIcons() */
+  /** 形态图集(static/icons)建好的图层。见 buildIcons() */
   private iconLayers: Array<{
-    mode: Mode; frames: string[];
-    body: Phaser.GameObjects.Image; col2: Phaser.GameObjects.Image | null;
-    extra: Phaser.GameObjects.Image | null; glow: Phaser.GameObjects.Image | null;
+    mode: Mode;
+    body: Phaser.GameObjects.Image;
+    glow: Phaser.GameObjects.Image | null;
+    bw: number; bh: number; pxPerUnit: number;
   }> = [];
   private iconsReady = false;
   /** 验收用:update 被调了几次、Phaser 喂进来的 delta 是多少 */
@@ -444,8 +453,8 @@ class Scene extends Phaser.Scene {
        (用户会看到"点了没反应/只动一格")。 */
     document.getElementById('gd-pad-minus')?.addEventListener('click', () => { this.padLatch -= 1; this.blurSelf(); });
     document.getElementById('gd-pad-plus')?.addEventListener('click', () => { this.padLatch += 1; this.blurSelf(); });
-    /* ★ 形态图集(static/icons):七张 plist 一起加载,加载完再建图层。加载失败不影响玩(矢量兜底) */
-    {
+    /* ★ 形态图集(static/icons):默认不加载(见上面那段"结论")。?icons=1 才试图集 */
+    if (ICON_ENABLED) {
       const q = /(^|[?&])col1=([0-9a-fA-F]{6})/.exec(location.search);
       const q2 = /(^|[?&])col2=([0-9a-fA-F]{6})/.exec(location.search);
       if (q) for (const k of Object.keys(ICON_COL) as Mode[]) ICON_COL[k][0] = parseInt(q[2], 16);
@@ -628,55 +637,83 @@ class Scene extends Phaser.Scene {
     return this.viewH / (VIEW_H_BLOCKS * U);
   }
 
-  /** 图集加载完:给每个形态挑出图层。
-   *  帧名规律(GD 官方图集):`xxx_001.png` = 主色层、`xxx_2_001.png` = 第二色层、
-   *  `xxx_extra_001.png` = 细节层、`xxx_glow_001.png` = 发光层;
-   *  机器人/蜘蛛有多组(robot_01_01..04、spider_13_01..04),第 1 组当默认,
-   *  蜘蛛那 4 组是腿的动作 —— 按 tick 轮播,看起来才是活的。 */
+  /** 图集加载完:每个形态挑出【第 1 组主图 + 同组发光层】,把 plist 里"躺着的"帧转正后
+   *  画进两张离屏 canvas(一主一发光),再注册成 Phaser 贴图。
+   *  ★ 不再按帧号轮播:GD 的玩家图集是按部件拆的(蜘蛛 02/03/04 是腿等部件,画布尺寸还不一样),
+   *    没有部件合成表就轮播 = 一会儿只有腿一会儿只有眼睛(用户报的"贴图是乱的")。 */
   private buildIcons() {
+    const REF_PX = 120;                       // GD 玩家图集的密度:1 块 = 120 px(方块主图就是 120×120)
     for (const a of ICON_ATLAS) {
-      /* ★ 不用 `load.atlasXML`:Phaser 4.2 里它只把图加载进来、**不解析 plist**
-         (实测 texture.frameTotal = 1,只有 __BASE,frame 一个都没有 ⇒ 图标永远画不出来)。
-         所以自己解析 plist(TexturePacker XML)→ 拼成 Phaser 的 JSON 图集哈希 → addAtlas。 */
-      const img = this.textures.exists('iconimg-' + a.file) ? this.textures.get('iconimg-' + a.file) : null;
+      const img = this.textures.exists('iconimg-' + a.file)
+        ? (this.textures.get('iconimg-' + a.file).getSourceImage() as HTMLImageElement) : null;
       const xml = this.cache.text.get('iconxml-' + a.file) as string | undefined;
       if (!img || !xml) continue;
-      const frames = parsePlistFrames(xml);
-      if (!frames) continue;
-      if (!this.textures.exists(a.key)) {
-        this.textures.addAtlas(a.key, img.getSourceImage() as HTMLImageElement, { frames, meta: { image: a.file + '.png', size: { w: img.source[0].width, h: img.source[0].height }, scale: '1' } });
+      /* ★ 文件错配检查(实测这套素材里 cube 与 GameSheet 就是错的):
+         plist 里的 metadata.size 声明了它描述的那张图集有多大 —— 和真实 png 对不上就【不要用】,
+         否则帧坐标全错位(画出来就是一堆错位的碎片)。 */
+      const meta = /<key>size<\/key>\s*<string>\{([\d.]+),([\d.]+)\}<\/string>/.exec(xml);
+      if (meta && (Math.abs(+meta[1] - img.naturalWidth) > 1 || Math.abs(+meta[2] - img.naturalHeight) > 1)) {
+        console.warn('[gd] 图集与 plist 尺寸对不上,跳过:' + a.file + '.png ' + img.naturalWidth + '×' + img.naturalHeight
+          + ' vs plist 声明 ' + meta[1] + '×' + meta[2]);
+        continue;
       }
-      const names = this.textures.get(a.key).getFrameNames().sort();
-      const body = names.filter((n) => /_0*1\.png$/.test(n) && !/_2_|_extra_|_glow_/.test(n));
-      if (!body.length) continue;
-      const pick = (re: RegExp) => names.filter((n) => re.test(n))[0] ?? null;
-      const mk = (frame: string | null) => (frame
-        ? this.add.image(0, 0, a.key, frame).setVisible(false).setDepth(16)
-        : null);
+      const F = parsePlistFrames(xml);
+      if (!F) continue;
+      /* 主图 = 所有"非 _2_/_extra_/_glow_"帧里未裁剪尺寸最大的那个(整只角色) */
+      const mains = Object.keys(F).filter((n) => !/_2_|_extra_|_glow_/.test(n));
+      if (!mains.length) continue;
+      const name = mains.sort((p, q) => (F[q].sourceSize.w * F[q].sourceSize.h) - (F[p].sourceSize.w * F[p].sourceSize.h))[0];
+      const glowName = name.replace(/_(\d+)\.png$/, '_glow_$1.png');
+      const made: Array<{ layer: 'body' | 'glow'; tex: string; w: number; h: number }> = [];
+      for (const [layer, fr] of [['body', F[name]], ['glow', F[glowName]]] as const) {
+        if (!fr) continue;
+        const W = Math.max(4, Math.round(fr.sourceSize.w)), H = Math.max(4, Math.round(fr.sourceSize.h));
+        const cv = document.createElement('canvas');
+        cv.width = W; cv.height = H;
+        const c2 = cv.getContext('2d');
+        if (!c2) continue;
+        /* 图集里的实际区域:rotated 的帧宽高是【互换】的,而且内容是躺着的 */
+        const sw = fr.rotated ? fr.frame.h : fr.frame.w;
+        const sh = fr.rotated ? fr.frame.w : fr.frame.h;
+        const tw = fr.frame.w, th = fr.frame.h;                     // 转正之后的显示尺寸
+        /* 未裁剪画布里的位置:中心 = 画布中心 + spriteOffset(y 轴和画布相反) */
+        const dx = W / 2 + fr.spriteSourceSize.x - tw / 2;
+        const dy = H / 2 - fr.spriteSourceSize.y - th / 2;
+        c2.save();
+        c2.translate(dx + tw / 2, dy + th / 2);
+        if (fr.rotated) c2.rotate(-Math.PI / 2);                    // 实测:-90° 才是正的
+        c2.drawImage(img, fr.frame.x, fr.frame.y, sw, sh, -tw / 2, -th / 2, tw, th);
+        c2.restore();
+        const tex = 'icon-' + a.file + '-' + layer;
+        if (this.textures.exists(tex)) this.textures.remove(tex);
+        this.textures.addCanvas(tex, cv);
+        made.push({ layer, tex, w: W, h: H });
+      }
+      const body = made.find((m) => m.layer === 'body');
+      if (!body) continue;
+      const glow = made.find((m) => m.layer === 'glow');
       this.iconLayers.push({
-        mode: a.mode, frames: body,
-        body: mk(body[0])!,
-        col2: mk(pick(/_2_0*1\.png$/)),
-        extra: mk(pick(/_extra_0*1\.png$/)),
-        glow: mk(pick(/_glow_0*1\.png$/)),
+        mode: a.mode,
+        body: this.add.image(0, 0, body.tex).setVisible(false).setDepth(16),
+        glow: glow ? this.add.image(0, 0, glow.tex).setVisible(false).setDepth(17) : null,
+        bw: body.w, bh: body.h,
+        pxPerUnit: REF_PX / (WATER_CHART.start ? 30 : 30),          // 见 REF_PX:120 px = 1 块 = 30 单位
       });
     }
     this.iconsReady = this.iconLayers.length > 0;
-    console.log('[gd] 形态图集就绪:' + this.iconLayers.map((l) => l.mode + '(' + l.frames.length + ')').join(' '));
+    console.log('[gd] 形态图集就绪:' + this.iconLayers.map((l) => l.mode + '(' + l.bw + '×' + l.bh + ')').join(' '));
   }
 
-  /** 用图集摆玩家(位置/尺寸/旋转/双色都跟着形态走)。
-   *  坐标就用绘图空间:和 Graphics 同一套(camera 自己处理平移缩放,见 draw 里的 Y)。 */
-  private drawIconPlayer(w: World, cxw: number, cyw: number, B: number, tick: number) {
+  /** 用图集摆玩家:位置/尺寸/旋转/上色。
+   *  ★ 尺寸用统一密度(120 px = 1 块),不是"每层各自撑满 1 格" —— 后者会把小腿/描边放大到和身体一样大。 */
+  private drawIconPlayer(w: World, cxw: number, cyw: number, B: number) {
     const L = this.iconLayers.find((l) => l.mode === w.mode) ?? this.iconLayers[0];
+    const on = !w.done;
     for (const l of this.iconLayers) {
-      const on = l === L && !w.done;
-      l.body.setVisible(on);
-      l.col2?.setVisible(on);
-      l.extra?.setVisible(on);
-      l.glow?.setVisible(on);
+      const vis = on && l === L;
+      l.body.setVisible(vis);
+      l.glow?.setVisible(vis);
     }
-    /* 旋转:方块空中自转、飞机按 vy 倾斜、球滚动、波浪朝运动方向、UFO/机器人/蜘蛛不转 */
     let rot = 0;
     if (w.mode === 'cube') {
       rot = Math.min(1, this.airT / (2 * P.jump / (P.gravity * Y_TIME_SCALE) / 60)) * (Math.PI / 2);
@@ -689,25 +726,14 @@ class Scene extends Phaser.Scene {
     } else if (w.mode === 'ufo') {
       rot = Math.max(-0.3, Math.min(0.3, w.vy / P.flyUpMax * 0.3));
     }
-    const [c1, c2] = ICON_COL[w.mode] ?? [0xffffff, 0xffffff];
+    const [c1] = ICON_COL[w.mode] ?? [0xffffff, 0xffffff];
     const kill = w.dead ? 0xff7a5a : null;
-    /* 蜘蛛/机器人多帧:按 tick 轮播(蜘蛛那 4 组是腿的动作) */
-    if (L.frames.length > 1 && (w.mode === 'spider' || w.mode === 'robot')) {
-      const fi = Math.floor(tick / 6) % L.frames.length;
-      L.body.setFrame(L.frames[fi]);
-      L.col2?.setFrame(L.frames[fi].replace(/_0*1\.png$/, '_2_001.png'));
-    }
-    const sy = cyw;
-    L.body.setPosition(cxw, sy).setRotation(rot).setTint(kill ?? c1);
-    const k = B / Math.max(L.body.width, L.body.height);
-    L.body.setDisplaySize(L.body.width * k, L.body.height * k);
-    for (const [layer, col] of [[L.col2, c2], [L.extra, c2], [L.glow, 0xffffff]] as const) {
-      if (!layer) continue;
-      const kk = B / Math.max(layer.width, layer.height);
-      layer.setPosition(cxw, sy).setRotation(rot).setDisplaySize(layer.width * kk, layer.height * kk);
-      layer.setTint(kill ?? col);
-      layer.setAlpha(layer === L.glow ? 0.85 : 1);
-      if (layer === L.glow) layer.setBlendMode(Phaser.BlendModes.ADD);
+    const k = B / (L.pxPerUnit * 30);                     // 120 px = 30 单位 → k = B/120
+    L.body.setPosition(cxw, cyw).setRotation(rot).setTint(kill ?? c1);
+    L.body.setDisplaySize(L.bw * k, L.bh * k);
+    if (L.glow) {
+      L.glow.setPosition(cxw, cyw).setRotation(rot).setDisplaySize(L.bw * k, L.bh * k);
+      L.glow.setTint(kill ?? 0xffffff).setAlpha(0.75).setBlendMode(Phaser.BlendModes.ADD);
     }
   }
 
@@ -728,6 +754,17 @@ class Scene extends Phaser.Scene {
           this.deathLog.push({ tick: w0.tick, x: +(w0.x / U).toFixed(2), y: +(w0.y / U).toFixed(2), vy: +(w0.vy / U).toFixed(2), mode: w0.mode, gdir: w0.gdir, chunk: n, at: i, hold: this.demoHold(w0.tick) });
         }
         if (this.botMode || this.demoMode) {
+          /* ★ 演示卷【死了一次】= 它和当前物理已经不是一套了(卷子是按某一版物理搜出来的)。
+             以前会静默复活、无限重来(用户看到的"演示几秒就结束/闪一下")——
+             现在直接判定"卷子过期"并退出演示,按钮上写清楚,别装作还能跑。 */
+          if (this.demoMode) {
+            this.demoErr = '演示卷已过期(物理更新过,等重新打包)';
+            this.demoMode = false;
+            this.phase = 'idle';
+            this.pauseMusic();
+            this.syncDemoButton();
+            return;
+          }
           /* 机器人验收:立刻复活,和 Node 侧一致 */
           const wasX = w0.checkX;
           w0.respawn();
@@ -1537,7 +1574,7 @@ class Scene extends Phaser.Scene {
     const cxw = w.x + B / 2, cyw = py + B / 2;
     /* ★ 图集就绪就用真图标(见 buildIcons);没就绪/加载失败时走下面这套矢量兜底。
        注意图标用的是绘图空间坐标(和 Graphics 一样,y 走 Y() 翻转),所以这里给它 Y(cyw) */
-    if (this.iconsReady) this.drawIconPlayer(w, cxw, Y(cyw), B, tick);
+    if (this.iconsReady) this.drawIconPlayer(w, cxw, Y(cyw), B);
     if (this.iconsReady) { /* 图标已经画了,矢量那套跳过 */ } else if (w.mode === 'ship') {
       /* 手动画三角:Phaser 4 里没有 Phaser.Geom.Point(v3 的写法会直接抛错) */
       const rot = Math.max(-0.55, Math.min(0.55, w.vy / P.shipVyMax * 0.55));
