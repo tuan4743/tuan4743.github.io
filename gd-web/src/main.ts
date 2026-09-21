@@ -18,8 +18,6 @@ import { P, U, Y_TIME_SCALE } from './sim/constants.ts';
 import { WATER_CHART } from './sim/charts/water.ts';
 
 const HL = '#7ff0ff';
-/** ★ 构建标记:画在 HUD 上,用来确认浏览器到底加载了哪一版(排查"没变化"是不是缓存) */
-const BUILD_TAG = 'g20';
 /* 每段一个强调色:网格、地面、门的颜色都跟着走,一眼知道跑到第几段 */
 const PAL = [0x7ff0ff, 0xffe17a, 0xa0ffd0, 0xc6a0ff, 0xff9fd0];
 const HLD = 0x7ff0ff;
@@ -374,17 +372,6 @@ class Scene extends Phaser.Scene {
   uiTitle!: Phaser.GameObjects.Text;
   uiHint!: Phaser.GameObjects.Text;
   poemText!: Phaser.GameObjects.Text;
-  /* ★★ 水下背景层(见 paintBackdrop):远景 / 近景 / 光柱 / 雾 / 歌词 */
-  bgLayer!: Phaser.GameObjects.TileSprite | null;
-  cityLayer!: Phaser.GameObjects.TileSprite | null;
-  rayLayer!: Phaser.GameObjects.TileSprite | null;
-  haze!: Phaser.GameObjects.Rectangle | null;
-  haze2!: Phaser.GameObjects.Rectangle | null;
-  lyricText!: Phaser.GameObjects.Text | null;
-  lyrics: Array<[number, string]> = [];
-  lyricShown = '';
-  runClock = 0;
-  private cityLift = 0;
   /** 形态门头上那块名字牌子(门可能被触发器推动,位置每帧跟着算) */
   private portalLabels: Array<{ o: Obj; t: Phaser.GameObjects.Text }> = [];
   poemT = 0;                       // 终末之诗滚了多久(秒)
@@ -492,7 +479,7 @@ class Scene extends Phaser.Scene {
       this.botStarted = false;              // 让 pump 里"干净开局"那一段重新走一遍
       this.botStates = [];
       this.fp = '';
-      this.baseTick = 0; this.prevY = 0; this.airT = 0; this.camInit = false; this.runClock = 0;
+      this.baseTick = 0; this.prevY = 0; this.airT = 0; this.camInit = false;
       this.phase = 'running';
       this.started = true;
       this.playMusicAt(0);
@@ -577,11 +564,6 @@ class Scene extends Phaser.Scene {
       this.load.start();
     }
     this.loadGuide();                          // ★ 无敌模式的轨道(见 clampToGuide)
-    /* ★★ 水下远景/近景 + 光柱 + 歌词(素材在 static/assets/water/,见 paintBackdrop)
-       ★★ 这里【绝对不要】用 this.load.* / this.load.start():
-          多跑一轮 scene loader 会把音频那批资源清掉(用户反馈"音乐没了"就是这个)。
-          三张图和歌词全走 new Image() / fetch,不碰 loader。 */
-    void 0;
     /* ★ 形态图集(static/icons):默认不加载(见上面那段"结论")。?icons=1 才试图集 */
     if (ICON_ENABLED) {
       const q = /(^|[?&])col1=([0-9a-fA-F]{6})/.exec(location.search);
@@ -926,7 +908,6 @@ class Scene extends Phaser.Scene {
       }
       this.prevY = w0.y;
       w0.frame(hold);
-      this.runClock += 1 / 60;                     // 歌词在没音乐时的兜底时钟(一帧 = 1/60 秒)
       /* ★ 无敌模式的"轨道上限":开着无敌时不许飞离规划走廊(见 clampToGuide) */
       this.clampToGuide();
       this.airT = w0.onGround ? 0 : this.airT + 1 / 60;
@@ -1119,7 +1100,6 @@ class Scene extends Phaser.Scene {
     if (this.phase === 'done') parts.push('通关');
     if (w.mode === 'ship') parts.push('按住 = 上升');
     if (w.god) parts.push('★ 无敌' + (this.guide.length ? ' · 限轨 ±' + GUIDE_BAND + ' 块' : ' · 只贴边界'));
-    parts.push('构建 ' + BUILD_TAG);        // ★ 让"到底刷到哪一版"一眼可见(排查缓存问题用)
     if (this.demoMode) {
       const n = this.demoTape ? this.demoTape.length : 0;
       parts.push(this.demoTape
@@ -1223,100 +1203,6 @@ class Scene extends Phaser.Scene {
     this.camCenter = bottom + vh / 2;
     this.camWorldY = rowsU - this.camCenter;             // 换算成 Phaser 相机的绘图空间 y
     cam.centerOn(this.camX, this.camWorldY);
-    this.paintBackdrop(vw, vh);
-  }
-
-  /** 建一次水下背景层(幂等)。
-   *  ★★ 两个 bug 的根因都在这儿(用户反馈:"位置不对,整体全在左上角" + "音乐没了"):
-   *   ① 位置:我用 layer.width/height(TileSprite 自己的尺寸)去算平铺偏移和贴底高度 ⇒ 算出来的
-   *      x 是"负的 sprite 宽"、city 的 y 变成 -lift,整块跑到左上角外面去了 ✗。
-   *      改法:尺寸一律用**视口** vw/vh,TileSprite 用 setTilePosition() 滚纹理(这才是正确 API),
-   *      每帧重排(vw/vh 会随缩放变)。
-   *   ② 音乐:我多调了一次 this.load.start() ⇒ 把 scene 的 loader 又跑了一轮,把音频那批资源搞没了 ✗。
-   *      改法:这三张图和歌词**完全不碰 Phaser 的 loader**,直接用 new Image() / fetch 拿,
-   *      再 textures.addImage 注册 ✓。 */
-  private waterBuilt = false;
-  private waterTex = { bg: null as HTMLImageElement | null, city: null as HTMLImageElement | null, rays: null as HTMLImageElement | null };
-  private loadWaterImage(url: string): HTMLImageElement {
-    const img = new Image();
-    img.src = url;
-    return img;
-  }
-  private ensureWater(vw: number, vh: number): boolean {
-    if (this.waterBuilt) return true;
-    const T = this.waterTex;
-    if (!T.bg) { T.bg = this.loadWaterImage('/assets/water/bg.png'); T.city = this.loadWaterImage('/assets/water/city.png'); T.rays = this.loadWaterImage('/assets/water/rays.png'); }
-    if (!T.bg.complete || !T.city.complete || !T.rays.complete) return false;      // 还没到,下一帧再看
-    const reg = (key: string, img: HTMLImageElement) => { if (!this.textures.exists(key)) this.textures.addImage(key, img); };
-    reg('w-bg', T.bg); reg('w-city', T.city); reg('w-rays', T.rays);
-    fetch('/assets/water/lyrics.json').then((r) => r.json()).then((j) => { this.lyrics = j; }).catch(() => { /* 歌词拿不到不影响玩 */ });
-
-    /* 远景:铺满整屏(横向平铺) · 近景:只占屏幕下方一条 · 光柱:上半屏 */
-    this.bgLayer = this.add.tileSprite(0, 0, vw, vh, 'w-bg').setOrigin(0).setScrollFactor(0).setDepth(-30).setAlpha(0.85);
-    const cityH = Math.max(80, vh * 0.22);
-    this.cityLayer = this.add.tileSprite(0, vh - cityH, vw, cityH, 'w-city').setOrigin(0).setScrollFactor(0).setDepth(-20);
-    this.rayLayer = this.add.tileSprite(0, -vh * 0.08, vw, vh * 0.72, 'w-rays').setOrigin(0).setScrollFactor(0)
-      .setDepth(14).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.55);
-    /* ★ 朦胧感:两层蓝绿雾(用户:"特效跟没有一样")—— 一层整屏压暗加蓝,一层下方更浓(越深越暗) */
-    this.haze = this.add.rectangle(0, 0, vw, vh, 0x0a4b66, 0.42).setOrigin(0).setScrollFactor(0).setDepth(13);
-    this.haze2 = this.add.rectangle(0, vh * 0.45, vw, vh * 0.55, 0x04222f, 0.5).setOrigin(0).setScrollFactor(0).setDepth(13.5);
-    this.lyricText = this.add.text(vw / 2, vh - 26, '', {
-      fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '18px', color: '#dff4ff',
-      stroke: '#04121c', strokeThickness: 4, align: 'center',
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(21).setVisible(false);
-    this.waterBuilt = true;
-    console.log('[gd] 水下背景就绪:远景/近景/光柱三张图 + 两层雾 + 歌词(等 fetch)');
-    return true;
-  }
-
-  /* ---------------- ★★ 水下远景/近景 + 雾 + 光柱 + 歌词(用户口径) ----------------
-   * 素材来自工作区根目录 WATER/(city = 近景 · game_bg_01_001 = 远景 · 光线 = 光柱),
-   * 已经拷进 static/assets/water/ 由站点托管。
-   * 实现:三张图都用 setScrollFactor(0) 钉在【屏幕空间】,再按相机 x 手动给不同视差系数 ——
-   * 远景 0.12 / 近景 0.45;雾是一层蓝色蒙版 + 顶部光柱(ADD 混合、缓慢呼吸),
-   * 这些都在世界之上、HUD 之下,让"看的东西"整体蒙上一层水下的朦胧 ✓。 */
-  private paintBackdrop(vw: number, vh: number) {
-    if (!this.ensureWater(vw, vh)) return;
-    const cam = this.cameras.main;
-    const camX = cam.scrollX;
-    const t = this.time.now / 1000;
-    /* ★ 尺寸/位置一律按【当前视口】重排(缩放会变),滚纹理用 setTilePosition —— 不再拿 sprite 自己的宽高去算 */
-    this.bgLayer.setSize(vw, vh).setPosition(0, 0).setTilePosition(camX * 0.12, 0);
-    const cityH = Math.max(80, vh * 0.22);
-    this.cityLayer.setSize(vw, cityH).setPosition(0, vh - cityH).setTilePosition(camX * 0.5, 0);
-    const rayH = vh * 0.72;
-    this.rayLayer.setSize(vw, rayH).setPosition(0, -vh * 0.08)
-      .setTilePosition(camX * 0.06 + t * 8, 0)
-      .setAlpha(0.55 + 0.12 * Math.sin(t * 0.6));
-    if (this.haze) this.haze.setSize(vw, vh).setPosition(0, 0);
-    if (this.haze2) this.haze2.setSize(vw, vh * 0.55).setPosition(0, vh * 0.45);
-    if (this.lyricText) {
-      this.lyricText.setPosition(vw / 2, vh - 26);
-      this.updateLyrics();
-    }
-  }
-
-  /** 歌词:按音乐时间取当前行,行首淡入、行尾淡出(用户:"放在屏幕正下贴近屏幕,淡入淡出") */
-  private updateLyrics() {
-    if (!this.lyricText || !this.lyrics.length) return;
-    const t = this.musicClock();
-    let i = -1;
-    for (let k = 0; k < this.lyrics.length; k++) if (t >= this.lyrics[k][0]) i = k;
-    if (i < 0) { this.lyricText.setVisible(false); return; }
-    const cur = this.lyrics[i], next = this.lyrics[i + 1];
-    const a = t - cur[0];
-    const end = next ? next[0] : cur[0] + 6;
-    const FADE_IN = 0.35, FADE_OUT = 0.6;
-    const alpha = Math.min(1, a / FADE_IN, Math.max(0, (end - t) / FADE_OUT));
-    if (cur[1] !== this.lyricShown) { this.lyricText.setText(cur[1]); this.lyricShown = cur[1]; }
-    this.lyricText.setVisible(alpha > 0.02).setAlpha(Math.max(0, Math.min(1, alpha)));
-  }
-
-  /** 歌词跟着【音乐】走(音乐在放就用它的时间;没有音乐就退回这一局的运行时钟) */
-  private musicClock(): number {
-    const a = this.audio;
-    if (a && !a.paused && a.currentTime > 0.05) return a.currentTime;
-    return this.runClock;
   }
 
   /** 三个界面(开场 / 死亡 / 通关)+ 终末之诗 + 彩蛋窗口:位置跟着相机取景走 */
