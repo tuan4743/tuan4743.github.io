@@ -49,13 +49,17 @@ console.log('起点:第 ' + FROM + ' 帧 x=' + (w.x / U).toFixed(2) + ' y=' + (w
 let found = 0;
 const t0 = Date.now();
 let tried = 0;
-for (let period = 3; period <= 10 && found < 8; period++) {
-  for (let holds = 1; holds < period && found < 8; holds++) {
-    for (let k = 1; k <= 6 && found < 8; k++) {
-      for (const tail of [2, 6, 12, 20]) {
-        const pat = Array.from({ length: k }, () =>
-          new Array(period - holds).fill(false).concat(new Array(holds).fill(true))).flat()
-          .concat(new Array(tail).fill(true));
+/** 三段式:① (0^a 1^b)^k 控高 ② 0^d 下扎 ③ 1^n 落地按住。
+ *  这就是"机制"翻译成按键串的样子 —— ①段保证过速度门时还在 23.57 以上,②段下到平台面,
+ *  ③段用"按住 = 反重力下朝平台蹬"把人压在平台上穿过门。 */
+let best = { score: -1e9, tag: '', x: 0, y: 0, skipped: 0, doorOn: false };
+for (let a = 1; a <= 9; a++) {
+  for (let b = 1; b <= 6; b++) {
+    for (let k = 0; k <= 8; k++) {
+      for (let d = 0; d <= 16; d++) {
+        const phase1 = Array.from({ length: k }, () =>
+          new Array(a).fill(false).concat(new Array(b).fill(true))).flat().flat();
+        const pat = phase1.concat(new Array(d).fill(false)).concat(new Array(26).fill(true));
         w.restore(root);
         const armed = new Set(rootArmed); const skipped = new Set(rootSkipped);
         for (const h of pat) {
@@ -64,17 +68,29 @@ for (let period = 3; period <= 10 && found < 8; period++) {
           auditStep(armed, skipped);
         }
         tried++;
-        if (w.armedPortals.has(door) && skipped.size === rootSkipped.size) {
+        const extraSkips = skipped.size - rootSkipped.size;
+        const on = w.armedPortals.has(door);
+        /* 打分:先看"门开没开 + 有没有跳门",再看末态离门盒中心多近(给下一轮指路) */
+        const dist = Math.abs((w.y / U) - 23.5) + Math.abs((w.x / U) - 1060.5);
+        const score = (on ? 1000 : 0) - extraSkips * 100 - dist;
+        if (score > best.score) best = { score, tag: '0^' + a + '1^' + b + ' ×' + k + ' + 0^' + d + ' + 1^26', x: w.x / U, y: w.y / U, skipped: extraSkips, doorOn: on };
+        if (on && extraSkips === 0) {
           found++;
-          console.log('★ 合法:每 ' + period + ' 帧按 ' + holds + ' 帧 × ' + k + ' 轮 + 收尾按住 ' + tail
+          console.log('★ 合法:a=' + a + ' b=' + b + ' k=' + k + ' d=' + d
             + ' → x=' + (w.x / U).toFixed(2) + ' y=' + (w.y / U).toFixed(2) + ' ' + w.mode
             + ' · 生效 ' + armed.size + ' 跳过 ' + skipped.size);
           fs.writeFileSync('../../.tmp/gd/gap-hand.json', JSON.stringify({ from: FROM, inputs: pat }));
           console.log('   尾段(' + pat.length + ' 帧)写到 ../../.tmp/gd/gap-hand.json');
+          if (found >= 5) break;
         }
       }
+      if (found >= 5) break;
     }
+    if (found >= 5) break;
   }
+  if (found >= 5) break;
 }
+console.log('最接近的一条:' + best.tag + ' → x=' + best.x.toFixed(2) + ' y=' + best.y.toFixed(2)
+  + ' · 门' + (best.doorOn ? '开了' : '没开') + ' · 多跳门 ' + best.skipped);
 console.log((found ? '找到 ' + found + ' 条' : '没找到') + ' · 试了 ' + tried + ' 条 · 用时 '
   + ((Date.now() - t0) / 1000).toFixed(1) + 's');
