@@ -722,25 +722,36 @@ class Scene extends Phaser.Scene {
   drawn = 0;
   private fracT = 0;
 
+  /** ★★ 量尺寸(2026-09 修"整体偏移"):
+   *  ① 量的是【canvas 的父容器】(外框),不是 canvas 自己 —— 量 canvas 会自我循环:
+   *     上一次把 canvas 撑成竖条,这一次就按竖条算缓冲,越量越歪。
+   *  ② 缓冲的长宽比**必须**等于外框的长宽比。以前最后有一句 `bufW = max(320, w)`:
+   *     窗口很窄时算出来 w=158 → 被抬成 320 ⇒ 缓冲 320×720(0.44)而外框 126×573(0.22)
+   *     ⇒ 浏览器把画面压扁,而且只有左上角一块是真的,看起来就是"整体偏移"。
+   *     现在改成:宽不够就**等比缩高度**(viewH 一起降),比例永远不破。
+   *  ③ 像素预算:太宽就整体缩一档(等比缩,比例不变),别让填充率拖垮帧率。 */
   private measureFrac() {
     const cv = document.getElementById('gd-canvas') as HTMLCanvasElement | null;
-    const r = cv?.getBoundingClientRect();
-    if (!cv || !r || r.height <= 0 || r.width <= 0) {
-      this.viewFrac = 1; this.viewTop = 0; this.viewH = 720; this.bufW = 1280; return;
-    }
-    this.viewH = Math.round(720 * RENDER_SCALE);
-    let w = Math.round(this.viewH * (r.width / r.height));
-    /* ★ 像素预算:盒子越宽,缓冲就越宽(比例必须跟着盒子,不然方块会变长方形)。
-       但盒子可能非常宽 —— 那就整体缩一档(等比缩,比例不变),别让填充率拖垮帧率。 */
-    const px = w * this.viewH;
-    if (px > BUF_BUDGET) {
+    /* ★★ 长宽比一律用【窗口】算,不用 canvas / 父容器的 rect ——
+       它们里面装着 canvas,量出来是"上一次的结果",会自我循环(实测:窄窗口下越量越扁,
+       缓冲被算成 316×3643 那种怪物)。窗口尺寸是外部真值,不会循环。 */
+    const winW = Math.max(1, window.innerWidth);
+    const winH = Math.max(1, window.innerHeight);
+    /* 竖屏/极窄:按至少 1.2:1 渲染(两侧留黑),不然横向只剩两三个方块,根本没法玩 */
+    const aspect = Math.max(1.2, winW / winH);
+    let h = Math.round(720 * RENDER_SCALE);
+    let w = Math.round(h * aspect);
+    const px = w * h;
+    if (px > BUF_BUDGET) {                       // 太宽就整体缩一档(等比,比例不变)
       const k = Math.sqrt(BUF_BUDGET / px);
-      this.viewH = Math.max(240, Math.round(this.viewH * k));
+      h = Math.max(240, Math.round(h * k));
       w = Math.max(320, Math.round(w * k));
     }
-    this.bufW = Math.max(320, w);
+    this.viewH = h;
+    this.bufW = w;
     this.viewFrac = 1;
     this.viewTop = 0;
+    void cv;
   }
 
   /** 可见宽度 = 由 VIEW_H_BLOCKS 与画幅比例决定;取景框只覆盖"露出来的那一条" */
@@ -1286,14 +1297,29 @@ class Scene extends Phaser.Scene {
    *    ~525 px,多出来的 38% 就被金属边框挡住(用户截图:HUD 写着"画布被挡 38%",
    *    底下还露出一条黑条,关卡底部的刺全被裁掉)。这一句才是真正的病根。 */
   private applyViewport(cam: Phaser.Cameras.Scene2D.Camera) {
-    /* ★ 先让缓冲跟着盒子的长宽比走,再把画布的 CSS 尺寸按回 100%×100% ——
-       顺序不能反:Phaser 的 ScaleManager 会在 resize 时把 canvas 的行内样式又写成
-       "1280px/xxx px",那正是底部那条黑条(画布固定高、装不下窗口)的来源。 */
     if (this.scale.height !== this.viewH || this.scale.width !== this.bufW) this.scale.resize(this.bufW, this.viewH);
     const cv = document.getElementById('gd-canvas') as HTMLCanvasElement | null;
+    /* ★★ 画布的 CSS 尺寸按【缓冲的长宽比】在外框里等比放下(放不下就留黑边),并居中 ——
+       以前无条件写 100%×100%:外框比例和缓冲比例不一致时,浏览器替我们"拉伸",
+       看起来就是画面偏到左上角 + 方块变长方形(用户实测的"整体偏移")。 */
     if (cv) {
-      cv.style.width = '100%';
-      cv.style.height = '100%';
+      /* 画布按缓冲的比例放进外框(装不下就留黑边)并居中 */
+      const host = (cv.parentElement ?? cv) as HTMLElement;
+      const rw = Math.max(1, host.clientWidth || window.innerWidth);
+      const rh = Math.max(1, host.clientHeight || window.innerHeight);
+      const aspect = this.bufW / this.viewH;
+      let dw = rw, dh = rh;
+      if (rw / rh > aspect) dw = rh * aspect; else dh = rw / aspect;
+      /* ★★ 必须用 setProperty(..., 'important'):
+         页面 CSS 里为了压住 Phaser 写的行内样式,有 `width/height: 100% !important` ——
+         普通行内样式会被它盖掉(实测:画布永远等于外框 2.0:1,而缓冲是窗口比例,于是又错开了)。
+         行内 + important 的优先级高于样式表 + important,这样才是我们说了算 ✓ */
+      cv.style.setProperty('width', Math.round(dw) + 'px', 'important');
+      cv.style.setProperty('height', Math.round(dh) + 'px', 'important');
+      cv.style.position = 'absolute';
+      cv.style.left = '50%';
+      cv.style.top = '50%';
+      cv.style.transform = 'translate(-50%, -50%)';
     }
     cam.setViewport(0, 0, this.bufW, this.viewH);
     cam.setSize(this.bufW, this.viewH);
