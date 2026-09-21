@@ -99,10 +99,14 @@ for (let i = 0; i < stations.length; i++) {
   const st = stations[i];
   const a = audit(BEST);
   const am = audit(MAXB);
-  /* 到站判据:门站看"门生效了没有",路标看图卷走到哪(两条前缀都算) —— 见文件头 ① */
-  const passed = st.door >= 0
-    ? !!(a?.armed.has(doors[st.door]) || am?.armed.has(doors[st.door]))
-    : Math.max(a?.x ?? 0, am?.x ?? 0) >= st.x;
+  /* 到站判据:门站看"门生效了没有",路标看图卷走到哪(两条前缀都算) —— 见文件头 ①
+     ★ free 模式例外:那条路线【本来就允许跳过门】(--noskip= 关掉了硬约束),
+       所以对它只能用几何判据(x 走过去就算到站),否则驱动会一直等一个永远不会 armed 的门
+       (踩过:free 重搜时在站 #37 卡了十几分钟,一直重试"退回 N 块重开")。 */
+  const stPass = (aa: Audit | null, am: Audit | null) => (FREE || st.door < 0)
+    ? Math.max(aa?.x ?? 0, am?.x ?? 0) >= st.x
+    : !!(aa?.armed.has(doors[st.door]) || am?.armed.has(doors[st.door]));
+  const passed = stPass(a, am);
   if (passed) continue;
   const left = TOTAL - (Date.now() - t0) / 1000;
   if (left <= 5) {
@@ -225,7 +229,7 @@ for (let i = 0; i < stations.length; i++) {
       for (const f of [BEST + '.p' + k, partMax]) {
         const aa = audit(f);
         if (!aa) continue;
-        const pass = st.door >= 0 ? aa.armed.has(doors[st.door]) : aa.x >= st.x;
+        const pass = (FREE || st.door < 0) ? aa.x >= st.x : aa.armed.has(doors[st.door]);
         const cur = { file: f, x: aa.x, doors: aa.armed.size, skip: aa.skipped.size, pass };
         const better = !win
           || (cur.pass && !win.pass)
