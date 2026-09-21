@@ -116,10 +116,34 @@ export const GD_HITBOX_OFFSET: Record<string, [number, number]> = {
   teleport: [-0.5, -45],
 };
 
+/** ★ 刺的判定盒【按 ID】查(单位,[宽,高])—— 出处 `longdata.cpp` 的 `_pHitboxes`:
+ *    id 8   {12,6,-3,-6}   → 6×12 单位(0.2×0.4 块)… 注意原表字段序是 {h,w,x,y}
+ *    id 39  {5.6,6,-3,-2.8}→ 6×5.6
+ *    id 103 {7.6,4,-2,-3.8}→ 4×7.6
+ *    id 392 {4.8,2.6,-1.3,-2.4} → 2.6×4.8(那根"贴地矮刺")
+ *  为什么要按 ID:以前是按 `o.h`(刺的高度)查字符串键,而铺面文本里的高度是**四舍五入到 3 位**的
+ *  (0.0625 → 0.063),于是 id 392 那 17 根刺查不到表值 → 退回"物件自己的包围盒"= 1 格宽,
+ *  判定比原版宽 11 倍。`tools/hitbox-coverage.ts` 就是把这 17 个揪出来的那张表。 */
+export const GD_SPIKE_BY_ID: Record<number, [number, number]> = {
+  8: [6, 12], 39: [6, 5.6], 103: [4, 7.6], 392: [2.6, 4.8],
+};
+
+/** 按刺的【高度】查表(合成关卡没有 ID 时的兜底)。
+ *  ★ 要做最近邻匹配:铺面文本里的高度是四舍五入到 3 位的(0.0625 存成 0.063),
+ *    以前用精确字符串键查 → 查不到 → 退回 1 格宽的包围盒(实测那 17 根刺判定宽了 11 倍)。 */
+function spikeByHeight(h: number): [number, number] | null {
+  let best: [number, number] | null = null, bd = Infinity;
+  for (const [k, v] of Object.entries(GD_HITBOX.spike)) {
+    const d = Math.abs(Number(k) - h);
+    if (d < bd) { bd = d; best = v; }
+  }
+  return bd <= Math.max(0.02, h * 0.2) ? best : null;      // 差太远就别硬套
+}
+
 /** 取某个物件的原版判定盒(单位);表里没有的返回 null(调用方按原来的几何算) */
 export function hitboxOf(o: Obj): [number, number] | null {
   switch (o.kind) {
-    case 'spike': return GD_HITBOX.spike[String(o.h)] ?? null;
+    case 'spike': return (o.id != null ? GD_SPIKE_BY_ID[o.id] : undefined) ?? spikeByHeight(o.h);
     case 'pad': return GD_HITBOX.pad[o.pad ?? 'yellow'] ?? null;
     case 'orb': return GD_HITBOX.orb;
     case 'arrow': return GD_HITBOX.arrow;
@@ -409,9 +433,9 @@ export function encodeObjects(objs: Obj[]): string {
     if (o.exit) ex.push('exit=1');
     if (o.tpy != null) ex.push('tpy=' + n(o.tpy));
     if (o.mini != null) ex.push('mini=' + (o.mini ? 1 : 0));
-    /* ★ 圆判定物件(锯片族)必须带上 ID —— 半径是按 ID 查 GD_HITBOX_RADIUS 的,
-       紧凑文本里丢了 ID 就只能退回矩形判定(踩过:整关照旧按矩形判,门缝全被吃掉)。 */
-    if (o.id != null && GD_HITBOX_RADIUS[o.id] != null) ex.push('id=' + o.id);
+    /* ★ 圆判定物件(锯片族)与刺族都要带上 ID —— 半径/判定盒是按 ID 查表的,
+       紧凑文本里丢了 ID 就只能退回猜的包围盒(踩过:整关照旧按矩形判 + 37 根刺查不到表值)。 */
+    if (o.id != null && (GD_HITBOX_RADIUS[o.id] != null || o.kind === 'spike')) ex.push('id=' + o.id);
     if (o.col != null) ex.push('col=' + o.col);
     if (o.z != null) ex.push('z=' + o.z);
     if (o.groups?.length) ex.push('g=' + o.groups.join('.'));
@@ -452,7 +476,7 @@ export function decodeObjects(text: string): Obj[] {
         case 'exit': o.exit = true; break;
         case 'tpy': o.tpy = Number(v); break;
         case 'mini': o.mini = v === '1'; break;
-        /* 圆判定:ID 够了 —— 半径、缩放都从 GD_HITBOX_RADIUS / GD_SPEC 现算 */
+        /* 圆判定 / 刺族:ID 够了 —— 半径、判定盒、缩放都从表里现算 */
         case 'id': {
           o.id = Number(v);
           const rr = GD_HITBOX_RADIUS[o.id];

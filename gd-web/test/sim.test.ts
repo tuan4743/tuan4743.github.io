@@ -530,6 +530,25 @@ test('球吃环 ×0.7、吃弹簧 ×0.6 —— 两条路径的折扣【不能叠
     '方块吃黄弹簧 = 16,实测 ' + Math.abs(c.vy).toFixed(3));
 });
 
+test('刺的判定盒按 ID 查表 —— 高度四舍五入(0.063 ≈ 0.0625)不会掉出表', () => {
+  /* 出处 longdata.cpp `_pHitboxes`:id 8 {12,6}、39 {5.6,6}、103 {7.6,4}、392 {4.8,2.6}(原表字段序 {h,w,x,y})。
+     踩过:铺面文本把高度四舍五入到 3 位(0.0625 → 0.063),精确字符串键查不到 → 退回"物件自己的包围盒"
+     = 1 格宽(30 单位),那 17 根刺的判定比原版宽 11 倍。现在按 ID 查 + 高度最近邻兜底。 */
+  const mk = (o: Record<string, unknown>) => new World(solo([
+    { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
+    o as never,
+  ]));
+  const wOf = (w: World) => w.hazards[0].x1 - w.hazards[0].x0;
+  const byId = mk({ kind: 'spike', id: 392, b: 20, r: 0, w: 1, h: 0.0625 });
+  assert.ok(Math.abs(wOf(byId) - 2.6) < 0.01, 'id 392 → 宽 2.6 单位,实测 ' + wOf(byId).toFixed(2));
+  const byH = mk({ kind: 'spike', b: 20, r: 0, w: 1, h: 0.063 });     // 没有 ID,靠高度最近邻
+  assert.ok(Math.abs(wOf(byH) - 2.6) < 0.01, '高度 0.063 最近邻 → 宽 2.6 单位,实测 ' + wOf(byH).toFixed(2));
+  const plain = mk({ kind: 'spike', b: 20, r: 0, w: 1, h: 1 });
+  assert.ok(Math.abs(wOf(plain) - 6) < 0.01, '普通刺(id 8)→ 宽 6 单位,实测 ' + wOf(plain).toFixed(2));
+  const byId39 = mk({ kind: 'spike', id: 39, b: 20, r: 0, w: 1, h: 0.5 });
+  assert.ok(Math.abs(wOf(byId39) - 6) < 0.01, 'id 39 → 宽 6 单位,实测 ' + wOf(byId39).toFixed(2));
+});
+
 test('黑环(冲刺):不管当前速度,直接把垂直速度设成 15 并朝重力方向', () => {
   const lv = solo([
     { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
