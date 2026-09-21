@@ -991,6 +991,8 @@ export class World {
         const down = Math.max(this.y, this.frameY0) + TOL;
         const up = Math.min(this.y + this.box, this.frameY0 + this.box) - TOL;
         if (down >= b.y1 || up <= b.y0) continue;                  // 擦过去(6 单位容错)
+        /* 可破坏砖块:飞行类撞上去也是【碎掉】而不是死(GD 里砖块对任何形态都是撞碎) */
+        if (b.o.kind === 'breakable') { this.broken.add(b); continue; }
         this.die(); return;
       }
     }

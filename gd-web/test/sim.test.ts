@@ -549,6 +549,24 @@ test('刺的判定盒按 ID 查表 —— 高度四舍五入(0.063 ≈ 0.0625)�
   assert.ok(Math.abs(wOf(byId39) - 6) < 0.01, 'id 39 → 宽 6 单位,实测 ' + wOf(byId39).toFixed(2));
 });
 
+test('飞行类碰实心即死(flySolid):开关两个方向都验一遍', () => {
+  /* 出处:gdp@2.11 `checkCollisions.cpp:440-445` 的实心判定对【所有形态】都跑 ——
+     飞机/UFO/波浪飞进砖里就是死。我们以前把这一段写在 `mode !== 飞行类` 的 guard 里,
+     于是飞行类穿墙不死(只会因"世界底边 y<0"死),这个 bug 藏了很久(见 HANDOVER §13.25)。
+     `flySolid` 默认按关卡来源:`.dat` 真实关卡开、自铺面关(生成器还没按新物理校验)。 */
+  const lv = solo([{ kind: 'block', b: 20, r: 2, w: 1, h: 1 }]);   // 空中一块 1×1
+  const fallTo = (flySolid: boolean) => {
+    const w = new World(lv, undefined, undefined, { flySolid });
+    w.reset(18 * U, 'ufo', 3.5 * U);     // 从方块【斜上方】落下:飞过 x=20 那一下正好与方块同高
+    w.speedIdx = 1; w.gdir = 1; w.vy = 0; w.onGround = false;
+    for (let f = 0; f < 200 && !w.dead; f++) w.frame(false);
+    return w.y / U;                      // 死在哪一高度
+  };
+  const yOn = fallTo(true), yOff = fallTo(false);
+  assert.ok(yOn > 1.5, 'flySolid=开:应该撞死在方块上,实测死点 y=' + yOn.toFixed(2));
+  assert.ok(yOff < 0.5, 'flySolid=关(自铺面):保持旧行为 —— 穿过方块、死在世界底边,实测 y=' + yOff.toFixed(2));
+});
+
 test('黑环(冲刺):不管当前速度,直接把垂直速度设成 15 并朝重力方向', () => {
   const lv = solo([
     { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
