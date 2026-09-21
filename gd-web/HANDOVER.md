@@ -868,6 +868,16 @@ node tools/autoplay.ts --seed=<卷> --seedtrim=20 --goal=527.5                  
 这一轮的实测:自由路线 108 站 280 秒推到 3425.7、收尾 1.7 秒通关,
 21187 帧 · 0 死亡 · 指纹 `ad0a1bcf → 56d19d08`;落块吸附那次再改成 **21186 帧 · 指纹 `d586750d`**。
 
+★ **2026-09 补:工具类改动要跑"启动冒烟",esbuild 语法门查不出未定义标识符。**
+踩过:给驱动加 `--goaly` 变体时用了 `U` 却忘了 `import` —— `autoplay-stage` 一构建重试清单就
+`ReferenceError: U is not defined`,而语法检查、单元测试全过,驱动却**一启动就死**(还以为它在后台跑)。
+最小冒烟(1 秒预算、站距调到 1000 块,只会空转几站):
+```
+node tools/autoplay-stage.ts 1 5 --way=1000     # 期望:打印"走到 x=… 生效门 n/108"后正常退出
+node tools/autoplay.ts --startfrom=<卷子>,<x> --goal=<x+20> --budget=3 --quiet=1 --best=/tmp/a.json --tape=/tmp/a.sol.json
+```
+★ 冒烟时【必须先停掉正在跑的驱动】:两边都写同一批 `.pN` sidecar 文件,会互相删对方的输出。
+
 ### 13.10 落块吸附(方块连台阶时的 ±1~2 单位横向修正)+ 一个"裁剪改物理"的隐患
 
 **落块吸附**(出处 gdp master `PlayerObject_checkSnapJumpToObject.cpp`):原版每落到新方块上,
