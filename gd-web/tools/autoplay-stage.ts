@@ -49,6 +49,8 @@ const PAR = Math.max(1, Number(arg('par', 4)));
 const BEST = FREE ? '../../.tmp/gd/water-free.best.json' : '../../.tmp/gd/water-route.best.json';
 const SOL = FREE ? '../../.tmp/gd/water-free.solution.json' : '../../.tmp/gd/water-route.solution.json';
 const MAXB = BEST.replace(/\.json$/, '') + '.max.json';
+/** ★ 路线向导(可选):--guide=<tools/plan.ts 输出的走廊 json> —— 传给每个搜索进程 */
+const GUIDE = arg('guide', '');
 
 /* ---------------- 必过门 + 路标 ---------------- */
 const isDoor = (o: Obj) => o.kind === 'portal' || o.kind === 'gravity' || o.kind === 'speed' || o.kind === 'size';
@@ -324,6 +326,9 @@ for (let i = 0; i < stations.length; i++) {
       for (const e of tr.extra) args.push(e);
       if (FREE) args.push('--noskip=');
       else if (SKIPOK.length) args.push('--skipok=' + SKIPOK.join(','));
+      /* ★ 路线向导(tools/plan.ts 算出来的走廊):每个变体都带上 —— 它决定"什么算好状态",
+         能把"靠反重力飞天偷鸡"那条路整条掐掉(用户点名的问题)。 */
+      if (GUIDE) args.push('--guide=' + GUIDE, '--guidepen=30', '--guidecut=14');
       console.log('  → 并发 ' + (k + 1) + '/' + batch.length + (tr.tag ? ' · ' + tr.tag : ' · 接着上次'));
       return spawn(process.execPath, args, { stdio: ['ignore', 'pipe', 'pipe'], cwd: process.cwd(), k });
     });

@@ -549,22 +549,45 @@ test('刺的判定盒按 ID 查表 —— 高度四舍五入(0.063 ≈ 0.0625)�
   assert.ok(Math.abs(wOf(byId39) - 6) < 0.01, 'id 39 → 宽 6 单位,实测 ' + wOf(byId39).toFixed(2));
 });
 
-test('飞行类碰实心即死(flySolid):开关两个方向都验一遍', () => {
-  /* 出处:gdp@2.11 `checkCollisions.cpp:440-445` 的实心判定对【所有形态】都跑 ——
+test('飞行类碰实心:撞侧面死、擦到顶面【落上去】(flySolid 开/关各验一遍)', () => {
+  /* 出处:gdp@2.11 `checkCollisions.cpp:440-445` —— 实心判定对【所有形态】都跑,
      飞机/UFO/波浪飞进砖里就是死。我们以前把这一段写在 `mode !== 飞行类` 的 guard 里,
      于是飞行类穿墙不死(只会因"世界底边 y<0"死),这个 bug 藏了很久(见 HANDOVER §13.25)。
-     `flySolid` 默认按关卡来源:`.dat` 真实关卡开、自铺面关(生成器还没按新物理校验)。 */
-  const lv = solo([{ kind: 'block', b: 20, r: 2, w: 1, h: 1 }]);   // 空中一块 1×1
-  const fallTo = (flySolid: boolean) => {
+     ★ 2026-09 又修了两处(用户:"UFO 不会踩上任何东西,碰到线框或者砖块直接穿过去"):
+       · 判定盒要用【外框】(playerobject.cpp:86 `setTextureRect(Rect(0,0,30,30))`);
+       · 擦到【顶面】要落上去贴着滑 —— 原版飞行类贴着地面/平台飞是安全的,只有撞侧面/底面才死。
+     所以这个测试现在要同时验三件事:落顶面 ✓、撞侧面 ✗死、flySolid=关时保持旧行为。 */
+  const lv = solo([{ kind: 'block', b: 18, r: 2, w: 6, h: 1 }]);   // 空中一块 6×1 的台面(顶面 y=3)
+  const run = (flySolid: boolean, mode: 'ufo' | 'ship', x0: number) => {
     const w = new World(lv, undefined, undefined, { flySolid });
-    w.reset(18 * U, 'ufo', 3.5 * U);     // 从方块【斜上方】落下:飞过 x=20 那一下正好与方块同高
+    w.reset(x0 * U, mode, 3.5 * U);
     w.speedIdx = 1; w.gdir = 1; w.vy = 0; w.onGround = false;
-    for (let f = 0; f < 200 && !w.dead; f++) w.frame(false);
-    return w.y / U;                      // 死在哪一高度
+    /* ★ 不能只看末态:飞行类落到台面上之后会继续往前滑,30 帧后就滑出 6 格宽的台面又掉下去了。
+       这里要抓的是"有没有在顶面上站住过"这一刻。 */
+    let landed = -1;
+    for (let f = 0; f < 200 && !w.dead; f++) {
+      w.frame(false);
+      if (w.onGround && landed < 0) landed = w.y / U;
+      if (landed >= 0 && f > landed + 2) break;
+    }
+    return { landed, y: w.y / U, dead: w.dead };
   };
-  const yOn = fallTo(true), yOff = fallTo(false);
-  assert.ok(yOn > 1.5, 'flySolid=开:应该撞死在方块上,实测死点 y=' + yOn.toFixed(2));
-  assert.ok(yOff < 0.5, 'flySolid=关(自铺面):保持旧行为 —— 穿过方块、死在世界底边,实测 y=' + yOff.toFixed(2));
+  /* ① 从台面斜上方落下 —— 以前是"沉进去然后死",现在应该稳稳落在 y=3 上 */
+  const land = run(true, 'ufo', 19);
+  assert.ok(land.landed > 0 && Math.abs(land.landed - 3) < 0.05,
+    'flySolid=开:应该落在方块顶面 y=3 上,实测落点 y=' + land.landed.toFixed(2));
+  /* ② flySolid=关(自铺面):保持旧行为 —— 穿过方块,一路掉到世界底边才死 */
+  const off = run(false, 'ufo', 19);
+  assert.ok(off.landed < 0 && off.y < 0.5,
+    'flySolid=关(自铺面):保持旧行为 —— 穿过方块、死在世界底边,实测 y=' + off.y.toFixed(2));
+  /* ③ 撞【侧面】必须死(平飞撞一堵从地面顶到关卡顶的竖墙 —— 墙矮了飞行类会从上面飞过去) */
+  const wall = solo([{ kind: 'block', b: 12, r: 0, w: 1, h: 38 }]);
+  for (const mode of ['ufo', 'ship'] as const) {
+    const w = new World(wall);
+    w.reset(8 * U, mode, 6 * U); w.gdir = 1; w.vy = 0; w.onGround = false;
+    for (let f = 0; f < 80 && !w.dead; f++) w.frame(false);
+    assert.ok(w.dead, mode + ' 平飞撞竖墙应该死,实测活着到了 x=' + (w.x / U).toFixed(2));
+  }
 });
 
 test('黑环(冲刺):不管当前速度,直接把垂直速度设成 15 并朝重力方向', () => {

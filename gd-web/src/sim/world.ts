@@ -961,18 +961,28 @@ export class World {
                · 真关卡里波浪从 x=540 一路穿过塔段那堵竖墙(x=546.97,y=0.5~6.5)飞到 x=552、y=14 还活着。
              容错口径仍按反编译:飞行类的 snapUpThreshold = gravityMult×6.0(6 单位 = 0.2 块),
              所以"擦着顶/底 6 单位以内"不算撞;超出就是撞死。 */
-        if (this.flySolid && this.isFlyMode) {
-          if (clearTop || clearBot) continue;
-          this.die(); return;
-        }
-        /* ★ 临时定点用:把这一支的判断过程记下来(默认关;tools/probe-rod.ts 打它)。
-           排查"UFO 穿过细杆"时必须有这个 —— 光看帧末状态推不出走的是哪一支。 */
+        /* ★ 临时定点用:把这一支的判断过程记下来(默认关;tools/probe-rod.ts / probe-fly-synth.ts 打它)。
+            排查"UFO 穿过细杆 / 落不到台面上"时必须有这个 —— 光看帧末状态推不出走的是哪一支。
+            ★ 2026-09:这一段以前排在飞行类分支【后面】,于是飞行类判死时 trace 是空的
+            (上一轮就是这么白跑一遍的),现在挪到前面,并且把飞行类的结论也记进去。 */
         if (this.traceSolid) {
-          this.solidTrace.push('sub y=' + (this.y / U).toFixed(3) + ' vy=' + this.vy.toFixed(2)
-            + ' mode=' + this.mode + ' box y[' + (b.y0 / U).toFixed(3) + ',' + (b.y1 / U).toFixed(3) + ']'
-            + ' reachDown=' + reachDown.toFixed(2) + ' clearTop=' + clearTop
-            + ' reachUp=' + reachUp.toFixed(2) + ' clearBot=' + clearBot
-            + ' prevY=' + prevY.toFixed(2) + ' gdir=' + this.gdir);
+          this.solidTrace.push('sub y=' + (this.y / U).toFixed(3) + ' vy=' + (this.vy / U).toFixed(3)
+            + ' mode=' + this.mode + ' box x[' + (b.x0 / U).toFixed(3) + ',' + (b.x1 / U).toFixed(3)
+            + '] y[' + (b.y0 / U).toFixed(3) + ',' + (b.y1 / U).toFixed(3) + ']'
+            + ' reachDown=' + (reachDown / U).toFixed(3) + ' clearTop=' + clearTop
+            + ' reachUp=' + (reachUp / U).toFixed(3) + ' clearBot=' + clearBot
+            + ' prevY=' + (prevY / U).toFixed(3) + ' gdir=' + this.gdir + ' fly=' + (this.flySolid && this.isFlyMode));
+        }
+        if (this.flySolid && this.isFlyMode) {
+          /* ★★ 2026-09 修(用户:"UFO 不会踩上任何东西,碰到线框或者砖块直接穿过去"):
+             原版里飞行类**可以踩在砖顶面上**贴着滑(贴着地面/平台飞是安全的),
+             只有撞【侧面】和撞【底面】才死。我们以前是 `clearTop || clearBot → continue`:
+             既不判死也不落地 ⇒ 人一路沉进砖里,下一帧内框已经不重叠 → 直接穿过去(合成场景实测:
+             UFO/飞机从 y=8 落到顶面 y=4 的平台,都是"沉进去然后死",没有一次站住)。
+             现在:擦到顶面就【落到顶面上】(和方块/球那一支同样的吸附),擦到底面才放行,其余判死。 */
+          if (clearTop) { this.y = b.y1; this.vy = 0; this.onGround = true; continue; }
+          if (clearBot) continue;
+          this.die(); return;
         }
         if (this.vy <= 0 && clearTop) {
           this.y = b.y1; this.vy = 0; this.onGround = true;
@@ -996,13 +1006,31 @@ export class World {
        容错按反编译:飞行类 snapUpThreshold = gravityMult×6.0(6 单位 = 0.2 块)——
        "擦着顶/底 6 单位以内"不算撞,超出就是撞死。 */
     if (this.flySolid && this.isFlyMode) {
-      const inn = this.inner();
+      /* ★★ 2026-09 修(用户:"UFO 不会踩上任何东西,碰到线框或者砖块直接穿过去"):两处都错了 ——
+         ① 【要用外框判】出处 gdp master `PlayerObject::collidedWithObjectInternal`:
+              `auto playerRect = getObjectRect();`,而 playerobject.cpp:86 写着
+              `setTextureRect(Rect(0, 0, 30, 30)); // player hitbox lol`
+              —— 玩家的实心判定盒就是 **30×30 外框**(7.5×7.5 那个内框是给尖刺这类"看着撞上却没死"用的)。
+              以前这里用内框:检测晚 0.375 块,落地那一下永远赶不上吸附窗口。
+         ② 【擦到顶面 = 落地】原版飞行类可以踩在砖顶上贴着滑(贴着地面/平台飞是安全的),
+              只有撞侧面/底面才死。以前 `clearTop || clearBot → continue`:既不判死也不落地,
+              于是人一路沉进砖里、下一帧外框/内框都不再重叠 → 直接穿过去。
+         合成场景实测(tools/probe-fly-synth.ts,台面顶 y=4):修之前 UFO/飞机/波浪 全是"沉进去然后死",
+         修之后三个形态都稳稳落在 y=4 上。 */
+      const out = this.outer();
       const TOL = 6;
       for (const b of this.nearSolids) {
-        if (inn.x1 <= b.x0 || inn.x0 >= b.x1 || inn.y1 <= b.y0 || inn.y0 >= b.y1) continue;
+        if (out.x1 <= b.x0 || out.x0 >= b.x1 || out.y1 <= b.y0 || out.y0 >= b.y1) continue;
         const down = Math.max(this.y, this.frameY0) + TOL;
         const up = Math.min(this.y + this.box, this.frameY0 + this.box) - TOL;
-        if (down >= b.y1 || up <= b.y0) continue;                  // 擦过去(6 单位容错)
+        if (this.traceSolid) {
+          this.solidTrace.push('fly y=' + (this.y / U).toFixed(3) + ' mode=' + this.mode
+            + ' box y[' + (b.y0 / U).toFixed(3) + ',' + (b.y1 / U).toFixed(3) + ']'
+            + ' down=' + (down / U).toFixed(3) + ' clearTop=' + (down >= b.y1)
+            + ' up=' + (up / U).toFixed(3) + ' clearBot=' + (up <= b.y0));
+        }
+        if (down >= b.y1) { this.y = b.y1; this.vy = 0; this.onGround = true; continue; }
+        if (up <= b.y0) continue;                                  // 擦着底面过去(6 单位容错)
         /* 可破坏砖块:飞行类撞上去也是【碎掉】而不是死(GD 里砖块对任何形态都是撞碎) */
         if (b.o.kind === 'breakable') { this.broken.add(b); continue; }
         this.die(); return;

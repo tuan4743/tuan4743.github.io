@@ -94,6 +94,32 @@ const GOALY_FROM = Number(arg('goalyfrom', 10));      // 从目标前多少块�
 const GOALY_WIN = Number(arg('goalywin', 4));         // 允许的中心 y 偏差(块)
 /** 软走廊:每偏离门高 1 块扣多少"单位"(1 块 = 30 单位 ⇒ 3 表示偏 1 块等于少走 3 块 x) */
 const GOALY_PEN = Number(arg('goalypen', 0));
+
+/* ---------------- ★★ 路线向导(--guide=<tools/plan.ts 出的走廊 json>) ----------------
+ * 走廊点 = [[x, y], …](块坐标,已按采样间隔抽稀)。查询按 x 线性插值。
+ * GUIDE_PEN:离走廊 1 块扣多少"单位"(和 --goalypen 同量纲:1 块 = 30 单位);
+ * GUIDE_CUT:离走廊超过这么多块的状态【直接不留】—— 这是掐掉"飞天偷鸡"那条路的关键。 */
+const GUIDE_PATH = arg('guide', '');
+let GUIDE: Array<[number, number]> | null = null;
+if (GUIDE_PATH) {
+  try {
+    const j = JSON.parse(fs.readFileSync(GUIDE_PATH, 'utf8')) as { points: Array<[number, number]> };
+    GUIDE = j.points.filter((p) => Array.isArray(p) && p.length === 2);
+    console.log('路线向导:' + GUIDE_PATH + ' · ' + GUIDE.length + ' 个点 · y ' + Math.min(...GUIDE.map((p) => p[1])).toFixed(1)
+      + '~' + Math.max(...GUIDE.map((p) => p[1])).toFixed(1) + ' 块');
+  } catch (e) { console.error('✗ 向导读不了:' + String(e)); }
+}
+const GUIDE_PEN = Number(arg('guidepen', 30));
+const GUIDE_CUT = Number(arg('guidecut', 14));
+function guideYAt(xBlocks: number): number {
+  if (!GUIDE || !GUIDE.length) return 0;
+  let lo = 0, hi = GUIDE.length - 1;
+  if (xBlocks <= GUIDE[0][0]) return GUIDE[0][1];
+  if (xBlocks >= GUIDE[hi][0]) return GUIDE[hi][1];
+  while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (GUIDE[mid][0] <= xBlocks) lo = mid; else hi = mid; }
+  const [x0, y0] = GUIDE[lo], [x1, y1] = GUIDE[hi];
+  return y0 + (y1 - y0) * ((xBlocks - x0) / Math.max(1e-6, x1 - x0));
+}
 let goalLimitX: number | null = null;      // 由 --goal 推出(在 GOAL 定义之后赋值)
 if (GOALY != null) console.log('门口高度提示:y = ' + GOALY + ' ± ' + GOALY_WIN
   + ' 块(目标前 ' + GOALY_FROM + ' 块内才留状态)');
@@ -436,9 +462,17 @@ function walkEdge(c: Cand): EdgeOut {
      硬走廊(±6/±9)把合理的下探也剪了 → 最远反而从 714.6 掉到 651~657。 */
   const pen = (GOALY != null && goalLimitX != null && snap && snap.x > goalLimitX)
     ? GOALY_PEN * Math.abs((snap.y + w.box / 2) - GOALY * U) : 0;
+  /* ★★ 路线向导(--guide=<tools/plan.ts 算出来的走廊>):离规划走廊越远扣分越多。
+     用户口径:"我们知道地图,能不能直接为bot规划算出一条路?省的bot来回搜索耗费大量时间.
+     现在自动演示还在偷鸡,第一个UFO段直接靠反重力穿墙飞天了" ——
+     只按 x 打分的搜索天然偏爱"往上飞绕过去",而规划出来的走廊(实测整关 y=9~18)才是作者摆的那条路。
+     这一条只影响【留下的状态怎么排序】,不改物理;超出 GUIDE_CUT 的直接不留(把"飞天"整条掐掉)。 */
+  const guidePen = (GUIDE && snap) ? GUIDE_PEN * Math.abs((snap.y + w.box / 2) / U - guideYAt(snap.x / U)) : 0;
+  const guideFar = !!(GUIDE && snap && Math.abs((snap.y + w.box / 2) / U - guideYAt(snap.x / U)) > GUIDE_CUT);
   const score = Math.max(r.maxX, snap.x) + (r.alive && !r.stalled ? 2 * U : 0)
-    - portalPull() - (r.overRoof ? 300 * U : 0) - pen;
+    - portalPull() - (r.overRoof ? 300 * U : 0) - pen - guidePen;
   const needTap = endSnap !== null || r.done;
+  if (guideFar) return { snap: null, endSnap: null, tap: [], score, done: false, why: 'guide' };
   return { snap, endSnap, tap: needTap ? rollTape.slice() : [], score, done: r.done };
 }
 

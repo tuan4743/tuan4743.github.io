@@ -52,6 +52,45 @@ const CAM_BALL_CENTER = 120;
  *    钉死会把人拍出画外 —— 所以这两种按方块跟随。这两行是我们自己定的,已写进文档。 */
 const CAM_FIXED_MODES = new Set(['ship', 'ufo', 'wave', 'ball']);
 
+/** 解析 TexturePacker 的 .plist(XML)→ Phaser 的 JSON 图集 frames 表。
+ *  为什么要自己写:Phaser 4.2 的 `load.atlasXML` 只加载图片、不解析 plist(见 buildIcons 的注释)。 */
+function parsePlistFrames(xml: string): Record<string, {
+  frame: { x: number; y: number; w: number; h: number };
+  rotated: boolean;
+  sourceSize: { w: number; h: number };
+  spriteSourceSize: { x: number; y: number; w: number; h: number };
+}> | null {
+  const doc = new DOMParser().parseFromString(xml, 'text/xml');
+  const root = doc.querySelector('plist > dict');
+  if (!root) return null;
+  const kids = Array.from(root.children);
+  const fi = kids.findIndex((e) => e.tagName === 'key' && e.textContent === 'frames');
+  if (fi < 0) return null;
+  const out: Record<string, { frame: { x: number; y: number; w: number; h: number }; rotated: boolean; sourceSize: { w: number; h: number }; spriteSourceSize: { x: number; y: number; w: number; h: number } }> = {};
+  const list = Array.from(kids[fi + 1].children);
+  for (let j = 0; j < list.length; j++) {
+    if (list[j].tagName !== 'key') continue;
+    const name = (list[j].textContent ?? '').trim();
+    const inner = Array.from(list[j + 1]?.children ?? []);
+    const get = (k: string) => {
+      const idx = inner.findIndex((e) => e.tagName === 'key' && e.textContent === k);
+      return idx >= 0 ? (inner[idx + 1]?.textContent ?? '') : '';
+    };
+    const rect = get('textureRect').match(/\{\{(-?[\d.]+),(-?[\d.]+)\},\{(-?[\d.]+),(-?[\d.]+)\}\}/);
+    if (!rect) continue;
+    const ss = get('spriteSourceSize').match(/\{(-?[\d.]+),(-?[\d.]+)\}/);
+    const off = get('spriteOffset').match(/\{(-?[\d.]+),(-?[\d.]+)\}/);
+    out[name] = {
+      frame: { x: +rect[1], y: +rect[2], w: +rect[3], h: +rect[4] },
+      rotated: get('textureRotated') === 'true',
+      sourceSize: { w: +(ss?.[1] ?? rect[3]), h: +(ss?.[2] ?? rect[4]) },
+      /* plist 的 spriteOffset 是"相对未裁剪位图中心"的偏移,y 轴方向和 Phaser 相反 */
+      spriteSourceSize: { x: +(off?.[1] ?? 0), y: -(+(off?.[2] ?? 0)), w: +rect[3], h: +rect[4] },
+    };
+  }
+  return Object.keys(out).length ? out : null;
+}
+
 /** 从页面上挑这一局用哪张铺面:window.__GD_CHART = 'gen' 用老的自动铺面,其它用真实铺面 */
 function pickLevel(): Level {
   const want = (window as unknown as { __GD_CHART?: string }).__GD_CHART;
@@ -61,6 +100,34 @@ function pickLevel(): Level {
 const LEVEL: Level = pickLevel();
 /** 真实关卡的"块 → 秒"时间轴(见 Scene.tAtX 的说明):按速度门积分,复活时靠它把音乐 seek 到位 */
 const REAL_T_AXIS = makeRealTimeAxis(LEVEL);
+
+/* ---------------- ★ 形态贴图(用户:"贴图在 static/icons,形态没有上色")----------------
+ * 页面里放的是 GD 官方的玩家图集(TexturePacker plist,七种形态各一张):
+ *   主色层 xxx_001.png(col1)· 第二色层 xxx_2_001.png(col2)· 发光层 xxx_glow_001.png
+ *   (机器人/蜘蛛有多帧:robot_01_01..04、spider_13_01..04,蜘蛛那 4 帧是腿的动作)
+ * 以前七种形态都是矢量画的同一种浅色 —— 看不出是什么形态。现在按形态挂真图集并按 GD 的
+ * 双色体系上色;颜色可用 ?col1=RRGGBB&col2=RRGGBB 覆盖(和 ?padmul= 一样,方便现场调)。
+ * 图集没加载完时仍旧走矢量兜底(见 draw 里的 playerVec)。 */
+const ICON_ATLAS: Array<{ mode: Mode; key: string; file: string }> = [
+  { mode: 'cube', key: 'icon-cube', file: 'cube' },
+  { mode: 'ship', key: 'icon-ship', file: 'ship' },
+  { mode: 'ball', key: 'icon-ball', file: 'ball' },
+  { mode: 'ufo', key: 'icon-ufo', file: 'bird' },
+  { mode: 'wave', key: 'icon-wave', file: 'dart' },
+  { mode: 'robot', key: 'icon-robot', file: 'robot' },
+  { mode: 'spider', key: 'icon-spider', file: 'spider' },
+];
+/** 各形态的默认双色(主色 / 第二色)。GD 里玩家图标是双色的,这一关的观感是"冷色全息科技风",
+ *  所以取青蓝家族;要还原原作那种绿+蓝,URL 里给 ?col1=00ff00&col2=00ffff 即可。 */
+const ICON_COL: Record<Mode, [number, number]> = {
+  cube: [0x8ef7ff, 0x2f6bff],
+  ship: [0xbdf3ff, 0x3f7cff],
+  ball: [0x9fe8ff, 0x2f9bff],
+  ufo: [0xc8f6ff, 0x4a86ff],
+  wave: [0x9fe8ff, 0x36d0ff],
+  robot: [0xa9f0ff, 0x3f6bff],
+  spider: [0xc9b6ff, 0x5a4bff],
+};
 
 /* 跳环 / 弹簧的配色(和游戏里的常识一致:黄=跳,粉=小跳,蓝=翻重力,绿=翻重力+跳) */
 const ORB_COL: Record<string, number> = {
@@ -155,6 +222,13 @@ class Scene extends Phaser.Scene {
   demoSpeed = 1;
   /** 演示的时间累积器(秒)—— 按真实时间推进,和刷新率无关 */
   demoAcc = 0;
+  /** 形态图集(static/icons)建好的图层:主色 / 第二色 / 细节 / 发光。见 buildIcons() */
+  private iconLayers: Array<{
+    mode: Mode; frames: string[];
+    body: Phaser.GameObjects.Image; col2: Phaser.GameObjects.Image | null;
+    extra: Phaser.GameObjects.Image | null; glow: Phaser.GameObjects.Image | null;
+  }> = [];
+  private iconsReady = false;
   /** 验收用:update 被调了几次、Phaser 喂进来的 delta 是多少 */
   updates = 0;
   lastDt = 0;
@@ -370,6 +444,19 @@ class Scene extends Phaser.Scene {
        (用户会看到"点了没反应/只动一格")。 */
     document.getElementById('gd-pad-minus')?.addEventListener('click', () => { this.padLatch -= 1; this.blurSelf(); });
     document.getElementById('gd-pad-plus')?.addEventListener('click', () => { this.padLatch += 1; this.blurSelf(); });
+    /* ★ 形态图集(static/icons):七张 plist 一起加载,加载完再建图层。加载失败不影响玩(矢量兜底) */
+    {
+      const q = /(^|[?&])col1=([0-9a-fA-F]{6})/.exec(location.search);
+      const q2 = /(^|[?&])col2=([0-9a-fA-F]{6})/.exec(location.search);
+      if (q) for (const k of Object.keys(ICON_COL) as Mode[]) ICON_COL[k][0] = parseInt(q[2], 16);
+      if (q2) for (const k of Object.keys(ICON_COL) as Mode[]) ICON_COL[k][1] = parseInt(q2[2], 16);
+      for (const a of ICON_ATLAS) {
+        this.load.image('iconimg-' + a.file, '/icons/' + a.file + '.png');
+        this.load.text('iconxml-' + a.file, '/icons/' + a.file + '.plist');
+      }
+      this.load.once('complete', () => { this.buildIcons(); });
+      this.load.start();
+    }
     const ui = { fontFamily: 'ui-monospace, Consolas, monospace', align: 'center' as const };
     this.uiTitle = this.add.text(0, 0, '', { ...ui, fontSize: '44px', color: '#e2f6ff' }).setOrigin(0.5).setDepth(20).setVisible(false);
     this.uiHint = this.add.text(0, 0, '', { ...ui, fontSize: '24px', color: HL }).setOrigin(0.5).setDepth(20).setVisible(false);
@@ -539,6 +626,89 @@ class Scene extends Phaser.Scene {
   /** 可见宽度 = 由 VIEW_H_BLOCKS 与画幅比例决定;取景框只覆盖"露出来的那一条" */
   zoomOf() {
     return this.viewH / (VIEW_H_BLOCKS * U);
+  }
+
+  /** 图集加载完:给每个形态挑出图层。
+   *  帧名规律(GD 官方图集):`xxx_001.png` = 主色层、`xxx_2_001.png` = 第二色层、
+   *  `xxx_extra_001.png` = 细节层、`xxx_glow_001.png` = 发光层;
+   *  机器人/蜘蛛有多组(robot_01_01..04、spider_13_01..04),第 1 组当默认,
+   *  蜘蛛那 4 组是腿的动作 —— 按 tick 轮播,看起来才是活的。 */
+  private buildIcons() {
+    for (const a of ICON_ATLAS) {
+      /* ★ 不用 `load.atlasXML`:Phaser 4.2 里它只把图加载进来、**不解析 plist**
+         (实测 texture.frameTotal = 1,只有 __BASE,frame 一个都没有 ⇒ 图标永远画不出来)。
+         所以自己解析 plist(TexturePacker XML)→ 拼成 Phaser 的 JSON 图集哈希 → addAtlas。 */
+      const img = this.textures.exists('iconimg-' + a.file) ? this.textures.get('iconimg-' + a.file) : null;
+      const xml = this.cache.text.get('iconxml-' + a.file) as string | undefined;
+      if (!img || !xml) continue;
+      const frames = parsePlistFrames(xml);
+      if (!frames) continue;
+      if (!this.textures.exists(a.key)) {
+        this.textures.addAtlas(a.key, img.getSourceImage() as HTMLImageElement, { frames, meta: { image: a.file + '.png', size: { w: img.source[0].width, h: img.source[0].height }, scale: '1' } });
+      }
+      const names = this.textures.get(a.key).getFrameNames().sort();
+      const body = names.filter((n) => /_0*1\.png$/.test(n) && !/_2_|_extra_|_glow_/.test(n));
+      if (!body.length) continue;
+      const pick = (re: RegExp) => names.filter((n) => re.test(n))[0] ?? null;
+      const mk = (frame: string | null) => (frame
+        ? this.add.image(0, 0, a.key, frame).setVisible(false).setDepth(16)
+        : null);
+      this.iconLayers.push({
+        mode: a.mode, frames: body,
+        body: mk(body[0])!,
+        col2: mk(pick(/_2_0*1\.png$/)),
+        extra: mk(pick(/_extra_0*1\.png$/)),
+        glow: mk(pick(/_glow_0*1\.png$/)),
+      });
+    }
+    this.iconsReady = this.iconLayers.length > 0;
+    console.log('[gd] 形态图集就绪:' + this.iconLayers.map((l) => l.mode + '(' + l.frames.length + ')').join(' '));
+  }
+
+  /** 用图集摆玩家(位置/尺寸/旋转/双色都跟着形态走)。
+   *  坐标就用绘图空间:和 Graphics 同一套(camera 自己处理平移缩放,见 draw 里的 Y)。 */
+  private drawIconPlayer(w: World, cxw: number, cyw: number, B: number, tick: number) {
+    const L = this.iconLayers.find((l) => l.mode === w.mode) ?? this.iconLayers[0];
+    for (const l of this.iconLayers) {
+      const on = l === L && !w.done;
+      l.body.setVisible(on);
+      l.col2?.setVisible(on);
+      l.extra?.setVisible(on);
+      l.glow?.setVisible(on);
+    }
+    /* 旋转:方块空中自转、飞机按 vy 倾斜、球滚动、波浪朝运动方向、UFO/机器人/蜘蛛不转 */
+    let rot = 0;
+    if (w.mode === 'cube') {
+      rot = Math.min(1, this.airT / (2 * P.jump / (P.gravity * Y_TIME_SCALE) / 60)) * (Math.PI / 2);
+    } else if (w.mode === 'ship') {
+      rot = Math.max(-0.55, Math.min(0.55, w.vy / P.shipVyMax * 0.55));
+    } else if (w.mode === 'ball') {
+      rot = (w.x / U) * 1.2;
+    } else if (w.mode === 'wave') {
+      rot = (w.vy >= 0 ? 1 : -1) * Math.PI / 4;
+    } else if (w.mode === 'ufo') {
+      rot = Math.max(-0.3, Math.min(0.3, w.vy / P.flyUpMax * 0.3));
+    }
+    const [c1, c2] = ICON_COL[w.mode] ?? [0xffffff, 0xffffff];
+    const kill = w.dead ? 0xff7a5a : null;
+    /* 蜘蛛/机器人多帧:按 tick 轮播(蜘蛛那 4 组是腿的动作) */
+    if (L.frames.length > 1 && (w.mode === 'spider' || w.mode === 'robot')) {
+      const fi = Math.floor(tick / 6) % L.frames.length;
+      L.body.setFrame(L.frames[fi]);
+      L.col2?.setFrame(L.frames[fi].replace(/_0*1\.png$/, '_2_001.png'));
+    }
+    const sy = cyw;
+    L.body.setPosition(cxw, sy).setRotation(rot).setTint(kill ?? c1);
+    const k = B / Math.max(L.body.width, L.body.height);
+    L.body.setDisplaySize(L.body.width * k, L.body.height * k);
+    for (const [layer, col] of [[L.col2, c2], [L.extra, c2], [L.glow, 0xffffff]] as const) {
+      if (!layer) continue;
+      const kk = B / Math.max(layer.width, layer.height);
+      layer.setPosition(cxw, sy).setRotation(rot).setDisplaySize(layer.width * kk, layer.height * kk);
+      layer.setTint(kill ?? col);
+      layer.setAlpha(layer === L.glow ? 0.85 : 1);
+      if (layer === L.glow) layer.setBlendMode(Phaser.BlendModes.ADD);
+    }
   }
 
   /** 推进 n 帧模拟(输入按当前模式取:演示卷 / 机器人 / 键盘) */
@@ -1108,25 +1278,28 @@ class Scene extends Phaser.Scene {
           break;
         }
         case 'saw': {
-          /* 锯片:一个带齿的锯轮,按时间转。
-             ★ 尺寸就画成【物件包围盒】(基础 1.47×2.83 格 × 128/129 缩放)—— 原版 LongData 给
-               1705 的外框就是 44×85 单位;以前我们按"1 格"画,用户实测"小了可能有三倍"。
-             判定也已经是同一个盒(见 sim/gdids.ts 的 hitboxOf → null),所以画的和判的一致。 */
+          /* 锯片:带齿的【圆】锯轮,按时间转。
+             ★★ 2026-09 修(用户:"锯片大小,你现在做成了椭圆,但是原版不是圆的吗?
+                也就是说你只放缩了纵向宽度"):以前按【包围盒】画(1.47×2.83 格 × 缩放),
+                于是画出来是竖椭圆 —— 而判定是圆(OpenGD `_pHitboxRadius`,sim 里走 circles)。
+                现在:半径就用 sim 的圆半径(o.rad,已含缩放),画的和判的完全一致。
+                换算:这一格的屏幕宽度 / 物件宽度 = 每单位多少像素。 */
+          const ppu = obw / Math.max(1e-6, o.w * U);
+          const r = Math.max(5, (o.rad ?? 30) * ppu);
           const scx = obx + obw / 2, scy = oBot - obh / 2;
-          const rx = Math.max(6, obw / 2), ry = Math.max(6, obh / 2);
           const spin = tick * 0.12;
-          g.fillStyle(0x2a1408, 0.9).fillEllipse(scx, scy, rx * 1.7, ry * 1.7);
-          g.lineStyle(2, WARN, 0.95).strokeEllipse(scx, scy, rx * 1.7, ry * 1.7);
-          for (let k = 0; k < 10; k++) {
-            const a = spin + k * Math.PI / 5;
+          g.fillStyle(0x2a1408, 0.9).fillCircle(scx, scy, r);
+          g.lineStyle(2, WARN, 0.95).strokeCircle(scx, scy, r);
+          for (let k = 0; k < 12; k++) {
+            const a = spin + k * Math.PI / 6;
             const ca = Math.cos(a), sa = Math.sin(a);
             g.fillStyle(WARN, 0.9).fillTriangle(
-              scx + ca * rx * 0.95, scy + sa * ry * 0.95,
-              scx + Math.cos(a + 0.22) * rx * 1.32, scy + Math.sin(a + 0.22) * ry * 1.32,
-              scx + Math.cos(a - 0.22) * rx * 1.32, scy + Math.sin(a - 0.22) * ry * 1.32,
+              scx + ca * r * 0.78, scy + sa * r * 0.78,
+              scx + Math.cos(a + 0.20) * r * 1.12, scy + Math.sin(a + 0.20) * r * 1.12,
+              scx + Math.cos(a - 0.20) * r * 1.12, scy + Math.sin(a - 0.20) * r * 1.12,
             );
           }
-          g.fillStyle(0x05070d, 1).fillEllipse(scx, scy, rx * 0.5, ry * 0.5);
+          g.fillStyle(0x05070d, 1).fillCircle(scx, scy, r * 0.42);
           break;
         }
         case 'pad': {
@@ -1362,7 +1535,10 @@ class Scene extends Phaser.Scene {
     const B = P.box * w.sizeMul;   // ★ 迷你门:人也要画小
     const py = this.prevY + (w.y - this.prevY) * Math.min(1, this.acc * 60);   // 渲染插值
     const cxw = w.x + B / 2, cyw = py + B / 2;
-    if (w.mode === 'ship') {
+    /* ★ 图集就绪就用真图标(见 buildIcons);没就绪/加载失败时走下面这套矢量兜底。
+       注意图标用的是绘图空间坐标(和 Graphics 一样,y 走 Y() 翻转),所以这里给它 Y(cyw) */
+    if (this.iconsReady) this.drawIconPlayer(w, cxw, Y(cyw), B, tick);
+    if (this.iconsReady) { /* 图标已经画了,矢量那套跳过 */ } else if (w.mode === 'ship') {
       /* 手动画三角:Phaser 4 里没有 Phaser.Geom.Point(v3 的写法会直接抛错) */
       const rot = Math.max(-0.55, Math.min(0.55, w.vy / P.shipVyMax * 0.55));
       const s = Math.sin(rot), c = Math.cos(rot);
