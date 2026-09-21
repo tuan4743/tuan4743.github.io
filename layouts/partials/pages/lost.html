@@ -1,40 +1,39 @@
-﻿{{/* 绗笁寮犵洏銆岃糠鑼€?鍑犱綍鍐插埡寮忓叧鍗?鏂板紩鎿?Phaser 4 + 绾?TS 瀹氱偣妯℃嫙)
-     鐜╂硶:涓冪褰㈡€?鏂瑰潡/椋炴満/鐞?UFO/娉㈡氮/鏈哄櫒浜?铚樿洓)銆佽烦鐜笌寮圭哀銆佸皷鍒?閿墖/鍧戙€?
-           褰㈡€侀棬/閫熷害闂?閲嶅姏闂?灏哄闂?鍙屽悜浼犻€侀棬銆佽Е鍙戝櫒(move/color/pulse)銆佸瓨妗ｇ偣
-     鍏冲崱:鎸夐噰闊?onset 鑷姩閾洪潰(鐢ㄦ埛鍚庣画浼氳嚜宸卞啓閾洪潰,瑙?.gmd 瀵煎叆)
-     瑙嗚:鏈珯鏄剧ず鍣?+ holo 绉戞妧椋?涓嶄娇鐢ㄥ師浣滅編鏈?
-     寮曟搸:gd-web/(婧愮爜鍦ㄤ粨搴撻噷,鏋勫缓浜х墿鏄?static/assets/gd/gd.js)
-     鍙傝€?OpenGD(鍏冲崱鏍煎紡涓庢暟鎹粨鏋?銆乧amila314/gdp(GD 鐗╃悊鍙嶇紪璇?*/}}
+{{/* 第三张盘「迷茫」:几何冲刺式关卡(新引擎,Phaser 4 + 纯 TS 定点模拟)
+     玩法:七种形态(方块/飞机/球/UFO/波浪/机器人/蜘蛛)、跳环与弹簧、尖刺/锯片/坑、
+           形态门/速度门/重力门/尺寸门/双向传送门、触发器(move/color/pulse)、存档点
+     关卡:按采音 onset 自动铺面(用户后续会自己写铺面,见 .gmd 导入)
+     视觉:本站显示器 + holo 科技风(不使用原作美术)
+     引擎:gd-web/(源码在仓库里,构建产物是 static/assets/gd/gd.js)
+     参考:OpenGD(关卡格式与数据结构)、camila314/gdp(GD 物理反编译)*/}}
 {{- $cfg := site.Params.intro.lost | default dict -}}
 <div class="lost is-game" data-lost="{{ .key }}">
     <div class="lost-stage">
-        <canvas id="gd-canvas" class="lost-cv" width="1280" height="720" aria-label="鍑犱綍鍐插埡寮忓叧鍗?></canvas>
+        <canvas id="gd-canvas" class="lost-cv" width="1280" height="720" aria-label="几何冲刺式关卡"></canvas>
         <div class="lost-veil" aria-hidden="true"></div>
-        <div id="gd-hud" class="lost-hud">鏂瑰潡 路 0%</div>
-        <div class="lost-tip">鎸変竴涓嬪紑濮?路 绌烘牸 / 鈫?= 璺?椋炴満鎸変綇涓婂崌)路 R = 閲嶆潵 路 G = 鏃犳晫(宸查檺鍒跺湪棰勫畾杞ㄩ亾鍐?椋炰笉鍑哄叧鍗¤蛋寤? 路 B = 鐪?bot 閫氬叧 路 [ / ] 鎴?鈭?+ = 寮圭哀鍔涘害寰皟(娴嬭瘯鐢?</div>
-        {{/* 鍙充笂瑙掍袱涓兘鐐圭殑鎸夐挳:閿洏鍦ㄦ煇浜涚幆澧冮噷浼氳鍒殑涓滆タ鍚冩帀(鐢ㄦ埛瀹炴祴 R/G 娌″弽搴?,
-             鎸夐挳榧犳爣/瑙﹀睆閮借兘鎸?鐘舵€佺洿鎺ュ啓鍦ㄦ寜閽笂 */}}
+        <div id="gd-hud" class="lost-hud">方块 · 0%</div>
+        <div class="lost-tip">按一下开始 · 空格 / ↑ = 跳(飞机按住上升)· R = 重来 · G = 无敌(已限制在预定轨道内,飞不出关卡走廊) · B = 看 bot 通关 · [ / ] 或 −/+ = 弹簧力度微调(测试用)</div>
+        {{/* 右上角两个能点的按钮:键盘在某些环境里会被别的东西吃掉(用户实测 R/G 没反应),
+             按钮鼠标/触屏都能按,状态直接写在按钮上 */}}
         <div class="gd-tools">
-            <button type="button" id="gd-god" class="gd-tool" title="娴嬭瘯鐢?寮€鐫€灏变笉浼氭(G)">鏃犳晫:鍏?/button>
-            <button type="button" id="gd-demo" class="gd-tool" title="鏀句竴閬嶆悳绱㈠嚭鏉ョ殑閫氬叧杈撳叆鍗?B)">鐪?bot 閫氬叧</button>
-            <button type="button" id="gd-restart" class="gd-tool" title="浠庡ご鍐嶆潵(R)">閲嶆潵</button>
-            <button type="button" id="gd-pad-minus" class="gd-tool" title="寮圭哀鍔涘害 鈭?%([ 鎴?-)">璺崇偣 鈭?/button>
-            <button type="button" id="gd-pad-plus" class="gd-tool" title="寮圭哀鍔涘害 +5%(] 鎴?+)">璺崇偣 +</button>
+            <button type="button" id="gd-god" class="gd-tool" title="测试用:开着就不会死(G)">无敌:关</button>
+            <button type="button" id="gd-demo" class="gd-tool" title="放一遍搜索出来的通关输入卷(B)">看 bot 通关</button>
+            <button type="button" id="gd-restart" class="gd-tool" title="从头再来(R)">重来</button>
+            <button type="button" id="gd-pad-minus" class="gd-tool" title="弹簧力度 −5%([ 或 -)">跳点 −</button>
+            <button type="button" id="gd-pad-plus" class="gd-tool" title="弹簧力度 +5%(] 或 +)">跳点 +</button>
         </div>
         <div class="gd-mobile-note">
-            <b>璇风敤 PC 鎵撳紑</b>
-            <span>杩欎竴椤垫槸缁欐闈㈡祻瑙堝櫒鍋氱殑:鎵嬫満涓婃樉绀哄櫒妗嗗拰 CD 鏋堕兘灞曚笉寮€銆傛崲鍙扮數鑴戝啀鏉ャ€?/span>
+            <b>请用 PC 打开</b>
+            <span>这一页是给桌面浏览器做的:手机上显示器框和 CD 架都展不开。换台电脑再来。</span>
         </div>
     </div>
 
-    {{/* 鏃х増鑷爺宸ョ▼鐨勮兘鍔涘浘渚?浜屾璺?鎶ょ浘褰㈡€?閲嶅姏绠ご鈥?宸插垹:閭ｆ槸涓婁竴鐗堥仐鐣欑殑鏃佺櫧浣撶郴 */}}
+    {{/* 旧版自研工程的能力图例(二段跳/护盾形态/重力箭头…)已删:那是上一版遗留的旁白体系 */}}
 
-    <p class="lost-wip__ref">鍙傝€?
-        <a href="https://github.com/Open-GD/OpenGD" target="_blank" rel="noopener noreferrer">OpenGD</a>(鍏冲崱鏍煎紡涓庢暟鎹粨鏋?銆?
-        <a href="https://github.com/camila314/gdp" target="_blank" rel="noopener noreferrer">camila314/gdp</a>(GD 鐗╃悊鍙嶇紪璇?銆?
-        鎯崇帺鍘熶綔:RobTop 瀹樻柟缃戦〉鐗?
+    <p class="lost-wip__ref">参考:
+        <a href="https://github.com/Open-GD/OpenGD" target="_blank" rel="noopener noreferrer">OpenGD</a>(关卡格式与数据结构)、
+        <a href="https://github.com/camila314/gdp" target="_blank" rel="noopener noreferrer">camila314/gdp</a>(GD 物理反编译)。
+        想玩原作:RobTop 官方网页版
         <a href="https://geometrydash.com/game" target="_blank" rel="noopener noreferrer">geometrydash.com/game</a>
     </p>
 </div>
 <script defer src="/assets/gd/gd.js?v=g22"></script>
-
