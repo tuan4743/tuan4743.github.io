@@ -66,6 +66,14 @@ const CAM_FIXED_MODES = new Set(['ship', 'ufo', 'wave', 'ball']);
  *       而 GameSheet_old.png(3081×2048)正好对得上 ⇒ 要用物件图集请用 old 那张(或重新导出)。
  *   下面的加载器会自动挑"尺寸与 plist 声明一致"的那张 png,挑不到就跳过(不会画出错位的图)。 */
 const ICON_ENABLED = /(^|[?&])icons=1(&|$)/.test(location.search);
+/** ★★ 物件贴图:2026-09 用户实测"全是错误贴图",**默认关掉**,回到矢量画法。
+ *  为什么错:GD 的物件美术是【碎件 + 运行时按代码坐标拼装】的 ——
+ *    · 形态门 = portalshine + back + extra + extra_2 + front 五层,层与层的相对位置在 exe 里写死;
+ *    · 跳环 = 白模 + 运行时染色(单看底图分不出是哪个环);
+ *    · 砖块 block001_01..07 = 按邻居自动拼接的 7 块(哪块对应哪条边,plist 里没有);
+ *  而 plist 只给"每块多大、在图集哪儿",不给"摆在哪" ⇒ 我按"各自画布中心对齐"拼出来的全是错位碎片。
+ *  所以:默认**不加载**这张图集(省 121 KB),要研究就加 `?art=1`(代码保留,别再当默认)。 */
+const ART_ENABLED = /(^|[?&])art=1(&|$)/.test(location.search);
 const ICON_ATLAS: Array<{ mode: Mode; key: string; file: string }> = [
   { mode: 'cube', key: 'icon-cube', file: 'cube' },
   { mode: 'ship', key: 'icon-ship', file: 'ship' },
@@ -500,9 +508,11 @@ class Scene extends Phaser.Scene {
        ★ 密度:1 像素 = 1 单位(方块 30 单位 = 30 px),所以画画时 k = 物件高度(单位) / 帧高(px)。
        ★ id → 帧名的映射【不在游戏的数据文件里】(那是编译进 exe 的代码);这里靠"尺寸/颜色/唯一命中"钉,
          每条都在 build-art.mjs 的 MAP 里写了理由。线框(468/469/470)按用户口径不做贴图。 */
-    if (!this.textures.exists('gd-art')) this.load.atlas('gd-art', '/assets/gd-art.png', '/assets/gd-art.json');
-    this.load.once('complete', () => { this.artReady = this.textures.exists('gd-art'); });
-    this.load.start();
+    if (ART_ENABLED) {
+      if (!this.textures.exists('gd-art')) this.load.atlas('gd-art', '/assets/gd-art.png', '/assets/gd-art.json');
+      this.load.once('complete', () => { this.artReady = this.textures.exists('gd-art'); });
+      this.load.start();
+    }
     /* ★ 形态图集(static/icons):默认不加载(见上面那段"结论")。?icons=1 才试图集 */
     if (ICON_ENABLED) {
       const q = /(^|[?&])col1=([0-9a-fA-F]{6})/.exec(location.search);
