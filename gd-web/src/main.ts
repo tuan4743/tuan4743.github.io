@@ -10,7 +10,7 @@
  */
 
 import Phaser from 'phaser';
-import { generateLevel, tOfX, type Level, type Mode, type Obj } from './sim/level.ts';
+import { generateLevel, makeRealTimeAxis, type Level, type Mode, type Obj } from './sim/level.ts';
 import { World, botThink, type RunState } from './sim/world.ts';
 import { frameRects } from './sim/gdids.ts';
 import { fingerprint } from './sim/replay.ts';
@@ -59,6 +59,8 @@ function pickLevel(): Level {
   return WATER_CHART;                       // 第三张盘:用户自己铺的 WATER
 }
 const LEVEL: Level = pickLevel();
+/** 真实关卡的"块 → 秒"时间轴(见 Scene.tAtX 的说明):按速度门积分,复活时靠它把音乐 seek 到位 */
+const REAL_T_AXIS = makeRealTimeAxis(LEVEL);
 
 /* 跳环 / 弹簧的配色(和游戏里的常识一致:黄=跳,粉=小跳,蓝=翻重力,绿=翻重力+跳) */
 const ORB_COL: Record<string, number> = {
@@ -146,8 +148,22 @@ class Scene extends Phaser.Scene {
   demoLoaded = false;
   demoEndX = 0;
   demoErr = '';
-  /** 演示倍速:一帧渲染推几帧物理(物理照旧是定点 60Hz,只是"快进") */
-  demoSpeed = 8;
+  /** 演示倍速:**按真实时间**快进的倍数(1 = 正常速度)。
+   *  ★ 2026-09 修:以前是"一帧渲染推 N 帧物理" —— 于是 144Hz/240Hz 屏上会快 2.4~4 倍,
+   *    用户看到的就是"整体八倍速、几秒就播完了"(20086 帧的卷子在 240Hz 上 10 秒跑完)。
+   *    现在按 dt 累积:无论屏幕多少帧,1 倍速就是 334.8 秒播完。 */
+  demoSpeed = 1;
+  /** 演示的时间累积器(秒)—— 按真实时间推进,和刷新率无关 */
+  demoAcc = 0;
+  /** 验收用:update 被调了几次、Phaser 喂进来的 delta 是多少 */
+  updates = 0;
+  lastDt = 0;
+  /** 自己用 performance.now() 量上一次 update 的墙上时间(演示节拍用,见 update) */
+  lastWallMs = 0;
+  /** 上一次"试着把音乐 seek 回模拟时间"的时刻(seek 失败时每 1.5 秒重试一次) */
+  lastSeekTry = 0;
+  /** 验收用:演示/机器人模式下每次"发现世界死了"的记录(次数、帧号、位置) */
+  deathLog: Array<{ tick: number; x: number; y: number; vy: number; mode: string; gdir: number; chunk: number; at: number; hold: boolean }> = [];
   baseTick = 0;                     // 这一条命的起点在音乐时间轴上的帧号(复活时跟着存档点走)
   airT = 0;                         // 空中停留了多久(给方块自转用)
   labels: Phaser.GameObjects.Text[] = [];
@@ -205,11 +221,26 @@ class Scene extends Phaser.Scene {
     this.playMusicAt(0);
   }
 
+  /** 把音乐跳到第 t 秒并从那里播。
+   *  ★★ 2026-09 修(用户:"死了一次之后在存档点复活,音乐不会在那个地方继续播放"):
+   *    `a.currentTime = t` 在【元数据还没加载完】时会抛异常 / 被忽略(readyState 0),
+   *    而这里把异常吞了 → 复活时音乐从"死掉那一刻"接着放,和画面(存档点)彻底不同步;
+   *    更糟的是模拟是【音乐驱动】的(target = currentTime×60 − baseTick),
+   *    于是复活瞬间会被灌进几百帧(人直接被拽到前面去)。
+   *    现在:没准备好就等 loadedmetadata 再 seek;并且给模拟加一条漂移护栏(见 update)。 */
   private playMusicAt(t: number) {
     const a = this.audio;
     if (!a) return;
-    try { a.currentTime = t; } catch { /* seek 失败就从头放 */ }
+    this.seekMusic(t);
     a.play().catch((e) => { this.audioErr = String((e && e.message) || e); });   // 失败原因留着,别静默吞
+  }
+
+  private seekMusic(t: number) {
+    const a = this.audio;
+    if (!a) return;
+    const apply = () => { try { a.currentTime = t; } catch { /* seek 失败就从头放 */ } };
+    if (a.readyState >= 1) apply();
+    else a.addEventListener('loadedmetadata', apply, { once: true });
   }
 
   private pauseMusic() { if (this.audio && !this.audio.paused) this.audio.pause(); }
@@ -219,18 +250,59 @@ class Scene extends Phaser.Scene {
     try { localStorage.setItem(EASTER_KEY, '1'); } catch { /* 无痕模式就算了 */ }
   }
 
+  /** x(单位)→ 音乐秒数。
+   *  ★★ 2026-09 修 bug:以前这里直接调 `tOfX(LEVEL, world.x / checkX)` —— 两个错叠在一起:
+   *    ① `tOfX` 的口径是【块】(sim.test / tools/diag-chart 都按块调),传单位进去等于把时间放大 30 倍;
+   *    ② 更要命的是 `tOfX` 读的是 `level.segments`,而那是【生成铺面】的产物 ——
+   *       真实关卡(这张手搓的 WATER)用它会算出非单调的垃圾(x=600 → 7.2s,而 x=1060 → 0.0s)。
+   *    后果正是用户报的那条:"死了一次之后在存档点复活,音乐不会在那个地方继续播放" ——
+   *    模拟是【音乐驱动】的(target = currentTime×60 − baseTick),baseTick 一错,target 恒为 0,
+   *    画面停在原地、音乐却从荒唐的位置放着。
+   *  现在走 makeRealTimeAxis():按【速度门】分段积分 dx/v —— GD 编辑器里 x 就是速度×时间的积分,
+   *  所以这条才是"铺面贴着音乐"的原口径。自检:积分出的总长 294.45s vs 这首歌实际 299.29s(差 1.6%),
+   *  再按 audio.duration 等比缩放一下,结尾就和歌对齐了。 */
+  private tAtX(xUnits: number): number {
+    const total = REAL_T_AXIS(LEVEL.length);
+    const a = this.audio;
+    const dur = a && isFinite(a.duration) && a.duration > 0 ? a.duration : 0;
+    const raw = REAL_T_AXIS(Math.max(0, xUnits) / U);
+    return dur > 0 && total > 0 ? raw * (dur / total) : raw;
+  }
+
   /** 从存档点重来(死亡界面按确认) */
   retry() {
     const w = this.world;
     w.respawn();
-    this.baseTick = Math.floor(tOfX(LEVEL, w.checkX) * 60);
+    this.baseTick = Math.floor(this.tAtX(w.checkX) * 60);
     this.airT = 0;
     this.acc = 0;
     this.deathT = 0;
     this.prevY = w.y;
     this.camInit = false;                 // 复活:镜头立刻贴到存档点(不然要从死亡点滑过来)
     this.phase = 'running';
-    this.playMusicAt(tOfX(LEVEL, w.checkX));
+    this.playMusicAt(this.tAtX(w.checkX));
+  }
+
+  /** 从头来(R 键 / "重来"按钮 / 死亡界面按 R)。★ 2026-09 修:以前演示/机器人模式下
+   *  这一支根本走不到(update 里每帧把 phase 强行掰回 running),用户按 R 就是"摆设";
+   *  现在任何模式、任何阶段都走这里:演示模式下 = 【演示从头再放一遍】。 */
+  restartRun() {
+    this.demoAcc = 0;
+    this.demoEndX = 0;
+    if (this.demoMode || this.botMode) {
+      this.world = new World(LEVEL);
+      this.world.god = this.godWanted;
+      this.world.padMul = this.padMulWanted;
+      this.botStarted = false;              // 让 pump 里"干净开局"那一段重新走一遍
+      this.botStates = [];
+      this.fp = '';
+      this.baseTick = 0; this.prevY = 0; this.airT = 0; this.camInit = false;
+      this.phase = 'running';
+      this.started = true;
+      this.playMusicAt(0);
+      return;
+    }
+    this.restartFromZero();
   }
 
   /** 从头来(R 键,死亡界面与通关界面都能用) */
@@ -239,6 +311,7 @@ class Scene extends Phaser.Scene {
     this.baseTick = 0;
     this.airT = 0;
     this.acc = 0;
+    this.demoAcc = 0;
     this.deathT = 0;
     this.prevY = 0;
     this.camInit = false;
@@ -253,10 +326,10 @@ class Scene extends Phaser.Scene {
     this.godWanted = /(^|[?&])god=1(&|$)/.test(location.search);
     this.world.god = this.godWanted;
     /* ?demo=1 —— 开局直接演示"bot 通关"(和按 B / 点右下角按钮等效)
-       ?demospeed=24 —— 演示倍速(默认 8;一帧渲染推 8 帧物理,输入卷 353 秒 → 44 秒看完) */
+       ?demospeed=4 —— 演示倍速(默认 1 = 正常速度;20086 帧的卷子正常速度播 334.8 秒) */
     if (/(^|[?&])demo=1(&|$)/.test(location.search)) this.demoWanted = true;
-    const ds = /(^|[?&])demospeed=(\d+)/.exec(location.search);
-    if (ds) this.demoSpeed = Math.max(1, Math.min(40, Number(ds[2]) || 8));
+    const ds = /(^|[?&])demospeed=([\d.]+)/.exec(location.search);
+    if (ds) this.demoSpeed = Math.max(0.25, Math.min(40, Number(ds[2]) || 1));
     /* ?padmul=0.75 —— 弹簧力度微调(和按 [ / ] 等效),验收脚本也能用 URL 指定 */
     const pm = /(^|[?&])padmul=([\d.]+)/.exec(location.search);
     if (pm) { this.padMulWanted = Math.max(0.4, Math.min(1.5, Number(pm[2]) || 1)); this.world.padMul = this.padMulWanted; }
@@ -281,8 +354,11 @@ class Scene extends Phaser.Scene {
       if (ev.code === 'KeyR') this.restartLatch = true;
       if (ev.code === 'KeyG') this.godLatch = true;
       if (ev.code === 'KeyB') this.demoLatch = true;
-      if (ev.code === 'BracketLeft') this.padLatch = -1;
-      if (ev.code === 'BracketRight') this.padLatch = 1;
+      /* ★ 弹簧力度微调:以前只认 [ / ](BracketLeft/Right)—— 用户实测"按了没用"
+         (不同键盘/输入法下发出来的 code 不一样)。现在把常见的那几对全收进来,
+         另外页面上还加了两个能点的按钮(见 lost.html 的 .gd-tools)。 */
+      if (ev.code === 'BracketLeft' || ev.code === 'Minus' || ev.code === 'NumpadSubtract' || ev.code === 'Comma') this.padLatch -= 1;
+      if (ev.code === 'BracketRight' || ev.code === 'Equal' || ev.code === 'NumpadAdd' || ev.code === 'Period') this.padLatch += 1;
       if (/^Digit[1-7]$/.test(ev.code)) this.modeLatch = Number(ev.code.slice(5));
     }, true);
     /* ★ 再给几个【能点的】按钮:键盘在某些环境里会被别的东西吃掉(用户实测 R/G 没反应),
@@ -290,6 +366,10 @@ class Scene extends Phaser.Scene {
     document.getElementById('gd-god')?.addEventListener('click', () => { this.toggleGod(); this.blurSelf(); });
     document.getElementById('gd-demo')?.addEventListener('click', () => { this.demoLatch = true; this.blurSelf(); });
     document.getElementById('gd-restart')?.addEventListener('click', () => { this.restartLatch = true; this.blurSelf(); });
+    /* ★ 累加而不是赋值:连点两下按钮/连按两下键时,如果只是 `= 1`,同一帧里的两次会互相覆盖
+       (用户会看到"点了没反应/只动一格")。 */
+    document.getElementById('gd-pad-minus')?.addEventListener('click', () => { this.padLatch -= 1; this.blurSelf(); });
+    document.getElementById('gd-pad-plus')?.addEventListener('click', () => { this.padLatch += 1; this.blurSelf(); });
     const ui = { fontFamily: 'ui-monospace, Consolas, monospace', align: 'center' as const };
     this.uiTitle = this.add.text(0, 0, '', { ...ui, fontSize: '44px', color: '#e2f6ff' }).setOrigin(0.5).setDepth(20).setVisible(false);
     this.uiHint = this.add.text(0, 0, '', { ...ui, fontSize: '24px', color: HL }).setOrigin(0.5).setDepth(20).setVisible(false);
@@ -361,7 +441,8 @@ class Scene extends Phaser.Scene {
        ★ 走和 G/R 同一条路(真实 keydown 事件 + latch):Phaser 的 addKeys('OPEN_BRACKET')
        实测收不到(按 ] 有效、按 [ 无效),别在这上面浪费时间。 */
     if (this.padLatch) {
-      this.padMulWanted = Math.round(Math.max(0.4, Math.min(1.5, this.padMulWanted + this.padLatch * 0.05)) * 100) / 100;
+      this.padMulWanted = Math.round(Math.max(0.4, Math.min(1.5,
+        this.padMulWanted + Math.sign(this.padLatch) * 0.05 * Math.min(4, Math.abs(this.padLatch)))) * 100) / 100;
       this.world.padMul = this.padMulWanted;
       this.padLatch = 0;
     }
@@ -393,7 +474,7 @@ class Scene extends Phaser.Scene {
     const el = this.demoBtnEl;
     if (!el) return;
     const txt = this.demoMode
-      ? (this.demoTape ? '演示:开 ×' + this.demoSpeed : this.demoErr ? '演示:卷子加载失败' : '演示:载入中…')
+      ? (this.demoTape ? '演示:开 ×' + this.demoSpeed.toFixed(2).replace(/\.?0+$/, '') : this.demoErr ? '演示:卷子加载失败' : '演示:载入中…')
       : '看 bot 通关';
     if (txt === this.demoBtnTxt) return;
     this.demoBtnTxt = txt;
@@ -462,14 +543,25 @@ class Scene extends Phaser.Scene {
 
   /** 推进 n 帧模拟(输入按当前模式取:演示卷 / 机器人 / 键盘) */
   pump(n: number) {
+    /* ★★ 卷子还没下好就别推进(2026-09 修):演示的输入是 `tape[tick]`,
+       而 `loadTape()` 是异步 fetch —— 以前这中间会照常推进,于是**开头几十上百帧是"没有输入"在跑**,
+       等卷子到了,人和卷子已经错位,必然在 x≈100 前后摔死、然后无限重来。
+       用户报的"只播放了几秒就结束了"就有它一份;而且它取决于网速/页面加载快慢,是典型的竞态。
+       现在:没卷子就不动(按钮上显示"载入中…"),卷子到了再由 loadTape 从头开一局。 */
+    if (this.demoMode && !this.demoTape) return;
     for (let i = 0; i < n; i++) {
       const w0 = this.world;
       if (w0.dead) {
+        /* ★ 验收用:把"哪一帧、在哪死的"记下来 —— 演示卷在 Node 侧是 0 死亡,
+           页面上要是有死亡,必须能一眼看出是哪一帧/哪个位置(只有一个次数根本查不动)。 */
+        if (this.deathLog.length < 20) {
+          this.deathLog.push({ tick: w0.tick, x: +(w0.x / U).toFixed(2), y: +(w0.y / U).toFixed(2), vy: +(w0.vy / U).toFixed(2), mode: w0.mode, gdir: w0.gdir, chunk: n, at: i, hold: this.demoHold(w0.tick) });
+        }
         if (this.botMode || this.demoMode) {
           /* 机器人验收:立刻复活,和 Node 侧一致 */
           const wasX = w0.checkX;
           w0.respawn();
-          this.baseTick = Math.floor(tOfX(LEVEL, wasX) * 60);
+          this.baseTick = Math.floor(this.tAtX(wasX) * 60);
           this.airT = 0;
         } else {
           this.phase = 'dead';                  // 真人:停下来出死亡界面,不再自动复活
@@ -561,18 +653,24 @@ class Scene extends Phaser.Scene {
         for (const n of j.rle) { for (let i = 0; i < n; i++) out.push(cur); cur = !cur; }
         this.demoTape = out;
         this.demoLoaded = true;
+        /* ★ 卷子到了就从干净的一局重开 —— 这样"第一个输入一定是 tape[0]"(见 pump 开头那条守卫) */
+        if (this.demoMode) this.restartRun();
       })
       .catch((e: Error) => { this.demoErr = e.message; });
   }
 
   update(_t: number, dtMs: number) {
+    this.updates++;
+    this.lastDt = Number.isFinite(dtMs) ? dtMs : -1;      // 验收要看:Phaser 到底喂进来什么
     this.expose();
     this.fps = this.game.loop.actualFps;
     this.paintHud();
     /* 确认键每帧只读一次(边沿判定要按帧消费) */
     const confirm = this.confirmDown();
     const restart = this.restartPressed;
-    if ((this.botMode || this.demoMode) && this.phase !== 'running') { this.phase = 'running'; this.started = true; }
+    /* ★ R 优先于一切:任何阶段、任何模式都先处理重来(以前演示模式把 phase 强行掰回 running,
+       'done' 那一支永远走不到 → "R 是摆设")。 */
+    if (restart) this.restartRun();
     /* 调试:数字键现场换形态(1 方块 2 飞机 3 球 4 UFO 5 波浪 6 机器人 7 蜘蛛) */
     if (this.modeLatch) {
       const m = MODE_ORDER[this.modeLatch - 1];
@@ -615,19 +713,43 @@ class Scene extends Phaser.Scene {
     }
 
     if (this.botMode || this.demoMode) {
-      this.pump(this.botMode ? 8 : this.demoSpeed);     // 机器人/演示:加速跑完(物理仍是定点步长)
+      /* 演示:按【真实时间】推进(见 demoSpeed 的说明)。一帧渲染最多推 240 帧,防止切标签页回来爆帧。
+         内置机器人验收(botMode)固定 8 倍速:它只是用来和 Node 侧对指纹,不需要人看。
+         ★ 时间用 performance.now() 自己量,不用 Phaser 的 delta —— 实测 Phaser 的 delta 是"平滑过"的,
+           183 次 update/6 秒(墙上 33ms 一次)却只累出 5.5 秒,演示会慢 25%(用户报的"倍速不对"就有它一份)。 */
+      const now = performance.now();
+      const dtWall = this.lastWallMs ? Math.min(0.5, (now - this.lastWallMs) / 1000) : 0;
+      this.lastWallMs = now;
+      const sp = this.botMode ? 8 : this.demoSpeed;
+      this.demoAcc += dtWall * sp;
+      const want = Math.min(240, Math.floor(this.demoAcc * 60));
+      if (want > 0) {
+        this.demoAcc -= want / 60;
+        this.pump(want);
+      }
     } else if (this.dbgPause) {
       /* 冻住:只画不推(出图/调试用) */
     } else {
       const a = this.audio;
       const live = !!a && !a.paused && isFinite(a.duration) && a.duration > 0;
       const step = 1 / 60;
-      if (live) {
+      /* ★ 音乐能不能当"时钟"用:它得和模拟时间轴对得上。
+         对不上的两种情形——① 刚复活,baseTick 跳了,音乐还停在旧位置;② 服务器不支持 Range 请求,
+         浏览器 seekable 是空的,`currentTime = t` 会被直接忽略(实测本地静态服务器就是这样)。
+         以前只认 live,于是这两种情况下 target 恒为 0 → **画面卡住不动**(用户报的就是"复活后不对")。
+         现在:对不上就先试着重 seek(1.5 秒一次),同时【照常按固定步长推进模拟】,绝不卡住。 */
+      const wantT = (this.baseTick + this.world.tick) / 60;
+      const synced = live && Math.abs(a!.currentTime - wantT) <= 1.5;
+      if (synced) {
         /* ★ 由音乐驱动:画面里的障碍正好落在它对应的那一拍上 */
         const target = Math.max(0, Math.floor(a!.currentTime * 60) - this.baseTick);
         let n = 0;
         while (this.world.tick < target && n < 8) { this.pump(1); n++; }
       } else {
+        if (live) {
+          const now = performance.now();
+          if (now - this.lastSeekTry > 1500) { this.lastSeekTry = now; this.seekMusic(wantT); }
+        }
         this.acc += Math.min(dtMs / 1000, 0.5);
         let n = 0;
         while (this.acc >= step && n < 5) { this.acc -= step; this.pump(1); n++; }
@@ -660,7 +782,8 @@ class Scene extends Phaser.Scene {
     if (w.god) parts.push('★ 无敌');
     if (this.demoMode) {
       const n = this.demoTape ? this.demoTape.length : 0;
-      parts.push(this.demoTape ? '演示 bot 通关 ×' + this.demoSpeed + '(' + (n / 60).toFixed(0) + 's 输入卷)'
+      parts.push(this.demoTape
+        ? '演示 bot 通关 ×' + this.demoSpeed.toFixed(2).replace(/\.?0+$/, '') + '(' + (n / 60 / this.demoSpeed).toFixed(0) + 's 放完)'
         : this.demoErr ? '演示卷加载失败:' + this.demoErr : '演示卷载入中…');
     }
     if (Math.abs(w.padMul - 1) > 0.001) parts.push('跳点×' + w.padMul.toFixed(2));
@@ -819,6 +942,20 @@ class Scene extends Phaser.Scene {
       demoLoaded: this.demoLoaded,
       demoErr: this.demoErr,
       demoEndX: this.demoEndX,
+      /* ★ 验收脚本要用的几个钩子(每个 bug 都要能在真浏览器里量出来,不能只靠"我看着好了"):
+         · musicExpected —— 模拟时间轴上的秒数(baseTick + tick)/60,复活后音乐就该在这儿
+         · retry/restartRun —— 不靠按键也能驱动复活/重来
+         · padMul —— 弹簧力度微调到底有没有生效 */
+      musicExpected: (this.baseTick + this.world.tick) / 60,
+      baseTick: this.baseTick,
+      padMul: this.padMulWanted,
+      demoSpeed: this.demoSpeed,
+      demoAcc: this.demoAcc,
+      updates: this.updates,
+      lastDt: this.lastDt,
+      deathLog: this.deathLog,
+      retry: () => this.retry(),
+      restartRun: () => this.restartRun(),
       tapeHold: (tick: number) => this.demoHold(tick),
     };
   }

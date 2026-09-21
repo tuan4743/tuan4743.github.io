@@ -178,6 +178,16 @@ export class World {
   /** ★ 跳环要"一次新的按键"才生效(原作口径:按一下消耗一次,按住不放串不起环)。
    *  按下的那一瞬间 pressFresh 置位,被一次起跳或一个环用掉;松手再按才会有新的一次。 */
   pressFresh = false;
+  /** ★★ 同一次按键还要留给跳环/冲刺箭头用(2026-09 修)。
+   *  原作里"按下"会同时喂给两条路:形态自己的动作(飞机/UFO 的扇一下、蜘蛛的瞬移、地面起跳)
+   *  和 `ringJump` 里的 `hasQueuedHold`(环/箭头)。我们以前只用一个 pressFresh,
+   *  先跑的形态分支把它吃掉 → **UFO 形态下所有跳环和箭头都按不动**(用户实测"紫色冲刺箭头没用,无法交互";
+   *  关卡 x=2132~2545 那几个紫箭头正好在方块段,而其它段一样会踩到这个坑)。
+   *  现在形态动作消耗 pressFresh 时把这一次"仍然有效"记在 pressAux 上,
+   *  环/箭头那一遍用 `pressFresh || pressAux`,用过就一起清掉(同一帧只放行一次)。 */
+  pressAux = false;
+  /** 紫色箭头/板这一次"没找到头顶的面"用的临时标记(见 tpReach) */
+  private tpFailed = false;
   /** 上一帧是否按着(botThink 要靠它凑出"松一帧再按"的新按键) */
   prevHold = false;
   /** 机器人"抵消重力"已经撑了多久(秒) */
@@ -561,7 +571,7 @@ export class World {
     this.mode = mode; this.gdir = 1; this.speedIdx = 1;
     this.sizeMul = this.checkSize;      // 复活要恢复存档点时的体积(迷你/普通)
     this.dead = false; this.done = false; this.deadT = 0;
-    this.pressFresh = false; this.prevHold = false;
+    this.pressFresh = false; this.prevHold = false; this.pressAux = false; this.tpFailed = false;
     this.boostDir = 0;
     this.armedChecks.clear(); this.armedPortals.clear(); this.armedSpeeds.clear(); this.armedGravs.clear();
     this.armedOrbs.clear(); this.armedPads.clear();
@@ -613,8 +623,9 @@ export class World {
   /** 推进一帧。hold = 是否按住(方块:长按连跳;飞机:按住上升) */
   frame(hold: boolean) {
     /* 按键的"上升沿":原作 pushButton 就是在这个时刻清掉环的可用标记 */
-    if (hold && !this.prevHold) this.pressFresh = true;
+    if (hold && !this.prevHold) { this.pressFresh = true; this.pressAux = false; }
     this.prevHold = hold;
+    this.tpFailed = false;
     if (this.dead || this.done) { this.deadT += FRAME; return; }
     /* ★ 无敌模式:不许跑出关卡边界(用户:"无敌模式会卡出墙,这个是最大的问题,同时也无法避免")。
        不无敌时飞出关卡顶/掉出底部都是死,所以"出界"这条以前不用管;无敌之后死不了,
@@ -761,6 +772,7 @@ export class World {
       const size = this.mini ? 0.85 : 1;
       if (hold && this.pressFresh) {
         this.pressFresh = false;
+        this.pressAux = true;                  // 这一次按键仍然可以喂给跳环/冲刺箭头(见 pressAux 的说明)
         this.vy = this.gdir * (this.mini ? 8 : 7) * size;
       }
       const falling = this.vy * this.gdir < 0;
@@ -1052,7 +1064,8 @@ export class World {
           if ((this.gdir < 0) !== padUpsideDown) continue;   // 朝向不对:不生效、也不消耗
         }
         this.armedPads.add(b);
-        if (b.o.tp) this.spiderJump();                     // 紫色地面跳点:瞬移到头顶方块 + 翻重力
+        /* 紫色地面跳点(3005):瞬移到头顶方块 + 翻重力 —— 射程同 tpReach(见 constants.ts) */
+        if (b.o.tp) this.spiderJump(P.tpReach, true);
         else if (b.o.pad) this.applyTrigger({ ...PAD[b.o.pad], isPad: true });
       }
     }
@@ -1068,19 +1081,23 @@ export class World {
     }
 
     /* --- 冲刺箭头 / 紫色上跳箭头:一次【新的按键】才生效(和跳环同族);外框判 --- */
-    if (hold && this.pressFresh) {
+    if (hold && (this.pressFresh || this.pressAux)) {
       const inn = this.outer();
       for (const b of this.nearArrows) {
         if (this.armedArrows.has(b)) continue;
         if (inn.x1 <= b.x0 || inn.x0 >= b.x1 || inn.y1 <= b.y0 || inn.y0 >= b.y1) continue;
-        this.armedArrows.add(b);
-        this.pressFresh = false;
+        this.pressFresh = false; this.pressAux = false;
         if (b.o.tp) {
-          this.spiderJump();                              // 紫色:瞬移到头顶方块 + 翻重力
+          /* 紫色(3004):瞬移到头顶那个方块 + 翻重力。★ 用 tpReach 而不是蜘蛛那套速度表 ——
+             见 constants.ts 里 tpReach 的说明(用户实测"按了没反应"就是被那张表卡住的)。
+             ★ 够不到面时【不消耗】这个箭头:这一次按键留在身上,人再飘几帧还会再试。 */
+          this.spiderJump(P.tpReach, true);
+          if (this.tpFailed) { this.pressFresh = true; this.pressAux = false; break; }
         } else {
           this.dash = { ang: b.o.rot ?? 0, kind: b.o.arrow ?? 'green', t: 0 };
           if (b.o.arrow === 'pink' && this.mode === 'cube') this.gdir = -this.gdir;
         }
+        this.armedArrows.add(b);
         break;
       }
     }
@@ -1091,12 +1108,13 @@ export class World {
      *      `if (!isDead && hasQueuedHold && !isDashing && isHolding2) { … }`
      *    也就是 dash 状态下整个 ringJump 直接 return(环、冲刺环都不吃)。以前我们漏了这条:
      *    按住冲刺箭头飞过去时,沿途的环会被"顺手吃掉",落点全变。 */
-    if (hold && this.pressFresh && !this.dash) {
+    if (hold && (this.pressFresh || this.pressAux) && !this.dash) {
       const inn = this.outer();
       for (const b of this.nearOrbs) {
         if (this.armedOrbs.has(b)) continue;
         if (inn.x1 <= b.x0 || inn.x0 >= b.x1 || inn.y1 <= b.y0 || inn.y0 >= b.y1) continue;
         this.armedOrbs.add(b);
+        this.pressFresh = false; this.pressAux = false;
         if (b.o.orb) {
           /* ★ 用分形态的力度(原版 ringJump 的倍率表),别再用"方块那一档"套所有形态 */
           const spec = ORB[b.o.orb];
@@ -1208,8 +1226,8 @@ export class World {
     return [60, 90, 120, 135, 120][Math.max(0, Math.min(4, this.speedIdx))] ?? 90;
   }
 
-  private spiderJump() {
-    const reach = this.spiderReach();
+  private spiderJump(reachArg?: number, consumeOnFail = false) {
+    const reach = reachArg ?? this.spiderReach();
     const top = () => this.y + this.box;
     /* ★ 横向用【整 1 格的外框】判 —— 上上版我按"碰撞箱太大、跨过一格"那句收窄成内框(7.5 单位),
        结果蜘蛛在蜘蛛段根本抓不住那些【一格宽】的线框平台了
@@ -1231,7 +1249,7 @@ export class World {
         if (f.y0 < top() + 1 || f.y0 > top() + reach) continue;
         if (best === null || f.y0 < best) best = f.y0;
       }
-      if (best === null) return;                       // 够不到 → 不传送、不翻重力
+      if (best === null) { if (!consumeOnFail) this.tpFailed = true; return; }   // 够不到 → 不传送、不翻重力
       this.y = best - this.box;
     } else {
       /* 反重力:往【下】找最近的顶面,同样限可达距离 */
@@ -1245,7 +1263,7 @@ export class World {
         if (f.y1 > this.y - 1 || f.y1 < this.y - reach) continue;
         if (best === null || f.y1 > best) best = f.y1;
       }
-      if (best === null) return;
+      if (best === null) { if (!consumeOnFail) this.tpFailed = true; return; }
       this.y = best;
     }
     this.gdir = -this.gdir;

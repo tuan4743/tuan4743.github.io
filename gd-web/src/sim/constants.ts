@@ -54,6 +54,14 @@ export const P = {
   robotFloat: 0.27,           // [GDOpenGD] 按住时"抵消自身的重力"能维持多久(秒)≈ m_accelerationOrSpeed 走满 1.5
   spiderVel: 1.0,             // [GDOpenGD] 蜘蛛传送落地后的那一小点速度(∓1 每帧)
   spiderBand: 8,
+  /* ★ 紫色上跳箭头/跳点(3004/3005)"找头顶那个方块"的搜索距离(单位)。
+     为什么单开一条:用户实测"紫色冲刺箭头没用,无法交互" —— 那 7 个紫箭头离头顶方块 2.5~4.5 块,
+     而它们所在段的速度门把速度锁在 0 档(慢速),spiderReach 第 0 档只有 60 单位 = 2 块,
+     于是"够不到 → 什么也不做",可箭头已经被消耗掉了。spiderReach 那张表本来就【没有出处】
+     (见 HANDOVER §13.11:spiderTestJump 的实现体在本地源码里根本不存在),
+     拿它当"紫箭头的射程"是错的。这里给紫箭头/紫板一条独立射程:
+     覆盖关卡里全部 7 个箭头(最远 4.5 块),又不至于把人送上几百格。 */
+  tpReach: 240,
   miniSize: 0.6,             // [GDOpenGD] 迷你门的体积倍率(m_vehicleSize)
   miniTriggerMul: 0.8,       // [GDOpenGD] 迷你时:所有普通跳环 ×0.8、弹簧力度 ×0.8              // [GDOpenGD] 蜘蛛搜索带的厚度 = m_vehicleSize × 8(块)
 

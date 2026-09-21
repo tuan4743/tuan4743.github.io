@@ -140,6 +140,41 @@ export function tOfX(level: Level, x: number): number {
   return tAt(sg, x);
 }
 
+/** ★★ 真实关卡(GD 导出)的"块 → 秒"时间轴:按【速度门】分段积分 dx / v(x)。
+ *
+ *  为什么不能直接用 tOfX:那个函数读的是 `level.segments`,而 segments 是【生成铺面】的产物
+ *  (由曲子 onset 生成)。真实关卡根本没有那套分段,拿它算出来的是垃圾:
+ *  实测 x=600 块 → 7.22 s、x=1060 块 → 0.00 s(非单调),而复活点就是靠这条映射去 seek 音乐的。
+ *
+ *  为什么积分是对的:GD 编辑器里 x 就是"速度 × 时间"的积分 —— 作者摆物件时看的是编辑器按当前
+ *  速度门画出来的拍线,所以"这一块对应第几秒"本来就等于 ∫dx/v。速度门(铺面里 4 类门之一)
+ *  给出了设计者意图的速度,初始速度取常速档(和 World.reset 的 speedIdx=1 一致)。
+ *  ⇒ 这条轴是单调的,而且【总时长应当约等于这首歌的长度】(作者就是照着歌摆的)——
+ *    页面上把它和 audio.duration 对一下就知道准不准(见 main.ts 的 musicExpected)。 */
+export function makeRealTimeAxis(level: Level, speedFor?: (x: number) => number): (xBlocks: number) => number {
+  const portals = level.objects
+    .filter((o) => o.kind === 'speed' && typeof o.speed === 'number')
+    .sort((a, b) => a.b - b.b);
+  /** 每一步按 0.5 块积分:速度门可能落在块中间,细分一下误差可以忽略(整关 3620 块 = 7240 步) */
+  const STEP = 0.5;
+  const xs: number[] = [0];
+  const ts: number[] = [0];
+  let t = 0, pi = 0, spd = 1;
+  for (let x = STEP; x <= level.length + STEP; x += STEP) {
+    while (pi < portals.length && portals[pi].b <= x) { spd = portals[pi].speed ?? 1; pi++; }
+    const v = blocksPerSec(speedFor ? speedFor(x) : spd);      // 块/秒
+    t += STEP / Math.max(0.01, v);
+    xs.push(x); ts.push(t);
+  }
+  return (xBlocks: number) => {
+    const x = Math.max(0, Math.min(level.length, xBlocks));
+    const i = Math.min(xs.length - 1, Math.max(0, Math.floor(x / STEP)));
+    const j = Math.min(xs.length - 1, i + 1);
+    const f = (x - xs[i]) / (xs[j] - xs[i] || 1);
+    return ts[i] + (ts[j] - ts[i]) * f;
+  };
+}
+
 /* ---------------- 有种子随机:同一个种子 → 同一张铺面(可复现是硬要求) ---------------- */
 export function prng(seed: number) {
   let s = (seed >>> 0) || 1;
