@@ -31,6 +31,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import { WATER_CHART } from '../src/sim/charts/water.ts';
 import { World } from '../src/sim/world.ts';
+import { U } from '../src/sim/constants.ts';
 import { auditTape, doorBoxes, type Audit } from './audit.ts';
 import type { Obj } from '../src/sim/level.ts';
 
@@ -121,9 +122,13 @@ for (let i = 0; i < stations.length; i++) {
   const per = near ? budget * 2 : budget;
   const seedX = a ? a.x : (seed && fs.existsSync(seed) ? (JSON.parse(fs.readFileSync(seed, 'utf8')).x ?? 0) : 0);
   const maxSeedX = am ? am.x : 0;
-  /* 退避档:15 块一档,从离前沿最近的开始 —— 见文件头 ③ */
+  /* 退避档:15 块一档,从离前沿最近的开始 —— 见文件头 ③
+     ★ 2026-09 加密到 5/10/15/20…:实测两次"人工救站"都是靠更细的起点命中的 ——
+       · 第 13 站成功起点是 x=337,而当时前沿 345.6 的 15 块档只给到 330.6(错过);
+       · 第 15 站成功的是"前沿本身 + 视界 36"。
+     退避档粗一点,就会整整错过一格状态。 */
   const back: number[] = [];
-  for (let off = 15; off <= 150; off += 15) back.push(off);
+  for (const off of [5, 10, 15, 20, 30, 45, 60, 75, 90, 105, 120, 135, 150]) back.push(off);
   /* ★ 视界也要换着试:换个视界等于换一套宏动作,落点全变 ——
      实测同一条刺走廊,视界 12/16/20/24/28 块分别走到 349.4 / 345.2 / 341.1 / 336.9 / 350.4,
      不是"越长越好",而是"多试几个就有一个能过"。塔段更极端:从 543 起搜,
@@ -137,6 +142,11 @@ for (let i = 0; i < stations.length; i++) {
   const tries: Array<{ tag: string; extra: string[] }> = seed
     ? [
       { tag: near ? '离目标很近,给双倍时间' : '接着上次的卷子搜', extra: [] },
+      /* ★ 前沿状态本身就是个好起点(第 15 站就是靠"前沿 + 视界 36"一秒过的):
+         换视界 = 换一套宏落子,同一格状态下能摸出完全不同的走法。 */
+      { tag: '★ 前沿 + 视界 36', extra: ['--horizon=36'] },
+      { tag: '★ 前沿 + 视界 48 + 接近 200', extra: ['--horizon=48', '--approach=200'] },
+      { tag: '★ 前沿 + 细步进 + 不回退', extra: ['--step=1', '--beam=16', '--rewindafter=999999'] },
       ...back.slice(0, 2).filter((off) => seedX - off > 5).map((off) => ({
         tag: '退回 ' + off + ' 块重开前沿',
         extra: ['--startfrom=' + BEST + ',' + (seedX - off).toFixed(1)],
@@ -149,7 +159,7 @@ for (let i = 0; i < stations.length; i++) {
         tag: '退回 ' + off + ' 块重开前沿',
         extra: ['--startfrom=' + BEST + ',' + (seedX - off).toFixed(1)],
       })),
-      ...(maxSeedX > 5 ? back.filter((off) => maxSeedX - off > 5).map((off) => ({
+      ...(maxSeedX > 5 ? back.slice(0, 6).filter((off) => maxSeedX - off > 5).map((off) => ({
         tag: '从最远前沿退回 ' + off + ' 块重开',
         extra: ['--startfrom=' + MAXB + ',' + (maxSeedX - off).toFixed(1)],
       })) : []),
