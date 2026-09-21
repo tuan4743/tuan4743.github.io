@@ -106,6 +106,16 @@ export function circleRadiusOf(id: number | undefined): number | null {
   return GD_HITBOX_RADIUS[id] ?? null;
 }
 
+/** 判定盒的【锚点偏移】(单位;相对物件中心)。
+ *  ★ 通式:`_pHitboxes` 里 420/435 条的 (x,y) 就是 (-w/2, -h/2),也就是【以物件中心为心】——
+ *    本关用到的 45 个可查 ID 里 44 个都居中(`tools/hb-audit.ts` 直接按 .dat 的 ID 直方图核)。
+ *  ★ 例外只有传送门 747:`{h:90, w:25, x:-0.5, y:-45}`(longdata.cpp:47)= 竖直居中、
+ *    横向【右移 12 单位(0.4 块)】:盒子 x∈[-0.5, 24.5]。本关有 7 个 747。
+ *    (审计文档里那三条"刺/跳板整体偏高 0.07~0.13 格"是把 (x,y) 当成了盒中心 —— 是误报。) */
+export const GD_HITBOX_OFFSET: Record<string, [number, number]> = {
+  teleport: [-0.5, -45],
+};
+
 /** 取某个物件的原版判定盒(单位);表里没有的返回 null(调用方按原来的几何算) */
 export function hitboxOf(o: Obj): [number, number] | null {
   switch (o.kind) {

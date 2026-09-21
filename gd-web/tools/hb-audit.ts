@@ -4,6 +4,7 @@
  * 关卡里靠边的锯片/尖刺就会整体错位半个身位 —— 正是 1052~1056 那段的可疑点。
  * 用法:cd gd-web && node tools/hb-audit.ts [--list] */
 import fs from 'node:fs';
+import { loadSave, fieldsOf } from './lib/dat.ts';
 
 const SRC = '../../.tmp/longdata.cpp';
 const txt = fs.readFileSync(SRC, 'utf8');
@@ -45,3 +46,31 @@ if (process.argv.includes('--list')) {
   console.log('\n全部不居中条目:');
   for (const r of bad) console.log('  ' + JSON.stringify(r));
 }
+
+/* ★★ 只问"本关真正用到的 ID 居不居中" —— 这才是我们那条通式 (x,y)=(-w/2,-h/2) 的适用范围。
+   (审计文档里有三条"待办"说我们的刺/跳板盒子比原版高了 0.07~0.13 格,
+    那是把表里的 (x,y) 当成了"盒中心的偏移";其实它是【左下角】的偏移,所以 y=-h/2 就是居中。) */
+{
+  const save = loadSave('../static/levels/CCLocalLevels.dat');
+  const lv = save.find((l) => l.name === 'WATER') ?? save.slice().sort((a, b) => b.lines.length - a.lines.length)[0];
+  const hist = new Map<number, number>();
+  for (const line of lv.lines) {
+    const id = Math.round(Number(fieldsOf(line)['1'] ?? -1));
+    hist.set(id, (hist.get(id) ?? 0) + 1);
+  }
+  console.log('\n本关用到的 ID(' + hist.size + ' 种)在判定盒表里的居中情况:');
+  let used = 0, usedCentred = 0;
+  const odd: string[] = [];
+  for (const [id, n] of [...hist.entries()].sort((a, b) => b[1] - a[1])) {
+    const r = rows.find((q) => q.id === id);
+    if (!r) continue;                       // 表里没有(圆表 / 2.2 新物件 / 触发器)另算
+    used++;
+    if (centred(r)) usedCentred++;
+    else odd.push('  id=' + id + ' ×' + n + ' {h=' + r.h + ', w=' + r.w + ', x=' + r.x + ', y=' + r.y + '}'
+      + ' → 盒 左=' + r.x + ' 右=' + (r.x + r.w) + ' 下=' + r.y + ' 上=' + (r.y + r.h));
+  }
+  console.log('  表里能查到的 ' + used + ' 种里,居中的 ' + usedCentred + ' 种'
+    + (odd.length ? ';不居中 ' + odd.length + ' 种:' : ' —— 通式 (x,y)=(-w/2,-h/2) 对本关全部成立 ✓'));
+  for (const s of odd) console.log(s);
+}
+

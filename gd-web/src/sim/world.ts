@@ -8,7 +8,7 @@
  */
 
 import { P, U, Y_TIME_SCALE, vxOf, arcSpan, ORB, PAD, jumpOf, cubeGravityOf } from './constants.ts';
-import { hitboxOf, circleRadiusOf, GD_SPEC } from './gdids.ts';
+import { hitboxOf, circleRadiusOf, GD_SPEC, GD_HITBOX_OFFSET } from './gdids.ts';
 import type { Level, Mode, Obj } from './level.ts';
 
 /** 每个物理子步最多走多少单位。最薄的实心是 468 线框(1.5 单位厚),取 1.2 < 1.5 ——
@@ -201,7 +201,10 @@ export class World {
       const rot = (((o.rot ?? 0) % 360) + 360) % 360;
       if (rot === 90 || rot === 270) { const t = w; w = h; h = t; }   // 横过来:宽高对调
       const cx = (o.b + o.w / 2) * U, cy = (o.r + o.h / 2) * U;
-      return { x0: cx - w / 2, x1: cx + w / 2, y0: cy - h / 2, y1: cy + h / 2, o };
+      /* ★ 锚点:通式是"以物件中心为心"(-w/2,-h/2),但传送门 747 例外(横向右移 12 单位)——
+         见 gdids.GD_HITBOX_OFFSET。以前一律居中,7 个传送门的触发点偏左 0.4 块。 */
+      const off = GD_HITBOX_OFFSET[o.kind] ?? [-w / 2, -h / 2];
+      return { x0: cx + off[0], x1: cx + off[0] + w, y0: cy + off[1], y1: cy + off[1] + h, o };
     };
     for (const o of level.objects) {
       const b: Box = { x0: o.b * U, x1: (o.b + o.w) * U, y0: o.r * U, y1: (o.r + o.h) * U, o };
