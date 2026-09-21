@@ -8,7 +8,15 @@
 {{- $cfg := site.Params.intro.lost | default dict -}}
 <div class="lost is-game" data-lost="{{ .key }}">
     <div class="lost-stage">
+        {{/* ★★ 水下特效全走【DOM 图层】,不动游戏内部渲染(用户口径:"特效看不见" ——
+             上一版塞进 Phaser 里,我看不到 WebGL 画面,只能盲改,结果三次都把画面弄坏)。
+             DOM 层的好处:能截图自证、最坏情况也只是没效果,绝不会把游戏画面搞没。 */}}
+        <img class="fx-layer fx-bg" src="/assets/water/bg.png" alt="" aria-hidden="true">
+        <img class="fx-layer fx-city" src="/assets/water/city.png" alt="" aria-hidden="true">
         <canvas id="gd-canvas" class="lost-cv" width="1280" height="720" aria-label="几何冲刺式关卡"></canvas>
+        <div class="fx-fog" aria-hidden="true"></div>
+        <img class="fx-layer fx-rays" src="/assets/water/rays.png" alt="" aria-hidden="true">
+        <div class="lost-lyric" id="gd-lyric"></div>
         <div class="lost-veil" aria-hidden="true"></div>
         <div id="gd-hud" class="lost-hud">方块 · 0%</div>
         <div class="lost-tip">按一下开始 · 空格 / ↑ = 跳(飞机按住上升)· R = 重来 · G = 无敌(已限制在预定轨道内,飞不出关卡走廊) · B = 看 bot 通关 · [ / ] 或 −/+ = 弹簧力度微调(测试用)</div>
@@ -36,4 +44,4 @@
         <a href="https://geometrydash.com/game" target="_blank" rel="noopener noreferrer">geometrydash.com/game</a>
     </p>
 </div>
-<script defer src="/assets/gd/gd.js?v=g24"></script>
+<script defer src="/assets/gd/gd.js?v=g25"></script>

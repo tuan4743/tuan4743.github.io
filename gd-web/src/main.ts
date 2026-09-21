@@ -516,7 +516,7 @@ class Scene extends Phaser.Scene {
     /* ?padmul=0.75 —— 弹簧力度微调(和按 [ / ] 等效),验收脚本也能用 URL 指定 */
     const pm = /(^|[?&])padmul=([\d.]+)/.exec(location.search);
     if (pm) { this.padMulWanted = Math.max(0.4, Math.min(1.5, Number(pm[2]) || 1)); this.world.padMul = this.padMulWanted; }
-    this.cameras.main.setBackgroundColor('#05070d');
+    this.cameras.main.setBackgroundColor('rgba(0,0,0,0)');   // ★ 透明:让 DOM 的远景/近景透出来
     this.cameras.main.setZoom(this.zoomOf());
     /* ★ 只在【画布上】点才算确认 —— 以前监听 window,点导航、点 CD 面板都会顺手把游戏开起来 */
     this.input.on('pointerdown', () => {
@@ -1318,6 +1318,31 @@ class Scene extends Phaser.Scene {
     cam.setZoom(this.zoomOf());
   }
 
+  /** ★★ 歌词走 DOM(.lost-lyric):跟着音乐时间淡入淡出(用户:"放在屏幕正下贴近屏幕,淡入淡出")。
+   *  歌词表来自 /assets/water/lyrics.json,拿不到就不显示 ✓ */
+  private lyricEl: HTMLElement | null = null;
+  private lyricRows: Array<[number, string]> = [];
+  private lyricCur = '';
+  private paintLyric() {
+    if (!this.lyricEl) this.lyricEl = document.getElementById('gd-lyric');
+    const el = this.lyricEl;
+    if (!el) return;
+    if (!this.lyricRows.length) {
+      fetch('/assets/water/lyrics.json').then((r) => r.json())
+        .then((j: Array<[number, string]>) => { this.lyricRows = j; }).catch(() => { /* 没有歌词不影响玩 */ });
+      return;
+    }
+    const t = this.audio && !this.audio.paused ? this.audio.currentTime : this.runClock;
+    let i = -1;
+    for (let k = 0; k < this.lyricRows.length; k++) if (t >= this.lyricRows[k][0]) i = k;
+    if (i < 0) { el.style.opacity = '0'; return; }
+    const cur = this.lyricRows[i], next = this.lyricRows[i + 1];
+    const end = next ? next[0] : cur[0] + 6;
+    const a = Math.min(1, (t - cur[0]) / 0.35, Math.max(0, (end - t) / 0.6));
+    if (cur[1] !== this.lyricCur) { this.lyricCur = cur[1]; el.textContent = cur[1]; }
+    el.style.opacity = String(Math.max(0, Math.min(1, a)));
+  }
+
   draw() {
     const g = this.g, w = this.world, cam = this.cameras.main;
     this.drawn = 0;
@@ -1329,6 +1354,7 @@ class Scene extends Phaser.Scene {
       this.applyViewport(cam);
       window.addEventListener('resize', () => { this.measureFrac(); this.applyViewport(cam); });
     }
+    this.paintLyric();          // ★ 歌词(DOM 层,见 paintLyric)
     /* 每 20 帧(或刚开局)重新量一次:露出来的那一条/缓冲比例变了就跟着改取景框 */
     if (this.fixed && (this.fracT++ % 20 === 0)) {
       const before = [this.viewTop, this.viewH, this.bufW];
@@ -1890,7 +1916,7 @@ export function boot(target: string | HTMLCanvasElement, opts: { song?: string }
     /* 传自己的 canvas 时,Phaser 4 要求显式 renderType(否则报 Must set explicit renderType in custom environment) */
     type: useCanvas ? Phaser.WEBGL : Phaser.AUTO,
     ...(useCanvas ? { canvas: target as HTMLCanvasElement } : { parent: target as string }),
-    backgroundColor: '#05070d',
+    backgroundColor: 'rgba(0,0,0,0)',        // ★ 画布透明(见 create 里 setBackgroundColor 的说明)
     /* ★ 用 NONE + 固定尺寸:之前用 FIT/RESIZE,Phaser 量出来的父容器宽度不对
        (相机视口被算成 320×720,画面只在左边一条里),干脆不让它去量 ——
        画幅由页面 CSS 决定,内部分辨率固定 1280×720。 */
