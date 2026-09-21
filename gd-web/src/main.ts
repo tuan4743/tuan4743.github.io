@@ -18,6 +18,8 @@ import { P, U, Y_TIME_SCALE } from './sim/constants.ts';
 import { WATER_CHART } from './sim/charts/water.ts';
 
 const HL = '#7ff0ff';
+/** ★ 构建标记:画在 HUD 上,用来确认浏览器到底加载了哪一版(排查"没变化"是不是缓存) */
+const BUILD_TAG = 'g20';
 /* 每段一个强调色:网格、地面、门的颜色都跟着走,一眼知道跑到第几段 */
 const PAL = [0x7ff0ff, 0xffe17a, 0xa0ffd0, 0xc6a0ff, 0xff9fd0];
 const HLD = 0x7ff0ff;
@@ -1117,6 +1119,7 @@ class Scene extends Phaser.Scene {
     if (this.phase === 'done') parts.push('通关');
     if (w.mode === 'ship') parts.push('按住 = 上升');
     if (w.god) parts.push('★ 无敌' + (this.guide.length ? ' · 限轨 ±' + GUIDE_BAND + ' 块' : ' · 只贴边界'));
+    parts.push('构建 ' + BUILD_TAG);        // ★ 让"到底刷到哪一版"一眼可见(排查缓存问题用)
     if (this.demoMode) {
       const n = this.demoTape ? this.demoTape.length : 0;
       parts.push(this.demoTape
