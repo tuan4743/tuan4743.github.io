@@ -79,6 +79,8 @@ interface Movable {
 
 /** 不动的物件共享这一个零偏移 —— offsetOf 每帧要被问上万次,别再每次 new 一个对象 */
 const ZERO_OFF = { dx: 0, dy: 0 };
+/** ★ 按"越过 x"触发的四类门(用户口径:形态门/速度门/反转门/尺寸门"到达这一 x 就触发") */
+const DOOR_KINDS = new Set(['portal', 'gravity', 'speed', 'size']);
 
 /** 一次触发产生的动画(位移 / 往返) */
 interface Anim {
@@ -166,6 +168,8 @@ export class World {
   flySolid = false;
   /** ★ 临时定点用:把实心碰撞每一支的判断过程记到 solidTrace(默认关;tools/probe-rod.ts 会打开) */
   traceSolid = false;
+  /** ★★ 四类【门】按"越过 x"触发(用户 2026-09 口径),不看高度。见 hitEvent */
+  doorByX = true;
   readonly solidTrace: string[] = [];
   speedIdx = 1;
   dead = false; done = false; deadT = 0;
@@ -1306,6 +1310,13 @@ export class World {
    *  ★ 我们自己自动铺面的那套关卡,把门摆在 r=3/6 当"段首标记"用,靠的就是"跨过 x",
    *    所以两种口径按来源分流 —— 两边的铺面都不会被搞坏。 */
   private hitEvent(b: Box, prevX: number): boolean {
+    /* ★★ 2026-09 用户口径:"把形态门、速度门、反转门等改成只要到达这一 x 位置就触发"。
+       四类【门】(形态/重力/速度/尺寸)一律按"越过它的 x"判,不看高度 —— 和自铺面那套口径一致。
+       为什么:这张图的玩家轨迹经常从门的上/下方擦过去(实测 x=768.5 那两扇门挂在 y=20,
+       而卷子在地面 y≈0.2 跑),按"判定盒相交"判就永远不生效,分站驱动在那一站卡了一个多小时。
+       其它事件物件(存档点/传送门/触发器)保持"必须碰到" —— 用户没提,而且它们本来就带位置语义。
+       `doorByX` 是开关(构造函数 opts 可关,留着做 A/B)。 */
+    if (this.doorByX && DOOR_KINDS.has(b.o.kind)) return !(prevX + this.box <= b.x0 || this.x >= b.x1);
     if (!this.strict) return !(prevX + this.box <= b.x0 || this.x >= b.x1);
     const u = this.outer();
     return u.x1 > b.x0 && u.x0 < b.x1 && u.y1 > b.y0 && u.y0 < b.y1;
