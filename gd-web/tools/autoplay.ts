@@ -86,6 +86,8 @@ const PADMUL = Number(arg('padmul', 1));
 const GOALY = arg('goaly', '') ? Number(arg('goaly')) : null;
 const GOALY_FROM = Number(arg('goalyfrom', 10));      // 从目标前多少块开始压
 const GOALY_WIN = Number(arg('goalywin', 4));         // 允许的中心 y 偏差(块)
+/** 软走廊:每偏离门高 1 块扣多少"单位"(1 块 = 30 单位 ⇒ 3 表示偏 1 块等于少走 3 块 x) */
+const GOALY_PEN = Number(arg('goalypen', 0));
 let goalLimitX: number | null = null;      // 由 --goal 推出(在 GOAL 定义之后赋值)
 if (GOALY != null) console.log('门口高度提示:y = ' + GOALY + ' ± ' + GOALY_WIN
   + ' 块(目标前 ' + GOALY_FROM + ' 块内才留状态)');
@@ -408,8 +410,14 @@ function walkEdge(c: Cand): EdgeOut {
        "一变方块就朝天上掉"的那条路在试算里 x 最远、分还不低,搜索一直往那边走
        —— 实测球态走廊尽头的 cube 门(525)就是这么卡住的:进门后重力是向上的,
        方块一路飞到 y=49,而所有试算都"看起来很远"。 */
+  /* ★ 高度走廊的【软】版本(--goalypen):不是剪掉偏离的状态,而是按偏离量扣分 ——
+     于是"地面那条好走的路"仍然在堆里,只是排在"高线"后面;如果没有高线解,它照样能被搜到。
+     为什么要软的:实测第 31 站(x=714 的门在 y≈23)x=648~712 的低处除了锯片什么都没有,
+     硬走廊(±6/±9)把合理的下探也剪了 → 最远反而从 714.6 掉到 651~657。 */
+  const pen = (GOALY != null && goalLimitX != null && snap && snap.x > goalLimitX)
+    ? GOALY_PEN * Math.abs((snap.y + w.box / 2) - GOALY * U) : 0;
   const score = Math.max(r.maxX, snap.x) + (r.alive && !r.stalled ? 2 * U : 0)
-    - portalPull() - (r.overRoof ? 300 * U : 0);
+    - portalPull() - (r.overRoof ? 300 * U : 0) - pen;
   const needTap = endSnap !== null || r.done;
   return { snap, endSnap, tap: needTap ? rollTape.slice() : [], score, done: r.done };
 }

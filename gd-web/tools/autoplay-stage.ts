@@ -251,6 +251,12 @@ for (let i = 0; i < stations.length; i++) {
             tag: '★ 高度走廊(全程)y=' + doorCy.toFixed(1) + ' ±6',
             extra: ['--goaly=' + doorCy.toFixed(1), '--goalywin=6', '--goalyfrom=70'],
           });
+          /* 软走廊:不剪状态、只按偏离量扣分(1 块偏差 ≈ 少走 8 块 x)—— 地面那条路还在堆里,
+             只是排在高线后面;硬走廊在 x=714 那站把合理下探也剪了(714.6 → 651~657)。 */
+          out.push({
+            tag: '★ 高度软走廊 y=' + doorCy.toFixed(1) + '(每偏 1 块扣 8)',
+            extra: ['--goaly=' + doorCy.toFixed(1), '--goalypen=8', '--goalyfrom=70', '--horizon=44'],
+          });
           return out;
         })() : []),
       ] : []),
