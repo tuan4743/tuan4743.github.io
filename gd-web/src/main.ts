@@ -1306,15 +1306,12 @@ class Scene extends Phaser.Scene {
        以前无条件写 100%×100%:外框比例和缓冲比例不一致时,浏览器替我们"拉伸",
        看起来就是画面偏到左上角 + 方块变长方形(用户实测的"整体偏移")。 */
     if (cv) {
-      /* ★★ 画布【铺满宿主】:buffer 的比例已经等于宿主比例(见 measureFrac)⇒ 铺满也不会变形,
-         而且不会像"按比例往里缩"那样缩成一小块(上一版就是这么把画面缩成 52×43 的 ✗)。
-         用 setProperty(...,'important') 压过页面 CSS 里那句 width/height:100% !important。 */
+      /* ★★ 只改尺寸,【不改定位】:
+         上一版我加了 position:absolute + left/top 想居中,结果舞台没定位时画布会被挪到别处 /
+         被外框盖住 ⇒ 用户看到"啥都没有"。现在回到"就在原来的文档流里"——只把尺寸写成 100%
+         (本来就是页面 CSS 给的尺寸),缓冲比例已经等于舞台比例 ⇒ 铺满也不变形 ✓ */
       cv.style.setProperty('width', '100%', 'important');
       cv.style.setProperty('height', '100%', 'important');
-      cv.style.position = 'absolute';
-      cv.style.left = '0';
-      cv.style.top = '0';
-      cv.style.transform = 'none';
     }
     cam.setViewport(0, 0, this.bufW, this.viewH);
     cam.setSize(this.bufW, this.viewH);
