@@ -75,6 +75,30 @@ function audit(file: string): Audit | null {
 
 const doorCount = doorBoxes(new World(WATER_CHART)).length;
 
+/** ★ 自动救站:在卷子里找【最接近目标门高度】的那一点(块坐标)。
+ *  为什么要有它:本轮两次人工救站的起点都是这么来的 ——
+ *    第 13 站那扇重力门在缝的地板高度(y≈5.5),而卷子末尾已经飞到 y=13.5;
+ *    卷子里**最后一次**处在门高度附近的位置是 x=337(人还在缝里),从那里重开前沿 1.1 秒就过了。
+ *  驱动以前只会"按 x 退 N 块",退到的那些点上人可能早就飞高了 —— 这个函数把"高度"这一维找回来。
+ *  返回 null 表示卷子里没有任何一点靠近门高度(那就只能靠别的变体)。 */
+function closestHeightX(file: string, doorY: number, loX: number, hiX: number): { x: number; d: number } | null {
+  if (!file || !fs.existsSync(file)) return null;
+  let j: { tape?: boolean[] };
+  try { j = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return null; }
+  const tape = j.tape ?? [];
+  const w = new World(WATER_CHART);
+  let bx: number | null = null, bd = Infinity;
+  for (const h of tape) {
+    if (w.dead || w.done) break;
+    w.frame(h);
+    const x = w.x / U;
+    if (x < loX || x > hiX) continue;
+    const d = Math.abs((w.y + w.box / 2) / U - doorY);
+    if (d < bd) { bd = d; bx = x; }
+  }
+  return bx == null ? null : { x: bx, d: bd };
+}
+
 interface Station { x: number; door: number }         // door = -1 表示"路标"
 const stations: Station[] = [];
 {
@@ -190,16 +214,33 @@ for (let i = 0; i < stations.length; i++) {
         { tag: '★ 缝隙模式 + 容差 0.1', extra: ['--step=1', '--beam=16', '--macro=0', '--rewindafter=999999', '--pulltol=0.1', '--startfrom=' + BEST + ',' + Math.max(5, seedX - 20).toFixed(1)] },
         /* ★ 第四批:专治"门挂在另一个高度上"的站点(实测:第 13 站 x=345 的重力门在缝的地板高度,
            卷子从缝的上方飞过去,门永远吃不到,而搜索最爱展开的恰恰是"飞得高、x 走得远"的路)。
-           --goaly 只约束"留下的状态":离目标 25 块以内、中心离门中心超过 4 块的状态不留。
-           门站才给这个参数(路标没有"门的高度"可言)。 */
-        ...(st.door >= 0 ? [
-          { tag: '★ 门口高度提示 goaly=' + (((doors[st.door].y0 + doors[st.door].y1) / 2) / U).toFixed(1),
-            extra: ['--goaly=' + (((doors[st.door].y0 + doors[st.door].y1) / 2) / U).toFixed(1),
-              '--startfrom=' + BEST + ',' + Math.max(5, seedX - 20).toFixed(1)] },
-          { tag: '★ 高度提示 + 退 45 块 + 视界 36',
-            extra: ['--goaly=' + (((doors[st.door].y0 + doors[st.door].y1) / 2) / U).toFixed(1),
-              '--horizon=36', '--startfrom=' + BEST + ',' + Math.max(5, seedX - 45).toFixed(1)] },
-        ] : []),
+           两条手段都用上:
+             · 【从卷子里最接近门高度的那一点重开】—— 人工救站就是这么干的,现在自动算;
+             · --goaly=<门高度> —— 离目标 10 块以内、中心离门中心超过 4 块的状态不留。 */
+        ...(st.door >= 0 ? (() => {
+          const doorCy = ((doors[st.door].y0 + doors[st.door].y1) / 2) / U;
+          const ap = closestHeightX(BEST, doorCy, Math.max(5, seedX - 150), seedX + 1);
+          const out: Array<{ tag: string; extra: string[] }> = [];
+          if (ap && ap.x < seedX - 3) {
+            out.push({
+              tag: '★ 从"最接近门高度"那点重开 x=' + ap.x.toFixed(1) + '(Δy=' + ap.d.toFixed(1) + ' 块)',
+              extra: ['--startfrom=' + BEST + ',' + ap.x.toFixed(1)],
+            });
+            out.push({
+              tag: '★ 同上 + 视界 36',
+              extra: ['--startfrom=' + BEST + ',' + ap.x.toFixed(1), '--horizon=36'],
+            });
+          }
+          out.push({
+            tag: '★ 门口高度提示 goaly=' + doorCy.toFixed(1),
+            extra: ['--goaly=' + doorCy.toFixed(1), '--startfrom=' + BEST + ',' + Math.max(5, seedX - 20).toFixed(1)],
+          });
+          out.push({
+            tag: '★ 高度提示 + 退 45 块 + 视界 36',
+            extra: ['--goaly=' + doorCy.toFixed(1), '--horizon=36', '--startfrom=' + BEST + ',' + Math.max(5, seedX - 45).toFixed(1)],
+          });
+          return out;
+        })() : []),
       ] : []),
     ]
     : [{ tag: '', extra: [] }];
