@@ -1311,7 +1311,29 @@
 }
 .fx-bg { z-index: 1; opacity: 0.9; filter: saturate(0.9); }
 /* 近景(city)贴着底边摆,只占下方一小条,别挡住玩法区 */
-.fx-city { z-index: 1; object-fit: contain; object-position: bottom center; opacity: 0.92; }
+.fx-city { display: none; }
+/* ★★ 近景:长贴图 + 无缝循环(用户口径)。原图 1280×390,按高度铺满下方 26%,
+   background-repeat: repeat-x + background-position 动画 ⇒ 一直往左流,永不间断 */
+.fx-city {
+    display: block;
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 26%;
+    z-index: 1;
+    pointer-events: none;
+    background-image: url("/assets/water/city.png");
+    background-repeat: repeat-x;
+    background-position: 0 100%;
+    background-size: auto 100%;
+    opacity: 0.92;
+    animation: fxCityScroll 38s linear infinite;
+}
+@keyframes fxCityScroll {
+    from { background-position-x: 0; }
+    to   { background-position-x: -1280px; }   /* 等于贴图宽度 ⇒ 无缝 */
+}
 /* ★★ 画面滤镜栈(用户口径:灰阶 + 高斯模糊 + 运动模糊 + 涟漪):
    · 灰阶 grayscale(0.5) —— 水下的褪色感
    · 高斯模糊 blur(1.1px) —— 朦胧
@@ -1377,7 +1399,8 @@
     from { opacity: 0.35; transform: translateX(-2%) rotate(8deg) scaleY(0.96); }
     to   { opacity: 0.85; transform: translateX(2%)  rotate(13deg) scaleY(1.04); }
 }
-/* 涟漪:一层贴着画面的 SVG 湍流位移(动画在 <feTurbulence> 的 animate 里) */
+/* 涟漪:★ 上一版写成 filter: url(#gdRipple) 作用在【空 div】上 —— 过滤"没有内容"= 什么都看不见 ✗
+   (用户:"没有涟漪")。正确做法是 backdrop-filter: 过滤【它背后】的画面(画布)⇒ 才有折射/涟漪感 ✓ */
 .fx-ripple {
     position: absolute;
     inset: 0;
@@ -1385,7 +1408,8 @@
     width: 100%;
     height: 100%;
     pointer-events: none;
-    filter: url(#gdRipple);
+    -webkit-backdrop-filter: url(#gdRipple);
+    backdrop-filter: url(#gdRipple);
 }
 /* 歌词:屏幕正下贴边,淡入淡出(JS 只改 opacity 和文字) */
 .lost-lyric {

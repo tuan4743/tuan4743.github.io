@@ -12,12 +12,12 @@
              上一版塞进 Phaser 里,我看不到 WebGL 画面,只能盲改,结果三次都把画面弄坏)。
              DOM 层的好处:能截图自证、最坏情况也只是没效果,绝不会把游戏画面搞没。 */}}
         <img class="fx-layer fx-bg" src="/assets/water/bg.png" alt="" aria-hidden="true">
-        <img class="fx-layer fx-city" src="/assets/water/city.png" alt="" aria-hidden="true">
+        {{/* 近景:改成 div + 平铺背景 —— 用户口径"近景是一个长贴图,完全允许循环移动" ⇒
+             用 background-repeat: repeat-x + background-position 动画做无缝循环视差 */}}
+        <div class="fx-city" aria-hidden="true"></div>
         <canvas id="gd-canvas" class="lost-cv" width="1280" height="720" aria-label="几何冲刺式关卡"></canvas>
         <div class="fx-fog" aria-hidden="true"></div>
-        {{/* ★ 动态光束:不用静态贴图(用户:"静态贴图太蠢了")—— 三条从上方斜射下来的光带,
-             用 CSS 渐变 + 位移动画做呼吸/摇摆;screen 混合不挡画面 */}}
-        <div class="fx-beams" aria-hidden="true"><i></i><i></i><i></i></div>
+        {{/* ★ 静态光束贴图和"三条光带"都删了(用户:"静态光束更丑了")—— 水下光改用雾的呼吸表达 */}}
         {{/* ★ 涟漪:SVG 湍流 + 位移(真实折射感),用 animate 慢慢漂 */}}
         <svg class="fx-ripple" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
             <filter id="gdRipple" x="-10%" y="-10%" width="120%" height="120%">

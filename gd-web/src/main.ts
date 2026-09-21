@@ -310,16 +310,11 @@ class Scene extends Phaser.Scene {
   private clampToGuide() {
     const w = this.world;
     if (!w.god) return;
-    const gy = this.guideYAt(w.x / U);
-    if (gy == null) return;
-    const cy = (w.y + w.box / 2) / U;                 // 用玩家【中心】(块)比,别拿脚底比
-    const over = cy - gy;
-    if (Math.abs(over) <= GUIDE_BAND) return;
-    const dir = over > 0 ? -1 : 1;                    // 往轨道那一侧推
-    const push = Math.min(0.5, Math.abs(over) - GUIDE_BAND) * U;
-    w.y += dir * push;
-    if (dir < 0 && w.vy > 0) w.vy = 0;
-    if (dir > 0 && w.vy < 0) w.vy = 0;
+    /* ★★ 2026-09 关掉(用户:"开无敌被无敌的bug卡不动"):
+       这条"轨道软推"会跟玩家的操作抢位置 —— 走廊是几何规划出来的,某些位置贴着砖,
+       推回去就等于把人按在几何里,表现就是"开了无敌反而动不了" ✗。
+       无敌现在只做一件事:不判死(sim 里的 die())✓ —— 关卡边界由 sim 自己夹,页面不再插手。 */
+    void w;
   }
 
   /** 把一个池子里的 Image 摆好;返回 false 表示这帧没画(调用方走矢量兜底) */
