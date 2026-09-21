@@ -1086,8 +1086,12 @@ export class World {
     }
 
     /* --- 跳环:要一次【新的按键】才生效 —— 空中二段跳靠它,而"按住不放"串不起一串环(原作口径) ---
-     * ★ 外框判(原版 playerOuterBounds) */
-    if (hold && this.pressFresh) {
+     * ★ 外框判(原版 playerOuterBounds)
+     * ★★ 冲刺期间不生效 —— 出处 gdp@2.11 `ringJump.cpp:2`:
+     *      `if (!isDead && hasQueuedHold && !isDashing && isHolding2) { … }`
+     *    也就是 dash 状态下整个 ringJump 直接 return(环、冲刺环都不吃)。以前我们漏了这条:
+     *    按住冲刺箭头飞过去时,沿途的环会被"顺手吃掉",落点全变。 */
+    if (hold && this.pressFresh && !this.dash) {
       const inn = this.outer();
       for (const b of this.nearOrbs) {
         if (this.armedOrbs.has(b)) continue;
