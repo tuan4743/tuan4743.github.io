@@ -74,6 +74,12 @@ const ICON_ENABLED = /(^|[?&])icons=1(&|$)/.test(location.search);
  *  而 plist 只给"每块多大、在图集哪儿",不给"摆在哪" ⇒ 我按"各自画布中心对齐"拼出来的全是错位碎片。
  *  所以:默认**不加载**这张图集(省 121 KB),要研究就加 `?art=1`(代码保留,别再当默认)。 */
 const ART_ENABLED = /(^|[?&])art=1(&|$)/.test(location.search);
+/** ★★ 无敌模式的"轨道上限"(用户口径:"给无敌模式加个上限,不允许脱离预定轨道")。
+ *  为什么:无敌本身解决不了"人卡出墙/飞到天上"—— 以前只贴住关卡边界(0 ~ 127 格),
+ *  于是开了无敌就能一路飞到 y=110 把整关绕过去,玩起来完全不是这张图。
+ *  现在:开着无敌时,把人夹在【规划走廊】(tools/plan.ts 算出来的那条,y 实测 9~18 格)±BAND 块之内,
+ *  超出就把纵向位置拉回边界并清掉朝外的速度 —— 横向照旧自由走。`?band=12` 可以放宽。 */
+const GUIDE_BAND = Math.max(1, Number(/(^|[?&])band=([\d.]+)/.exec(location.search)?.[2] ?? 6));
 const ICON_ATLAS: Array<{ mode: Mode; key: string; file: string }> = [
   { mode: 'cube', key: 'icon-cube', file: 'cube' },
   { mode: 'ship', key: 'icon-ship', file: 'ship' },
@@ -272,7 +278,41 @@ class Scene extends Phaser.Scene {
     }
   }
 
-  /** 取一个池子里的 Image 摆好;返回 false 表示这帧没画(调用方走矢量兜底) */
+  /** 无敌模式的轨道夹取:加载规划走廊(static/assets/gd-guide.json),按 x 插值出这条走廊的高度,
+   *  把人夹在 ±GUIDE_BAND 块内。走廊没加载到就退回"只贴关卡边界"(老行为,不影响能玩)。 */
+  private guide: Array<[number, number]> = [];
+  private guideYAt(xBlocks: number): number | null {
+    const G = this.guide;
+    if (!G.length) return null;
+    if (xBlocks <= G[0][0]) return G[0][1];
+    const last = G[G.length - 1];
+    if (xBlocks >= last[0]) return last[1];
+    let lo = 0, hi = G.length - 1;
+    while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (G[mid][0] <= xBlocks) lo = mid; else hi = mid; }
+    const [x0, y0] = G[lo], [x1, y1] = G[hi];
+    return y0 + (y1 - y0) * ((xBlocks - x0) / Math.max(1e-6, x1 - x0));
+  }
+  private loadGuide() {
+    fetch('/assets/gd-guide.json')
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))))
+      .then((j: { points: Array<[number, number]> }) => {
+        this.guide = (j.points ?? []).filter((p) => Array.isArray(p) && p.length === 2);
+        console.log('[gd] 无敌轨道就绪:' + this.guide.length + ' 个点 · ±' + GUIDE_BAND + ' 块');
+      })
+      .catch((e: Error) => { console.warn('[gd] 轨道没加载到,无敌只贴边界:' + e.message); });
+  }
+  /** 无敌状态下把人夹回轨道:超出上/下边界就拉回来,并清掉朝外的纵向速度(横向不管) */
+  private clampToGuide() {
+    const w = this.world;
+    if (!w.god) return;
+    const gy = this.guideYAt(w.x / U);
+    if (gy == null) return;
+    const hi = (gy + GUIDE_BAND) * U, lo = (gy - GUIDE_BAND) * U;
+    if (w.y > hi) { w.y = hi; if (w.vy > 0) w.vy = 0; }
+    else if (w.y < lo) { w.y = lo; if (w.vy < 0) w.vy = 0; }
+  }
+
+  /** 把一个池子里的 Image 摆好;返回 false 表示这帧没画(调用方走矢量兜底) */
   private drawArtObject(o: Obj, key: string, dx: number, dy: number, cwU: number, chU: number, tintCol = 0xffffff): boolean {
     const tex = this.textures.get('gd-art');
     const fr = tex && tex.has(key) ? tex.get(key) : null;
@@ -513,6 +553,7 @@ class Scene extends Phaser.Scene {
       this.load.once('complete', () => { this.artReady = this.textures.exists('gd-art'); });
       this.load.start();
     }
+    this.loadGuide();                          // ★ 无敌模式的轨道(见 clampToGuide)
     /* ★ 形态图集(static/icons):默认不加载(见上面那段"结论")。?icons=1 才试图集 */
     if (ICON_ENABLED) {
       const q = /(^|[?&])col1=([0-9a-fA-F]{6})/.exec(location.search);
@@ -857,6 +898,8 @@ class Scene extends Phaser.Scene {
       }
       this.prevY = w0.y;
       w0.frame(hold);
+      /* ★ 无敌模式的"轨道上限":开着无敌时不许飞离规划走廊(见 clampToGuide) */
+      this.clampToGuide();
       this.airT = w0.onGround ? 0 : this.airT + 1 / 60;
       if (this.botMode) {
         this.botStates.push(w0.state);
@@ -1046,7 +1089,7 @@ class Scene extends Phaser.Scene {
     if (this.phase === 'idle') parts.push('按空格开始');
     if (this.phase === 'done') parts.push('通关');
     if (w.mode === 'ship') parts.push('按住 = 上升');
-    if (w.god) parts.push('★ 无敌');
+    if (w.god) parts.push('★ 无敌' + (this.guide.length ? ' · 限轨 ±' + GUIDE_BAND + ' 块' : ' · 只贴边界'));
     if (this.demoMode) {
       const n = this.demoTape ? this.demoTape.length : 0;
       parts.push(this.demoTape
