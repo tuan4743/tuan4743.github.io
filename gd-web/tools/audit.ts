@@ -41,7 +41,10 @@ export function satisfied(o: Obj, w: World): boolean {
   if (o.kind === 'portal') return w.mode === o.to;
   if (o.kind === 'gravity') return w.gdir === (o.gdir ?? 1);
   if (o.kind === 'speed') return w.speedIdx === (o.speed ?? 1);
-  if (o.kind === 'size') return w.sizeMul !== 1;
+  /* ★ 尺寸门分两种:放大门(mini:false)要求"变回普通",迷你能门要求"变成迷你"。
+     旧写法 `sizeMul !== 1` 把"还是迷你"也算成"放大门办过了" → 审计与搜索都会放行
+     "贴着放大门飞过去"的走法(实测本关 x=1019 就是这么被跳过的,人一路迷你到 1060)。 */
+  if (o.kind === 'size') return o.mini === false ? w.sizeMul === 1 : w.sizeMul !== 1;
   return false;
 }
 

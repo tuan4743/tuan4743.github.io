@@ -168,7 +168,13 @@ function portalSatisfied(b: Box, world: World): boolean {
   if (o.kind === 'portal') return world.mode === o.to;
   if (o.kind === 'gravity') return world.gdir === (o.gdir ?? 1);
   if (o.kind === 'speed') return world.speedIdx === (o.speed ?? 1);
-  if (o.kind === 'size') return world.sizeMul !== 1;      // 尺寸门:已经是迷你就够了
+  /* ★ 尺寸门要分两种,别一句"已经是迷你就够了"糊过去 —— 这一条以前是错的:
+     放大门(物件 99 / mini:false)要求的是【变回普通大小】,而旧写法 `sizeMul !== 1`
+     在玩家还是迷你时也返回 true → 搜索以为"这个门办过了",于是【贴着它飞过去】、
+     人保持迷你一路走到 x=1060,而那段关卡是照普通大小设计的
+     (1054 那个 wave→cube 门 + 1060 的 robot 门,出门窗口只有 0.3 块宽;
+      普通大小实测能进,迷你进不去 —— 见 HANDOVER §13.15)。 */
+  if (o.kind === 'size') return o.mini === false ? world.sizeMul === 1 : world.sizeMul !== 1;
   return false;
 }
 
