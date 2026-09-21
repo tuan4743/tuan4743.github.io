@@ -238,6 +238,42 @@ class Scene extends Phaser.Scene {
     bw: number; bh: number; pxPerUnit: number;
   }> = [];
   private iconsReady = false;
+  /** ★ 物件贴图池:每帧按可见物件取用,用完把多余的藏起来(避免几千个 Image 常驻) */
+  private artPool: Phaser.GameObjects.Image[] = [];
+  private artUsed = 0;
+  artReady = false;
+
+  /** 物件 → 图集帧名(没有就返回 null,走矢量画法)。
+   *  映射依据见 tools/verify/build-art.mjs 的 MAP:锯片按尺寸钉死、弹簧板按颜色、存档点/硬币唯一命中;
+   *  刺的 4 个 id 按"经典刺/小刺"顺序对 spike_01..04(这一条是外观推断,不确定但影响很小); */
+  private artKeyOf(o: Obj): string | null {
+    if (!this.artReady) return null;
+    switch (o.kind) {
+      case 'saw': return o.id === 1706 ? 'saw1706' : 'saw1705';
+      case 'pad': return o.pad ? (o.pad === 'purple' ? null : 'pad_' + o.pad) : null;
+      case 'check': return 'checkpoint';
+      case 'coin': return 'coin';
+      case 'spike': return o.id === 39 ? 'spike02' : o.id === 103 ? 'spike03' : o.id === 392 ? 'spike04' : 'spike01';
+      default: return null;
+    }
+  }
+
+  /** 取一个池子里的 Image 摆好;返回 false 表示这帧没画(调用方走矢量兜底) */
+  private drawArtObject(o: Obj, key: string, dx: number, dy: number, cwU: number, chU: number): boolean {
+    const tex = this.textures.get('gd-art');
+    const fr = tex && tex.has(key) ? tex.get(key) : null;
+    if (!fr) return false;
+    let img = this.artPool[this.artUsed];
+    if (!img) { img = this.add.image(0, 0, 'gd-art').setDepth(6); this.artPool.push(img); }
+    this.artUsed++;
+    /* k:一格里的贴图按"物件高度(单位)/ 帧高(px)"等比缩放;弹簧板太扁,改用宽度对齐(GD 的板也是横向铺满) */
+    const k = (o.kind === 'pad' ? cwU / fr.width : chU / Math.max(1e-6, fr.height));
+    img.setVisible(true).setTexture('gd-art', key).setPosition(dx, dy);
+    img.setRotation(((o.rot ?? 0) * Math.PI) / 180);
+    img.setDisplaySize(fr.width * k, fr.height * k);
+    img.setTint(0xffffff);
+    return true;
+  }
   /** 验收用:update 被调了几次、Phaser 喂进来的 delta 是多少 */
   updates = 0;
   lastDt = 0;
@@ -453,6 +489,14 @@ class Scene extends Phaser.Scene {
        (用户会看到"点了没反应/只动一格")。 */
     document.getElementById('gd-pad-minus')?.addEventListener('click', () => { this.padLatch -= 1; this.blurSelf(); });
     document.getElementById('gd-pad-plus')?.addEventListener('click', () => { this.padLatch += 1; this.blurSelf(); });
+    /* ★★ 物件贴图(从【游戏本体】抽出来的小图集,见 tools/verify/build-art.mjs):
+       static/assets/gd-art.png/json 里只有这一关用得到的 35 帧 —— 锯片/弹簧板/存档点/硬币/刺/跳环/形态门。
+       ★ 密度:1 像素 = 1 单位(方块 30 单位 = 30 px),所以画画时 k = 物件高度(单位) / 帧高(px)。
+       ★ id → 帧名的映射【不在游戏的数据文件里】(那是编译进 exe 的代码);这里靠"尺寸/颜色/唯一命中"钉,
+         每条都在 build-art.mjs 的 MAP 里写了理由。线框(468/469/470)按用户口径不做贴图。 */
+    if (!this.textures.exists('gd-art')) this.load.atlas('gd-art', '/assets/gd-art.png', '/assets/gd-art.json');
+    this.load.once('complete', () => { this.artReady = this.textures.exists('gd-art'); });
+    this.load.start();
     /* ★ 形态图集(static/icons):默认不加载(见上面那段"结论")。?icons=1 才试图集 */
     if (ICON_ENABLED) {
       const q = /(^|[?&])col1=([0-9a-fA-F]{6})/.exec(location.search);
@@ -1244,6 +1288,7 @@ class Scene extends Phaser.Scene {
       pl.t.setY(Y((pl.o.r + pl.o.h + off.dy) * U) - 8);
     }
     for (let pass = 0; pass < 2; pass++) {
+    this.artUsed = 0;                              // ★ 贴图池:这一帧从 0 开始分配,画完把剩下的藏掉
     for (const o of LEVEL.objects) {
       if ((o.kind === 'deco') !== (pass === 0)) continue;
       if (o.kind === 'trigger') continue;         // 触发器是个逻辑物件,不画
@@ -1259,6 +1304,9 @@ class Scene extends Phaser.Scene {
       if (obx + obw < x0 || obx > x1) continue;
       if ((o.r + o.h + off.dy) * U < lowY || (o.r + off.dy) * U > highY) continue;
       this.drawn++;
+      /* ★ 有贴图的物件直接画贴图(锯片/弹簧板/存档点/硬币/刺),没贴图的走下面的矢量画法 */
+      const artKey = this.artKeyOf(o);
+      if (artKey && this.drawArtObject(o, artKey, obx + obw / 2, oBot - obh / 2, obw, obh)) continue;
       switch (o.kind) {
         case 'platform':
           if (o.r < 0) {
@@ -1567,6 +1615,8 @@ class Scene extends Phaser.Scene {
       }
     }
     }
+    /* ★ 贴图池收尾:这一帧没用到的那些藏起来(池子只增不减,复用同一批 Image) */
+    for (let i = this.artUsed; i < this.artPool.length; i++) this.artPool[i].setVisible(false);
 
     // 玩家:方块 = 描边正方形(空中自转 90°),飞机 = 三角(按 vy 倾斜)
     const B = P.box * w.sizeMul;   // ★ 迷你门:人也要画小

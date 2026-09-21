@@ -1075,6 +1075,33 @@ guard 写错一层,整类形态的碰撞就静默消失,而症状看起来像"�
   验收:图集日志 `cube(1) ship(1) ball(1) ufo(2) wave(1) robot(4) spider(4)`,并且图层的
   x/y/尺寸/tint 逐帧跟着玩家跑(实测方块 30×30 tint #8ef7ff、蜘蛛 15×30 tint #c9b6ff 且帧在动)。
 
+### 13.35 ★★ 物件贴图:从【游戏本体】抽一张小图集(映射表不在数据文件里)
+
+用户口径:「映射表能不能到游戏文件里面找?D:\SteamLibrary\steamapps\common\Geometry Dash」
+「贴图里面没有线框,也不需要线框」。
+
+**查到的事实**:
+- 游戏 `Resources/` 里美术是齐的:`GJ_GameSheet.plist`(1635 帧:方块/刺 `spike_01..04`/锯 `sawblade_01..03`/环 `ring_01..03`+`gravJumpRing`/坑 `pit_*`)
+  与 `GJ_GameSheet02.plist`(585 帧:`boost_01..05` 弹簧板、`portal_01..09+`、`checkpoint_*`、`secretCoin_*`、`gdh_*`(2.2 的刺被拆成原子件)、`edit_*`);
+  `GJ_GameSheetGlow` 是描边层。玩家形态在 `Resources/icons/<形态>_<iconID>[-hd|-uhd].plist`。
+- **`id → 帧名` 的映射【不在任何数据文件里】**:它在 `GeometryDash.exe` 的代码里。
+  我扫了 exe:能搜到 **4451 条 `.png` 名字字符串**(`spike_01_001.png`、`sawblade_02_001.png`、`square_01_001.png`…)
+  但没有 id↔名字的配对表 ⇒ 只能靠**尺寸/颜色/唯一命中**把用得到的那几族钉死。
+- 顺带确认用户那套素材的两处错配:`static/icons/GameSheet.plist` 就是游戏的 `GJ_GameSheet02-uhd.plist`(元数据 3081×2048 ✓),
+  所以配套 png 是 `GameSheet_old.png` ✓;`GameSheet.png`(3091×2048)与 `cube.png`(208×252,plist 声明 252×244)则对不上。
+
+**做法**:`tools/verify/build-art.mjs`(构建期跑一次,用 puppeteer 解 PNG/拼图,不引任何图形库)
+从游戏 `Resources` 抽 **35 帧**拼成 `static/assets/gd-art.png`(2048×93,**118 KB**)+ `.json`,页面只加载这个小图集
+(不把几 MB 的原图搬进站点)。映射依据(每条都写在 MAP 里):
+- **锯片按尺寸钉死**:我们铺面 1705 的包围盒 44×85 单位、1706 是 60×60;游戏 `sawblade_01`=85×85 ✓、`sawblade_02`=60×60 ✓ ⇒ 一一对上;
+- **弹簧板按颜色**:`boost_01..05` = 黄/蓝/绿/粉/红;
+- **存档点/硬币唯一命中**:`checkpoint_01`、`secretCoin_01`;
+- **刺**:`spike_01..04`(四个 id 按"经典/小刺"顺序对,属外观推断,影响很小);
+- 线框(468/469/470)**不做贴图**(用户口径)。
+**密度:1 像素 = 1 单位**(方块 30 单位 = 30 px)⇒ 缩放 = 物件高度(单位)/ 帧高(px),弹簧板太扁改用宽度对齐。
+渲染走一个 **Image 池**(只增不减,复用同一批对象,每帧把没用的藏掉),浏览器实测:
+锯片 87×85 / 174×170(带关卡缩放 ✓)、`saw1706` 113×113、刺 30×30,一屏 12 个贴图物件、共 34 个物件被画 ✓。
+
 ### 13.34 ★★ 路线规划器:`tools/plan.ts` —— 用已知地图直接算走廊,给搜索当向导
 
 用户口径:「我们知道地图,能不能直接为bot规划算出一条路?省的bot来回搜索耗费大量时间」。
