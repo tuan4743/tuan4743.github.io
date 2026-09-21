@@ -1465,11 +1465,16 @@ class XIndex<T extends { x0: number; x1: number }> {
    它的存在不是为了好玩,而是当作"铺面可通过性"的自动化证明。 */
 export function botThink(w: World): boolean {
   const BL = U;
-  if (w.mode === 'ship') {
-    // 目标:前方 3 块处那一列里,最大空隙的中心
-    const probeX = w.x + 3 * BL;
-    let y0 = 0, y1 = w.rows * U;
-    const blocks = [...w.nearSolids].filter((b) => probeX >= b.x0 && probeX <= b.x1).sort((a, b) => a.y0 - b.y0);
+  if (w.isFlyMode) {
+    /* ★ 飞行类(飞机/UFO/波浪)统一走这一条:目标 =【前方 2.5 块处那一列】最大空隙的中心。
+       ★ 2026-09 扩了两点:
+         · 以前只有 ship 有这条规则,UFO/波浪会掉到方块那套"看到危险就跳"里 —— 对飞行类毫无意义;
+         · 障碍从"只数实心"扩到【实心 + 刺 + 圆锯】:飞行类碰到实心现在会死(见实心判定那一段),
+           光看实心会一头撞进刺里。 */
+    const probeX = w.x + 2.5 * BL;
+    const blocks = [...w.nearSolids, ...w.nearHazards, ...w.nearCircles]
+      .filter((b) => probeX >= b.x0 - 4 && probeX <= b.x1 + 4)
+      .sort((a, b) => a.y0 - b.y0);
     let bestGap = { a: 0, b: w.rows * U, size: w.rows * U };
     let cursor = 0;
     for (const b of blocks) {
@@ -1478,7 +1483,6 @@ export function botThink(w: World): boolean {
     }
     if (w.rows * U - cursor > bestGap.size) bestGap = { a: cursor, b: w.rows * U, size: w.rows * U - cursor };
     const target = (bestGap.a + bestGap.b) / 2 - w.box / 2;
-    void y0; void y1;
     return w.y < target - 2;
   }
   /* 方块:两条判据都要按【内框】算,不能按外框 ——
