@@ -178,6 +178,18 @@ for (let i = 0; i < stations.length; i++) {
            · 接近容差压到 0.1 块 —— 让"贴着门缝"和"差半块"在分数上真的分得开。 */
         { tag: '★ 缝隙模式:无宏 + step1 + 不回退', extra: ['--step=1', '--beam=16', '--macro=0', '--rewindafter=999999', '--startfrom=' + BEST + ',' + Math.max(5, seedX - 14).toFixed(1)] },
         { tag: '★ 缝隙模式 + 容差 0.1', extra: ['--step=1', '--beam=16', '--macro=0', '--rewindafter=999999', '--pulltol=0.1', '--startfrom=' + BEST + ',' + Math.max(5, seedX - 20).toFixed(1)] },
+        /* ★ 第四批:专治"门挂在另一个高度上"的站点(实测:第 13 站 x=345 的重力门在缝的地板高度,
+           卷子从缝的上方飞过去,门永远吃不到,而搜索最爱展开的恰恰是"飞得高、x 走得远"的路)。
+           --goaly 只约束"留下的状态":离目标 25 块以内、中心离门中心超过 4 块的状态不留。
+           门站才给这个参数(路标没有"门的高度"可言)。 */
+        ...(st.door >= 0 ? [
+          { tag: '★ 门口高度提示 goaly=' + (((doors[st.door].y0 + doors[st.door].y1) / 2) / U).toFixed(1),
+            extra: ['--goaly=' + (((doors[st.door].y0 + doors[st.door].y1) / 2) / U).toFixed(1),
+              '--startfrom=' + BEST + ',' + Math.max(5, seedX - 20).toFixed(1)] },
+          { tag: '★ 高度提示 + 退 45 块 + 视界 36',
+            extra: ['--goaly=' + (((doors[st.door].y0 + doors[st.door].y1) / 2) / U).toFixed(1),
+              '--horizon=36', '--startfrom=' + BEST + ',' + Math.max(5, seedX - 45).toFixed(1)] },
+        ] : []),
       ] : []),
     ]
     : [{ tag: '', extra: [] }];

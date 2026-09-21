@@ -75,6 +75,17 @@ w.windowed = true;                    // 窗口裁剪:搜索要回放上千万�
 /* --padmul=N —— 弹簧/跳环力度微调(和页面上的 [ / ] 同一个旋钮),用来做定点实验:
    "这一段到底要多大力度才过得去"比"猜一个常数"靠谱得多。 */
 const PADMUL = Number(arg('padmul', 1));
+/** ★ 门口高度提示(--goaly=<块>,只给"这一站的门挂在不同高度"的定点重试用):
+ *  离目标 x 还剩 10 块以内时,中心离门中心 y 超过 4 块的状态一律不留。
+ *  为什么要它:实测正规路线第 13 站(x=345 的重力门)门在缝的地板高度(y≈5.5),
+ *  而卷子从缝的上方 y=13.5 飞过去 —— 门永远吃不到,搜索还会一遍遍展开"飞得高、x 走得远"的路。
+ *  ★ 生效距离一开始写的 25 块,结果反而更差(实测:走到 330.5 vs 不带它 337.6)——
+ *    因为这一段的"合理接近路线"本来就在 y≈9~11(缝里),离门中心 4~5 块,被提前剪掉了。
+ *    现在只压最后 10 块:那一段人必须已经在门的高度上,剪掉"还在飞高"的状态才是对的。
+ *  这不是物理(不改 World),只约束"留下的状态";不带它的物理上输入卷照样成立。 */
+const GOALY = arg('goaly', '') ? Number(arg('goaly')) : null;
+let goalLimitX: number | null = null;      // 由 --goal 推出(在 GOAL 定义之后赋值)
+if (GOALY != null) console.log('门口高度提示:y = ' + GOALY + ' 块(±4 块以内才留状态)');
 if (PADMUL !== 1) { w.padMul = PADMUL; console.log('弹簧力度 ×' + PADMUL); }
 /* --flipmul=N —— 翻重力那一下的纵向速度倍率(默认 1.75 = gdp@2.11)。
    和 --padmul 一样是【定点实验】旋钮:用来回答"这一段到底按哪一版语义才过得去"。
@@ -201,6 +212,10 @@ function gateOk(): boolean {
 
 function constraintOk(): boolean {
   if (roofAt && w.y + w.box > roofAt(w.x) * U) return false;    // 飞出了局部天花板
+  if (GOALY != null && goalLimitX != null && w.x > goalLimitX) {  // 门口高度提示(--goaly)
+    const cy = w.y + w.box / 2;
+    if (Math.abs(cy - GOALY * U) > 4 * U) return false;
+  }
   return gateOk();
 }
 
@@ -546,6 +561,8 @@ const REWIND_AFTER = Number(arg('rewindafter', 400));   // 连续多少次展开
 let rewinds = 0, lastProgressX = 0, sinceProgress = 0;
 const endX = lv.length * U;
 const GOAL = arg('goal', '') ? Number(arg('goal')) * U : Infinity;
+/* --goaly 的生效范围:离目标 25 块以内(见文件上方 GOALY 的说明) */
+if (GOALY != null && GOAL !== Infinity) goalLimitX = GOAL - 10 * U;
 let goalHit = false;
 let solution: boolean[] | null = null;
 let lastLog = 0;
