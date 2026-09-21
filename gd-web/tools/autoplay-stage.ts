@@ -239,6 +239,18 @@ for (let i = 0; i < stations.length; i++) {
             tag: '★ 高度提示 + 退 45 块 + 视界 36',
             extra: ['--goaly=' + doorCy.toFixed(1), '--horizon=36', '--startfrom=' + BEST + ',' + Math.max(5, seedX - 45).toFixed(1)],
           });
+          /* ★ 第五批(2026-09):门在"高线"上、而卷子跑到地面去了的站点(实测第 31 站 x=714 的重力门,
+             y≈23,而人在 y=0;那一段 x=648~712 的【低处除了锯片什么都没有】—— 只能走高线)。
+             做法:把高度走廊拉长到"目标前 70 块"、窗口放宽到 ±9 块,于是"掉到地面"的状态全程不留,
+             搜索被迫在高线上找环/板链。 */
+          out.push({
+            tag: '★ 高度走廊(全程)y=' + doorCy.toFixed(1) + ' ±9',
+            extra: ['--goaly=' + doorCy.toFixed(1), '--goalywin=9', '--goalyfrom=70'],
+          });
+          out.push({
+            tag: '★ 高度走廊(全程)y=' + doorCy.toFixed(1) + ' ±6',
+            extra: ['--goaly=' + doorCy.toFixed(1), '--goalywin=6', '--goalyfrom=70'],
+          });
           return out;
         })() : []),
       ] : []),

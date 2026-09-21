@@ -84,8 +84,11 @@ const PADMUL = Number(arg('padmul', 1));
  *    现在只压最后 10 块:那一段人必须已经在门的高度上,剪掉"还在飞高"的状态才是对的。
  *  这不是物理(不改 World),只约束"留下的状态";不带它的物理上输入卷照样成立。 */
 const GOALY = arg('goaly', '') ? Number(arg('goaly')) : null;
+const GOALY_FROM = Number(arg('goalyfrom', 10));      // 从目标前多少块开始压
+const GOALY_WIN = Number(arg('goalywin', 4));         // 允许的中心 y 偏差(块)
 let goalLimitX: number | null = null;      // 由 --goal 推出(在 GOAL 定义之后赋值)
-if (GOALY != null) console.log('门口高度提示:y = ' + GOALY + ' 块(±4 块以内才留状态)');
+if (GOALY != null) console.log('门口高度提示:y = ' + GOALY + ' ± ' + GOALY_WIN
+  + ' 块(目标前 ' + GOALY_FROM + ' 块内才留状态)');
 if (PADMUL !== 1) { w.padMul = PADMUL; console.log('弹簧力度 ×' + PADMUL); }
 /* --flipmul=N —— 翻重力那一下的纵向速度倍率(默认 1.75 = gdp@2.11)。
    和 --padmul 一样是【定点实验】旋钮:用来回答"这一段到底按哪一版语义才过得去"。
@@ -214,7 +217,7 @@ function constraintOk(): boolean {
   if (roofAt && w.y + w.box > roofAt(w.x) * U) return false;    // 飞出了局部天花板
   if (GOALY != null && goalLimitX != null && w.x > goalLimitX) {  // 门口高度提示(--goaly)
     const cy = w.y + w.box / 2;
-    if (Math.abs(cy - GOALY * U) > 4 * U) return false;
+    if (Math.abs(cy - GOALY * U) > GOALY_WIN * U) return false;
   }
   return gateOk();
 }
@@ -562,7 +565,7 @@ let rewinds = 0, lastProgressX = 0, sinceProgress = 0;
 const endX = lv.length * U;
 const GOAL = arg('goal', '') ? Number(arg('goal')) * U : Infinity;
 /* --goaly 的生效范围:离目标 25 块以内(见文件上方 GOALY 的说明) */
-if (GOALY != null && GOAL !== Infinity) goalLimitX = GOAL - 10 * U;
+if (GOALY != null && GOAL !== Infinity) goalLimitX = GOAL - GOALY_FROM * U;
 let goalHit = false;
 let solution: boolean[] | null = null;
 let lastLog = 0;
