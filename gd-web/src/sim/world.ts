@@ -790,10 +790,14 @@ export class World {
       if (this.mode === 'robot') {
         this.floatT += FRAME / 4;                       // 每次子步推进(4 步 = 一帧)
         const floating = hold && !this.onGround && this.floatT < P.robotFloat;
-        /* ★ 机器人的重力是 0.9 档 —— 出处 gdp master PlayerObject_updateJump.cpp:309-315:
+        /* ★ 机器人的重力倍率是 0.9 —— 出处 gdp master PlayerObject_updateJump.cpp:309-315:
              float_b = (isBall||isSpider||isSwing) ? 0.6 : (isRobot ? 0.9 : 1.0)
-           以前这里漏了:机器人掉得和方块一样快(用户:"各形态的性能也必须还原")。 */
-        if (!floating) this.vy -= P.gravity * P.robotGravityMul * this.gdir * sY;   // 浮着的时候重力被抵消
+           ★ 而【基数】跟方块一样是逐档的 m_gravity —— master:112 写的是
+             usedGravity = (isBall || isFlying() || isSpider) ? 0.9582 : m_gravity,
+           机器人不在那个"固定 0.9582"的集合里,所以它吃速度档再 ×0.9。
+           (gdp@2.11 的 :93 写的是 isCube ? gravity : 0.958199 —— 11 版把机器人也算成固定值。
+            关卡是 2.2 的,按 master 走。) */
+        if (!floating) this.vy -= cubeGravityOf(this.speedIdx) * P.robotGravityMul * this.gdir * sY;   // 浮着的时候重力被抵消
       } else {
         /* ★ 方块的重力也是【按速度档查表】的 m_gravity(updateTimeMod.cpp:8-26);
            其它形态(球/蜘蛛/飞船/UFO/波浪)用固定 0.958199 —— 见 constants 里那张表的注释。 */

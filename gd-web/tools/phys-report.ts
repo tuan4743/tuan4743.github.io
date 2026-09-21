@@ -40,7 +40,8 @@ for (let i = 0; i < 5; i++) {
     + fmt(perS(g), 1).padStart(18) + fmt(perS(g * OBS), 1).padStart(18)
     + fmt(perS(g * OBS) / U, 1).padStart(10) + '   ' + (i === 1 ? '← 默认档(出生档)' : ''));
 }
-console.log('  ★ 只有【方块】吃这张表:反编译 updateJump 写的是 isCube ? gravity : 0.958199。');
+console.log('  ★ 逐档表给【方块(×1.0)与机器人(×0.9)】用:master updateJump.cpp:112 是'
+  + ' usedGravity = (isBall||isFlying||isSpider) ? 0.9582 : m_gravity。');
 console.log('  ★ 用户提到的 2727.35 单位/s² 对应每帧² = ' + fmt(2727.35 / G, 6)
   + ',总系数(相对原始值)= ' + fmt(2727.35 / perS(P.gravity), 4)
   + ';我们的 0.81(= 0.9²)→ ' + fmt(perS(P.gravity * OBS), 1) + ' 单位/s²');
@@ -102,6 +103,28 @@ for (let i = 0; i < 5; i++) {
     + ';由 Δvy 推 = ' + fmt(aPos, 6) + ' 单位/帧² = ' + fmt(perS(aPos), 1) + ' 单位/s² = '
     + fmt(perS(aPos) / U, 1) + ' 块/s²');
   console.log('    (表里的 0.958199 × 0.81 = ' + fmt(P.gravity * OBS, 6) + ' —— 离散化差零点几个百分点属正常)');
+}
+
+console.log('\n=== ⑥ 量法陷阱:终端速度会把"表观重力"拖低 ===');
+console.log('  P.vyMax = ' + P.vyMax + ' 单位/帧(1 速下落大约 ' + fmt(P.vyMax / (P.gravity * OBS * Y_TIME_SCALE), 1)
+  + ' 帧后到顶),所以"落一段再用 2·Δy/t² 反推"量得越久越偏小:');
+{
+  const w = new World(flat(), 5 * U, 60 * U);
+  w.reset(5 * U, 'cube', 60 * U);
+  w.vy = 0; w.onGround = false;
+  const y0 = w.y;
+  const acc: string[] = [];
+  for (let f = 1; f <= 40; f++) {
+    w.frame(false);
+    if ([10, 15, 20, 25, 30, 40].includes(f)) {
+      const a = (2 * (y0 - w.y)) / (f * f);
+      acc.push(f + ' 帧 → ' + fmt(perS(a), 0) + ' 单位/s²');
+    }
+  }
+  console.log('  ' + acc.join(' · '));
+  console.log('  ★ 用户给的 2727.35 单位/s² 落在"落 20~22 帧反推"那一档(20 帧 2777、25 帧 2555)——');
+  console.log('    说明那是被终端速度截过的【表观】量法,不是瞬时重力。瞬时值只有 '
+    + fmt(perS(P.gravity * OBS), 0) + ' 单位/s²(见 ④ 的自由落体那一行)。');
 }
 
 console.log('\n=== ⑤ 一次跳跃的解析量(用来跟原版实测对表) ===');

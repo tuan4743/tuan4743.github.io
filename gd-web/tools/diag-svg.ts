@@ -78,6 +78,19 @@ for (const [kind, list] of lists) {
   }
 }
 
+/* ★ 圆形危险物(锯片族):画【真判定圆】—— 以前这里画的是贴图矩形,和物理不一致
+   (见 HANDOVER §13.18:1705 的判定是半径 32.3×缩放的圆,不是 85×44 的方盒)。
+   浅色圆 = 圆的判定;外面那圈虚线方框 = 贴图外框(只作参考,不参与判定)。 */
+for (const c of w.circles) {
+  const cbx = c.cx / U, cby = c.cy / U, cr = c.r / U;
+  if (cbx + cr < X0 || cbx - cr > X1 || cby + cr < Y0 || cby - cr > Y1) continue;
+  const bx0 = c.box.x0 / U, bx1 = c.box.x1 / U, by0 = c.box.y0 / U, by1 = c.box.y1 / U;
+  parts.push(`<rect x="${px(bx0)}" y="${py(by1)}" width="${(bx1 - bx0) * SC}" height="${(by1 - by0) * SC}"`
+    + ` fill="none" stroke="#7f1d1d" stroke-width="1" stroke-dasharray="3,3"/>`);
+  parts.push(`<circle cx="${px(cbx)}" cy="${py(cby)}" r="${cr * SC}" fill="#ef444433" stroke="#ef4444" stroke-width="1.5"/>`);
+  parts.push(`<text x="${px(bx0)}" y="${py(by1) - 3}" fill="#ef4444" font-size="10">锯${c.o.id ?? ''} r=${cr.toFixed(2)}</text>`);
+}
+
 /* 轨迹 */
 if (TAPE && fs.existsSync(TAPE)) {
   const tape: boolean[] = JSON.parse(fs.readFileSync(TAPE, 'utf8')).tape;
@@ -92,7 +105,7 @@ if (TAPE && fs.existsSync(TAPE)) {
   if (pts.length) parts.push(`<polyline points="${pts.join(' ')}" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.9"/>`);
   parts.push(`<text x="6" y="16" fill="#e5e7eb" font-size="12">白线 = 机器人当前前缀的轨迹</text>`);
 }
-parts.push(`<text x="6" y="${H + 32}" fill="#94a3b8" font-size="12">x ${X0}~${X1} 格 · y ${Y0}~${Y1} 格 · 1 格 = 30 单位 = 30 像素</text>`);
+parts.push(`<text x="6" y="${H + 32}" fill="#94a3b8" font-size="12">x ${X0}~${X1} 格 · y ${Y0}~${Y1} 格 · 图里 1 格 = ${SC} 像素(示意;游戏里 1 格 = 30 单位)· 虚线方框 = 贴图外框,红圆 = 真判定</text>`);
 parts.push('</svg>');
 fs.mkdirSync(OUT.replace(/[/\\][^/\\]*$/, ''), { recursive: true });
 fs.writeFileSync(OUT, parts.join('\n'));
