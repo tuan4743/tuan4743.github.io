@@ -377,6 +377,7 @@ class Scene extends Phaser.Scene {
   cityLayer!: Phaser.GameObjects.TileSprite | null;
   rayLayer!: Phaser.GameObjects.TileSprite | null;
   haze!: Phaser.GameObjects.Rectangle | null;
+  haze2!: Phaser.GameObjects.Rectangle | null;
   lyricText!: Phaser.GameObjects.Text | null;
   lyrics: Array<[number, string]> = [];
   lyricShown = '';
@@ -575,14 +576,10 @@ class Scene extends Phaser.Scene {
     }
     this.loadGuide();                          // ★ 无敌模式的轨道(见 clampToGuide)
     /* ★★ 水下远景/近景 + 光柱 + 歌词(素材在 static/assets/water/,见 paintBackdrop)
-       ★ 不用 load 的 'complete' 事件建层:scene 的 loader 在 create() 之前就跑完过一轮,
-         再注册 'complete' 有可能永远等不到(实测第一版就是这样,层一个都没建出来)。
-         改成每帧检查贴图到没到,到了就建一次(ensureWater,幂等)。 */
-    this.load.image('w-bg', '/assets/water/bg.png');
-    this.load.image('w-city', '/assets/water/city.png');
-    this.load.image('w-rays', '/assets/water/rays.png');
-    this.load.json('w-lyrics', '/assets/water/lyrics.json');
-    this.load.start();
+       ★★ 这里【绝对不要】用 this.load.* / this.load.start():
+          多跑一轮 scene loader 会把音频那批资源清掉(用户反馈"音乐没了"就是这个)。
+          三张图和歌词全走 new Image() / fetch,不碰 loader。 */
+    void 0;
     /* ★ 形态图集(static/icons):默认不加载(见上面那段"结论")。?icons=1 才试图集 */
     if (ICON_ENABLED) {
       const q = /(^|[?&])col1=([0-9a-fA-F]{6})/.exec(location.search);
@@ -1226,29 +1223,46 @@ class Scene extends Phaser.Scene {
     this.paintBackdrop(vw, vh);
   }
 
-  /** 建一次水下背景层(幂等:贴图到了才建,见 create 里的说明) */
+  /** 建一次水下背景层(幂等)。
+   *  ★★ 两个 bug 的根因都在这儿(用户反馈:"位置不对,整体全在左上角" + "音乐没了"):
+   *   ① 位置:我用 layer.width/height(TileSprite 自己的尺寸)去算平铺偏移和贴底高度 ⇒ 算出来的
+   *      x 是"负的 sprite 宽"、city 的 y 变成 -lift,整块跑到左上角外面去了 ✗。
+   *      改法:尺寸一律用**视口** vw/vh,TileSprite 用 setTilePosition() 滚纹理(这才是正确 API),
+   *      每帧重排(vw/vh 会随缩放变)。
+   *   ② 音乐:我多调了一次 this.load.start() ⇒ 把 scene 的 loader 又跑了一轮,把音频那批资源搞没了 ✗。
+   *      改法:这三张图和歌词**完全不碰 Phaser 的 loader**,直接用 new Image() / fetch 拿,
+   *      再 textures.addImage 注册 ✓。 */
   private waterBuilt = false;
+  private waterTex = { bg: null as HTMLImageElement | null, city: null as HTMLImageElement | null, rays: null as HTMLImageElement | null };
+  private loadWaterImage(url: string): HTMLImageElement {
+    const img = new Image();
+    img.src = url;
+    return img;
+  }
   private ensureWater(vw: number, vh: number): boolean {
     if (this.waterBuilt) return true;
-    if (!this.textures.exists('w-bg')) return false;                 // 还没加载完,下一帧再试
-    this.lyrics = (this.cache.json.get('w-lyrics') ?? []) as Array<[number, string]>;
-    this.bgLayer = this.add.tileSprite(0, 0, vw, vh, 'w-bg').setOrigin(0).setScrollFactor(0).setDepth(-30).setAlpha(0.9);
-    if (this.textures.exists('w-city')) {
-      this.cityLayer = this.add.tileSprite(0, 0, vw, vh, 'w-city').setOrigin(0).setScrollFactor(0).setDepth(-20);
-      this.cityLift = Math.min(150, vh * 0.16);                      // 近景往下贴一点,别把玩法区挡住
-    }
-    if (this.textures.exists('w-rays')) {
-      this.rayLayer = this.add.tileSprite(0, 0, vw, vh, 'w-rays').setOrigin(0).setScrollFactor(0).setDepth(14)
-        .setBlendMode(Phaser.BlendModes.ADD);
-    }
-    /* 雾:整屏蓝色蒙版(压在世界之上、HUD 之下)—— "给看的东西加一层雾化" */
-    this.haze = this.add.rectangle(vw / 2, vh / 2, vw, vh, 0x0d4a63, 0.22).setScrollFactor(0).setDepth(13);
-    this.lyricText = this.add.text(vw / 2, vh - 46, '', {
-      fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '30px', color: '#eaf8ff',
-      stroke: '#04121c', strokeThickness: 5, align: 'center',
+    const T = this.waterTex;
+    if (!T.bg) { T.bg = this.loadWaterImage('/assets/water/bg.png'); T.city = this.loadWaterImage('/assets/water/city.png'); T.rays = this.loadWaterImage('/assets/water/rays.png'); }
+    if (!T.bg.complete || !T.city.complete || !T.rays.complete) return false;      // 还没到,下一帧再看
+    const reg = (key: string, img: HTMLImageElement) => { if (!this.textures.exists(key)) this.textures.addImage(key, img); };
+    reg('w-bg', T.bg); reg('w-city', T.city); reg('w-rays', T.rays);
+    fetch('/assets/water/lyrics.json').then((r) => r.json()).then((j) => { this.lyrics = j; }).catch(() => { /* 歌词拿不到不影响玩 */ });
+
+    /* 远景:铺满整屏(横向平铺) · 近景:只占屏幕下方一条 · 光柱:上半屏 */
+    this.bgLayer = this.add.tileSprite(0, 0, vw, vh, 'w-bg').setOrigin(0).setScrollFactor(0).setDepth(-30).setAlpha(0.85);
+    const cityH = Math.max(80, vh * 0.22);
+    this.cityLayer = this.add.tileSprite(0, vh - cityH, vw, cityH, 'w-city').setOrigin(0).setScrollFactor(0).setDepth(-20);
+    this.rayLayer = this.add.tileSprite(0, -vh * 0.08, vw, vh * 0.72, 'w-rays').setOrigin(0).setScrollFactor(0)
+      .setDepth(14).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.55);
+    /* ★ 朦胧感:两层蓝绿雾(用户:"特效跟没有一样")—— 一层整屏压暗加蓝,一层下方更浓(越深越暗) */
+    this.haze = this.add.rectangle(0, 0, vw, vh, 0x0a4b66, 0.42).setOrigin(0).setScrollFactor(0).setDepth(13);
+    this.haze2 = this.add.rectangle(0, vh * 0.45, vw, vh * 0.55, 0x04222f, 0.5).setOrigin(0).setScrollFactor(0).setDepth(13.5);
+    this.lyricText = this.add.text(vw / 2, vh - 26, '', {
+      fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '18px', color: '#dff4ff',
+      stroke: '#04121c', strokeThickness: 4, align: 'center',
     }).setOrigin(0.5).setScrollFactor(0).setDepth(21).setVisible(false);
     this.waterBuilt = true;
-    console.log('[gd] 水下背景就绪:远景=' + !!this.bgLayer + ' 近景=' + !!this.cityLayer + ' 光柱=' + !!this.rayLayer + ' 歌词=' + this.lyrics.length + ' 行');
+    console.log('[gd] 水下背景就绪:远景/近景/光柱三张图 + 两层雾 + 歌词(等 fetch)');
     return true;
   }
 
@@ -1262,26 +1276,19 @@ class Scene extends Phaser.Scene {
     if (!this.ensureWater(vw, vh)) return;
     const cam = this.cameras.main;
     const camX = cam.scrollX;
-    /* 远景:横向平铺,贴屏幕下半偏高一点;近景(city)贴底 */
-    const bgW = this.bgLayer.width, bgH = this.bgLayer.height;
-    this.bgLayer.setPosition(-(((camX * 0.12) % bgW) + bgW) % bgW, vh * 0.5 - bgH * 0.5 + vh * 0.12);
-    this.bgLayer.setVisible(true);
-    if (this.cityLayer) {
-      const cW = this.cityLayer.width, cH = this.cityLayer.height;
-      this.cityLayer.setPosition(-(((camX * 0.45) % cW) + cW) % cW, vh - cH - this.cityLift);
-      this.cityLayer.setVisible(true);
-    }
-    /* 光柱:顶部,缓慢左右摇 + 呼吸 */
-    if (this.rayLayer) {
-      const t = this.time.now / 1000;
-      const rW = this.rayLayer.width;
-      this.rayLayer.setPosition(-(((camX * 0.06 + t * 6) % rW) + rW) % rW, -vh * 0.06);
-      this.rayLayer.setAlpha(0.34 + 0.10 * Math.sin(t * 0.6));
-      this.rayLayer.setVisible(true);
-    }
-    if (this.haze) this.haze.setSize(vw, vh).setPosition(vw / 2, vh / 2);
+    const t = this.time.now / 1000;
+    /* ★ 尺寸/位置一律按【当前视口】重排(缩放会变),滚纹理用 setTilePosition —— 不再拿 sprite 自己的宽高去算 */
+    this.bgLayer.setSize(vw, vh).setPosition(0, 0).setTilePosition(camX * 0.12, 0);
+    const cityH = Math.max(80, vh * 0.22);
+    this.cityLayer.setSize(vw, cityH).setPosition(0, vh - cityH).setTilePosition(camX * 0.5, 0);
+    const rayH = vh * 0.72;
+    this.rayLayer.setSize(vw, rayH).setPosition(0, -vh * 0.08)
+      .setTilePosition(camX * 0.06 + t * 8, 0)
+      .setAlpha(0.55 + 0.12 * Math.sin(t * 0.6));
+    if (this.haze) this.haze.setSize(vw, vh).setPosition(0, 0);
+    if (this.haze2) this.haze2.setSize(vw, vh * 0.55).setPosition(0, vh * 0.45);
     if (this.lyricText) {
-      this.lyricText.setPosition(vw / 2, vh - 46);
+      this.lyricText.setPosition(vw / 2, vh - 26);
       this.updateLyrics();
     }
   }
