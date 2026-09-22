@@ -1780,12 +1780,13 @@ class Scene extends Phaser.Scene {
     /* ★★ 2026-09 方向:用户实测"旋转方向也是错的" ⇒ 现在这里取【负号】。
        原因:我们的绘图空间 y 是翻转的(见 Y()),正角度在屏幕上看是【逆时针】✗,
        而方块向右跑时应该【顺时针】转 ✓。 */
-    /* ★★ 2026-09 按源码重做旋转(PlayerObject::runNormalRotation @IDA 144512 + updateRotation @IDA 144749):
-           · 基数 180°、时间常数 1/3 秒(迷你 0.43333)⇒ 【每 1/3 秒走完一个 90° 台阶】
-           · 朝目标【缓动】(源码里是 Slerp2D + 每帧最大转量)⇒ 台阶之间缓动,不是匀速
-           · 落地时目标 = 正立 ⇒ airT 归零 ⇒ 角度回 0,方块趴平 ✓
-       实现:台阶数 n = airT ÷ (1/3),台阶内用 smoothstep ⇒ 大跳(滞空 2/3 秒)= 180° ✓ */
-    const spinT = this.airT / (1 / 3);
+    /* ★★ 2026-09 台阶时长改成【一次标称跳跃的滞空时间】(不再是源码里那个 1/3 秒):
+         源码的 0.33333 是"转速公式里的时间常数"✓,但真正的观感要求是
+         【普通跳正好 90°、大跳正好 180°、落地永远落在台阶边界上】——
+         用户口径:"原版不会出现落到平台上旋转角还不是 90° 的倍数"。
+         标称滞空 = 2×jump/(gravity×0.9)/60 ≈ 0.43 秒 ⇒ 一步 = 一次普通跳 ✓ */
+    const spinStep = 2 * P.jump / (P.gravity * Y_TIME_SCALE) / 60;   // 一次标称跳的滞空(秒)
+    const spinT = this.airT / spinStep;
     const spinN = Math.floor(spinT), spinF = spinT - spinN;
     const spin = w.onGround ? 0 : -(spinN + spinF * spinF * (3 - 2 * spinF)) * (Math.PI / 2);
       const s = Math.sin(spin), c = Math.cos(spin);
