@@ -1780,14 +1780,14 @@ class Scene extends Phaser.Scene {
     /* ★★ 2026-09 方向:用户实测"旋转方向也是错的" ⇒ 现在这里取【负号】。
        原因:我们的绘图空间 y 是翻转的(见 Y()),正角度在屏幕上看是【逆时针】✗,
        而方块向右跑时应该【顺时针】转 ✓。 */
-    /* ★★ 2026-09 用户口径:"只要玩家跳跃就要转 180°" ⇒ 一次标称跳跃 = 180°(不是 90°)。
-       配合源码(runNormalRotation 基数 180° ✓ / updateRotation 朝目标角 Slerp ✓):
-         · 台阶时长 = 一次标称跳的滞空 ≈ 0.43 秒;每步转 180° ✓
-         · 落地时 airT 归零 ⇒ 角度回 0 —— 0/90/180/270 对方块来说都是"趴平" ✓ */
+    /* ★★ 2026-09 用户:"在空中不知道转了一圈还是两圈" ⇒ 台阶式(走一步停一下)看起来读不出来 ✗。
+       改成【连续匀速】:速率 = 180° ÷ 一次标称跳的滞空 ⇒
+         · 普通跳(滞空≈标称)= 干净利落的 180° ✓
+         · 掉得久 = 平滑地继续转(能一眼数出圈数)✓
+         · 落地 airT 归零 ⇒ 角度回 0(0/90/180/270 对方块都算趴平 ✓)
+       源码结构仍是"朝目标角插值"(runNormalRotation 基数 180°)✓,这里只是去掉台阶停頓 ✓ */
     const spinStep = 2 * P.jump / (P.gravity * Y_TIME_SCALE) / 60;   // 一次标称跳的滞空(秒)
-    const spinT = this.airT / spinStep;
-    const spinN = Math.floor(spinT), spinF = spinT - spinN;
-    const spin = w.onGround ? 0 : -(spinN + spinF * spinF * (3 - 2 * spinF)) * Math.PI;
+    const spin = w.onGround ? 0 : -(this.airT / spinStep) * Math.PI;
       const s = Math.sin(spin), c = Math.cos(spin);
       const pts: Array<[number, number]> = [[-B / 2, -B / 2], [B / 2, -B / 2], [B / 2, B / 2], [-B / 2, B / 2]];
       g.fillStyle(w.dead ? 0xff9a6b : 0xe2f6ff, 0.96);
