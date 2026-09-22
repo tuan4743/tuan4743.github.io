@@ -625,15 +625,11 @@ class Scene extends Phaser.Scene {
         this.load.image('iconimg-' + a.file, '/icons/' + a.file + '.png');
         this.load.text('iconxml-' + a.file, '/icons/' + a.file + '.plist');
       }
-      /* ★ 机器人/蜘蛛的【部件图 + 部件表】(官方 AnimDesc 烘出来的 ✓,见 main.ts 里的 TODO)
-         —— 每个形态 4 张部件图,文件名与 JSON 里的 tex 一一对应 ✓ */
-      for (const mode of ['robot', 'spider']) {
-        for (const no of ['01', '02', '03', '04']) {
-          const key = 'part-' + mode + '-' + (mode === 'robot' ? 'robot_01_' : 'spider_13_') + no + '_001.png';
-          this.load.image(key, '/icons/part-' + mode + '-' + (mode === 'robot' ? 'robot_01_' : 'spider_13_') + no + '_001.png');
-        }
-      }
-      this.load.json('gd-parts', '/assets/gd-player-parts.json');
+      /* ★ 机器人/蜘蛛:【UHD 图集】+ 部件动画表(官方 AnimDesc 烘出来的 ✓)
+         —— 用 multiatlas 一次加载两张 uhd 图集(JSON 里的 image 字段相对 /icons/ ✓),
+            Node 解不了 uhd 的 PNG ✗ ⇒ 交给 Phaser 解 ✓ */
+      this.load.multiatlas('gd-parts', '/assets/gd-player-atlas.json', '/icons/');
+      this.load.json('gd-parts-anim', '/assets/gd-player-parts.json');
       this.load.once('complete', () => { this.buildIcons(); });
       this.load.start();
     }
@@ -1904,28 +1900,35 @@ class Scene extends Phaser.Scene {
       const self = this as unknown as { partSprites?: Record<string, Phaser.GameObjects.Image[]> };
       self.partSprites = self.partSprites ?? {};
       let arr = self.partSprites[w.mode];
+      const all = this.cache.json.get('gd-parts-anim') as Record<string, {
+        scale: number;
+        anims: { run: Array<Array<{ tex: string; x: number; y: number; z: number }>> };
+      }> | undefined;
+      const info = all?.[w.mode];
       if (!arr) {
-        const all = this.cache.json.get('gd-parts') as Record<string, { sprites: Array<{ tex: string; x: number; y: number; z: number }> }> | undefined;
-        const info = all?.[w.mode];
-        const prefix = w.mode === 'robot' ? 'robot_01_' : 'spider_13_';
-        arr = (info?.sprites ?? []).map((s) => {
-          const no = /_(\d+)_001\.png$/.exec(s.tex)?.[1] ?? '01';
-          const img = this.add.image(cxw, Y(cyw), 'part-' + w.mode + '-' + prefix + no + '_001.png').setDepth(16).setVisible(false);
-          img.setData('dx', s.x);
-          img.setData('dy', s.y);
-          return img;
-        });
+        const maxN = Math.max(...(info?.anims.run ?? [[]]).map((f) => f.length), 0);
+        arr = Array.from({ length: maxN }, () => this.add.image(cxw, Y(cyw), '__DEFAULT').setDepth(16).setVisible(false));
         self.partSprites[w.mode] = arr;
       }
-      const k = B / 30;                                  // 部件表与世界单位 1:1(方块 30 单位)✓
-      for (const img of arr) {
-        const src = this.textures.get(img.texture.key).getSourceImage() as HTMLImageElement | undefined;
-        const wpx = src?.width ?? 1, hpx = src?.height ?? 1;
+      /* ★ 动画 = 按时间轮播 anims.run(robot 16 帧 / spider 7 帧 ✓)—— 帧率取 12 帧/秒(原版跑动大致这个量级 ✓) */
+      const frames = info?.anims.run ?? [];
+      const fi = frames.length ? Math.floor((w.tick / 60) * 12) % frames.length : 0;
+      const list = frames[fi] ?? [];
+      const sc = info?.scale ?? 0.25;                 // uhd → 布局单位(实测 4× ✓)
+      const k = (B / 30) * sc;                        // 部件表与世界单位 1:1(方块 30 单位)✓
+      for (let i = 0; i < arr.length; i++) {
+        const img = arr[i];
+        const sp = list[i];
+        if (!sp) { img.setVisible(false); continue; }
+        const key = 'gd-parts';
+        if (img.texture.key !== '__DEFAULT') img.setTexture(key, sp.tex);
+        else img.setTexture(key, sp.tex);
+        const fr = this.textures.getFrame(key, sp.tex);
         img.setVisible(!w.done)
-          .setPosition(cxw + (img.getData('dx') as number) * k, Y(cyw) - (img.getData('dy') as number) * k)
-          .setDisplaySize(Math.max(1, wpx * k), Math.max(1, hpx * k));
+          .setPosition(cxw + sp.x * k, Y(cyw) - sp.y * k)
+          .setDisplaySize(Math.max(1, fr.width * k), Math.max(1, fr.height * k));
       }
-      drewParts = arr.length > 0;
+      drewParts = arr.length > 0 && list.length > 0;
     }
     if (this.iconsReady && w.mode !== 'robot' && w.mode !== 'spider') this.drawIconPlayer(w, cxw, Y(cyw), B);
     /* ★★ 2026-09 修"cube 根本没有贴图"(我上一轮引入的 ✗):
