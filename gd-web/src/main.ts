@@ -1272,7 +1272,10 @@ class Scene extends Phaser.Scene {
     const w = this.world;
 
     /* ---- 横向 ---- */
-    const left = Math.max(0, w.x - vw * 0.4);
+    /* ★★ 2026-09 用户:"明明知道相机不是双向跟随,给我整个半成品上来?" —— 对,是我没做完 ✗
+       这里原来写死 Math.max(0, …) ⇒ 相机永远不越过关卡左边界(演示铺从 x=2 开始 ⇒ 往左等于撞墙 ✓)
+       自由移动(演示铺)时去掉这个夹取 ⇒ 相机【双向跟随】✓;正常关卡照旧夹在 0 ✓ */
+    const left = w.freeMove ? w.x - vw * 0.4 : Math.max(0, w.x - vw * 0.4);
     this.camX = left + vw / 2;
 
     /* ---- 形态切换:记下"进门时的视口中心"(原版 m_fCameraYCenter) ---- */
@@ -1324,7 +1327,7 @@ class Scene extends Phaser.Scene {
     const cam = this.cameras.main;
     const vw = cam.width / cam.zoom;
     const vh = cam.height / cam.zoom;
-    const ux = Math.max(vw / 2, this.camX);
+    const ux = this.world.freeMove ? this.camX : Math.max(vw / 2, this.camX);
     /* ★ 界面文字跟着【镜头】走:铺面高 125 格,再用"场地中心"就会把面板画到画外去 */
     const uy = this.camWorldY;
     const w = this.world;
@@ -1925,7 +1928,7 @@ class Scene extends Phaser.Scene {
     if (w.flash > 0) g.fillStyle(w.tint ?? 0xffffff, 0.34 * w.flash).fillRect(x0, dy0, vw, dy1 - dy0);
     /* 开场 / 死亡 / 通关界面:半透明面板(文字是 Text 对象,这里只画底板) */
     if (this.phase !== 'running') {
-      const px = Math.max(vw / 2, this.camX), py = this.camWorldY;
+      const px = this.world.freeMove ? this.camX : Math.max(vw / 2, this.camX), py = this.camWorldY;
       g.fillStyle(0x03050a, 0.82).fillRect(px - 470, py - 120, 940, 240);
       g.lineStyle(2, HLD, 0.55).strokeRect(px - 470, py - 120, 940, 240);
       g.lineStyle(1, HLD, 0.25).strokeRect(px - 462, py - 112, 924, 224);
