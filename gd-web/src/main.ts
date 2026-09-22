@@ -1803,8 +1803,12 @@ class Scene extends Phaser.Scene {
        (落地不做任何"回正"动作 —— 用户:"回转更刻意了" ✗;落地角由连续旋转自然落在 90° 的
         倍数附近,0/90/180/270 对方块都算趴平 ✓。) */
     const spinStep = 2 * P.jump / (P.gravity * Y_TIME_SCALE) / 60;   // 一次标称跳的滞空(秒)
-    const spin = w.onGround ? this.spinLast : -(this.airT / spinStep) * (Math.PI / 2);
-    if (!w.onGround) this.spinLast = spin;
+    /* ★★ 2026-09 用户口径:"跳跃旋转 180°"(就这一条),不要任何"落地回正/吸附"✗。
+       实现:角度 = 空中帧数 × (180° ÷ 一次真实跳跃的空中帧数)。
+       实测本引擎一次平地起跳的空中帧数 = 33 帧(之前几版都拿"理论滞空 26 帧"算 ⇒ 每次多转
+       33/26 ≈ 27% ⇒ 一眼就是"转了 360°" ✗ —— 这就是我一直改不对的原因)。
+       落地不再做任何处理:空中转到哪就是哪 ✓(方块在 90° 倍数时本来就看着一样) */
+    const spin = -(this.airT * 60) * (Math.PI / 33);
       const s = Math.sin(spin), c = Math.cos(spin);
       const pts: Array<[number, number]> = [[-B / 2, -B / 2], [B / 2, -B / 2], [B / 2, B / 2], [-B / 2, B / 2]];
       g.fillStyle(w.dead ? 0xff9a6b : 0xe2f6ff, 0.96);
