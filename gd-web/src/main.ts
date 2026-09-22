@@ -835,29 +835,46 @@ class Scene extends Phaser.Scene {
       const name = mains.slice().sort((p, q) => p.localeCompare(q))[0];
       const glowName = name.replace(/_(\d+)\.png$/, '_glow_$1.png');
       const made: Array<{ layer: 'body' | 'glow'; tex: string; w: number; h: number }> = [];
-      for (const [layer, fr] of [['body', F[name]], ['glow', F[glowName]]] as const) {
-        if (!fr) continue;
-        const W = Math.max(4, Math.round(fr.sourceSize.w)), H = Math.max(4, Math.round(fr.sourceSize.h));
+      /* ★★★ 2026-09 多层拼装(修用户报的"robot 没腿 / spider 看不出是什么"):
+         GD 的玩家图标是【身体 + _2_ + _3_ 部件】叠出来的 ——
+             robot : robot_01_01_001(身体)+ robot_01_01_2_001(腿)
+             spider: spider_13_01_001 + spider_13_01_2_001(腿)
+             bird  : bird_109_001 + _2_ + _3_(翼)
+         我们以前只画第 1 层 ✗ ⇒ robot/spider 缺腿 ✓✓
+         ⇒ 现在把同一图标的 _2_ / _3_ 层按顺序叠到同一张画布上,每层用自己的 spriteSourceSize 定位 ✓
+         (_glow_ 依旧不画 ✓;_extra_ 是额外素材,不叠 ✓) */
+      const layerNames = [name];
+      for (const k of [2, 3]) {
+        const nk = name.replace(/_(\d+)\.png$/, '_' + k + '_$1.png');
+        if (F[nk]) layerNames.push(nk);
+      }
+      {
+        const base = F[name];
+        const W = Math.max(4, Math.round(base.sourceSize.w)), H = Math.max(4, Math.round(base.sourceSize.h));
         const cv = document.createElement('canvas');
         cv.width = W; cv.height = H;
         const c2 = cv.getContext('2d');
         if (!c2) continue;
-        /* 图集里的实际区域:rotated 的帧宽高是【互换】的,而且内容是躺着的 */
-        const sw = fr.rotated ? fr.frame.h : fr.frame.w;
-        const sh = fr.rotated ? fr.frame.w : fr.frame.h;
-        const tw = fr.frame.w, th = fr.frame.h;                     // 转正之后的显示尺寸
-        /* 未裁剪画布里的位置:中心 = 画布中心 + spriteOffset(y 轴和画布相反) */
-        const dx = W / 2 + fr.spriteSourceSize.x - tw / 2;
-        const dy = H / 2 - fr.spriteSourceSize.y - th / 2;
-        c2.save();
-        c2.translate(dx + tw / 2, dy + th / 2);
-        if (fr.rotated) c2.rotate(-Math.PI / 2);                    // 实测:-90° 才是正的
-        c2.drawImage(img, fr.frame.x, fr.frame.y, sw, sh, -tw / 2, -th / 2, tw, th);
-        c2.restore();
-        const tex = 'icon-' + a.file + '-' + layer;
+        for (const ln of layerNames) {
+          const fr = F[ln];
+          if (!fr) continue;
+          /* 图集里的实际区域:rotated 的帧宽高是【互换】的,而且内容是躺着的 */
+          const sw = fr.rotated ? fr.frame.h : fr.frame.w;
+          const sh = fr.rotated ? fr.frame.w : fr.frame.h;
+          const tw = fr.frame.w, th = fr.frame.h;                     // 转正之后的显示尺寸
+          /* 未裁剪画布里的位置:中心 = 画布中心 + spriteOffset(y 轴和画布相反) */
+          const dx = W / 2 + fr.spriteSourceSize.x - tw / 2;
+          const dy = H / 2 - fr.spriteSourceSize.y - th / 2;
+          c2.save();
+          c2.translate(dx + tw / 2, dy + th / 2);
+          if (fr.rotated) c2.rotate(-Math.PI / 2);                    // 实测:-90° 才是正的
+          c2.drawImage(img, fr.frame.x, fr.frame.y, sw, sh, -tw / 2, -th / 2, tw, th);
+          c2.restore();
+        }
+        const tex = 'icon-' + a.file + '-body';
         if (this.textures.exists(tex)) this.textures.remove(tex);
         this.textures.addCanvas(tex, cv);
-        made.push({ layer, tex, w: W, h: H });
+        made.push({ layer: 'body', tex, w: W, h: H });
       }
       const body = made.find((m) => m.layer === 'body');
       if (!body) continue;
