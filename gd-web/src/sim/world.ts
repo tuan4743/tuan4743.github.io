@@ -1261,6 +1261,9 @@ export class World {
           this.vy = 0;
         } else {
           this.dash = { ang: b.o.rot ?? 0, kind: b.o.arrow ?? 'green', t: 0 };
+          /* ★★ 2026-09 用户:"紫箭头为什么不改变重力方向?" ⇒ 紫色 = 冲刺 + 【翻重力】✓
+             (粉色只在方块形态下翻 ✓,紫色无条件翻 ✓) */
+          if (b.o.arrow === 'purple') this.gdir = this.gdir === 1 ? -1 : 1;
           if (b.o.arrow === 'pink' && this.mode === 'cube') this.gdir = -this.gdir;
         }
         this.armedArrows.add(b);

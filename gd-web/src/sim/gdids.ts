@@ -271,7 +271,7 @@ export const GD_SPEC: Record<number, Spec> = {
   /* ---- 冲刺箭头(长按)---- */
   1704: { kind: 'arrow', arrow: 'green', note: '绿色冲刺箭头(长按给冲量,不改重力)' },
   1751: { kind: 'arrow', arrow: 'pink', note: '粉色冲刺箭头(长按 + 翻重力)' },
-  3004: { kind: 'arrow', arrow: 'purple', tp: true, note: '紫色上跳箭头(瞬移到头顶方块 + 翻重力)' },
+  3004: { kind: 'arrow', arrow: 'purple', note: '紫冲刺箭头:长按匀速冲刺 + ★翻重力(用户口径:不瞬移 ✗)' },
 
   /* ---- 形态门 / 重力门 / 尺寸门 / 速度门 ---- */
   12: { kind: 'portal', to: 'cube', note: '方块形态门' },
