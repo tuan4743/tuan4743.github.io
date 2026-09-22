@@ -942,7 +942,10 @@ class Scene extends Phaser.Scene {
          这次一个自创常数都没有:180° 和 0.175 都是源码里的 ✓,唯一的换算用本档速度归一化 ✓ */
       if (w0.mode === 'cube') {
         const spd = Math.max(0.5, Math.abs(w0.vx) / 5.7700018);      // 本档速度 ÷ 1 档速度
-        const step = Math.min(1, 0.175 * spd);                       // 每帧最多走 17.5%(×速度)
+        /* ★★ 2026-09 修转速:这个块在【子步循环】里(一帧跑 n 次 ✗)——
+           原来的 step=0.175 会让缓动在一帧内就收敛到 180°,而方块转 180° 看起来和没转一样 ✗✓
+           ⇒ 除以 n,让它每帧只推进一次 ✓(用户:"cube 根本不会旋转")*/
+        const step = Math.min(1, (0.175 * spd) / Math.max(1, n));
         if (w0.onGround) {
           const near = Math.round(this.spinLast / (Math.PI / 2)) * (Math.PI / 2);   // 最近的 90° 倍数
           this.spinLast += (near - this.spinLast) * step;
