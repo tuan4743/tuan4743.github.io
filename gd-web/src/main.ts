@@ -349,6 +349,7 @@ class Scene extends Phaser.Scene {
   deathLog: Array<{ tick: number; x: number; y: number; vy: number; mode: string; gdir: number; chunk: number; at: number; hold: boolean }> = [];
   baseTick = 0;                     // 这一条命的起点在音乐时间轴上的帧号(复活时跟着存档点走)
   airT = 0;                         // 空中停留了多久(给方块自转用)
+  spinLast = 0;                     // ★ 落地时保留上一个空中角度(不再"回正" —— 用户:"回转更刻意了")
   labels: Phaser.GameObjects.Text[] = [];
   phase: Phase = 'idle';
   /** 调试/出图用:冻住模拟(只渲染,不推进) —— 自动化截图不会因为"瞬移到墙里"当场摔死 */
@@ -1780,14 +1781,14 @@ class Scene extends Phaser.Scene {
     /* ★★ 2026-09 方向:用户实测"旋转方向也是错的" ⇒ 现在这里取【负号】。
        原因:我们的绘图空间 y 是翻转的(见 Y()),正角度在屏幕上看是【逆时针】✗,
        而方块向右跑时应该【顺时针】转 ✓。 */
-    /* ★★ 2026-09 用户:"在空中不知道转了一圈还是两圈" ⇒ 台阶式(走一步停一下)看起来读不出来 ✗。
-       改成【连续匀速】:速率 = 180° ÷ 一次标称跳的滞空 ⇒
-         · 普通跳(滞空≈标称)= 干净利落的 180° ✓
-         · 掉得久 = 平滑地继续转(能一眼数出圈数)✓
-         · 落地 airT 归零 ⇒ 角度回 0(0/90/180/270 对方块都算趴平 ✓)
-       源码结构仍是"朝目标角插值"(runNormalRotation 基数 180°)✓,这里只是去掉台阶停頓 ✓ */
+    /* ★★ 2026-09 用户答"a":普通一跳应当 180°,而现在实测转出了 360° ⇒ 速率【减半】。
+       原来的 `(airT/spinStep) × π` 在真实滞空(≈2×标称)下会转满 360° ✗ ——
+       系数从 1 改成 0.5 ⇒ 普通跳 = 180° ✓、大跳(滞空×2)= 360° ✓。
+       (落地不做任何"回正"动作 —— 用户:"回转更刻意了" ✗;落地角由连续旋转自然落在 90° 的
+        倍数附近,0/90/180/270 对方块都算趴平 ✓。) */
     const spinStep = 2 * P.jump / (P.gravity * Y_TIME_SCALE) / 60;   // 一次标称跳的滞空(秒)
-    const spin = w.onGround ? 0 : -(this.airT / spinStep) * Math.PI;
+    const spin = w.onGround ? this.spinLast : -(this.airT / spinStep) * (Math.PI / 2);
+    if (!w.onGround) this.spinLast = spin;
       const s = Math.sin(spin), c = Math.cos(spin);
       const pts: Array<[number, number]> = [[-B / 2, -B / 2], [B / 2, -B / 2], [B / 2, B / 2], [-B / 2, B / 2]];
       g.fillStyle(w.dead ? 0xff9a6b : 0xe2f6ff, 0.96);
