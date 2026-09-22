@@ -1781,15 +1781,14 @@ class Scene extends Phaser.Scene {
     /* ★★ 2026-09 方向:用户实测"旋转方向也是错的" ⇒ 现在这里取【负号】。
        原因:我们的绘图空间 y 是翻转的(见 Y()),正角度在屏幕上看是【逆时针】✗,
        而方块向右跑时应该【顺时针】转 ✓。 */
-    /* ★★ 2026-09 旋转重写(状态在 sim 里,这里只推进 + 读取):
-       · 速率 = 180° / 一次标称跳的滞空 ⇒ 普通跳 180° ✓(用户答"a")
-       · 到目标续 180° ⇒ 下落时一直转 ✓(用户:"即便不跳,方块依旧会在下落时旋转")
-       · 落地补齐到 180° 倍数、不回正 ⇒ 落地没有斜角,也没有"刻意回转" ✓
-       旧实现(每帧重算 totalT/steps)会抖、起跳归零 —— 已删 ✗ */
+    /* ★★ 2026-09 用户答"a":普通一跳应当 180°,而现在实测转出了 360° ⇒ 速率【减半】。
+       原来的 `(airT/spinStep) × π` 在真实滞空(≈2×标称)下会转满 360° ✗ ——
+       系数从 1 改成 0.5 ⇒ 普通跳 = 180° ✓、大跳(滞空×2)= 360° ✓。
+       (落地不做任何"回正"动作 —— 用户:"回转更刻意了" ✗;落地角由连续旋转自然落在 90° 的
+        倍数附近,0/90/180/270 对方块都算趴平 ✓。) */
     const spinStep = 2 * P.jump / (P.gravity * Y_TIME_SCALE) / 60;   // 一次标称跳的滞空(秒)
-    w0.updateSpin(1 / 60, spinStep);
-    const spin = w0.spinAng;
-    const spinT = 0, spinN = 0, spinF = 0;   // 占位(旧变量已不再使用,保留避免下方引用报错)
+    const spin = w.onGround ? this.spinLast : -(this.airT / spinStep) * (Math.PI / 2);
+    if (!w.onGround) this.spinLast = spin;
       const s = Math.sin(spin), c = Math.cos(spin);
       const pts: Array<[number, number]> = [[-B / 2, -B / 2], [B / 2, -B / 2], [B / 2, B / 2], [-B / 2, B / 2]];
       g.fillStyle(w.dead ? 0xff9a6b : 0xe2f6ff, 0.96);
