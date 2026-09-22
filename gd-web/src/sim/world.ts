@@ -761,14 +761,21 @@ export class World {
 
     this.x += this.vx * s;
 
-    /* --- 冲刺箭头生效期间:重力关掉,纵向速度按箭头方向给 ---
-     * 口径是近似:原版 dash 期间横向速度不变、纵向速度按箭头给,按住期间一直有效。 */
+    /* --- 冲刺箭头生效期间:重力关掉,纵向按箭头方向走 ---
+     * ★★ 2026-09 按 PlayerObject::update 的 dash 分支修(用户:"绿色/粉色冲刺环,垂直方向的冲刺明显不对"):
+     *       v31 = getCurrentXVelocity(a1) * a2;      // 本帧【水平位移】,不乘 0.9
+     *       v34 = v31 * m_dashY;                     // 纵向位移 = 水平位移 × 箭头斜率
+     *   两处差异:
+     *     ① 位移不该过 y 轴那个 ×0.9 —— 我们原来走 sY ⇒ 冲刺距离少 10% ✗(和波浪那条同一个坑 ✓);
+     *     ② m_dashY 是【斜率】(由 startDashing 按箭头角度算)⇒ 垂直冲刺时 vx 不变、纵向位移 = |水平位移|;
+     *        我们这儿 `vy = |vx| × dir.y` 形状对,但仍要按①去掉 0.9。
+     *   (d.t > 0.5 这个"0.5 秒上限"也待核:原版是 stopDashing / m_maxDuration 决定的。) */
     if (this.dash) {
       const d = this.dash;
       d.t += FRAME / 4;
       const dir = arrowDir(d.ang);
       this.vy = Math.abs(this.vx) * dir.y;
-      this.y += this.vy * sY;
+      this.y += this.vy * (sY / Y_TIME_SCALE);      // ★ 不带 0.9 的步长
       if (d.t > 0.5 || !hold) this.dash = null;
       if (this.y < 0 || this.y + this.box > this.rows * U) { this.die(); return; }
       this.onGround = false;
