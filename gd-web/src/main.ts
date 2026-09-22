@@ -1781,13 +1781,21 @@ class Scene extends Phaser.Scene {
     /* ★★ 2026-09 方向:用户实测"旋转方向也是错的" ⇒ 现在这里取【负号】。
        原因:我们的绘图空间 y 是翻转的(见 Y()),正角度在屏幕上看是【逆时针】✗,
        而方块向右跑时应该【顺时针】转 ✓。 */
-    /* ★★ 2026-09 用户答"a":普通一跳应当 180°,而现在实测转出了 360° ⇒ 速率【减半】。
-       原来的 `(airT/spinStep) × π` 在真实滞空(≈2×标称)下会转满 360° ✗ ——
-       系数从 1 改成 0.5 ⇒ 普通跳 = 180° ✓、大跳(滞空×2)= 360° ✓。
-       (落地不做任何"回正"动作 —— 用户:"回转更刻意了" ✗;落地角由连续旋转自然落在 90° 的
-        倍数附近,0/90/180/270 对方块都算趴平 ✓。) */
+    /* ★★ 2026-09 自适应速率(用户口径:"根据位置决定下落是否旋转,落地时正好转完,不会卡在半路"):
+         ① 预测【还能飞多久】(帧):找下方最近的面,距离 ÷ 当前竖直速度(粗略估计,够用 ✓)
+         ② 总转角先定成 90° 的整数倍:total = round((已飞 + 还能飞) / 每 90° 的时间)
+         ③ 当前角 = -(已飞 / 总时间) × total × 90°
+            ⇒ 落地那一刻(已飞 == 总时间)角度【正好是 90° 的整数倍】✓ 不需要任何回正动作 ✓
+            ⇒ 离落地越近转得越快(自适应)✓ —— 这就是"根据位置决定怎么转" ✓ */
     const spinStep = 2 * P.jump / (P.gravity * Y_TIME_SCALE) / 60;   // 一次标称跳的滞空(秒)
-    const spin = w.onGround ? this.spinLast : -(this.airT / spinStep) * (Math.PI / 2);
+    let gapBelow = 60 * U;
+    for (const b of [...w.floors, ...w.solids]) {
+      if (b.x1 > w.x && b.x0 < w.x + w.box && b.y1 <= w.y + 0.5) gapBelow = Math.min(gapBelow, w.y - b.y1);
+    }
+    const nLeft = Math.max(2, Math.min(300, gapBelow / Math.max(2, Math.abs(w.vy))));   // 还能飞几帧
+    const totalT = this.airT + nLeft / 60;                                             // 本轮空中总时长(秒)
+    const steps = Math.max(1, Math.round(totalT / (spinStep * 0.5)));                   // 90° 的倍数(偶数倍 = 180°)
+    const spin = w.onGround ? this.spinLast : -(this.airT / totalT) * steps * (Math.PI / 2);
     if (!w.onGround) this.spinLast = spin;
       const s = Math.sin(spin), c = Math.cos(spin);
       const pts: Array<[number, number]> = [[-B / 2, -B / 2], [B / 2, -B / 2], [B / 2, B / 2], [-B / 2, B / 2]];
