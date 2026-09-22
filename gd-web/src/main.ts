@@ -990,8 +990,11 @@ class Scene extends Phaser.Scene {
       /* ★ 无敌模式的"轨道上限":开着无敌时不许飞离规划走廊(见 clampToGuide) */
       this.clampToGuide();
       this.airT = w0.onGround ? 0 : this.airT + 1 / 60;
-      /* ★★ 2026-09 演示铺自由移动(用户:"demo 做成自由移动,不再固定往前"):
-         ←/A = 左,→/D = 右,都不按 = 停住 ✓;只在 freeMove(world 侧)为真时生效 ✓ */
+      /* ★★ 2026-09 演示铺自由移动(用户:"还是不能自由移动,固定向右"):
+         上一版只在启动时给【当时的那个 world】设了 freeMove ✗ —— 而世界会被重建(复活/切铺),
+         新世界又变回 false ⇒ 表现就是"固定向右" ✓✓
+         ⇒ 改成【每帧】对着当前世界强制打开(check 一次正则,开销可忽略 ✓)*/
+      if (/(^|[?&])level=demo(&|$)/.test(location.search)) w0.freeMove = true;
       if (w0.freeMove) {
         const k = this.keys;
         const right = !!(k.RIGHT?.isDown || k.D?.isDown);
