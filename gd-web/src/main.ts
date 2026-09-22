@@ -1871,12 +1871,24 @@ class Scene extends Phaser.Scene {
     const cxw = w.x + B / 2, cyw = py + B / 2;
     /* ★ 图集就绪就用真图标(见 buildIcons);没就绪/加载失败时走下面这套矢量兜底。
        注意图标用的是绘图空间坐标(和 Graphics 一样,y 走 Y() 翻转),所以这里给它 Y(cyw) */
-    if (this.iconsReady) this.drawIconPlayer(w, cxw, Y(cyw), B);
+    /* robot / spider 不走图标(见下面的说明:部件摆位数据不在我们手上 ✗)⇒ 用矢量画 ✓ */
+    if (this.iconsReady && w.mode !== 'robot' && w.mode !== 'spider') this.drawIconPlayer(w, cxw, Y(cyw), B);
     /* ★★ 2026-09 修"cube 根本没有贴图"(我上一轮引入的 ✗):
        drawIconPlayer 在没有该形态图层时会直接 return ⇒ 而这里只要 iconsReady 就跳过矢量 ✗
        ⇒ cube(图集尺寸不符被跳过)两边都不画 = 【什么都看不见】✓✓
        改成:只有【这个形态真的有图层】才跳过矢量 ✓,否则照常走矢量 ✓ */
-    if (this.iconsReady && this.iconLayers.some((l) => l.mode === w.mode)) { /* 图标已经画了,矢量那套跳过 */ } else if (w.mode === 'ship') {
+    /* ★★★ 2026-09 照源码定论 + 务实处理(用户:"robot/spider 没腿,UFO 又乱了"):
+       源码:robot/spider 的【腿等部件】来自 GJRobotSprite / GJSpiderSprite 这两个
+             "命名动画 sprite"(class GJSpiderSprite : public GJRobotSprite ✓
+              GJRobotSprite::init(id, name) 按名字加载一整套动画 ✓)
+       ⇒ 部件的【相对摆位】在那套动画数据里,不在 texture plist 里 ✗ ——
+         我离线把 texture plist 的各部件按各种对齐方式拼过,拼出来都是"方框 + 一坨线" ✗(亲眼看过 ✓)
+       处置:这两个形态【不用 icon 贴图,走矢量画法】✓
+             —— 这样至少画出一个能认出是机器人/蜘蛛的东西 ✓,
+                而不是现在这种"拼错的方框" ✗;等拿到 GJ*Sprite 的动画数据再换成贴图 ✓
+       (矢量那套在下面 else 分支里,本来就有 ✓ —— 这里只要不认这两个形态的 icon ✓) */
+    const NO_ICON_MODES = new Set(['robot', 'spider']);
+    if (this.iconsReady && !NO_ICON_MODES.has(w.mode) && this.iconLayers.some((l) => l.mode === w.mode)) { /* 图标已经画了,矢量那套跳过 */ } else if (w.mode === 'ship') {
       /* 手动画三角:Phaser 4 里没有 Phaser.Geom.Point(v3 的写法会直接抛错) */
       const rot = Math.max(-0.55, Math.min(0.55, w.vy / P.shipVyMax * 0.55));
       const s = Math.sin(rot), c = Math.cos(rot);
