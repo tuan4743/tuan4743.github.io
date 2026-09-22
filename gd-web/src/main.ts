@@ -16,6 +16,7 @@ import { frameRects } from './sim/gdids.ts';
 import { fingerprint } from './sim/replay.ts';
 import { P, U, Y_TIME_SCALE } from './sim/constants.ts';
 import { WATER_CHART } from './sim/charts/water.ts';
+import { DEMO_CHART } from './sim/charts/demo.ts';   // ★ 演示铺(?level=demo,见下面的 LEVEL 取用处)
 
 const HL = '#7ff0ff';
 /* 每段一个强调色:网格、地面、门的颜色都跟着走,一眼知道跑到第几段 */
@@ -133,6 +134,11 @@ function parsePlistFrames(xml: string): Record<string, {
 function pickLevel(): Level {
   const want = (window as unknown as { __GD_CHART?: string }).__GD_CHART;
   if (want === 'gen') return generateLevel({ seed: 20260913 });
+  /* ★★ 2026-09 演示铺(用户:"单独做一个演示铺,把所有物件顺着摆")——
+     加 ?level=demo 就切到它:每一类物件顺着摆一排(方块/刺/锯/五种板/六种环/三种箭头/七形态门/
+     重力门/速度门/迷你门/存档点/硬币/破砖/线框 ✓),用来一次测完所有东西 ✓
+     生成器:tools/make-demo-level.ts ⇒ src/sim/charts/demo.ts */
+  if (/(^|[?&])level=demo(&|$)/.test(location.search)) return DEMO_CHART;
   return WATER_CHART;                       // 第三张盘:用户自己铺的 WATER
 }
 const LEVEL: Level = pickLevel();
