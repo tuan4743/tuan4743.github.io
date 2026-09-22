@@ -65,7 +65,7 @@ const CAM_FIXED_MODES = new Set(['ship', 'ufo', 'wave', 'ball']);
  *     · GameSheet.png(3091×2048) 与 GameSheet.plist(声明 3081×2048)对不上,
  *       而 GameSheet_old.png(3081×2048)正好对得上 ⇒ 要用物件图集请用 old 那张(或重新导出)。
  *   下面的加载器会自动挑"尺寸与 plist 声明一致"的那张 png,挑不到就跳过(不会画出错位的图)。 */
-const ICON_ENABLED = /(^|[?&])icons=1(&|$)/.test(location.search);
+const ICON_ENABLED = true;   // ★ 临时默认打开(用户 2026-09:"要")—— 看完症状就按 IDA 的 player_* 帧名规则改 buildIcons
 /** ★★ 物件贴图:2026-09 用户实测"全是错误贴图",**默认关掉**,回到矢量画法。
  *  为什么错:GD 的物件美术是【碎件 + 运行时按代码坐标拼装】的 ——
  *    · 形态门 = portalshine + back + extra + extra_2 + front 五层,层与层的相对位置在 exe 里写死;
@@ -73,7 +73,7 @@ const ICON_ENABLED = /(^|[?&])icons=1(&|$)/.test(location.search);
  *    · 砖块 block001_01..07 = 按邻居自动拼接的 7 块(哪块对应哪条边,plist 里没有);
  *  而 plist 只给"每块多大、在图集哪儿",不给"摆在哪" ⇒ 我按"各自画布中心对齐"拼出来的全是错位碎片。
  *  所以:默认**不加载**这张图集(省 121 KB),要研究就加 `?art=1`(代码保留,别再当默认)。 */
-const ART_ENABLED = /(^|[?&])art=1(&|$)/.test(location.search);
+const ART_ENABLED = true;    // ★ 临时默认打开(用户 2026-09:"要")—— 同时准备用 IDA 挖出的 id→帧名表替换现在的启发式映射
 /** ★★ 无敌模式的"轨道上限"(用户口径:"给无敌模式加个上限,不允许脱离预定轨道")。
  *  为什么:无敌本身解决不了"人卡出墙/飞到天上"—— 以前只贴住关卡边界(0 ~ 127 格),
  *  于是开了无敌就能一路飞到 y=110 把整关绕过去,玩起来完全不是这张图。
