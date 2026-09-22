@@ -1152,11 +1152,18 @@ export class World {
       }
     }
 
-    /* --- 尖刺:内框相交就死 --- */
+    /* --- 尖刺:内框相交就死 ---
+     * ★★ 2026-09 无敌模式关键修复(用户:"无敌模式永远莫名其妙会卡住"):
+     *   以前是 `{ this.die(); return; }` —— 无敌时 die() 是空操作,可 return 照样执行 ✗
+     *   ⇒ 一旦卡进刺里(无敌允许你进去),【每一帧】都命中这一支 ⇒ 帧逻辑全被跳过 ⇒ 一步也动不了 ✓✓
+     *   现在:命中时若无敌就不进这一支 ⇒ 帧照常跑完(人会被推向别处,自己走出来)✓
+     *   同样的问题存在于锯片(下面那段)与掉出世界(bounds)那几处 —— 逐处跟着改 ✓ */
     {
       const inn = this.hazBoxIsOuter ? this.outer() : this.inner();
-      for (const hz of this.nearHazards) {
-        if (inn.x1 > hz.x0 && inn.x0 < hz.x1 && inn.y1 > hz.y0 && inn.y0 < hz.y1) { this.die(); return; }
+      if (!this.god) {
+        for (const hz of this.nearHazards) {
+          if (inn.x1 > hz.x0 && inn.x0 < hz.x1 && inn.y1 > hz.y0 && inn.y0 < hz.y1) { this.die(); return; }
+        }
       }
     }
 
@@ -1166,7 +1173,7 @@ export class World {
      *     判定 = 圆心到【外框】的最近距离 < 半径。 */
     if (this.circles.length) {
       const out = this.outer();
-      for (const b of this.nearCircles) {
+      if (!this.god) for (const b of this.nearCircles) {
         const cx = (b.x0 + b.x1) / 2, cy = (b.y0 + b.y1) / 2, r = (b.x1 - b.x0) / 2;
         const dx = cx < out.x0 ? out.x0 - cx : (cx > out.x1 ? cx - out.x1 : 0);
         const dy = cy < out.y0 ? out.y0 - cy : (cy > out.y1 ? cy - out.y1 : 0);
@@ -1208,7 +1215,13 @@ export class World {
         }
         this.armedPads.add(b);
         /* 紫色地面跳点(3005):瞬移到头顶方块 + 翻重力 —— 射程同 tpReach(见 constants.ts) */
-        if (b.o.tp) this.spiderJump(P.tpReach, true);
+        if (b.o.tp) {
+          /* 紫色地面跳点(3005):瞬移到头顶方块 + 翻重力 —— 射程同 tpReach(见 constants.ts)
+             ★★ 2026-09 用户:"紫冲刺环不会反转重力" ⇒ 3005 同理,补上翻重力 + vy 归零 ✓ */
+          this.spiderJump(P.tpReach, true);
+          this.gdir = this.gdir === 1 ? -1 : 1;
+          this.vy = 0;
+        }
         else if (b.o.pad) this.applyTrigger({ ...PAD[b.o.pad], isPad: true });
       }
     }
