@@ -29,6 +29,10 @@
         </svg>
         <div class="lost-lyric" id="gd-lyric"></div>
         <div class="fx-smear" aria-hidden="true"></div>
+        {{/* ★★ 特效档位:我挑的配方连着被否三次("比修之前还丑,帧率还低")——
+             我截不到 WebGL 画面,审美和性能的取舍只能你来定。这里给一个能点的档位开关,
+             每档对应一组图层组合(见 pages.css 里的 .lost-stage.fx-0~3),HUD 上能看到 fps。 */}}
+        <button type="button" id="gd-fx" class="gd-tool gd-fx-btn" title="切换水下特效档位(0=全关 · 1=雾+近景 · 2=+涟漪 · 3=全开)">特效:1</button>
         <div class="lost-veil" aria-hidden="true"></div>
         <div id="gd-hud" class="lost-hud">方块 · 0%</div>
         <div class="lost-tip">按一下开始 · 空格 / ↑ = 跳(飞机按住上升)· R = 重来 · G = 无敌(已限制在预定轨道内,飞不出关卡走廊) · B = 看 bot 通关 · [ / ] 或 −/+ = 弹簧力度微调(测试用)</div>

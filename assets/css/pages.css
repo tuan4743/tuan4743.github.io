@@ -1300,6 +1300,26 @@
    为什么不用 Phaser 画:那个画布我截不到图(WebGL 全黑),只能盲改,连着三次把画面弄坏 ✗;
    DOM 层能截图自证,最坏也只是"没效果",绝不会把游戏画面搞没 ✓
    层级:bg/city(1) < canvas(2) < 雾(3) < 光柱(4) < 歌词(5) */
+/* ★★ 特效档位(用户口径:"比修之前还丑,帧率还低" —— 审美和性能的取舍交给你定)
+   档位只管【显示哪些层】,不再动任何滤镜:
+     fx-0 全关(最省,纯游戏画面)
+     fx-1 雾 + 近景(默认:两层静态叠加,几乎零成本)
+     fx-2 fx-1 + 涟漪(多一层 background 动画)
+     fx-3 全开:再叠光束 + 拖影(两层带 mix-blend-mode,是最贵的一档)
+   注意:city 的"流动"和涟漪都是 background-position 动画 ⇒ 会触发整层重绘,
+   低配机器上建议用 fx-0 / fx-1。 */
+.lost-stage.fx-0 .fx-fog, .lost-stage.fx-0 .fx-city, .lost-stage.fx-0 .fx-ripple,
+.lost-stage.fx-0 .fx-beams, .lost-stage.fx-0 .fx-smear, .lost-stage.fx-0 .fx-bg { display: none; }
+.lost-stage.fx-1 .fx-ripple, .lost-stage.fx-1 .fx-beams, .lost-stage.fx-1 .fx-smear { display: none; }
+.lost-stage.fx-1 .fx-city { animation: none; }            /* 近景只摆着不动 ⇒ 不重绘 */
+.lost-stage.fx-2 .fx-beams, .lost-stage.fx-2 .fx-smear { display: none; }
+.gd-fx-btn {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    z-index: 22;
+}
+
 .fx-layer {
     position: absolute;
     inset: 0;

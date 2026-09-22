@@ -317,6 +317,29 @@ class Scene extends Phaser.Scene {
     void w;
   }
 
+  /** ★★ 特效档位开关(fx-0 全关 … fx-3 全开,见 pages.css):审美和性能的取舍交给用户 ✓
+   *  默认 fx-1(雾 + 近景,两层静态叠加,几乎零成本)—— 之前默认全开那一档里有
+   *  mix-blend-mode 和两层 background 动画,低配机器上 fps 掉得厉害 ✗ */
+  private initFxSwitch() {
+    const stage = document.querySelector('.lost-stage') as HTMLElement | null;
+    const btn = document.getElementById('gd-fx');
+    if (!stage || !btn) return;
+    let lvl = Number(localStorage.getItem('gd-fx') ?? 1);
+    if (!(lvl >= 0 && lvl <= 3)) lvl = 1;
+    const apply = () => {
+      stage.classList.remove('fx-0', 'fx-1', 'fx-2', 'fx-3');
+      stage.classList.add('fx-' + lvl);
+      btn.textContent = '特效:' + lvl;
+    };
+    apply();
+    btn.addEventListener('click', () => {
+      lvl = (lvl + 1) % 4;
+      try { localStorage.setItem('gd-fx', String(lvl)); } catch { /* 隐私模式就算了 */ }
+      apply();
+    });
+    btn.addEventListener('keydown', (e) => e.stopPropagation());   // 别把空格之类喂给游戏
+  }
+
   /** 把一个池子里的 Image 摆好;返回 false 表示这帧没画(调用方走矢量兜底) */
   private drawArtObject(o: Obj, key: string, dx: number, dy: number, cwU: number, chU: number, tintCol = 0xffffff): boolean {
     const tex = this.textures.get('gd-art');
@@ -559,6 +582,7 @@ class Scene extends Phaser.Scene {
       this.load.start();
     }
     this.loadGuide();                          // ★ 无敌模式的轨道(见 clampToGuide)
+    this.initFxSwitch();                       // ★ 特效档位开关(见 initFxSwitch)
     /* ★ 形态图集(static/icons):默认不加载(见上面那段"结论")。?icons=1 才试图集 */
     if (ICON_ENABLED) {
       const q = /(^|[?&])col1=([0-9a-fA-F]{6})/.exec(location.search);
