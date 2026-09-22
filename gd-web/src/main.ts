@@ -310,34 +310,16 @@ class Scene extends Phaser.Scene {
   private clampToGuide() {
     const w = this.world;
     if (!w.god) return;
-    /* ★★ 2026-09 关掉(用户:"开无敌被无敌的bug卡不动"):
-       这条"轨道软推"会跟玩家的操作抢位置 —— 走廊是几何规划出来的,某些位置贴着砖,
-       推回去就等于把人按在几何里,表现就是"开了无敌反而动不了" ✗。
-       无敌现在只做一件事:不判死(sim 里的 die())✓ —— 关卡边界由 sim 自己夹,页面不再插手。 */
-    void w;
-  }
-
-  /** ★★ 特效档位开关(fx-0 全关 … fx-3 全开,见 pages.css):审美和性能的取舍交给用户 ✓
-   *  默认 fx-1(雾 + 近景,两层静态叠加,几乎零成本)—— 之前默认全开那一档里有
-   *  mix-blend-mode 和两层 background 动画,低配机器上 fps 掉得厉害 ✗ */
-  private initFxSwitch() {
-    const stage = document.querySelector('.lost-stage') as HTMLElement | null;
-    const btn = document.getElementById('gd-fx');
-    if (!stage || !btn) return;
-    let lvl = Number(localStorage.getItem('gd-fx') ?? 1);
-    if (!(lvl >= 0 && lvl <= 3)) lvl = 1;
-    const apply = () => {
-      stage.classList.remove('fx-0', 'fx-1', 'fx-2', 'fx-3');
-      stage.classList.add('fx-' + lvl);
-      btn.textContent = '特效:' + lvl;
-    };
-    apply();
-    btn.addEventListener('click', () => {
-      lvl = (lvl + 1) % 4;
-      try { localStorage.setItem('gd-fx', String(lvl)); } catch { /* 隐私模式就算了 */ }
-      apply();
-    });
-    btn.addEventListener('keydown', (e) => e.stopPropagation());   // 别把空格之类喂给游戏
+    const gy = this.guideYAt(w.x / U);
+    if (gy == null) return;
+    const cy = (w.y + w.box / 2) / U;                 // 用玩家【中心】(块)比,别拿脚底比
+    const over = cy - gy;
+    if (Math.abs(over) <= GUIDE_BAND) return;
+    const dir = over > 0 ? -1 : 1;                    // 往轨道那一侧推
+    const push = Math.min(0.5, Math.abs(over) - GUIDE_BAND) * U;
+    w.y += dir * push;
+    if (dir < 0 && w.vy > 0) w.vy = 0;
+    if (dir > 0 && w.vy < 0) w.vy = 0;
   }
 
   /** 把一个池子里的 Image 摆好;返回 false 表示这帧没画(调用方走矢量兜底) */
@@ -534,7 +516,7 @@ class Scene extends Phaser.Scene {
     /* ?padmul=0.75 —— 弹簧力度微调(和按 [ / ] 等效),验收脚本也能用 URL 指定 */
     const pm = /(^|[?&])padmul=([\d.]+)/.exec(location.search);
     if (pm) { this.padMulWanted = Math.max(0.4, Math.min(1.5, Number(pm[2]) || 1)); this.world.padMul = this.padMulWanted; }
-    this.cameras.main.setBackgroundColor('rgba(0,0,0,0)');   // ★ 透明:让 DOM 的远景/近景透出来
+    this.cameras.main.setBackgroundColor('#05070d');
     this.cameras.main.setZoom(this.zoomOf());
     /* ★ 只在【画布上】点才算确认 —— 以前监听 window,点导航、点 CD 面板都会顺手把游戏开起来 */
     this.input.on('pointerdown', () => {
@@ -582,7 +564,6 @@ class Scene extends Phaser.Scene {
       this.load.start();
     }
     this.loadGuide();                          // ★ 无敌模式的轨道(见 clampToGuide)
-    this.initFxSwitch();                       // ★ 特效档位开关(见 initFxSwitch)
     /* ★ 形态图集(static/icons):默认不加载(见上面那段"结论")。?icons=1 才试图集 */
     if (ICON_ENABLED) {
       const q = /(^|[?&])col1=([0-9a-fA-F]{6})/.exec(location.search);
@@ -741,37 +722,23 @@ class Scene extends Phaser.Scene {
   drawn = 0;
   private fracT = 0;
 
-  /** ★★ 量尺寸(2026-09 修"整体偏移"):
-   *  ① 量的是【canvas 的父容器】(外框),不是 canvas 自己 —— 量 canvas 会自我循环:
-   *     上一次把 canvas 撑成竖条,这一次就按竖条算缓冲,越量越歪。
-   *  ② 缓冲的长宽比**必须**等于外框的长宽比。以前最后有一句 `bufW = max(320, w)`:
-   *     窗口很窄时算出来 w=158 → 被抬成 320 ⇒ 缓冲 320×720(0.44)而外框 126×573(0.22)
-   *     ⇒ 浏览器把画面压扁,而且只有左上角一块是真的,看起来就是"整体偏移"。
-   *     现在改成:宽不够就**等比缩高度**(viewH 一起降),比例永远不破。
-   *  ③ 像素预算:太宽就整体缩一档(等比缩,比例不变),别让填充率拖垮帧率。 */
   private measureFrac() {
     const cv = document.getElementById('gd-canvas') as HTMLCanvasElement | null;
-    /* ★★ 量【舞台】(#gd-canvas 的宿主 .lost-stage),不是窗口、也不是 canvas 自己:
-       量 canvas 会自我循环;量窗口在"页面里画布只占一块"的版式下会算大(实测 150 宽窗口下
-       算出的画布只有 52×43 —— 用户看到的就是"啥都没有")。
-       画布在 applyViewport 里被设成 position:absolute,不再影响宿主尺寸 ⇒ 量宿主是稳的。 */
-    const host = (document.querySelector('.lost-stage') as HTMLElement | null)
-      ?? (cv?.parentElement as HTMLElement | null);
-    const rw = Math.max(1, host?.clientWidth || window.innerWidth);
-    const rh = Math.max(1, host?.clientHeight || window.innerHeight);
-    /* 缓冲比例 = 宿主比例(上下限兜一下极端值),这样画布铺满宿主也不会被拉伸变形 */
-    const aspect = Math.max(0.25, Math.min(4, rw / rh));
-    let h = Math.round(720 * RENDER_SCALE);
-    let w = Math.round(h * aspect);
-    if (w < 320) { w = 320; h = Math.max(200, Math.round(320 / aspect)); }
-    const px = w * h;
-    if (px > BUF_BUDGET) {                       // 太宽/太高就整体缩一档(等比,比例不变)
-      const k = Math.sqrt(BUF_BUDGET / px);
-      h = Math.max(180, Math.round(h * k));
-      w = Math.max(240, Math.round(w * k));
+    const r = cv?.getBoundingClientRect();
+    if (!cv || !r || r.height <= 0 || r.width <= 0) {
+      this.viewFrac = 1; this.viewTop = 0; this.viewH = 720; this.bufW = 1280; return;
     }
-    this.viewH = h;
-    this.bufW = w;
+    this.viewH = Math.round(720 * RENDER_SCALE);
+    let w = Math.round(this.viewH * (r.width / r.height));
+    /* ★ 像素预算:盒子越宽,缓冲就越宽(比例必须跟着盒子,不然方块会变长方形)。
+       但盒子可能非常宽 —— 那就整体缩一档(等比缩,比例不变),别让填充率拖垮帧率。 */
+    const px = w * this.viewH;
+    if (px > BUF_BUDGET) {
+      const k = Math.sqrt(BUF_BUDGET / px);
+      this.viewH = Math.max(240, Math.round(this.viewH * k));
+      w = Math.max(320, Math.round(w * k));
+    }
+    this.bufW = Math.max(320, w);
     this.viewFrac = 1;
     this.viewTop = 0;
   }
@@ -923,12 +890,11 @@ class Scene extends Phaser.Scene {
       }
       /* 输入来源:演示卷按 tick 取(那卷输入是从 tick=0 全程录的),
          否则反应式机器人,否则键盘。 */
-      /* ★★ 2026-09 修(用户:"空格有时候失效"、"跳环按了没用"这两个其实是一条):
-         键盘这条路原来【只看 isDown 轮询】—— 极短的一下(keydown 和 keyup 落在两次轮询之间)
-         会被整帧丢掉 ✗,而跳环要求"在环里的那一帧有新按下",丢一拍就完全没反应 ✗。
-         `confirmLatch` 是真实 keydown 事件记下来的(上面注释写着"极短的一下也收得到"),
-         但它一直没接进这里 ✗。现在:本帧的第一个物理帧吃掉这个 latch(等价于按了一下),
-         立刻清掉 ⇒ 之后的追赶帧不会把它当成"一直按住" ✓ */
+      /* ★★ 短按丢失的修复(2026-09,用户报"空格有时候失效"+"跳环按了没用"其实是同一条):
+         键盘这条路原来【只看 isDown 轮询】—— keydown/keyup 落在两次轮询之间的一下会被整帧丢掉 ✗,
+         而跳环要求"在环里的那一帧有新按下",丢一拍就是完全没反应 ✗。
+         confirmLatch 是真实 keydown 记下来的(上面注释写着"极短的一下也收得到"),现在接进来:
+         本帧第一个物理帧吃掉它并立刻清掉 ⇒ 追赶帧不会把它当成"一直按住" ✓ */
       const useLatch = this.confirmLatch;
       this.confirmLatch = false;
       const hold = this.demoMode ? this.demoHold(w0.tick)
@@ -1327,47 +1293,18 @@ class Scene extends Phaser.Scene {
    *    ~525 px,多出来的 38% 就被金属边框挡住(用户截图:HUD 写着"画布被挡 38%",
    *    底下还露出一条黑条,关卡底部的刺全被裁掉)。这一句才是真正的病根。 */
   private applyViewport(cam: Phaser.Cameras.Scene2D.Camera) {
+    /* ★ 先让缓冲跟着盒子的长宽比走,再把画布的 CSS 尺寸按回 100%×100% ——
+       顺序不能反:Phaser 的 ScaleManager 会在 resize 时把 canvas 的行内样式又写成
+       "1280px/xxx px",那正是底部那条黑条(画布固定高、装不下窗口)的来源。 */
     if (this.scale.height !== this.viewH || this.scale.width !== this.bufW) this.scale.resize(this.bufW, this.viewH);
     const cv = document.getElementById('gd-canvas') as HTMLCanvasElement | null;
-    /* ★★ 画布的 CSS 尺寸按【缓冲的长宽比】在外框里等比放下(放不下就留黑边),并居中 ——
-       以前无条件写 100%×100%:外框比例和缓冲比例不一致时,浏览器替我们"拉伸",
-       看起来就是画面偏到左上角 + 方块变长方形(用户实测的"整体偏移")。 */
     if (cv) {
-      /* ★★ 只改尺寸,【不改定位】:
-         上一版我加了 position:absolute + left/top 想居中,结果舞台没定位时画布会被挪到别处 /
-         被外框盖住 ⇒ 用户看到"啥都没有"。现在回到"就在原来的文档流里"——只把尺寸写成 100%
-         (本来就是页面 CSS 给的尺寸),缓冲比例已经等于舞台比例 ⇒ 铺满也不变形 ✓ */
-      cv.style.setProperty('width', '100%', 'important');
-      cv.style.setProperty('height', '100%', 'important');
+      cv.style.width = '100%';
+      cv.style.height = '100%';
     }
     cam.setViewport(0, 0, this.bufW, this.viewH);
     cam.setSize(this.bufW, this.viewH);
     cam.setZoom(this.zoomOf());
-  }
-
-  /** ★★ 歌词走 DOM(.lost-lyric):跟着音乐时间淡入淡出(用户:"放在屏幕正下贴近屏幕,淡入淡出")。
-   *  歌词表来自 /assets/water/lyrics.json,拿不到就不显示 ✓ */
-  private lyricEl: HTMLElement | null = null;
-  private lyricRows: Array<[number, string]> = [];
-  private lyricCur = '';
-  private paintLyric() {
-    if (!this.lyricEl) this.lyricEl = document.getElementById('gd-lyric');
-    const el = this.lyricEl;
-    if (!el) return;
-    if (!this.lyricRows.length) {
-      fetch('/assets/water/lyrics.json').then((r) => r.json())
-        .then((j: Array<[number, string]>) => { this.lyricRows = j; }).catch(() => { /* 没有歌词不影响玩 */ });
-      return;
-    }
-    const t = this.audio && !this.audio.paused ? this.audio.currentTime : this.runClock;
-    let i = -1;
-    for (let k = 0; k < this.lyricRows.length; k++) if (t >= this.lyricRows[k][0]) i = k;
-    if (i < 0) { el.style.opacity = '0'; return; }
-    const cur = this.lyricRows[i], next = this.lyricRows[i + 1];
-    const end = next ? next[0] : cur[0] + 6;
-    const a = Math.min(1, (t - cur[0]) / 0.35, Math.max(0, (end - t) / 0.6));
-    if (cur[1] !== this.lyricCur) { this.lyricCur = cur[1]; el.textContent = cur[1]; }
-    el.style.opacity = String(Math.max(0, Math.min(1, a)));
   }
 
   draw() {
@@ -1381,7 +1318,6 @@ class Scene extends Phaser.Scene {
       this.applyViewport(cam);
       window.addEventListener('resize', () => { this.measureFrac(); this.applyViewport(cam); });
     }
-    this.paintLyric();          // ★ 歌词(DOM 层,见 paintLyric)
     /* 每 20 帧(或刚开局)重新量一次:露出来的那一条/缓冲比例变了就跟着改取景框 */
     if (this.fixed && (this.fracT++ % 20 === 0)) {
       const before = [this.viewTop, this.viewH, this.bufW];
@@ -1943,10 +1879,7 @@ export function boot(target: string | HTMLCanvasElement, opts: { song?: string }
     /* 传自己的 canvas 时,Phaser 4 要求显式 renderType(否则报 Must set explicit renderType in custom environment) */
     type: useCanvas ? Phaser.WEBGL : Phaser.AUTO,
     ...(useCanvas ? { canvas: target as HTMLCanvasElement } : { parent: target as string }),
-    backgroundColor: 'rgba(0,0,0,0)',        // ★ 画布透明(见 create 里 setBackgroundColor 的说明)
-    /* ★★ transparent 必须显式开:只写 backgroundColor 是透明的还不够,WebGL 每帧 clear 时
-       仍然按不透明处理 ⇒ 画布底下那层 DOM 远景/近景被挡住(用户:"远景/近景没有出来")。 */
-    transparent: true,
+    backgroundColor: '#05070d',
     /* ★ 用 NONE + 固定尺寸:之前用 FIT/RESIZE,Phaser 量出来的父容器宽度不对
        (相机视口被算成 320×720,画面只在左边一条里),干脆不让它去量 ——
        画幅由页面 CSS 决定,内部分辨率固定 1280×720。 */

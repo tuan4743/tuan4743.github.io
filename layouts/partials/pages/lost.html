@@ -8,31 +8,7 @@
 {{- $cfg := site.Params.intro.lost | default dict -}}
 <div class="lost is-game" data-lost="{{ .key }}">
     <div class="lost-stage">
-        {{/* ★★ 水下特效全走【DOM 图层】,不动游戏内部渲染(用户口径:"特效看不见" ——
-             上一版塞进 Phaser 里,我看不到 WebGL 画面,只能盲改,结果三次都把画面弄坏)。
-             DOM 层的好处:能截图自证、最坏情况也只是没效果,绝不会把游戏画面搞没。 */}}
-        <img class="fx-layer fx-bg" src="/assets/water/bg.png" alt="" aria-hidden="true">
-        {{/* 近景:改成 div + 平铺背景 —— 用户口径"近景是一个长贴图,完全允许循环移动" ⇒
-             用 background-repeat: repeat-x + background-position 动画做无缝循环视差 */}}
-        <div class="fx-city" aria-hidden="true"></div>
         <canvas id="gd-canvas" class="lost-cv" width="1280" height="720" aria-label="几何冲刺式关卡"></canvas>
-        <div class="fx-fog" aria-hidden="true"></div>
-        {{/* ★ 静态光束贴图和"三条光带"都删了(用户:"静态光束更丑了")—— 水下光改用雾的呼吸表达 */}}
-        {{/* ★ 涟漪:SVG 湍流 + 位移(真实折射感),用 animate 慢慢漂 */}}
-        <svg class="fx-ripple" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
-            <filter id="gdRipple" x="-10%" y="-10%" width="120%" height="120%">
-                <feTurbulence type="fractalNoise" baseFrequency="0.008 0.016" numOctaves="2" seed="7" result="n">
-                    <animate attributeName="baseFrequency" dur="18s" values="0.008 0.016;0.012 0.022;0.008 0.016" repeatCount="indefinite" />
-                </feTurbulence>
-                <feDisplacementMap in="SourceGraphic" in2="n" scale="9" xChannelSelector="R" yChannelSelector="G" />
-            </filter>
-        </svg>
-        <div class="lost-lyric" id="gd-lyric"></div>
-        <div class="fx-smear" aria-hidden="true"></div>
-        {{/* ★★ 特效档位:我挑的配方连着被否三次("比修之前还丑,帧率还低")——
-             我截不到 WebGL 画面,审美和性能的取舍只能你来定。这里给一个能点的档位开关,
-             每档对应一组图层组合(见 pages.css 里的 .lost-stage.fx-0~3),HUD 上能看到 fps。 */}}
-        <button type="button" id="gd-fx" class="gd-tool gd-fx-btn" title="切换水下特效档位(0=全关 · 1=雾+近景 · 2=+涟漪 · 3=全开)">特效:1</button>
         <div class="lost-veil" aria-hidden="true"></div>
         <div id="gd-hud" class="lost-hud">方块 · 0%</div>
         <div class="lost-tip">按一下开始 · 空格 / ↑ = 跳(飞机按住上升)· R = 重来 · G = 无敌(已限制在预定轨道内,飞不出关卡走廊) · B = 看 bot 通关 · [ / ] 或 −/+ = 弹簧力度微调(测试用)</div>
@@ -60,4 +36,4 @@
         <a href="https://geometrydash.com/game" target="_blank" rel="noopener noreferrer">geometrydash.com/game</a>
     </p>
 </div>
-<script defer src="/assets/gd/gd.js?v=g28"></script>
+<script defer src="/assets/gd/gd.js?v=g29"></script>
