@@ -869,7 +869,11 @@ class Scene extends Phaser.Scene {
        等卷子到了,人和卷子已经错位,必然在 x≈100 前后摔死、然后无限重来。
        用户报的"只播放了几秒就结束了"就有它一份;而且它取决于网速/页面加载快慢,是典型的竞态。
        现在:没卷子就不动(按钮上显示"载入中…"),卷子到了再由 loadTape 从头开一局。 */
-    if (this.demoMode && !this.demoTape) return;
+    /* ★★ 2026-09 用户:"自动播放也给我删掉" ⇒ 演示卷/机器人输入每帧强制关闭,入口(键/URL)都不再生效 ✓
+       (原来是:if (this.demoMode && !this.demoTape) return; —— 演示/机器人输入会接管按键 ✗) */
+    this.demoMode = false;
+    this.botMode = false;
+    this.demoTape = [];
     for (let i = 0; i < n; i++) {
       const w0 = this.world;
       if (w0.dead) {
