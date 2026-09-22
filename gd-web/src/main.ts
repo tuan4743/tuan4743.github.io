@@ -845,7 +845,12 @@ class Scene extends Phaser.Scene {
          (_glow_ 依旧不画 ✓;_extra_ 是额外素材,不叠 ✓) */
       const layerNames = [name];
       for (const k of [2, 3]) {
-        const nk = name.replace(/_(\d+)\.png$/, '_' + k + '_$1.png');
+        /* ★ 帧号是【末尾三位】(_001),部件标记插在它前面:
+             player_348_001.png → player_348_2_001.png
+             robot_01_01_001.png → robot_01_01_2_001.png
+           我上一版写成 replace(/_(\d+)\.png$/, '_2_$1.png') ✗ —— 那会把 _001 换成 _2_001
+           并丢掉原来的 _001 ⇒ 永远找不到 _2_ 层 ✓✓(离线自证显示"7 个形态都只有 1 层" ✓) */
+        const nk = name.replace(/_(\d{3})\.png$/, '_' + k + '_$1.png');
         if (F[nk]) layerNames.push(nk);
       }
       {
