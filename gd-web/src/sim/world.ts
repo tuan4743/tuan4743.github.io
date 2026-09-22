@@ -175,6 +175,10 @@ export class World {
   dead = false; done = false; deadT = 0;
   attempts = 1;
   checkX = 0; checkY = 0; checkMode: Mode = 'cube'; checkSize = 1;
+  /** ★★ 存档点还要记【速度档】和【重力方向】:以前只记了形态和体积,
+   *  reset() 里又把 gdir/speedIdx 硬写成 1 ⇒ 在"快速档"或"反重力段"摔死后,
+   *  复活出来的是常速+正常重力 —— 同一段路完全对不上 ✗(用户:"存档点机制绝对是错的")。 */
+  checkSpeed = 1; checkGdir: 1 | -1 = 1;
   /** 最近一次跨过的形态门的中心 y(相机在飞行类形态里"钉视口"要用,原版口径) */
   portalY = 0;
   /** 这张铺面是不是"GD 导出的真实关卡"(决定事件物件用相交判还是跨 x 判,见 hitEvent) */
@@ -337,6 +341,7 @@ export class World {
     /* ★ 存档点初值 = 出生点。以前这里留着 (0,0):第一次摔死之后 respawn() 会把人放回
        y=0 —— 而这关的出生点在 y=10 的上一层,于是"复活在平台下面"(用户实测)。 */
     this.checkX = startX; this.checkY = startY; this.checkMode = 'cube'; this.checkSize = 1;
+  this.checkSpeed = this.speedIdx; this.checkGdir = this.gdir;   // ★ 出生档也一起记(reset 会用它)
     /* ---- 分组:给每个带 groups 的物件记一份"可动"记录,并把它的判定盒挂上去 ----
        ★ 一个物件挂几个盒子,这里就记几份(线框以前会展开成好几根杆)。
          现在线框的判定也回到"整格一个盒子",所以通常是一物一盒。 */
@@ -572,7 +577,10 @@ export class World {
     this.tick = 0;
     this.x = startX; this.y = startY; this.vy = 0; this.onGround = true;
     this.portalY = startY;
-    this.mode = mode; this.gdir = 1; this.speedIdx = 1;
+    this.mode = mode; this.gdir = this.checkGdir; this.speedIdx = this.checkSpeed;
+    /* ★★ 2026-09 修:以前这里写死 `gdir = 1; speedIdx = 1` ⇒
+       在"快速/更快档"或"反重力段"摔死后,复活出来的是常速 + 正常重力,整段节奏全错 ✗。
+       现在跟形态/体积一样,从存档点恢复 ✓(出生点的存档值就是这一关的初始档 ✓)。 */
     this.sizeMul = this.checkSize;      // 复活要恢复存档点时的体积(迷你/普通)
     this.dead = false; this.done = false; this.deadT = 0;
     this.pressFresh = false; this.prevHold = false; this.pressAux = false; this.tpFailed = false;
@@ -1255,6 +1263,7 @@ export class World {
       this.checkX = b.x0;
       this.checkY = this.y;                 // ★ 存档点记的是"人越过它时的位置"(原版口径)
       this.checkMode = this.mode; this.checkSize = this.sizeMul;
+      this.checkSpeed = this.speedIdx; this.checkGdir = this.gdir;   // ★ 速度档 + 重力方向一起存档
     }
 
     if (this.x >= this.level.length * U) { this.done = true; }
