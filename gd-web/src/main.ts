@@ -924,6 +924,22 @@ class Scene extends Phaser.Scene {
       /* ★ 无敌模式的"轨道上限":开着无敌时不许飞离规划走廊(见 clampToGuide) */
       this.clampToGuide();
       this.airT = w0.onGround ? 0 : this.airT + 1 / 60;
+      /* ★★ 2026-09 方块自转(用户口径 + 源码结构 runNormalRotation/updateRotation):
+           · 离地即转、空中匀速:每帧转 180° ÷ 一次标称跳的滞空 ⇒ 普通跳 180° ✓
+           · 落地:吸附到【最近】的 180° 倍数(不是"下一个" ✗ 会转出 360°;也不是回正到 0 ✗)
+         只用已存在的字段 spinLast(就地更新)—— 不新开方法调用 ✗(上次那样把游戏搞崩过) */
+      if (w0.mode === 'cube') {
+        if (w0.onGround) {
+          const nearest = Math.round(this.spinLast / Math.PI) * Math.PI;
+          this.spinLast += (nearest - this.spinLast) * 0.4;
+          if (Math.abs(nearest - this.spinLast) < 0.004) this.spinLast = nearest;
+        } else {
+          const nominal = 2 * P.jump / (P.gravity * Y_TIME_SCALE);   // 标称滞空(帧)
+          this.spinLast -= Math.PI / nominal;                        // 每帧 = 180°/标称滞空
+        }
+      } else {
+        this.spinLast = 0;
+      }
       if (this.botMode) {
         this.botStates.push(w0.state);
         if (w0.done && !this.fp) this.fp = fingerprint(this.botStates);
