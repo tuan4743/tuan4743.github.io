@@ -799,7 +799,17 @@ export class World {
          `this.x += this.vx * sY;` ⇒ 冲刺期间横向速度翻倍 ⇒ 观感就是"铺面流速变快" ✓✓。
          源码依据(PlayerObject::update 的 dash 分支):它【只】算纵向位移 v34 = v31 × m_dashY,
          横向那步 v38 = v31 是在公共路径统一做的 ⇒ 这里不能再推一次 ✗。 */
-      this.vy = Math.abs(this.vx) * dir.y;
+      /* ★★★ 2026-09 冲刺方向改用【原始旋转角的正切】(用户:"冲刺环的逻辑,全错")。
+         源码:`startDashing` 把环的旋转角换算成 m_dashX/m_dashY —— 那是一对【单位向量】✓,
+         于是纵向位移 = 水平位移 × (m_dashY / m_dashX) = dx × tan(角) ✓。
+         我们以前用的是 arrowDir(角) —— 那是给【紫色箭头】写的函数 ✗,里面有一句
+             sx = max(cos a, 0.7)      // "箭头不许往后指"
+         这个夹取会把【冲刺环】的斜率压扁 ✗(90° 的环本该是几乎垂直下扎,却被算成 1.43 而不是 ∞ ⇒ 斜着飘)✓✓
+         ⇒ 冲刺环必须走 tan,不走 arrowDir ✗。近垂直(|cos|→0)时把斜率夹在一个大值(±30)✓
+            —— 那就是"类瞬移"的垂直冲刺 ✓(横向照常推进,符合 v38 = v31 ✓) */
+      const aRad = (d.ang * Math.PI) / 180;
+      const slope = Math.max(-30, Math.min(30, -Math.tan(aRad)));
+      this.vy = Math.abs(this.vx) * slope;
       this.y += this.vy * (sY / Y_TIME_SCALE);
       /* ★★ 2026-09 恢复时长上限(上一轮我删掉它是错的 ✗):用户实测"纵向冲刺像是把铺面流速加快了"
          ⇒ 就是【冲刺永不结束】的表现:按住不放就一直冲 ✗。
@@ -1226,6 +1236,10 @@ export class World {
              ★ 够不到面时【不消耗】这个箭头:这一次按键留在身上,人再飘几帧还会再试。 */
           this.spiderJump(P.tpReach, true);
           if (this.tpFailed) { this.pressFresh = true; this.pressAux = false; break; }
+          /* ★★ 2026-09 用户:"紫冲刺环不会反转重力" —— 3004 的语义是【瞬移到头顶 + 翻重力】,
+             我们以前只做了瞬移 ✗。这里补上翻重力,并把纵向速度清零(避免翻完立刻往回飞)。 */
+          this.gdir = this.gdir === 1 ? -1 : 1;
+          this.vy = 0;
         } else {
           this.dash = { ang: b.o.rot ?? 0, kind: b.o.arrow ?? 'green', t: 0 };
           if (b.o.arrow === 'pink' && this.mode === 'cube') this.gdir = -this.gdir;
