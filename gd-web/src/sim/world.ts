@@ -785,10 +785,14 @@ export class World {
       this.y += this.vy * sY;
       if (this.y < 0 || this.y + this.box > this.rows * U) { this.die(); return; }
     } else if (this.mode === 'wave') {
-      /* 波浪:垂直速度【每步直接赋值】= ±水平速度 → 永远 45°(反编译口径,y 轴不夹)
-         —— 这形态没有重力,按住就往上、松开就往下。 */
-      this.vy = (hold ? 1 : -1) * this.vx;
-      this.y += this.vy * sY;
+      /* ★★ 2026-09 按 PlayerObject::update 的 Dart 分支修(用户贴的反编译):
+             v31 = getCurrentXVelocity(a1) * a2;              // 本帧【水平位移】,不乘 0.9
+             v33 = fabs(v31) * flipMod(a1);  v32 = m_jumpBuffered ? 1 : -1;  v34 = v33 * v32;
+             if (m_vehicleSize != 1.0) v34 += v34;            // 迷你翻倍
+         即:纵向位移 = ±水平位移(严格 45°),**不经过 y 轴那个 ×0.9**(以前我们走 sY ⇒ 斜率 42° ✗)。
+         vy 这个字段仍旧记 ±vx(迷你/反重力时带上符号),这样别处读 vy 的语义不变 ✓ */
+      this.vy = (hold ? 1 : -1) * this.vx * this.gdir * (this.mini ? 2 : 1);
+      this.y += this.vy * (sY / Y_TIME_SCALE);
       if (this.y < 0 || this.y + this.box > this.rows * U) { this.die(); return; }
     } else if (this.mode === 'ufo') {
       /* UFO:照 OpenGD —— 点一下是【赋值】:newVel = flipMod × (迷你?8:7) × 体积;
