@@ -1261,10 +1261,10 @@ export class World {
           this.vy = 0;
         } else {
           this.dash = { ang: b.o.rot ?? 0, kind: b.o.arrow ?? 'green', t: 0 };
-          /* ★★ 2026-09 用户:"紫箭头为什么不改变重力方向?" ⇒ 紫色 = 冲刺 + 【翻重力】✓
-             (粉色只在方块形态下翻 ✓,紫色无条件翻 ✓) */
-          if (b.o.arrow === 'purple') this.gdir = this.gdir === 1 ? -1 : 1;
-          if (b.o.arrow === 'pink' && this.mode === 'cube') this.gdir = -this.gdir;
+          /* ★★ 2026-09 冲刺箭头:粉色翻重力(用户口径"紫/粉色冲刺环不会反转重力")
+             —— 以前限定了 mode==='cube' 才翻 ✗,现在【无条件翻】✓;
+             紫色(3004)是【瞬移箭头】✓,走上面的 tp 分支,跟这条无关 ✓ */
+          if (b.o.arrow === 'pink') this.gdir = -this.gdir;
         }
         this.armedArrows.add(b);
         break;
