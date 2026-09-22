@@ -863,7 +863,8 @@ class Scene extends Phaser.Scene {
     } else if (w.mode === 'ball') {
       rot = (w.x / U) * 1.2;
     } else if (w.mode === 'wave') {
-      rot = (w.vy >= 0 ? 1 : -1) * Math.PI / 4;
+      /* ★ 2026-09 角度表暴露的问题:原来 vy==0 时也画成 +45° ✗(落地/水平时应该是平的)✓ */
+      rot = w.onGround ? 0 : (w.vy >= 0 ? 1 : -1) * Math.PI / 4;
     } else if (w.mode === 'ufo') {
       rot = Math.max(-0.3, Math.min(0.3, w.vy / P.flyUpMax * 0.3));
     }
