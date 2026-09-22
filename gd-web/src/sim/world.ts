@@ -780,6 +780,11 @@ export class World {
       const d = this.dash;
       d.t += FRAME / 4;
       const dir = arrowDir(d.ang);
+      /* ★★ 2026-09 实测验出来的大 bug(按住不放逐帧打印):冲刺期间 dx=0.000 / dy=0.000
+         ⇒ 人【原地冻住】✗ —— 因为这一支只写了纵向,把【横向位移】整个吃掉了 ✗。
+         原版(PlayerObject::update 的 dash 分支):横向照常走(v38 = v31),
+         纵向 = 水平位移 × m_dashY ⇒ 冲刺期间必须【同时】推 x 和 y ✓。 */
+      this.x += this.vx * sY;
       this.vy = Math.abs(this.vx) * dir.y;
       this.y += this.vy * (sY / Y_TIME_SCALE);      // ★ 不带 0.9 的步长
       if (d.t > 0.5 || !hold) this.dash = null;
