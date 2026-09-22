@@ -831,8 +831,8 @@ class Scene extends Phaser.Scene {
     }
     let rot = 0;
     if (w.mode === 'cube') {
-      /* ★ 落地吸平(见下面矢量那条的说明):原版落地不应残留旋转角 ✓ */
-      rot = w.onGround ? 0 : (this.airT / (2 * P.jump / (P.gravity * Y_TIME_SCALE) / 60)) * (Math.PI / 2);
+      /* ★ 落地吸平 + 方向取负号(见下面矢量那条的说明) */
+      rot = w.onGround ? 0 : -(this.airT / (2 * P.jump / (P.gravity * Y_TIME_SCALE) / 60)) * (Math.PI / 2);
     } else if (w.mode === 'ship') {
       rot = Math.max(-0.55, Math.min(0.55, w.vy / P.shipVyMax * 0.55));
     } else if (w.mode === 'ball') {
@@ -1777,7 +1777,10 @@ class Scene extends Phaser.Scene {
       /* ★★ 2026-09 用户口径(原版):"原版大跳旋转 180°,会根据位置决定下落是否旋转,
        使得不会出现落到平台上还存在旋转角的情况" ⇒ 落地必须是【趴平】的(0° / 90° 的整数倍)✓。
        所以:一落地就把角度吸到 0(方块永远平着落)✓ —— 这是我们以前完全没有的一步 ✗。 */
-    const spin = w.onGround ? 0 : (this.airT / (2 * P.jump / (P.gravity * Y_TIME_SCALE) / 60)) * (Math.PI / 2);
+    /* ★★ 2026-09 方向:用户实测"旋转方向也是错的" ⇒ 现在这里取【负号】。
+       原因:我们的绘图空间 y 是翻转的(见 Y()),正角度在屏幕上看是【逆时针】✗,
+       而方块向右跑时应该【顺时针】转 ✓。 */
+    const spin = w.onGround ? 0 : -(this.airT / (2 * P.jump / (P.gravity * Y_TIME_SCALE) / 60)) * (Math.PI / 2);
       const s = Math.sin(spin), c = Math.cos(spin);
       const pts: Array<[number, number]> = [[-B / 2, -B / 2], [B / 2, -B / 2], [B / 2, B / 2], [-B / 2, B / 2]];
       g.fillStyle(w.dead ? 0xff9a6b : 0xe2f6ff, 0.96);
