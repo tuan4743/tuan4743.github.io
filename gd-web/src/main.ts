@@ -1736,7 +1736,11 @@ class Scene extends Phaser.Scene {
     /* ★ 图集就绪就用真图标(见 buildIcons);没就绪/加载失败时走下面这套矢量兜底。
        注意图标用的是绘图空间坐标(和 Graphics 一样,y 走 Y() 翻转),所以这里给它 Y(cyw) */
     if (this.iconsReady) this.drawIconPlayer(w, cxw, Y(cyw), B);
-    if (this.iconsReady) { /* 图标已经画了,矢量那套跳过 */ } else if (w.mode === 'ship') {
+    /* ★★ 2026-09 修"cube 根本没有贴图"(我上一轮引入的 ✗):
+       drawIconPlayer 在没有该形态图层时会直接 return ⇒ 而这里只要 iconsReady 就跳过矢量 ✗
+       ⇒ cube(图集尺寸不符被跳过)两边都不画 = 【什么都看不见】✓✓
+       改成:只有【这个形态真的有图层】才跳过矢量 ✓,否则照常走矢量 ✓ */
+    if (this.iconsReady && this.iconLayers.some((l) => l.mode === w.mode)) { /* 图标已经画了,矢量那套跳过 */ } else if (w.mode === 'ship') {
       /* 手动画三角:Phaser 4 里没有 Phaser.Geom.Point(v3 的写法会直接抛错) */
       const rot = Math.max(-0.55, Math.min(0.55, w.vy / P.shipVyMax * 0.55));
       const s = Math.sin(rot), c = Math.cos(rot);
