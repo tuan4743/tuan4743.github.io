@@ -512,6 +512,35 @@ class Scene extends Phaser.Scene {
     /* ★★ 2026-09 用户:"把按键,提示全删掉,按b还是有反应" ⇒ 只保留跳跃键(SPACE/↑/W)✓
        删掉 R(重开) / G(无敌,已停用) / B(演示·机器人)—— 这三个是调试入口 ✓ */
     this.keys = this.input.keyboard!.addKeys('SPACE,UP,W') as Record<string, Phaser.Input.Keyboard.Key>;
+    /* ★★ 2026-09 用户:"单次测试游戏耗时太长" ⇒ 加【URL 传送参数】,不用从头玩 ✓
+         ?from=2500    从 x=2500 开始(自动取该 x 之前【最近的存档点】状态,再把人放过去 ✓)
+         ?cp=3         直接跳到第 3 个存档点 ✓
+         ?mode=ball    指定初始形态(cube/ship/ball/ufo/wave/robot/spider)✓
+         ?spd=4        指定速度档 0~4 ✓
+       三个开关都【不产生任何界面元素】✓(和你要求的"页面不留东西"不冲突 ✓)*/
+    {
+      const w = this.world;
+      const chks = (w.level.objects as Array<Record<string, unknown>>)
+        .filter((o) => o.kind === 'check').sort((a, b) => (a.b as number) - (b.b as number));
+      const q = (k: string) => new RegExp('(^|[?&])' + k + '=([^&]+)').exec(location.search);
+      const cpQ = q('cp'), fromQ = q('from'), modeQ = q('mode'), spdQ = q('spd');
+      let pick: Record<string, unknown> | null = null;
+      if (cpQ) pick = chks[Math.max(0, Math.min(chks.length - 1, Number(cpQ[2]) - 1))] ?? null;
+      else if (fromQ) {
+        const x = Number(fromQ[2]);
+        for (const c of chks) if ((c.b as number) <= x) pick = c;
+      }
+      const mode = (modeQ ? String(modeQ[2]) : 'cube') as Mode;
+      if (pick || modeQ || spdQ) {
+        const px = pick ? ((pick.b as number) + 0.5) * U : w.x;
+        const py = pick ? ((pick.r as number) + 0.5) * U - 15 : w.y;
+        w.checkX = px; w.checkY = py; w.checkMode = mode;   // 存档点不记录形态 ⇒ 用 ?mode= 指定的(默认 cube ✓)
+        w.checkSpeed = spdQ ? Number(spdQ[2]) : w.speedIdx;
+        w.checkGdir = 1; w.checkSize = 1;
+        w.reset(px, mode, py);
+        w.god = false;
+      }
+    }
     /* ★ 无敌模式:页面按 G 切;也可以开局就用 URL 打开(?god=1),验收脚本直接改 __gd.world.god */
     this.godWanted = /(^|[?&])god=1(&|$)/.test(location.search);
     this.world.god = false;   /* ★ 2026-09 用户:"把无敌模式直接给我删掉" ⇒ 恒为 false,开关不再生效 */
