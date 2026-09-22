@@ -1,12 +1,12 @@
-﻿/* 娓叉煋灞?Phaser 4 鍙仛"鐢?鍜?鏀惰緭鍏?,鎵€鏈夊垽瀹氶兘鏉ヨ嚜 sim/銆?
- * 椋庢牸:鏈珯鐨?holo / 鏄剧ず鍣ㄨ瑷€ 鈥斺€?娣卞簳銆侀潚鑹叉弿杈广€佺粏缃戞牸銆佸彂鍏夊渾鐜€佺瓑瀹藉瓧銆?
+/* 渲染层:Phaser 4 只做"画"和"收输入",所有判定都来自 sim/。
+ * 风格:本站的 holo / 显示器语言 —— 深底、青色描边、细网格、发光圆环、等宽字。
  *
- * 杩欎竴鐗堜慨鐨勪笁浠跺ぇ浜?閮芥槸鐢ㄦ埛瀹炴祴鍙嶉):
- *   鈶?銆愪笂涓嬬炕杞€戜笘鐣屽潗鏍?y 鍚戜笂,鑰?Phaser 鐩告満 y 鍚戜笅 鈥斺€?鎵€鏈?y 鐜板湪缁熶竴杩?Y() 杞崲,
- *      浜庢槸"涓嬭惤"鐪嬬潃鏄笅钀姐€佸皷鍒烘湞涓娿€佸湴闈㈠湪搴曢儴;
- *   鈶?銆愪竴灞忓楂樸€戝師鐗堝彛寰勬槸涓€灞?10 鏍奸珮(VIEW_H_BLOCKS),绾靛悜闈犺窡闅忛暅澶寸湅;
- *   鈶?銆愭寜鎷嶅瓙璧般€戦摵闈㈡槸鎸?onset 鏀剧殑,鎵€浠ョ敾闈㈢殑鏃堕棿杞淬€愮敱闊充箰椹卞姩銆?
- *      姣忓抚璇?audio.currentTime,妯℃嫙鎺ㄨ繘鍒板搴旂殑閭ｄ竴甯?澶嶆椿鏃舵妸闊充箰 seek 鍒板瓨妗ｇ偣鐨勬椂闂淬€?
+ * 这一版修的三件大事(都是用户实测反馈):
+ *   ① 【上下翻转】世界坐标 y 向上,而 Phaser 相机 y 向下 —— 所有 y 现在统一过 Y() 转换,
+ *      于是"下落"看着是下落、尖刺朝上、地面在底部;
+ *   ② 【一屏多高】原版口径是一屏 10 格高(VIEW_H_BLOCKS),纵向靠跟随镜头看;
+ *   ③ 【按拍子走】铺面是按 onset 放的,所以画面的时间轴【由音乐驱动】:
+ *      每帧读 audio.currentTime,模拟推进到对应的那一帧;复活时把音乐 seek 到存档点的时间。
  */
 
 import Phaser from 'phaser';
@@ -18,67 +18,67 @@ import { P, U, Y_TIME_SCALE } from './sim/constants.ts';
 import { WATER_CHART } from './sim/charts/water.ts';
 
 const HL = '#7ff0ff';
-/* 姣忔涓€涓己璋冭壊:缃戞牸銆佸湴闈€侀棬鐨勯鑹查兘璺熺潃璧?涓€鐪肩煡閬撹窇鍒扮鍑犳 */
+/* 每段一个强调色:网格、地面、门的颜色都跟着走,一眼知道跑到第几段 */
 const PAL = [0x7ff0ff, 0xffe17a, 0xa0ffd0, 0xc6a0ff, 0xff9fd0];
 const HLD = 0x7ff0ff;
 const WARN = 0xff9a6b;
-/** 瑙嗗彛楂樺害(鍧?銆傗槄 鍘熺増鍙ｅ緞:璁捐鍒嗚鲸鐜?480脳320銆? 鍧?= 30 鍗曚綅 鈫?10.67 鏍?
- *  鐢ㄦ埛鍦ㄥ師鐗堥噷鏁板埌鐨勬槸 11 鏍?鍙栨暣),鎵€浠ヨ繖閲屾寜 11 鏉?鈥斺€?涓€灞忚嚦灏戝埆姣斿師鐗堝皯銆?*/
+/** 视口高度(块)。★ 原版口径:设计分辨率 480×320、1 块 = 30 单位 → 10.67 格;
+ *  用户在原版里数到的是 11 格(取整),所以这里按 11 来 —— 一屏至少别比原版少。 */
 const VIEW_H_BLOCKS = 11;
-/** 娓叉煋鍒嗚鲸鐜囩郴鏁?缂撳啿楂樺害 = 720 脳 杩欎釜鍊?缂撳啿瀹藉害鐢辩洅瀛愮殑闀垮姣旀帹鍑烘潵)銆?
- *  1.0 = 涓嶉檷鐢昏川;璋冨皬鍙互灏戠敾鐐瑰儚绱犳崲甯х巼(鏂瑰潡鍦ㄥ睆骞曚笂杩樻槸涓€鏍峰ぇ,鍙槸鐣ヨ蒋)銆?*/
+/** 渲染分辨率系数:缓冲高度 = 720 × 这个值(缓冲宽度由盒子的长宽比推出来)。
+ *  1.0 = 不降画质;调小可以少画点像素换帧率(方块在屏幕上还是一样大,只是略软)。 */
 const RENDER_SCALE = 1;
-/** 娓叉煋缂撳啿鐨勫儚绱犱笂闄?瀹矫楅珮):瓒呰繃灏辩瓑姣旂缉涓€妗ｃ€?
- *  1280脳720 鈮?92 涓?杩欓噷缁欏埌 115 涓?鈥斺€?甯歌绐楀彛鐢ㄤ笉鍒?
- *  浣嗙洅瀛愮壒鍒鏃?鏄剧ず鍣ㄨ创鍥炬槸琚媺浼稿～婊¤鍙ｇ殑,瀹藉睆姣斾緥鑳藉埌 2.4:1)鑳藉厹浣忓抚鐜囥€?*/
+/** 渲染缓冲的像素上限(宽×高):超过就等比缩一档。
+ *  1280×720 ≈ 92 万,这里给到 115 万 —— 常规窗口用不到,
+ *  但盒子特别宽时(显示器贴图是被拉伸填满视口的,宽屏比例能到 2.4:1)能兜住帧率。 */
 const BUF_BUDGET = 1_150_000;
-/** 缁樺埗瑁佸壀鐨勪綑閲?鍗曚綅):瑙﹀彂鍣ㄤ細鎺ㄧ墿浠?绮楃瓫鏃剁暀鍑轰竴鍧?
- *  鍏嶅緱"灞忓箷澶栨琚帹杩涙潵"鐨勪笢瑗胯鎻愬墠鍓旀帀銆?*/
+/** 绘制裁剪的余量(单位):触发器会推物件,粗筛时留出一块,
+ *  免得"屏幕外正被推进来"的东西被提前剔掉。 */
 const CULL_MARGIN = 24 * 30;
-/* 鐩告満绾靛悜鐨勫師鐗堝父閲?鍗曚綅銆佹湞涓?鍑鸿嚜 OpenGD 鐨?PlayLayer::updateCamera 鈥斺€?鐢ㄦ埛瑕佹眰鐓ф惉):
- *   鏂瑰潡褰㈡€?浜鸿鍥板湪瑙嗛噹閲岀殑涓€鏉″甫瀛愰噷 鈥斺€?涓嬫部(cam + unk3)銆佷笂娌?cam + 灞忓箷楂?鈭?unk2),
- *             鍙湁瓒婂嚭杩欐潯甯﹀瓙鐩告満鎵嶅姩,涓€鍔ㄥ氨鎶婁汉璐村洖甯﹀瓙杈圭紭;
- *   璺戝湪銆愬湴闈€?涓嶆槸鏂瑰潡)涓婃椂:鐩告満鍥炶惤鍒板湴闈㈤珮搴?cam.y = 0 鈫?瑙嗛噹涓嬭竟 = 鈭?0 鍗曚綅);
- *   椋炶绫?/ 鐞?杩涢棬閭ｄ竴鍒绘妸瑙嗗彛涓績閽夋(m_fCameraYCenter)銆?*/
-const CAM_LOW = 90;                       // 涓婃部浣欓噺 3 鏍?
-const CAM_MID = 120;                      // 涓嬫部浣欓噺 4 鏍?
-const CAM_GROUND_BOTTOM = -90;            // 绔欏湪鍦伴潰涓?瑙嗛噹涓嬭竟(鍦伴潰涔嬩笂 3 鏍?
-const CAM_FLY_BELOW = 180;                // 杩涢棬鏃剁畻"浣庣┖"鐨勯槇鍊?6 鏍?
-const CAM_FLY_CENTER = 150;               // 浣庣┖杩涢棬 鈫?瑙嗗彛涓績鍥哄畾鍦?5 鏍?
+/* 相机纵向的原版常量(单位、朝上;出自 OpenGD 的 PlayLayer::updateCamera —— 用户要求照搬):
+ *   方块形态:人被困在视野里的一条带子里 —— 下沿(cam + unk3)、上沿(cam + 屏幕高 − unk2),
+ *             只有越出这条带子相机才动,一动就把人贴回带子边缘;
+ *   跑在【地面】(不是方块)上时:相机回落到地面高度(cam.y = 0 → 视野下边 = −90 单位);
+ *   飞行类 / 球:进门那一刻把视口中心钉死(m_fCameraYCenter)。 */
+const CAM_LOW = 90;                       // 上沿余量 3 格
+const CAM_MID = 120;                      // 下沿余量 4 格
+const CAM_GROUND_BOTTOM = -90;            // 站在地面上:视野下边(地面之上 3 格)
+const CAM_FLY_BELOW = 180;                // 进门时算"低空"的阈值(6 格)
+const CAM_FLY_CENTER = 150;               // 低空进门 → 视口中心固定在 5 格
 const CAM_BALL_BELOW = 150;
 const CAM_BALL_CENTER = 120;
-/** 瑙嗗彛銆愰拤姝汇€戠殑褰㈡€?鍘熺増:闄ゆ柟鍧楀閮藉浐瀹?鐢ㄦ埛鐐瑰悕 Wave/UFO 灏辨槸杩欐牱)銆?
- *  鈽?鏈哄櫒浜?/ 铚樿洓:OpenGD 娌＄粰瀹冧滑璁句腑蹇?娌跨敤涓婁竴涓€?,浣嗙敤鎴烽偅鍏宠繖涓ゆ瑕佺旱鐖?5~16 鏍?
- *    閽夋浼氭妸浜烘媿鍑虹敾澶?鈥斺€?鎵€浠ヨ繖涓ょ鎸夋柟鍧楄窡闅忋€傝繖涓よ鏄垜浠嚜宸卞畾鐨?宸插啓杩涙枃妗ｃ€?*/
+/** 视口【钉死】的形态(原版:除方块外都固定;用户点名 Wave/UFO 就是这样)。
+ *  ★ 机器人 / 蜘蛛:OpenGD 没给它们设中心(沿用上一个值),但用户那关这两段要纵爬 5~16 格,
+ *    钉死会把人拍出画外 —— 所以这两种按方块跟随。这两行是我们自己定的,已写进文档。 */
 const CAM_FIXED_MODES = new Set(['ship', 'ufo', 'wave', 'ball']);
 
-/* ---------------- 鈽?褰㈡€佽创鍥?static/icons)----------------
- * 鈽呪槄 缁撹(2026-09 瀹炴祴,鍐欑粰浠ュ悗鐨勪汉):
- *   杩欏鍥鹃泦鏄€愮湡路GD 鐜╁鍥鹃泦銆?浣嗗畠鏄?*鎸夐儴浠舵媶寮€**鐨?鈥斺€?鍚屼竴褰㈡€佺殑 `_2_`(绗簩鑹?銆乣_extra_`(纰庣偣)銆?
- *   `_glow_`(鎻忚竟)浠ュ強 02/03/04 閭ｅ嚑甯?鑵?鐪肩潧/闈㈢僵鈥?**鐢诲竷灏哄鍚勪笉鐩稿悓**,闈?`spriteOffset` 瀵归綈;
- *   瑕佹嫾鍑轰竴涓纭殑褰㈡€?闇€瑕?GD 鐨?*閮ㄤ欢鍚堟垚琛?*(鍝簺閮ㄤ欢鍙犲湪涓€璧枫€佸摢鍑犲抚鏄姩鐢?,鎴戜滑娌℃湁銆?
- *   瀹炴祴鎶?甯у彿杞挱"褰撳姩鐢?= 涓€浼氬効鍙湁鑵裤€佷竴浼氬効鍙湁鐪肩潧(鐢ㄦ埛鎶ョ殑"spider鐨勮创鍥炬槸涔辩殑"灏辨槸杩欎釜),
- *   鑰?鍙栨渶澶х殑涓€甯у綋鏁村彧瑙掕壊"涔熶笉琛?spider 鎷垮埌鐨勬槸韬綋銆乺obot 鎷垮埌鐨勬槸闈㈢僵)銆?
- *   鈬?榛樿**涓嶅惎鐢?*鍥鹃泦,鐜╁浠嶆棫璧扮煝閲忕敾娉?鑷冲皯褰㈢姸鏄鐨?;鎯宠瘯鍥鹃泦灏卞姞 `?icons=1`銆?
- *   鍙﹀杩欏绱犳潗鏈夈€愪袱澶勬枃浠堕敊閰嶃€?瀹炴祴鎸?plist 閲岀殑 metadata.size 瀵瑰嚭鏉ョ殑):
- *     路 cube.png(208脳252) 涓?cube.plist(澹版槑 252脳244)瀵逛笉涓?鈥斺€?搴旇鎹㈠洖閰嶅鐨勯偅寮?
- *     路 GameSheet.png(3091脳2048) 涓?GameSheet.plist(澹版槑 3081脳2048)瀵逛笉涓?
- *       鑰?GameSheet_old.png(3081脳2048)姝ｅソ瀵瑰緱涓?鈬?瑕佺敤鐗╀欢鍥鹃泦璇风敤 old 閭ｅ紶(鎴栭噸鏂板鍑?銆?
- *   涓嬮潰鐨勫姞杞藉櫒浼氳嚜鍔ㄦ寫"灏哄涓?plist 澹版槑涓€鑷?鐨勯偅寮?png,鎸戜笉鍒板氨璺宠繃(涓嶄細鐢诲嚭閿欎綅鐨勫浘)銆?*/
+/* ---------------- ★ 形态贴图(static/icons)----------------
+ * ★★ 结论(2026-09 实测,写给以后的人):
+ *   这套图集是【真·GD 玩家图集】,但它是**按部件拆开**的 —— 同一形态的 `_2_`(第二色)、`_extra_`(碎点)、
+ *   `_glow_`(描边)以及 02/03/04 那几帧(腿/眼睛/面罩…)**画布尺寸各不相同**,靠 `spriteOffset` 对齐;
+ *   要拼出一个正确的形态,需要 GD 的**部件合成表**(哪些部件叠在一起、哪几帧是动画),我们没有。
+ *   实测把"帧号轮播"当动画 = 一会儿只有腿、一会儿只有眼睛(用户报的"spider的贴图是乱的"就是这个),
+ *   而"取最大的一帧当整只角色"也不行(spider 拿到的是身体、robot 拿到的是面罩)。
+ *   ⇒ 默认**不启用**图集,玩家仍旧走矢量画法(至少形状是对的);想试图集就加 `?icons=1`。
+ *   另外这套素材有【两处文件错配】(实测按 plist 里的 metadata.size 对出来的):
+ *     · cube.png(208×252) 与 cube.plist(声明 252×244)对不上 —— 应该换回配套的那张;
+ *     · GameSheet.png(3091×2048) 与 GameSheet.plist(声明 3081×2048)对不上,
+ *       而 GameSheet_old.png(3081×2048)正好对得上 ⇒ 要用物件图集请用 old 那张(或重新导出)。
+ *   下面的加载器会自动挑"尺寸与 plist 声明一致"的那张 png,挑不到就跳过(不会画出错位的图)。 */
 const ICON_ENABLED = /(^|[?&])icons=1(&|$)/.test(location.search);
-/** 鈽呪槄 鐗╀欢璐村浘:2026-09 鐢ㄦ埛瀹炴祴"鍏ㄦ槸閿欒璐村浘",**榛樿鍏虫帀**,鍥炲埌鐭㈤噺鐢绘硶銆?
- *  涓轰粈涔堥敊:GD 鐨勭墿浠剁編鏈槸銆愮浠?+ 杩愯鏃舵寜浠ｇ爜鍧愭爣鎷艰銆戠殑 鈥斺€?
- *    路 褰㈡€侀棬 = portalshine + back + extra + extra_2 + front 浜斿眰,灞備笌灞傜殑鐩稿浣嶇疆鍦?exe 閲屽啓姝?
- *    路 璺崇幆 = 鐧芥ā + 杩愯鏃舵煋鑹?鍗曠湅搴曞浘鍒嗕笉鍑烘槸鍝釜鐜?;
- *    路 鐮栧潡 block001_01..07 = 鎸夐偦灞呰嚜鍔ㄦ嫾鎺ョ殑 7 鍧?鍝潡瀵瑰簲鍝潯杈?plist 閲屾病鏈?;
- *  鑰?plist 鍙粰"姣忓潡澶氬ぇ銆佸湪鍥鹃泦鍝効",涓嶇粰"鎽嗗湪鍝? 鈬?鎴戞寜"鍚勮嚜鐢诲竷涓績瀵归綈"鎷煎嚭鏉ョ殑鍏ㄦ槸閿欎綅纰庣墖銆?
- *  鎵€浠?榛樿**涓嶅姞杞?*杩欏紶鍥鹃泦(鐪?121 KB),瑕佺爺绌跺氨鍔?`?art=1`(浠ｇ爜淇濈暀,鍒啀褰撻粯璁?銆?*/
+/** ★★ 物件贴图:2026-09 用户实测"全是错误贴图",**默认关掉**,回到矢量画法。
+ *  为什么错:GD 的物件美术是【碎件 + 运行时按代码坐标拼装】的 ——
+ *    · 形态门 = portalshine + back + extra + extra_2 + front 五层,层与层的相对位置在 exe 里写死;
+ *    · 跳环 = 白模 + 运行时染色(单看底图分不出是哪个环);
+ *    · 砖块 block001_01..07 = 按邻居自动拼接的 7 块(哪块对应哪条边,plist 里没有);
+ *  而 plist 只给"每块多大、在图集哪儿",不给"摆在哪" ⇒ 我按"各自画布中心对齐"拼出来的全是错位碎片。
+ *  所以:默认**不加载**这张图集(省 121 KB),要研究就加 `?art=1`(代码保留,别再当默认)。 */
 const ART_ENABLED = /(^|[?&])art=1(&|$)/.test(location.search);
-/** 鈽呪槄 鏃犳晫妯″紡鐨?杞ㄩ亾涓婇檺"(鐢ㄦ埛鍙ｅ緞:"缁欐棤鏁屾ā寮忓姞涓笂闄?涓嶅厑璁歌劚绂婚瀹氳建閬?)銆?
- *  涓轰粈涔?鏃犳晫鏈韩瑙ｅ喅涓嶄簡"浜哄崱鍑哄/椋炲埌澶╀笂"鈥斺€?浠ュ墠鍙创浣忓叧鍗¤竟鐣?0 ~ 127 鏍?,
- *  浜庢槸寮€浜嗘棤鏁屽氨鑳戒竴璺鍒?y=110 鎶婃暣鍏崇粫杩囧幓,鐜╄捣鏉ュ畬鍏ㄤ笉鏄繖寮犲浘銆?
- *  鐜板湪:寮€鐫€鏃犳晫鏃?鎶婁汉澶瑰湪銆愯鍒掕蛋寤娿€?tools/plan.ts 绠楀嚭鏉ョ殑閭ｆ潯,y 瀹炴祴 9~18 鏍?卤BAND 鍧椾箣鍐?
- *  瓒呭嚭灏辨妸绾靛悜浣嶇疆鎷夊洖杈圭晫骞舵竻鎺夋湞澶栫殑閫熷害 鈥斺€?妯悜鐓ф棫鑷敱璧般€俙?band=12` 鍙互鏀惧銆?*/
+/** ★★ 无敌模式的"轨道上限"(用户口径:"给无敌模式加个上限,不允许脱离预定轨道")。
+ *  为什么:无敌本身解决不了"人卡出墙/飞到天上"—— 以前只贴住关卡边界(0 ~ 127 格),
+ *  于是开了无敌就能一路飞到 y=110 把整关绕过去,玩起来完全不是这张图。
+ *  现在:开着无敌时,把人夹在【规划走廊】(tools/plan.ts 算出来的那条,y 实测 9~18 格)±BAND 块之内,
+ *  超出就把纵向位置拉回边界并清掉朝外的速度 —— 横向照旧自由走。`?band=12` 可以放宽。 */
 const GUIDE_BAND = Math.max(1, Number(/(^|[?&])band=([\d.]+)/.exec(location.search)?.[2] ?? 6));
 const ICON_ATLAS: Array<{ mode: Mode; key: string; file: string }> = [
   { mode: 'cube', key: 'icon-cube', file: 'cube' },
@@ -90,8 +90,8 @@ const ICON_ATLAS: Array<{ mode: Mode; key: string; file: string }> = [
   { mode: 'spider', key: 'icon-spider', file: 'spider' },
 ];
 
-/** 瑙ｆ瀽 TexturePacker 鐨?.plist(XML)鈫?甯ц〃(鍚棆杞爣璁颁笌 spriteOffset)銆?
- *  涓轰粈涔堣鑷繁鍐?Phaser 4.2 鐨?`load.atlasXML` 鍙姞杞藉浘鐗囥€佷笉瑙ｆ瀽 plist(瑙?buildIcons 鐨勬敞閲?銆?*/
+/** 解析 TexturePacker 的 .plist(XML)→ 帧表(含旋转标记与 spriteOffset)。
+ *  为什么要自己写:Phaser 4.2 的 `load.atlasXML` 只加载图片、不解析 plist(见 buildIcons 的注释)。 */
 function parsePlistFrames(xml: string): Record<string, {
   frame: { x: number; y: number; w: number; h: number };
   rotated: boolean;
@@ -122,25 +122,25 @@ function parsePlistFrames(xml: string): Record<string, {
       frame: { x: +rect[1], y: +rect[2], w: +rect[3], h: +rect[4] },
       rotated: get('textureRotated') === 'true',
       sourceSize: { w: +(ss?.[1] ?? rect[3]), h: +(ss?.[2] ?? rect[4]) },
-      /* plist 鐨?spriteOffset 鏄?鐩稿鏈鍓綅鍥句腑蹇?鐨勫亸绉?y 杞存柟鍚戝拰 Phaser 鐩稿弽 */
+      /* plist 的 spriteOffset 是"相对未裁剪位图中心"的偏移,y 轴方向和 Phaser 相反 */
       spriteSourceSize: { x: +(off?.[1] ?? 0), y: -(+(off?.[2] ?? 0)), w: +rect[3], h: +rect[4] },
     };
   }
   return Object.keys(out).length ? out : null;
 }
 
-/** 浠庨〉闈笂鎸戣繖涓€灞€鐢ㄥ摢寮犻摵闈?window.__GD_CHART = 'gen' 鐢ㄨ€佺殑鑷姩閾洪潰,鍏跺畠鐢ㄧ湡瀹為摵闈?*/
+/** 从页面上挑这一局用哪张铺面:window.__GD_CHART = 'gen' 用老的自动铺面,其它用真实铺面 */
 function pickLevel(): Level {
   const want = (window as unknown as { __GD_CHART?: string }).__GD_CHART;
   if (want === 'gen') return generateLevel({ seed: 20260913 });
-  return WATER_CHART;                       // 绗笁寮犵洏:鐢ㄦ埛鑷繁閾虹殑 WATER
+  return WATER_CHART;                       // 第三张盘:用户自己铺的 WATER
 }
 const LEVEL: Level = pickLevel();
-/** 鐪熷疄鍏冲崱鐨?鍧?鈫?绉?鏃堕棿杞?瑙?Scene.tAtX 鐨勮鏄?:鎸夐€熷害闂ㄧН鍒?澶嶆椿鏃堕潬瀹冩妸闊充箰 seek 鍒颁綅 */
+/** 真实关卡的"块 → 秒"时间轴(见 Scene.tAtX 的说明):按速度门积分,复活时靠它把音乐 seek 到位 */
 const REAL_T_AXIS = makeRealTimeAxis(LEVEL);
 
-/* ---------------- 鈽?鍚勫舰鎬佺殑榛樿鍙岃壊(涓昏壊 / 绗簩鑹? ----------------
- *  GD 閲岀帺瀹跺浘鏍囨槸鍙岃壊鐨?`?icons=1` 璇曞浘闆嗘椂鎸夊畠涓婅壊,`?col1=RRGGBB&col2=RRGGBB` 鍙鐩栥€?*/
+/* ---------------- ★ 各形态的默认双色(主色 / 第二色) ----------------
+ *  GD 里玩家图标是双色的:`?icons=1` 试图集时按它上色,`?col1=RRGGBB&col2=RRGGBB` 可覆盖。 */
 const ICON_COL: Record<Mode, [number, number]> = {
   cube: [0x8ef7ff, 0x2f6bff],
   ship: [0xbdf3ff, 0x3f7cff],
@@ -151,55 +151,55 @@ const ICON_COL: Record<Mode, [number, number]> = {
   spider: [0xc9b6ff, 0x5a4bff],
 };
 
-/* 璺崇幆 / 寮圭哀鐨勯厤鑹?鍜屾父鎴忛噷鐨勫父璇嗕竴鑷?榛?璺?绮?灏忚烦,钃?缈婚噸鍔?缁?缈婚噸鍔?璺? */
+/* 跳环 / 弹簧的配色(和游戏里的常识一致:黄=跳,粉=小跳,蓝=翻重力,绿=翻重力+跳) */
 const ORB_COL: Record<string, number> = {
   yellow: 0xffe17a, pink: 0xff9fd0, red: 0xff8a8a, blue: 0x9fd8ff, green: 0xa0ffd0, black: 0xb9a7ff,
 };
 const PAD_COL: Record<string, number> = {
   yellow: 0xffe17a, pink: 0xff9fd0, red: 0xff8a8a, blue: 0x9fd8ff, purple: 0xc6a0ff,
 };
-/* 褰㈡€侀棬鐨勯鑹?鍜屽師鐗堝悇褰㈡€佺殑鍙ｅ緞瀵归綈:鏂瑰潡缁裤€侀鏈虹矇銆佺悆姗欍€乁FO 榛勩€佹尝娴潚銆佹満鍣ㄤ汉绱€佽湗铔涚伆钃?
-   鈥斺€?鐢ㄦ埛鎶?褰㈡€侀棬閮芥槸涓€涓牱寮?鎴戞€庝箞鐭ラ亾杩欎釜闂ㄦ槸浠€涔?,鎵€浠ラ鑹?+ 闂ㄤ笂鐨勫悕瀛楃墝瀛愪竴璧蜂笂銆?*/
+/* 形态门的颜色(和原版各形态的口径对齐:方块绿、飞机粉、球橙、UFO 黄、波浪青、机器人紫、蜘蛛灰蓝)
+   —— 用户报"形态门都是一个样式,我怎么知道这个门是什么",所以颜色 + 门上的名字牌子一起上。 */
 const PORTAL_COL: Record<string, number> = {
   cube: 0x7dffb0, ship: 0xff9fd0, ball: 0xffb066, ufo: 0xffe17a,
   wave: 0x7ff0ff, robot: 0xc6a0ff, spider: 0xa8c4ff,
 };
-/** 闂ㄦ灏哄(鍗曚綅)= 鍘熺増鍒ゅ畾鐩?34脳86 鈥斺€?鐢绘垚绔栨き鍦嗛棬,鍜屾挒涓婂幓鐨勮寖鍥翠竴鑷?*/
+/** 门框尺寸(单位)= 原版判定盒 34×86 —— 画成竖椭圆门,和撞上去的范围一致 */
 const PORTAL_W = 34, PORTAL_H = 86;
 
-/** 缁堟湯涔嬭瘲:閫氬叧涔嬪悗鍚戜笂婊氬姩鐨勬枃鏈€?
- *  鈽?鍐呭鐣欑櫧缁欑敤鎴峰～ 鈥斺€?涓€琛屼竴涓瓧绗︿覆,绌哄瓧绗︿覆 = 绌鸿(娈佃惤闂撮殧)銆?
- *    婊氬姩閫熷害鎸夎绠?鎸変綇绌烘牸(鎴栫偣浣忕敾闈?浼氬姞閫熴€?*/
+/** 终末之诗:通关之后向上滚动的文本。
+ *  ★ 内容留白给用户填 —— 一行一个字符串,空字符串 = 空行(段落间隔)。
+ *    滚动速度按行算,按住空格(或点住画面)会加速。 */
 const POEM: string[] = [
   '',
-  '(缁堟湯涔嬭瘲 路 鍐呭寰呭～)',
+  '(终末之诗 · 内容待填)',
   '',
-  '鎶婅鏀剧殑鏂囧瓧濉繘 src/main.ts 閲岀殑 POEM 鏁扮粍,',
-  '涓€琛屼竴涓瓧绗︿覆,绌哄瓧绗︿覆琛ㄧず绌鸿銆?,
+  '把要放的文字填进 src/main.ts 里的 POEM 数组,',
+  '一行一个字符串,空字符串表示空行。',
   '',
 ];
 
-/** 褰╄泲瑙ｉ攣鏍囪(localStorage):CD 椤甸潰闈犲畠鏄剧ず"鍒囨崲娓哥帺妯″紡"鎸夐挳 */
+/** 彩蛋解锁标记(localStorage):CD 页面靠它显示"切换游玩模式"按钮 */
 const EASTER_KEY = 'tuagfey-gd-easter';
-const POEM_SPEED = 26;      // 婊氬姩閫熷害(涓栫晫鍗曚綅/绉?绾︽瘡绉?0.7 琛?
-const POEM_LINE_H = 36;     // 涓€琛屽崰澶氶珮(鐢ㄦ潵鍒ゆ柇婊氬畬浜嗘病鏈?
+const POEM_SPEED = 26;      // 滚动速度(世界单位/秒,约每秒 0.7 行)
+const POEM_LINE_H = 36;     // 一行占多高(用来判断滚完了没有)
 
-/** 璋冭瘯鐢?鎸?1~7 鐜板満鎹㈠舰鎬?鏂逛究涓€涓釜璇曟墜鎰?1 鏂瑰潡 2 椋炴満 3 鐞?4 UFO 5 娉㈡氮 6 鏈哄櫒浜?7 铚樿洓) */
+/** 调试用:按 1~7 现场换形态,方便一个个试手感(1 方块 2 飞机 3 球 4 UFO 5 波浪 6 机器人 7 蜘蛛) */
 const MODE_ORDER: Mode[] = ['cube', 'ship', 'ball', 'ufo', 'wave', 'robot', 'spider'];
-/** HUD 閲岀殑褰㈡€佸悕 */
+/** HUD 里的形态名 */
 const MODE_NAME: Record<string, string> = {
-  cube: '鏂瑰潡', ship: '椋炴満', ball: '鐞?, ufo: 'UFO', wave: '娉㈡氮', robot: '鏈哄櫒浜?, spider: '铚樿洓',
+  cube: '方块', ship: '飞机', ball: '球', ufo: 'UFO', wave: '波浪', robot: '机器人', spider: '蜘蛛',
 };
 
-/** 褰撳墠鎵€鍦ㄦ钀界殑鍚嶅瓧(鍙槸缁?HUD 鐪嬬殑,涓嶅奖鍝嶅垽瀹? */
+/** 当前所在段落的名字(只是给 HUD 看的,不影响判定) */
 function segOf(x: number): string {
   const b = x / U;
   const sg = LEVEL.segments.find((s) => b >= s.from && b < s.to);
   return sg ? (sg.label || sg.mode) : '';
 }
 
-/** 鐣岄潰闃舵銆傗槄 浠ュ墠"浠讳綍鎸夐敭/鐐瑰嚮"閮戒細寮€璺?浜庢槸闈㈡澘涓€鍔犺浇銆佸姞杞藉姩鐢昏繕鍦ㄦ斁,娓告垙灏卞紑濮嬩簡 鈥斺€?
- *  鐜板湪鍙湁"鏄庣‘鐨勭‘璁ら敭(绌烘牸/涓?W)鎴栫偣鐢诲竷"鎵嶅紑濮?姝讳骸/閫氬叧涔熶細鍋滀笅鏉ョ瓑浜恒€?*/
+/** 界面阶段。★ 以前"任何按键/点击"都会开跑,于是面板一加载、加载动画还在放,游戏就开始了 ——
+ *  现在只有"明确的确认键(空格/上/W)或点画布"才开始,死亡/通关也会停下来等人。 */
 type Phase = 'idle' | 'running' | 'dead' | 'done' | 'poem';
 
 class Scene extends Phaser.Scene {
@@ -211,40 +211,40 @@ class Scene extends Phaser.Scene {
   fps = 0;
   fixed = false;
   camX = 0;
-  camY = 0;                        // (鏃у瓧娈?鐣欎綔鍏煎)
-  camInit = false;                 // 绗竴甯х洿鎺ヨ创鍒扮帺瀹惰韩涓?涓嶇劧寮€鍦轰細浠?0 婊戣繃鍘?
-  camWorldY = 0;                   // 鏈抚瀹為檯鐢ㄧ殑闀滃ご涓績(缁樺浘绌洪棿,澶瑰彇涔嬪悗)
-  camBottom = 0;                   // 瑙嗛噹銆愪笅杈广€戠殑涓栫晫 y(鍗曚綅)鈥斺€?鍘熺増鐩告満绠楃殑灏辨槸杩欎釜
-  camCenter = 0;                   // 瑙嗗彛涓績鐨勪笘鐣?y:椋炶绫昏繘闂ㄩ偅涓€鍒婚拤姝?m_fCameraYCenter)
-  camMode: Mode = 'cube';          // 涓婁竴甯х殑褰㈡€?鐢ㄦ潵鎶?鍒氳繘闂?閭ｄ竴鍒?
+  camY = 0;                        // (旧字段,留作兼容)
+  camInit = false;                 // 第一帧直接贴到玩家身上(不然开场会从 0 滑过去)
+  camWorldY = 0;                   // 本帧实际用的镜头中心(绘图空间,夹取之后)
+  camBottom = 0;                   // 视野【下边】的世界 y(单位)—— 原版相机算的就是这个
+  camCenter = 0;                   // 视口中心的世界 y:飞行类进门那一刻钉死(m_fCameraYCenter)
+  camMode: Mode = 'cube';          // 上一帧的形态:用来抓"刚进门"那一刻
   audio: HTMLAudioElement | null = null;
-  started = false;                  // 璧疯窇闂搁棬:鎸変簡纭閿墠寮€璺?
-  audioErr = '';                    // play() 澶辫触鐨勫師鍥?楠屾敹瑕佺湅)
+  started = false;                  // 起跑闸门:按了确认键才开跑
+  audioErr = '';                    // play() 失败的原因(验收要看)
   botStates: RunState[] = [];
   fp = '';
   botMode = false;
   botStarted = false;
-  /** 銆愮湅 bot 閫氬叧銆戞紨绀?鎶婃悳绱㈠嚭鏉ョ殑閫氬叧杈撳叆鍗峰師鏍峰杺缁欐ā鎷熴€?
-   *  鈽?涓轰粈涔堜笉鏄?鐜板満鎼?:杩欏紶鍥?3620 鍧?Node 渚х敤瀹忓姩浣滄渶浼樹紭鍏堟爲鎼滅储涔熻璺戜竴鍒嗛挓
-   *    (鏁版嵁鍦?tools/autoplay.ts 鐨勫ご娉ㄩ噴閲?,娴忚鍣ㄩ噷鐜版悳浼氬崱浣忛〉闈€?
-   *    鎵€浠ラ〉闈㈤噷鏀剧殑鏄偅涓€娆＄殑銆愯緭鍏ュ嵎銆戔€斺€斿畠鍜?Node 渚ч€愬抚鍚屾簮,鍥炴斁鎸囩汗涓€鑷?
-   *    (tools/verify-run.ts 姣忔閮介獙)銆傜帺瀹舵寜閿殢鏃跺彲浠ユ帴绠°€?*/
+  /** 【看 bot 通关】演示:把搜索出来的通关输入卷原样喂给模拟。
+   *  ★ 为什么不是"现场搜":这张图 3620 块,Node 侧用宏动作最优优先树搜索也要跑一分钟
+   *    (数据在 tools/autoplay.ts 的头注释里),浏览器里现搜会卡住页面。
+   *    所以页面里放的是那一次的【输入卷】——它和 Node 侧逐帧同源,回放指纹一致
+   *    (tools/verify-run.ts 每次都验)。玩家按键随时可以接管。 */
   demoMode = false;
-  /** 鎯冲紑婕旂ず(URL ?demo=1 鎴栨寜 B);鐪熸鐨勫垏鎹㈠彂鐢熷湪绗竴甯?update 閲?閭ｆ椂涓栫晫宸茬粡寤哄ソ) */
+  /** 想开演示(URL ?demo=1 或按 B);真正的切换发生在第一帧 update 里(那时世界已经建好) */
   demoWanted = false;
   demoTape: boolean[] | null = null;
   demoTried = false;
   demoLoaded = false;
   demoEndX = 0;
   demoErr = '';
-  /** 婕旂ず鍊嶉€?**鎸夌湡瀹炴椂闂?*蹇繘鐨勫€嶆暟(1 = 姝ｅ父閫熷害)銆?
-   *  鈽?2026-09 淇?浠ュ墠鏄?涓€甯ф覆鏌撴帹 N 甯х墿鐞? 鈥斺€?浜庢槸 144Hz/240Hz 灞忎笂浼氬揩 2.4~4 鍊?
-   *    鐢ㄦ埛鐪嬪埌鐨勫氨鏄?鏁翠綋鍏€嶉€熴€佸嚑绉掑氨鎾畬浜?(20086 甯х殑鍗峰瓙鍦?240Hz 涓?10 绉掕窇瀹?銆?
-   *    鐜板湪鎸?dt 绱Н:鏃犺灞忓箷澶氬皯甯?1 鍊嶉€熷氨鏄?334.8 绉掓挱瀹屻€?*/
+  /** 演示倍速:**按真实时间**快进的倍数(1 = 正常速度)。
+   *  ★ 2026-09 修:以前是"一帧渲染推 N 帧物理" —— 于是 144Hz/240Hz 屏上会快 2.4~4 倍,
+   *    用户看到的就是"整体八倍速、几秒就播完了"(20086 帧的卷子在 240Hz 上 10 秒跑完)。
+   *    现在按 dt 累积:无论屏幕多少帧,1 倍速就是 334.8 秒播完。 */
   demoSpeed = 1;
-  /** 婕旂ず鐨勬椂闂寸疮绉櫒(绉?鈥斺€?鎸夌湡瀹炴椂闂存帹杩?鍜屽埛鏂扮巼鏃犲叧 */
+  /** 演示的时间累积器(秒)—— 按真实时间推进,和刷新率无关 */
   demoAcc = 0;
-  /** 褰㈡€佸浘闆?static/icons)寤哄ソ鐨勫浘灞傘€傝 buildIcons() */
+  /** 形态图集(static/icons)建好的图层。见 buildIcons() */
   private iconLayers: Array<{
     mode: Mode;
     body: Phaser.GameObjects.Image;
@@ -252,14 +252,14 @@ class Scene extends Phaser.Scene {
     bw: number; bh: number; pxPerUnit: number;
   }> = [];
   private iconsReady = false;
-  /** 鈽?鐗╀欢璐村浘姹?姣忓抚鎸夊彲瑙佺墿浠跺彇鐢?鐢ㄥ畬鎶婂浣欑殑钘忚捣鏉?閬垮厤鍑犲崈涓?Image 甯搁┗) */
+  /** ★ 物件贴图池:每帧按可见物件取用,用完把多余的藏起来(避免几千个 Image 常驻) */
   private artPool: Phaser.GameObjects.Image[] = [];
   private artUsed = 0;
   artReady = false;
 
-  /** 鐗╀欢 鈫?鍥鹃泦甯у悕(娌℃湁灏辫繑鍥?null,璧扮煝閲忕敾娉?銆?
-   *  鏄犲皠渚濇嵁瑙?tools/verify/build-art.mjs 鐨?MAP:閿墖鎸夊昂瀵搁拤姝汇€佸脊绨ф澘鎸夐鑹层€佸瓨妗ｇ偣/纭竵鍞竴鍛戒腑;
-   *  鍒虹殑 4 涓?id 鎸?缁忓吀鍒?灏忓埡"椤哄簭瀵?spike_01..04(杩欎竴鏉℃槸澶栬鎺ㄦ柇,涓嶇‘瀹氫絾褰卞搷寰堝皬); */
+  /** 物件 → 图集帧名(没有就返回 null,走矢量画法)。
+   *  映射依据见 tools/verify/build-art.mjs 的 MAP:锯片按尺寸钉死、弹簧板按颜色、存档点/硬币唯一命中;
+   *  刺的 4 个 id 按"经典刺/小刺"顺序对 spike_01..04(这一条是外观推断,不确定但影响很小); */
   private artKeyOf(o: Obj): string | null {
     if (!this.artReady) return null;
     switch (o.kind) {
@@ -267,19 +267,19 @@ class Scene extends Phaser.Scene {
       case 'pad': return o.pad ? (o.pad === 'purple' ? null : 'pad_' + o.pad) : null;
       case 'check': return 'checkpoint';
       case 'coin': return 'coin';
-      /* 鐮栧潡:鐢ㄦ埛鍙ｅ緞"鐮栧潡鐢ㄧ涓€鐗? = block001 閭ｅ銆傚悓涓€濂?7 鍧楁槸鍘熺増鎸夐偦灞呰嚜鍔ㄦ嫾鐨?
-         浣嶇疆瀵瑰簲鍏崇郴 plist 閲屾病鏈?瑕佷粠鍍忕礌涓婃帹,宸ュ叿閲岄偅涓€姝ュ厛娌″仛鍑烘潵)鈬?鍏堢敤鍏朵腑涓€鍧楀钩閾?
-         瑙嗚涓婄瓑浠蜂簬浠ュ墠鐨勭煝閲忔柟鍧?姣忔牸涓€鍧?,绛夋嫾鎺ヨ〃鍋氬嚭鏉ュ啀鎹€?*/
+      /* 砖块:用户口径"砖块用第一版" = block001 那套。同一套 7 块是原版按邻居自动拼的,
+         位置对应关系 plist 里没有(要从像素上推,工具里那一步先没做出来)⇒ 先用其中一块平铺,
+         视觉上等价于以前的矢量方块(每格一块),等拼接表做出来再换。 */
       case 'block': return 'block4';
-      /* 璺崇幆:鐢ㄦ埛鍙ｅ緞"鐜櫎浜嗛鑹叉病鍖哄埆,闄や簡缁跨幆鍜岄粦鐜? 鈬?涓€寮犲簳鍥炬煋鑹?缁跨幆鍗曠嫭鐢?gravJumpRing */
+      /* 跳环:用户口径"环除了颜色没区别,除了绿环和黑环" ⇒ 一张底图染色,绿环单独用 gravJumpRing */
       case 'orb': return o.orb === 'green' ? 'ringGreen' : 'ringY';
       case 'spike': return o.id === 39 ? 'spike02' : o.id === 103 ? 'spike03' : o.id === 392 ? 'spike04' : 'spike01';
       default: return null;
     }
   }
 
-  /** 鏃犳晫妯″紡鐨勮建閬撳す鍙?鍔犺浇瑙勫垝璧板粖(static/assets/gd-guide.json),鎸?x 鎻掑€煎嚭杩欐潯璧板粖鐨勯珮搴?
-   *  鎶婁汉澶瑰湪 卤GUIDE_BAND 鍧楀唴銆傝蛋寤婃病鍔犺浇鍒板氨閫€鍥?鍙创鍏冲崱杈圭晫"(鑰佽涓?涓嶅奖鍝嶈兘鐜?銆?*/
+  /** 无敌模式的轨道夹取:加载规划走廊(static/assets/gd-guide.json),按 x 插值出这条走廊的高度,
+   *  把人夹在 ±GUIDE_BAND 块内。走廊没加载到就退回"只贴关卡边界"(老行为,不影响能玩)。 */
   private guide: Array<[number, number]> = [];
   private guideYAt(xBlocks: number): number | null {
     const G = this.guide;
@@ -297,32 +297,32 @@ class Scene extends Phaser.Scene {
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))))
       .then((j: { points: Array<[number, number]> }) => {
         this.guide = (j.points ?? []).filter((p) => Array.isArray(p) && p.length === 2);
-        console.log('[gd] 鏃犳晫杞ㄩ亾灏辩华:' + this.guide.length + ' 涓偣 路 卤' + GUIDE_BAND + ' 鍧?);
+        console.log('[gd] 无敌轨道就绪:' + this.guide.length + ' 个点 · ±' + GUIDE_BAND + ' 块');
       })
-      .catch((e: Error) => { console.warn('[gd] 杞ㄩ亾娌″姞杞藉埌,鏃犳晫鍙创杈圭晫:' + e.message); });
+      .catch((e: Error) => { console.warn('[gd] 轨道没加载到,无敌只贴边界:' + e.message); });
   }
-  /** 鏃犳晫鐘舵€佷笅鎶婁汉澶瑰洖杞ㄩ亾銆?
-   *  鈽呪槄 2026-09 淇?鐢ㄦ埛:"杞ㄩ亾鏄浐瀹歽杞?瀵艰嚧鐩存帴鍗′綇"):绗竴鐗堟槸銆愮‖澶广€戔€斺€?
-   *  瓒呯晫灏辨妸 y 鐩存帴璧嬪€煎埌杈圭晫銆傚彲璧板粖鏈韩鏄嚑浣曡鍒掑嚭鏉ョ殑,鏌愪簺浣嶇疆涓婂畠灏辨槸璐寸潃鐮?鍦ㄥ崐绌?
-   *  纭す绛変簬姣忓抚鎶婁汉濉炶繘閭ｅ潡鍑犱綍閲?鈬?浜哄崱鍦ㄥ閲屽姩涓嶄簡 鉁椼€?
-   *  鐜板湪鏀规垚銆愯蒋鎺ㄣ€?姣忓抚鏈€澶氭帹 0.5 鍧?30 鍗曚綅/绉?,骞舵竻鎺夋湞澶栫殑绾靛悜閫熷害 鈥斺€?
-   *  涓嶇灛绉汇€佷笉绌挎ā,鎺ㄤ笉杩涘幓灏辫嚜鐒跺仠鍦ㄩ偅鍎?缁濅笉浼氬崱姝?鉁撱€?*/
+  /** 无敌状态下把人夹回轨道。
+   *  ★★ 2026-09 修(用户:"轨道是固定y轴,导致直接卡住"):第一版是【硬夹】——
+   *  超界就把 y 直接赋值到边界。可走廊本身是几何规划出来的,某些位置上它就是贴着砖/在半空,
+   *  硬夹等于每帧把人塞进那块几何里 ⇒ 人卡在墙里动不了 ✗。
+   *  现在改成【软推】:每帧最多推 0.5 块(30 单位/秒),并清掉朝外的纵向速度 ——
+   *  不瞬移、不穿模,推不进去就自然停在那儿,绝不会卡死 ✓。 */
   private clampToGuide() {
     const w = this.world;
     if (!w.god) return;
     const gy = this.guideYAt(w.x / U);
     if (gy == null) return;
-    const cy = (w.y + w.box / 2) / U;                 // 鐢ㄧ帺瀹躲€愪腑蹇冦€?鍧?姣?鍒嬁鑴氬簳姣?
+    const cy = (w.y + w.box / 2) / U;                 // 用玩家【中心】(块)比,别拿脚底比
     const over = cy - gy;
     if (Math.abs(over) <= GUIDE_BAND) return;
-    const dir = over > 0 ? -1 : 1;                    // 寰€杞ㄩ亾閭ｄ竴渚ф帹
+    const dir = over > 0 ? -1 : 1;                    // 往轨道那一侧推
     const push = Math.min(0.5, Math.abs(over) - GUIDE_BAND) * U;
     w.y += dir * push;
     if (dir < 0 && w.vy > 0) w.vy = 0;
     if (dir > 0 && w.vy < 0) w.vy = 0;
   }
 
-  /** 鎶婁竴涓睜瀛愰噷鐨?Image 鎽嗗ソ;杩斿洖 false 琛ㄧず杩欏抚娌＄敾(璋冪敤鏂硅蛋鐭㈤噺鍏滃簳) */
+  /** 把一个池子里的 Image 摆好;返回 false 表示这帧没画(调用方走矢量兜底) */
   private drawArtObject(o: Obj, key: string, dx: number, dy: number, cwU: number, chU: number, tintCol = 0xffffff): boolean {
     const tex = this.textures.get('gd-art');
     const fr = tex && tex.has(key) ? tex.get(key) : null;
@@ -330,7 +330,7 @@ class Scene extends Phaser.Scene {
     let img = this.artPool[this.artUsed];
     if (!img) { img = this.add.image(0, 0, 'gd-art').setDepth(6); this.artPool.push(img); }
     this.artUsed++;
-    /* k:涓€鏍奸噷鐨勮创鍥炬寜"鐗╀欢楂樺害(鍗曚綅)/ 甯ч珮(px)"绛夋瘮缂╂斁;寮圭哀鏉垮お鎵?鏀圭敤瀹藉害瀵归綈(GD 鐨勬澘涔熸槸妯悜閾烘弧) */
+    /* k:一格里的贴图按"物件高度(单位)/ 帧高(px)"等比缩放;弹簧板太扁,改用宽度对齐(GD 的板也是横向铺满) */
     const k = (o.kind === 'pad' ? cwU / fr.width : chU / Math.max(1e-6, fr.height));
     img.setVisible(true).setTexture('gd-art', key).setPosition(dx, dy);
     img.setRotation(((o.rot ?? 0) * Math.PI) / 180);
@@ -338,53 +338,52 @@ class Scene extends Phaser.Scene {
     img.setTint(tintCol);
     return true;
   }
-  /** 楠屾敹鐢?update 琚皟浜嗗嚑娆°€丳haser 鍠傝繘鏉ョ殑 delta 鏄灏?*/
+  /** 验收用:update 被调了几次、Phaser 喂进来的 delta 是多少 */
   updates = 0;
   lastDt = 0;
-  /** 鑷繁鐢?performance.now() 閲忎笂涓€娆?update 鐨勫涓婃椂闂?婕旂ず鑺傛媿鐢?瑙?update) */
+  /** 自己用 performance.now() 量上一次 update 的墙上时间(演示节拍用,见 update) */
   lastWallMs = 0;
-  /** 涓婁竴娆?璇曠潃鎶婇煶涔?seek 鍥炴ā鎷熸椂闂?鐨勬椂鍒?seek 澶辫触鏃舵瘡 1.5 绉掗噸璇曚竴娆? */
+  /** 上一次"试着把音乐 seek 回模拟时间"的时刻(seek 失败时每 1.5 秒重试一次) */
   lastSeekTry = 0;
-  /** 楠屾敹鐢?婕旂ず/鏈哄櫒浜烘ā寮忎笅姣忔"鍙戠幇涓栫晫姝讳簡"鐨勮褰?娆℃暟銆佸抚鍙枫€佷綅缃? */
+  /** 验收用:演示/机器人模式下每次"发现世界死了"的记录(次数、帧号、位置) */
   deathLog: Array<{ tick: number; x: number; y: number; vy: number; mode: string; gdir: number; chunk: number; at: number; hold: boolean }> = [];
-  baseTick = 0;                     // 杩欎竴鏉″懡鐨勮捣鐐瑰湪闊充箰鏃堕棿杞翠笂鐨勫抚鍙?澶嶆椿鏃惰窡鐫€瀛樻。鐐硅蛋)
-  airT = 0;                         // 绌轰腑鍋滅暀浜嗗涔?缁欐柟鍧楄嚜杞敤)
-  spinAng = 0;                      // 鈽?鏂瑰潡褰撳墠鐨勮嚜杞搴?寮у害)鈥斺€?鎸夋簮鐮佹敼鎴?鍙伴樁 + 缂撳姩"鐘舵€佹満
+  baseTick = 0;                     // 这一条命的起点在音乐时间轴上的帧号(复活时跟着存档点走)
+  airT = 0;                         // 空中停留了多久(给方块自转用)
   labels: Phaser.GameObjects.Text[] = [];
   phase: Phase = 'idle';
-  /** 璋冭瘯/鍑哄浘鐢?鍐讳綇妯℃嫙(鍙覆鏌?涓嶆帹杩? 鈥斺€?鑷姩鍖栨埅鍥句笉浼氬洜涓?鐬Щ鍒板閲?褰撳満鎽旀 */
+  /** 调试/出图用:冻住模拟(只渲染,不推进) —— 自动化截图不会因为"瞬移到墙里"当场摔死 */
   dbgPause = false;
-  deathT = 0;                       // 姝讳骸鍚庤繃浜嗗涔?鍏堝仠涓€鎷嶅啀鍑鸿彍鍗?
-  clicked = false;                  // 鐢诲竷涓婅鐐硅繃涓€涓?
-  private prevHeld = false;         // 涓婁竴甯ф湁娌℃湁鎸夌潃纭閿?鐢ㄦ潵绠?鎸変笅"鐨勮竟娌?
+  deathT = 0;                       // 死亡后过了多久(先停一拍再出菜单)
+  clicked = false;                  // 画布上被点过一下
+  private prevHeld = false;         // 上一帧有没有按着确认键(用来算"按下"的边沿)
   private prevR = false;
   private restartPressed = false;
-  private confirmLatch = false;     // 鐪熷疄鐨?keydown 浜嬩欢(姣?姣忓抚鏌?isDown"鍙潬:鏋佺煭鐨勪竴涓嬩篃鏀跺緱鍒?
+  private confirmLatch = false;     // 真实的 keydown 事件(比"每帧查 isDown"可靠:极短的一下也收得到)
   private restartLatch = false;
-  private godLatch = false;         // G 閿?鏃犳晫妯″紡
+  private godLatch = false;         // G 键:无敌模式
   private prevG = false;
-  private demoLatch = false;        // B 閿?鐪?bot 閫氬叧(婕旂ず鍗?
-  private padLatch = 0;             // [ / ]:寮圭哀鍔涘害寰皟(-1 / +1 涓崟浣?姣忎釜 5%)
-  /** 鏃犳晫妯″紡鎯宠鐨勭姸鎬?鈥斺€?startRun() 浼?new 涓€涓?World,寰楁妸寮€鍏冲甫杩囧幓 */
+  private demoLatch = false;        // B 键:看 bot 通关(演示卷)
+  private padLatch = 0;             // [ / ]:弹簧力度微调(-1 / +1 个单位,每个 5%)
+  /** 无敌模式想要的状态 —— startRun() 会 new 一个 World,得把开关带过去 */
   godWanted = false;
-  /** 寮圭哀鍔涘害寰皟(鍜?godWanted 涓€鏍?鎹笘鐣屾椂瑕佸甫杩囧幓) */
+  /** 弹簧力度微调(和 godWanted 一样:换世界时要带过去) */
   padMulWanted = 1;
-  private modeLatch = 0;            // 鏁板瓧閿?1~7:璋冭瘯鐢ㄧ殑鐜板満鎹㈠舰鎬?
+  private modeLatch = 0;            // 数字键 1~7:调试用的现场换形态
   uiTitle!: Phaser.GameObjects.Text;
   uiHint!: Phaser.GameObjects.Text;
   poemText!: Phaser.GameObjects.Text;
-  /** 褰㈡€侀棬澶翠笂閭ｅ潡鍚嶅瓧鐗屽瓙(闂ㄥ彲鑳借瑙﹀彂鍣ㄦ帹鍔?浣嶇疆姣忓抚璺熺潃绠? */
+  /** 形态门头上那块名字牌子(门可能被触发器推动,位置每帧跟着算) */
   private portalLabels: Array<{ o: Obj; t: Phaser.GameObjects.Text }> = [];
-  poemT = 0;                       // 缁堟湯涔嬭瘲婊氫簡澶氫箙(绉?
-  egg = false;                     // 褰╄泲绐楀彛鏄惁宸插脊鍑?
+  poemT = 0;                       // 终末之诗滚了多久(秒)
+  egg = false;                     // 彩蛋窗口是否已弹出
 
-  /** 绗竴娆＄‘璁?寮€璺?闊充箰鍜屾ā鎷熷悓鏃朵粠 0 寮€濮?鈥斺€?閾洪潰璐寸潃闊充箰,涓嶈兘鏈?鍑嗗鏃堕棿") */
+  /** 第一次确认:开跑(音乐和模拟同时从 0 开始 —— 铺面贴着音乐,不能有"准备时间") */
   startRun() {
     if (this.phase !== 'idle') return;
     this.phase = 'running';
     this.started = true;
     this.world = new World(LEVEL);
-    this.world.god = this.godWanted;      // 鏃犳晫寮€鍏宠璺熺潃鏂颁笘鐣岃蛋
+    this.world.god = this.godWanted;      // 无敌开关要跟着新世界走
     this.world.padMul = this.padMulWanted;
     this.baseTick = 0;
     this.prevY = 0;
@@ -392,7 +391,7 @@ class Scene extends Phaser.Scene {
     this.airT = 0;
     this.deathT = 0;
     this.camInit = false;
-    /* 鈽?姣忓眬寮€濮嬫椂鍐嶈涓€娆￠〉闈㈡寚瀹氱殑姝?鎹㈢洏涔嬪悗寮€璺戝氨浼氱敤鏂版瓕 */
+    /* ★ 每局开始时再读一次页面指定的歌:换盘之后开跑就会用新歌 */
     const forced = (window as unknown as { __GD_SONG?: string }).__GD_SONG;
     if (forced && forced !== LEVEL.song) { LEVEL.song = forced; if (this.audio) this.audio.src = forced; }
     if (!this.audio) {
@@ -405,59 +404,59 @@ class Scene extends Phaser.Scene {
     this.playMusicAt(0);
   }
 
-  /** 鎶婇煶涔愯烦鍒扮 t 绉掑苟浠庨偅閲屾挱銆?
-   *  鈽呪槄 2026-09 淇?鐢ㄦ埛:"姝讳簡涓€娆′箣鍚庡湪瀛樻。鐐瑰娲?闊充箰涓嶄細鍦ㄩ偅涓湴鏂圭户缁挱鏀?):
-   *    `a.currentTime = t` 鍦ㄣ€愬厓鏁版嵁杩樻病鍔犺浇瀹屻€戞椂浼氭姏寮傚父 / 琚拷鐣?readyState 0),
-   *    鑰岃繖閲屾妸寮傚父鍚炰簡 鈫?澶嶆椿鏃堕煶涔愪粠"姝绘帀閭ｄ竴鍒?鎺ョ潃鏀?鍜岀敾闈?瀛樻。鐐?褰诲簳涓嶅悓姝?
-   *    鏇寸碂鐨勬槸妯℃嫙鏄€愰煶涔愰┍鍔ㄣ€戠殑(target = currentTime脳60 鈭?baseTick),
-   *    浜庢槸澶嶆椿鐬棿浼氳鐏岃繘鍑犵櫨甯?浜虹洿鎺ヨ鎷藉埌鍓嶉潰鍘?銆?
-   *    鐜板湪:娌″噯澶囧ソ灏辩瓑 loadedmetadata 鍐?seek;骞朵笖缁欐ā鎷熷姞涓€鏉℃紓绉绘姢鏍?瑙?update)銆?*/
+  /** 把音乐跳到第 t 秒并从那里播。
+   *  ★★ 2026-09 修(用户:"死了一次之后在存档点复活,音乐不会在那个地方继续播放"):
+   *    `a.currentTime = t` 在【元数据还没加载完】时会抛异常 / 被忽略(readyState 0),
+   *    而这里把异常吞了 → 复活时音乐从"死掉那一刻"接着放,和画面(存档点)彻底不同步;
+   *    更糟的是模拟是【音乐驱动】的(target = currentTime×60 − baseTick),
+   *    于是复活瞬间会被灌进几百帧(人直接被拽到前面去)。
+   *    现在:没准备好就等 loadedmetadata 再 seek;并且给模拟加一条漂移护栏(见 update)。 */
   private playMusicAt(t: number) {
     const a = this.audio;
     if (!a) return;
     this.seekMusic(t);
-    a.play().catch((e) => { this.audioErr = String((e && e.message) || e); });   // 澶辫触鍘熷洜鐣欑潃,鍒潤榛樺悶
+    a.play().catch((e) => { this.audioErr = String((e && e.message) || e); });   // 失败原因留着,别静默吞
   }
 
   private seekMusic(t: number) {
     const a = this.audio;
     if (!a) return;
-    const apply = () => { try { a.currentTime = t; } catch { /* seek 澶辫触灏变粠澶存斁 */ } };
+    const apply = () => { try { a.currentTime = t; } catch { /* seek 失败就从头放 */ } };
     if (a.readyState >= 1) apply();
     else a.addEventListener('loadedmetadata', apply, { once: true });
   }
 
   private pauseMusic() { if (this.audio && !this.audio.paused) this.audio.pause(); }
 
-  /** 褰╄泲瑙ｉ攣:鍐欒繘 localStorage,CD 椤甸潰鎹鏄剧ず銆屽垏鎹㈡父鐜╂ā寮忋€嶆寜閽?*/
+  /** 彩蛋解锁:写进 localStorage,CD 页面据此显示「切换游玩模式」按钮 */
   private unlockEaster() {
-    try { localStorage.setItem(EASTER_KEY, '1'); } catch { /* 鏃犵棔妯″紡灏辩畻浜?*/ }
+    try { localStorage.setItem(EASTER_KEY, '1'); } catch { /* 无痕模式就算了 */ }
   }
 
-  /** x(鍗曚綅)鈫?闊充箰绉掓暟銆?
-   *  鈽呪槄 2026-09 淇?bug:浠ュ墠杩欓噷鐩存帴璋?`tOfX(LEVEL, world.x / checkX)` 鈥斺€?涓や釜閿欏彔鍦ㄤ竴璧?
-   *    鈶?`tOfX` 鐨勫彛寰勬槸銆愬潡銆?sim.test / tools/diag-chart 閮芥寜鍧楄皟),浼犲崟浣嶈繘鍘荤瓑浜庢妸鏃堕棿鏀惧ぇ 30 鍊?
-   *    鈶?鏇磋鍛界殑鏄?`tOfX` 璇荤殑鏄?`level.segments`,鑰岄偅鏄€愮敓鎴愰摵闈€戠殑浜х墿 鈥斺€?
-   *       鐪熷疄鍏冲崱(杩欏紶鎵嬫悡鐨?WATER)鐢ㄥ畠浼氱畻鍑洪潪鍗曡皟鐨勫瀮鍦?x=600 鈫?7.2s,鑰?x=1060 鈫?0.0s)銆?
-   *    鍚庢灉姝ｆ槸鐢ㄦ埛鎶ョ殑閭ｆ潯:"姝讳簡涓€娆′箣鍚庡湪瀛樻。鐐瑰娲?闊充箰涓嶄細鍦ㄩ偅涓湴鏂圭户缁挱鏀? 鈥斺€?
-   *    妯℃嫙鏄€愰煶涔愰┍鍔ㄣ€戠殑(target = currentTime脳60 鈭?baseTick),baseTick 涓€閿?target 鎭掍负 0,
-   *    鐢婚潰鍋滃湪鍘熷湴銆侀煶涔愬嵈浠庤崚鍞愮殑浣嶇疆鏀剧潃銆?
-   *  鐜板湪璧?makeRealTimeAxis():鎸夈€愰€熷害闂ㄣ€戝垎娈电Н鍒?dx/v 鈥斺€?GD 缂栬緫鍣ㄩ噷 x 灏辨槸閫熷害脳鏃堕棿鐨勭Н鍒?
-   *  鎵€浠ヨ繖鏉℃墠鏄?閾洪潰璐寸潃闊充箰"鐨勫師鍙ｅ緞銆傝嚜妫€:绉垎鍑虹殑鎬婚暱 294.45s vs 杩欓姝屽疄闄?299.29s(宸?1.6%),
-   *  鍐嶆寜 audio.duration 绛夋瘮缂╂斁涓€涓?缁撳熬灏卞拰姝屽榻愪簡銆?*/
+  /** x(单位)→ 音乐秒数。
+   *  ★★ 2026-09 修 bug:以前这里直接调 `tOfX(LEVEL, world.x / checkX)` —— 两个错叠在一起:
+   *    ① `tOfX` 的口径是【块】(sim.test / tools/diag-chart 都按块调),传单位进去等于把时间放大 30 倍;
+   *    ② 更要命的是 `tOfX` 读的是 `level.segments`,而那是【生成铺面】的产物 ——
+   *       真实关卡(这张手搓的 WATER)用它会算出非单调的垃圾(x=600 → 7.2s,而 x=1060 → 0.0s)。
+   *    后果正是用户报的那条:"死了一次之后在存档点复活,音乐不会在那个地方继续播放" ——
+   *    模拟是【音乐驱动】的(target = currentTime×60 − baseTick),baseTick 一错,target 恒为 0,
+   *    画面停在原地、音乐却从荒唐的位置放着。
+   *  现在走 makeRealTimeAxis():按【速度门】分段积分 dx/v —— GD 编辑器里 x 就是速度×时间的积分,
+   *  所以这条才是"铺面贴着音乐"的原口径。自检:积分出的总长 294.45s vs 这首歌实际 299.29s(差 1.6%),
+   *  再按 audio.duration 等比缩放一下,结尾就和歌对齐了。 */
   private tAtX(xUnits: number): number {
-    /* 鈽呪槄 2026-09 淇?鐢ㄦ埛:"瀛樻。鐐瑰娲婚煶涔愮户缁殑浣嶇疆閿欒,閲囬煶鍏ㄤ贡"):
-       浠ュ墠杩欓噷鎶婃椂闂磋酱銆愭暣浣撴媺浼搞€戞垚闊抽鏃堕暱:raw 脳 (audio.duration / axisTotal)銆?
-       鍙叧鍗¤嚜宸辩殑鏃堕棿杞村叏闀?294.45 绉?鑰岃繖鏀?mp3 鏄?299.29 绉?鈬?宸?1.6%,
-       杩欎釜绯绘暟浼氳**姣忎竴涓噰闊崇偣閮芥寜姣斾緥鍋忕Щ** 鈥斺€?瓒婂線鍚庡亸寰楄秺澶?
-         x=3032(绗?8 涓瓨妗ｇ偣)澶?鍏冲崱鏃堕棿 245.74 绉?鎷変几鍚庡彉鎴?249.78 绉?鈬?鍋?4.04 绉?鉁椻湕
-       鑰屽師鐗堢殑鍙ｅ緞鏄?x 鈫?绉?鐢便€愰€熷害闂ㄧН鍒嗐€戝喅瀹?鍏冲崱灏辨槸鐓ц繖棣栨瓕閾虹殑),
-       闊充箰鎸夊畠鑷繁鐨勯€熺巼鏀?涓よ竟鍦ㄥ悓涓€涓椂闂磋酱涓婂榻?鈬?**涓嶈涔樹换浣曟媺浼哥郴鏁?*銆?
-       鈬?鐜板湪鐩存帴鐢ㄥ叧鍗¤嚜宸辩殑鏃堕棿杞?涓嶆媺浼?銆?*/
+    /* ★★ 2026-09 修(用户:"存档点复活音乐继续的位置错误,采音全乱"):
+       以前这里把时间轴【整体拉伸】成音频时长:raw × (audio.duration / axisTotal)。
+       可关卡自己的时间轴全长 294.45 秒,而这支 mp3 是 299.29 秒 ⇒ 差 1.6%,
+       这个系数会让**每一个采音点都按比例偏移** —— 越往后偏得越多:
+         x=3032(第 8 个存档点)处:关卡时间 245.74 秒,拉伸后变成 249.78 秒 ⇒ 偏 4.04 秒 ✗✗
+       而原版的口径是:x → 秒 由【速度门积分】决定(关卡就是照这首歌铺的),
+       音乐按它自己的速率放,两边在同一个时间轴上对齐 ⇒ **不该乘任何拉伸系数**。
+       ⇒ 现在直接用关卡自己的时间轴(不拉伸)。 */
     return REAL_T_AXIS(Math.max(0, xUnits) / U);
   }
 
-  /** 浠庡瓨妗ｇ偣閲嶆潵(姝讳骸鐣岄潰鎸夌‘璁? */
+  /** 从存档点重来(死亡界面按确认) */
   retry() {
     const w = this.world;
     w.respawn();
@@ -466,14 +465,14 @@ class Scene extends Phaser.Scene {
     this.acc = 0;
     this.deathT = 0;
     this.prevY = w.y;
-    this.camInit = false;                 // 澶嶆椿:闀滃ご绔嬪埢璐村埌瀛樻。鐐?涓嶇劧瑕佷粠姝讳骸鐐规粦杩囨潵)
+    this.camInit = false;                 // 复活:镜头立刻贴到存档点(不然要从死亡点滑过来)
     this.phase = 'running';
     this.playMusicAt(this.tAtX(w.checkX));
   }
 
-  /** 浠庡ご鏉?R 閿?/ "閲嶆潵"鎸夐挳 / 姝讳骸鐣岄潰鎸?R)銆傗槄 2026-09 淇?浠ュ墠婕旂ず/鏈哄櫒浜烘ā寮忎笅
-   *  杩欎竴鏀牴鏈蛋涓嶅埌(update 閲屾瘡甯ф妸 phase 寮鸿鎺板洖 running),鐢ㄦ埛鎸?R 灏辨槸"鎽嗚";
-   *  鐜板湪浠讳綍妯″紡銆佷换浣曢樁娈甸兘璧拌繖閲?婕旂ず妯″紡涓?= 銆愭紨绀轰粠澶村啀鏀句竴閬嶃€戙€?*/
+  /** 从头来(R 键 / "重来"按钮 / 死亡界面按 R)。★ 2026-09 修:以前演示/机器人模式下
+   *  这一支根本走不到(update 里每帧把 phase 强行掰回 running),用户按 R 就是"摆设";
+   *  现在任何模式、任何阶段都走这里:演示模式下 = 【演示从头再放一遍】。 */
   restartRun() {
     this.demoAcc = 0;
     this.demoEndX = 0;
@@ -481,7 +480,7 @@ class Scene extends Phaser.Scene {
       this.world = new World(LEVEL);
       this.world.god = this.godWanted;
       this.world.padMul = this.padMulWanted;
-      this.botStarted = false;              // 璁?pump 閲?骞插噣寮€灞€"閭ｄ竴娈甸噸鏂拌蛋涓€閬?
+      this.botStarted = false;              // 让 pump 里"干净开局"那一段重新走一遍
       this.botStates = [];
       this.fp = '';
       this.baseTick = 0; this.prevY = 0; this.airT = 0; this.camInit = false;
@@ -493,9 +492,9 @@ class Scene extends Phaser.Scene {
     this.restartFromZero();
   }
 
-  /** 浠庡ご鏉?R 閿?姝讳骸鐣岄潰涓庨€氬叧鐣岄潰閮借兘鐢? */
+  /** 从头来(R 键,死亡界面与通关界面都能用) */
   restartFromZero() {
-    this.world.resetToStart();          // 鈽?鍥炲埌閾洪潰鐨勫嚭鐢熺偣(Level.start),涓嶆槸纭紪鐮佺殑 (0,0)
+    this.world.resetToStart();          // ★ 回到铺面的出生点(Level.start),不是硬编码的 (0,0)
     this.baseTick = 0;
     this.airT = 0;
     this.acc = 0;
@@ -510,66 +509,66 @@ class Scene extends Phaser.Scene {
   create() {
     this.g = this.add.graphics();
     this.keys = this.input.keyboard!.addKeys('SPACE,UP,W,R,G,B') as Record<string, Phaser.Input.Keyboard.Key>;
-    /* 鈽?鏃犳晫妯″紡:椤甸潰鎸?G 鍒?涔熷彲浠ュ紑灞€灏辩敤 URL 鎵撳紑(?god=1),楠屾敹鑴氭湰鐩存帴鏀?__gd.world.god */
+    /* ★ 无敌模式:页面按 G 切;也可以开局就用 URL 打开(?god=1),验收脚本直接改 __gd.world.god */
     this.godWanted = /(^|[?&])god=1(&|$)/.test(location.search);
     this.world.god = this.godWanted;
-    /* ?demo=1 鈥斺€?寮€灞€鐩存帴婕旂ず"bot 閫氬叧"(鍜屾寜 B / 鐐瑰彸涓嬭鎸夐挳绛夋晥)
-       ?demospeed=4 鈥斺€?婕旂ず鍊嶉€?榛樿 1 = 姝ｅ父閫熷害;20086 甯х殑鍗峰瓙姝ｅ父閫熷害鎾?334.8 绉? */
+    /* ?demo=1 —— 开局直接演示"bot 通关"(和按 B / 点右下角按钮等效)
+       ?demospeed=4 —— 演示倍速(默认 1 = 正常速度;20086 帧的卷子正常速度播 334.8 秒) */
     if (/(^|[?&])demo=1(&|$)/.test(location.search)) this.demoWanted = true;
     const ds = /(^|[?&])demospeed=([\d.]+)/.exec(location.search);
     if (ds) this.demoSpeed = Math.max(0.25, Math.min(40, Number(ds[2]) || 1));
-    /* ?padmul=0.75 鈥斺€?寮圭哀鍔涘害寰皟(鍜屾寜 [ / ] 绛夋晥),楠屾敹鑴氭湰涔熻兘鐢?URL 鎸囧畾 */
+    /* ?padmul=0.75 —— 弹簧力度微调(和按 [ / ] 等效),验收脚本也能用 URL 指定 */
     const pm = /(^|[?&])padmul=([\d.]+)/.exec(location.search);
     if (pm) { this.padMulWanted = Math.max(0.4, Math.min(1.5, Number(pm[2]) || 1)); this.world.padMul = this.padMulWanted; }
     this.cameras.main.setBackgroundColor('#05070d');
     this.cameras.main.setZoom(this.zoomOf());
-    /* 鈽?鍙湪銆愮敾甯冧笂銆戠偣鎵嶇畻纭 鈥斺€?浠ュ墠鐩戝惉 window,鐐瑰鑸€佺偣 CD 闈㈡澘閮戒細椤烘墜鎶婃父鎴忓紑璧锋潵 */
+    /* ★ 只在【画布上】点才算确认 —— 以前监听 window,点导航、点 CD 面板都会顺手把游戏开起来 */
     this.input.on('pointerdown', () => {
       this.clicked = true;
-      /* 鈽?鎶婄劍鐐逛粠绔欏唴鎼滅储妗嗕笂鎷胯蛋:鎼滅储妗嗚繕鐣欑潃鐒︾偣鏃?閿洏浜嬩欢閮芥寚鍚戝畠,
-         瀹炴祴灏辨槸瀹冭 R / G 鎸変簡娌″弽搴?鐐逛竴涓嬬敾闈㈠氨鎭㈠姝ｅ父)銆?*/
+      /* ★ 把焦点从站内搜索框上拿走:搜索框还留着焦点时,键盘事件都指向它,
+         实测就是它让 R / G 按了没反应(点一下画面就恢复正常)。 */
       const ae = document.activeElement as HTMLElement | null;
       if (ae && ae !== document.body) ae.blur();
     });
-    /* 绌烘牸 / 涓?/ W 鎵嶇畻"纭",鍏跺畠鎸夐敭涓€姒備笉鐞?浠ュ墠浠讳綍鎸夐敭閮戒細寮€璺?;
-       鏁板瓧閿?1~7 鏄皟璇曠敤鐨?鐜板満鎹㈠舰鎬?;R 閲嶆潵銆丟 鏃犳晫銆?
-       鈽?鐢ㄣ€愭崟鑾烽樁娈点€?绗笁涓弬鏁?true)鎸?椤甸潰閲屽埆鐨?keydown 澶勭悊鍣?鎼滅储妗嗐€佺珯鍐呭揩鎹烽敭绛?
-         涓€鏃?stopPropagation,鍐掓场闃舵鎴戜滑灏辨敹涓嶅埌浜?鈥斺€?鎹曡幏闃舵鍏堜簬瀹冧滑杩愯銆?
-       鈽?涓嶅啀"鐒︾偣鍦ㄨ緭鍏ユ閲屽氨涓嶇悊":鐢ㄦ埛瀹炴祴 R/G 娌″弽搴?鏌ュ嚭鏉ユ槸绔欏唴鎼滅储妗嗚繕鐣欑潃鐒︾偣 鈥斺€?
-         鎸囧悜杈撳叆妗嗙殑 keydown 鎴戜滑涓€鏍疯鎺ャ€傜帺涔嬪墠鐐逛竴涓嬬敾闈㈠氨浼氭妸鐒︾偣浠庢悳绱㈡涓婃嬁璧?瑙佷笅闈?pointerdown)銆?*/
+    /* 空格 / 上 / W 才算"确认",其它按键一概不理(以前任何按键都会开跑);
+       数字键 1~7 是调试用的"现场换形态";R 重来、G 无敌。
+       ★ 用【捕获阶段】(第三个参数 true)挂:页面里别的 keydown 处理器(搜索框、站内快捷键等)
+         一旦 stopPropagation,冒泡阶段我们就收不到了 —— 捕获阶段先于它们运行。
+       ★ 不再"焦点在输入框里就不理":用户实测 R/G 没反应,查出来是站内搜索框还留着焦点 ——
+         指向输入框的 keydown 我们一样要接。玩之前点一下画面就会把焦点从搜索框上拿走(见下面 pointerdown)。 */
     window.addEventListener('keydown', (ev: KeyboardEvent) => {
       if (ev.code === 'Space' || ev.code === 'ArrowUp' || ev.code === 'KeyW') this.confirmLatch = true;
       if (ev.code === 'KeyR') this.restartLatch = true;
       if (ev.code === 'KeyG') this.godLatch = true;
       if (ev.code === 'KeyB') this.demoLatch = true;
-      /* 鈽?寮圭哀鍔涘害寰皟:浠ュ墠鍙 [ / ](BracketLeft/Right)鈥斺€?鐢ㄦ埛瀹炴祴"鎸変簡娌＄敤"
-         (涓嶅悓閿洏/杈撳叆娉曚笅鍙戝嚭鏉ョ殑 code 涓嶄竴鏍?銆傜幇鍦ㄦ妸甯歌鐨勯偅鍑犲鍏ㄦ敹杩涙潵,
-         鍙﹀椤甸潰涓婅繕鍔犱簡涓や釜鑳界偣鐨勬寜閽?瑙?lost.html 鐨?.gd-tools)銆?*/
+      /* ★ 弹簧力度微调:以前只认 [ / ](BracketLeft/Right)—— 用户实测"按了没用"
+         (不同键盘/输入法下发出来的 code 不一样)。现在把常见的那几对全收进来,
+         另外页面上还加了两个能点的按钮(见 lost.html 的 .gd-tools)。 */
       if (ev.code === 'BracketLeft' || ev.code === 'Minus' || ev.code === 'NumpadSubtract' || ev.code === 'Comma') this.padLatch -= 1;
       if (ev.code === 'BracketRight' || ev.code === 'Equal' || ev.code === 'NumpadAdd' || ev.code === 'Period') this.padLatch += 1;
       if (/^Digit[1-7]$/.test(ev.code)) this.modeLatch = Number(ev.code.slice(5));
     }, true);
-    /* 鈽?鍐嶇粰鍑犱釜銆愯兘鐐圭殑銆戞寜閽?閿洏鍦ㄦ煇浜涚幆澧冮噷浼氳鍒殑涓滆タ鍚冩帀(鐢ㄦ埛瀹炴祴 R/G 娌″弽搴?,
-       鎸夐挳鐢ㄩ紶鏍?瑙﹀睆閮借兘鎸?鑰屼笖鐘舵€佺洿鎺ュ啓鍦ㄦ寜閽笂 鈥斺€?涓嶇敤鐚滃埌搴曞紑娌″紑銆?*/
+    /* ★ 再给几个【能点的】按钮:键盘在某些环境里会被别的东西吃掉(用户实测 R/G 没反应),
+       按钮用鼠标/触屏都能按,而且状态直接写在按钮上 —— 不用猜到底开没开。 */
     document.getElementById('gd-god')?.addEventListener('click', () => { this.toggleGod(); this.blurSelf(); });
     document.getElementById('gd-demo')?.addEventListener('click', () => { this.demoLatch = true; this.blurSelf(); });
     document.getElementById('gd-restart')?.addEventListener('click', () => { this.restartLatch = true; this.blurSelf(); });
-    /* 鈽?绱姞鑰屼笉鏄祴鍊?杩炵偣涓や笅鎸夐挳/杩炴寜涓や笅閿椂,濡傛灉鍙槸 `= 1`,鍚屼竴甯ч噷鐨勪袱娆′細浜掔浉瑕嗙洊
-       (鐢ㄦ埛浼氱湅鍒?鐐逛簡娌″弽搴?鍙姩涓€鏍?)銆?*/
+    /* ★ 累加而不是赋值:连点两下按钮/连按两下键时,如果只是 `= 1`,同一帧里的两次会互相覆盖
+       (用户会看到"点了没反应/只动一格")。 */
     document.getElementById('gd-pad-minus')?.addEventListener('click', () => { this.padLatch -= 1; this.blurSelf(); });
     document.getElementById('gd-pad-plus')?.addEventListener('click', () => { this.padLatch += 1; this.blurSelf(); });
-    /* 鈽呪槄 鐗╀欢璐村浘(浠庛€愭父鎴忔湰浣撱€戞娊鍑烘潵鐨勫皬鍥鹃泦,瑙?tools/verify/build-art.mjs):
-       static/assets/gd-art.png/json 閲屽彧鏈夎繖涓€鍏崇敤寰楀埌鐨?35 甯?鈥斺€?閿墖/寮圭哀鏉?瀛樻。鐐?纭竵/鍒?璺崇幆/褰㈡€侀棬銆?
-       鈽?瀵嗗害:1 鍍忕礌 = 1 鍗曚綅(鏂瑰潡 30 鍗曚綅 = 30 px),鎵€浠ョ敾鐢绘椂 k = 鐗╀欢楂樺害(鍗曚綅) / 甯ч珮(px)銆?
-       鈽?id 鈫?甯у悕鐨勬槧灏勩€愪笉鍦ㄦ父鎴忕殑鏁版嵁鏂囦欢閲屻€?閭ｆ槸缂栬瘧杩?exe 鐨勪唬鐮?;杩欓噷闈?灏哄/棰滆壊/鍞竴鍛戒腑"閽?
-         姣忔潯閮藉湪 build-art.mjs 鐨?MAP 閲屽啓浜嗙悊鐢便€傜嚎妗?468/469/470)鎸夌敤鎴峰彛寰勪笉鍋氳创鍥俱€?*/
+    /* ★★ 物件贴图(从【游戏本体】抽出来的小图集,见 tools/verify/build-art.mjs):
+       static/assets/gd-art.png/json 里只有这一关用得到的 35 帧 —— 锯片/弹簧板/存档点/硬币/刺/跳环/形态门。
+       ★ 密度:1 像素 = 1 单位(方块 30 单位 = 30 px),所以画画时 k = 物件高度(单位) / 帧高(px)。
+       ★ id → 帧名的映射【不在游戏的数据文件里】(那是编译进 exe 的代码);这里靠"尺寸/颜色/唯一命中"钉,
+         每条都在 build-art.mjs 的 MAP 里写了理由。线框(468/469/470)按用户口径不做贴图。 */
     if (ART_ENABLED) {
       if (!this.textures.exists('gd-art')) this.load.atlas('gd-art', '/assets/gd-art.png', '/assets/gd-art.json');
       this.load.once('complete', () => { this.artReady = this.textures.exists('gd-art'); });
       this.load.start();
     }
-    this.loadGuide();                          // 鈽?鏃犳晫妯″紡鐨勮建閬?瑙?clampToGuide)
-    /* 鈽?褰㈡€佸浘闆?static/icons):榛樿涓嶅姞杞?瑙佷笂闈㈤偅娈?缁撹")銆?icons=1 鎵嶈瘯鍥鹃泦 */
+    this.loadGuide();                          // ★ 无敌模式的轨道(见 clampToGuide)
+    /* ★ 形态图集(static/icons):默认不加载(见上面那段"结论")。?icons=1 才试图集 */
     if (ICON_ENABLED) {
       const q = /(^|[?&])col1=([0-9a-fA-F]{6})/.exec(location.search);
       const q2 = /(^|[?&])col2=([0-9a-fA-F]{6})/.exec(location.search);
@@ -586,7 +585,7 @@ class Scene extends Phaser.Scene {
     this.uiTitle = this.add.text(0, 0, '', { ...ui, fontSize: '44px', color: '#e2f6ff' }).setOrigin(0.5).setDepth(20).setVisible(false);
     this.uiHint = this.add.text(0, 0, '', { ...ui, fontSize: '24px', color: HL }).setOrigin(0.5).setDepth(20).setVisible(false);
     this.poemText = this.add.text(0, 0, POEM.join('\n'), { ...ui, fontSize: '26px', color: '#e2f6ff', lineSpacing: 10 }).setOrigin(0.5, 0).setDepth(19).setVisible(false);
-    /* 鍔熻兘鍧?text 鐗╀欢)鍋氭垚鍦轰笂鐨勬枃瀛?鏃х増閭ｇ娈佃惤鏃佺櫧姘村嵃宸插垹) */
+    /* 功能块(text 物件)做成场上的文字(旧版那种段落旁白水印已删) */
     for (const o of LEVEL.objects) {
       if (o.kind !== 'text' || !o.text) continue;
       const t = this.add.text(o.b * U, 0, o.text, {
@@ -595,12 +594,12 @@ class Scene extends Phaser.Scene {
       });
       t.setOrigin(0.5, 0.5).setAlpha(0.95);
       t.setData('isText', true);
-      t.setY(LEVEL.rows * U - (o.r + 0.5) * U);          // 鍔熻兘鍧楄嚜宸卞畾鍦ㄥ畠閭ｄ竴鏍?
+      t.setY(LEVEL.rows * U - (o.r + 0.5) * U);          // 功能块自己定在它那一格
       this.labels.push(t);
     }
-    /* 鈽?褰㈡€侀棬鎸傜墝瀛?鍏夌湅闂ㄦ鍒嗕笉鍑哄垏浠€涔堝舰鎬?鐢ㄦ埛:"褰㈡€侀棬閮芥槸涓€涓牱寮?鎴戞€庝箞鐭ラ亾杩欎釜闂ㄦ槸浠€涔?)鈥斺€?
-       姣忎釜闂ㄥご涓婃寕涓€鍧楀啓鐫€褰㈡€佸悕鐨勫皬鐗屽瓙,搴曡壊灏辨槸閭ｄ釜褰㈡€佺殑棰滆壊銆備綅缃瘡甯ц窡鐫€闂ㄨ蛋(瑙?draw)銆?
-       鈽?閲嶅姏闂ㄥ悓鐞?鏂瑰悜涓嶅悓棰滆壊涓嶅悓(鍙嶉噸鍔涜摑 / 甯搁噸鍔涢粍),鐗屽瓙涓婄洿鎺ュ啓"鍙嶉噸鍔涒啈""閲嶅姏鈫?銆?*/
+    /* ★ 形态门挂牌子:光看门框分不出切什么形态(用户:"形态门都是一个样式,我怎么知道这个门是什么")——
+       每个门头上挂一块写着形态名的小牌子,底色就是那个形态的颜色。位置每帧跟着门走(见 draw)。
+       ★ 重力门同理:方向不同颜色不同(反重力蓝 / 常重力黄),牌子上直接写"反重力↑""重力↓"。 */
     for (const o of LEVEL.objects) {
       let text = '';
       let col = 0xffffff;
@@ -610,7 +609,7 @@ class Scene extends Phaser.Scene {
         col = PORTAL_COL[to] ?? 0xffe17a;
       } else if (o.kind === 'gravity') {
         const up = (o.gdir ?? 1) < 0;
-        text = up ? '鍙嶉噸鍔涒啈' : '閲嶅姏鈫?;
+        text = up ? '反重力↑' : '重力↓';
         col = up ? 0x6fc3ff : 0xffd166;
       } else continue;
       const t = this.add.text(0, 0, text, {
@@ -625,9 +624,9 @@ class Scene extends Phaser.Scene {
     }
   }
 
-  /** 杩欎竴甯ф湁娌℃湁"纭"杈撳叆(绌烘牸 / 涓?/ W / 鍦ㄧ敾甯冧笂鐐逛竴涓?銆?
-   *  鈽?鐢?鑷繁璁颁笂涓€甯?鐨勮竟娌垮垽瀹?涓嶇敤 Phaser.Input.Keyboard.JustDown 鈥斺€?
-   *    瀹炴祴鍦ㄨ繖涓〉闈㈤噷 JustDown 鏀朵笉鍒?鎸夐敭鐨?isDown 鏄ソ鐨?,浜庢槸鎸夌┖鏍煎紑涓嶄簡灞€銆?*/
+  /** 这一帧有没有"确认"输入(空格 / 上 / W / 在画布上点一下)。
+   *  ★ 用"自己记上一帧"的边沿判定,不用 Phaser.Input.Keyboard.JustDown ——
+   *    实测在这个页面里 JustDown 收不到(按键的 isDown 是好的),于是按空格开不了局。 */
   private confirmDown(): boolean {
     const k = this.keys;
     const held = !!(k.SPACE?.isDown || k.UP?.isDown || k.W?.isDown);
@@ -637,21 +636,21 @@ class Scene extends Phaser.Scene {
     this.prevR = !!k.R?.isDown;
     this.restartPressed = rEdge;
     this.restartLatch = false;
-    /* 鏃犳晫妯″紡寮€鍏?G 閿?杈规部瑙﹀彂)銆傚垏鎹㈡椂缁欎竴娆℃彁绀?濂界‘璁ゅ埌搴曞紑娌″紑銆?*/
+    /* 无敌模式开关:G 键(边沿触发)。切换时给一次提示,好确认到底开没开。 */
     const gEdge = (!!k.G?.isDown && !this.prevG) || this.godLatch;
     this.prevG = !!k.G?.isDown;
     this.godLatch = false;
     if (gEdge) this.toggleGod();
-    /* B 閿?/ ?demo=1:鐪?bot 閫氬叧 */
+    /* B 键 / ?demo=1:看 bot 通关 */
     if (this.demoLatch || this.demoWanted) {
       this.demoLatch = false;
       this.demoWanted = false;
       this.toggleDemo();
     }
-    /* 鈽?寮圭哀鍔涘害寰皟:[ 鍑?5%銆乚 鍔?5%(0.4 ~ 1.5)銆傝摑璺崇偣鍒板簳璇ュ澶ц繕娌″畾姝?
-       璁╃敤鎴风洿鎺ユ妸鏁板€艰皟鍒版墜鎰熷,姣旀垜浠弽澶嶇寽鐪佷簨 鈥斺€?HUD 涓婁細鏄剧ず"璺崇偣脳N"銆?
-       鈽?璧板拰 G/R 鍚屼竴鏉¤矾(鐪熷疄 keydown 浜嬩欢 + latch):Phaser 鐨?addKeys('OPEN_BRACKET')
-       瀹炴祴鏀朵笉鍒?鎸?] 鏈夋晥銆佹寜 [ 鏃犳晥),鍒湪杩欎笂闈㈡氮璐规椂闂淬€?*/
+    /* ★ 弹簧力度微调:[ 减 5%、] 加 5%(0.4 ~ 1.5)。蓝跳点到底该多大还没定死,
+       让用户直接把数值调到手感对,比我们反复猜省事 —— HUD 上会显示"跳点×N"。
+       ★ 走和 G/R 同一条路(真实 keydown 事件 + latch):Phaser 的 addKeys('OPEN_BRACKET')
+       实测收不到(按 ] 有效、按 [ 无效),别在这上面浪费时间。 */
     if (this.padLatch) {
       this.padMulWanted = Math.round(Math.max(0.4, Math.min(1.5,
         this.padMulWanted + Math.sign(this.padLatch) * 0.05 * Math.min(4, Math.abs(this.padLatch)))) * 100) / 100;
@@ -664,14 +663,14 @@ class Scene extends Phaser.Scene {
     return false;
   }
 
-  /** 鏃犳晫寮€鍏?閿洏 G 鍜屽睆骞曞彸涓嬭閭ｄ釜鎸夐挳閮借蛋杩欓噷(鐘舵€佸啓鍦ㄦ寜閽笂,涓嶇敤鐚滃紑娌″紑) */
+  /** 无敌开关:键盘 G 和屏幕右下角那个按钮都走这里(状态写在按钮上,不用猜开没开) */
   toggleGod() {
     this.godWanted = !this.godWanted;
     this.world.god = this.godWanted;
     this.syncGodButton();
   }
 
-  /** 鎸夐挳鐐瑰畬鎶婄劍鐐硅繕鍥炲幓 鈥斺€?涓嶇劧鎸夐挳鐣欑潃鐒︾偣,鎸夌┖鏍间細褰撴垚"鍐嶇偣涓€娆¤繖涓寜閽?(HTML 榛樿琛屼负) */
+  /** 按钮点完把焦点还回去 —— 不然按钮留着焦点,按空格会当成"再点一次这个按钮"(HTML 默认行为) */
   private blurSelf() {
     const ae = document.activeElement as HTMLElement | null;
     if (ae && ae !== document.body) ae.blur();
@@ -680,14 +679,14 @@ class Scene extends Phaser.Scene {
   private godBtnEl: HTMLElement | null = null;
   private godBtnTxt = '';
 
-  /** 婕旂ず鎸夐挳涓婄殑瀛?娌′笅濂?/ 涓嬪け璐?/ 寮€浜?/ 鍏充簡 鈥斺€?鐘舵€佸啓鍦ㄦ寜閽笂,涓嶇敤鐚?*/
+  /** 演示按钮上的字:没下好 / 下失败 / 开了 / 关了 —— 状态写在按钮上,不用猜 */
   syncDemoButton() {
     if (!this.demoBtnEl) this.demoBtnEl = document.getElementById('gd-demo');
     const el = this.demoBtnEl;
     if (!el) return;
     const txt = this.demoMode
-      ? (this.demoTape ? '婕旂ず:寮€ 脳' + this.demoSpeed.toFixed(2).replace(/\.?0+$/, '') : this.demoErr ? '婕旂ず:鍗峰瓙鍔犺浇澶辫触' : '婕旂ず:杞藉叆涓€?)
-      : '鐪?bot 閫氬叧';
+      ? (this.demoTape ? '演示:开 ×' + this.demoSpeed.toFixed(2).replace(/\.?0+$/, '') : this.demoErr ? '演示:卷子加载失败' : '演示:载入中…')
+      : '看 bot 通关';
     if (txt === this.demoBtnTxt) return;
     this.demoBtnTxt = txt;
     el.textContent = txt;
@@ -700,30 +699,30 @@ class Scene extends Phaser.Scene {
     if (!this.godBtnEl) this.godBtnEl = document.getElementById('gd-god');
     const el = this.godBtnEl;
     if (!el) return;
-    const txt = this.world.god ? '鏃犳晫:寮€' : '鏃犳晫:鍏?;
-    if (txt === this.godBtnTxt) return;              // 鍙湪鍙樹簡鐨勬椂鍊欏啓 DOM
+    const txt = this.world.god ? '无敌:开' : '无敌:关';
+    if (txt === this.godBtnTxt) return;              // 只在变了的时候写 DOM
     this.godBtnTxt = txt;
     el.textContent = txt;
     el.classList.toggle('is-on', this.world.god);
   }
 
-  /** 鍙楂樺害 = VIEW_H_BLOCKS 鍧?**鍦ㄧ湡姝ｇ殑绐楀彛閲?*(涓嶆槸鏁村潡鐢诲竷)銆?
-   *  鈽?鐢ㄦ埛瀹炴祴:"鍙 11 鏍?绐楀彛鍙湶 6.8 鏍? 鈥斺€?鐢诲竷姣斿妗嗙殑閫忔槑绐楀彛楂?澶氬嚭鏉ョ殑閮ㄥ垎琚?
-   *    閲戝睘杈规鎸′綇銆備笂涓€鐗堟垜鐨勫仛娉曟槸"鎶婄缉鏀捐皟灏忋€佽绐楀彛閲屽噾澶?11 鏍?,缁撴灉鐩告満鏄寜鏁村潡鐢诲竷
-   *    瀹氫綅鐨?浜虹洿鎺ヨ鎸ゅ埌绐楀彛澶栭潰鍘讳簡("cube 搴曚笅涓嶅啀鏄剧ず")銆?
-   *    姝ｇ‘鍋氭硶:**鎶婄浉鏈虹殑鍙栨櫙妗?viewport)鐩存帴璁炬垚闇插嚭鏉ョ殑閭ｄ竴鏉?*,鍐嶈閭ｄ竴鏉￠噷姝ｅソ 11 鏍?
-   *    鈥斺€?鐩告満閫昏緫銆佷汉鐗╀綅缃€佸垽瀹氬叏閮借窡鐫€杩欐潯璧?绐楀彛澶栫敾浠€涔堥兘涓嶅奖鍝嶃€?*/
+  /** 可见高度 = VIEW_H_BLOCKS 块 **在真正的窗口里**(不是整块画布)。
+   *  ★ 用户实测:"可见 11 格,窗口只露 6.8 格" —— 画布比外框的透明窗口高,多出来的部分被
+   *    金属边框挡住。上一版我的做法是"把缩放调小、让窗口里凑够 11 格",结果相机是按整块画布
+   *    定位的,人直接被挤到窗口外面去了("cube 底下不再显示")。
+   *    正确做法:**把相机的取景框(viewport)直接设成露出来的那一条**,再让那一条里正好 11 格
+   *    —— 相机逻辑、人物位置、判定全都跟着这条走,窗口外画什么都不影响。 */
   viewFrac = 1;
-  /** 闇插嚭鏉ョ殑閭ｄ竴鏉″湪鐢诲竷閲岀殑浣嶇疆(buffer 鍍忕礌) */
+  /** 露出来的那一条在画布里的位置(buffer 像素) */
   viewTop = 0;
-  /** 娓叉煋缂撳啿鐨勯珮搴?buffer 鍍忕礌);zoom = viewH / (11 鏍?脳 30 鍗曚綅) */
+  /** 渲染缓冲的高度(buffer 像素);zoom = viewH / (11 格 × 30 单位) */
   viewH = 720;
-  /** 娓叉煋缂撳啿鐨勫搴?鈽?蹇呴』鐢便€愮洅瀛愮殑闀垮姣斻€戞帹鍑烘潵銆?
-   *  浠ュ墠鍥哄畾 1280(CSS 鍐嶆媺浼稿埌鐩掑瓙涓?,鑰岀洅瀛?鏄剧ず鍣ㄩ€忔槑绐楀彛)鏍规湰涓嶆槸 16:9 鈥斺€?
-   *  瀹炴祴 1440脳900 鏃舵槸 1.80:1銆佺敤鎴烽偅鍧楀睆涓婃洿瀹?浜庢槸姘村钩琚媺闀裤€佸瀭鐩磋鍘嬫墎,
-   *  **鏂瑰潡鐪嬬潃灏辨槸闀挎柟浣撹€屼笉鏄鏂逛綋**(鐢ㄦ埛瀹炴祴)銆傜紦鍐插拰鐩掑瓙鍚屾瘮渚?鈫?鎷変几鏄瓑姣旂殑銆?*/
+  /** 渲染缓冲的宽度:★ 必须由【盒子的长宽比】推出来。
+   *  以前固定 1280(CSS 再拉伸到盒子上),而盒子(显示器透明窗口)根本不是 16:9 ——
+   *  实测 1440×900 时是 1.80:1、用户那块屏上更宽,于是水平被拉长、垂直被压扁,
+   *  **方块看着就是长方体而不是正方体**(用户实测)。缓冲和盒子同比例 → 拉伸是等比的。 */
   bufW = 1280;
-  /** 杩欎竴甯х湡姝ｇ敾鍑烘潵鐨勭墿浠舵暟(HUD 鐢?甯х巼涓嶅鏃跺厛鐪嬪畠) */
+  /** 这一帧真正画出来的物件数(HUD 用;帧率不对时先看它) */
   drawn = 0;
   private fracT = 0;
 
@@ -735,8 +734,8 @@ class Scene extends Phaser.Scene {
     }
     this.viewH = Math.round(720 * RENDER_SCALE);
     let w = Math.round(this.viewH * (r.width / r.height));
-    /* 鈽?鍍忕礌棰勭畻:鐩掑瓙瓒婂,缂撳啿灏辫秺瀹?姣斾緥蹇呴』璺熺潃鐩掑瓙,涓嶇劧鏂瑰潡浼氬彉闀挎柟褰?銆?
-       浣嗙洅瀛愬彲鑳介潪甯稿 鈥斺€?閭ｅ氨鏁翠綋缂╀竴妗?绛夋瘮缂?姣斾緥涓嶅彉),鍒濉厖鐜囨嫋鍨抚鐜囥€?*/
+    /* ★ 像素预算:盒子越宽,缓冲就越宽(比例必须跟着盒子,不然方块会变长方形)。
+       但盒子可能非常宽 —— 那就整体缩一档(等比缩,比例不变),别让填充率拖垮帧率。 */
     const px = w * this.viewH;
     if (px > BUF_BUDGET) {
       const k = Math.sqrt(BUF_BUDGET / px);
@@ -748,34 +747,34 @@ class Scene extends Phaser.Scene {
     this.viewTop = 0;
   }
 
-  /** 鍙瀹藉害 = 鐢?VIEW_H_BLOCKS 涓庣敾骞呮瘮渚嬪喅瀹?鍙栨櫙妗嗗彧瑕嗙洊"闇插嚭鏉ョ殑閭ｄ竴鏉? */
+  /** 可见宽度 = 由 VIEW_H_BLOCKS 与画幅比例决定;取景框只覆盖"露出来的那一条" */
   zoomOf() {
     return this.viewH / (VIEW_H_BLOCKS * U);
   }
 
-  /** 鍥鹃泦鍔犺浇瀹?姣忎釜褰㈡€佹寫鍑恒€愮 1 缁勪富鍥?+ 鍚岀粍鍙戝厜灞傘€?鎶?plist 閲?韬虹潃鐨?甯ц浆姝ｅ悗
-   *  鐢昏繘涓ゅ紶绂诲睆 canvas(涓€涓讳竴鍙戝厜),鍐嶆敞鍐屾垚 Phaser 璐村浘銆?
-   *  鈽?涓嶅啀鎸夊抚鍙疯疆鎾?GD 鐨勭帺瀹跺浘闆嗘槸鎸夐儴浠舵媶鐨?铚樿洓 02/03/04 鏄吙绛夐儴浠?鐢诲竷灏哄杩樹笉涓€鏍?,
-   *    娌℃湁閮ㄤ欢鍚堟垚琛ㄥ氨杞挱 = 涓€浼氬効鍙湁鑵夸竴浼氬効鍙湁鐪肩潧(鐢ㄦ埛鎶ョ殑"璐村浘鏄贡鐨?)銆?*/
+  /** 图集加载完:每个形态挑出【第 1 组主图 + 同组发光层】,把 plist 里"躺着的"帧转正后
+   *  画进两张离屏 canvas(一主一发光),再注册成 Phaser 贴图。
+   *  ★ 不再按帧号轮播:GD 的玩家图集是按部件拆的(蜘蛛 02/03/04 是腿等部件,画布尺寸还不一样),
+   *    没有部件合成表就轮播 = 一会儿只有腿一会儿只有眼睛(用户报的"贴图是乱的")。 */
   private buildIcons() {
-    const REF_PX = 120;                       // GD 鐜╁鍥鹃泦鐨勫瘑搴?1 鍧?= 120 px(鏂瑰潡涓诲浘灏辨槸 120脳120)
+    const REF_PX = 120;                       // GD 玩家图集的密度:1 块 = 120 px(方块主图就是 120×120)
     for (const a of ICON_ATLAS) {
       const img = this.textures.exists('iconimg-' + a.file)
         ? (this.textures.get('iconimg-' + a.file).getSourceImage() as HTMLImageElement) : null;
       const xml = this.cache.text.get('iconxml-' + a.file) as string | undefined;
       if (!img || !xml) continue;
-      /* 鈽?鏂囦欢閿欓厤妫€鏌?瀹炴祴杩欏绱犳潗閲?cube 涓?GameSheet 灏辨槸閿欑殑):
-         plist 閲岀殑 metadata.size 澹版槑浜嗗畠鎻忚堪鐨勯偅寮犲浘闆嗘湁澶氬ぇ 鈥斺€?鍜岀湡瀹?png 瀵逛笉涓婂氨銆愪笉瑕佺敤銆?
-         鍚﹀垯甯у潗鏍囧叏閿欎綅(鐢诲嚭鏉ュ氨鏄竴鍫嗛敊浣嶇殑纰庣墖)銆?*/
+      /* ★ 文件错配检查(实测这套素材里 cube 与 GameSheet 就是错的):
+         plist 里的 metadata.size 声明了它描述的那张图集有多大 —— 和真实 png 对不上就【不要用】,
+         否则帧坐标全错位(画出来就是一堆错位的碎片)。 */
       const meta = /<key>size<\/key>\s*<string>\{([\d.]+),([\d.]+)\}<\/string>/.exec(xml);
       if (meta && (Math.abs(+meta[1] - img.naturalWidth) > 1 || Math.abs(+meta[2] - img.naturalHeight) > 1)) {
-        console.warn('[gd] 鍥鹃泦涓?plist 灏哄瀵逛笉涓?璺宠繃:' + a.file + '.png ' + img.naturalWidth + '脳' + img.naturalHeight
-          + ' vs plist 澹版槑 ' + meta[1] + '脳' + meta[2]);
+        console.warn('[gd] 图集与 plist 尺寸对不上,跳过:' + a.file + '.png ' + img.naturalWidth + '×' + img.naturalHeight
+          + ' vs plist 声明 ' + meta[1] + '×' + meta[2]);
         continue;
       }
       const F = parsePlistFrames(xml);
       if (!F) continue;
-      /* 涓诲浘 = 鎵€鏈?闈?_2_/_extra_/_glow_"甯ч噷鏈鍓昂瀵告渶澶х殑閭ｄ釜(鏁村彧瑙掕壊) */
+      /* 主图 = 所有"非 _2_/_extra_/_glow_"帧里未裁剪尺寸最大的那个(整只角色) */
       const mains = Object.keys(F).filter((n) => !/_2_|_extra_|_glow_/.test(n));
       if (!mains.length) continue;
       const name = mains.sort((p, q) => (F[q].sourceSize.w * F[q].sourceSize.h) - (F[p].sourceSize.w * F[p].sourceSize.h))[0];
@@ -788,16 +787,16 @@ class Scene extends Phaser.Scene {
         cv.width = W; cv.height = H;
         const c2 = cv.getContext('2d');
         if (!c2) continue;
-        /* 鍥鹃泦閲岀殑瀹為檯鍖哄煙:rotated 鐨勫抚瀹介珮鏄€愪簰鎹€戠殑,鑰屼笖鍐呭鏄汉鐫€鐨?*/
+        /* 图集里的实际区域:rotated 的帧宽高是【互换】的,而且内容是躺着的 */
         const sw = fr.rotated ? fr.frame.h : fr.frame.w;
         const sh = fr.rotated ? fr.frame.w : fr.frame.h;
-        const tw = fr.frame.w, th = fr.frame.h;                     // 杞涔嬪悗鐨勬樉绀哄昂瀵?
-        /* 鏈鍓敾甯冮噷鐨勪綅缃?涓績 = 鐢诲竷涓績 + spriteOffset(y 杞村拰鐢诲竷鐩稿弽) */
+        const tw = fr.frame.w, th = fr.frame.h;                     // 转正之后的显示尺寸
+        /* 未裁剪画布里的位置:中心 = 画布中心 + spriteOffset(y 轴和画布相反) */
         const dx = W / 2 + fr.spriteSourceSize.x - tw / 2;
         const dy = H / 2 - fr.spriteSourceSize.y - th / 2;
         c2.save();
         c2.translate(dx + tw / 2, dy + th / 2);
-        if (fr.rotated) c2.rotate(-Math.PI / 2);                    // 瀹炴祴:-90掳 鎵嶆槸姝ｇ殑
+        if (fr.rotated) c2.rotate(-Math.PI / 2);                    // 实测:-90° 才是正的
         c2.drawImage(img, fr.frame.x, fr.frame.y, sw, sh, -tw / 2, -th / 2, tw, th);
         c2.restore();
         const tex = 'icon-' + a.file + '-' + layer;
@@ -813,15 +812,15 @@ class Scene extends Phaser.Scene {
         body: this.add.image(0, 0, body.tex).setVisible(false).setDepth(16),
         glow: glow ? this.add.image(0, 0, glow.tex).setVisible(false).setDepth(17) : null,
         bw: body.w, bh: body.h,
-        pxPerUnit: REF_PX / (WATER_CHART.start ? 30 : 30),          // 瑙?REF_PX:120 px = 1 鍧?= 30 鍗曚綅
+        pxPerUnit: REF_PX / (WATER_CHART.start ? 30 : 30),          // 见 REF_PX:120 px = 1 块 = 30 单位
       });
     }
     this.iconsReady = this.iconLayers.length > 0;
-    console.log('[gd] 褰㈡€佸浘闆嗗氨缁?' + this.iconLayers.map((l) => l.mode + '(' + l.bw + '脳' + l.bh + ')').join(' '));
+    console.log('[gd] 形态图集就绪:' + this.iconLayers.map((l) => l.mode + '(' + l.bw + '×' + l.bh + ')').join(' '));
   }
 
-  /** 鐢ㄥ浘闆嗘憜鐜╁:浣嶇疆/灏哄/鏃嬭浆/涓婅壊銆?
-   *  鈽?灏哄鐢ㄧ粺涓€瀵嗗害(120 px = 1 鍧?,涓嶆槸"姣忓眰鍚勮嚜鎾戞弧 1 鏍? 鈥斺€?鍚庤€呬細鎶婂皬鑵?鎻忚竟鏀惧ぇ鍒板拰韬綋涓€鏍峰ぇ銆?*/
+  /** 用图集摆玩家:位置/尺寸/旋转/上色。
+   *  ★ 尺寸用统一密度(120 px = 1 块),不是"每层各自撑满 1 格" —— 后者会把小腿/描边放大到和身体一样大。 */
   private drawIconPlayer(w: World, cxw: number, cyw: number, B: number) {
     const L = this.iconLayers.find((l) => l.mode === w.mode) ?? this.iconLayers[0];
     const on = !w.done;
@@ -832,8 +831,8 @@ class Scene extends Phaser.Scene {
     }
     let rot = 0;
     if (w.mode === 'cube') {
-      /* 鈽?钀藉湴鍚稿钩 + 鏂瑰悜鍙栬礋鍙?瑙佷笅闈㈢煝閲忛偅鏉＄殑璇存槑) */
-      rot = this.spinAng;
+      /* ★ 落地吸平 + 方向取负号(见下面矢量那条的说明) */
+      rot = w.onGround ? 0 : -(this.airT / (2 * P.jump / (P.gravity * Y_TIME_SCALE) / 60)) * (Math.PI / 2);
     } else if (w.mode === 'ship') {
       rot = Math.max(-0.55, Math.min(0.55, w.vy / P.shipVyMax * 0.55));
     } else if (w.mode === 'ball') {
@@ -845,7 +844,7 @@ class Scene extends Phaser.Scene {
     }
     const [c1] = ICON_COL[w.mode] ?? [0xffffff, 0xffffff];
     const kill = w.dead ? 0xff7a5a : null;
-    const k = B / (L.pxPerUnit * 30);                     // 120 px = 30 鍗曚綅 鈫?k = B/120
+    const k = B / (L.pxPerUnit * 30);                     // 120 px = 30 单位 → k = B/120
     L.body.setPosition(cxw, cyw).setRotation(rot).setTint(kill ?? c1);
     L.body.setDisplaySize(L.bw * k, L.bh * k);
     if (L.glow) {
@@ -854,59 +853,59 @@ class Scene extends Phaser.Scene {
     }
   }
 
-  /** 鎺ㄨ繘 n 甯фā鎷?杈撳叆鎸夊綋鍓嶆ā寮忓彇:婕旂ず鍗?/ 鏈哄櫒浜?/ 閿洏) */
+  /** 推进 n 帧模拟(输入按当前模式取:演示卷 / 机器人 / 键盘) */
   pump(n: number) {
-    /* 鈽呪槄 鍗峰瓙杩樻病涓嬪ソ灏卞埆鎺ㄨ繘(2026-09 淇?:婕旂ず鐨勮緭鍏ユ槸 `tape[tick]`,
-       鑰?`loadTape()` 鏄紓姝?fetch 鈥斺€?浠ュ墠杩欎腑闂翠細鐓у父鎺ㄨ繘,浜庢槸**寮€澶村嚑鍗佷笂鐧惧抚鏄?娌℃湁杈撳叆"鍦ㄨ窇**,
-       绛夊嵎瀛愬埌浜?浜哄拰鍗峰瓙宸茬粡閿欎綅,蹇呯劧鍦?x鈮?00 鍓嶅悗鎽旀銆佺劧鍚庢棤闄愰噸鏉ャ€?
-       鐢ㄦ埛鎶ョ殑"鍙挱鏀句簡鍑犵灏辩粨鏉熶簡"灏辨湁瀹冧竴浠?鑰屼笖瀹冨彇鍐充簬缃戦€?椤甸潰鍔犺浇蹇參,鏄吀鍨嬬殑绔炴€併€?
-       鐜板湪:娌″嵎瀛愬氨涓嶅姩(鎸夐挳涓婃樉绀?杞藉叆涓€?),鍗峰瓙鍒颁簡鍐嶇敱 loadTape 浠庡ご寮€涓€灞€銆?*/
+    /* ★★ 卷子还没下好就别推进(2026-09 修):演示的输入是 `tape[tick]`,
+       而 `loadTape()` 是异步 fetch —— 以前这中间会照常推进,于是**开头几十上百帧是"没有输入"在跑**,
+       等卷子到了,人和卷子已经错位,必然在 x≈100 前后摔死、然后无限重来。
+       用户报的"只播放了几秒就结束了"就有它一份;而且它取决于网速/页面加载快慢,是典型的竞态。
+       现在:没卷子就不动(按钮上显示"载入中…"),卷子到了再由 loadTape 从头开一局。 */
     if (this.demoMode && !this.demoTape) return;
     for (let i = 0; i < n; i++) {
       const w0 = this.world;
       if (w0.dead) {
-        /* 鈽?楠屾敹鐢?鎶?鍝竴甯с€佸湪鍝鐨?璁颁笅鏉?鈥斺€?婕旂ず鍗峰湪 Node 渚ф槸 0 姝讳骸,
-           椤甸潰涓婅鏄湁姝讳骸,蹇呴』鑳戒竴鐪肩湅鍑烘槸鍝竴甯?鍝釜浣嶇疆(鍙湁涓€涓鏁版牴鏈煡涓嶅姩)銆?*/
+        /* ★ 验收用:把"哪一帧、在哪死的"记下来 —— 演示卷在 Node 侧是 0 死亡,
+           页面上要是有死亡,必须能一眼看出是哪一帧/哪个位置(只有一个次数根本查不动)。 */
         if (this.deathLog.length < 20) {
           this.deathLog.push({ tick: w0.tick, x: +(w0.x / U).toFixed(2), y: +(w0.y / U).toFixed(2), vy: +(w0.vy / U).toFixed(2), mode: w0.mode, gdir: w0.gdir, chunk: n, at: i, hold: this.demoHold(w0.tick) });
         }
         if (this.botMode || this.demoMode) {
-          /* 鈽?婕旂ず鍗枫€愭浜嗕竴娆°€? 瀹冨拰褰撳墠鐗╃悊宸茬粡涓嶆槸涓€濂椾簡(鍗峰瓙鏄寜鏌愪竴鐗堢墿鐞嗘悳鍑烘潵鐨?銆?
-             浠ュ墠浼氶潤榛樺娲汇€佹棤闄愰噸鏉?鐢ㄦ埛鐪嬪埌鐨?婕旂ず鍑犵灏辩粨鏉?闂竴涓?)鈥斺€?
-             鐜板湪鐩存帴鍒ゅ畾"鍗峰瓙杩囨湡"骞堕€€鍑烘紨绀?鎸夐挳涓婂啓娓呮,鍒浣滆繕鑳借窇銆?*/
+          /* ★ 演示卷【死了一次】= 它和当前物理已经不是一套了(卷子是按某一版物理搜出来的)。
+             以前会静默复活、无限重来(用户看到的"演示几秒就结束/闪一下")——
+             现在直接判定"卷子过期"并退出演示,按钮上写清楚,别装作还能跑。 */
           if (this.demoMode) {
-            this.demoErr = '婕旂ず鍗峰凡杩囨湡(鐗╃悊鏇存柊杩?绛夐噸鏂版墦鍖?';
+            this.demoErr = '演示卷已过期(物理更新过,等重新打包)';
             this.demoMode = false;
             this.phase = 'idle';
             this.pauseMusic();
             this.syncDemoButton();
             return;
           }
-          /* 鏈哄櫒浜洪獙鏀?绔嬪埢澶嶆椿,鍜?Node 渚т竴鑷?*/
+          /* 机器人验收:立刻复活,和 Node 侧一致 */
           const wasX = w0.checkX;
           w0.respawn();
           this.baseTick = Math.floor(this.tAtX(wasX) * 60);
           this.airT = 0;
         } else {
-          this.phase = 'dead';                  // 鐪熶汉:鍋滀笅鏉ュ嚭姝讳骸鐣岄潰,涓嶅啀鑷姩澶嶆椿
+          this.phase = 'dead';                  // 真人:停下来出死亡界面,不再自动复活
           this.deathT = 0;
           this.pauseMusic();
           return;
         }
       }
-      /* 杈撳叆鏉ユ簮:婕旂ず鍗锋寜 tick 鍙?閭ｅ嵎杈撳叆鏄粠 tick=0 鍏ㄧ▼褰曠殑),
-         鍚﹀垯鍙嶅簲寮忔満鍣ㄤ汉,鍚﹀垯閿洏銆?*/
-      /* 鈽呪槄 鐭寜涓㈠け鐨勪慨澶?2026-09,鐢ㄦ埛鎶?绌烘牸鏈夋椂鍊欏け鏁?+"璺崇幆鎸変簡娌＄敤"鍏跺疄鏄悓涓€鏉?:
-         閿洏杩欐潯璺師鏉ャ€愬彧鐪?isDown 杞銆戔€斺€?keydown/keyup 钀藉湪涓ゆ杞涔嬮棿鐨勪竴涓嬩細琚暣甯т涪鎺?鉁?
-         鑰岃烦鐜姹?鍦ㄧ幆閲岀殑閭ｄ竴甯ф湁鏂版寜涓?,涓竴鎷嶅氨鏄畬鍏ㄦ病鍙嶅簲 鉁椼€?
-         confirmLatch 鏄湡瀹?keydown 璁颁笅鏉ョ殑(涓婇潰娉ㄩ噴鍐欑潃"鏋佺煭鐨勪竴涓嬩篃鏀跺緱鍒?),鐜板湪鎺ヨ繘鏉?
-         鏈抚绗竴涓墿鐞嗗抚鍚冩帀瀹冨苟绔嬪埢娓呮帀 鈬?杩借刀甯т笉浼氭妸瀹冨綋鎴?涓€鐩存寜浣? 鉁?*/
+      /* 输入来源:演示卷按 tick 取(那卷输入是从 tick=0 全程录的),
+         否则反应式机器人,否则键盘。 */
+      /* ★★ 短按丢失的修复(2026-09,用户报"空格有时候失效"+"跳环按了没用"其实是同一条):
+         键盘这条路原来【只看 isDown 轮询】—— keydown/keyup 落在两次轮询之间的一下会被整帧丢掉 ✗,
+         而跳环要求"在环里的那一帧有新按下",丢一拍就是完全没反应 ✗。
+         confirmLatch 是真实 keydown 记下来的(上面注释写着"极短的一下也收得到"),现在接进来:
+         本帧第一个物理帧吃掉它并立刻清掉 ⇒ 追赶帧不会把它当成"一直按住" ✓ */
       const useLatch = this.confirmLatch;
       this.confirmLatch = false;
       const hold = this.demoMode ? this.demoHold(w0.tick)
         : this.botMode ? botThink(w0)
           : (!!(this.keys.SPACE?.isDown || this.keys.UP?.isDown || this.keys.W?.isDown) || useLatch);
-      if ((this.botMode || this.demoMode) && !this.botStarted) {       // 寮€鏈哄櫒浜?= 浠庡共鍑€鐨勪竴灞€寮€濮?鏂逛究鍜?Node 渚у鎸囩汗
+      if ((this.botMode || this.demoMode) && !this.botStarted) {       // 开机器人 = 从干净的一局开始,方便和 Node 侧对指纹
         this.botStarted = true;
         this.started = true;
         this.world = new World(LEVEL);
@@ -921,35 +920,16 @@ class Scene extends Phaser.Scene {
       }
       this.prevY = w0.y;
       w0.frame(hold);
-      /* 鈽?鏃犳晫妯″紡鐨?杞ㄩ亾涓婇檺":寮€鐫€鏃犳晫鏃朵笉璁搁绂昏鍒掕蛋寤?瑙?clampToGuide) */
+      /* ★ 无敌模式的"轨道上限":开着无敌时不许飞离规划走廊(见 clampToGuide) */
       this.clampToGuide();
       this.airT = w0.onGround ? 0 : this.airT + 1 / 60;
-    /* 鈽呪槄 2026-09 鏂瑰潡鑷浆:鎸夋簮鐮侀噸鍐?PlayerObject::runNormalRotation @IDA 144512 +
-       updateRotation @IDA 144749)銆傛簮鐮佽鐐?
-         路 鏃嬭浆鍩烘暟 = 180掳,鏃堕棿甯告暟 0.33333(杩蜂綘 0.43333)鈬?90掳 涓€鍙伴樁銆佺害 1/3 绉掕蛋瀹屼竴姝?鉁?
-         路 鏃嬭浆鏄€愭湞鐩爣瑙掔紦鍔?Slerp2D)+ 姣忓抚鏈€澶ц浆閲忋€戔噿 钀藉湴鏃剁洰鏍囧氨鏄?姝ｇ珛" 鈬?鑷劧鏀跺钩 鉁?
-       鎵€浠ヨ繖閲屾槸"鍙伴樁 + 缂撳姩"缁撴瀯:绌轰腑鏈濅笅涓€涓?90掳 鍙伴樁璧?钀藉湴鏈濇渶杩戠殑 90掳 鍊嶆暟鏀?鉁撱€?*/
-    if (w0.mode === 'cube') {
-      const STEP = Math.PI / 2;
-      const rate = (1 / 3) * 60;                     // 婧愮爜鐨勬椂闂村父鏁?0.33333 绉?/ 90掳 鈬?姣忕姝ユ暟
-      const dir = w0.gdir >= 0 ? 1 : -1;             // 鏂瑰悜闅忛噸鍔涚炕杞?婧愮爜閲?flipMod 绠¤繖涓?
-      if (w0.onGround) {
-        const target = Math.round(this.spinAng / STEP) * STEP;
-        this.spinAng += (target - this.spinAng) * 0.35;      // 蹇€熸敹骞?缂撳姩,涓嶆槸鐬烦)
-        if (Math.abs(target - this.spinAng) < 0.001) this.spinAng = target;
-      } else {
-        this.spinAng += dir * STEP * rate / 60;              // 鍖€閫熻蛋鍙伴樁(0.33333 绉?/ 姝?
-      }
-    } else {
-      this.spinAng = 0;
-    }
       if (this.botMode) {
         this.botStates.push(w0.state);
         if (w0.done && !this.fp) this.fp = fingerprint(this.botStates);
       }
       if (w0.done) {
         if (this.demoMode) {
-          /* 婕旂ず璺戝畬 = 閫氬叧:鍋滃湪杩欎竴甯?璁?閫氬叧"涓や釜瀛楃暀鍦?HUD 涓?R 鍙互閲嶇湅) */
+          /* 演示跑完 = 通关:停在这一帧,让"通关"两个字留在 HUD 上(R 可以重看) */
           this.demoEndX = w0.x;
           this.phase = 'done';
           this.deathT = 0;
@@ -962,13 +942,13 @@ class Scene extends Phaser.Scene {
     }
   }
 
-  /** 婕旂ず鍗?绗?tick 甯ф寜涓嶆寜銆傚嵎瀛愭瘮妯℃嫙鐭氨涓€寰嬫澗鎵?涓嶈鍙戠敓,浣嗗埆瓒婄晫) */
+  /** 演示卷:第 tick 帧按不按。卷子比模拟短就一律松手(不该发生,但别越界) */
   private demoHold(tick: number): boolean {
     const t = this.demoTape;
     return !!t && tick >= 0 && tick < t.length && t[tick];
   }
 
-  /** 寮€/鍏炽€愮湅 bot 閫氬叧銆戙€傚紑鐨勬椂鍊欏鏋滃嵎瀛愯繕娌′笅杞?鍏堝幓涓嬭浇(鎳掑姞杞?骞虫椂涓嶅崰甯﹀) */
+  /** 开/关【看 bot 通关】。开的时候如果卷子还没下载,先去下载(懒加载:平时不占带宽) */
   toggleDemo() {
     this.demoMode = !this.demoMode;
     if (this.demoMode) {
@@ -993,7 +973,7 @@ class Scene extends Phaser.Scene {
     this.syncDemoButton();
   }
 
-  /** 涓嬭浇骞惰В鐮侀€氬叧杈撳叆鍗?RLE 鈫?姣忓抚涓€涓?bool) */
+  /** 下载并解码通关输入卷(RLE → 每帧一个 bool) */
   private loadTape() {
     if (this.demoTried) return;
     this.demoTried = true;
@@ -1005,7 +985,7 @@ class Scene extends Phaser.Scene {
         for (const n of j.rle) { for (let i = 0; i < n; i++) out.push(cur); cur = !cur; }
         this.demoTape = out;
         this.demoLoaded = true;
-        /* 鈽?鍗峰瓙鍒颁簡灏变粠骞插噣鐨勪竴灞€閲嶅紑 鈥斺€?杩欐牱"绗竴涓緭鍏ヤ竴瀹氭槸 tape[0]"(瑙?pump 寮€澶撮偅鏉″畧鍗? */
+        /* ★ 卷子到了就从干净的一局重开 —— 这样"第一个输入一定是 tape[0]"(见 pump 开头那条守卫) */
         if (this.demoMode) this.restartRun();
       })
       .catch((e: Error) => { this.demoErr = e.message; });
@@ -1013,17 +993,17 @@ class Scene extends Phaser.Scene {
 
   update(_t: number, dtMs: number) {
     this.updates++;
-    this.lastDt = Number.isFinite(dtMs) ? dtMs : -1;      // 楠屾敹瑕佺湅:Phaser 鍒板簳鍠傝繘鏉ヤ粈涔?
+    this.lastDt = Number.isFinite(dtMs) ? dtMs : -1;      // 验收要看:Phaser 到底喂进来什么
     this.expose();
     this.fps = this.game.loop.actualFps;
     this.paintHud();
-    /* 纭閿瘡甯у彧璇讳竴娆?杈规部鍒ゅ畾瑕佹寜甯ф秷璐? */
+    /* 确认键每帧只读一次(边沿判定要按帧消费) */
     const confirm = this.confirmDown();
     const restart = this.restartPressed;
-    /* 鈽?R 浼樺厛浜庝竴鍒?浠讳綍闃舵銆佷换浣曟ā寮忛兘鍏堝鐞嗛噸鏉?浠ュ墠婕旂ず妯″紡鎶?phase 寮鸿鎺板洖 running,
-       'done' 閭ｄ竴鏀案杩滆蛋涓嶅埌 鈫?"R 鏄憜璁?)銆?*/
+    /* ★ R 优先于一切:任何阶段、任何模式都先处理重来(以前演示模式把 phase 强行掰回 running,
+       'done' 那一支永远走不到 → "R 是摆设")。 */
     if (restart) this.restartRun();
-    /* 璋冭瘯:鏁板瓧閿幇鍦烘崲褰㈡€?1 鏂瑰潡 2 椋炴満 3 鐞?4 UFO 5 娉㈡氮 6 鏈哄櫒浜?7 铚樿洓) */
+    /* 调试:数字键现场换形态(1 方块 2 飞机 3 球 4 UFO 5 波浪 6 机器人 7 蜘蛛) */
     if (this.modeLatch) {
       const m = MODE_ORDER[this.modeLatch - 1];
       if (m) {
@@ -1041,7 +1021,7 @@ class Scene extends Phaser.Scene {
     }
     if (this.phase === 'dead') {
       this.deathT += dtMs / 1000;
-      /* 鍋滃崐鎷嶅啀鏀惰緭鍏?鍏嶅緱"姝讳骸鐬棿杩樻寜鐫€鐨勬墜"鐩存帴鎶婅彍鍗曠偣鎺?*/
+      /* 停半拍再收输入,免得"死亡瞬间还按着的手"直接把菜单点掉 */
       if (this.deathT > 0.35) {
         if (restart) this.restartFromZero();
         else if (confirm) this.retry();
@@ -1049,11 +1029,11 @@ class Scene extends Phaser.Scene {
       this.followCamera(); this.draw(); this.paintUi(); return;
     }
     if (this.phase === 'poem') {
-      /* 缁堟湯涔嬭瘲:鍚戜笂婊?鎸変綇绌烘牸(鎴栫偣浣忕敾闈?鍔犻€熷埌 3 鍊?*/
+      /* 终末之诗:向上滚,按住空格(或点住画面)加速到 3 倍 */
       const fast = !!(this.keys.SPACE?.isDown || this.keys.UP?.isDown || this.keys.W?.isDown);
       this.poemT += (dtMs / 1000) * (fast ? 3 : 1);
       const camVH = this.cameras.main.height / this.cameras.main.zoom;
-      const total = POEM.length * POEM_LINE_H + camVH;      // 浠庡睆骞曚笅鏂逛竴鐩存粴鍒板畬鍏ㄥ嚭鍘?
+      const total = POEM.length * POEM_LINE_H + camVH;      // 从屏幕下方一直滚到完全出去
       if (!this.egg && this.poemT * POEM_SPEED > total) { this.egg = true; this.unlockEaster(); }
       if (this.egg && confirm) { this.phase = 'idle'; this.egg = false; this.poemT = 0; }
       this.followCamera(); this.draw(); this.paintUi(); return;
@@ -1065,10 +1045,10 @@ class Scene extends Phaser.Scene {
     }
 
     if (this.botMode || this.demoMode) {
-      /* 婕旂ず:鎸夈€愮湡瀹炴椂闂淬€戞帹杩?瑙?demoSpeed 鐨勮鏄?銆備竴甯ф覆鏌撴渶澶氭帹 240 甯?闃叉鍒囨爣绛鹃〉鍥炴潵鐖嗗抚銆?
-         鍐呯疆鏈哄櫒浜洪獙鏀?botMode)鍥哄畾 8 鍊嶉€?瀹冨彧鏄敤鏉ュ拰 Node 渚у鎸囩汗,涓嶉渶瑕佷汉鐪嬨€?
-         鈽?鏃堕棿鐢?performance.now() 鑷繁閲?涓嶇敤 Phaser 鐨?delta 鈥斺€?瀹炴祴 Phaser 鐨?delta 鏄?骞虫粦杩?鐨?
-           183 娆?update/6 绉?澧欎笂 33ms 涓€娆?鍗村彧绱嚭 5.5 绉?婕旂ず浼氭參 25%(鐢ㄦ埛鎶ョ殑"鍊嶉€熶笉瀵?灏辨湁瀹冧竴浠?銆?*/
+      /* 演示:按【真实时间】推进(见 demoSpeed 的说明)。一帧渲染最多推 240 帧,防止切标签页回来爆帧。
+         内置机器人验收(botMode)固定 8 倍速:它只是用来和 Node 侧对指纹,不需要人看。
+         ★ 时间用 performance.now() 自己量,不用 Phaser 的 delta —— 实测 Phaser 的 delta 是"平滑过"的,
+           183 次 update/6 秒(墙上 33ms 一次)却只累出 5.5 秒,演示会慢 25%(用户报的"倍速不对"就有它一份)。 */
       const now = performance.now();
       const dtWall = this.lastWallMs ? Math.min(0.5, (now - this.lastWallMs) / 1000) : 0;
       this.lastWallMs = now;
@@ -1080,20 +1060,20 @@ class Scene extends Phaser.Scene {
         this.pump(want);
       }
     } else if (this.dbgPause) {
-      /* 鍐讳綇:鍙敾涓嶆帹(鍑哄浘/璋冭瘯鐢? */
+      /* 冻住:只画不推(出图/调试用) */
     } else {
       const a = this.audio;
       const live = !!a && !a.paused && isFinite(a.duration) && a.duration > 0;
       const step = 1 / 60;
-      /* 鈽?闊充箰鑳戒笉鑳藉綋"鏃堕挓"鐢?瀹冨緱鍜屾ā鎷熸椂闂磋酱瀵瑰緱涓娿€?
-         瀵逛笉涓婄殑涓ょ鎯呭舰鈥斺€斺憼 鍒氬娲?baseTick 璺充簡,闊充箰杩樺仠鍦ㄦ棫浣嶇疆;鈶?鏈嶅姟鍣ㄤ笉鏀寔 Range 璇锋眰,
-         娴忚鍣?seekable 鏄┖鐨?`currentTime = t` 浼氳鐩存帴蹇界暐(瀹炴祴鏈湴闈欐€佹湇鍔″櫒灏辨槸杩欐牱)銆?
-         浠ュ墠鍙 live,浜庢槸杩欎袱绉嶆儏鍐典笅 target 鎭掍负 0 鈫?**鐢婚潰鍗′綇涓嶅姩**(鐢ㄦ埛鎶ョ殑灏辨槸"澶嶆椿鍚庝笉瀵?)銆?
-         鐜板湪:瀵逛笉涓婂氨鍏堣瘯鐫€閲?seek(1.5 绉掍竴娆?,鍚屾椂銆愮収甯告寜鍥哄畾姝ラ暱鎺ㄨ繘妯℃嫙銆?缁濅笉鍗′綇銆?*/
+      /* ★ 音乐能不能当"时钟"用:它得和模拟时间轴对得上。
+         对不上的两种情形——① 刚复活,baseTick 跳了,音乐还停在旧位置;② 服务器不支持 Range 请求,
+         浏览器 seekable 是空的,`currentTime = t` 会被直接忽略(实测本地静态服务器就是这样)。
+         以前只认 live,于是这两种情况下 target 恒为 0 → **画面卡住不动**(用户报的就是"复活后不对")。
+         现在:对不上就先试着重 seek(1.5 秒一次),同时【照常按固定步长推进模拟】,绝不卡住。 */
       const wantT = (this.baseTick + this.world.tick) / 60;
       const synced = live && Math.abs(a!.currentTime - wantT) <= 1.5;
       if (synced) {
-        /* 鈽?鐢遍煶涔愰┍鍔?鐢婚潰閲岀殑闅滅姝ｅソ钀藉湪瀹冨搴旂殑閭ｄ竴鎷嶄笂 */
+        /* ★ 由音乐驱动:画面里的障碍正好落在它对应的那一拍上 */
         const target = Math.max(0, Math.floor(a!.currentTime * 60) - this.baseTick);
         let n = 0;
         while (this.world.tick < target && n < 8) { this.pump(1); n++; }
@@ -1107,14 +1087,14 @@ class Scene extends Phaser.Scene {
         while (this.acc >= step && n < 5) { this.acc -= step; this.pump(1); n++; }
       }
     }
-    if (this.phase !== 'running') { this.followCamera(); this.draw(); this.paintUi(); return; }   // pump 閲屽彲鑳藉垰姝?鍒氶€氬叧
+    if (this.phase !== 'running') { this.followCamera(); this.draw(); this.paintUi(); return; }   // pump 里可能刚死/刚通关
     this.followCamera();
     this.draw();
     this.paintUi();
     this.expose();
   }
 
-  /** HUD(DOM 閲岄偅鏉?:姣忓抚閮藉埛 鈥斺€?浠ュ墠鍙湪"璺戠潃"鐨勫垎鏀噷鍒?姝讳骸鐣岄潰涓婄殑 HUD 鏄畫鐣欑殑鏃у€?*/
+  /** HUD(DOM 里那条):每帧都刷 —— 以前只在"跑着"的分支里刷,死亡界面上的 HUD 是残留的旧值 */
   private paintHud() {
     this.syncGodButton();
     this.syncDemoButton();
@@ -1125,28 +1105,28 @@ class Scene extends Phaser.Scene {
       MODE_NAME[w.mode] ?? w.mode,
       segOf(w.x) || '',
       Math.round(w.progress * 100) + '%',
-      '灏濊瘯 ' + String(w.attempts).padStart(2, '0'),
+      '尝试 ' + String(w.attempts).padStart(2, '0'),
     ];
-    if (this.phase === 'dead') parts.push('鎽斾簡');
-    if (this.phase === 'idle') parts.push('鎸夌┖鏍煎紑濮?);
-    if (this.phase === 'done') parts.push('閫氬叧');
-    if (w.mode === 'ship') parts.push('鎸変綇 = 涓婂崌');
-    if (w.god) parts.push('鈽?鏃犳晫' + (this.guide.length ? ' 路 闄愯建 卤' + GUIDE_BAND + ' 鍧? : ' 路 鍙创杈圭晫'));
+    if (this.phase === 'dead') parts.push('摔了');
+    if (this.phase === 'idle') parts.push('按空格开始');
+    if (this.phase === 'done') parts.push('通关');
+    if (w.mode === 'ship') parts.push('按住 = 上升');
+    if (w.god) parts.push('★ 无敌' + (this.guide.length ? ' · 限轨 ±' + GUIDE_BAND + ' 块' : ' · 只贴边界'));
     if (this.demoMode) {
       const n = this.demoTape ? this.demoTape.length : 0;
       parts.push(this.demoTape
-        ? '婕旂ず bot 閫氬叧 脳' + this.demoSpeed.toFixed(2).replace(/\.?0+$/, '') + '(' + (n / 60 / this.demoSpeed).toFixed(0) + 's 鏀惧畬)'
-        : this.demoErr ? '婕旂ず鍗峰姞杞藉け璐?' + this.demoErr : '婕旂ず鍗疯浇鍏ヤ腑鈥?);
+        ? '演示 bot 通关 ×' + this.demoSpeed.toFixed(2).replace(/\.?0+$/, '') + '(' + (n / 60 / this.demoSpeed).toFixed(0) + 's 放完)'
+        : this.demoErr ? '演示卷加载失败:' + this.demoErr : '演示卷载入中…');
     }
-    if (Math.abs(w.padMul - 1) > 0.001) parts.push('璺崇偣脳' + w.padMul.toFixed(2));
-    /* 鈽?鍙鏍兼暟 + 鍙栨櫙妗嗚澶栨鎸℃帀鐨勬瘮渚?鍜屽師鐗堝涓嶄笂鏃?涓€鐪肩湅鍑烘槸缂╂斁杩樻槸瑁佸垏闂 */
+    if (Math.abs(w.padMul - 1) > 0.001) parts.push('跳点×' + w.padMul.toFixed(2));
+    /* ★ 可见格数 + 取景框被外框挡掉的比例:和原版对不上时,一眼看出是缩放还是裁切问题 */
     const cam = this.cameras.main;
     const vhBlocks = (cam.height / cam.zoom) / U;
-    parts.push('鍙 ' + vhBlocks.toFixed(1) + ' 鏍?);
-    /* 鈽?榛戣竟鑷煡:鎶?鐢诲竷"鍜?澶栨鐨勯€忔槑绐楀彛"涓や釜鐭╁舰鐩存帴鎵撳湪 HUD 涓?鈥斺€?
-       涓嶇敤 DevTools,涓€鐪肩湅鍑虹敾甯冩瘮绐楀彛鐭灏?鍋忎簡澶氬皯(榛戣竟 = 鐢诲竷娌¤兘鐩栦綇绐楀彛)銆?
-       绐楀彛鐨勫洓鏉¤竟浠?FrameFit 鍐欏湪 CSS 鍙橀噺閲岀殑 --ff-win-* 璇?浠ュ墠杩欓噷鎵撶殑鏄?
-       .screen-frame 鈥斺€?閭ｆ槸銆愭暣鍧楄鍙ｃ€?閲忓嚭鏉ユ案杩滅瓑浜庤鍙?浠€涔堥兘璇存槑涓嶄簡)銆?*/
+    parts.push('可见 ' + vhBlocks.toFixed(1) + ' 格');
+    /* ★ 黑边自查:把"画布"和"外框的透明窗口"两个矩形直接打在 HUD 上 ——
+       不用 DevTools,一眼看出画布比窗口矮多少/偏了多少(黑边 = 画布没能盖住窗口)。
+       窗口的四条边从 FrameFit 写在 CSS 变量里的 --ff-win-* 读(以前这里打的是
+       .screen-frame —— 那是【整块视口】,量出来永远等于视口,什么都说明不了)。 */
     const cvEl = document.getElementById('gd-canvas');
     const hostEl = cvEl?.parentElement ?? document.querySelector('.lost');
     if (cvEl && hostEl) {
@@ -1156,32 +1136,32 @@ class Scene extends Phaser.Scene {
       const wl = px('--ff-win-left'), wt = px('--ff-win-top');
       const wr = px('--ff-win-right'), wb = px('--ff-win-bottom');
       const ww = window.innerWidth - wl - wr, wh = window.innerHeight - wt - wb;
-      const seamB = (window.innerHeight - wb) - cv.bottom;      // >0 = 搴曚笅鐣欎簡缂?
+      const seamB = (window.innerHeight - wb) - cv.bottom;      // >0 = 底下留了缝
       const seamR = (window.innerWidth - wr) - cv.right;
       const seamT = cv.top - wt;
-      parts.push('鐩?' + Math.round(cv.width) + '脳' + Math.round(cv.height) + '@' + Math.round(cv.top)
-        + ' 绐?' + Math.round(ww) + '脳' + Math.round(wh) + '@' + Math.round(wt));
-      const seams = [['涓?, seamB], ['鍙?, seamR], ['涓?, seamT]] as const;
+      parts.push('盒 ' + Math.round(cv.width) + '×' + Math.round(cv.height) + '@' + Math.round(cv.top)
+        + ' 窗 ' + Math.round(ww) + '×' + Math.round(wh) + '@' + Math.round(wt));
+      const seams = [['下', seamB], ['右', seamR], ['上', seamT]] as const;
       const bad = seams.filter(([, v]) => Math.abs(v) > 1.5)
-        .map(([k, v]) => k + (v > 0 ? '缂?' : '婧?') + Math.abs(Math.round(v)));
+        .map(([k, v]) => k + (v > 0 ? '缝 ' : '溢 ') + Math.abs(Math.round(v)));
       if (bad.length) parts.push(bad.join(' '));
     }
-    if (this.viewFrac < 0.995) parts.push('鐢诲竷琚尅 ' + Math.round((1 - this.viewFrac) * 100) + '%');
-    /* 鈽?缂撳啿灏哄 + 瀹為檯鐢讳簡鍑犱釜鐗╀欢:甯х巼涓嶅鏃朵竴鐪肩湅鍑烘槸"鐢诲お澶?杩樻槸"鍍忕礌澶" */
-    parts.push('缂撳啿 ' + this.bufW + '脳' + this.viewH + ' 缁?' + this.drawn);
+    if (this.viewFrac < 0.995) parts.push('画布被挡 ' + Math.round((1 - this.viewFrac) * 100) + '%');
+    /* ★ 缓冲尺寸 + 实际画了几个物件:帧率不对时一眼看出是"画太多"还是"像素太多" */
+    parts.push('缓冲 ' + this.bufW + '×' + this.viewH + ' 绘 ' + this.drawn);
     parts.push(Math.round(this.fps) + ' fps');
-    parts.push(this.audio && !this.audio.paused ? '鈾?' + this.audio.currentTime.toFixed(1) + 's' : '鏆傚仠');
-    hud.textContent = parts.filter(Boolean).join(' 路 ');
+    parts.push(this.audio && !this.audio.paused ? '♪ ' + this.audio.currentTime.toFixed(1) + 's' : '暂停');
+    hud.textContent = parts.filter(Boolean).join(' · ');
     hud.classList.toggle('is-dead', this.phase === 'dead');
   }
 
-  /** 鍙栨櫙:鐓ф惉鍘熺増(OpenGD PlayLayer::updateCamera)鈥斺€?
-   *  鈽?妯悜:鐩告満宸﹁竟缂?= 鐜╁ x 鈭?灞忓/2.5(鍗充汉绔欏湪灞忓箷宸︿晶 40% 澶?;
-   *  鈽?鏂瑰潡褰㈡€?浜鸿鍥板湪瑙嗛噹閲岀殑涓€鏉″甫瀛?[涓嬭竟+120, 涓嬭竟+灞忛珮鈭?0] 鍗曚綅閲?
-   *    瓒婂嚭涓嬫部 鈫?涓嬭竟 = 浜?鈭?120;瓒婂嚭涓婃部 鈫?涓嬭竟 = 浜?鈭?灞忛珮 + 90;璺戝湪鍦伴潰涓?鈫?鍥炶惤鍒?鈭?0;
-   *  鈽?椋炶绫?/ 鐞?杩涢棬閭ｄ竴鍒绘妸瑙嗗彛涓績閽夋(鍘熺増 m_fCameraYCenter),杩欏氨鏄?瑙嗗彛琚浐瀹?;
-   *  鈽?鏈€鍚庡す鍦?[鈭?0, 鍏冲崱楂?鈭?灞忛珮] 閲?涓嶄細鎷嶅埌鍏冲崱澶栭潰銆?
-   *  鍧愭爣:涓栫晫 y 鏈濅笂,Phaser 鐩告満 y 鏄€愮粯鍥剧┖闂淬€?鏈濅笅銆? 鍦ㄥ叧鍗￠《),鏈€鍚庢崲绠椾竴娆°€?*/
+  /** 取景:照搬原版(OpenGD PlayLayer::updateCamera)——
+   *  ★ 横向:相机左边缘 = 玩家 x − 屏宽/2.5(即人站在屏幕左侧 40% 处);
+   *  ★ 方块形态:人被困在视野里的一条带子 [下边+120, 下边+屏高−90] 单位里,
+   *    越出下沿 → 下边 = 人 − 120;越出上沿 → 下边 = 人 − 屏高 + 90;跑在地面上 → 回落到 −90;
+   *  ★ 飞行类 / 球:进门那一刻把视口中心钉死(原版 m_fCameraYCenter),这就是"视口被固定";
+   *  ★ 最后夹在 [−90, 关卡高 − 屏高] 里,不会拍到关卡外面。
+   *  坐标:世界 y 朝上,Phaser 相机 y 是【绘图空间】(朝下、0 在关卡顶),最后换算一次。 */
   private followCamera() {
     const cam = this.cameras.main;
     const vw = cam.width / cam.zoom;
@@ -1189,14 +1169,14 @@ class Scene extends Phaser.Scene {
     const rowsU = LEVEL.rows * U;
     const w = this.world;
 
-    /* ---- 妯悜 ---- */
+    /* ---- 横向 ---- */
     const left = Math.max(0, w.x - vw * 0.4);
     this.camX = left + vw / 2;
 
-    /* ---- 褰㈡€佸垏鎹?璁颁笅"杩涢棬鏃剁殑瑙嗗彛涓績"(鍘熺増 m_fCameraYCenter) ---- */
+    /* ---- 形态切换:记下"进门时的视口中心"(原版 m_fCameraYCenter) ---- */
     if (w.mode !== this.camMode) {
       if (CAM_FIXED_MODES.has(w.mode)) {
-        const portalY = w.portalY;                       // 闂ㄧ殑浣嶇疆(涓栫晫 y)
+        const portalY = w.portalY;                       // 门的位置(世界 y)
         if (w.mode === 'ball') {
           this.camCenter = portalY < CAM_BALL_BELOW ? CAM_BALL_CENTER
             : Math.floor((portalY + CAM_LOW) / U) * U - CAM_LOW;
@@ -1208,22 +1188,22 @@ class Scene extends Phaser.Scene {
       this.camMode = w.mode;
     }
 
-    /* ---- 绾靛悜:瑙嗛噹涓嬭竟(涓栫晫 y銆佸崟浣? ---- */
-    const py = w.y + (P.box * w.sizeMul) / 2;            // 浜轰腑蹇?
+    /* ---- 纵向:视野下边(世界 y、单位) ---- */
+    const py = w.y + (P.box * w.sizeMul) / 2;            // 人中心
     let bottom: number;
     if (CAM_FIXED_MODES.has(w.mode)) {
-      bottom = this.camCenter - vh / 2;                  // 閽夋:瑙嗗彛涓績 = 杩涢棬鏃剁殑楂樺害
+      bottom = this.camCenter - vh / 2;                  // 钉死:视口中心 = 进门时的高度
     } else {
       const flip = w.gdir < 0;
-      const unk2 = flip ? CAM_MID : CAM_LOW;             // 涓婃部浣欓噺
-      const unk3 = flip ? CAM_LOW : CAM_MID;             // 涓嬫部浣欓噺
+      const unk2 = flip ? CAM_MID : CAM_LOW;             // 上沿余量
+      const unk3 = flip ? CAM_LOW : CAM_MID;             // 下沿余量
       let c = this.camBottom;
       if (py <= vh + c - unk2) {
-        if (py < unk3 + c) c = py - unk3;                // 鎺夊嚭涓嬫部 鈫?璐村洖涓嬫部
+        if (py < unk3 + c) c = py - unk3;                // 掉出下沿 → 贴回下沿
       } else {
-        c = py - vh + unk2;                              // 鍐插嚭涓婃部 鈫?璐村洖涓婃部
+        c = py - vh + unk2;                              // 冲出上沿 → 贴回上沿
       }
-      /* 璺戝湪銆愬湴闈€戜笂(涓嶆槸绔欏湪鏂瑰潡涓?:鐩告満鍥炶惤鍒板湴闈㈤珮搴?鍘熺増 cam.y = 0) */
+      /* 跑在【地面】上(不是站在方块上):相机回落到地面高度(原版 cam.y = 0) */
       if (!flip && w.onGround && w.y <= 0.001) c = CAM_GROUND_BOTTOM;
       bottom = c;
     }
@@ -1233,20 +1213,20 @@ class Scene extends Phaser.Scene {
     bottom = Math.max(lo, Math.min(hi, bottom));
     this.camBottom = bottom;
     this.camCenter = bottom + vh / 2;
-    this.camWorldY = rowsU - this.camCenter;             // 鎹㈢畻鎴?Phaser 鐩告満鐨勭粯鍥剧┖闂?y
+    this.camWorldY = rowsU - this.camCenter;             // 换算成 Phaser 相机的绘图空间 y
     cam.centerOn(this.camX, this.camWorldY);
   }
 
-  /** 涓変釜鐣岄潰(寮€鍦?/ 姝讳骸 / 閫氬叧)+ 缁堟湯涔嬭瘲 + 褰╄泲绐楀彛:浣嶇疆璺熺潃鐩告満鍙栨櫙璧?*/
+  /** 三个界面(开场 / 死亡 / 通关)+ 终末之诗 + 彩蛋窗口:位置跟着相机取景走 */
   private paintUi() {
     const cam = this.cameras.main;
     const vw = cam.width / cam.zoom;
     const vh = cam.height / cam.zoom;
     const ux = Math.max(vw / 2, this.camX);
-    /* 鈽?鐣岄潰鏂囧瓧璺熺潃銆愰暅澶淬€戣蛋:閾洪潰楂?125 鏍?鍐嶇敤"鍦哄湴涓績"灏变細鎶婇潰鏉跨敾鍒扮敾澶栧幓 */
+    /* ★ 界面文字跟着【镜头】走:铺面高 125 格,再用"场地中心"就会把面板画到画外去 */
     const uy = this.camWorldY;
     const w = this.world;
-    /* 缁堟湯涔嬭瘲:鍗曠嫭涓€鏉￠暱鏂囨湰,浠庡彇鏅笅鏂瑰悜涓婃粴 */
+    /* 终末之诗:单独一条长文本,从取景下方向上滚 */
     const inPoem = this.phase === 'poem';
     this.poemText.setVisible(inPoem);
     if (inPoem) {
@@ -1255,8 +1235,8 @@ class Scene extends Phaser.Scene {
       const poemLines = POEM.length * POEM_LINE_H;
       this.poemText.setPosition(ux, uy + vh / 2 + poemLines - this.poemT * POEM_SPEED);
       if (this.egg) {
-        this.uiTitle.setText('褰╄泲宸茶В閿?);
-        this.uiHint.setText('鍙墠寰€ CD 椤甸潰鏌ョ湅(宸︿笅瑙掍細澶氬嚭涓€涓寜閽?\n鎸夌┖鏍?/ 鐐逛竴涓?鍥炲埌寮€澶?);
+        this.uiTitle.setText('彩蛋已解锁');
+        this.uiHint.setText('可前往 CD 页面查看(左下角会多出一个按钮)\n按空格 / 点一下 回到开头');
         this.uiTitle.setPosition(ux, uy - 26);
         this.uiHint.setPosition(ux, uy + 34);
       }
@@ -1267,21 +1247,21 @@ class Scene extends Phaser.Scene {
     this.uiHint.setVisible(show);
     if (!show) return;
     if (this.phase === 'idle') {
-      this.uiTitle.setText('绗笁寮犵洏 路 杩疯尗');
-      this.uiHint.setText('鎸?绌烘牸 寮€濮?涔熷彲浠ョ偣涓€涓嬬敾闈?\n鎸変綇 = 杩炶烦 路 寮圭哀纰板埌灏卞脊銆佷笉鐢ㄦ寜 路 璺崇幆瑕佹寜涓€涓?路 R = 閲嶆潵');
+      this.uiTitle.setText('第三张盘 · 迷茫');
+      this.uiHint.setText('按 空格 开始(也可以点一下画面)\n按住 = 连跳 · 弹簧碰到就弹、不用按 · 跳环要按一下 · R = 重来');
     } else if (this.phase === 'dead') {
-      this.uiTitle.setText('鎽斾簡 路 ' + Math.round(w.progress * 100) + '%');
+      this.uiTitle.setText('摔了 · ' + Math.round(w.progress * 100) + '%');
       const at = LEVEL.length > 0 ? Math.round(w.checkX / U / LEVEL.length * 100) : 0;
-      this.uiHint.setText('绌烘牸 / 鐐逛竴涓?= 浠庝笂涓€澶勫瓨妗ｇ偣(' + at + '% 澶?閲嶆潵 路 R = 浠庡ご寮€濮?);
+      this.uiHint.setText('空格 / 点一下 = 从上一处存档点(' + at + '% 处)重来 · R = 从头开始');
     } else {
-      this.uiTitle.setText('閫氬叧 路 ' + Math.round(w.progress * 100) + '%');
-      this.uiHint.setText('浣犺窇瀹屼簡杩欎竴寮犵洏 路 鎸?R 鍐嶆潵涓€閬?);
+      this.uiTitle.setText('通关 · ' + Math.round(w.progress * 100) + '%');
+      this.uiHint.setText('你跑完了这一张盘 · 按 R 再来一遍');
     }
     this.uiTitle.setPosition(ux, uy - 26);
     this.uiHint.setPosition(ux, uy + 34);
   }
 
-  /** 瀵瑰鏆撮湶缁欓獙鏀惰剼鏈?姣忓抚鍒锋柊,楠屾敹闅忔椂璇诲埌鐨勯兘鏄綋鍓嶇姸鎬? */
+  /** 对外暴露给验收脚本(每帧刷新,验收随时读到的都是当前状态) */
   expose() {
     (window as unknown as { __gd?: unknown }).__gd = {
       world: this.world, scene: this, level: LEVEL,
@@ -1294,10 +1274,10 @@ class Scene extends Phaser.Scene {
       demoLoaded: this.demoLoaded,
       demoErr: this.demoErr,
       demoEndX: this.demoEndX,
-      /* 鈽?楠屾敹鑴氭湰瑕佺敤鐨勫嚑涓挬瀛?姣忎釜 bug 閮借鑳藉湪鐪熸祻瑙堝櫒閲岄噺鍑烘潵,涓嶈兘鍙潬"鎴戠湅鐫€濂戒簡"):
-         路 musicExpected 鈥斺€?妯℃嫙鏃堕棿杞翠笂鐨勭鏁?baseTick + tick)/60,澶嶆椿鍚庨煶涔愬氨璇ュ湪杩欏効
-         路 retry/restartRun 鈥斺€?涓嶉潬鎸夐敭涔熻兘椹卞姩澶嶆椿/閲嶆潵
-         路 padMul 鈥斺€?寮圭哀鍔涘害寰皟鍒板簳鏈夋病鏈夌敓鏁?*/
+      /* ★ 验收脚本要用的几个钩子(每个 bug 都要能在真浏览器里量出来,不能只靠"我看着好了"):
+         · musicExpected —— 模拟时间轴上的秒数(baseTick + tick)/60,复活后音乐就该在这儿
+         · retry/restartRun —— 不靠按键也能驱动复活/重来
+         · padMul —— 弹簧力度微调到底有没有生效 */
       musicExpected: (this.baseTick + this.world.tick) / 60,
       baseTick: this.baseTick,
       padMul: this.padMulWanted,
@@ -1312,15 +1292,15 @@ class Scene extends Phaser.Scene {
     };
   }
 
-  /** 鎶婄浉鏈虹殑鍙栨櫙妗嗚鎴?鐢诲竷閲岀湡姝ｉ湶鍑烘潵鐨勯偅涓€鏉?(琚妗嗘尅浣忕殑閮ㄥ垎骞茶剢涓嶆覆鏌?銆?
-   *  鈽?鍙﹀鎶婄敾甯冪殑 CSS 灏哄鎸夊洖 100%脳100%:Phaser 鐨?ScaleManager(mode: NONE)浼氭妸
-   *    canvas 鐨勮鍐呮牱寮忓啓鎴?1280px脳720px 鈥斺€?浜庢槸鐢诲竷鍥哄畾 720 px 楂?鑰屽妗嗙獥鍙ｅ彧鏈?
-   *    ~525 px,澶氬嚭鏉ョ殑 38% 灏辫閲戝睘杈规鎸′綇(鐢ㄦ埛鎴浘:HUD 鍐欑潃"鐢诲竷琚尅 38%",
-   *    搴曚笅杩橀湶鍑轰竴鏉￠粦鏉?鍏冲崱搴曢儴鐨勫埡鍏ㄨ瑁佹帀)銆傝繖涓€鍙ユ墠鏄湡姝ｇ殑鐥呮牴銆?*/
+  /** 把相机的取景框设成"画布里真正露出来的那一条"(被外框挡住的部分干脆不渲染)。
+   *  ★ 另外把画布的 CSS 尺寸按回 100%×100%:Phaser 的 ScaleManager(mode: NONE)会把
+   *    canvas 的行内样式写成 1280px×720px —— 于是画布固定 720 px 高,而外框窗口只有
+   *    ~525 px,多出来的 38% 就被金属边框挡住(用户截图:HUD 写着"画布被挡 38%",
+   *    底下还露出一条黑条,关卡底部的刺全被裁掉)。这一句才是真正的病根。 */
   private applyViewport(cam: Phaser.Cameras.Scene2D.Camera) {
-    /* 鈽?鍏堣缂撳啿璺熺潃鐩掑瓙鐨勯暱瀹芥瘮璧?鍐嶆妸鐢诲竷鐨?CSS 灏哄鎸夊洖 100%脳100% 鈥斺€?
-       椤哄簭涓嶈兘鍙?Phaser 鐨?ScaleManager 浼氬湪 resize 鏃舵妸 canvas 鐨勮鍐呮牱寮忓張鍐欐垚
-       "1280px/xxx px",閭ｆ鏄簳閮ㄩ偅鏉￠粦鏉?鐢诲竷鍥哄畾楂樸€佽涓嶄笅绐楀彛)鐨勬潵婧愩€?*/
+    /* ★ 先让缓冲跟着盒子的长宽比走,再把画布的 CSS 尺寸按回 100%×100% ——
+       顺序不能反:Phaser 的 ScaleManager 会在 resize 时把 canvas 的行内样式又写成
+       "1280px/xxx px",那正是底部那条黑条(画布固定高、装不下窗口)的来源。 */
     if (this.scale.height !== this.viewH || this.scale.width !== this.bufW) this.scale.resize(this.bufW, this.viewH);
     const cv = document.getElementById('gd-canvas') as HTMLCanvasElement | null;
     if (cv) {
@@ -1335,15 +1315,15 @@ class Scene extends Phaser.Scene {
   draw() {
     const g = this.g, w = this.world, cam = this.cameras.main;
     this.drawn = 0;
-    /* 鈽?鐪熸鐨勭梾鏍瑰湪銆恦iewport銆?create() 鏃剁埗瀹瑰櫒杩樻病閲忓埌灏哄,鐩告満鐨?viewport 琚畾鎴?
-       320脳180(鎭板ソ鍥涘垎涔嬩竴),娓叉煋灏辫瑁佸湪宸︿笂瑙掍竴灏忓潡閲?鈥斺€?鍙敼 setSize 娌＄敤,寰楄 viewport銆?*/
+    /* ★ 真正的病根在【viewport】:create() 时父容器还没量到尺寸,相机的 viewport 被定成
+       320×180(恰好四分之一),渲染就被裁在左上角一小块里 —— 只改 setSize 没用,得设 viewport。 */
     if (!this.fixed) {
       this.fixed = true;
       this.measureFrac();
       this.applyViewport(cam);
       window.addEventListener('resize', () => { this.measureFrac(); this.applyViewport(cam); });
     }
-    /* 姣?20 甯?鎴栧垰寮€灞€)閲嶆柊閲忎竴娆?闇插嚭鏉ョ殑閭ｄ竴鏉?缂撳啿姣斾緥鍙樹簡灏辫窡鐫€鏀瑰彇鏅 */
+    /* 每 20 帧(或刚开局)重新量一次:露出来的那一条/缓冲比例变了就跟着改取景框 */
     if (this.fixed && (this.fracT++ % 20 === 0)) {
       const before = [this.viewTop, this.viewH, this.bufW];
       this.measureFrac();
@@ -1351,83 +1331,83 @@ class Scene extends Phaser.Scene {
     }
     const bx = w.x / U;
     const seg = LEVEL.segments.find((sg) => bx >= sg.from && bx < sg.to) || LEVEL.segments[0];
-    /* color 瑙﹀彂鍣ㄥ彲浠ユ暣浣撴崲鑹?瀹冨帇杩囨钀介厤鑹? */
+    /* color 触发器可以整体换色(它压过段落配色) */
     const tint = w.tint != null ? w.tint : PAL[LEVEL.segments.indexOf(seg) % PAL.length];
     const vw = cam.width / cam.zoom, vh = cam.height / cam.zoom;
     const x0 = this.camX - vw / 2, x1 = x0 + vw;
     const rowsU = LEVEL.rows * U;
-    /* 鈽?缁樺浘绌洪棿:y 鍚戜笅,涓栫晫 y=0(鍦伴潰)鐢诲湪 rowsU 澶?鈥斺€?涓栫晫鍧愭爣杩囨潵涓€寰嬭蛋瀹?鏁村箙鐢诲氨涓嶄細鍊掋€?
-       瑙嗗彛涓婁笅杈圭敱銆愮旱鍚戣窡闅忛暅澶淬€戠粰鍑?camWorldY 卤 鍗婂睆銆?*/
+    /* ★ 绘图空间:y 向下,世界 y=0(地面)画在 rowsU 处 —— 世界坐标过来一律走它,整幅画就不会倒。
+       视口上下边由【纵向跟随镜头】给出:camWorldY ± 半屏。 */
     const Y = (wy: number) => rowsU - wy;
     const dy0 = this.camWorldY - vh / 2, dy1 = dy0 + vh;
-    const lowY = rowsU - dy1, highY = rowsU - dy0;      // 鍙鐨勪笘鐣?y 鑼冨洿(鍗曚綅)
+    const lowY = rowsU - dy1, highY = rowsU - dy0;      // 可见的世界 y 范围(单位)
     const groundY = Y(0), ceilY = Y(rowsU);
     const tick = this.world.tick;
     g.clear();
 
-    /* 鍦哄湴涔嬪鍘嬫殫(鍦伴潰浠ヤ笅 / 鍏冲崱椤朵互涓?閾洪潰楂樼殑鏃跺€欒繖涓ゅ潡鍩烘湰閮藉湪鐢诲) */
+    /* 场地之外压暗(地面以下 / 关卡顶以上;铺面高的时候这两块基本都在画外) */
     g.fillStyle(0x03050a, 0.72);
     g.fillRect(x0, dy0, vw, Math.max(0, groundY + U - dy0));
     g.fillRect(x0, ceilY - U, vw, Math.max(0, dy1 - (ceilY - U)));
 
-    // 鍦哄湴缃戞牸(姣忓潡涓€鏉＄粏绾?鍙敾鐪嬪緱瑙佺殑閭ｅ嚑琛?
+    // 场地网格(每块一条细线;只画看得见的那几行)
     g.lineStyle(1, tint, 0.09);
     for (let gx = Math.floor(x0 / U); gx <= x1 / U; gx++) g.lineBetween(gx * U, dy0, gx * U, dy1);
     const r0 = Math.max(0, Math.floor(lowY / U)), r1 = Math.min(LEVEL.rows, Math.ceil(highY / U));
     for (let r = r0; r <= r1; r++) g.lineBetween(x0, Y(r * U), x1, Y(r * U));
-    // 鍦伴潰绾夸笌澶╄姳鏉跨嚎(璺戦亾鐨勪笂涓嬭竟)
+    // 地面线与天花板线(跑道的上下边)
     g.lineStyle(2, tint, 0.6).lineBetween(x0, groundY, x1, groundY);
     g.lineStyle(1, tint, 0.42).lineBetween(x0, ceilY, x1, ceilY);
-    /* 鍦伴潰浠ヤ笅:鍑犳潯瓒婃潵瓒婃贰鐨勬í绾?鍋氬嚭"鍦颁笅"鐨勫帤搴︽劅 */
+    /* 地面以下:几条越来越淡的横线,做出"地下"的厚度感 */
     g.lineStyle(1, tint, 0.18);
     for (let k = 1; k <= 4; k++) g.lineBetween(x0, groundY + k * 22, x1, groundY + k * 22);
 
-    /* 鐗╀欢:涓ら亶 鈥斺€?鍏堣楗?deco 鏄儗鏅创鐗?涓嶈鐩栧湪鏂瑰潡涓?,鍐嶇帺娉曠墿浠?*/
+    /* 物件:两遍 —— 先装饰(deco 是背景贴片,不该盖在方块上),再玩法物件 */
     for (const pl of this.portalLabels) {
       const off = w.offsetOf(pl.o);
       pl.t.setX((pl.o.b + pl.o.w / 2 + off.dx) * U);
       pl.t.setY(Y((pl.o.r + pl.o.h + off.dy) * U) - 8);
     }
     for (let pass = 0; pass < 2; pass++) {
-    this.artUsed = 0;                              // 鈽?璐村浘姹?杩欎竴甯т粠 0 寮€濮嬪垎閰?鐢诲畬鎶婂墿涓嬬殑钘忔帀
+    this.artUsed = 0;                              // ★ 贴图池:这一帧从 0 开始分配,画完把剩下的藏掉
     for (const o of LEVEL.objects) {
       if ((o.kind === 'deco') !== (pass === 0)) continue;
-      if (o.kind === 'trigger') continue;         // 瑙﹀彂鍣ㄦ槸涓€昏緫鐗╀欢,涓嶇敾
-      /* 鈽?鍏堢敤銆愰潤鎬佸潗鏍囥€戠矖绛?鍐嶉棶瑙﹀彂鍣ㄥ亸绉?鈥斺€?offsetOf 浠ュ墠鏀惧湪鏈€鍓嶉潰,
-         8980 涓墿浠舵瘡涓兘闂竴娆?鑰屼笖瀹冭嚜宸辫繕鏄嚎鎬ф壂),鏄抚鐜囨帀涓嬫潵鐨勪富鍥犮€?
-         鐣欎竴鍧椾綑閲?浼氬姩鐨勭墿浠跺彲鑳戒粠灞忓箷澶栨帹杩涙潵銆?*/
+      if (o.kind === 'trigger') continue;         // 触发器是个逻辑物件,不画
+      /* ★ 先用【静态坐标】粗筛,再问触发器偏移 —— offsetOf 以前放在最前面,
+         8980 个物件每个都问一次(而且它自己还是线性扫),是帧率掉下来的主因。
+         留一块余量:会动的物件可能从屏幕外推进来。 */
       if ((o.b + o.w) * U < x0 - CULL_MARGIN || o.b * U > x1 + CULL_MARGIN) continue;
-      /* 浼氬姩鐨勪笢瑗?瑙﹀彂鍣ㄦ帹鐨?鎸夎繍琛屾椂鍋忕Щ鐢?鍒ゅ畾鐩掑湪 sim 閲屽凡缁忓悓姝ヨ繃浜?*/
+      /* 会动的东西(触发器推的)按运行时偏移画;判定盒在 sim 里已经同步过了 */
       const off = w.offsetOf(o);
       const obx = (o.b + off.dx) * U, obw = o.w * U, obh = o.h * U;
-      const oTop = Y((o.r + o.h + off.dy) * U);   // 鏍煎瓙涓婅竟(缁樺浘绌洪棿)
-      const oBot = Y((o.r + off.dy) * U);         // 鏍煎瓙涓嬭竟
+      const oTop = Y((o.r + o.h + off.dy) * U);   // 格子上边(绘图空间)
+      const oBot = Y((o.r + off.dy) * U);         // 格子下边
       if (obx + obw < x0 || obx > x1) continue;
       if ((o.r + o.h + off.dy) * U < lowY || (o.r + off.dy) * U > highY) continue;
       this.drawn++;
-      /* 鈽?鏈夎创鍥剧殑鐗╀欢鐩存帴鐢昏创鍥?閿墖/寮圭哀鏉?瀛樻。鐐?纭竵/鍒?,娌¤创鍥剧殑璧颁笅闈㈢殑鐭㈤噺鐢绘硶 */
+      /* ★ 有贴图的物件直接画贴图(锯片/弹簧板/存档点/硬币/刺),没贴图的走下面的矢量画法 */
       const artKey = this.artKeyOf(o);
       if (artKey && this.drawArtObject(o, artKey, obx + obw / 2, oBot - obh / 2, obw, obh, o.kind === 'block' ? tint : 0xffffff)) continue;
       switch (o.kind) {
         case 'platform':
           if (o.r < 0) {
-            /* 鍦伴潰:鍘氭潯 + 椤堕儴浜嚎 + 鏂滅汗銆傗槄 濉緱瀹炰竴鐐?0.72)鈥斺€?鍘熺増鍦伴潰鏄€愪笉閫忔槑銆戠殑,
-               y<0 鐨勪笢瑗?姣斿杩欏叧閲屾斁鍦?y=鈭?.1 鐨勯偅涓?67)鏄鍦伴潰鎸′綇鐨勩€佺帺瀹剁湅涓嶈;
-               鎴戜滑浠ュ墠鐢?0.13 鐨勬贰濉?搴曚笅閭ｄ竴鎺?钃濊壊璺崇偣"灏遍€忓嚭鏉ヤ簡銆?*/
+            /* 地面:厚条 + 顶部亮线 + 斜纹。★ 填得实一点(0.72)—— 原版地面是【不透明】的,
+               y<0 的东西(比如这关里放在 y=−0.1 的那个 67)是被地面挡住的、玩家看不见;
+               我们以前用 0.13 的淡填,底下那一排"蓝色跳点"就透出来了。 */
             g.fillStyle(0x0a0f18, 0.92).fillRect(obx, oTop, obw, obh);
             g.fillStyle(tint, 0.13).fillRect(obx, oTop, obw, obh);
             g.lineStyle(2, tint, 0.9).lineBetween(obx, oTop + 1, obx + obw, oTop + 1);
             g.lineStyle(1, tint, 0.22);
             for (let hx = obx + 10; hx < obx + obw; hx += 18) g.lineBetween(hx, oTop + 4, hx - 6, oTop + obh - 2);
           } else {
-            /* 骞冲彴:钖勬澘璐村湪鏍煎瓙椤堕潰(纰版挒闈㈠氨鏄《闈?,涓ょ灏忕珫绾?*/
+            /* 平台:薄板贴在格子顶面(碰撞面就是顶面),两端小竖线 */
             const th = U * 0.34;
             g.fillStyle(tint, 0.18).fillRect(obx, oTop, obw, th);
             g.lineStyle(2, tint, 0.8).strokeRect(obx + 1, oTop + 1, obw - 2, th - 2);
           }
           break;
         case 'block': {
-          /* 鏂瑰潡:瀹炲績 + 椤堕儴楂樺厜 + 鍙充笂缂鸿,鍜屽湴闈?骞冲彴閮戒笉鍚?*/
+          /* 方块:实心 + 顶部高光 + 右上缺角,和地面/平台都不同 */
           g.fillStyle(tint, 0.20).fillRect(obx, oTop, obw, obh);
           g.lineStyle(2, tint, 0.85).strokeRect(obx + 1, oTop + 1, obw - 2, obh - 2);
           g.fillStyle(tint, 0.6).fillRect(obx + 3, oTop + 3, obw - 6, 2);
@@ -1435,23 +1415,23 @@ class Scene extends Phaser.Scene {
           break;
         }
         case 'spike': {
-          /* 灏栧埡:搴曡竟鍦ㄦ牸瀛愪笅娌裤€佸皷鏈濅笂;楂樺害鎸?o.h 缂╂斁(灏忓埡 0.5 / 澶у埡 1.5)銆?
-             鈽?鏂瑰悜鍙湁涓€鏉¤鍒?鍏堢敾"鏈濅笂"鐨勫熀纭€褰㈢姸,鍐嶅銆愭棆杞€?灞忓箷涓婇『鏃堕拡)銆?
-               鈥斺€?涔嬪墠鍐欐垚"rot180 鍏堥暅鍍忋€佸張杞?180掳",绛変簬缈讳簡涓ゆ,鍊掓寕鐨勫埡鐢绘垚浜嗘鐨?
-               (鐢ㄦ埛涓€鐪煎氨鐪嬪嚭"鍒虹殑鏂瑰悜杩樻病淇?)銆俧lipY 鎵嶆槸鐪熸鐨勯暅鍍?鍗曠嫭涔樹竴娆°€?
-               鍒ゅ畾閭ｄ晶鏄悓涓€鏉″彛寰?rot 180 / flipY 鈫?鍒ゅ畾鐩掓寕鍦ㄦ牸瀛愩€愰《闈€戙€?*/
+          /* 尖刺:底边在格子下沿、尖朝上;高度按 o.h 缩放(小刺 0.5 / 大刺 1.5)。
+             ★ 方向只有一条规则:先画"朝上"的基础形状,再套【旋转】(屏幕上顺时针)。
+               —— 之前写成"rot180 先镜像、又转 180°",等于翻了两次,倒挂的刺画成了正的
+               (用户一眼就看出"刺的方向还没修")。flipY 才是真正的镜像,单独乘一次。
+               判定那侧是同一条口径:rot 180 / flipY → 判定盒挂在格子【顶面】。 */
           const rot = (((o.rot ?? 0) % 360) + 360) % 360;
-          const side = rot === 90 || rot === 270;      // 妯潃鐨勫埡:鏁存牸鍙敾涓€涓?
-          const mirror = o.flipY ? -1 : 1;             // flipY = 涓婁笅闀滃儚(涓嶈浆鐨勬椂鍊欑敤)
+          const side = rot === 90 || rot === 270;      // 横着的刺:整格只画一个
+          const mirror = o.flipY ? -1 : 1;             // flipY = 上下镜像(不转的时候用)
           const theta = (rot * Math.PI) / 180;
           const cs = Math.cos(theta), sn = Math.sin(theta);
           const n = side ? 1 : Math.max(1, Math.round(o.w));
           for (let k = 0; k < n; k++) {
             const ccx = side ? obx + obw / 2 : obx + (k + 0.5) * U;
-            const ccy = oBot - obh / 2;                // 鏍煎瓙涓績(缁樺浘绌洪棿)
-            const hw = U * 0.47;                       // 鍩虹褰㈢姸:涓€鏍煎
-            const hh = (U * 0.9 * o.h) / 2;            // 楂?= 0.9 脳 鍒洪珮
-            const yb = hh * mirror, yt = -hh * mirror; // 搴曡竟 / 灏栫
+            const ccy = oBot - obh / 2;                // 格子中心(绘图空间)
+            const hw = U * 0.47;                       // 基础形状:一格宽
+            const hh = (U * 0.9 * o.h) / 2;            // 高 = 0.9 × 刺高
+            const yb = hh * mirror, yt = -hh * mirror; // 底边 / 尖端
             const P = (lx: number, ly: number): [number, number] =>
               [ccx + lx * cs - ly * sn, ccy + lx * sn + ly * cs];
             const p1 = P(-hw, yb), p2 = P(0, yt), p3 = P(hw, yb);
@@ -1464,12 +1444,12 @@ class Scene extends Phaser.Scene {
           break;
         }
         case 'saw': {
-          /* 閿墖:甯﹂娇鐨勩€愬渾銆戦敮杞?鎸夋椂闂磋浆銆?
-             鈽呪槄 2026-09 淇?鐢ㄦ埛:"閿墖澶у皬,浣犵幇鍦ㄥ仛鎴愪簡妞渾,浣嗘槸鍘熺増涓嶆槸鍦嗙殑鍚?
-                涔熷氨鏄浣犲彧鏀剧缉浜嗙旱鍚戝搴?):浠ュ墠鎸夈€愬寘鍥寸洅銆戠敾(1.47脳2.83 鏍?脳 缂╂斁),
-                浜庢槸鐢诲嚭鏉ユ槸绔栨き鍦?鈥斺€?鑰屽垽瀹氭槸鍦?OpenGD `_pHitboxRadius`,sim 閲岃蛋 circles)銆?
-                鐜板湪:鍗婂緞灏辩敤 sim 鐨勫渾鍗婂緞(o.rad,宸插惈缂╂斁),鐢荤殑鍜屽垽鐨勫畬鍏ㄤ竴鑷淬€?
-                鎹㈢畻:杩欎竴鏍肩殑灞忓箷瀹藉害 / 鐗╀欢瀹藉害 = 姣忓崟浣嶅灏戝儚绱犮€?*/
+          /* 锯片:带齿的【圆】锯轮,按时间转。
+             ★★ 2026-09 修(用户:"锯片大小,你现在做成了椭圆,但是原版不是圆的吗?
+                也就是说你只放缩了纵向宽度"):以前按【包围盒】画(1.47×2.83 格 × 缩放),
+                于是画出来是竖椭圆 —— 而判定是圆(OpenGD `_pHitboxRadius`,sim 里走 circles)。
+                现在:半径就用 sim 的圆半径(o.rad,已含缩放),画的和判的完全一致。
+                换算:这一格的屏幕宽度 / 物件宽度 = 每单位多少像素。 */
           const ppu = obw / Math.max(1e-6, o.w * U);
           const r = Math.max(5, (o.rad ?? 30) * ppu);
           const scx = obx + obw / 2, scy = oBot - obh / 2;
@@ -1489,15 +1469,15 @@ class Scene extends Phaser.Scene {
           break;
         }
         case 'pad': {
-          /* 寮圭哀(璺虫澘):鈽?鐢绘垚銆愯杽钖勪竴鍧楄创鍦ㄥ簳杈广€戔€斺€?鍘熺増璺崇偣瑙嗚涓婂彧鏈夊皬鍗婃牸楂樸€?
-             浠ュ墠鎴戠敾鐨勬槸"0.95 鏍奸珮鐨勫簳搴?+ 涓ら亾澶х澶?,鐪嬬潃鍍忎竴鍧楀ぇ鏉垮瓙,
-             鑰屼笖绠ご杩樺線涓婃埑鍑虹墿浠剁洅 鈥斺€?鐢ㄦ埛鎶婂湴闈㈢嚎涓婇偅鍧?67 鏀惧湪 y=鈭?.1銆佽鍦伴潰鎸′綇鐨?
-             褰撴垚浜?澶氬嚭鏉ョ殑钃濊壊璺崇偣"銆?*/
+          /* 弹簧(跳板):★ 画成【薄薄一块贴在底边】—— 原版跳点视觉上只有小半格高。
+             以前我画的是"0.95 格高的底座 + 两道大箭头",看着像一块大板子,
+             而且箭头还往上戳出物件盒 —— 用户把地面线上那块(67 放在 y=−0.1、被地面挡住的)
+             当成了"多出来的蓝色跳点"。 */
           const col = PAD_COL[o.pad ?? 'yellow'] ?? 0xffe17a;
-          const th = Math.max(6, obh);                       // 璐村浘鍘氬害 = 鐗╀欢鐩?0.2 鏍?= 6 鍗曚綅)
+          const th = Math.max(6, obh);                       // 贴图厚度 = 物件盒(0.2 格 = 6 单位)
           g.fillStyle(col, 0.85).fillRect(obx + 1, oBot - th, obw - 2, th);
           g.lineStyle(1, col, 0.9).strokeRect(obx + 1.5, oBot - th + 0.5, obw - 3, th - 1);
-          /* 涓€閬撴湞涓婄殑绠ご(鍊掓寕鐨勬湞涓?,鍘嬪湪搴曞骇涓?涓嶅嚭鐗╀欢鐩?*/
+          /* 一道朝上的箭头(倒挂的朝下),压在底座上,不出物件盒 */
           const up = ((o.rot ?? 0) % 360 + 360) % 360 !== 180;
           g.lineStyle(2, col, 0.95);
           g.beginPath();
@@ -1508,7 +1488,7 @@ class Scene extends Phaser.Scene {
           break;
         }
         case 'orb': {
-          /* 璺崇幆:澶栧湀 + 鍐呭湀 + 涓棿涓€涓鍙?榛?涓婄澶?/ 钃?缈婚噸鍔?/ 绮?灏忕澶? */
+          /* 跳环:外圈 + 内圈 + 中间一个符号(黄=上箭头 / 蓝=翻重力 / 粉=小箭头) */
           const col = ORB_COL[o.orb ?? 'yellow'] ?? 0xffe17a;
           const ccx = obx + U / 2, ccy = Y(o.r * U + U / 2);
           const pulse = 0.5 + 0.5 * Math.sin(tick * 0.08);
@@ -1516,17 +1496,17 @@ class Scene extends Phaser.Scene {
           g.lineStyle(3, col, 0.95).strokeCircle(ccx, ccy, U * 0.44);
           g.lineStyle(1, col, 0.35 + 0.3 * pulse).strokeCircle(ccx, ccy, U * 0.66);
           g.lineStyle(3, col, 0.95);
-          if (o.orb === 'blue' || o.orb === 'green') {          // 缈婚噸鍔?涓婁笅鍙岀澶?
+          if (o.orb === 'blue' || o.orb === 'green') {          // 翻重力:上下双箭头
             g.beginPath();
             g.moveTo(ccx - 6, ccy - 4); g.lineTo(ccx, ccy - 9); g.lineTo(ccx + 6, ccy - 4);
             g.moveTo(ccx - 6, ccy + 4); g.lineTo(ccx, ccy + 9); g.lineTo(ccx + 6, ccy + 4);
             g.strokePath();
-          } else if (o.orb === 'black') {                       // 鍐插埡:鍚戜笅鐨勫弻绠ご(瀹冩妸浜哄線涓?鐮?)
+          } else if (o.orb === 'black') {                       // 冲刺:向下的双箭头(它把人往下"砸")
             g.beginPath();
             g.moveTo(ccx - 7, ccy - 6); g.lineTo(ccx, ccy + 1); g.lineTo(ccx + 7, ccy - 6);
             g.moveTo(ccx - 7, ccy + 1); g.lineTo(ccx, ccy + 8); g.lineTo(ccx + 7, ccy + 1);
             g.strokePath();
-          } else {                                              // 璺?涓婄澶?
+          } else {                                              // 跳:上箭头
             const h = o.orb === 'pink' ? 6 : 10;
             g.beginPath();
             g.moveTo(ccx - 7, ccy + h / 2); g.lineTo(ccx, ccy - h); g.lineTo(ccx + 7, ccy + h / 2);
@@ -1535,7 +1515,7 @@ class Scene extends Phaser.Scene {
           break;
         }
         case 'pit': {
-          /* 鍧?鍦版澘鏂彛 鈥斺€?娣辫壊缂哄彛 + 涓や晶閿娇鏂礀(浠ュ墠杩欓噷鐢讳簡涓崐鍦嗚绀虹伅,瀹屽叏鐪嬩笉鍑烘槸鍧? */
+          /* 坑:地板断口 —— 深色缺口 + 两侧锯齿断崖(以前这里画了个半圆警示灯,完全看不出是坑) */
           const depth = U * 2.4;
           g.fillStyle(0x000000, 0.75).fillRect(obx, oBot - depth + U, obw, depth);
           g.fillStyle(0x05070d, 0.9).fillRect(obx, oBot - depth + U, obw, 6);
@@ -1547,9 +1527,9 @@ class Scene extends Phaser.Scene {
           break;
         }
         case 'portal': {
-          /* 褰㈡€侀棬:鈽?姣忎釜褰㈡€佷竴濂楅鑹?+ 闂ㄤ笂涓€鍧楀啓鐫€褰㈡€佸悕鐨勫皬鐗屽瓙 鈥斺€?
-             浠ュ墠鎵€鏈夐棬閮界敾鎴愬悓涓€涓粍鍦?鍙湁椋炴満鐢讳釜涓夎),鐢ㄦ埛鏍规湰鐪嬩笉鍑哄垏浠€涔堝舰鎬併€?
-             闂ㄧ敾鎴愬師鐗堥偅绉?绔栫潃鐨勬き鍦嗛棬"(灏哄灏卞彇鍒ゅ畾鐩?34脳86 鍗曚綅),鑹?鐗屽瓙閮芥寜鐩爣褰㈡€佸垎銆?*/
+          /* 形态门:★ 每个形态一套颜色 + 门上一块写着形态名的小牌子 ——
+             以前所有门都画成同一个黄圈(只有飞机画个三角),用户根本看不出切什么形态。
+             门画成原版那种"竖着的椭圆门"(尺寸就取判定盒 34×86 单位),色/牌子都按目标形态分。 */
           const to = (o.to ?? 'cube') as Mode;
           const col = PORTAL_COL[to] ?? 0xffe17a;
           const pw = PORTAL_W, ph = PORTAL_H;
@@ -1557,7 +1537,7 @@ class Scene extends Phaser.Scene {
           g.fillStyle(col, 0.16).fillEllipse(ccx, ccy, pw, ph);
           g.lineStyle(3, col, 0.95).strokeEllipse(ccx, ccy, pw, ph);
           g.lineStyle(1, col, 0.45).strokeEllipse(ccx, ccy, pw * 0.72, ph * 0.8);
-          /* 闂ㄩ噷鐢讳釜鐩爣褰㈡€佺殑绠€绗?鏂瑰潡=鏂?椋炴満/娉㈡氮=涓夎,鐞?鍦?UFO=鎵佸渾,鏈哄櫒浜?鏂?鑵?铚樿洓=鏂?椤?*/
+          /* 门里画个目标形态的简笔:方块=方,飞机/波浪=三角,球=圆,UFO=扁圆,机器人=方+腿,蜘蛛=方+须 */
           g.fillStyle(col, 0.95);
           const gs = 9;
           if (to === 'cube' || to === 'robot' || to === 'spider') {
@@ -1587,20 +1567,20 @@ class Scene extends Phaser.Scene {
           break;
         }
         case 'gravity': {
-          /* 閲嶅姏闂?鈽?浠ュ墠涓や釜鏂瑰悜閮界敾鎴?娣＄传鑹插皬涓夎 + 涓€鍦堟贰娣＄殑鍏?,鐢ㄦ埛鏍规湰鐪嬩笉鍑烘槸閲嶅姏闂ㄣ€?
-             鏇寸湅涓嶅嚭寰€鍝竟缈汇€傜幇鍦ㄦ寜鍘熺増閰嶈壊鍋氭垚銆愮珫妞渾闂?+ 澶х澶?+ 闂ㄥご鐗屽瓙銆?
-               鍙嶉噸鍔?鍚戜笂,id 11)= 钃?甯搁噸鍔?鍚戜笅,id 10)= 榛勩€?
-             闂ㄦ灏哄鐢ㄥ垽瀹氱洅涓€鑷寸殑鍙ｅ緞(34脳86 鍗曚綅),鎾炰笂鍘荤殑鑼冨洿鍜岀湅瑙佺殑涓€鑷淬€?*/
+          /* 重力门:★ 以前两个方向都画成"淡紫色小三角 + 一圈淡淡的光",用户根本看不出是重力门、
+             更看不出往哪边翻。现在按原版配色做成【竖椭圆门 + 大箭头 + 门头牌子】:
+               反重力(向上,id 11)= 蓝;常重力(向下,id 10)= 黄。
+             门框尺寸用判定盒一致的口径(34×86 单位),撞上去的范围和看见的一致。 */
           const up = (o.gdir ?? 1) < 0;
           const col = up ? 0x6fc3ff : 0xffd166;
           const gcx = obx + obw / 2, gcy = oBot - obh / 2;
           g.fillStyle(col, 0.16).fillEllipse(gcx, gcy, PORTAL_W, PORTAL_H);
           g.lineStyle(3, col, 0.95).strokeEllipse(gcx, gcy, PORTAL_W, PORTAL_H);
           g.lineStyle(1, col, 0.45).strokeEllipse(gcx, gcy, PORTAL_W * 0.72, PORTAL_H * 0.8);
-          /* 闂ㄩ噷涓€鏀ぇ绠ご:鏈濅笂 = 鍙嶉噸鍔?鏈濅笅 = 甯搁噸鍔?杩橀厤涓ゆ潯妯嚎绀烘剰"鍝竟鏄湴" */
+          /* 门里一支大箭头:朝上 = 反重力,朝下 = 常重力;还配两条横线示意"哪边是地" */
           g.lineStyle(4, col, 0.95);
           g.beginPath();
-          const ay = up ? -1 : 1;                       // 灞忓箷涓?up 鈫?寰€涓婄敾
+          const ay = up ? -1 : 1;                       // 屏幕上:up → 往上画
           g.moveTo(gcx, gcy - ay * 14); g.lineTo(gcx, gcy + ay * 14);
           g.moveTo(gcx - 9, gcy + ay * 4); g.lineTo(gcx, gcy + ay * 15); g.lineTo(gcx + 9, gcy + ay * 4);
           g.strokePath();
@@ -1609,7 +1589,7 @@ class Scene extends Phaser.Scene {
           break;
         }
         case 'size': {
-          /* 灏哄闂?杩蜂綘 = 灏忔柟妗嗛噷涓€涓皬浜?鎭㈠ = 澶ф柟妗?*/
+          /* 尺寸门:迷你 = 小方框里一个小人,恢复 = 大方框 */
           const mini = o.mini !== false;
           const scx2 = obx + U / 2, scy2 = Y((o.r + o.h / 2) * U);
           g.lineStyle(2, mini ? 0xff9fd0 : 0xa0ffd0, 0.9).strokeCircle(scx2, scy2, U * 0.45);
@@ -1618,9 +1598,9 @@ class Scene extends Phaser.Scene {
           break;
         }
         case 'frame': {
-          /* 绾挎:杩欓噷鍙銆愮敾銆戔€斺€?鎸?frameRects 鐢诲嚭鐪嬪緱瑙佺殑閭?1~3 鏉¤竟銆?
-             鈽?鍒ゅ畾銆愪笉鍐嶃€戠敤杩欎唤鍑犱綍:鍘熺増琛ㄩ噷 469/470/471 鐨勫妗嗘槸鏁存牸 30脳30銆?61 鏄?15脳15,
-               L 褰?U 褰㈠彧鏄创鍥?瑙?sim/world.ts 鐨?case 'frame')銆?*/
+          /* 线框:这里只管【画】—— 按 frameRects 画出看得见的那 1~3 条边。
+             ★ 判定【不再】用这份几何:原版表里 469/470/471 的外框是整格 30×30、661 是 15×15,
+               L 形/U 形只是贴图(见 sim/world.ts 的 case 'frame')。 */
           g.lineStyle(2, tint, 0.9);
           for (const r of frameRects({ ...o, b: o.b + off.dx, r: o.r + off.dy })) {
             g.strokeRect(r.x0, Y(r.y1), r.x1 - r.x0, r.y1 - r.y0);
@@ -1628,7 +1608,7 @@ class Scene extends Phaser.Scene {
           break;
         }
         case 'breakable': {
-          /* 鍙牬鍧忕爾鍧?姗欒壊鐨勮绾圭爾 鈥斺€?鎾炰笂鍘讳細纰?纰庝簡灏变笉鐢讳簡) */
+          /* 可破坏砖块:橙色的裂纹砖 —— 撞上去会碎(碎了就不画了) */
           if (w.isBroken(o)) break;
           g.fillStyle(0xffb066, 0.16).fillRect(obx, oTop, obw, obh);
           g.lineStyle(2, 0xffb066, 0.9).strokeRect(obx + 1, oTop + 1, obw - 2, obh - 2);
@@ -1638,7 +1618,7 @@ class Scene extends Phaser.Scene {
           break;
         }
         case 'coin': {
-          /* 纭竵:閲戣壊鍦嗙墖(鏀惰繃浜嗗氨涓嶇敾) */
+          /* 硬币:金色圆片(收过了就不画) */
           if (w.isCoinTaken(o)) break;
           const ccx3 = obx + obw / 2, ccy3 = Y((o.r + o.h / 2) * U);
           const wob = Math.abs(Math.cos(tick * 0.05));
@@ -1647,17 +1627,17 @@ class Scene extends Phaser.Scene {
           break;
         }
         case 'arrow': {
-          /* 鍐插埡绠ご(缁?绮?/ 绱壊涓婅烦绠ご:涓€涓幆 + 涓€鏀寜鏃嬭浆瑙掓寚鐨勭澶?*/
+          /* 冲刺箭头(绿/粉)/ 紫色上跳箭头:一个环 + 一支按旋转角指的箭头 */
           const acx = obx + obw / 2, acy = Y((o.r + o.h / 2) * U);
           const acol = o.tp ? 0xc6a0ff : (o.arrow === 'pink' ? 0xff9fd0 : 0xa0ffd0);
           g.fillStyle(acol, 0.12).fillCircle(acx, acy, U * 0.55);
           g.lineStyle(3, acol, 0.95).strokeCircle(acx, acy, U * 0.42);
-          /* 鈽?灞忓箷涓婄殑瑙掑害 = 鏁版嵁閲岀殑 rot(0 = 鎸囧悜鍙?姝ｈ搴﹂『鏃堕拡 = 灞忓箷涓婂線涓?鈥斺€?
-             鍜?sim 閲岀殑 arrowDir 鏄悓涓€濂楀彛寰?鐢荤殑鍜屽啿鐨勬柟鍚戞墠浼氫竴鑷淬€?*/
+          /* ★ 屏幕上的角度 = 数据里的 rot(0 = 指向右,正角度顺时针 = 屏幕上往下)——
+             和 sim 里的 arrowDir 是同一套口径,画的和冲的方向才会一致。 */
           const a = ((o.rot ?? 0) * Math.PI) / 180;
           const dx = Math.cos(a), dy = Math.sin(a);
           const L = U * 0.5;
-          const tx = acx + dx * L * 0.62, ty = acy + dy * L * 0.62;     // 绠皷
+          const tx = acx + dx * L * 0.62, ty = acy + dy * L * 0.62;     // 箭尖
           g.lineStyle(3, acol, 0.95);
           g.beginPath();
           g.moveTo(acx - dx * L * 0.5, acy - dy * L * 0.5);
@@ -1670,14 +1650,14 @@ class Scene extends Phaser.Scene {
           break;
         }
         case 'clone': {
-          /* 鍏嬮殕闂?鍙爣璁般€佷笉鐢熸晥 鈥斺€?鐢绘垚鐏拌壊铏氱嚎鐜?涓€鐪肩煡閬?杩欓噷鎴戜滑娌″仛" */
+          /* 克隆门:只标记、不生效 —— 画成灰色虚线环,一眼知道"这里我们没做" */
           const kcx = obx + obw / 2, kcy = Y((o.r + o.h / 2) * U);
           g.lineStyle(2, 0x8b93a7, 0.75).strokeCircle(kcx, kcy, U * 0.5);
           g.lineStyle(2, 0x8b93a7, 0.45).strokeCircle(kcx, kcy, U * 0.34);
           break;
         }
         case 'teleport': {
-          /* 浼犻€侀棬:钃?= 鍏ュ彛(747),姗?= 鍑哄彛(748) 鈥斺€?鍘熺増灏辨槸"钃濊繘姗欏嚭" */
+          /* 传送门:蓝 = 入口(747),橙 = 出口(748) —— 原版就是"蓝进橙出" */
           const tcx = obx + U / 2, tcy = Y(o.r * U + U / 2);
           const tcol = o.exit ? 0xffa04d : 0x6fc8ff;
           const spinT = tick * 0.06;
@@ -1694,7 +1674,7 @@ class Scene extends Phaser.Scene {
           break;
         }
         case 'force': {
-          /* 鍔涘満:鍗婇€忔槑甯?+ 涓€鎺掔澶?寰€涓婃帹灏辨槸鏈濅笂鐨勭澶? */
+          /* 力场:半透明带 + 一排箭头(往上推就是朝上的箭头) */
           const up = (o.fy ?? 0) >= 0;
           g.fillStyle(up ? 0xa0ffd0 : 0xff9fd0, 0.10).fillRect(obx, oTop, obw, oBot - oTop);
           g.lineStyle(1, up ? 0xa0ffd0 : 0xff9fd0, 0.45).strokeRect(obx + 1, oTop + 1, obw - 2, oBot - oTop - 2);
@@ -1709,25 +1689,25 @@ class Scene extends Phaser.Scene {
           break;
         }
         case 'deco':
-          /* 瑁呴グ:鍙敾涓嶅垽瀹氥€?638 鏄儗鏅粦鍧?鐢ㄦ埛鎷垮畠鍋?鐢婚潰閫愭笎娓呮櫚"鐨勯伄缃?,
-             鍏朵綑鍑犱釜鏄寚绀虹敤鐨勫皬鍥惧舰(鎰熷徆鍙?/ 绠ご / 绗戣劯 / 鍙?/ 鐐硅禐 / 閿侀摼)銆?*/
+          /* 装饰:只画不判定。3638 是背景黑块(用户拿它做"画面逐渐清晰"的遮罩),
+             其余几个是指示用的小图形(感叹号 / 箭头 / 笑脸 / 叉 / 点赞 / 锁链)。 */
           this.drawDeco(g, o, obx, obw, oBot, Y, tick);
           break;
       }
     }
     }
-    /* 鈽?璐村浘姹犳敹灏?杩欎竴甯ф病鐢ㄥ埌鐨勯偅浜涜棌璧锋潵(姹犲瓙鍙涓嶅噺,澶嶇敤鍚屼竴鎵?Image) */
+    /* ★ 贴图池收尾:这一帧没用到的那些藏起来(池子只增不减,复用同一批 Image) */
     for (let i = this.artUsed; i < this.artPool.length; i++) this.artPool[i].setVisible(false);
 
-    // 鐜╁:鏂瑰潡 = 鎻忚竟姝ｆ柟褰?绌轰腑鑷浆 90掳),椋炴満 = 涓夎(鎸?vy 鍊炬枩)
-    const B = P.box * w.sizeMul;   // 鈽?杩蜂綘闂?浜轰篃瑕佺敾灏?
-    const py = this.prevY + (w.y - this.prevY) * Math.min(1, this.acc * 60);   // 娓叉煋鎻掑€?
+    // 玩家:方块 = 描边正方形(空中自转 90°),飞机 = 三角(按 vy 倾斜)
+    const B = P.box * w.sizeMul;   // ★ 迷你门:人也要画小
+    const py = this.prevY + (w.y - this.prevY) * Math.min(1, this.acc * 60);   // 渲染插值
     const cxw = w.x + B / 2, cyw = py + B / 2;
-    /* 鈽?鍥鹃泦灏辩华灏辩敤鐪熷浘鏍?瑙?buildIcons);娌″氨缁?鍔犺浇澶辫触鏃惰蛋涓嬮潰杩欏鐭㈤噺鍏滃簳銆?
-       娉ㄦ剰鍥炬爣鐢ㄧ殑鏄粯鍥剧┖闂村潗鏍?鍜?Graphics 涓€鏍?y 璧?Y() 缈昏浆),鎵€浠ヨ繖閲岀粰瀹?Y(cyw) */
+    /* ★ 图集就绪就用真图标(见 buildIcons);没就绪/加载失败时走下面这套矢量兜底。
+       注意图标用的是绘图空间坐标(和 Graphics 一样,y 走 Y() 翻转),所以这里给它 Y(cyw) */
     if (this.iconsReady) this.drawIconPlayer(w, cxw, Y(cyw), B);
-    if (this.iconsReady) { /* 鍥炬爣宸茬粡鐢讳簡,鐭㈤噺閭ｅ璺宠繃 */ } else if (w.mode === 'ship') {
-      /* 鎵嬪姩鐢讳笁瑙?Phaser 4 閲屾病鏈?Phaser.Geom.Point(v3 鐨勫啓娉曚細鐩存帴鎶涢敊) */
+    if (this.iconsReady) { /* 图标已经画了,矢量那套跳过 */ } else if (w.mode === 'ship') {
+      /* 手动画三角:Phaser 4 里没有 Phaser.Geom.Point(v3 的写法会直接抛错) */
       const rot = Math.max(-0.55, Math.min(0.55, w.vy / P.shipVyMax * 0.55));
       const s = Math.sin(rot), c = Math.cos(rot);
       const vx2 = (a: number, b: number) => cxw + a * c - b * s;
@@ -1740,7 +1720,7 @@ class Scene extends Phaser.Scene {
       g.closePath();
       g.fillPath();
     } else if (w.mode === 'ball') {
-      /* 鐞?涓€涓渾 + 閲岄潰涓€鏉￠殢婊氬姩杞殑绾?涓嶇劧鐪嬩笉鍑哄畠鍦ㄦ粴) */
+      /* 球:一个圆 + 里面一条随滚动转的线(不然看不出它在滚) */
       const r = B * 0.5;
       g.fillStyle(w.dead ? 0xff9a6b : 0xe2f6ff, 0.96).fillCircle(cxw, Y(cyw), r);
       g.lineStyle(2, HLD, 0.9).strokeCircle(cxw, Y(cyw), r);
@@ -1750,7 +1730,7 @@ class Scene extends Phaser.Scene {
         cxw + Math.cos(ang) * r * 0.65, Y(cyw) + Math.sin(ang) * r * 0.65,
       );
     } else if (w.mode === 'ufo') {
-      /* UFO:涓€涓渾椤?+ 涓€鏉″簳鐩?*/
+      /* UFO:一个圆顶 + 一条底盘 */
       const base = Y(cyw - B * 0.35);
       g.fillStyle(w.dead ? 0xff9a6b : 0xe2f6ff, 0.95);
       g.beginPath();
@@ -1761,7 +1741,7 @@ class Scene extends Phaser.Scene {
       g.fillPath();
       g.fillStyle(HLD, 0.9).fillRect(cxw - B * 0.62, base, B * 1.24, 4);
     } else if (w.mode === 'wave') {
-      /* 娉㈡氮:涓€鏋氬皬椋為晼,鏈濆綋鍓嶈繍鍔ㄦ柟鍚?*/
+      /* 波浪:一枚小飞镖,朝当前运动方向 */
       const dirw = w.vy >= 0 ? 1 : -1;
       g.fillStyle(w.dead ? 0xff9a6b : 0xe2f6ff, 0.95);
       g.beginPath();
@@ -1773,7 +1753,7 @@ class Scene extends Phaser.Scene {
       g.lineStyle(2, HLD, 0.85);
       g.strokePath();
     } else if (w.mode === 'robot') {
-      /* 鏈哄櫒浜?姣旀柟鍧楅珮涓€鐐?+ 涓€鏉￠潰缃╃嚎 + 涓ゆ潯鑵?*/
+      /* 机器人:比方块高一点 + 一条面罩线 + 两条腿 */
       const hw = B * 0.42, hh = B * 0.72;
       const rtop = Y(cyw + hh), rbot = Y(cyw - hh);
       g.fillStyle(w.dead ? 0xff9a6b : 0xe2f6ff, 0.96).fillRect(cxw - hw, rtop, hw * 2, rbot - rtop);
@@ -1783,7 +1763,7 @@ class Scene extends Phaser.Scene {
       g.lineBetween(cxw - hw * 0.6, rbot, cxw - hw * 0.6, rbot + 6);
       g.lineBetween(cxw + hw * 0.6, rbot, cxw + hw * 0.6, rbot + 6);
     } else if (w.mode === 'spider') {
-      /* 铚樿洓:鏂瑰潡 + 鍥涙潯鐭吙 */
+      /* 蜘蛛:方块 + 四条短腿 */
       const sw = B * 0.42;
       g.fillStyle(w.dead ? 0xff9a6b : 0xe2f6ff, 0.96).fillRect(cxw - sw, Y(cyw + sw), sw * 2, sw * 2);
       g.lineStyle(2, HLD, 0.9).strokeRect(cxw - sw, Y(cyw + sw), sw * 2, sw * 2);
@@ -1793,14 +1773,14 @@ class Scene extends Phaser.Scene {
         g.lineBetween(cxw + sx * sw, Y(cyw - sw * 0.5), cxw + sx * (sw + 7), Y(cyw - sw * 0.5) + 8);
       }
     } else {
-      /* 鏂瑰潡鍦ㄧ┖涓浆 90掳(鍘熺増鎵嬫劅):鐢ㄦ粸绌烘椂闂村綋鏃嬭浆杩涘害 */
-      /* 鈽呪槄 2026-09 鐢ㄦ埛鍙ｅ緞(鍘熺増):"鍘熺増澶ц烦鏃嬭浆 180掳,浼氭牴鎹綅缃喅瀹氫笅钀芥槸鍚︽棆杞?
-       浣垮緱涓嶄細鍑虹幇钀藉埌骞冲彴涓婅繕瀛樺湪鏃嬭浆瑙掔殑鎯呭喌" 鈬?钀藉湴蹇呴』鏄€愯洞骞炽€戠殑(0掳 / 90掳 鐨勬暣鏁板€?鉁撱€?
-       鎵€浠?涓€钀藉湴灏辨妸瑙掑害鍚稿埌 0(鏂瑰潡姘歌繙骞崇潃钀?鉁?鈥斺€?杩欐槸鎴戜滑浠ュ墠瀹屽叏娌℃湁鐨勪竴姝?鉁椼€?*/
-    /* 鈽呪槄 2026-09 鏂瑰悜:鐢ㄦ埛瀹炴祴"鏃嬭浆鏂瑰悜涔熸槸閿欑殑" 鈬?鐜板湪杩欓噷鍙栥€愯礋鍙枫€戙€?
-       鍘熷洜:鎴戜滑鐨勭粯鍥剧┖闂?y 鏄炕杞殑(瑙?Y()),姝ｈ搴﹀湪灞忓箷涓婄湅鏄€愰€嗘椂閽堛€戔湕,
-       鑰屾柟鍧楀悜鍙宠窇鏃跺簲璇ャ€愰『鏃堕拡銆戣浆 鉁撱€?*/
-    const spin = this.spinAng;
+      /* 方块在空中转 90°(原版手感):用滞空时间当旋转进度 */
+      /* ★★ 2026-09 用户口径(原版):"原版大跳旋转 180°,会根据位置决定下落是否旋转,
+       使得不会出现落到平台上还存在旋转角的情况" ⇒ 落地必须是【趴平】的(0° / 90° 的整数倍)✓。
+       所以:一落地就把角度吸到 0(方块永远平着落)✓ —— 这是我们以前完全没有的一步 ✗。 */
+    /* ★★ 2026-09 方向:用户实测"旋转方向也是错的" ⇒ 现在这里取【负号】。
+       原因:我们的绘图空间 y 是翻转的(见 Y()),正角度在屏幕上看是【逆时针】✗,
+       而方块向右跑时应该【顺时针】转 ✓。 */
+    const spin = w.onGround ? 0 : -(this.airT / (2 * P.jump / (P.gravity * Y_TIME_SCALE) / 60)) * (Math.PI / 2);
       const s = Math.sin(spin), c = Math.cos(spin);
       const pts: Array<[number, number]> = [[-B / 2, -B / 2], [B / 2, -B / 2], [B / 2, B / 2], [-B / 2, B / 2]];
       g.fillStyle(w.dead ? 0xff9a6b : 0xe2f6ff, 0.96);
@@ -1814,19 +1794,19 @@ class Scene extends Phaser.Scene {
       g.lineStyle(2, w.dead ? 0xff9a6b : HLD, 0.9);
       g.strokePath();
     }
-    // 鍒ゅ畾鍐呮(鑷繁鐪嬪緱瑙?鏂逛究璋冩墜鎰?
+    // 判定内框(自己看得见,方便调手感)
     g.lineStyle(1, 0xffffff, 0.28).strokeRect(w.x + w.innerOff, Y(py + w.innerOff + w.innerSize), w.innerSize, w.innerSize);
 
-    // 缁堢偣
+    // 终点
     const endX = LEVEL.length * U;
     if (endX > x0 && endX < x1) {
       g.lineStyle(3, HLD, 0.8).lineBetween(endX, groundY, endX, ceilY);
     }
-    // 姝讳簡灏卞帇涓€灞傛殫绾?
+    // 死了就压一层暗红
     if (w.dead) g.fillStyle(0xff6b5a, 0.10).fillRect(x0, dy0, vw, dy1 - dy0);
-    /* pulse 瑙﹀彂鍣?鍏ㄥ睆闂竴涓?*/
+    /* pulse 触发器:全屏闪一下 */
     if (w.flash > 0) g.fillStyle(w.tint ?? 0xffffff, 0.34 * w.flash).fillRect(x0, dy0, vw, dy1 - dy0);
-    /* 寮€鍦?/ 姝讳骸 / 閫氬叧鐣岄潰:鍗婇€忔槑闈㈡澘(鏂囧瓧鏄?Text 瀵硅薄,杩欓噷鍙敾搴曟澘) */
+    /* 开场 / 死亡 / 通关界面:半透明面板(文字是 Text 对象,这里只画底板) */
     if (this.phase !== 'running') {
       const px = Math.max(vw / 2, this.camX), py = this.camWorldY;
       g.fillStyle(0x03050a, 0.82).fillRect(px - 470, py - 120, 940, 240);
@@ -1835,7 +1815,7 @@ class Scene extends Phaser.Scene {
     }
   }
 
-  /** 瑁呴グ璐寸墖:鍙敾涓嶅垽瀹?3638 = 鑳屾櫙榛戝潡,鍏朵綑鏄嚑涓寚绀哄浘褰? */
+  /** 装饰贴片:只画不判定(3638 = 背景黑块,其余是几个指示图形) */
   private drawDeco(
     g: Phaser.GameObjects.Graphics, o: Level['objects'][number],
     obx: number, obw: number, oBot: number,
@@ -1845,11 +1825,11 @@ class Scene extends Phaser.Scene {
     const rot = (((o.rot ?? 0) % 360) + 360) % 360;
     switch (o.art) {
       case 3638:
-        /* 榛戣壊鑳屾櫙鍧?鍥惧眰 8):鏋佹贰鐨勪竴灞?涓昏鏄?閬僵"鐢ㄩ€?澶粦浼氱洊鎺夋暣涓敾闈?*/
+        /* 黑色背景块(图层 8):极淡的一层,主要是"遮罩"用途;太黑会盖掉整个画面 */
         g.fillStyle(0x000000, 0.10).fillRect(obx, Y((o.r + o.h) * U), obw, o.h * U);
         break;
       case 3810: {
-        /* 鎰熷徆鍙?閫氬父鏄?娉ㄦ剰/璀﹀憡"鐨勬寚绀?*/
+        /* 感叹号(通常是"注意/警告"的指示)*/
         const th = (tick * 0) + 0;
         g.fillStyle(0xffe17a, 0.85);
         g.fillRect(cx - obw * 0.08, cy - obw * 0.45 + th, obw * 0.16, obw * 0.6);
@@ -1857,7 +1837,7 @@ class Scene extends Phaser.Scene {
         break;
       }
       case 3812: {
-        /* 绠ご:鏄剧ず鍏冲崱鎯宠浣犲線鍝蛋(鏃嬭浆瑙掑氨鏄繖涓柟鍚? */
+        /* 箭头:显示关卡想让你往哪走(旋转角就是这个方向) */
         const a = -((rot * Math.PI) / 180) + Math.PI / 2;
         const L = obw * 0.5;
         g.lineStyle(3, 0xe2f6ff, 0.75);
@@ -1872,7 +1852,7 @@ class Scene extends Phaser.Scene {
         break;
       }
       case 3823:
-        /* 绗戣劯 */
+        /* 笑脸 */
         g.lineStyle(2, 0xffe17a, 0.8).strokeCircle(cx, cy, obw * 0.4);
         g.fillStyle(0xffe17a, 0.8).fillCircle(cx - obw * 0.15, cy - obw * 0.1, 2);
         g.fillStyle(0xffe17a, 0.8).fillCircle(cx + obw * 0.15, cy - obw * 0.1, 2);
@@ -1882,48 +1862,46 @@ class Scene extends Phaser.Scene {
         g.strokePath();
         break;
       case 3818:
-        /* 鍙?*/
+        /* 叉 */
         g.lineStyle(3, 0xff9a6b, 0.8);
         g.lineBetween(cx - obw * 0.3, cy - obw * 0.3, cx + obw * 0.3, cy + obw * 0.3);
         g.lineBetween(cx + obw * 0.3, cy - obw * 0.3, cx - obw * 0.3, cy + obw * 0.3);
         break;
       case 3848:
-        /* 鐐硅禐:涓€涓畝鍖栫殑鎵嬪娍(鎷囨寚鏈濅笂) */
+        /* 点赞:一个简化的手势(拇指朝上) */
         g.fillStyle(0xa0ffd0, 0.7).fillRect(cx - obw * 0.25, cy - obw * 0.1, obw * 0.5, obw * 0.45);
         g.fillRect(cx - obw * 0.1, cy - obw * 0.45, obw * 0.2, obw * 0.35);
         break;
       case 41: case 106:
-        /* 閿侀摼:鍑犱釜灏忕幆 */
+        /* 锁链:几个小环 */
         g.lineStyle(2, 0x8b93a7, 0.7);
         for (let k = -1; k <= 1; k++) g.strokeCircle(cx, cy + k * obw * 0.4, obw * 0.22);
         break;
       default:
-        break;      // 31 / 1007 杩欑被"鍗犱綅绌虹櫧"浠€涔堥兘涓嶇敾
+        break;      // 31 / 1007 这类"占位空白"什么都不画
     }
   }
 }
 
 export function boot(target: string | HTMLCanvasElement, opts: { song?: string } = {}) {
   const useCanvas = typeof target !== 'string';
-  if (opts.song) LEVEL.song = opts.song;   // 娓哥帺妯″紡鎻掔洏鏃剁敱椤甸潰鎸囧畾杩欎竴灞€鐢ㄥ摢棣栨瓕
+  if (opts.song) LEVEL.song = opts.song;   // 游玩模式插盘时由页面指定这一局用哪首歌
   return new Phaser.Game({
-    /* 浼犺嚜宸辩殑 canvas 鏃?Phaser 4 瑕佹眰鏄惧紡 renderType(鍚﹀垯鎶?Must set explicit renderType in custom environment) */
+    /* 传自己的 canvas 时,Phaser 4 要求显式 renderType(否则报 Must set explicit renderType in custom environment) */
     type: useCanvas ? Phaser.WEBGL : Phaser.AUTO,
     ...(useCanvas ? { canvas: target as HTMLCanvasElement } : { parent: target as string }),
     backgroundColor: '#05070d',
-    /* 鈽?鐢?NONE + 鍥哄畾灏哄:涔嬪墠鐢?FIT/RESIZE,Phaser 閲忓嚭鏉ョ殑鐖跺鍣ㄥ搴︿笉瀵?
-       (鐩告満瑙嗗彛琚畻鎴?320脳720,鐢婚潰鍙湪宸﹁竟涓€鏉￠噷),骞茶剢涓嶈瀹冨幓閲?鈥斺€?
-       鐢诲箙鐢遍〉闈?CSS 鍐冲畾,鍐呴儴鍒嗚鲸鐜囧浐瀹?1280脳720銆?*/
+    /* ★ 用 NONE + 固定尺寸:之前用 FIT/RESIZE,Phaser 量出来的父容器宽度不对
+       (相机视口被算成 320×720,画面只在左边一条里),干脆不让它去量 ——
+       画幅由页面 CSS 决定,内部分辨率固定 1280×720。 */
     scale: {
       mode: Phaser.Scale.NONE,
       width: 1280,
       height: 720,
     },
     scene: [Scene],
-    /* 鈽?鎴浘瑕侀潬瀹?WebGL 榛樿涓嶄繚鐣欑粯鍒剁紦鍐?鑷姩鍖栨埅鍥句細鎶撳埌"鍗婂紶甯? */
+    /* ★ 截图要靠它:WebGL 默认不保留绘制缓冲,自动化截图会抓到"半张帧" */
     render: { preserveDrawingBuffer: true },
-    audio: { noAudio: true },     // 闊充箰鐢遍〉闈㈠眰鐨勯煶棰戞ā鍧楄礋璐?鍜岀珯鐐瑰叡鐢?
+    audio: { noAudio: true },     // 音乐由页面层的音频模块负责(和站点共用)
   });
 }
-
-
