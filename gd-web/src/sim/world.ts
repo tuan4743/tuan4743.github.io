@@ -1225,8 +1225,18 @@ export class World {
         this.pressFresh = false; this.pressAux = false;
         if (b.o.orb) {
           /* ★ 用分形态的力度(原版 ringJump 的倍率表),别再用"方块那一档"套所有形态 */
+          /* ★★ 2026-09:冲刺环(141/1022)走原版的 startDashing —— 进入 dash 状态,
+             不是"给一个纵向速度" ✗(用户:"绿色/粉色冲刺环,垂直方向的冲刺明显不对")。
+             粉色按原版 kPinkDashRing:先翻重力 ✓。方向:有 rot 用 rot ✓;
+             无 rot(这一关五个环都没有 ✓)时按【行进方向】—— 平地上就是水平 ✓,
+             所以这里取 0°(arrowDir 的水平方向)✓。 */
           const spec = ORB[b.o.orb];
-          this.applyTrigger({ v: this.orbVel(b.o.orb), flip: spec.flip }, true);
+          if (b.o.dash) {
+            if (b.o.dash === 'pink') this.gdir = (this.gdir === 1 ? -1 : 1);
+            this.dash = { ang: b.o.rot ?? 0, kind: b.o.dash, t: 0 };
+          } else {
+            this.applyTrigger({ v: this.orbVel(b.o.orb), flip: spec.flip }, true);
+          }
         }
         break;
       }

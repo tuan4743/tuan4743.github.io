@@ -422,6 +422,7 @@ export function encodeObjects(objs: Obj[]): string {
     const ex: string[] = [];
     if (o.to) ex.push('to=' + o.to);
     if (o.orb) ex.push('orb=' + o.orb);
+    if (o.dash) ex.push('dash=' + o.dash);          // ★ 冲刺环(141/1022):让铺面带上这个字段
     if (o.pad) ex.push('pad=' + o.pad);
     if (o.speed != null) ex.push('spd=' + o.speed);
     if (o.gdir != null) ex.push('gd=' + o.gdir);
