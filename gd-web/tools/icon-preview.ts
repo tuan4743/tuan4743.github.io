@@ -126,6 +126,39 @@ for (const mode of process.argv.slice(2)) {
   }
   const names = Object.keys(F);
   const base = names.filter((n) => !/_2_|_3_|_extra_|_glow_/.test(n)).sort((a, b) => a.localeCompare(b))[0];
+  /* ★★★ ANATOMY=1:按【解剖学】自己排部件(用户:"你自己不知道矢量画出来多丑吗" ⇒ 必须把贴图拼对 ✓)
+     接触印相已看到 robot.png 的 4 个部件(按字典序):① 躯干(带眼) ② 蛋形(头/壳) ③ 小方块 ④ 靴形(脚)
+     ⇒ 先按"头在上、躯干居中、脚在下、小方块贴在躯干侧"摆一次,看像不像 ✓
+     (摆位是从解剖常识来的,不是从源码来的 —— 但这一版我【能自己看图】✓,不对就继续调 ✓) */
+  if (process.env.ANATOMY) {
+    const atlas = decodePng(fs.readFileSync(path.resolve('..', 'static', 'icons', mode + '.png')));
+    const keys = Object.keys(F).filter((k) => !/_glow_/.test(k) && !/_2_/.test(k)).sort((a, b) => a.localeCompare(b));
+    const W = 260, H = 260, ox = W / 2, oy = H / 2;
+    const cv = new Uint8Array(W * H * 4);
+    /* 槽位(相对画布中心的偏移,px):头 / 躯干 / 脚 / 零件 */
+    const slots: Array<[number, number]> = [[0, -34], [0, 6], [0, 44], [34, 10]];
+    keys.forEach((k, i) => {
+      const fr = F[k];
+      const [fx, fy, fw, fh] = fr.frame;
+      const cw = fr.rot ? fh : fw, chh = fr.rot ? fw : fh;
+      const [sx, sy] = slots[i] ?? [0, 0];
+      for (let y = 0; y < chh; y++) for (let x = 0; x < cw; x++) {
+        const ax = fr.rot ? fx + y : fx + x, ay = fr.rot ? fy + (fh - 1 - x) : fy + y;
+        if (ax >= atlas.w || ay >= atlas.h) continue;
+        const si = (ay * atlas.w + ax) * 4;
+        if (atlas.data[si + 3] < 8) continue;
+        const dx = Math.round(ox + sx - cw / 2 + x), dy = Math.round(oy + sy - chh / 2 + y);
+        if (dx < 0 || dy < 0 || dx >= W || dy >= H) continue;
+        const di = (dy * W + dx) * 4;
+        cv[di] = atlas.data[si]; cv[di + 1] = atlas.data[si + 1]; cv[di + 2] = atlas.data[si + 2]; cv[di + 3] = 255;
+      }
+    });
+    const out3 = path.resolve('..', '..', '.tmp', 'icon-anatomy-' + mode + '.png');
+    fs.writeFileSync(out3, encodePng({ w: W, h: H, data: cv }));
+    console.log('  ' + mode.padEnd(7) + ' 解剖摆位 ' + keys.length + ' 部件 ⇒ ' + out3);
+    continue;
+  }
+
   /* ★★★ 2026-09 照源码的规则(用户:"照搬源码"):
        robot 的腿 / spider 的腿 = GJRobotSprite / GJSpiderSprite 这两个【命名动画 sprite】✓
        (headers: class GJSpiderSprite : public GJRobotSprite; GJRobotSprite::init(id, name) ⇒ 按名字加载一整套动画 ✓)
