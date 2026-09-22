@@ -779,7 +779,15 @@ export class World {
     if (this.dash) {
       const d = this.dash;
       d.t += FRAME / 4;
-      const dir = arrowDir(d.ang);
+      /* ★★★ 2026-09 dash 方向按源码原文(用户:"那个算式需要你自己去源码里找"):
+         .tmp/GDsrc/asm/gd-ida-decomp.cpp:148608-148609
+             v75 = ccpForAngle(v6 * 0.017453);                              // 单位向量 (cos,sin)
+             CCPoint::operator*(&v73, v75, *((float*)a2 + 410) * 5.77);     // × (环字段 × 5.77)
+         ⇒ dash 向量 = 单位向量 × (环字段 × 5.77);环字段默认 1.0 ⇒ 纵向基准 = 5.77
+           (正是 1 档速度 5.7700018 这个常数 ✓)
+         用户铁律:冲刺的【水平分量 = 当前移动速度】⇒ 横向永不改动 ✓(公共路径已按 this.vx 走) */
+      const aRad = (d.ang * Math.PI) / 180;
+      const cosA = Math.cos(aRad), sinA = -Math.sin(aRad);   // 世界坐标 y 向上
       /* ★★ 2026-09 实测验出来的大 bug(按住不放逐帧打印):冲刺期间 dx=0.000 / dy=0.000
          ⇒ 人【原地冻住】✗ —— 因为这一支只写了纵向,把【横向位移】整个吃掉了 ✗。
          原版(PlayerObject::update 的 dash 分支):横向照常走(v38 = v31),
@@ -804,7 +812,10 @@ export class World {
          (冲刺环 141/1022 早已还原成跳环 ✗)⇒ 我等于把本来正确的箭头方向改坏了 ✓✓
          ⇒ 恢复用 arrowDir(箭头语义:不许往后指,横向分量 ≥0.7)✓
          环的 tan 口径等真要做环时再单独走一条分支 ✗,不混用 */
-      this.vy = Math.abs(this.vx) * dir.y;
+      /* 水平:纵向 0 ✓ · 斜向 45°:纵向 = vx ✓ · 垂直:|cos|≈0 ⇒ 纵向 = 【固定 5.77】(源码常数)✓ */
+      this.vy = (Math.abs(cosA) < 0.05)
+        ? (sinA >= 0 ? 1 : -1) * 5.7700018
+        : Math.abs(this.vx) * (sinA / cosA);
       this.y += this.vy * (sY / Y_TIME_SCALE);
       /* ★★ 2026-09 恢复时长上限(上一轮我删掉它是错的 ✗):用户实测"纵向冲刺像是把铺面流速加快了"
          ⇒ 就是【冲刺永不结束】的表现:按住不放就一直冲 ✗。
