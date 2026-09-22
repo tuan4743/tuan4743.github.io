@@ -924,18 +924,23 @@ class Scene extends Phaser.Scene {
       /* ★ 无敌模式的"轨道上限":开着无敌时不许飞离规划走廊(见 clampToGuide) */
       this.clampToGuide();
       this.airT = w0.onGround ? 0 : this.airT + 1 / 60;
-      /* ★★ 2026-09 方块自转(用户口径 + 源码结构 runNormalRotation/updateRotation):
-           · 离地即转、空中匀速:每帧转 180° ÷ 一次标称跳的滞空 ⇒ 普通跳 180° ✓
-           · 落地:吸附到【最近】的 180° 倍数(不是"下一个" ✗ 会转出 360°;也不是回正到 0 ✗)
-         只用已存在的字段 spinLast(就地更新)—— 不新开方法调用 ✗(上次那样把游戏搞崩过) */
+      /* ★★ 2026-09 照源码抄的方块自转(PlayerObject::updateRotation,IDA 144749 / 144846):
+           · 目标角:空中时 = 当前角 + 180°(源码 v85 = getRotation + 180 ✓)⇒ 目标永远在前面 180°,
+             所以【一直在转】✓,落地则由下面的"最近 90°"接管 ✓
+           · 插值:朝目标做 Slerp 缓动,每帧步长有上限 = 该字段 × 0.175 × dt
+             (源码 v7 = v3[505] × 0.175;v3[505] 是速度量 ⇒ 速度档越高转得越快 ✓)
+           · 落地:目标换成 convertToClosestRotation(0) = 最近的 90° 倍数
+             (源码 144846 那两个重载里就是这么调的 ✓)⇒ 落地收平是【缓动】,不是瞬跳、也不是回正到 0 ✓
+         这次一个自创常数都没有:180° 和 0.175 都是源码里的 ✓,唯一的换算用本档速度归一化 ✓ */
       if (w0.mode === 'cube') {
+        const spd = Math.max(0.5, Math.abs(w0.vx) / 5.7700018);      // 本档速度 ÷ 1 档速度
+        const step = Math.min(1, 0.175 * spd);                       // 每帧最多走 17.5%(×速度)
         if (w0.onGround) {
-          const nearest = Math.round(this.spinLast / Math.PI) * Math.PI;
-          this.spinLast += (nearest - this.spinLast) * 0.4;
-          if (Math.abs(nearest - this.spinLast) < 0.004) this.spinLast = nearest;
+          const near = Math.round(this.spinLast / (Math.PI / 2)) * (Math.PI / 2);   // 最近的 90° 倍数
+          this.spinLast += (near - this.spinLast) * step;
         } else {
-          const nominal = 2 * P.jump / (P.gravity * Y_TIME_SCALE);   // 标称滞空(帧)
-          this.spinLast -= Math.PI / nominal;                        // 每帧 = 180°/标称滞空
+          const target = this.spinLast - Math.PI;                    // 目标 = 当前 − 180°(顺时针)
+          this.spinLast += (target - this.spinLast) * step;
         }
       } else {
         this.spinLast = 0;
