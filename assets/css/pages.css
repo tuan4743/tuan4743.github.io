@@ -1405,9 +1405,10 @@
     from { opacity: 0.35; transform: translateX(-2%) rotate(8deg) scaleY(0.96); }
     to   { opacity: 0.85; transform: translateX(2%)  rotate(13deg) scaleY(1.04); }
 }
-/* 涟漪(降级版):★ 上一版用 backdrop-filter + SVG 湍流 —— 效果有了,但那是【每帧重算整屏】✗,
-   用户实测"帧率比较低" ✓。现在换成:两条极淡的斜条纹缓慢流动(纯 background-position 动画,
-   零滤镜、零合成开销)✓ 强度按用户口径调小(opacity 0.10 → 0.055) */
+/* 涟漪(降级版,第二版):★ 上一版 backdrop-filter + SVG 湍流很贵(用户"帧率比较低")✗,
+   降到 0.055 透明度的斜条纹又【看不见了】(用户"涟漪效果没有了")✗。
+   现在取中间:条纹更粗更亮 + 三层(两个方向 + 一层缓慢缩放),透明度 0.055 → 0.16,
+   依然【零滤镜】—— 只多一层 background 合成,不吃 GPU 的滤镜预算 ✓ */
 .fx-ripple {
     position: absolute;
     inset: 0;
@@ -1415,11 +1416,20 @@
     width: 100%;
     height: 100%;
     pointer-events: none;
-    opacity: 0.055;
+    /* ★ 细线在暗底上等于看不见(实测截图:3px/16% 的线完全不可辨)⇒ 改成【宽而柔的带子】:
+       40~120px 宽的斜带、alpha 写在颜色里、再加一条慢速的纵向漂移 —— 肉眼能看出"水在流",
+       依旧是零滤镜(只多一层 background 合成)✓ */
     background-image:
-        repeating-linear-gradient(104deg, rgba(220, 245, 255, 0.9) 0 2px, rgba(220, 245, 255, 0) 2px 26px),
-        repeating-linear-gradient(76deg, rgba(190, 235, 255, 0.7) 0 1px, rgba(190, 235, 255, 0) 1px 34px);
-    animation: fxRipple 26s linear infinite;
+        repeating-linear-gradient(100deg,
+            rgba(206, 242, 255, 0) 0 24px,
+            rgba(206, 242, 255, 0.055) 72px 104px,
+            rgba(206, 242, 255, 0) 152px 190px),
+        repeating-linear-gradient(64deg,
+            rgba(176, 228, 255, 0) 0 30px,
+            rgba(176, 228, 255, 0.04) 92px 124px,
+            rgba(176, 228, 255, 0) 176px 220px);
+    background-size: 210% 210%;
+    animation: fxRipple 23s linear infinite;
 }
 @keyframes fxRipple {
     from { background-position: 0 0, 0 0; }
