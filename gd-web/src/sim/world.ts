@@ -913,6 +913,10 @@ export class World {
         this.gdir = -this.gdir;                 // 翻重力
         this.vy *= this.flipMul;                // ★ 原版 flipGravity:m_yAccel *= 1.75
         this.vy *= P.ballFlipVelMul;            // ★ 再按球那一档 ×0.6(原版 updateJump)
+        /* ★★★ 2026-09 球"一跳弹到 128 格"的根因:上面两个乘数每【落地翻转】一次就再乘一次,
+           而终点速度的夹取在下面(918 行之后)⇒ 连续翻转会【复利式放大】(1.75^n)✗✓
+           ⇒ 乘完立刻夹一次(源码的 max(-15, yAccel) 就是终端速度夹取 ✓),把复利掐断 ✓ */
+        this.applyFallClamp();
         this.onGround = false;
       }
       this.vy -= P.gravity * P.ballGravityMul * this.gdir * sY;
