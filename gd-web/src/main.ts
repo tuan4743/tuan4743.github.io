@@ -570,6 +570,12 @@ class Scene extends Phaser.Scene {
       this.load.once('complete', () => { this.artReady = this.textures.exists('gd-art'); });
       this.load.start();
     }
+    /* ★★ 2026-09 用户:"全删掉,页面不留任何东西" ⇒ 除了画布,其它界面元素一律移除 ✓
+       (HUD 进度条 / 按键提示 / 五个调试按钮 / 手机提示 / 遮罩 / 底部参考行 —— 全部删掉) */
+    for (const sel of ['#gd-hud', '#gd-tools', '#gd-god', '#gd-demo', '#gd-restart', '#gd-pad-minus', '#gd-pad-plus',
+                       '.lost-tip', '.gd-tools', '.gd-mobile-note', '.lost-veil', '.lost-wip__ref']) {
+      document.querySelectorAll(sel).forEach((el) => el.remove());
+    }
     this.loadGuide();                          // ★ 无敌模式的轨道(见 clampToGuide)
     /* ★ 形态图集(static/icons):默认不加载(见上面那段"结论")。?icons=1 才试图集 */
     if (ICON_ENABLED) {
