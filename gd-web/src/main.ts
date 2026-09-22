@@ -509,7 +509,9 @@ class Scene extends Phaser.Scene {
 
   create() {
     this.g = this.add.graphics();
-    this.keys = this.input.keyboard!.addKeys('SPACE,UP,W,R,G,B') as Record<string, Phaser.Input.Keyboard.Key>;
+    /* ★★ 2026-09 用户:"把按键,提示全删掉,按b还是有反应" ⇒ 只保留跳跃键(SPACE/↑/W)✓
+       删掉 R(重开) / G(无敌,已停用) / B(演示·机器人)—— 这三个是调试入口 ✓ */
+    this.keys = this.input.keyboard!.addKeys('SPACE,UP,W') as Record<string, Phaser.Input.Keyboard.Key>;
     /* ★ 无敌模式:页面按 G 切;也可以开局就用 URL 打开(?god=1),验收脚本直接改 __gd.world.god */
     this.godWanted = /(^|[?&])god=1(&|$)/.test(location.search);
     this.world.god = false;   /* ★ 2026-09 用户:"把无敌模式直接给我删掉" ⇒ 恒为 false,开关不再生效 */
@@ -539,9 +541,9 @@ class Scene extends Phaser.Scene {
          指向输入框的 keydown 我们一样要接。玩之前点一下画面就会把焦点从搜索框上拿走(见下面 pointerdown)。 */
     window.addEventListener('keydown', (ev: KeyboardEvent) => {
       if (ev.code === 'Space' || ev.code === 'ArrowUp' || ev.code === 'KeyW') this.confirmLatch = true;
-      if (ev.code === 'KeyR') this.restartLatch = true;
-      if (ev.code === 'KeyG') this.godLatch = true;
-      if (ev.code === 'KeyB') this.demoLatch = true;
+      /* ★★ 2026-09 用户:"把按键,提示全删掉,按 b 还是有反应" —— B 的处理器就在窗口级监听这里 ✗
+         R(重开)/ G(无敌,已停用)/ B(演示·机器人)三个调试入口一并删掉 ✓,只留跳跃键 ✓ */
+      void ev;
       /* ★ 弹簧力度微调:以前只认 [ / ](BracketLeft/Right)—— 用户实测"按了没用"
          (不同键盘/输入法下发出来的 code 不一样)。现在把常见的那几对全收进来,
          另外页面上还加了两个能点的按钮(见 lost.html 的 .gd-tools)。 */
