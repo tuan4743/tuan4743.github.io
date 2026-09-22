@@ -899,9 +899,17 @@ class Scene extends Phaser.Scene {
       }
       /* 输入来源:演示卷按 tick 取(那卷输入是从 tick=0 全程录的),
          否则反应式机器人,否则键盘。 */
+      /* ★★ 2026-09 修(用户:"空格有时候失效"、"跳环按了没用"这两个其实是一条):
+         键盘这条路原来【只看 isDown 轮询】—— 极短的一下(keydown 和 keyup 落在两次轮询之间)
+         会被整帧丢掉 ✗,而跳环要求"在环里的那一帧有新按下",丢一拍就完全没反应 ✗。
+         `confirmLatch` 是真实 keydown 事件记下来的(上面注释写着"极短的一下也收得到"),
+         但它一直没接进这里 ✗。现在:本帧的第一个物理帧吃掉这个 latch(等价于按了一下),
+         立刻清掉 ⇒ 之后的追赶帧不会把它当成"一直按住" ✓ */
+      const useLatch = this.confirmLatch;
+      this.confirmLatch = false;
       const hold = this.demoMode ? this.demoHold(w0.tick)
         : this.botMode ? botThink(w0)
-          : !!(this.keys.SPACE?.isDown || this.keys.UP?.isDown || this.keys.W?.isDown);
+          : (!!(this.keys.SPACE?.isDown || this.keys.UP?.isDown || this.keys.W?.isDown) || useLatch);
       if ((this.botMode || this.demoMode) && !this.botStarted) {       // 开机器人 = 从干净的一局开始,方便和 Node 侧对指纹
         this.botStarted = true;
         this.started = true;
