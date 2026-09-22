@@ -254,8 +254,11 @@ export const GD_SPEC: Record<number, Spec> = {
 
   /* ---- 跳环(空中要按一下)---- */
   36: { kind: 'orb', orb: 'yellow', note: '黄色跳环' },
-  141: { kind: 'orb', orb: 'pink', dash: 'pink', col: 0xc6a0ff, note: '★冲刺环(粉):进入 dash 状态,不是跳环' },
-  1022: { kind: 'orb', orb: 'green', dash: 'green', note: '★冲刺环(绿):进入 dash 状态,不是跳环' },
+  /* ★★ 2026-09 回退:141/1022 是【粉/绿跳环】,不是冲刺环 ✗ —— 我把 dash 标到了它们身上,
+     结果铺面里 45 个跳环全变成冲刺 ✗(用户:"你为什么把跳环全改成了冲刺")。
+     冲刺环要用它自己的 id(待确认后单独标),不能拿跳环的 id 顶 ✗。 */
+  141: { kind: 'orb', orb: 'pink', col: 0xc6a0ff, note: '紫/粉色跳环(×0.72 小跳)' },
+  1022: { kind: 'orb', orb: 'green', note: '绿色跳环(翻重力+跳)' },
   84: { kind: 'orb', orb: 'blue', note: '蓝色跳环(翻重力)' },
   1330: { kind: 'orb', orb: 'black', note: '黑色冲刺环' },
 
