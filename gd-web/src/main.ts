@@ -783,10 +783,18 @@ class Scene extends Phaser.Scene {
       }
       const F = parsePlistFrames(xml);
       if (!F) continue;
-      /* 主图 = 所有"非 _2_/_extra_/_glow_"帧里未裁剪尺寸最大的那个(整只角色) */
-      const mains = Object.keys(F).filter((n) => !/_2_|_extra_|_glow_/.test(n));
+      /* ★★★ 2026-09 修"UFO/robot 贴图全错乱"(用户实测):
+         原来是取【未裁剪尺寸最大】的那一帧当主图 ✗ —— 而图集里同一个形态有多个变体:
+             cube  : player_348_001 / _2_001 / _extra_001 / _glow_001
+             bird  : bird_109_001 / _2_ / _3_ / _extra_
+             robot : robot_01_01_001 / robot_01_02_001 / …     ← 01_02 是【另一个图标】✗
+             spider: spider_13_01_001 / _2_ / _extra_ / _glow_
+         "取最大"会挑到 _extra_ / 其它序号 ⇒ 画出来就是错的/拼在一起 ✓✓
+         ⇒ 改成【按名字取基础帧】:排除 _2_/_3_/_extra_/_glow_,再按名字字典序取第一个
+           (基础帧名字最短、序号最小 ⇒ 就是 001 那一张 ✓) */
+      const mains = Object.keys(F).filter((n) => !/_2_|_3_|_extra_|_glow_/.test(n));
       if (!mains.length) continue;
-      const name = mains.sort((p, q) => (F[q].sourceSize.w * F[q].sourceSize.h) - (F[p].sourceSize.w * F[p].sourceSize.h))[0];
+      const name = mains.slice().sort((p, q) => p.localeCompare(q))[0];
       const glowName = name.replace(/_(\d+)\.png$/, '_glow_$1.png');
       const made: Array<{ layer: 'body' | 'glow'; tex: string; w: number; h: number }> = [];
       for (const [layer, fr] of [['body', F[name]], ['glow', F[glowName]]] as const) {
