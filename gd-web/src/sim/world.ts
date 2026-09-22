@@ -784,22 +784,19 @@ export class World {
          ⇒ 人【原地冻住】✗ —— 因为这一支只写了纵向,把【横向位移】整个吃掉了 ✗。
          原版(PlayerObject::update 的 dash 分支):横向照常走(v38 = v31),
          纵向 = 水平位移 × m_dashY ⇒ 冲刺期间必须【同时】推 x 和 y ✓。 */
-      /* ★★ 2026-09 用户口径:"竖直冲刺的逻辑是类瞬移蜘蛛,速度极快避免影响音乐;
-         垂直冲刺箭头按相差一点点,落点位置都非常大"。
-         ⇒ 竖直箭头(rot≈±90):横向【停住】✗不推进,纵向用【极快】速度 ⇒ 近似瞬移,
-           所以起跳位置差一点点,落点就差很多(正是用户描述的现象)✓。
-         60 单位/帧 = 1800 单位/秒 = 60 格/秒 —— 0.5 秒上限内最多 30 格,足够"瞬移感"。
-         斜向箭头(rot 不是 ±90)保持原样:横向照旧 + 纵向按斜率 ✓。 */
-      const vertical = Math.abs(((d.ang % 180) + 180) % 180 - 90) < 20;
-      if (vertical) {
-        const dirY = arrowDir(d.ang).y >= 0 ? 1 : -1;
-        this.y += dirY * 60 * U * (sY / Y_TIME_SCALE);
-        this.vy = dirY * 60 * U / 60;
-      } else {
-        this.x += this.vx * sY;
-        this.vy = Math.abs(this.vx) * dir.y;
-        this.y += this.vy * (sY / Y_TIME_SCALE);
-      }
+      /* ★★ 2026-09 撤回"竖直冲刺横向停住"(那是我按用户描述猜的 ✗)。
+         查了真源码(CallocGD/GD-2.206-Decompiled,asm/gd-ida-decomp.cpp:148504
+         `PlayerObject::startDashing`):它只做两件事 ——
+           ① 把环/箭头的【旋转角】换算成 m_dashX / m_dashY(旋转角 + 翻面时 +180°,再归一化 %360)
+           ② 置 dash 标志 + 记下 dash 起始时间
+         而 `PlayerObject::update`(用户贴过的那段)里,dash 期间的位移是:
+               v38 = v31;                 // 横向 = 原速,【不变】✓
+               v34 = v31 * m_dashY;       // 纵向 = 水平位移 × 斜率
+         ⇒ 冲刺期间【横向永远照原速走】✓(竖直箭头也是 —— 所以竖直箭头是"斜着扎下去" ✓,
+           不是横向停住 ✗)。我上一条把它改成"横向停住"是错的,这里改回来 ✓。 */
+      this.x += this.vx * sY;
+      this.vy = Math.abs(this.vx) * dir.y;
+      this.y += this.vy * (sY / Y_TIME_SCALE);
       /* ★★ 2026-09 恢复时长上限(上一轮我删掉它是错的 ✗):用户实测"纵向冲刺像是把铺面流速加快了"
          ⇒ 就是【冲刺永不结束】的表现:按住不放就一直冲 ✗。
          依据仍是用户贴的 PlayerObject::update:
