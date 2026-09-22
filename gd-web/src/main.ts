@@ -823,7 +823,11 @@ class Scene extends Phaser.Scene {
   /** 用图集摆玩家:位置/尺寸/旋转/上色。
    *  ★ 尺寸用统一密度(120 px = 1 块),不是"每层各自撑满 1 格" —— 后者会把小腿/描边放大到和身体一样大。 */
   private drawIconPlayer(w: World, cxw: number, cyw: number, B: number) {
-    const L = this.iconLayers.find((l) => l.mode === w.mode) ?? this.iconLayers[0];
+    /* ★★ 2026-09 用户:"cube 的贴图变成 ship 的贴图了" —— 就是这一行的 ?? 兜底 ✗
+       cube 的图集因为尺寸不符被跳过 ⇒ find() 拿不到 ⇒ 于是【借用了第 0 层】(别的形态)✗✓
+       改成:拿不到就【没有图层】⇒ 上层会走矢量画法 ✓(绝不借用别的形态 ✗) */
+    const L = this.iconLayers.find((l) => l.mode === w.mode);
+    if (!L) return;
     const on = !w.done;
     for (const l of this.iconLayers) {
       const vis = on && l === L;
@@ -850,7 +854,7 @@ class Scene extends Phaser.Scene {
     const [c1] = ICON_COL[w.mode] ?? [0xffffff, 0xffffff];
     const kill = w.dead ? 0xff7a5a : null;
     const k = B / (L.pxPerUnit * 30);                     // 120 px = 30 单位 → k = B/120
-    L.body.setPosition(cxw, cyw).setRotation(rot).setTint(kill ?? c1);
+    L.body.setPosition(cxw, cyw).setRotation(rot);   // ★ 用户口径 A:贴图原样,不染色(去掉 setTint)✗
     L.body.setDisplaySize(L.bw * k, L.bh * k);
     if (L.glow) {
       L.glow.setPosition(cxw, cyw).setRotation(rot).setDisplaySize(L.bw * k, L.bh * k);
