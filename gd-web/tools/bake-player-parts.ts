@@ -13,31 +13,41 @@ import fs from 'node:fs';
 const RES = 'D:\\SteamLibrary\\steamapps\\common\\Geometry Dash\\Resources';
 const ICONS = RES + '\\icons';
 
-function readAnims(descFile: string, prefix: string) {
+function readAnims(descFile: string, prefix: string, iconNo: string) {
   const x = fs.readFileSync(descFile, 'utf8');
   const ac = x.indexOf('<key>animationContainer</key>');
   const scope = ac >= 0 ? x.slice(ac) : x;
-  const keys = [...scope.matchAll(new RegExp('<key>(' + prefix + '_run_(\\d+)\\.png)</key>', 'g'))]
-    .map((m) => ({ name: m[1], n: Number(m[2]) }))
-    .sort((a, b) => a.n - b.n);
-  const out: Array<Array<{ tex: string; x: number; y: number; z: number }>> = [];
-  for (const k of keys) {
-    const fi = scope.indexOf('<key>' + k.name + '</key>');
-    const nk = scope.slice(fi + 10).search(/<key>[A-Za-z0-9_]+\.png<\/key>/);
-    const block = scope.slice(fi, nk < 0 ? scope.length : fi + 10 + nk);
-    const sprites: Array<{ tex: string; x: number; y: number; z: number }> = [];
-    for (const m of block.matchAll(/<key>sprite_\d+<\/key>\s*<dict>([\s\S]*?)\n\s*<\/dict>/g)) {
-      const b = m[1];
-      const g = (s: string) => new RegExp('<key>' + s + '</key>\\s*<string>([^<]+)</string>').exec(b)?.[1] ?? '';
-      const nums = (s: string) => s.replace(/[{}]/g, '').split(',').map((v) => Number(v.trim()) || 0);
-      const tex = g('texture');
-      if (!tex) continue;
-      const pos = nums(g('position'));
-      sprites.push({ tex, x: pos[0], y: pos[1], z: Number(g('zValue')) || 0 });
+  /* ★ 官方 AnimDesc 只描述 01 号图标(名字全是 robot_01_* / spider_01_* ✗)
+     ⇒ 贴图名要【换成我们图集的编号】,否则引擎在 uhd 图集里找不到帧 ✓
+     ★ 同时把每一类动画都收进来(run / skip / jump / idle …),不只是 run ✓ —— 用户:"robot 还有一个跳跃动画" */
+  const anims: Record<string, Array<Array<{ tex: string; x: number; y: number; z: number }>>> = {};
+  const names: Record<string, string[]> = {};
+  const kinds = [...new Set([...scope.matchAll(new RegExp('<key>' + prefix + '_([a-z]+)_(\\d+)\\.png</key>', 'g'))].map((m) => m[1]))];
+  for (const kind of kinds) {
+    const keys = [...scope.matchAll(new RegExp('<key>(' + prefix + '_' + kind + '_(\\d+)\\.png)</key>', 'g'))]
+      .map((m) => ({ name: m[1], n: Number(m[2]) })).sort((a, b) => a.n - b.n);
+    const frames: Array<Array<{ tex: string; x: number; y: number; z: number }>> = [];
+    for (const k of keys) {
+      const fi = scope.indexOf('<key>' + k.name + '</key>');
+      const nk = scope.slice(fi + 10).search(/<key>[A-Za-z0-9_]+\.png<\/key>/);
+      const block = scope.slice(fi, nk < 0 ? scope.length : fi + 10 + nk);
+      const sprites: Array<{ tex: string; x: number; y: number; z: number }> = [];
+      for (const m of block.matchAll(/<key>sprite_\d+<\/key>\s*<dict>([\s\S]*?)\n\s*<\/dict>/g)) {
+        const b = m[1];
+        const g = (s: string) => new RegExp('<key>' + s + '</key>\\s*<string>([^<]+)</string>').exec(b)?.[1] ?? '';
+        const nums = (s: string) => s.replace(/[{}]/g, '').split(',').map((v) => Number(v.trim()) || 0);
+        const texRaw = g('texture');
+        if (!texRaw) continue;
+        const tex = texRaw.replace(/^(robot|spider)_\d+_/, (_m, p1: string) => p1 + '_' + iconNo + '_');   // ★ 换成本图集编号
+        const pos = nums(g('position'));
+        sprites.push({ tex, x: pos[0], y: pos[1], z: Number(g('zValue')) || 0 });
+      }
+      frames.push(sprites.sort((a, b) => a.z - b.z));
     }
-    out.push(sprites.sort((a, b) => a.z - b.z));
+    anims[kind] = frames;
+    names[kind] = keys.map((k) => k.name);
   }
-  return { names: keys.map((k) => k.name), frames: out };
+  return { anims, names, kinds };
 }
 
 function readFrames(sheet: string) {
@@ -55,11 +65,13 @@ function readFrames(sheet: string) {
 
 const out: Record<string, unknown> = {};
 for (const [mode, desc, sheet, prefix] of [['robot', 'Robot', 'robot_01', 'Robot'], ['spider', 'Spider', 'spider_13', 'Spider']] as const) {
-  const anims = readAnims(RES + '\\' + desc + '_AnimDesc.plist', prefix);
+  const iconNo = sheet.replace(/^(robot|spider)_/, '');
+  const res = readAnims(RES + '\\' + desc + '_AnimDesc.plist', prefix, iconNo);
   const frames = readFrames(sheet);
-  out[mode] = { sheet, uhd: true, scale: 0.25, frames, anims: { run: anims.frames }, animNames: anims.names };
-  const usedTex = new Set(anims.frames.flat().map((s) => s.tex));
-  console.log('  ' + mode + ': ' + anims.frames.length + ' 帧动画 · 用到部件 ' + usedTex.size + ' 个 · uhd 帧表 ' + Object.keys(frames).length + ' 条');
+  const total = Object.values(res.anims).reduce((n, a) => n + a.length, 0);
+  out[mode] = { sheet, uhd: true, scale: 0.25, frames, anims: res.anims, animNames: res.names };
+  console.log('  ' + mode + ': 动画种类 [' + res.kinds.join(', ') + '] · 共 ' + total + ' 帧 · uhd 帧表 ' + Object.keys(frames).length + ' 条');
+  for (const k of res.kinds) console.log('      ' + k + ': ' + res.anims[k].length + ' 帧');
 }
 fs.writeFileSync('../static/assets/gd-player-parts.json', JSON.stringify(out, null, 1), 'utf8');
 console.log('  ⇒ static/assets/gd-player-parts.json(' + Math.round(fs.statSync('../static/assets/gd-player-parts.json').size / 1024) + ' KB)');

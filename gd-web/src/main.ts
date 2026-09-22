@@ -1902,16 +1902,24 @@ class Scene extends Phaser.Scene {
       let arr = self.partSprites[w.mode];
       const all = this.cache.json.get('gd-parts-anim') as Record<string, {
         scale: number;
-        anims: { run: Array<Array<{ tex: string; x: number; y: number; z: number }>> };
+        anims: Record<string, Array<Array<{ tex: string; x: number; y: number; z: number }>>>;
       }> | undefined;
       const info = all?.[w.mode];
+      /* ★ 动画选择(官方 AnimDesc 里有多种):
+           robot : run(跑) / skip(跳) / idle    ← 用户:"robot 还有一个跳跃动画" ✓
+           spider: run / walk / jump / idle ✓
+         规则:落地 ⇒ run(跑动);离地 ⇒ robot 用 skip、spider 用 jump ✓ */
+      const anims = info?.anims ?? {};
+      const airborne = !w.onGround;
+      const pick = w.mode === 'robot'
+        ? (airborne ? (anims.skip ?? anims.run) : (anims.run ?? anims.idle))
+        : (airborne ? (anims.jump ?? anims.run) : (anims.run ?? anims.walk));
       if (!arr) {
-        const maxN = Math.max(...(info?.anims.run ?? [[]]).map((f) => f.length), 0);
+        const maxN = Math.max(...(pick ?? [[]]).map((f) => f.length), 0);
         arr = Array.from({ length: maxN }, () => this.add.image(cxw, Y(cyw), '__DEFAULT').setDepth(16).setVisible(false));
         self.partSprites[w.mode] = arr;
       }
-      /* ★ 动画 = 按时间轮播 anims.run(robot 16 帧 / spider 7 帧 ✓)—— 帧率取 12 帧/秒(原版跑动大致这个量级 ✓) */
-      const frames = info?.anims.run ?? [];
+      const frames = pick ?? [];
       const fi = frames.length ? Math.floor((w.tick / 60) * 12) % frames.length : 0;
       const list = frames[fi] ?? [];
       const sc = info?.scale ?? 0.25;                 // uhd → 布局单位(实测 4× ✓)
