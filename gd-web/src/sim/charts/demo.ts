@@ -1,5 +1,5 @@
 /* 生成物 —— 由 tools/make-demo-level.ts 生成,别手改。
- * 演示铺:每类物件顺着摆一排,共 62 个,长 314 块。
+ * 演示铺:每类物件顺着摆一排,共 64 个,长 326 块。
  * 重新生成:cd gd-web && node tools/make-demo-level.ts
  */
 import type { Level } from '../level.ts';
@@ -7,7 +7,7 @@ import type { Level } from '../level.ts';
 export const DEMO_CHART: Level = {
  "name": "DEMO",
  "rows": 14,
- "length": 314,
+ "length": 326,
  "song": "/levels/WATER.mp3",
  "start": {
   "b": 2,
@@ -16,7 +16,7 @@ export const DEMO_CHART: Level = {
  "segments": [
   {
    "from": 0,
-   "to": 314,
+   "to": 326,
    "mode": "cube",
    "speed": 1,
    "difficulty": 0,
@@ -415,18 +415,33 @@ export const DEMO_CHART: Level = {
    "r": 3,
    "w": 1,
    "h": 1,
-   "kind": "portal",
+   "kind": "size",
    "mini": true
   },
   {
+   "b": 260,
+   "r": 3,
+   "w": 1,
+   "h": 1,
+   "kind": "size",
+   "mini": false
+  },
+  {
+   "b": 266,
+   "r": 3,
+   "w": 1,
+   "h": 1,
+   "kind": "clone"
+  },
+  {
    "kind": "text",
-   "b": 257,
+   "b": 269,
    "r": 6,
    "text": "▼ 存档点",
    "size": 0.6
   },
   {
-   "b": 260,
+   "b": 272,
    "r": 0,
    "w": 1,
    "h": 1,
@@ -434,13 +449,13 @@ export const DEMO_CHART: Level = {
   },
   {
    "kind": "text",
-   "b": 267,
+   "b": 279,
    "r": 6,
    "text": "▼ 硬币",
    "size": 0.6
   },
   {
-   "b": 270,
+   "b": 282,
    "r": 3,
    "w": 1,
    "h": 1,
@@ -448,13 +463,13 @@ export const DEMO_CHART: Level = {
   },
   {
    "kind": "text",
-   "b": 273,
+   "b": 285,
    "r": 6,
    "text": "▼ 可破坏砖",
    "size": 0.6
   },
   {
-   "b": 276,
+   "b": 288,
    "r": 0,
    "w": 1,
    "h": 1,
@@ -462,13 +477,13 @@ export const DEMO_CHART: Level = {
   },
   {
    "kind": "text",
-   "b": 279,
+   "b": 291,
    "r": 6,
    "text": "▼ 线框",
    "size": 0.6
   },
   {
-   "b": 282,
+   "b": 294,
    "r": 0,
    "w": 1,
    "h": 1,
@@ -476,7 +491,7 @@ export const DEMO_CHART: Level = {
    "frame": "box"
   },
   {
-   "b": 288,
+   "b": 300,
    "r": 0,
    "w": 1,
    "h": 1,
@@ -485,7 +500,7 @@ export const DEMO_CHART: Level = {
   },
   {
    "kind": "text",
-   "b": 291,
+   "b": 303,
    "r": 6,
    "text": "▼ 结束",
    "size": 0.6

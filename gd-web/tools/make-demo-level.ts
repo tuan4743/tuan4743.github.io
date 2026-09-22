@@ -34,7 +34,11 @@ section('重力/速度/迷你门');
 put({ kind: 'portal', gdir: -1, r: 3 } as Obj);        // 反重力门
 put({ kind: 'portal', gdir: 1, r: 3 } as Obj);         // 正重力门
 for (const s of [0, 1, 2, 3, 4]) put({ kind: 'speed', speed: s, r: 3 } as Obj);
-put({ kind: 'portal', mini: true, r: 3 } as Obj);      // 迷你门
+/* ★★ 2026-09 修:尺寸门的 kind 是【size】不是 portal ✗ —— 我原来写成 portal ⇒ 演示铺里"迷你门没反应" ✓✓
+   (用户实测"迷你门没反应"就是这条 ✓;引擎里它是好的:实测 x=1002 处 sizeMul 1.000→0.600 ✓) */
+put({ kind: 'size', mini: true, r: 3 } as Obj);       // 缩小门
+put({ kind: 'size', mini: false, r: 3 } as Obj);      // 恢复门
+put({ kind: 'clone', r: 3 } as Obj);                  // 复制门(引擎暂时 inert,先摆上能看见 ✓)
 section('存档点');     put({ kind: 'check', r: 0 }, 10);
 section('硬币');       put({ kind: 'coin', r: 3 } as Obj);
 section('可破坏砖');   put({ kind: 'breakable', r: 0 });
