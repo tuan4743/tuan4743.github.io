@@ -843,12 +843,56 @@ class Scene extends Phaser.Scene {
          我们以前只画第 1 层 ✗ ⇒ robot/spider 缺腿 ✓✓
          ⇒ 现在把同一图标的 _2_ / _3_ 层按顺序叠到同一张画布上,每层用自己的 spriteSourceSize 定位 ✓
          (_glow_ 依旧不画 ✓;_extra_ 是额外素材,不叠 ✓) */
-      /* ★★★ 2026-09 回退多层拼装(我的错):把 _2_/_3_ 直接叠到【身体那张画布】上 ✗ ——
-         每一层的 spriteSourceSize 是相对【它自己的画布】的 ⇒ 直接叠会错位,
-         用户实测"更错了:spider/robot 还是没腿,UFO 贴图也出错了" ✓✓
-         ⇒ 先回到【只画基础帧】(至少不错位 ✓);真正的多层合成要按各层自己的画布单独合成
-           (或读 GD 的部件合成表),那是下一件事 ✗ —— 不在没验证的情况下硬叠 ✗ */
+      /* ★★★ 2026-09 多层合成(第二版,按实测规则):每一层是【独立画布 + 自己的偏移】✓
+         实测(cube/bird/robot/spider):
+             robot : 身体 112×78 偏移(1,0)   +   _2_ 96×70 偏移(0,−7)   ← 腿(自己的画布)
+             spider: 身体  86×62 偏移(−3,3)  +   _2_ 65×43 偏移(6,−2)
+             bird  : 身体 134×108(0,11) + _2_ 128×72(0,3) + _3_ 116×196(0,61)
+         ⇒ 不能叠进身体那张画布 ✗(上一版就是这么错的 ✓)。正确做法:
+             取一张足够大的画布,把每一层按【自己的偏移】放在【同一个中心】上 ✓
+             (即:层中心 = 画布中心 + 该层偏移 ✓,再画它的内容 ✓)
+         _glow_ 不画 ✓;_extra_ 不叠 ✓ */
       const layerNames = [name];
+      for (const k of [2, 3]) {
+        const nk = name.replace(/_(\d{3})\.png$/, '_' + k + '_$1.png');
+        if (F[nk]) layerNames.push(nk);
+      }
+      {
+        const base = F[name];
+        /* 画布尺寸 = 各层 内容尺寸 + 2×|偏移| 的最大值(保证都放得下 ✓) */
+        let W = 4, H = 4;
+        for (const ln of layerNames) {
+          const fr = F[ln];
+          if (!fr) continue;
+          const tw = fr.rotated ? fr.frame.h : fr.frame.w;
+          const th = fr.rotated ? fr.frame.w : fr.frame.h;
+          W = Math.max(W, Math.round(tw + 2 * Math.abs(fr.spriteSourceSize.x)) + 2);
+          H = Math.max(H, Math.round(th + 2 * Math.abs(fr.spriteSourceSize.y)) + 2);
+        }
+        const cv = document.createElement('canvas');
+        cv.width = W; cv.height = H;
+        const c2 = cv.getContext('2d');
+        if (!c2) continue;
+        for (const ln of layerNames) {
+          const fr = F[ln];
+          if (!fr) continue;
+          const sw = fr.rotated ? fr.frame.h : fr.frame.w;      // 图集里的实际区域(旋转帧宽高互换)
+          const sh = fr.rotated ? fr.frame.w : fr.frame.h;
+          const tw = fr.frame.w, th = fr.frame.h;               // 转正后的显示尺寸
+          /* ★ 关键:层中心 = 画布中心 + 该层自己的偏移(y 轴向下为正在 canvas 里就是负 ✓) */
+          const cx = W / 2 + fr.spriteSourceSize.x;
+          const cy = H / 2 - fr.spriteSourceSize.y;
+          c2.save();
+          c2.translate(cx, cy);
+          if (fr.rotated) c2.rotate(-Math.PI / 2);
+          c2.drawImage(img, fr.frame.x, fr.frame.y, sw, sh, -tw / 2, -th / 2, tw, th);
+          c2.restore();
+        }
+        const tex = 'icon-' + a.file + '-body';
+        if (this.textures.exists(tex)) this.textures.remove(tex);
+        this.textures.addCanvas(tex, cv);
+        made.push({ layer: 'body', tex, w: W, h: H });
+      }
       {
         const base = F[name];
         const W = Math.max(4, Math.round(base.sourceSize.w)), H = Math.max(4, Math.round(base.sourceSize.h));
