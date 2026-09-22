@@ -445,11 +445,15 @@ class Scene extends Phaser.Scene {
    *  所以这条才是"铺面贴着音乐"的原口径。自检:积分出的总长 294.45s vs 这首歌实际 299.29s(差 1.6%),
    *  再按 audio.duration 等比缩放一下,结尾就和歌对齐了。 */
   private tAtX(xUnits: number): number {
-    const total = REAL_T_AXIS(LEVEL.length);
-    const a = this.audio;
-    const dur = a && isFinite(a.duration) && a.duration > 0 ? a.duration : 0;
-    const raw = REAL_T_AXIS(Math.max(0, xUnits) / U);
-    return dur > 0 && total > 0 ? raw * (dur / total) : raw;
+    /* ★★ 2026-09 修(用户:"存档点复活音乐继续的位置错误,采音全乱"):
+       以前这里把时间轴【整体拉伸】成音频时长:raw × (audio.duration / axisTotal)。
+       可关卡自己的时间轴全长 294.45 秒,而这支 mp3 是 299.29 秒 ⇒ 差 1.6%,
+       这个系数会让**每一个采音点都按比例偏移** —— 越往后偏得越多:
+         x=3032(第 8 个存档点)处:关卡时间 245.74 秒,拉伸后变成 249.78 秒 ⇒ 偏 4.04 秒 ✗✗
+       而原版的口径是:x → 秒 由【速度门积分】决定(关卡就是照这首歌铺的),
+       音乐按它自己的速率放,两边在同一个时间轴上对齐 ⇒ **不该乘任何拉伸系数**。
+       ⇒ 现在直接用关卡自己的时间轴(不拉伸)。 */
+    return REAL_T_AXIS(Math.max(0, xUnits) / U);
   }
 
   /** 从存档点重来(死亡界面按确认) */
