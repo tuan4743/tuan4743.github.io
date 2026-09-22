@@ -831,7 +831,8 @@ class Scene extends Phaser.Scene {
     }
     let rot = 0;
     if (w.mode === 'cube') {
-      rot = (this.airT / (2 * P.jump / (P.gravity * Y_TIME_SCALE) / 60)) * (Math.PI / 2);
+      /* ★ 落地吸平(见下面矢量那条的说明):原版落地不应残留旋转角 ✓ */
+      rot = w.onGround ? 0 : (this.airT / (2 * P.jump / (P.gravity * Y_TIME_SCALE) / 60)) * (Math.PI / 2);
     } else if (w.mode === 'ship') {
       rot = Math.max(-0.55, Math.min(0.55, w.vy / P.shipVyMax * 0.55));
     } else if (w.mode === 'ball') {
@@ -1773,7 +1774,10 @@ class Scene extends Phaser.Scene {
       }
     } else {
       /* 方块在空中转 90°(原版手感):用滞空时间当旋转进度 */
-      const spin = (this.airT / (2 * P.jump / (P.gravity * Y_TIME_SCALE) / 60)) * (Math.PI / 2);
+      /* ★★ 2026-09 用户口径(原版):"原版大跳旋转 180°,会根据位置决定下落是否旋转,
+       使得不会出现落到平台上还存在旋转角的情况" ⇒ 落地必须是【趴平】的(0° / 90° 的整数倍)✓。
+       所以:一落地就把角度吸到 0(方块永远平着落)✓ —— 这是我们以前完全没有的一步 ✗。 */
+    const spin = w.onGround ? 0 : (this.airT / (2 * P.jump / (P.gravity * Y_TIME_SCALE) / 60)) * (Math.PI / 2);
       const s = Math.sin(spin), c = Math.cos(spin);
       const pts: Array<[number, number]> = [[-B / 2, -B / 2], [B / 2, -B / 2], [B / 2, B / 2], [-B / 2, B / 2]];
       g.fillStyle(w.dead ? 0xff9a6b : 0xe2f6ff, 0.96);

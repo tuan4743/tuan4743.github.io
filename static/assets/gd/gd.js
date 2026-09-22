@@ -6841,8 +6841,8 @@ texCoord = mod(texCoord, 1.0) * outFrame.zw + outFrame.xy;`},disable:!!t}};m.exp
  * @author       Richard Davey <rich@phaser.io>
  * @copyright    2013-2026 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
- */ft(63595);var St=ft(8054);const xe=ft(61061),ye=ft(60421),Se=ft(10312),Te=ft(83388),Be=ft(26638),Ee=ft(42857),Ce=ft(83419),Ae=ft(25410),Me=ft(44965),Re=ft(27460),Pe=ft(84902),ze=ft(93055),Le=ft(11889),Fe=ft(50127),Oe=ft(77856),De=ft(55738),He=ft(14350),we=ft(57777),Ie=ft(75508),Ne=ft(44563),Ge=ft(18922),be=ft(36909),We=ft(93364),Ue=ft(29795),Ve=ft(97482),Ye=ft(62194),Xe=ft(41392),Ke=ft(23717),Ze=ft(27458),Qe=ft(62501),Je=ft(90291),$e=ft(84322),je=ft(43066),ke=ft(91799),qe=St.VERSION,_e=St.LOG_VERSION,ti=St.AUTO,ei=St.CANVAS,ii=St.WEBGL,ri=St.HEADLESS,si=St.FOREVER,ni=St.NONE,ai=St.LEFT,oi=St.RIGHT,hi=St.UP,li=St.DOWN,Gi={Actions:xe,Animations:ye,BlendModes:Se,Cache:Te,Cameras:Be,Core:Ee,Class:Ce,Curves:Ae,Data:Me,Display:Re,DOM:Pe,Events:ze,Filters:Le,Game:Fe,GameObjects:Oe,Geom:De,Input:He,Loader:we,Math:Ie,Physics:Ne,Plugins:Ge,Renderer:be,Scale:We,ScaleModes:Ue,Scene:Ve,Scenes:Ye,Structs:Xe,Sound:Ke,Textures:Ze,Tilemaps:Qe,Time:Je,TintModes:$e,Tweens:je,Utils:ke,VERSION:qe,LOG_VERSION:_e,AUTO:ti,CANVAS:ei,WEBGL:ii,HEADLESS:ri,FOREVER:si,NONE:ni,LEFT:ai,RIGHT:oi,UP:hi,DOWN:li};lt.Q8,lt.En,lt.Qw,lt.gd,lt.j$,lt.l2,lt.Tm,lt.Xs,lt.iJ,lt.XT,lt.dv,lt.PX,lt.B_,lt.nl,lt.sV,lt.SY,lt.Cu,lt.Zt,lt.xS,lt.Dh,lt.qt,lt.pd,lt.M3,lt.Ae,lt.aH,lt.zU,lt.x3,lt.AQ,lt.ry,lt.NS,lt.A4,lt.FE,lt.zA,lt.Z5,lt._k,lt.AB,lt.ho,lt.D7,lt.O1,lt.gX,lt.sx,lt.Fu,lt.UP,lt.Aq,lt.xv,lt.CB;const Ft=lt.Ay,Z=30,Jt=10,At=.9,ot={gravity:.958199024,jump:11.1800318,vyMax:15,speedVal:[5.980002,5.77000189,5.870002,6.000002,6.000002],speedMul:[.7,.9,1.1,1.3,1.6],shipVyMax:8,ballGravityMul:.6,robotGravityMul:.9,ballFlipVelMul:.6,flyUpMax:8,flyDownMax:-6.4,robotJumpMul:.5,robotFloat:.27,tpReach:240,miniSize:.6,miniTriggerMul:.8,box:30,inner:7.5,innerOff:11.25};function It(m){return ot.speedVal[m]*ot.speedMul[m]}const bi={yellow:{v:11.1800318,flip:"none",note:'[GDOpenGD] = jumpPower,原版黄环就是"空中再来一跳"(×1.0)'},pink:{v:8.0496,flip:"none",note:"[GDOpenGD] ×0.72,小跳"},red:{v:15.428,flip:"none",note:"[GDOpenGD] ×1.38,大跳"},blue:{v:8.9442,flip:"before",note:"[GDOpenGD] ×0.8,按旧重力方向给速度后再翻重力"},green:{v:11.1800318,flip:"after",note:"[GDOpenGD] ×1.0,先翻重力再按新重力方向给速度"},black:{v:15,flip:"dash",note:"[GDOpenGD] 冲刺环:把速度设成 15 并【朝重力方向】砸下去(常重力下是 -15),不看 jumpPower"}},fi={yellow:{v:16,flip:"none",note:"[OpenGD PlayLayer:1398] propellPlayer(1.0) → 1.0×16(峰值 4.45 块)"},pink:{v:10.4,flip:"none",note:"[OpenGD PlayLayer:1420] propellPlayer(0.65) → 0.65×16 = 10.4。★物件 140 = 粉色小跳板(GameObject.cpp:199「case 140: // pink pad」,粒子色 255,0,255),峰值约 1.88 块 —— 原版就是拿它过【低走廊】的"},red:{v:20,flip:"none",note:"[OpenGD PlayLayer:1428] propellPlayer(1.25) → 1.25×16 = 20(峰值约 7 块)"},blue:{v:12.8,flip:"before",note:"[gdp@2.11 propellPlayer] 12.8 + 先按旧重力方向给速度再翻重力;力度可用 [ / ] 微调"},purple:{v:16,flip:"none",note:"3005 在本关全带 tp(蜘蛛式瞬移),这里的力度实际用不到"}},ui=[10.620032,11.1800318,11.420032,11.230032,11.230032],di=[.940199,.958199024,.957199,.961199,.961199];function $t(m){return ui[m]??ui[1]}function vi(m){return di[m]??di[1]}const Wi=m=>2*m/(ot.gravity*At)/60;function zt(m,g=1){return Wi(m)*(It(g)*60/Z)}const ci={period:.34829931972788586,song:"/assets/cd/music/lost.mp3",beats:[2.119,2.473,2.995,3.117,3.21,3.332,3.425,3.547,3.64,3.733,3.855,3.947,4.069,4.302,4.423,4.545,4.638,4.76,4.905,5.004,5.097,5.265,5.555,5.677,5.863,6.049,6.182,6.362,6.502,6.629,6.757,6.937,7.094,7.233,7.361,7.477,7.605,7.744,7.837,7.964,8.139,8.591,8.708,8.882,9.073,9.323,9.439,9.631,9.747,9.95,10.17,10.629,10.989,11.36,11.627,11.778,11.964,12.127,12.272,12.405,12.574,12.701,12.928,13.172,13.439,13.619,13.793,14.013,14.141,14.321,14.495,14.675,14.849,15,15.203,15.377,15.557,15.732,15.906,16.086,16.26,16.359,16.48,16.968,17.148,17.328,17.496,17.67,17.816,17.932,18.059,18.204,18.379,18.559,18.733,18.907,19.087,19.203,19.458,19.615,19.789,19.969,20.143,20.323,20.497,20.73,21.026,21.206,21.38,21.554,21.74,21.908,22.042,22.245,22.523,22.628,22.727,22.895,23.04,23.336,23.562,23.673,23.882,24.393,24.712,24.816,25.13,25.229,25.397,25.536,25.745,25.908,26.041,26.146,26.32,26.506,26.68,26.854,26.976,28.973,29.327,29.675,30.737,31.086,31.184,31.318,31.44,31.539,31.637,31.794,31.893,32.148,32.287,32.496,32.717,32.85,33.036,33.205,33.379,33.559,33.919,34.087,34.261,34.435,34.615,34.789,34.969,35.143,35.323,35.672,36.026,36.206,36.38,36.508,36.624,36.734,36.908,37.047,37.262,37.436,37.651,37.791,37.97,38.145,38.354,38.446,38.673,38.801,39.027,39.201,39.387,39.555,39.758,39.909,40.083,40.263,40.519,40.618,40.792,40.966,41.175,41.32,41.494,41.674,41.848,42.028,42.202,42.313,42.487,42.62,42.731,42.911,43.085,43.328,43.439,43.613,43.793,44.06,44.321,44.495,44.675,44.849,45.029,45.203,45.442,45.558,45.732,45.906,46.097,46.26,46.44,46.614,46.742,46.881,46.991,47.142,47.322,47.496,47.676,47.938,48.286,48.379,48.559,48.733,48.977,49.087,49.261,49.389,49.627,49.789,49.969,50.144,50.318,50.498,50.672,50.852,50.962,51.2,51.38,51.554,51.908,52.088,52.262,52.506,52.616,52.791,52.895,53.145,53.319,53.499,53.673,53.859,54.027,54.201,54.3,54.497,54.608,54.735,54.909,55.084,55.351,55.461,55.618,55.792,56.012,56.146,56.32,56.465,56.674,56.848,57.028,57.202,57.377,57.557,57.754,57.911,58.085,58.212,58.439,58.793,58.892,59.147,59.321,59.455,59.675,59.896,60.029,60.238,60.378,60.587,60.732,60.906,61.086,61.307,61.44,61.614,61.788,61.968,62.142,62.322,62.497,62.711,62.851,63.025,63.205,63.379,63.553,63.733,63.907,64.151,64.261,64.435,64.615,64.79,64.969,65.144,65.318,65.544,65.672,66.026,66.241,66.38,66.554,66.734,66.966,67.082,67.309,67.437,67.529,67.791,67.965,68.145,68.4,68.493,68.673,68.847,69.045,69.201,69.381,69.555,69.73,69.91,70.084,70.264,70.438,70.612,70.792,70.966,71.146,71.32,71.494,71.674,71.848,72.028,72.202,72.377,72.557,72.731,72.911,73.085,73.259,73.439,73.613,73.793,73.967,74.141,74.321,74.495,74.675,74.85,75.024,75.204,75.378,75.558,75.732,75.906,76.086,76.26,76.44,76.614,76.829,76.968,77.143,77.322,77.555,77.671,77.851,78.025,78.205,78.379,78.553,78.733,78.965,79.087,79.221,79.453,79.65,79.859,80.103,80.266,80.869,80.968,81.235,81.589,81.908,82.007,82.158,82.297,82.46,82.646,82.785,83.006,83.11,83.319,83.499,83.714,84.068,84.201,84.381,84.48,84.631,84.73,84.91,85.032,85.153,85.252,85.438,85.577,85.792,85.989,86.163,86.262,86.378,86.494,86.64,86.848,87.023,87.22,87.383,87.557,87.719,87.853,88.068,88.166,88.259,88.462,88.613,88.793,88.979,89.147,89.321,89.507,89.676,89.768,89.873,90.03,90.204,90.378,90.564,90.68,90.912,91.086,91.185,91.283,91.44,91.574,91.806,91.968,92.143,92.323,92.497,92.595,92.694,92.851,93.042,93.205,93.518,93.727,93.907,94.035,94.145,94.279,94.441,94.616,94.766,94.97,95.138,95.318,95.411,95.672,95.869,96.026,96.177,96.293,96.392,96.485,96.607,96.734,96.88,97.106,97.28,97.472,97.634,97.791,97.977,98.145,98.244,98.499,98.691,98.847,99.12,99.225,99.556,99.718,99.968,100.084,100.264,100.502,100.612,100.844,100.966,101.065,101.198,101.338,101.431,101.674,101.936,102.052,102.243,102.377,102.47,102.731,102.847,102.963,103.091,103.265,103.439,103.642,103.793,103.892,104.2,104.339,104.496,104.641,105.674,105.773,105.9,105.993,106.318,106.458,106.568,106.789,106.969,107.073,107.172,107.323,107.497,107.671,107.851,108.025,108.199,108.379,108.553,108.733,108.907,109.087,109.262,109.436,109.616,109.79,109.964,110.144,110.318,110.498,110.672,110.852,111.026,111.2,111.38,111.555,111.729,111.909,112.089,112.263,112.437,112.611,112.791,112.965,113.145,113.319,113.499,113.673,113.847,114.027,114.202,114.376,114.556,114.73,114.91,115.084,115.258,115.438,115.612,115.792,115.966,116.14,116.32,116.495,116.675,116.849,117.029,117.203,117.377,117.557,117.731,117.905,118.085,118.259,118.439,118.613,118.793,118.967,119.142,119.322,119.496,119.676,119.85,120.024,120.204,120.378,120.564,120.732,120.906,121.086,121.26,121.435,121.615,121.789,121.969,122.143,122.323,122.497,122.671,122.851,123.025,123.199,123.379,123.553,123.733,123.908,124.087,124.262,124.436,124.616,124.79,124.9,125.144,125.318,125.498,125.672,125.846,126.026,126.201,126.38,126.555,126.729,126.909,127.083,127.28,127.547,127.64,127.733,127.907,128.145,128.343,128.493,128.743,128.848,128.94,129.074,129.237,129.37,129.573,129.724,129.922,130.09,130.264,130.386,130.618,130.723,130.821,131.013,131.112,131.245,131.46,131.622,131.721,131.971,132.104,132.238,132.487,132.592,132.76,132.917,133.085,133.3,133.439,133.683,133.805,133.991,134.165,134.362,134.554,134.705,134.873,135.03,135.227,135.471,135.709,135.883,135.988,136.156,136.29,136.388,136.487,136.632,136.818,137.027,137.178,137.381,137.538,137.729,137.903,138.223,138.397,138.606,138.867,139.111,139.262,139.424,139.604,139.744,139.86,139.976,140.144,140.254,140.498,140.661,140.759,140.893,141.038,141.328,141.468,141.561,141.659,141.775,141.868,142.129,142.483,142.6,142.809,142.971,143.07,143.325,143.447,143.552,143.726,143.819,144.045,144.208,144.312,144.498,144.759,144.991,145.119,145.252,145.421,145.525,145.769,145.903,145.996,146.112,146.321,146.524,146.727,146.855,147.006,147.122,147.249,147.395,147.516,147.749,148.091,148.294,148.463,148.672,148.921,149.148,149.426,149.56,149.711,149.902,150.013,150.204,150.431,150.523,150.674,150.837,150.936,151.069,151.191,151.441,151.539,151.679,151.801,151.969,152.149,152.259,152.456,152.59,152.753,152.973,153.194,153.449]};function Wt(m){return It(m)*60/Z}function Ui(m,g){return m.from+(g-(m.t0??0))*Wt(m.speed)}function Vi(m,g){const t=m.objects.filter(i=>i.kind==="speed"&&typeof i.speed=="number").sort((i,n)=>i.b-n.b),l=.5,v=[0],h=[0];let a=0,r=0,e=1;for(let i=l;i<=m.length+l;i+=l){for(;r<t.length&&t[r].b<=i;)e=t[r].speed??1,r++;const n=Wt(e);a+=l/Math.max(.01,n),v.push(i),h.push(a)}return i=>{const n=Math.max(0,Math.min(m.length,i)),s=Math.min(v.length-1,Math.max(0,Math.floor(n/l))),o=Math.min(v.length-1,s+1),u=(n-v[s])/(v[o]-v[s]||1);return h[s]+(h[o]-h[s])*u}}function Yi(m){let g=m>>>0||1;return function(){return g^=g<<13,g>>>=0,g^=g>>17,g^=g<<5,g>>>=0,g/4294967296}}const xt=(m,g)=>m.push(g);function jt(m){return zt(ot.jump,m)-(ot.innerOff+6)/Z}const Nt=ot.box/Z,mi=Nt+.5;function pi(m){return Math.floor((m+ot.innerOff)/Z)}const Xi=1.5;function Ut(m,g,t,l){const v=It(l),h=m*Z/v*At;return(g*Z+t*h-.5*ot.gravity*h*h)/Z}function kt(m,g,t){const l=e=>Ut(e,m,g,t);let v=60;for(let e=.02;e<60;e+=.02)if(l(e)<=0){v=e;break}let h=-1,a=-1,r=0;for(let e=0;e<=v;e+=.02){const i=l(e);i>r&&(r=i),i>=Xi&&(h<0&&(h=e),a=e)}return h<0&&(h=a=v),{land:v,c0:h,c1:a,peak:r}}function Vt(m,g){return m+jt(g)-1+.6}function Ki(m,g,t){const l=g?2:1,h=m+l-jt(t)+zt(ot.jump,t);return{objs:[{kind:"spike",b:m,r:0,w:l,h:1,need:!0}],x:m,end:Vt(h,t),land:h}}function Zi(m,g,t,l){const v=[{kind:"spike",b:m,r:0,w:1,h:1,need:!0}],h=m+1-jt(t),a=zt(ot.jump,t)/2;let r=h,e=0,i=h+zt(ot.jump,t);const n=[];for(let s=0;s<l;s++){const o=r+a,u=o-mi,d=Ut(u-r,e,ot.jump,t);xt(v,{kind:"orb",b:o,r:pi(d*Z),w:1,h:1,orb:"yellow"});const f=kt(d,ot.jump,t);n.push([u+f.c0,u+f.c1]),i=u+f.land,r=u,e=d}for(const s of g)for(const[o,u]of n)if(s>Math.max(o,m+1.3)&&s<Math.min(u,i-.6)){xt(v,{kind:"spike",b:s,r:0,w:1,h:1});break}return{objs:v,x:m,end:Vt(i,t),land:i}}function Qi(m,g,t,l){const v=m+g,h=v-zt(ot.jump,t)+.8,a=[{kind:"pit",b:m,r:0,w:g,h:1,need:!0}],r=zt(ot.jump,t)/2,e=h+r,i=e-mi,n=Ut(i-h,0,ot.jump,t);xt(a,{kind:"orb",b:e,r:pi(n*Z),w:1,h:1,orb:"yellow"});const s=i+kt(n,ot.jump,t).land;return l.push([m,v]),{objs:a,x:m,end:Vt(s,t),land:s}}function Ji(m,g,t,l,v){const h=fi.yellow.v,a=kt(0,h,t),r=a.land,e=2+(l()<.6?1:0)+(v>.5&&l()<.4?1:0);let i=0;for(let f=.02;f<r;f+=.02)Ut(f,0,h,t)>=Nt&&(i=f);const n=Math.max(i-.4,r*.8),s=r,o=[m];for(let f=1;f<e;f++){const c=o[f-1];let p=c+s,x=1/0;for(const y of g){if(y<c+n||y>c+s)continue;const S=Math.abs(y-(c+r*.95));S<x&&(x=S,p=y)}o.push(p)}const u=[];for(let f=0;f<e;f++){if(xt(u,{kind:"pad",b:o[f],r:0,w:1,h:1,pad:"yellow"}),f===0)continue;const c=o[f]-Nt+a.c0,p=o[f]-Nt+a.c1;for(const x of g)x<Math.max(c,o[f]+1.2)||x>p||f+1<e&&x>o[f+1]-1.4||xt(u,{kind:"spike",b:x,r:0,w:1,h:1})}const d=o[o.length-1]-Nt+r;return{objs:u,x:m,end:Vt(d,t),land:d}}function $i(m,g,t,l,v,h){const a=g.from+12,r=g.to-8;let e=Math.max(h.lastHit,-1e9),i=-1e9,n=-1e9,s=!1,o=0;for(;o<t.length;){const u=t[o];if(u<a){o++;continue}if(u>r)break;if(u<e){o++;continue}!s&&u-i>34&&u+16<r&&l()<.18&&(s=!0);let d=0;for(let y=o;y<t.length&&t[y]<u+17;y++)d++;const f=d>=6||l()<.15+.25*g.difficulty,c=u-n>38&&u+26<r;if(f&&c)if(u-e>4){const y=Ji(u,t,g.speed,l,g.difficulty);if(y.end<r){for(const S of y.objs)xt(m,S);for(n=y.x,e=y.end;o<t.length&&t[o]<y.end;)o++;continue}}else{o++;continue}if(s)if(u-e>6){const y=Qi(u,3,g.speed,v);if(y.end<r){for(const S of y.objs)xt(m,S);for(i=u,e=y.end,s=!1;o<t.length&&t[o]<y.end;)o++;continue}s=!1}else{o++;continue}const x=l()<.22+.45*g.difficulty?Zi(u,t,g.speed,l()<.45?2:1):Ki(u,l()<.3,g.speed);if(x.end>r)break;for(const y of x.objs)xt(m,y);for(e=x.end;o<t.length&&t[o]<x.end;)o++}h.lastHit=e}function ji(m,g,t,l){const v=g.from+10,h=g.to-6,a=2*(ci.period*Wt(g.speed));let r=1+Math.floor(t()*2);for(let e=v;e<h;e+=a){const i=Math.min(a,h-e),n=3+(t()<.35?1:0);t()<.55&&(r=Math.max(1,Math.min(Jt-n-1,r+(t()<.5?1:-1))));for(let s=0;s<Jt;s++)s>=r&&s<r+n||xt(m,{kind:"block",b:e,r:s,w:i,h:1})}l.lastHit=h}const ki=[{t0:0,t1:28.5,mode:"cube",speed:1,difficulty:.22,label:"ST-01 复盘"},{t0:28.5,t1:33.5,mode:"cube",speed:1,difficulty:.05},{t0:33.5,t1:58,mode:"ship",speed:1,difficulty:.3,label:"ST-02 求助"},{t0:58,t1:82,mode:"cube",speed:1,difficulty:.4},{t0:82,t1:105,mode:"cube",speed:2,difficulty:.55,label:"ST-03 呼吸"},{t0:105,t1:156.76,mode:"cube",speed:1,difficulty:.65,label:"ST-04 继续"}];function qi(m){let g=0;return m.map(t=>{const l={from:g,to:g+(t.t1-t.t0)*Wt(t.speed),t0:t.t0,t1:t.t1,mode:t.mode,speed:t.speed,difficulty:t.difficulty,label:t.label};return g=l.to,l})}function _i(m={}){const g=m.seed==null?20260913:m.seed,t=m.beats??ci,l=Yi(g),v=qi(m.specs??ki),h=v[v.length-1].to,a=[],r=[],e={lastHit:-1e9};for(const n of v){xt(a,{kind:"speed",b:n.from,r:6,w:1,h:1,speed:n.speed}),xt(a,{kind:"portal",b:n.from+.25,r:3,w:1,h:1,to:n.mode});const s=t.beats.filter(o=>o>=(n.t0??0)&&o<(n.t1??0)).map(o=>Ui(n,o));n.mode==="cube"?$i(a,n,s,l,r,e):ji(a,n,l,e),n.label&&xt(a,{kind:"deco",b:n.from+13,r:7,w:5,h:1,deco:"text",text:n.label})}r.sort((n,s)=>n[0]-s[0]);let i=0;for(const n of r)n[0]>i&&xt(a,{kind:"platform",b:i,r:-1,w:n[0]-i,h:1}),i=Math.max(i,n[1]);i<h&&xt(a,{kind:"platform",b:i,r:-1,w:h-i,h:1}),xt(a,{kind:"check",b:gi(a,2,6),r:0,w:1,h:1});for(const n of v)for(let s=n.from+14;s<n.to-12;s+=120)xt(a,{kind:"check",b:gi(a,s,6),r:0,w:1,h:1});return xt(a,{kind:"deco",b:h-8,r:0,w:1,h:1,deco:"light"}),a.sort((n,s)=>n.b-s.b||n.r-s.r),{name:"lost-beat-"+g,rows:Jt,length:h,segments:v,objects:a,song:t.song,songOffset:0,beats:t.beats}}function gi(m,g,t){const l=v=>m.some(h=>(h.kind==="spike"||h.kind==="block"||h.kind==="orb"||h.kind==="pit"||h.kind==="pad")&&v+t>h.b&&v-t<h.b+h.w);for(let v=0;v<=14;v+=.5){if(!l(g+v))return g+v;if(v>0&&!l(g-v))return g-v}return g}const tr=.05,Tt={spike:{1:[6,12],"1.5":[12,21],"0.5":[6,5.6],"0.25":[4,7.6],"0.0625":[2.6,4.8]},pad:{yellow:[25,4],blue:[25,6],purple:[25,5],red:[29,7],pink:[25,5]},orb:[36,36],arrow:[36,36],coin:[40,40],portal:[34,86],gravity:[25,75],size:[31,90],speed:{0:[35,44],1:[33,56],2:[51,56],3:[65,56],4:[69,56]},teleport:[25,90],check:[30,30],block:[30,30]},xi={88:32.3,89:21.6,98:12,183:15.48,184:20.4,185:3,186:32.3,187:21.96,188:12.6,397:28.9,398:17.6,399:12.9,675:32,676:17.68,677:12.48,678:30.4,679:18.72,680:10.8,740:32.3,741:21.96,742:12.6,918:24,1582:4,1583:4,1619:25,1620:15,1701:6,1702:6,1703:6,1705:32.3,1706:21.6,1707:12,1708:28.9,1709:17.6,1710:12.9,1734:32,1735:17.68,1736:12.48};function er(m){return m==null?null:xi[m]??null}const ir={teleport:[-.5,-45]},rr={8:[6,12],39:[6,5.6],103:[4,7.6],392:[2.6,4.8]};function sr(m){let g=null,t=1/0;for(const[l,v]of Object.entries(Tt.spike)){const h=Math.abs(Number(l)-m);h<t&&(t=h,g=v)}return t<=Math.max(.02,m*.2)?g:null}function nr(m){switch(m.kind){case"spike":return(m.id!=null?rr[m.id]:void 0)??sr(m.h);case"pad":return Tt.pad[m.pad??"yellow"]??null;case"orb":return Tt.orb;case"arrow":return Tt.arrow;case"saw":return null;case"coin":return Tt.coin;case"portal":return Tt.portal;case"gravity":return Tt.gravity;case"size":return Tt.size;case"speed":return Tt.speed[m.speed??1]??null;case"teleport":return Tt.teleport;case"check":return Tt.check;case"frame":return null;case"block":case"breakable":return Tt.block;default:return null}}function ar(m){const g=m.b*Z,t=(m.b+m.w)*Z,l=m.r*Z,v=(m.r+m.h)*Z;if(!m.frame||m.frame==="edge"||m.frame==="box")return[{x0:g,x1:t,y0:l,y1:v}];const h=m.frame==="corner"?["N","W"]:["N","W","S"],a=["N","E","S","W"],r=(Math.round((m.rot??0)/90)%4+4)%4,e=tr*Z;return h.map(i=>{const n=a[(a.indexOf(i)+r)%4];return n==="N"?{x0:g,x1:t,y0:v-e,y1:v}:n==="S"?{x0:g,x1:t,y0:l,y1:l+e}:n==="W"?{x0:g,x1:g+e,y0:l,y1:v}:{x0:t-e,x1:t,y0:l,y1:v}})}const yi={83:{kind:"block",note:"砖块(主力,3779 个)"},1:{kind:"block",note:"基础方块(误放 2 个)"},143:{kind:"breakable",note:"可破坏砖块(撞到即碎,不能当实心否则必死)"},468:{kind:"frame",frame:"edge",note:"单边线框(细杆;rot 0=上边 90=右边 180=下边 270=左边)。原版表 468 = 30×1.5,和我们的包围盒一致"},469:{kind:"frame",frame:"corner",note:"邻边线框(L 形贴图;★ 原版表给的是【整格 30×30】,判定按整格实心)"},470:{kind:"frame",frame:"u",note:"三边线框(U 形贴图;★ 原版表同样是【整格 30×30】实心)"},467:{kind:"frame",frame:"u",note:"(未在本关出现)整格线框,原版表 30×30"},471:{kind:"frame",frame:"u",note:"(未在本关出现)整格线框,原版表 30×30"},475:{kind:"frame",frame:"edge",note:"(未在本关出现)单边线框,原版表 30×1.5"},662:{kind:"frame",frame:"box",w:1,h:.5,note:"半格线框块(1×0.5,实心)"},661:{kind:"frame",frame:"corner",w:.5,h:.5,note:"小线框方块(半格;原版表 15×15,判定按整块实心)"},8:{kind:"spike",note:"普通尖刺"},39:{kind:"spike",h:.5,note:"矮刺(1/2)"},103:{kind:"spike",h:.25,note:"小刺(1/4)"},392:{kind:"spike",h:.0625,note:"迷你刺(1/16)"},1704:{kind:"saw",w:36/30,h:36/30,scaled:!0,note:"小锯片(基础 1.2×1.2 格,再乘缩放)"},1705:{kind:"saw",w:44/30,h:85/30,scaled:!0,note:"大锯片(基础 1.47×2.83 格,再乘缩放;本关 550 个)"},1706:{kind:"saw",w:2,h:2,scaled:!0,note:"圆锯(基础 2×2 格,再乘缩放)"},36:{kind:"orb",orb:"yellow",note:"黄色跳环"},141:{kind:"orb",orb:"pink",col:13017343,note:"紫/粉色跳环(用户口径:紫;物理按 0.72 小跳)"},1022:{kind:"orb",orb:"green",note:"绿色跳环(翻重力+跳)"},84:{kind:"orb",orb:"blue",note:"蓝色跳环(翻重力)"},1330:{kind:"orb",orb:"black",note:"黑色冲刺环"},67:{kind:"pad",pad:"blue",h:.2,note:"蓝色地面跳点"},35:{kind:"pad",pad:"yellow",h:.2,note:"黄色地面跳点"},140:{kind:"pad",pad:"pink",h:.2,note:"粉色地面跳点(小跳 —— 低走廊用)"},3005:{kind:"pad",pad:"purple",h:.2,tp:!0,note:"紫色地面跳点(瞬移到头顶方块 + 翻重力)"},1704:{kind:"arrow",arrow:"green",note:"绿色冲刺箭头(长按给冲量,不改重力)"},1751:{kind:"arrow",arrow:"pink",note:"粉色冲刺箭头(长按 + 翻重力)"},3004:{kind:"arrow",arrow:"purple",tp:!0,note:"紫色上跳箭头(瞬移到头顶方块 + 翻重力)"},12:{kind:"portal",to:"cube",note:"方块形态门"},13:{kind:"portal",to:"ship",note:"飞机形态门"},47:{kind:"portal",to:"ball",note:"球形态门"},111:{kind:"portal",to:"ufo",note:"UFO 形态门"},660:{kind:"portal",to:"wave",note:"波浪形态门"},745:{kind:"portal",to:"robot",note:"机器人形态门"},1331:{kind:"portal",to:"spider",note:"蜘蛛形态门"},10:{kind:"gravity",gdir:1,note:"重力门(向下 = 常重力)"},11:{kind:"gravity",gdir:-1,note:"重力门(向上 = 反重力)"},99:{kind:"size",mini:!1,note:"恢复大小门"},101:{kind:"size",mini:!0,note:"缩小门"},200:{kind:"speed",speed:0,note:"速度门(降档)"},201:{kind:"speed",speed:1,note:"速度门(一档)"},202:{kind:"speed",speed:2,note:"速度门(二档)"},203:{kind:"speed",speed:3,note:"速度门(三档)"},1334:{kind:"speed",speed:4,note:"速度门(四档)"},747:{kind:"teleport",note:"传送门入口(蓝)。原版要配 748 出口;这关只有入口 → 不生效(见文档)"},748:{kind:"teleport",exit:!0,note:"传送门出口(橙)"},286:{kind:"clone",inert:!0,note:"克隆门(先只标记,不做克隆)"},287:{kind:"clone",inert:!0,note:"克隆回收门(先只标记)"},2063:{kind:"check",note:"存档点"},1329:{kind:"coin",note:"硬币(收集)"},3638:{kind:"deco",art:3638,note:'黑色背景块(用户拿它做"画面逐渐清晰"的遮罩)'},3810:{kind:"deco",art:3810,note:"感叹号"},3812:{kind:"deco",art:3812,note:"箭头"},3823:{kind:"deco",art:3823,note:"笑脸"},3818:{kind:"deco",art:3818,note:"叉"},3848:{kind:"deco",art:3848,note:"点赞"},41:{kind:"deco",art:41,note:"锁链"},106:{kind:"deco",art:106,note:"锁链(长)"},1007:{kind:"deco",art:1007,inert:!0,note:"不明占位(1 个)"}},or={B:"block",S:"spike",W:"saw",P:"platform",C:"check",R:"portal",V:"speed",G:"gravity",O:"orb",D:"pad",Y:"force",T:"teleport",Z:"size",X:"breakable",N:"coin",A:"arrow",E:"deco",K:"clone",H:"frame"};function hr(m){const g=[];for(const t of m.split(`
-`)){const l=t.trim();if(!l||l.startsWith("#"))continue;const v=l.split(/\s+/),h=or[v[0]];if(!h)continue;const a={kind:h,b:Number(v[1]),r:Number(v[2]),w:1,h:1};let r=3;for(v[3]!=null&&!v[3].includes("=")&&(a.w=Number(v[3]),r=4),v[4]!=null&&!v[4].includes("=")&&(a.h=Number(v[4]),r=5);r<v.length;r++){const[e,i]=v[r].split("=");switch(e){case"to":a.to=i;break;case"orb":a.orb=i;break;case"pad":a.pad=i;break;case"spd":a.speed=Number(i);break;case"gd":a.gdir=Number(i);break;case"rot":a.rot=Number(i);break;case"fx":a.flipX=!0;break;case"fy":a.flipY=!0;break;case"fm":a.frame=i;break;case"ar":a.arrow=i;break;case"art":a.art=Number(i);break;case"tp":a.tp=!0;break;case"inert":a.inert=!0;break;case"exit":a.exit=!0;break;case"tpy":a.tpy=Number(i);break;case"mini":a.mini=i==="1";break;case"id":{a.id=Number(i);const n=xi[a.id];if(n!=null){const s=yi[a.id],o=s?.w?a.w/s.w:1,u=s?.h?a.h/s.h:1;a.rad0=n,a.rad=n*(Math.abs(o)+Math.abs(u))/2}break}case"col":a.col=Number(i);break;case"z":a.z=Number(i);break;case"g":a.groups=i.split(".").map(Number);break}}g.push(a)}return g}function lr(m,g){return{name:m.name,rows:m.rows,length:m.length,segments:m.segments.map(t=>({...t,difficulty:t.difficulty??0})),objects:hr(g),song:m.song,songOffset:m.songOffset??0,start:m.start,fromGD:!0}}const fr=1.2,ur=.5,dr={dx:0,dy:0},vr=new Set(["portal","gravity","speed","size"]),qt=4,Yt=1/60;class Gt{constructor(g,t,l,v){this.solids=[],this.frames=[],this.breakables=[],this.broken=new Set,this.coins=[],this.gotCoins=new Set,this.arrows=[],this.clones=[],this.floors=[],this.hazards=[],this.circles=[],this.portals=[],this.speeds=[],this.gravs=[],this.checks=[],this.orbs=[],this.pads=[],this.forces=[],this.pits=[],this.triggers=[],this.sizes=[],this.teleports=[],this.movables=[],this.byGroup=new Map,this.anims=[],this.tint=null,this.tintGround=!1,this.flash=0,this.decos=[],this.tick=0,this.x=0,this.y=0,this.vy=0,this.onGround=!0,this.mode="cube",this.gdir=1,this.flipMul=ur,this.sawUnscaled=!1,this.hazBoxIsOuter=!0,this.flySolid=!1,this.traceSolid=!1,this.doorByX=!0,this.solidTrace=[],this.speedIdx=1,this.dead=!1,this.done=!1,this.deadT=0,this.attempts=1,this.checkX=0,this.checkY=0,this.checkMode="cube",this.checkSize=1,this.checkSpeed=1,this.checkGdir=1,this.portalY=0,this.strict=!1,this.pressFresh=!1,this.pressAux=!1,this.tpFailed=!1,this.prevHold=!1,this.floatT=0,this.armedChecks=new Set,this.armedPortals=new Set,this.armedSpeeds=new Set,this.armedSizes=new Set,this.armedGravs=new Set,this.armedOrbs=new Set,this.armedPads=new Set,this.armedArrows=new Set,this.armedTriggers=new Set,this.movableOf=new Map,this.idx=null,this.win={},this.fast=!1,this.dash=null,this.sizeMul=1,this.padMul=1,this.boostDir=0,this.frameY0=0,this.handledPortals=new Set,this.snapObj=null,this.snapDist=0,this.god=!1,this.level=g,this.sawUnscaled=!!v?.sawUnscaled,this.hazBoxIsOuter=!!v?.hazOuter,this.flySolid=v?.flySolid??!!g.fromGD;const h=g.start;t==null&&(t=(h?.b??0)*Z),l==null&&(l=(h?.r??0)*Z),this.strict=!!g.fromGD;const a=e=>{const i=nr(e);if(!i)return null;let[n,s]=i;const o=((e.rot??0)%360+360)%360;if(o===90||o===270){const c=n;n=s,s=c}const u=(e.b+e.w/2)*Z,d=(e.r+e.h/2)*Z,f=ir[e.kind]??[-n/2,-s/2];return{x0:u+f[0],x1:u+f[0]+n,y0:d+f[1],y1:d+f[1]+s,o:e}};for(const e of g.objects){const i={x0:e.b*Z,x1:(e.b+e.w)*Z,y0:e.r*Z,y1:(e.r+e.h)*Z,o:e};switch(e.kind){case"block":this.solids.push(i);break;case"frame":{this.frames.push(i),this.solids.push(i);break}case"breakable":this.breakables.push(i),this.solids.push(i);break;case"coin":this.coins.push(a(e)??i);break;case"arrow":this.arrows.push(a(e)??i);break;case"clone":this.clones.push(i);break;case"platform":{this.floors.push(i);break}case"spike":{this.hazards.push(a(e)??i);break}case"saw":{const n=(e.b+e.w/2)*Z,s=(e.r+e.h/2)*Z;let o=e.rad0??null,u=e.rad??null;if(o==null&&e.id!=null&&(o=er(e.id),o!=null)){const d=yi[e.id],f=d?.w?e.w/d.w:1,c=d?.h?e.h/d.h:1;u=o*(Math.abs(f)+Math.abs(c))/2}if(o!=null||u!=null){const d=this.sawUnscaled?o??u:u??o;this.circles.push({cx:n,cy:s,r:d,o:e,box:{x0:n-d,x1:n+d,y0:s-d,y1:s+d,o:e}});break}this.hazards.push(i);break}case"portal":this.portals.push(a(e)??i);break;case"speed":this.speeds.push(a(e)??i);break;case"gravity":this.gravs.push(a(e)??i);break;case"check":this.checks.push(a(e)??i);break;case"orb":{this.orbs.push(a(e)??i);break}case"pad":{this.pads.push(a(e)??i);break}case"force":this.forces.push(i);break;case"pit":this.pits.push(i);break;case"trigger":this.triggers.push(i);break;case"size":this.sizes.push(a(e)??i);break;case"teleport":this.teleports.push(a(e)??i);break;case"deco":this.decos.push(e);break}}this.reset(t,"cube",l),this.checkX=t,this.checkY=l,this.checkMode="cube",this.checkSize=1,this.checkSpeed=this.speedIdx,this.checkGdir=this.gdir;const r=new Map;for(const e of[this.solids,this.floors,this.hazards,this.orbs,this.pads,this.forces,this.pits,this.coins,this.arrows,this.circles.map(i=>i.box)])for(const i of e){const n=r.get(i.o);n?n.push(i):r.set(i.o,[i])}for(const e of g.objects){if(!e.groups||!e.groups.length)continue;const i=r.get(e)??[],n=i.length?i.map(s=>({o:e,box:s,bx0:s.x0,bx1:s.x1,by0:s.y0,by1:s.y1,dx:0,dy:0})):[{o:e,box:null,bx0:e.b*Z,bx1:(e.b+e.w)*Z,by0:e.r*Z,by1:(e.r+e.h)*Z,dx:0,dy:0}];for(const s of n){this.movables.push(s),this.movableOf.set(e,s);for(const o of e.groups){const u=this.byGroup.get(o);u?u.push(s):this.byGroup.set(o,[s])}}}}get isFlyMode(){return this.mode==="ship"||this.mode==="ufo"||this.mode==="wave"}offsetOf(g){const t=this.movableOf.get(g);return t?{dx:t.dx,dy:t.dy}:dr}set windowed(g){if(g&&this.movables.some(t=>t.box))throw new Error("有会动的判定盒(触发器),不能用窗口裁剪");if(g&&!this.idx){this.idx={solids:new Mt(this.solids),floors:new Mt(this.floors),hazards:new Mt(this.hazards),pads:new Mt(this.pads),orbs:new Mt(this.orbs),coins:new Mt(this.coins),arrows:new Mt(this.arrows),circles:new Mt(this.circles.map(t=>t.box))};for(const t of Object.keys(this.idx))this.win[t]=[]}this.fast=g}get isWindowed(){return this.fast}get nearSolids(){return this.fast?this.win.solids:this.solids}get nearFloors(){return this.fast?this.win.floors:this.floors}get nearHazards(){return this.fast?this.win.hazards:this.hazards}get nearPads(){return this.fast?this.win.pads:this.pads}get nearOrbs(){return this.fast?this.win.orbs:this.orbs}get nearCoins(){return this.fast?this.win.coins:this.coins}get nearArrows(){return this.fast?this.win.arrows:this.arrows}get nearCircles(){return this.fast?this.win.circles:this.circles.map(g=>g.box)}rebuildWindow(){const g=this.idx;if(!g)return;const t=this.x-6*Z,l=this.x+45*Z;for(const v of Object.keys(g))g[v].near(t,l,this.win[v])}snapshot(){return{tick:this.tick,x:this.x,y:this.y,vy:this.vy,onGround:this.onGround,mode:this.mode,gdir:this.gdir,speedIdx:this.speedIdx,dead:this.dead,done:this.done,deadT:this.deadT,attempts:this.attempts,checkX:this.checkX,checkY:this.checkY,checkMode:this.checkMode,checkSize:this.checkSize,pressFresh:this.pressFresh,prevHold:this.prevHold,floatT:this.floatT,sizeMul:this.sizeMul,boostDir:this.boostDir,tint:this.tint,tintGround:this.tintGround,flash:this.flash,dash:this.dash?{...this.dash}:null,snapObj:this.snapObj,snapDist:this.snapDist,sets:[[...this.armedChecks],[...this.armedPortals],[...this.armedSpeeds],[...this.armedSizes],[...this.armedGravs],[...this.armedOrbs],[...this.armedPads],[...this.armedArrows],[...this.armedTriggers],[...this.broken],[...this.gotCoins],[...this.handledPortals]]}}restore(g){this.tick=g.tick,this.x=g.x,this.y=g.y,this.vy=g.vy,this.onGround=g.onGround,this.mode=g.mode,this.gdir=g.gdir,this.speedIdx=g.speedIdx,this.dead=g.dead,this.done=g.done,this.deadT=g.deadT,this.attempts=g.attempts,this.checkX=g.checkX,this.checkY=g.checkY,this.checkMode=g.checkMode,this.checkSize=g.checkSize,this.pressFresh=g.pressFresh,this.prevHold=g.prevHold,this.floatT=g.floatT,this.sizeMul=g.sizeMul,this.boostDir=g.boostDir,this.tint=g.tint,this.tintGround=g.tintGround,this.flash=g.flash,this.dash=g.dash?{...g.dash}:null,this.snapObj=g.snapObj,this.snapDist=g.snapDist;const[t,l,v,h,a,r,e,i,n,s,o,u]=g.sets;this.armedChecks=new Set(t),this.armedPortals=new Set(l),this.armedSpeeds=new Set(v),this.armedSizes=new Set(h),this.armedGravs=new Set(a),this.armedOrbs=new Set(r),this.armedPads=new Set(e),this.armedArrows=new Set(i),this.armedTriggers=new Set(n),this.broken.clear();for(const d of s)this.broken.add(d);this.gotCoins.clear();for(const d of o)this.gotCoins.add(d);this.handledPortals.clear();for(const d of u??[])this.handledPortals.add(d)}isBroken(g){for(const t of this.breakables)if(t.o===g)return this.broken.has(t);return!1}isCoinTaken(g){for(const t of this.coins)if(t.o===g)return this.gotCoins.has(t);return!1}syncBoxes(){for(const g of this.movables){const t=g.box;t&&(t.x0=g.bx0+g.dx*Z,t.x1=g.bx1+g.dx*Z,t.y0=g.by0+g.dy*Z,t.y1=g.by1+g.dy*Z)}}fire(g){const t=g.groups??[],l=[];for(const h of t)for(const a of this.byGroup.get(h)??[])l.includes(a)||l.push(a);const v=Math.max(1,Math.round((g.dur??0)*60));g.trigger==="move"&&l.length?this.anims.push({ms:l,from:l.map(h=>({dx:h.dx,dy:h.dy})),dx:g.dx??0,dy:g.dy??0,t:0,dur:v,ease:g.ease??"sine",loop:!!g.loop,dir:1,rest:0}):g.trigger==="color"?(this.tint=g.color??null,this.tintGround=(g.dx??0)>0):g.trigger==="pulse"&&(this.flash=1,g.color!=null&&(this.tint=g.color))}stepAnims(){if(this.flash>0&&(this.flash=Math.max(0,this.flash-.08)),!this.anims.length)return;const g=[];let t=!1;for(const l of this.anims){if(l.dur<=0){for(let r=0;r<l.ms.length;r++)l.ms[r].dx=l.from[r].dx+l.dx,l.ms[r].dy=l.from[r].dy+l.dy;t=!0;continue}if(l.rest>0){l.rest--,g.push(l);continue}l.t+=1;const v=Math.min(1,l.t/l.dur),h=l.ease==="sine"?(1-Math.cos(Math.PI*v))/2:v,a=l.dir>0?h:1-h;for(let r=0;r<l.ms.length;r++)l.ms[r].dx=l.from[r].dx+l.dx*a,l.ms[r].dy=l.from[r].dy+l.dy*a;t=!0,v>=1?l.loop&&(l.dir=-l.dir,l.t=0,l.rest=20,g.push(l)):g.push(l)}this.anims=g,t&&this.syncBoxes()}get vx(){return It(this.speedIdx)}get rows(){return this.level.rows}get box(){return ot.box*this.sizeMul}get innerOff(){return ot.innerOff*this.sizeMul}get innerSize(){return ot.inner*this.sizeMul}get mini(){return this.sizeMul<.999}inner(){const g=this.innerOff;return{x0:this.x+g,x1:this.x+g+this.innerSize,y0:this.y+g,y1:this.y+g+this.innerSize}}outer(){return{x0:this.x,x1:this.x+this.box,y0:this.y,y1:this.y+this.box}}reset(g,t,l=0){this.tick=0,this.x=g,this.y=l,this.vy=0,this.onGround=!0,this.portalY=l,this.mode=t,this.gdir=this.checkGdir,this.speedIdx=this.checkSpeed,this.sizeMul=this.checkSize,this.dead=!1,this.done=!1,this.deadT=0,this.pressFresh=!1,this.prevHold=!1,this.pressAux=!1,this.tpFailed=!1,this.boostDir=0,this.armedChecks.clear(),this.armedPortals.clear(),this.armedSpeeds.clear(),this.armedGravs.clear(),this.armedOrbs.clear(),this.armedPads.clear(),this.armedTriggers.clear(),this.armedSizes.clear(),this.armedArrows.clear(),this.broken.clear(),this.gotCoins.clear(),this.handledPortals.clear(),this.dash=null,this.snapObj=null,this.snapDist=0,this.anims=[],this.flash=0,this.tint=null,this.tintGround=!1;for(const v of this.movables)v.dx=0,v.dy=0;this.syncBoxes()}respawn(){this.attempts++,this.reset(this.checkX,this.checkMode,this.checkY)}resetToStart(){const g=this.level.start;this.checkX=(g?.b??0)*Z,this.checkY=(g?.r??0)*Z,this.checkMode="cube",this.checkSize=1,this.reset(this.checkX,"cube",this.checkY)}get progress(){return Math.max(0,Math.min(1,this.x/(this.level.length*Z)))}floorTopAt(g,t){let l=null;for(const v of this.nearFloors)g<v.x0||g>v.x1||v.y1<=t+.001&&(l===null||v.y1>l)&&(l=v.y1);return l}frame(g){if(g&&!this.prevHold&&(this.pressFresh=!0,this.pressAux=!1),this.prevHold=g,this.tpFailed=!1,this.dead||this.done){this.deadT+=Yt;return}if(this.god){const r=this.rows*Z-this.box;this.y>r&&(this.y=r,this.vy>0&&(this.vy=0)),this.y<0&&(this.y=0,this.vy<0&&(this.vy=0),this.onGround=!1);const e=this.level.length*Z;this.x<-2*Z?this.x=-2*Z:this.x>e+2*Z&&(this.x=e+2*Z)}this.fast&&this.rebuildWindow(),this.stepAnims();const t=Math.abs(this.vy)*At,l=Math.abs(It(this.speedIdx)),v=Math.max(t,l)/fr,h=v>qt?Math.min(qt*8,Math.ceil(v)):qt,a=Yt/h;this.frameY0=this.y;for(let r=0;r<h;r++)this.substep(a,g);this.tick++}applyFallClamp(){if(this.boostDir!==0)if(Math.sign(this.vy)!==this.boostDir)this.boostDir=0;else return;this.vy*this.gdir<0&&(this.vy=Math.max(-15,Math.min(ot.vyMax,this.vy)))}checkSnapJumpToObject(g){if(this.mode!=="cube")return;const t=g.b*Z,l=g.r*Z,v=this.x,h=this.snapObj;if(h&&h!==g){const a=ot.speedMul[this.speedIdx]??1.1,r=!this.mini;let e,i,n,s;a===.9?(e=1,i=90,n=150,s=r?120:90):a===.7?(e=1,i=60,n=120,s=90):a===1.1?(e=2,i=120,n=195,s=r?150:90):a===1.3?(e=2,i=135,n=225,s=90):r?(e=2,i=135,n=225,s=180):(e=1,i=90,n=150,s=120);const o=this.gdir*30,u=t-h.b*Z,d=l-h.r*Z;if(Math.abs(u-s)<=e&&Math.abs(d-o)<=e||Math.abs(u-n)<=e&&Math.abs(d+o)<=e||Math.abs(u-i)<=e&&Math.abs(d-o*2)<=e){let f=t+this.snapDist;Math.abs(f-v)>e&&(f=f<=v?v-e:v+e),this.x=f}}this.snapObj=g,this.snapDist=v-t}substep(g,t){const l=g*60,v=l*At,h=this.x,a=this.y;if(this.vy,this.x+=this.vx*l,this.dash){const r=this.dash;r.t+=Yt/4;const e=cr(r.ang);if(this.vy=Math.abs(this.vx)*e.y,this.y+=this.vy*(v/At),(r.t>.5||!t)&&(this.dash=null),this.y<0)if(this.floors.find(n=>this.x+this.box>n.x0&&this.x<n.x1))this.y=0,this.vy=0,this.onGround=!0;else{this.die();return}if(this.y+this.box>this.rows*Z){this.die();return}this.onGround=!1}else if(this.mode==="ship"){const r=this.vy*this.gdir<0,e=t?-1:r?.8:1.2,i=t&&r?.5:.4,n=this.mini?.85:1;if(this.vy-=ot.gravity*this.gdir*e*i/n*v,this.vy=Math.max(ot.flyDownMax/n,Math.min(ot.flyUpMax/n,this.vy)),this.y+=this.vy*v,this.y<0)if(this.floors.find(o=>this.x+this.box>o.x0&&this.x<o.x1))this.y=0,this.vy=0,this.onGround=!0;else{this.die();return}if(this.y+this.box>this.rows*Z){this.die();return}}else if(this.mode==="wave"){if(this.vy=(t?1:-1)*this.vx*this.gdir*(this.mini?2:1),this.y+=this.vy*(v/At),this.y<0)if(this.floors.find(e=>this.x+this.box>e.x0&&this.x<e.x1))this.y=0,this.vy=0,this.onGround=!0;else{this.die();return}if(this.y+this.box>this.rows*Z){this.die();return}}else if(this.mode==="ufo"){const r=this.mini?.85:1;t&&this.pressFresh&&(this.pressFresh=!1,this.pressAux=!0,this.vy=this.gdir*(this.mini?8:7)*r);const e=this.vy*this.gdir<0;if(this.vy-=ot.gravity*this.gdir*(e?.8:1.2)*.5/r*v,this.vy=Math.max(ot.flyDownMax/r,Math.min(ot.flyUpMax/r,this.vy)),this.y+=this.vy*v,this.y<0)if(this.floors.find(n=>this.x+this.box>n.x0&&this.x<n.x1))this.y=0,this.vy=0,this.onGround=!0;else{this.die();return}if(this.y+this.box>this.rows*Z){this.die();return}}else if(this.mode==="ball"){const r=this.mini?.8:1;t&&this.pressFresh&&this.onGround&&(this.pressFresh=!1,this.vy=ot.jump*r*this.gdir,this.gdir=-this.gdir,this.vy*=this.flipMul,this.vy*=ot.ballFlipVelMul,this.onGround=!1),this.vy-=ot.gravity*ot.ballGravityMul*this.gdir*v,this.applyFallClamp(),this.y+=this.vy*v}else if(this.mode==="spider")t&&this.pressFresh&&(this.spiderJump(),this.pressFresh=!1),this.vy-=ot.gravity*ot.ballGravityMul*this.gdir*v,this.applyFallClamp(),this.y+=this.vy*v;else{if(t&&this.onGround){const r=this.mode==="robot"?$t(this.speedIdx)*ot.robotJumpMul:$t(this.speedIdx);this.vy=r*this.gdir,this.onGround=!1,this.pressFresh=!1,this.mode==="robot"&&(this.floatT=0)}this.mode==="robot"?(this.floatT+=Yt/4,t&&!this.onGround&&this.floatT<ot.robotFloat||(this.vy-=vi(this.speedIdx)*ot.robotGravityMul*this.gdir*v)):this.vy-=vi(this.speedIdx)*this.gdir*v,this.applyFallClamp(),this.y+=this.vy*v}if(this.mode!=="ship"&&this.mode!=="ufo"&&this.mode!=="wave"){const r=this.y+this.box,e=a+this.box;let i=null,n=null;const s=(u,d)=>i===null||u>i||Math.abs(u-i)<1e-9&&n!==null&&d.x0<n.x0;if(this.gdir>0){for(const u of this.nearFloors)this.x+this.box<=u.x0||this.x>=u.x1||a>=u.y1-.01&&this.y<=u.y1&&s(u.y1,u)&&(i=u.y1,n=u);for(const u of this.nearSolids)this.x+this.box<=u.x0||this.x>=u.x1||a>=u.y1-.01&&this.y<=u.y1&&s(u.y1,u)&&(i=u.y1,n=u);if(i!==null&&this.vy<=0?(this.y=i,this.vy=0,this.onGround=!0,n&&this.checkSnapJumpToObject(n.o)):this.onGround=!1,this.y<-2.5*Z){this.die();return}}else{let u=null,d=null;const f=(c,p)=>u===null||c<u||Math.abs(c-u)<1e-9&&d!==null&&p.x0<d.x0;for(const c of this.nearFloors)this.x+this.box<=c.x0||this.x>=c.x1||e<=c.y0+.01&&r>=c.y0&&f(c.y0,c)&&(u=c.y0,d=c);for(const c of this.nearSolids)this.x+this.box<=c.x0||this.x>=c.x1||e<=c.y0+.01&&r>=c.y0&&f(c.y0,c)&&(u=c.y0,d=c);if(u!==null&&this.vy>=0?(this.y=u-this.box,this.vy=0,this.onGround=!0,d&&this.checkSnapJumpToObject(d.o)):this.onGround=!1,this.y+this.box>this.rows*Z+2.5*Z){this.die();return}}const o=this.inner();for(const u of this.nearSolids){if(this.traceSolid&&u.o.kind==="frame"&&this.solidTrace.push("x-overlap y="+(this.y/Z).toFixed(3)+" mode="+this.mode+" box y["+(u.y0/Z).toFixed(3)+","+(u.y1/Z).toFixed(3)+"] innY["+(o.y0/Z).toFixed(3)+","+(o.y1/Z).toFixed(3)+"] yOverlap="+(o.y1>u.y0&&o.y0<u.y1)),u.o.kind==="breakable"){if(this.broken.has(u)||o.x1<=u.x0||o.x0>=u.x1||o.y1<=u.y0||o.y0>=u.y1)continue;this.broken.add(u);continue}if(o.x1<=u.x0||o.x0>=u.x1||o.y1<=u.y0||o.y0>=u.y1)continue;const d=this.mode==="ship"||this.mode==="ufo"||this.mode==="wave"?6:this.mini?10:15,f=Math.max(this.y,this.frameY0)+d,c=Math.min(this.y+this.box,this.frameY0+this.box)-d,p=f>=u.y1,x=c<=u.y0;if(this.traceSolid&&this.solidTrace.push("sub y="+(this.y/Z).toFixed(3)+" vy="+(this.vy/Z).toFixed(3)+" mode="+this.mode+" box x["+(u.x0/Z).toFixed(3)+","+(u.x1/Z).toFixed(3)+"] y["+(u.y0/Z).toFixed(3)+","+(u.y1/Z).toFixed(3)+"] reachDown="+(f/Z).toFixed(3)+" clearTop="+p+" reachUp="+(c/Z).toFixed(3)+" clearBot="+x+" prevY="+(a/Z).toFixed(3)+" gdir="+this.gdir+" fly="+(this.flySolid&&this.isFlyMode)),this.flySolid&&this.isFlyMode){if(p){this.y=u.y1,this.vy=0,this.onGround=!0;continue}if(x)continue;this.die();return}if(this.vy<=0&&p){this.y=u.y1,this.vy=0,this.onGround=!0;continue}if(this.vy>=0&&x){this.gdir<0&&(this.y=u.y0-this.box,this.vy=0,this.onGround=!0);continue}if(!(this.gdir>0&&a>=u.y1-.01&&this.y<=u.y1)&&!(this.gdir<0&&e<=u.y0+.01&&r>=u.y0)){this.die();return}}}if(this.flySolid&&this.isFlyMode){const r=this.outer(),e=6;for(const i of this.nearSolids){if(r.x1<=i.x0||r.x0>=i.x1||r.y1<=i.y0||r.y0>=i.y1)continue;const n=Math.max(this.y,this.frameY0)+e,s=Math.min(this.y+this.box,this.frameY0+this.box)-e;if(this.traceSolid&&this.solidTrace.push("fly y="+(this.y/Z).toFixed(3)+" mode="+this.mode+" box y["+(i.y0/Z).toFixed(3)+","+(i.y1/Z).toFixed(3)+"] down="+(n/Z).toFixed(3)+" clearTop="+(n>=i.y1)+" up="+(s/Z).toFixed(3)+" clearBot="+(s<=i.y0)),n>=i.y1){this.y=i.y1,this.vy=0,this.onGround=!0;continue}if(!(s<=i.y0)){if(i.o.kind==="breakable"){this.broken.add(i);continue}this.die();return}}}{const r=this.hazBoxIsOuter?this.outer():this.inner();for(const e of this.nearHazards)if(r.x1>e.x0&&r.x0<e.x1&&r.y1>e.y0&&r.y0<e.y1){this.die();return}}if(this.circles.length){const r=this.outer();for(const e of this.nearCircles){const i=(e.x0+e.x1)/2,n=(e.y0+e.y1)/2,s=(e.x1-e.x0)/2,o=i<r.x0?r.x0-i:i>r.x1?i-r.x1:0,u=n<r.y0?r.y0-n:n>r.y1?n-r.y1:0;if(o*o+u*u<s*s){this.die();return}}}if(this.forces.length){const r=this.outer();for(const e of this.forces)if(!(r.x1<=e.x0||r.x0>=e.x1||r.y1<=e.y0||r.y0>=e.y1)){this.vy+=(e.o.fy??0)*v;break}}{const r=this.outer();for(const e of this.nearPads)if(!this.armedPads.has(e)&&!(r.x1<=e.x0||r.x0>=e.x1||r.y1<=e.y0||r.y0>=e.y1)){if(e.o.pad==="blue"){const n=((e.o.rot??0)%360+360)%360===180;if(this.gdir<0!==n)continue}this.armedPads.add(e),e.o.tp?this.spiderJump(ot.tpReach,!0):e.o.pad&&this.applyTrigger({...fi[e.o.pad],isPad:!0})}}{const r=this.outer();for(const e of this.nearCoins)this.gotCoins.has(e)||r.x1<=e.x0||r.x0>=e.x1||r.y1<=e.y0||r.y0>=e.y1||this.gotCoins.add(e)}if(t&&(this.pressFresh||this.pressAux)){const r=this.outer();for(const e of this.nearArrows)if(!this.armedArrows.has(e)&&!(r.x1<=e.x0||r.x0>=e.x1||r.y1<=e.y0||r.y0>=e.y1)){if(this.pressFresh=!1,this.pressAux=!1,e.o.tp){if(this.spiderJump(ot.tpReach,!0),this.tpFailed){this.pressFresh=!0,this.pressAux=!1;break}}else this.dash={ang:e.o.rot??0,kind:e.o.arrow??"green",t:0},e.o.arrow==="pink"&&this.mode==="cube"&&(this.gdir=-this.gdir);this.armedArrows.add(e);break}}if(t&&(this.pressFresh||this.pressAux)&&!this.dash){const r=this.outer();for(const e of this.nearOrbs)if(!this.armedOrbs.has(e)&&!(r.x1<=e.x0||r.x0>=e.x1||r.y1<=e.y0||r.y0>=e.y1)){if(this.armedOrbs.add(e),this.pressFresh=!1,this.pressAux=!1,e.o.orb){const i=bi[e.o.orb];this.applyTrigger({v:this.orbVel(e.o.orb),flip:i.flip},!0)}break}}for(const r of this.portals){if(this.armedPortals.has(r)||!this.hitEvent(r,h))continue;this.armedPortals.add(r);const e=r.o.to??"cube";this.mode=e,this.portalY=(r.y0+r.y1)/2,e==="ship"&&(this.vy/=2),(e==="cube"||e==="ship")&&(this.onGround=!1),!this.strict&&e==="ship"&&this.y<3*Z&&(this.y=3*Z)}for(const r of this.speeds)this.armedSpeeds.has(r)||this.hitEvent(r,h)&&(this.armedSpeeds.add(r),this.speedIdx=Math.max(0,Math.min(ot.speedMul.length-1,r.o.speed??1)));for(const r of this.gravs){if(this.armedGravs.has(r)||!this.hitEvent(r,h))continue;this.armedGravs.add(r);const e=r.o.gdir??-this.gdir;e!==this.gdir&&(this.gdir=e,this.vy*=this.flipMul,this.onGround=!1)}for(const r of this.triggers)this.armedTriggers.has(r)||this.hitEvent(r,h)&&(this.armedTriggers.add(r),this.fire(r.o));for(const r of this.teleports){if(this.armedPortals.has(r)||!this.hitEvent(r,h)||(this.armedPortals.add(r),r.o.exit))continue;if(r.o.tpy){this.y=Math.max(0,Math.min(this.rows*Z-this.box,this.y+r.o.tpy*Z)),this.vy=0;continue}const e=this.exitOf(r);e&&(this.armedPortals.add(e),this.x=e.x0,this.y+this.box>this.rows*Z&&(this.y=this.rows*Z-this.box),this.y<0&&(this.y=0))}for(const r of this.sizes)this.armedSizes.has(r)||this.hitEvent(r,h)&&(this.armedSizes.add(r),this.sizeMul=r.o.mini===!1?1:ot.miniSize,this.y=Math.min(this.y,this.rows*Z-this.box));for(const r of this.checks)this.armedChecks.has(r)||this.hitEvent(r,h)&&(this.armedChecks.add(r),this.checkX=r.x0,this.checkY=((r.o.r??0)+.5)*Z-this.box/2,this.checkMode=this.mode,this.checkSize=this.sizeMul,this.checkSpeed=this.speedIdx,this.checkGdir=this.gdir);this.x>=this.level.length*Z&&(this.done=!0)}spiderReach(){return[60,90,120,135,120][Math.max(0,Math.min(4,this.speedIdx))]??90}spiderJump(g,t=!1){const l=g??this.spiderReach(),v=()=>this.y+this.box,h=this.x,a=this.x+this.box;let r=null;if(this.gdir>0){for(const e of this.nearSolids)a<=e.x0||h>=e.x1||e.y0<v()+1||e.y0>v()+l||(r===null||e.y0<r)&&(r=e.y0);for(const e of this.nearFloors)a<=e.x0||h>=e.x1||e.y0<v()+1||e.y0>v()+l||(r===null||e.y0<r)&&(r=e.y0);if(r===null){t||(this.tpFailed=!0);return}this.y=r-this.box}else{for(const e of this.nearSolids)a<=e.x0||h>=e.x1||e.y1>this.y-1||e.y1<this.y-l||(r===null||e.y1>r)&&(r=e.y1);for(const e of this.nearFloors)a<=e.x0||h>=e.x1||e.y1>this.y-1||e.y1<this.y-l||(r===null||e.y1>r)&&(r=e.y1);if(r===null){t||(this.tpFailed=!0);return}this.y=r}this.gdir=-this.gdir,this.vy=-1*this.gdir,this.onGround=!0}hitEvent(g,t){if(this.doorByX&&vr.has(g.o.kind))return!(t+this.box<=g.x0||this.x>=g.x1);if(!this.strict)return!(t+this.box<=g.x0||this.x>=g.x1);const l=this.outer();return l.x1>g.x0&&l.x0<g.x1&&l.y1>g.y0&&l.y0<g.y1}die(){this.god||this.dead||(this.dead=!0,this.deadT=0)}exitOf(g){const t=g.o.channel??0,l=this.teleports.filter(h=>h!==g&&h.o.exit&&(h.o.channel??0)===t);if(!l.length)return null;const v=l.filter(h=>h.x0>=g.x1).sort((h,a)=>h.x0-a.x0);return v.length?v[0]:l.sort((h,a)=>h.x0-a.x0)[0]}triggerScale(){return this.mini?ot.miniTriggerMul:1}applyTrigger(g,t=!1){const l=!!g.isPad;let v=g.v*this.triggerScale()*this.padMul;l&&(this.mode==="ball"||this.mode==="spider")&&(v*=.6),g.flip==="before"?(this.vy=v*this.gdir,this.gdir=-this.gdir,this.vy*=this.flipMul):g.flip==="after"?(this.gdir=-this.gdir,this.vy=v*this.gdir):g.flip==="dash"?this.vy=-v*this.gdir:this.vy=v*this.gdir,this.mode==="ship"&&(this.vy=Math.max(-8,Math.min(ot.shipVyMax,this.vy))),this.boostDir=this.vy>0?1:this.vy<0?-1:0,this.onGround=!1,t&&(this.pressFresh=!1)}orbVel(g){const t=ot.jump,l=this.mini,v=this.mode==="ball"||this.mode==="spider"?.7:1;switch(g){case"pink":return t*(this.mode==="ship"?.37:this.mode==="ufo"?.42:this.mode==="ball"?.77:.72)*v;case"red":return t*(this.mode==="ship"?l?1.4:1:this.mode==="ufo"?l?1.36:1.02:this.mode==="ball"||this.mode==="spider"?1.34:this.mode==="robot"?1.28:1.38)*v;case"yellow":return t*(this.mode==="robot"?.9:1)*v;case"green":return t*(this.mode==="ship"?.7:1)*v;case"blue":return t*.8*v;case"black":return this.mode==="ufo"?11.2:this.mode==="ship"||this.mode==="wave"?14:this.mode==="spider"?16.5:15;default:return t*v}}get state(){return{tick:this.tick,x:this.x,y:this.y,vy:this.vy,onGround:this.onGround,mode:this.mode,gdir:this.gdir,speed:this.speedIdx,dead:this.dead,done:this.done,attempts:this.attempts,checkX:this.checkX,progress:this.progress,moved:this.movedHash()}}movedHash(){let g=0;for(const t of this.movables)g+=Math.round((t.dx+t.dy*7.13)*1e4);return g/1e4}}function cr(m){const g=m*Math.PI/180,t=Math.max(Math.cos(g),.7);return{x:t,y:-Math.sin(g)/t}}class Mt{constructor(g){this.arr=[],this.wide=[];let t=1;for(const l of g){const v=l.x1-l.x0;v>50*Z?this.wide.push(l):(this.arr.push(l),t=Math.max(t,v))}this.arr.sort((l,v)=>l.x0-v.x0),this.maxW=t}near(g,t,l){l.length=0;for(const r of this.wide)l.push(r);const v=g-this.maxW;let h=0,a=this.arr.length;for(;h<a;){const r=h+a>>1;this.arr[r].x0<v?h=r+1:a=r}for(let r=h;r<this.arr.length;r++){const e=this.arr[r];if(e.x0>t)break;l.push(e)}return l}}function mr(m){const g=Z;if(m.isFlyMode){const h=m.x+2.5*g,a=[...m.nearSolids,...m.nearHazards,...m.nearCircles].filter(n=>h>=n.x0-4&&h<=n.x1+4).sort((n,s)=>n.y0-s.y0);let r={a:0,b:m.rows*Z,size:m.rows*Z},e=0;for(const n of a)n.y0-e>r.size&&(r={a:e,b:n.y0,size:n.y0-e}),e=Math.max(e,n.y1);m.rows*Z-e>r.size&&(r={a:e,b:m.rows*Z,size:m.rows*Z-e});const i=(r.a+r.b)/2-m.box/2;return m.y<i-2}const t=zt($t(m.speedIdx),m.speedIdx)*Z,l=t-m.innerOff-6;for(const h of m.nearOrbs){if(h.x1<m.x||h.x0-m.x>1.6*Z)continue;const a=m.y+m.innerOff;if(!(a+m.innerSize<h.y0-8||a>h.y1+8))return m.pressFresh?!0:!m.prevHold}let v=null;for(const h of[...m.nearHazards.filter(a=>a.y0<2*Z),...m.nearCircles.filter(a=>a.y0<2*Z),...m.nearSolids.filter(a=>a.y1<=2*Z)])h.x1<=m.x+m.innerOff||(!v||h.x0<v.x0)&&(v=h);if(v&&v.x1-m.x<=l)return!0;for(const h of m.nearFloors){if(m.x+m.box<=h.x0||m.x>=h.x1||Math.abs(h.y1-m.y)>6)continue;let a=null;for(const i of m.nearFloors)i.x0<h.x1-1||Math.abs(i.y1-h.y1)>2*Z||(a===null||i.x0<a)&&(a=i.x0);if(a===null)continue;const e=a-t+24;if(m.x>=e&&m.x<h.x1)return!0}return!1}function pr(m){let g=2166136261;const t=v=>Math.round(v*1e4),l=v=>{for(let h=0;h<4;h++)g^=v>>>h*8&255,g=Math.imul(g,16777619)>>>0};for(const v of m)l(t(v.x)),l(t(v.y)),l(t(v.vy)),l(v.mode==="ship"?1:0),l(v.gdir),l(v.speed),l(v.dead?1:0),l(v.done?1:0),l(v.attempts),l(t(v.checkX)),l(t(v.moved??0));return("00000000"+g.toString(16)).slice(-8)}const Si=lr({name:"WATER",rows:127,length:3620,song:"/levels/WATER.mp3",start:{b:0,r:10},segments:[{from:0,to:198,mode:"cube",speed:0,label:"cube"},{from:198,to:263,mode:"cube",speed:1,label:"cube"},{from:263,to:323,mode:"ball",speed:1,label:"ball"},{from:323,to:421,mode:"ufo",speed:1,label:"ufo"},{from:421,to:423,mode:"cube",speed:1,label:"cube"},{from:423,to:439,mode:"cube",speed:0,label:"cube"},{from:439,to:484,mode:"spider",speed:0,label:"spider"},{from:484,to:489,mode:"spider",speed:0,label:"spider"},{from:489,to:492,mode:"ball",speed:0,label:"ball"},{from:492,to:512,mode:"ball",speed:0,label:"ball"},{from:512,to:525,mode:"ball",speed:1,label:"ball"},{from:525,to:606,mode:"cube",speed:1,label:"cube"},{from:606,to:650,mode:"ufo",speed:1,label:"ufo"},{from:650,to:657,mode:"ufo",speed:4,label:"ufo"},{from:657,to:733,mode:"cube",speed:4,label:"cube"},{from:733,to:767,mode:"cube",speed:2,label:"cube"},{from:767,to:769,mode:"cube",speed:4,label:"cube"},{from:769,to:824,mode:"ufo",speed:4,label:"ufo"},{from:824,to:871,mode:"ship",speed:4,label:"ship"},{from:871,to:873,mode:"cube",speed:4,label:"cube"},{from:873,to:879,mode:"cube",speed:3,label:"cube"},{from:879,to:968,mode:"wave",speed:3,label:"wave"},{from:968,to:1054,mode:"wave",speed:4,label:"wave"},{from:1054,to:1055,mode:"cube",speed:4,label:"cube"},{from:1055,to:1060,mode:"cube",speed:2,label:"cube"},{from:1060,to:1120,mode:"robot",speed:2,label:"robot"},{from:1120,to:1121,mode:"robot",speed:2,label:"robot"},{from:1121,to:1196,mode:"ball",speed:2,label:"ball"},{from:1196,to:1268,mode:"cube",speed:2,label:"cube"},{from:1268,to:1322,mode:"spider",speed:2,label:"spider"},{from:1322,to:1325,mode:"cube",speed:2,label:"cube"},{from:1325,to:1345,mode:"cube",speed:0,label:"cube"},{from:1345,to:1351,mode:"ship",speed:0,label:"ship"},{from:1351,to:1359,mode:"ship",speed:1,label:"ship"},{from:1359,to:1368,mode:"ship",speed:2,label:"ship"},{from:1368,to:1377,mode:"ship",speed:3,label:"ship"},{from:1377,to:1393,mode:"ship",speed:4,label:"ship"},{from:1393,to:1432,mode:"cube",speed:4,label:"cube"},{from:1432,to:1450,mode:"ship",speed:4,label:"ship"},{from:1450,to:1481,mode:"spider",speed:4,label:"spider"},{from:1481,to:1483,mode:"spider",speed:4,label:"spider"},{from:1483,to:1488,mode:"cube",speed:4,label:"cube"},{from:1488,to:1504,mode:"ship",speed:4,label:"ship"},{from:1504,to:1542,mode:"ball",speed:4,label:"ball"},{from:1542,to:1556,mode:"ship",speed:4,label:"ship"},{from:1556,to:1598,mode:"wave",speed:4,label:"wave"},{from:1598,to:1614,mode:"ship",speed:4,label:"ship"},{from:1614,to:1653,mode:"cube",speed:4,label:"cube"},{from:1653,to:1668,mode:"ship",speed:4,label:"ship"},{from:1668,to:1707,mode:"spider",speed:4,label:"spider"},{from:1707,to:1721,mode:"ship",speed:4,label:"ship"},{from:1721,to:1768,mode:"ufo",speed:4,label:"ufo"},{from:1768,to:1785,mode:"ufo",speed:0,label:"ufo"},{from:1785,to:1786,mode:"cube",speed:0,label:"cube"},{from:1786,to:1935,mode:"cube",speed:2,label:"cube"},{from:1935,to:2013,mode:"ship",speed:2,label:"ship"},{from:2013,to:2055,mode:"wave",speed:2,label:"wave"},{from:2055,to:2057,mode:"cube",speed:2,label:"cube"},{from:2057,to:2258,mode:"cube",speed:0,label:"cube"},{from:2258,to:2472,mode:"spider",speed:0,label:"spider"},{from:2472,to:2473,mode:"cube",speed:0,label:"cube"},{from:2473,to:2603,mode:"cube",speed:2,label:"cube"},{from:2603,to:3005,mode:"cube",speed:4,label:"cube"},{from:3005,to:3006,mode:"ship",speed:4,label:"ship"},{from:3006,to:3034,mode:"ship",speed:0,label:"ship"},{from:3034,to:3052,mode:"cube",speed:0,label:"cube"},{from:3052,to:3233,mode:"cube",speed:3,label:"cube"},{from:3233,to:3234,mode:"ufo",speed:3,label:"ufo"},{from:3234,to:3348,mode:"ufo",speed:4,label:"ufo"},{from:3348,to:3404,mode:"wave",speed:4,label:"wave"},{from:3404,to:3424,mode:"wave",speed:0,label:"wave"},{from:3424,to:3620,mode:"cube",speed:0,label:"cube"}]},`
+ */ft(63595);var St=ft(8054);const xe=ft(61061),ye=ft(60421),Se=ft(10312),Te=ft(83388),Be=ft(26638),Ee=ft(42857),Ce=ft(83419),Ae=ft(25410),Me=ft(44965),Re=ft(27460),Pe=ft(84902),ze=ft(93055),Le=ft(11889),Fe=ft(50127),Oe=ft(77856),De=ft(55738),He=ft(14350),we=ft(57777),Ie=ft(75508),Ne=ft(44563),Ge=ft(18922),be=ft(36909),We=ft(93364),Ue=ft(29795),Ve=ft(97482),Ye=ft(62194),Xe=ft(41392),Ke=ft(23717),Ze=ft(27458),Qe=ft(62501),Je=ft(90291),$e=ft(84322),je=ft(43066),ke=ft(91799),qe=St.VERSION,_e=St.LOG_VERSION,ti=St.AUTO,ei=St.CANVAS,ii=St.WEBGL,ri=St.HEADLESS,si=St.FOREVER,ni=St.NONE,ai=St.LEFT,oi=St.RIGHT,hi=St.UP,li=St.DOWN,Gi={Actions:xe,Animations:ye,BlendModes:Se,Cache:Te,Cameras:Be,Core:Ee,Class:Ce,Curves:Ae,Data:Me,Display:Re,DOM:Pe,Events:ze,Filters:Le,Game:Fe,GameObjects:Oe,Geom:De,Input:He,Loader:we,Math:Ie,Physics:Ne,Plugins:Ge,Renderer:be,Scale:We,ScaleModes:Ue,Scene:Ve,Scenes:Ye,Structs:Xe,Sound:Ke,Textures:Ze,Tilemaps:Qe,Time:Je,TintModes:$e,Tweens:je,Utils:ke,VERSION:qe,LOG_VERSION:_e,AUTO:ti,CANVAS:ei,WEBGL:ii,HEADLESS:ri,FOREVER:si,NONE:ni,LEFT:ai,RIGHT:oi,UP:hi,DOWN:li};lt.Q8,lt.En,lt.Qw,lt.gd,lt.j$,lt.l2,lt.Tm,lt.Xs,lt.iJ,lt.XT,lt.dv,lt.PX,lt.B_,lt.nl,lt.sV,lt.SY,lt.Cu,lt.Zt,lt.xS,lt.Dh,lt.qt,lt.pd,lt.M3,lt.Ae,lt.aH,lt.zU,lt.x3,lt.AQ,lt.ry,lt.NS,lt.A4,lt.FE,lt.zA,lt.Z5,lt._k,lt.AB,lt.ho,lt.D7,lt.O1,lt.gX,lt.sx,lt.Fu,lt.UP,lt.Aq,lt.xv,lt.CB;const Ft=lt.Ay,Z=30,Jt=10,At=.9,ot={gravity:.958199024,jump:11.1800318,vyMax:15,speedVal:[5.980002,5.77000189,5.870002,6.000002,6.000002],speedMul:[.7,.9,1.1,1.3,1.6],shipVyMax:8,ballGravityMul:.6,robotGravityMul:.9,ballFlipVelMul:.6,flyUpMax:8,flyDownMax:-6.4,robotJumpMul:.5,robotFloat:.27,tpReach:240,miniSize:.6,miniTriggerMul:.8,box:30,inner:7.5,innerOff:11.25};function It(m){return ot.speedVal[m]*ot.speedMul[m]}const bi={yellow:{v:11.1800318,flip:"none",note:'[GDOpenGD] = jumpPower,原版黄环就是"空中再来一跳"(×1.0)'},pink:{v:8.0496,flip:"none",note:"[GDOpenGD] ×0.72,小跳"},red:{v:15.428,flip:"none",note:"[GDOpenGD] ×1.38,大跳"},blue:{v:8.9442,flip:"before",note:"[GDOpenGD] ×0.8,按旧重力方向给速度后再翻重力"},green:{v:11.1800318,flip:"after",note:"[GDOpenGD] ×1.0,先翻重力再按新重力方向给速度"},black:{v:15,flip:"dash",note:"[GDOpenGD] 冲刺环:把速度设成 15 并【朝重力方向】砸下去(常重力下是 -15),不看 jumpPower"}},fi={yellow:{v:16,flip:"none",note:"[OpenGD PlayLayer:1398] propellPlayer(1.0) → 1.0×16(峰值 4.45 块)"},pink:{v:10.4,flip:"none",note:"[OpenGD PlayLayer:1420] propellPlayer(0.65) → 0.65×16 = 10.4。★物件 140 = 粉色小跳板(GameObject.cpp:199「case 140: // pink pad」,粒子色 255,0,255),峰值约 1.88 块 —— 原版就是拿它过【低走廊】的"},red:{v:20,flip:"none",note:"[OpenGD PlayLayer:1428] propellPlayer(1.25) → 1.25×16 = 20(峰值约 7 块)"},blue:{v:12.8,flip:"before",note:"[gdp@2.11 propellPlayer] 12.8 + 先按旧重力方向给速度再翻重力;力度可用 [ / ] 微调"},purple:{v:16,flip:"none",note:"3005 在本关全带 tp(蜘蛛式瞬移),这里的力度实际用不到"}},ui=[10.620032,11.1800318,11.420032,11.230032,11.230032],di=[.940199,.958199024,.957199,.961199,.961199];function $t(m){return ui[m]??ui[1]}function vi(m){return di[m]??di[1]}const Wi=m=>2*m/(ot.gravity*At)/60;function zt(m,g=1){return Wi(m)*(It(g)*60/Z)}const ci={period:.34829931972788586,song:"/assets/cd/music/lost.mp3",beats:[2.119,2.473,2.995,3.117,3.21,3.332,3.425,3.547,3.64,3.733,3.855,3.947,4.069,4.302,4.423,4.545,4.638,4.76,4.905,5.004,5.097,5.265,5.555,5.677,5.863,6.049,6.182,6.362,6.502,6.629,6.757,6.937,7.094,7.233,7.361,7.477,7.605,7.744,7.837,7.964,8.139,8.591,8.708,8.882,9.073,9.323,9.439,9.631,9.747,9.95,10.17,10.629,10.989,11.36,11.627,11.778,11.964,12.127,12.272,12.405,12.574,12.701,12.928,13.172,13.439,13.619,13.793,14.013,14.141,14.321,14.495,14.675,14.849,15,15.203,15.377,15.557,15.732,15.906,16.086,16.26,16.359,16.48,16.968,17.148,17.328,17.496,17.67,17.816,17.932,18.059,18.204,18.379,18.559,18.733,18.907,19.087,19.203,19.458,19.615,19.789,19.969,20.143,20.323,20.497,20.73,21.026,21.206,21.38,21.554,21.74,21.908,22.042,22.245,22.523,22.628,22.727,22.895,23.04,23.336,23.562,23.673,23.882,24.393,24.712,24.816,25.13,25.229,25.397,25.536,25.745,25.908,26.041,26.146,26.32,26.506,26.68,26.854,26.976,28.973,29.327,29.675,30.737,31.086,31.184,31.318,31.44,31.539,31.637,31.794,31.893,32.148,32.287,32.496,32.717,32.85,33.036,33.205,33.379,33.559,33.919,34.087,34.261,34.435,34.615,34.789,34.969,35.143,35.323,35.672,36.026,36.206,36.38,36.508,36.624,36.734,36.908,37.047,37.262,37.436,37.651,37.791,37.97,38.145,38.354,38.446,38.673,38.801,39.027,39.201,39.387,39.555,39.758,39.909,40.083,40.263,40.519,40.618,40.792,40.966,41.175,41.32,41.494,41.674,41.848,42.028,42.202,42.313,42.487,42.62,42.731,42.911,43.085,43.328,43.439,43.613,43.793,44.06,44.321,44.495,44.675,44.849,45.029,45.203,45.442,45.558,45.732,45.906,46.097,46.26,46.44,46.614,46.742,46.881,46.991,47.142,47.322,47.496,47.676,47.938,48.286,48.379,48.559,48.733,48.977,49.087,49.261,49.389,49.627,49.789,49.969,50.144,50.318,50.498,50.672,50.852,50.962,51.2,51.38,51.554,51.908,52.088,52.262,52.506,52.616,52.791,52.895,53.145,53.319,53.499,53.673,53.859,54.027,54.201,54.3,54.497,54.608,54.735,54.909,55.084,55.351,55.461,55.618,55.792,56.012,56.146,56.32,56.465,56.674,56.848,57.028,57.202,57.377,57.557,57.754,57.911,58.085,58.212,58.439,58.793,58.892,59.147,59.321,59.455,59.675,59.896,60.029,60.238,60.378,60.587,60.732,60.906,61.086,61.307,61.44,61.614,61.788,61.968,62.142,62.322,62.497,62.711,62.851,63.025,63.205,63.379,63.553,63.733,63.907,64.151,64.261,64.435,64.615,64.79,64.969,65.144,65.318,65.544,65.672,66.026,66.241,66.38,66.554,66.734,66.966,67.082,67.309,67.437,67.529,67.791,67.965,68.145,68.4,68.493,68.673,68.847,69.045,69.201,69.381,69.555,69.73,69.91,70.084,70.264,70.438,70.612,70.792,70.966,71.146,71.32,71.494,71.674,71.848,72.028,72.202,72.377,72.557,72.731,72.911,73.085,73.259,73.439,73.613,73.793,73.967,74.141,74.321,74.495,74.675,74.85,75.024,75.204,75.378,75.558,75.732,75.906,76.086,76.26,76.44,76.614,76.829,76.968,77.143,77.322,77.555,77.671,77.851,78.025,78.205,78.379,78.553,78.733,78.965,79.087,79.221,79.453,79.65,79.859,80.103,80.266,80.869,80.968,81.235,81.589,81.908,82.007,82.158,82.297,82.46,82.646,82.785,83.006,83.11,83.319,83.499,83.714,84.068,84.201,84.381,84.48,84.631,84.73,84.91,85.032,85.153,85.252,85.438,85.577,85.792,85.989,86.163,86.262,86.378,86.494,86.64,86.848,87.023,87.22,87.383,87.557,87.719,87.853,88.068,88.166,88.259,88.462,88.613,88.793,88.979,89.147,89.321,89.507,89.676,89.768,89.873,90.03,90.204,90.378,90.564,90.68,90.912,91.086,91.185,91.283,91.44,91.574,91.806,91.968,92.143,92.323,92.497,92.595,92.694,92.851,93.042,93.205,93.518,93.727,93.907,94.035,94.145,94.279,94.441,94.616,94.766,94.97,95.138,95.318,95.411,95.672,95.869,96.026,96.177,96.293,96.392,96.485,96.607,96.734,96.88,97.106,97.28,97.472,97.634,97.791,97.977,98.145,98.244,98.499,98.691,98.847,99.12,99.225,99.556,99.718,99.968,100.084,100.264,100.502,100.612,100.844,100.966,101.065,101.198,101.338,101.431,101.674,101.936,102.052,102.243,102.377,102.47,102.731,102.847,102.963,103.091,103.265,103.439,103.642,103.793,103.892,104.2,104.339,104.496,104.641,105.674,105.773,105.9,105.993,106.318,106.458,106.568,106.789,106.969,107.073,107.172,107.323,107.497,107.671,107.851,108.025,108.199,108.379,108.553,108.733,108.907,109.087,109.262,109.436,109.616,109.79,109.964,110.144,110.318,110.498,110.672,110.852,111.026,111.2,111.38,111.555,111.729,111.909,112.089,112.263,112.437,112.611,112.791,112.965,113.145,113.319,113.499,113.673,113.847,114.027,114.202,114.376,114.556,114.73,114.91,115.084,115.258,115.438,115.612,115.792,115.966,116.14,116.32,116.495,116.675,116.849,117.029,117.203,117.377,117.557,117.731,117.905,118.085,118.259,118.439,118.613,118.793,118.967,119.142,119.322,119.496,119.676,119.85,120.024,120.204,120.378,120.564,120.732,120.906,121.086,121.26,121.435,121.615,121.789,121.969,122.143,122.323,122.497,122.671,122.851,123.025,123.199,123.379,123.553,123.733,123.908,124.087,124.262,124.436,124.616,124.79,124.9,125.144,125.318,125.498,125.672,125.846,126.026,126.201,126.38,126.555,126.729,126.909,127.083,127.28,127.547,127.64,127.733,127.907,128.145,128.343,128.493,128.743,128.848,128.94,129.074,129.237,129.37,129.573,129.724,129.922,130.09,130.264,130.386,130.618,130.723,130.821,131.013,131.112,131.245,131.46,131.622,131.721,131.971,132.104,132.238,132.487,132.592,132.76,132.917,133.085,133.3,133.439,133.683,133.805,133.991,134.165,134.362,134.554,134.705,134.873,135.03,135.227,135.471,135.709,135.883,135.988,136.156,136.29,136.388,136.487,136.632,136.818,137.027,137.178,137.381,137.538,137.729,137.903,138.223,138.397,138.606,138.867,139.111,139.262,139.424,139.604,139.744,139.86,139.976,140.144,140.254,140.498,140.661,140.759,140.893,141.038,141.328,141.468,141.561,141.659,141.775,141.868,142.129,142.483,142.6,142.809,142.971,143.07,143.325,143.447,143.552,143.726,143.819,144.045,144.208,144.312,144.498,144.759,144.991,145.119,145.252,145.421,145.525,145.769,145.903,145.996,146.112,146.321,146.524,146.727,146.855,147.006,147.122,147.249,147.395,147.516,147.749,148.091,148.294,148.463,148.672,148.921,149.148,149.426,149.56,149.711,149.902,150.013,150.204,150.431,150.523,150.674,150.837,150.936,151.069,151.191,151.441,151.539,151.679,151.801,151.969,152.149,152.259,152.456,152.59,152.753,152.973,153.194,153.449]};function Wt(m){return It(m)*60/Z}function Ui(m,g){return m.from+(g-(m.t0??0))*Wt(m.speed)}function Vi(m,g){const t=m.objects.filter(i=>i.kind==="speed"&&typeof i.speed=="number").sort((i,n)=>i.b-n.b),l=.5,v=[0],h=[0];let a=0,r=0,e=1;for(let i=l;i<=m.length+l;i+=l){for(;r<t.length&&t[r].b<=i;)e=t[r].speed??1,r++;const n=Wt(e);a+=l/Math.max(.01,n),v.push(i),h.push(a)}return i=>{const n=Math.max(0,Math.min(m.length,i)),s=Math.min(v.length-1,Math.max(0,Math.floor(n/l))),o=Math.min(v.length-1,s+1),u=(n-v[s])/(v[o]-v[s]||1);return h[s]+(h[o]-h[s])*u}}function Yi(m){let g=m>>>0||1;return function(){return g^=g<<13,g>>>=0,g^=g>>17,g^=g<<5,g>>>=0,g/4294967296}}const xt=(m,g)=>m.push(g);function jt(m){return zt(ot.jump,m)-(ot.innerOff+6)/Z}const Nt=ot.box/Z,mi=Nt+.5;function pi(m){return Math.floor((m+ot.innerOff)/Z)}const Xi=1.5;function Ut(m,g,t,l){const v=It(l),h=m*Z/v*At;return(g*Z+t*h-.5*ot.gravity*h*h)/Z}function kt(m,g,t){const l=e=>Ut(e,m,g,t);let v=60;for(let e=.02;e<60;e+=.02)if(l(e)<=0){v=e;break}let h=-1,a=-1,r=0;for(let e=0;e<=v;e+=.02){const i=l(e);i>r&&(r=i),i>=Xi&&(h<0&&(h=e),a=e)}return h<0&&(h=a=v),{land:v,c0:h,c1:a,peak:r}}function Vt(m,g){return m+jt(g)-1+.6}function Ki(m,g,t){const l=g?2:1,h=m+l-jt(t)+zt(ot.jump,t);return{objs:[{kind:"spike",b:m,r:0,w:l,h:1,need:!0}],x:m,end:Vt(h,t),land:h}}function Zi(m,g,t,l){const v=[{kind:"spike",b:m,r:0,w:1,h:1,need:!0}],h=m+1-jt(t),a=zt(ot.jump,t)/2;let r=h,e=0,i=h+zt(ot.jump,t);const n=[];for(let s=0;s<l;s++){const o=r+a,u=o-mi,d=Ut(u-r,e,ot.jump,t);xt(v,{kind:"orb",b:o,r:pi(d*Z),w:1,h:1,orb:"yellow"});const f=kt(d,ot.jump,t);n.push([u+f.c0,u+f.c1]),i=u+f.land,r=u,e=d}for(const s of g)for(const[o,u]of n)if(s>Math.max(o,m+1.3)&&s<Math.min(u,i-.6)){xt(v,{kind:"spike",b:s,r:0,w:1,h:1});break}return{objs:v,x:m,end:Vt(i,t),land:i}}function Qi(m,g,t,l){const v=m+g,h=v-zt(ot.jump,t)+.8,a=[{kind:"pit",b:m,r:0,w:g,h:1,need:!0}],r=zt(ot.jump,t)/2,e=h+r,i=e-mi,n=Ut(i-h,0,ot.jump,t);xt(a,{kind:"orb",b:e,r:pi(n*Z),w:1,h:1,orb:"yellow"});const s=i+kt(n,ot.jump,t).land;return l.push([m,v]),{objs:a,x:m,end:Vt(s,t),land:s}}function Ji(m,g,t,l,v){const h=fi.yellow.v,a=kt(0,h,t),r=a.land,e=2+(l()<.6?1:0)+(v>.5&&l()<.4?1:0);let i=0;for(let f=.02;f<r;f+=.02)Ut(f,0,h,t)>=Nt&&(i=f);const n=Math.max(i-.4,r*.8),s=r,o=[m];for(let f=1;f<e;f++){const c=o[f-1];let p=c+s,x=1/0;for(const y of g){if(y<c+n||y>c+s)continue;const S=Math.abs(y-(c+r*.95));S<x&&(x=S,p=y)}o.push(p)}const u=[];for(let f=0;f<e;f++){if(xt(u,{kind:"pad",b:o[f],r:0,w:1,h:1,pad:"yellow"}),f===0)continue;const c=o[f]-Nt+a.c0,p=o[f]-Nt+a.c1;for(const x of g)x<Math.max(c,o[f]+1.2)||x>p||f+1<e&&x>o[f+1]-1.4||xt(u,{kind:"spike",b:x,r:0,w:1,h:1})}const d=o[o.length-1]-Nt+r;return{objs:u,x:m,end:Vt(d,t),land:d}}function $i(m,g,t,l,v,h){const a=g.from+12,r=g.to-8;let e=Math.max(h.lastHit,-1e9),i=-1e9,n=-1e9,s=!1,o=0;for(;o<t.length;){const u=t[o];if(u<a){o++;continue}if(u>r)break;if(u<e){o++;continue}!s&&u-i>34&&u+16<r&&l()<.18&&(s=!0);let d=0;for(let y=o;y<t.length&&t[y]<u+17;y++)d++;const f=d>=6||l()<.15+.25*g.difficulty,c=u-n>38&&u+26<r;if(f&&c)if(u-e>4){const y=Ji(u,t,g.speed,l,g.difficulty);if(y.end<r){for(const S of y.objs)xt(m,S);for(n=y.x,e=y.end;o<t.length&&t[o]<y.end;)o++;continue}}else{o++;continue}if(s)if(u-e>6){const y=Qi(u,3,g.speed,v);if(y.end<r){for(const S of y.objs)xt(m,S);for(i=u,e=y.end,s=!1;o<t.length&&t[o]<y.end;)o++;continue}s=!1}else{o++;continue}const x=l()<.22+.45*g.difficulty?Zi(u,t,g.speed,l()<.45?2:1):Ki(u,l()<.3,g.speed);if(x.end>r)break;for(const y of x.objs)xt(m,y);for(e=x.end;o<t.length&&t[o]<x.end;)o++}h.lastHit=e}function ji(m,g,t,l){const v=g.from+10,h=g.to-6,a=2*(ci.period*Wt(g.speed));let r=1+Math.floor(t()*2);for(let e=v;e<h;e+=a){const i=Math.min(a,h-e),n=3+(t()<.35?1:0);t()<.55&&(r=Math.max(1,Math.min(Jt-n-1,r+(t()<.5?1:-1))));for(let s=0;s<Jt;s++)s>=r&&s<r+n||xt(m,{kind:"block",b:e,r:s,w:i,h:1})}l.lastHit=h}const ki=[{t0:0,t1:28.5,mode:"cube",speed:1,difficulty:.22,label:"ST-01 复盘"},{t0:28.5,t1:33.5,mode:"cube",speed:1,difficulty:.05},{t0:33.5,t1:58,mode:"ship",speed:1,difficulty:.3,label:"ST-02 求助"},{t0:58,t1:82,mode:"cube",speed:1,difficulty:.4},{t0:82,t1:105,mode:"cube",speed:2,difficulty:.55,label:"ST-03 呼吸"},{t0:105,t1:156.76,mode:"cube",speed:1,difficulty:.65,label:"ST-04 继续"}];function qi(m){let g=0;return m.map(t=>{const l={from:g,to:g+(t.t1-t.t0)*Wt(t.speed),t0:t.t0,t1:t.t1,mode:t.mode,speed:t.speed,difficulty:t.difficulty,label:t.label};return g=l.to,l})}function _i(m={}){const g=m.seed==null?20260913:m.seed,t=m.beats??ci,l=Yi(g),v=qi(m.specs??ki),h=v[v.length-1].to,a=[],r=[],e={lastHit:-1e9};for(const n of v){xt(a,{kind:"speed",b:n.from,r:6,w:1,h:1,speed:n.speed}),xt(a,{kind:"portal",b:n.from+.25,r:3,w:1,h:1,to:n.mode});const s=t.beats.filter(o=>o>=(n.t0??0)&&o<(n.t1??0)).map(o=>Ui(n,o));n.mode==="cube"?$i(a,n,s,l,r,e):ji(a,n,l,e),n.label&&xt(a,{kind:"deco",b:n.from+13,r:7,w:5,h:1,deco:"text",text:n.label})}r.sort((n,s)=>n[0]-s[0]);let i=0;for(const n of r)n[0]>i&&xt(a,{kind:"platform",b:i,r:-1,w:n[0]-i,h:1}),i=Math.max(i,n[1]);i<h&&xt(a,{kind:"platform",b:i,r:-1,w:h-i,h:1}),xt(a,{kind:"check",b:gi(a,2,6),r:0,w:1,h:1});for(const n of v)for(let s=n.from+14;s<n.to-12;s+=120)xt(a,{kind:"check",b:gi(a,s,6),r:0,w:1,h:1});return xt(a,{kind:"deco",b:h-8,r:0,w:1,h:1,deco:"light"}),a.sort((n,s)=>n.b-s.b||n.r-s.r),{name:"lost-beat-"+g,rows:Jt,length:h,segments:v,objects:a,song:t.song,songOffset:0,beats:t.beats}}function gi(m,g,t){const l=v=>m.some(h=>(h.kind==="spike"||h.kind==="block"||h.kind==="orb"||h.kind==="pit"||h.kind==="pad")&&v+t>h.b&&v-t<h.b+h.w);for(let v=0;v<=14;v+=.5){if(!l(g+v))return g+v;if(v>0&&!l(g-v))return g-v}return g}const tr=.05,Tt={spike:{1:[6,12],"1.5":[12,21],"0.5":[6,5.6],"0.25":[4,7.6],"0.0625":[2.6,4.8]},pad:{yellow:[25,4],blue:[25,6],purple:[25,5],red:[29,7],pink:[25,5]},orb:[36,36],arrow:[36,36],coin:[40,40],portal:[34,86],gravity:[25,75],size:[31,90],speed:{0:[35,44],1:[33,56],2:[51,56],3:[65,56],4:[69,56]},teleport:[25,90],check:[30,30],block:[30,30]},xi={88:32.3,89:21.6,98:12,183:15.48,184:20.4,185:3,186:32.3,187:21.96,188:12.6,397:28.9,398:17.6,399:12.9,675:32,676:17.68,677:12.48,678:30.4,679:18.72,680:10.8,740:32.3,741:21.96,742:12.6,918:24,1582:4,1583:4,1619:25,1620:15,1701:6,1702:6,1703:6,1705:32.3,1706:21.6,1707:12,1708:28.9,1709:17.6,1710:12.9,1734:32,1735:17.68,1736:12.48};function er(m){return m==null?null:xi[m]??null}const ir={teleport:[-.5,-45]},rr={8:[6,12],39:[6,5.6],103:[4,7.6],392:[2.6,4.8]};function sr(m){let g=null,t=1/0;for(const[l,v]of Object.entries(Tt.spike)){const h=Math.abs(Number(l)-m);h<t&&(t=h,g=v)}return t<=Math.max(.02,m*.2)?g:null}function nr(m){switch(m.kind){case"spike":return(m.id!=null?rr[m.id]:void 0)??sr(m.h);case"pad":return Tt.pad[m.pad??"yellow"]??null;case"orb":return Tt.orb;case"arrow":return Tt.arrow;case"saw":return null;case"coin":return Tt.coin;case"portal":return Tt.portal;case"gravity":return Tt.gravity;case"size":return Tt.size;case"speed":return Tt.speed[m.speed??1]??null;case"teleport":return Tt.teleport;case"check":return Tt.check;case"frame":return null;case"block":case"breakable":return Tt.block;default:return null}}function ar(m){const g=m.b*Z,t=(m.b+m.w)*Z,l=m.r*Z,v=(m.r+m.h)*Z;if(!m.frame||m.frame==="edge"||m.frame==="box")return[{x0:g,x1:t,y0:l,y1:v}];const h=m.frame==="corner"?["N","W"]:["N","W","S"],a=["N","E","S","W"],r=(Math.round((m.rot??0)/90)%4+4)%4,e=tr*Z;return h.map(i=>{const n=a[(a.indexOf(i)+r)%4];return n==="N"?{x0:g,x1:t,y0:v-e,y1:v}:n==="S"?{x0:g,x1:t,y0:l,y1:l+e}:n==="W"?{x0:g,x1:g+e,y0:l,y1:v}:{x0:t-e,x1:t,y0:l,y1:v}})}const yi={83:{kind:"block",note:"砖块(主力,3779 个)"},1:{kind:"block",note:"基础方块(误放 2 个)"},143:{kind:"breakable",note:"可破坏砖块(撞到即碎,不能当实心否则必死)"},468:{kind:"frame",frame:"edge",note:"单边线框(细杆;rot 0=上边 90=右边 180=下边 270=左边)。原版表 468 = 30×1.5,和我们的包围盒一致"},469:{kind:"frame",frame:"corner",note:"邻边线框(L 形贴图;★ 原版表给的是【整格 30×30】,判定按整格实心)"},470:{kind:"frame",frame:"u",note:"三边线框(U 形贴图;★ 原版表同样是【整格 30×30】实心)"},467:{kind:"frame",frame:"u",note:"(未在本关出现)整格线框,原版表 30×30"},471:{kind:"frame",frame:"u",note:"(未在本关出现)整格线框,原版表 30×30"},475:{kind:"frame",frame:"edge",note:"(未在本关出现)单边线框,原版表 30×1.5"},662:{kind:"frame",frame:"box",w:1,h:.5,note:"半格线框块(1×0.5,实心)"},661:{kind:"frame",frame:"corner",w:.5,h:.5,note:"小线框方块(半格;原版表 15×15,判定按整块实心)"},8:{kind:"spike",note:"普通尖刺"},39:{kind:"spike",h:.5,note:"矮刺(1/2)"},103:{kind:"spike",h:.25,note:"小刺(1/4)"},392:{kind:"spike",h:.0625,note:"迷你刺(1/16)"},1704:{kind:"saw",w:36/30,h:36/30,scaled:!0,note:"小锯片(基础 1.2×1.2 格,再乘缩放)"},1705:{kind:"saw",w:44/30,h:85/30,scaled:!0,note:"大锯片(基础 1.47×2.83 格,再乘缩放;本关 550 个)"},1706:{kind:"saw",w:2,h:2,scaled:!0,note:"圆锯(基础 2×2 格,再乘缩放)"},36:{kind:"orb",orb:"yellow",note:"黄色跳环"},141:{kind:"orb",orb:"pink",dash:"pink",col:13017343,note:"★冲刺环(粉):进入 dash 状态,不是跳环"},1022:{kind:"orb",orb:"green",dash:"green",note:"★冲刺环(绿):进入 dash 状态,不是跳环"},84:{kind:"orb",orb:"blue",note:"蓝色跳环(翻重力)"},1330:{kind:"orb",orb:"black",note:"黑色冲刺环"},67:{kind:"pad",pad:"blue",h:.2,note:"蓝色地面跳点"},35:{kind:"pad",pad:"yellow",h:.2,note:"黄色地面跳点"},140:{kind:"pad",pad:"pink",h:.2,note:"粉色地面跳点(小跳 —— 低走廊用)"},3005:{kind:"pad",pad:"purple",h:.2,tp:!0,note:"紫色地面跳点(瞬移到头顶方块 + 翻重力)"},1704:{kind:"arrow",arrow:"green",note:"绿色冲刺箭头(长按给冲量,不改重力)"},1751:{kind:"arrow",arrow:"pink",note:"粉色冲刺箭头(长按 + 翻重力)"},3004:{kind:"arrow",arrow:"purple",tp:!0,note:"紫色上跳箭头(瞬移到头顶方块 + 翻重力)"},12:{kind:"portal",to:"cube",note:"方块形态门"},13:{kind:"portal",to:"ship",note:"飞机形态门"},47:{kind:"portal",to:"ball",note:"球形态门"},111:{kind:"portal",to:"ufo",note:"UFO 形态门"},660:{kind:"portal",to:"wave",note:"波浪形态门"},745:{kind:"portal",to:"robot",note:"机器人形态门"},1331:{kind:"portal",to:"spider",note:"蜘蛛形态门"},10:{kind:"gravity",gdir:1,note:"重力门(向下 = 常重力)"},11:{kind:"gravity",gdir:-1,note:"重力门(向上 = 反重力)"},99:{kind:"size",mini:!1,note:"恢复大小门"},101:{kind:"size",mini:!0,note:"缩小门"},200:{kind:"speed",speed:0,note:"速度门(降档)"},201:{kind:"speed",speed:1,note:"速度门(一档)"},202:{kind:"speed",speed:2,note:"速度门(二档)"},203:{kind:"speed",speed:3,note:"速度门(三档)"},1334:{kind:"speed",speed:4,note:"速度门(四档)"},747:{kind:"teleport",note:"传送门入口(蓝)。原版要配 748 出口;这关只有入口 → 不生效(见文档)"},748:{kind:"teleport",exit:!0,note:"传送门出口(橙)"},286:{kind:"clone",inert:!0,note:"克隆门(先只标记,不做克隆)"},287:{kind:"clone",inert:!0,note:"克隆回收门(先只标记)"},2063:{kind:"check",note:"存档点"},1329:{kind:"coin",note:"硬币(收集)"},3638:{kind:"deco",art:3638,note:'黑色背景块(用户拿它做"画面逐渐清晰"的遮罩)'},3810:{kind:"deco",art:3810,note:"感叹号"},3812:{kind:"deco",art:3812,note:"箭头"},3823:{kind:"deco",art:3823,note:"笑脸"},3818:{kind:"deco",art:3818,note:"叉"},3848:{kind:"deco",art:3848,note:"点赞"},41:{kind:"deco",art:41,note:"锁链"},106:{kind:"deco",art:106,note:"锁链(长)"},1007:{kind:"deco",art:1007,inert:!0,note:"不明占位(1 个)"}},or={B:"block",S:"spike",W:"saw",P:"platform",C:"check",R:"portal",V:"speed",G:"gravity",O:"orb",D:"pad",Y:"force",T:"teleport",Z:"size",X:"breakable",N:"coin",A:"arrow",E:"deco",K:"clone",H:"frame"};function hr(m){const g=[];for(const t of m.split(`
+`)){const l=t.trim();if(!l||l.startsWith("#"))continue;const v=l.split(/\s+/),h=or[v[0]];if(!h)continue;const a={kind:h,b:Number(v[1]),r:Number(v[2]),w:1,h:1};let r=3;for(v[3]!=null&&!v[3].includes("=")&&(a.w=Number(v[3]),r=4),v[4]!=null&&!v[4].includes("=")&&(a.h=Number(v[4]),r=5);r<v.length;r++){const[e,i]=v[r].split("=");switch(e){case"to":a.to=i;break;case"orb":a.orb=i;break;case"dash":a.dash=i;break;case"pad":a.pad=i;break;case"spd":a.speed=Number(i);break;case"gd":a.gdir=Number(i);break;case"rot":a.rot=Number(i);break;case"fx":a.flipX=!0;break;case"fy":a.flipY=!0;break;case"fm":a.frame=i;break;case"ar":a.arrow=i;break;case"art":a.art=Number(i);break;case"tp":a.tp=!0;break;case"inert":a.inert=!0;break;case"exit":a.exit=!0;break;case"tpy":a.tpy=Number(i);break;case"mini":a.mini=i==="1";break;case"id":{a.id=Number(i);const n=xi[a.id];if(n!=null){const s=yi[a.id],o=s?.w?a.w/s.w:1,u=s?.h?a.h/s.h:1;a.rad0=n,a.rad=n*(Math.abs(o)+Math.abs(u))/2}break}case"col":a.col=Number(i);break;case"z":a.z=Number(i);break;case"g":a.groups=i.split(".").map(Number);break}}g.push(a)}return g}function lr(m,g){return{name:m.name,rows:m.rows,length:m.length,segments:m.segments.map(t=>({...t,difficulty:t.difficulty??0})),objects:hr(g),song:m.song,songOffset:m.songOffset??0,start:m.start,fromGD:!0}}const fr=1.2,ur=.5,dr={dx:0,dy:0},vr=new Set(["portal","gravity","speed","size"]),qt=4,Yt=1/60;class Gt{constructor(g,t,l,v){this.solids=[],this.frames=[],this.breakables=[],this.broken=new Set,this.coins=[],this.gotCoins=new Set,this.arrows=[],this.clones=[],this.floors=[],this.hazards=[],this.circles=[],this.portals=[],this.speeds=[],this.gravs=[],this.checks=[],this.orbs=[],this.pads=[],this.forces=[],this.pits=[],this.triggers=[],this.sizes=[],this.teleports=[],this.movables=[],this.byGroup=new Map,this.anims=[],this.tint=null,this.tintGround=!1,this.flash=0,this.decos=[],this.tick=0,this.x=0,this.y=0,this.vy=0,this.onGround=!0,this.mode="cube",this.gdir=1,this.flipMul=ur,this.sawUnscaled=!1,this.hazBoxIsOuter=!0,this.flySolid=!1,this.traceSolid=!1,this.doorByX=!0,this.solidTrace=[],this.speedIdx=1,this.dead=!1,this.done=!1,this.deadT=0,this.attempts=1,this.checkX=0,this.checkY=0,this.checkMode="cube",this.checkSize=1,this.checkSpeed=1,this.checkGdir=1,this.portalY=0,this.strict=!1,this.pressFresh=!1,this.pressAux=!1,this.tpFailed=!1,this.prevHold=!1,this.floatT=0,this.armedChecks=new Set,this.armedPortals=new Set,this.armedSpeeds=new Set,this.armedSizes=new Set,this.armedGravs=new Set,this.armedOrbs=new Set,this.armedPads=new Set,this.armedArrows=new Set,this.armedTriggers=new Set,this.movableOf=new Map,this.idx=null,this.win={},this.fast=!1,this.dash=null,this.sizeMul=1,this.padMul=1,this.boostDir=0,this.frameY0=0,this.handledPortals=new Set,this.snapObj=null,this.snapDist=0,this.god=!1,this.level=g,this.sawUnscaled=!!v?.sawUnscaled,this.hazBoxIsOuter=!!v?.hazOuter,this.flySolid=v?.flySolid??!!g.fromGD;const h=g.start;t==null&&(t=(h?.b??0)*Z),l==null&&(l=(h?.r??0)*Z),this.strict=!!g.fromGD;const a=e=>{const i=nr(e);if(!i)return null;let[n,s]=i;const o=((e.rot??0)%360+360)%360;if(o===90||o===270){const c=n;n=s,s=c}const u=(e.b+e.w/2)*Z,d=(e.r+e.h/2)*Z,f=ir[e.kind]??[-n/2,-s/2];return{x0:u+f[0],x1:u+f[0]+n,y0:d+f[1],y1:d+f[1]+s,o:e}};for(const e of g.objects){const i={x0:e.b*Z,x1:(e.b+e.w)*Z,y0:e.r*Z,y1:(e.r+e.h)*Z,o:e};switch(e.kind){case"block":this.solids.push(i);break;case"frame":{this.frames.push(i),this.solids.push(i);break}case"breakable":this.breakables.push(i),this.solids.push(i);break;case"coin":this.coins.push(a(e)??i);break;case"arrow":this.arrows.push(a(e)??i);break;case"clone":this.clones.push(i);break;case"platform":{this.floors.push(i);break}case"spike":{this.hazards.push(a(e)??i);break}case"saw":{const n=(e.b+e.w/2)*Z,s=(e.r+e.h/2)*Z;let o=e.rad0??null,u=e.rad??null;if(o==null&&e.id!=null&&(o=er(e.id),o!=null)){const d=yi[e.id],f=d?.w?e.w/d.w:1,c=d?.h?e.h/d.h:1;u=o*(Math.abs(f)+Math.abs(c))/2}if(o!=null||u!=null){const d=this.sawUnscaled?o??u:u??o;this.circles.push({cx:n,cy:s,r:d,o:e,box:{x0:n-d,x1:n+d,y0:s-d,y1:s+d,o:e}});break}this.hazards.push(i);break}case"portal":this.portals.push(a(e)??i);break;case"speed":this.speeds.push(a(e)??i);break;case"gravity":this.gravs.push(a(e)??i);break;case"check":this.checks.push(a(e)??i);break;case"orb":{this.orbs.push(a(e)??i);break}case"pad":{this.pads.push(a(e)??i);break}case"force":this.forces.push(i);break;case"pit":this.pits.push(i);break;case"trigger":this.triggers.push(i);break;case"size":this.sizes.push(a(e)??i);break;case"teleport":this.teleports.push(a(e)??i);break;case"deco":this.decos.push(e);break}}this.reset(t,"cube",l),this.checkX=t,this.checkY=l,this.checkMode="cube",this.checkSize=1,this.checkSpeed=this.speedIdx,this.checkGdir=this.gdir;const r=new Map;for(const e of[this.solids,this.floors,this.hazards,this.orbs,this.pads,this.forces,this.pits,this.coins,this.arrows,this.circles.map(i=>i.box)])for(const i of e){const n=r.get(i.o);n?n.push(i):r.set(i.o,[i])}for(const e of g.objects){if(!e.groups||!e.groups.length)continue;const i=r.get(e)??[],n=i.length?i.map(s=>({o:e,box:s,bx0:s.x0,bx1:s.x1,by0:s.y0,by1:s.y1,dx:0,dy:0})):[{o:e,box:null,bx0:e.b*Z,bx1:(e.b+e.w)*Z,by0:e.r*Z,by1:(e.r+e.h)*Z,dx:0,dy:0}];for(const s of n){this.movables.push(s),this.movableOf.set(e,s);for(const o of e.groups){const u=this.byGroup.get(o);u?u.push(s):this.byGroup.set(o,[s])}}}}get isFlyMode(){return this.mode==="ship"||this.mode==="ufo"||this.mode==="wave"}offsetOf(g){const t=this.movableOf.get(g);return t?{dx:t.dx,dy:t.dy}:dr}set windowed(g){if(g&&this.movables.some(t=>t.box))throw new Error("有会动的判定盒(触发器),不能用窗口裁剪");if(g&&!this.idx){this.idx={solids:new Mt(this.solids),floors:new Mt(this.floors),hazards:new Mt(this.hazards),pads:new Mt(this.pads),orbs:new Mt(this.orbs),coins:new Mt(this.coins),arrows:new Mt(this.arrows),circles:new Mt(this.circles.map(t=>t.box))};for(const t of Object.keys(this.idx))this.win[t]=[]}this.fast=g}get isWindowed(){return this.fast}get nearSolids(){return this.fast?this.win.solids:this.solids}get nearFloors(){return this.fast?this.win.floors:this.floors}get nearHazards(){return this.fast?this.win.hazards:this.hazards}get nearPads(){return this.fast?this.win.pads:this.pads}get nearOrbs(){return this.fast?this.win.orbs:this.orbs}get nearCoins(){return this.fast?this.win.coins:this.coins}get nearArrows(){return this.fast?this.win.arrows:this.arrows}get nearCircles(){return this.fast?this.win.circles:this.circles.map(g=>g.box)}rebuildWindow(){const g=this.idx;if(!g)return;const t=this.x-6*Z,l=this.x+45*Z;for(const v of Object.keys(g))g[v].near(t,l,this.win[v])}snapshot(){return{tick:this.tick,x:this.x,y:this.y,vy:this.vy,onGround:this.onGround,mode:this.mode,gdir:this.gdir,speedIdx:this.speedIdx,dead:this.dead,done:this.done,deadT:this.deadT,attempts:this.attempts,checkX:this.checkX,checkY:this.checkY,checkMode:this.checkMode,checkSize:this.checkSize,pressFresh:this.pressFresh,prevHold:this.prevHold,floatT:this.floatT,sizeMul:this.sizeMul,boostDir:this.boostDir,tint:this.tint,tintGround:this.tintGround,flash:this.flash,dash:this.dash?{...this.dash}:null,snapObj:this.snapObj,snapDist:this.snapDist,sets:[[...this.armedChecks],[...this.armedPortals],[...this.armedSpeeds],[...this.armedSizes],[...this.armedGravs],[...this.armedOrbs],[...this.armedPads],[...this.armedArrows],[...this.armedTriggers],[...this.broken],[...this.gotCoins],[...this.handledPortals]]}}restore(g){this.tick=g.tick,this.x=g.x,this.y=g.y,this.vy=g.vy,this.onGround=g.onGround,this.mode=g.mode,this.gdir=g.gdir,this.speedIdx=g.speedIdx,this.dead=g.dead,this.done=g.done,this.deadT=g.deadT,this.attempts=g.attempts,this.checkX=g.checkX,this.checkY=g.checkY,this.checkMode=g.checkMode,this.checkSize=g.checkSize,this.pressFresh=g.pressFresh,this.prevHold=g.prevHold,this.floatT=g.floatT,this.sizeMul=g.sizeMul,this.boostDir=g.boostDir,this.tint=g.tint,this.tintGround=g.tintGround,this.flash=g.flash,this.dash=g.dash?{...g.dash}:null,this.snapObj=g.snapObj,this.snapDist=g.snapDist;const[t,l,v,h,a,r,e,i,n,s,o,u]=g.sets;this.armedChecks=new Set(t),this.armedPortals=new Set(l),this.armedSpeeds=new Set(v),this.armedSizes=new Set(h),this.armedGravs=new Set(a),this.armedOrbs=new Set(r),this.armedPads=new Set(e),this.armedArrows=new Set(i),this.armedTriggers=new Set(n),this.broken.clear();for(const d of s)this.broken.add(d);this.gotCoins.clear();for(const d of o)this.gotCoins.add(d);this.handledPortals.clear();for(const d of u??[])this.handledPortals.add(d)}isBroken(g){for(const t of this.breakables)if(t.o===g)return this.broken.has(t);return!1}isCoinTaken(g){for(const t of this.coins)if(t.o===g)return this.gotCoins.has(t);return!1}syncBoxes(){for(const g of this.movables){const t=g.box;t&&(t.x0=g.bx0+g.dx*Z,t.x1=g.bx1+g.dx*Z,t.y0=g.by0+g.dy*Z,t.y1=g.by1+g.dy*Z)}}fire(g){const t=g.groups??[],l=[];for(const h of t)for(const a of this.byGroup.get(h)??[])l.includes(a)||l.push(a);const v=Math.max(1,Math.round((g.dur??0)*60));g.trigger==="move"&&l.length?this.anims.push({ms:l,from:l.map(h=>({dx:h.dx,dy:h.dy})),dx:g.dx??0,dy:g.dy??0,t:0,dur:v,ease:g.ease??"sine",loop:!!g.loop,dir:1,rest:0}):g.trigger==="color"?(this.tint=g.color??null,this.tintGround=(g.dx??0)>0):g.trigger==="pulse"&&(this.flash=1,g.color!=null&&(this.tint=g.color))}stepAnims(){if(this.flash>0&&(this.flash=Math.max(0,this.flash-.08)),!this.anims.length)return;const g=[];let t=!1;for(const l of this.anims){if(l.dur<=0){for(let r=0;r<l.ms.length;r++)l.ms[r].dx=l.from[r].dx+l.dx,l.ms[r].dy=l.from[r].dy+l.dy;t=!0;continue}if(l.rest>0){l.rest--,g.push(l);continue}l.t+=1;const v=Math.min(1,l.t/l.dur),h=l.ease==="sine"?(1-Math.cos(Math.PI*v))/2:v,a=l.dir>0?h:1-h;for(let r=0;r<l.ms.length;r++)l.ms[r].dx=l.from[r].dx+l.dx*a,l.ms[r].dy=l.from[r].dy+l.dy*a;t=!0,v>=1?l.loop&&(l.dir=-l.dir,l.t=0,l.rest=20,g.push(l)):g.push(l)}this.anims=g,t&&this.syncBoxes()}get vx(){return It(this.speedIdx)}get rows(){return this.level.rows}get box(){return ot.box*this.sizeMul}get innerOff(){return ot.innerOff*this.sizeMul}get innerSize(){return ot.inner*this.sizeMul}get mini(){return this.sizeMul<.999}inner(){const g=this.innerOff;return{x0:this.x+g,x1:this.x+g+this.innerSize,y0:this.y+g,y1:this.y+g+this.innerSize}}outer(){return{x0:this.x,x1:this.x+this.box,y0:this.y,y1:this.y+this.box}}reset(g,t,l=0){this.tick=0,this.x=g,this.y=l,this.vy=0,this.onGround=!0,this.portalY=l,this.mode=t,this.gdir=this.checkGdir,this.speedIdx=this.checkSpeed,this.sizeMul=this.checkSize,this.dead=!1,this.done=!1,this.deadT=0,this.pressFresh=!1,this.prevHold=!1,this.pressAux=!1,this.tpFailed=!1,this.boostDir=0,this.armedChecks.clear(),this.armedPortals.clear(),this.armedSpeeds.clear(),this.armedGravs.clear(),this.armedOrbs.clear(),this.armedPads.clear(),this.armedTriggers.clear(),this.armedSizes.clear(),this.armedArrows.clear(),this.broken.clear(),this.gotCoins.clear(),this.handledPortals.clear(),this.dash=null,this.snapObj=null,this.snapDist=0,this.anims=[],this.flash=0,this.tint=null,this.tintGround=!1;for(const v of this.movables)v.dx=0,v.dy=0;this.syncBoxes()}respawn(){this.attempts++,this.reset(this.checkX,this.checkMode,this.checkY)}resetToStart(){const g=this.level.start;this.checkX=(g?.b??0)*Z,this.checkY=(g?.r??0)*Z,this.checkMode="cube",this.checkSize=1,this.reset(this.checkX,"cube",this.checkY)}get progress(){return Math.max(0,Math.min(1,this.x/(this.level.length*Z)))}floorTopAt(g,t){let l=null;for(const v of this.nearFloors)g<v.x0||g>v.x1||v.y1<=t+.001&&(l===null||v.y1>l)&&(l=v.y1);return l}frame(g){if(g&&!this.prevHold&&(this.pressFresh=!0,this.pressAux=!1),this.prevHold=g,this.tpFailed=!1,this.dead||this.done){this.deadT+=Yt;return}if(this.god){const r=this.rows*Z-this.box;this.y>r&&(this.y=r,this.vy>0&&(this.vy=0)),this.y<0&&(this.y=0,this.vy<0&&(this.vy=0),this.onGround=!1);const e=this.level.length*Z;this.x<-2*Z?this.x=-2*Z:this.x>e+2*Z&&(this.x=e+2*Z)}this.fast&&this.rebuildWindow(),this.stepAnims();const t=Math.abs(this.vy)*At,l=Math.abs(It(this.speedIdx)),v=Math.max(t,l)/fr,h=v>qt?Math.min(qt*8,Math.ceil(v)):qt,a=Yt/h;this.frameY0=this.y;for(let r=0;r<h;r++)this.substep(a,g);this.tick++}applyFallClamp(){if(this.boostDir!==0)if(Math.sign(this.vy)!==this.boostDir)this.boostDir=0;else return;this.vy*this.gdir<0&&(this.vy=Math.max(-15,Math.min(ot.vyMax,this.vy)))}checkSnapJumpToObject(g){if(this.mode!=="cube")return;const t=g.b*Z,l=g.r*Z,v=this.x,h=this.snapObj;if(h&&h!==g){const a=ot.speedMul[this.speedIdx]??1.1,r=!this.mini;let e,i,n,s;a===.9?(e=1,i=90,n=150,s=r?120:90):a===.7?(e=1,i=60,n=120,s=90):a===1.1?(e=2,i=120,n=195,s=r?150:90):a===1.3?(e=2,i=135,n=225,s=90):r?(e=2,i=135,n=225,s=180):(e=1,i=90,n=150,s=120);const o=this.gdir*30,u=t-h.b*Z,d=l-h.r*Z;if(Math.abs(u-s)<=e&&Math.abs(d-o)<=e||Math.abs(u-n)<=e&&Math.abs(d+o)<=e||Math.abs(u-i)<=e&&Math.abs(d-o*2)<=e){let f=t+this.snapDist;Math.abs(f-v)>e&&(f=f<=v?v-e:v+e),this.x=f}}this.snapObj=g,this.snapDist=v-t}substep(g,t){const l=g*60,v=l*At,h=this.x,a=this.y;if(this.vy,this.x+=this.vx*l,this.dash){const r=this.dash;r.t+=Yt/4;const e=cr(r.ang);if(this.x+=this.vx*v,this.vy=Math.abs(this.vx)*e.y,this.y+=this.vy*(v/At),t||(this.dash=null),this.y<0)if(this.floors.find(n=>this.x+this.box>n.x0&&this.x<n.x1))this.y=0,this.vy=0,this.onGround=!0;else{this.die();return}if(this.y+this.box>this.rows*Z){this.die();return}this.onGround=!1}else if(this.mode==="ship"){const r=this.vy*this.gdir<0,e=t?-1:r?.8:1.2,i=t&&r?.5:.4,n=this.mini?.85:1;if(this.vy-=ot.gravity*this.gdir*e*i/n*v,this.vy=Math.max(ot.flyDownMax/n,Math.min(ot.flyUpMax/n,this.vy)),this.y+=this.vy*v,this.y<0)if(this.floors.find(o=>this.x+this.box>o.x0&&this.x<o.x1))this.y=0,this.vy=0,this.onGround=!0;else{this.die();return}if(this.y+this.box>this.rows*Z){this.die();return}}else if(this.mode==="wave"){if(this.vy=(t?1:-1)*this.vx*this.gdir*(this.mini?2:1),this.y+=this.vy*(v/At),this.y<0)if(this.floors.find(e=>this.x+this.box>e.x0&&this.x<e.x1))this.y=0,this.vy=0,this.onGround=!0;else{this.die();return}if(this.y+this.box>this.rows*Z){this.die();return}}else if(this.mode==="ufo"){const r=this.mini?.85:1;t&&this.pressFresh&&(this.pressFresh=!1,this.pressAux=!0,this.vy=this.gdir*(this.mini?8:7)*r);const e=this.vy*this.gdir<0;if(this.vy-=ot.gravity*this.gdir*(e?.8:1.2)*.5/r*v,this.vy=Math.max(ot.flyDownMax/r,Math.min(ot.flyUpMax/r,this.vy)),this.y+=this.vy*v,this.y<0)if(this.floors.find(n=>this.x+this.box>n.x0&&this.x<n.x1))this.y=0,this.vy=0,this.onGround=!0;else{this.die();return}if(this.y+this.box>this.rows*Z){this.die();return}}else if(this.mode==="ball"){const r=this.mini?.8:1;t&&this.pressFresh&&this.onGround&&(this.pressFresh=!1,this.vy=ot.jump*r*this.gdir,this.gdir=-this.gdir,this.vy*=this.flipMul,this.vy*=ot.ballFlipVelMul,this.onGround=!1),this.vy-=ot.gravity*ot.ballGravityMul*this.gdir*v,this.applyFallClamp(),this.y+=this.vy*v}else if(this.mode==="spider")t&&this.pressFresh&&(this.spiderJump(),this.pressFresh=!1),this.vy-=ot.gravity*ot.ballGravityMul*this.gdir*v,this.applyFallClamp(),this.y+=this.vy*v;else{if(t&&this.onGround){const r=this.mode==="robot"?$t(this.speedIdx)*ot.robotJumpMul:$t(this.speedIdx);this.vy=r*this.gdir,this.onGround=!1,this.pressFresh=!1,this.mode==="robot"&&(this.floatT=0)}this.mode==="robot"?(this.floatT+=Yt/4,t&&!this.onGround&&this.floatT<ot.robotFloat||(this.vy-=vi(this.speedIdx)*ot.robotGravityMul*this.gdir*v)):this.vy-=vi(this.speedIdx)*this.gdir*v,this.applyFallClamp(),this.y+=this.vy*v}if(this.mode!=="ship"&&this.mode!=="ufo"&&this.mode!=="wave"){const r=this.y+this.box,e=a+this.box;let i=null,n=null;const s=(u,d)=>i===null||u>i||Math.abs(u-i)<1e-9&&n!==null&&d.x0<n.x0;if(this.gdir>0){for(const u of this.nearFloors)this.x+this.box<=u.x0||this.x>=u.x1||a>=u.y1-.01&&this.y<=u.y1&&s(u.y1,u)&&(i=u.y1,n=u);for(const u of this.nearSolids)this.x+this.box<=u.x0||this.x>=u.x1||a>=u.y1-.01&&this.y<=u.y1&&s(u.y1,u)&&(i=u.y1,n=u);if(i!==null&&this.vy<=0?(this.y=i,this.vy=0,this.onGround=!0,n&&this.checkSnapJumpToObject(n.o)):this.onGround=!1,this.y<-2.5*Z){this.die();return}}else{let u=null,d=null;const f=(c,p)=>u===null||c<u||Math.abs(c-u)<1e-9&&d!==null&&p.x0<d.x0;for(const c of this.nearFloors)this.x+this.box<=c.x0||this.x>=c.x1||e<=c.y0+.01&&r>=c.y0&&f(c.y0,c)&&(u=c.y0,d=c);for(const c of this.nearSolids)this.x+this.box<=c.x0||this.x>=c.x1||e<=c.y0+.01&&r>=c.y0&&f(c.y0,c)&&(u=c.y0,d=c);if(u!==null&&this.vy>=0?(this.y=u-this.box,this.vy=0,this.onGround=!0,d&&this.checkSnapJumpToObject(d.o)):this.onGround=!1,this.y+this.box>this.rows*Z+2.5*Z){this.die();return}}const o=this.inner();for(const u of this.nearSolids){if(this.traceSolid&&u.o.kind==="frame"&&this.solidTrace.push("x-overlap y="+(this.y/Z).toFixed(3)+" mode="+this.mode+" box y["+(u.y0/Z).toFixed(3)+","+(u.y1/Z).toFixed(3)+"] innY["+(o.y0/Z).toFixed(3)+","+(o.y1/Z).toFixed(3)+"] yOverlap="+(o.y1>u.y0&&o.y0<u.y1)),u.o.kind==="breakable"){if(this.broken.has(u)||o.x1<=u.x0||o.x0>=u.x1||o.y1<=u.y0||o.y0>=u.y1)continue;this.broken.add(u);continue}if(o.x1<=u.x0||o.x0>=u.x1||o.y1<=u.y0||o.y0>=u.y1)continue;const d=this.mode==="ship"||this.mode==="ufo"||this.mode==="wave"?6:this.mini?10:15,f=Math.max(this.y,this.frameY0)+d,c=Math.min(this.y+this.box,this.frameY0+this.box)-d,p=f>=u.y1,x=c<=u.y0;if(this.traceSolid&&this.solidTrace.push("sub y="+(this.y/Z).toFixed(3)+" vy="+(this.vy/Z).toFixed(3)+" mode="+this.mode+" box x["+(u.x0/Z).toFixed(3)+","+(u.x1/Z).toFixed(3)+"] y["+(u.y0/Z).toFixed(3)+","+(u.y1/Z).toFixed(3)+"] reachDown="+(f/Z).toFixed(3)+" clearTop="+p+" reachUp="+(c/Z).toFixed(3)+" clearBot="+x+" prevY="+(a/Z).toFixed(3)+" gdir="+this.gdir+" fly="+(this.flySolid&&this.isFlyMode)),this.flySolid&&this.isFlyMode){if(p){this.y=u.y1,this.vy=0,this.onGround=!0;continue}if(x)continue;this.die();return}if(this.vy<=0&&p){this.y=u.y1,this.vy=0,this.onGround=!0;continue}if(this.vy>=0&&x){this.gdir<0&&(this.y=u.y0-this.box,this.vy=0,this.onGround=!0);continue}if(!(this.gdir>0&&a>=u.y1-.01&&this.y<=u.y1)&&!(this.gdir<0&&e<=u.y0+.01&&r>=u.y0)){this.die();return}}}if(this.flySolid&&this.isFlyMode){const r=this.outer(),e=6;for(const i of this.nearSolids){if(r.x1<=i.x0||r.x0>=i.x1||r.y1<=i.y0||r.y0>=i.y1)continue;const n=Math.max(this.y,this.frameY0)+e,s=Math.min(this.y+this.box,this.frameY0+this.box)-e;if(this.traceSolid&&this.solidTrace.push("fly y="+(this.y/Z).toFixed(3)+" mode="+this.mode+" box y["+(i.y0/Z).toFixed(3)+","+(i.y1/Z).toFixed(3)+"] down="+(n/Z).toFixed(3)+" clearTop="+(n>=i.y1)+" up="+(s/Z).toFixed(3)+" clearBot="+(s<=i.y0)),n>=i.y1){this.y=i.y1,this.vy=0,this.onGround=!0;continue}if(!(s<=i.y0)){if(i.o.kind==="breakable"){this.broken.add(i);continue}this.die();return}}}{const r=this.hazBoxIsOuter?this.outer():this.inner();for(const e of this.nearHazards)if(r.x1>e.x0&&r.x0<e.x1&&r.y1>e.y0&&r.y0<e.y1){this.die();return}}if(this.circles.length){const r=this.outer();for(const e of this.nearCircles){const i=(e.x0+e.x1)/2,n=(e.y0+e.y1)/2,s=(e.x1-e.x0)/2,o=i<r.x0?r.x0-i:i>r.x1?i-r.x1:0,u=n<r.y0?r.y0-n:n>r.y1?n-r.y1:0;if(o*o+u*u<s*s){this.die();return}}}if(this.forces.length){const r=this.outer();for(const e of this.forces)if(!(r.x1<=e.x0||r.x0>=e.x1||r.y1<=e.y0||r.y0>=e.y1)){this.vy+=(e.o.fy??0)*v;break}}{const r=this.outer();for(const e of this.nearPads)if(!this.armedPads.has(e)&&!(r.x1<=e.x0||r.x0>=e.x1||r.y1<=e.y0||r.y0>=e.y1)){if(e.o.pad==="blue"){const n=((e.o.rot??0)%360+360)%360===180;if(this.gdir<0!==n)continue}this.armedPads.add(e),e.o.tp?this.spiderJump(ot.tpReach,!0):e.o.pad&&this.applyTrigger({...fi[e.o.pad],isPad:!0})}}{const r=this.outer();for(const e of this.nearCoins)this.gotCoins.has(e)||r.x1<=e.x0||r.x0>=e.x1||r.y1<=e.y0||r.y0>=e.y1||this.gotCoins.add(e)}if(t&&(this.pressFresh||this.pressAux)){const r=this.outer();for(const e of this.nearArrows)if(!this.armedArrows.has(e)&&!(r.x1<=e.x0||r.x0>=e.x1||r.y1<=e.y0||r.y0>=e.y1)){if(this.pressFresh=!1,this.pressAux=!1,e.o.tp){if(this.spiderJump(ot.tpReach,!0),this.tpFailed){this.pressFresh=!0,this.pressAux=!1;break}}else this.dash={ang:e.o.rot??0,kind:e.o.arrow??"green",t:0},e.o.arrow==="pink"&&this.mode==="cube"&&(this.gdir=-this.gdir);this.armedArrows.add(e);break}}if(t&&(this.pressFresh||this.pressAux)&&!this.dash){const r=this.outer();for(const e of this.nearOrbs)if(!this.armedOrbs.has(e)&&!(r.x1<=e.x0||r.x0>=e.x1||r.y1<=e.y0||r.y0>=e.y1)){if(this.armedOrbs.add(e),this.pressFresh=!1,this.pressAux=!1,e.o.orb){const i=bi[e.o.orb];e.o.dash?(e.o.dash==="pink"&&(this.gdir=this.gdir===1?-1:1),this.dash={ang:e.o.rot??0,kind:e.o.dash,t:0}):this.applyTrigger({v:this.orbVel(e.o.orb),flip:i.flip},!0)}break}}for(const r of this.portals){if(this.armedPortals.has(r)||!this.hitEvent(r,h))continue;this.armedPortals.add(r);const e=r.o.to??"cube";this.mode=e,this.portalY=(r.y0+r.y1)/2,e==="ship"&&(this.vy/=2),(e==="cube"||e==="ship")&&(this.onGround=!1),!this.strict&&e==="ship"&&this.y<3*Z&&(this.y=3*Z)}for(const r of this.speeds)this.armedSpeeds.has(r)||this.hitEvent(r,h)&&(this.armedSpeeds.add(r),this.speedIdx=Math.max(0,Math.min(ot.speedMul.length-1,r.o.speed??1)));for(const r of this.gravs){if(this.armedGravs.has(r)||!this.hitEvent(r,h))continue;this.armedGravs.add(r);const e=r.o.gdir??-this.gdir;e!==this.gdir&&(this.gdir=e,this.vy*=this.flipMul,this.onGround=!1)}for(const r of this.triggers)this.armedTriggers.has(r)||this.hitEvent(r,h)&&(this.armedTriggers.add(r),this.fire(r.o));for(const r of this.teleports){if(this.armedPortals.has(r)||!this.hitEvent(r,h)||(this.armedPortals.add(r),r.o.exit))continue;if(r.o.tpy){this.y=Math.max(0,Math.min(this.rows*Z-this.box,this.y+r.o.tpy*Z)),this.vy=0;continue}const e=this.exitOf(r);e&&(this.armedPortals.add(e),this.x=e.x0,this.y+this.box>this.rows*Z&&(this.y=this.rows*Z-this.box),this.y<0&&(this.y=0))}for(const r of this.sizes)this.armedSizes.has(r)||this.hitEvent(r,h)&&(this.armedSizes.add(r),this.sizeMul=r.o.mini===!1?1:ot.miniSize,this.y=Math.min(this.y,this.rows*Z-this.box));for(const r of this.checks)this.armedChecks.has(r)||this.hitEvent(r,h)&&(this.armedChecks.add(r),this.checkX=r.x0,this.checkY=((r.o.r??0)+.5)*Z-this.box/2,this.checkMode=this.mode,this.checkSize=this.sizeMul,this.checkSpeed=this.speedIdx,this.checkGdir=this.gdir);this.x>=this.level.length*Z&&(this.done=!0)}spiderReach(){return[60,90,120,135,120][Math.max(0,Math.min(4,this.speedIdx))]??90}spiderJump(g,t=!1){const l=g??this.spiderReach(),v=()=>this.y+this.box,h=this.x,a=this.x+this.box;let r=null;if(this.gdir>0){for(const e of this.nearSolids)a<=e.x0||h>=e.x1||e.y0<v()+1||e.y0>v()+l||(r===null||e.y0<r)&&(r=e.y0);for(const e of this.nearFloors)a<=e.x0||h>=e.x1||e.y0<v()+1||e.y0>v()+l||(r===null||e.y0<r)&&(r=e.y0);if(r===null){t||(this.tpFailed=!0);return}this.y=r-this.box}else{for(const e of this.nearSolids)a<=e.x0||h>=e.x1||e.y1>this.y-1||e.y1<this.y-l||(r===null||e.y1>r)&&(r=e.y1);for(const e of this.nearFloors)a<=e.x0||h>=e.x1||e.y1>this.y-1||e.y1<this.y-l||(r===null||e.y1>r)&&(r=e.y1);if(r===null){t||(this.tpFailed=!0);return}this.y=r}this.gdir=-this.gdir,this.vy=-1*this.gdir,this.onGround=!0}hitEvent(g,t){if(this.doorByX&&vr.has(g.o.kind))return!(t+this.box<=g.x0||this.x>=g.x1);if(!this.strict)return!(t+this.box<=g.x0||this.x>=g.x1);const l=this.outer();return l.x1>g.x0&&l.x0<g.x1&&l.y1>g.y0&&l.y0<g.y1}die(){this.god||this.dead||(this.dead=!0,this.deadT=0)}exitOf(g){const t=g.o.channel??0,l=this.teleports.filter(h=>h!==g&&h.o.exit&&(h.o.channel??0)===t);if(!l.length)return null;const v=l.filter(h=>h.x0>=g.x1).sort((h,a)=>h.x0-a.x0);return v.length?v[0]:l.sort((h,a)=>h.x0-a.x0)[0]}triggerScale(){return this.mini?ot.miniTriggerMul:1}applyTrigger(g,t=!1){const l=!!g.isPad;let v=g.v*this.triggerScale()*this.padMul;l&&(this.mode==="ball"||this.mode==="spider")&&(v*=.6),g.flip==="before"?(this.vy=v*this.gdir,this.gdir=-this.gdir,this.vy*=this.flipMul):g.flip==="after"?(this.gdir=-this.gdir,this.vy=v*this.gdir):g.flip==="dash"?this.vy=-v*this.gdir:this.vy=v*this.gdir,this.mode==="ship"&&(this.vy=Math.max(-8,Math.min(ot.shipVyMax,this.vy))),this.boostDir=this.vy>0?1:this.vy<0?-1:0,this.onGround=!1,t&&(this.pressFresh=!1)}orbVel(g){const t=ot.jump,l=this.mini,v=this.mode==="ball"||this.mode==="spider"?.7:1;switch(g){case"pink":return t*(this.mode==="ship"?.37:this.mode==="ufo"?.42:this.mode==="ball"?.77:.72)*v;case"red":return t*(this.mode==="ship"?l?1.4:1:this.mode==="ufo"?l?1.36:1.02:this.mode==="ball"||this.mode==="spider"?1.34:this.mode==="robot"?1.28:1.38)*v;case"yellow":return t*(this.mode==="robot"?.9:1)*v;case"green":return t*(this.mode==="ship"?.7:1)*v;case"blue":return t*.8*v;case"black":return this.mode==="ufo"?11.2:this.mode==="ship"||this.mode==="wave"?14:this.mode==="spider"?16.5:15;default:return t*v}}get state(){return{tick:this.tick,x:this.x,y:this.y,vy:this.vy,onGround:this.onGround,mode:this.mode,gdir:this.gdir,speed:this.speedIdx,dead:this.dead,done:this.done,attempts:this.attempts,checkX:this.checkX,progress:this.progress,moved:this.movedHash()}}movedHash(){let g=0;for(const t of this.movables)g+=Math.round((t.dx+t.dy*7.13)*1e4);return g/1e4}}function cr(m){const g=m*Math.PI/180,t=Math.max(Math.cos(g),.7);return{x:t,y:-Math.sin(g)/t}}class Mt{constructor(g){this.arr=[],this.wide=[];let t=1;for(const l of g){const v=l.x1-l.x0;v>50*Z?this.wide.push(l):(this.arr.push(l),t=Math.max(t,v))}this.arr.sort((l,v)=>l.x0-v.x0),this.maxW=t}near(g,t,l){l.length=0;for(const r of this.wide)l.push(r);const v=g-this.maxW;let h=0,a=this.arr.length;for(;h<a;){const r=h+a>>1;this.arr[r].x0<v?h=r+1:a=r}for(let r=h;r<this.arr.length;r++){const e=this.arr[r];if(e.x0>t)break;l.push(e)}return l}}function mr(m){const g=Z;if(m.isFlyMode){const h=m.x+2.5*g,a=[...m.nearSolids,...m.nearHazards,...m.nearCircles].filter(n=>h>=n.x0-4&&h<=n.x1+4).sort((n,s)=>n.y0-s.y0);let r={a:0,b:m.rows*Z,size:m.rows*Z},e=0;for(const n of a)n.y0-e>r.size&&(r={a:e,b:n.y0,size:n.y0-e}),e=Math.max(e,n.y1);m.rows*Z-e>r.size&&(r={a:e,b:m.rows*Z,size:m.rows*Z-e});const i=(r.a+r.b)/2-m.box/2;return m.y<i-2}const t=zt($t(m.speedIdx),m.speedIdx)*Z,l=t-m.innerOff-6;for(const h of m.nearOrbs){if(h.x1<m.x||h.x0-m.x>1.6*Z)continue;const a=m.y+m.innerOff;if(!(a+m.innerSize<h.y0-8||a>h.y1+8))return m.pressFresh?!0:!m.prevHold}let v=null;for(const h of[...m.nearHazards.filter(a=>a.y0<2*Z),...m.nearCircles.filter(a=>a.y0<2*Z),...m.nearSolids.filter(a=>a.y1<=2*Z)])h.x1<=m.x+m.innerOff||(!v||h.x0<v.x0)&&(v=h);if(v&&v.x1-m.x<=l)return!0;for(const h of m.nearFloors){if(m.x+m.box<=h.x0||m.x>=h.x1||Math.abs(h.y1-m.y)>6)continue;let a=null;for(const i of m.nearFloors)i.x0<h.x1-1||Math.abs(i.y1-h.y1)>2*Z||(a===null||i.x0<a)&&(a=i.x0);if(a===null)continue;const e=a-t+24;if(m.x>=e&&m.x<h.x1)return!0}return!1}function pr(m){let g=2166136261;const t=v=>Math.round(v*1e4),l=v=>{for(let h=0;h<4;h++)g^=v>>>h*8&255,g=Math.imul(g,16777619)>>>0};for(const v of m)l(t(v.x)),l(t(v.y)),l(t(v.vy)),l(v.mode==="ship"?1:0),l(v.gdir),l(v.speed),l(v.dead?1:0),l(v.done?1:0),l(v.attempts),l(t(v.checkX)),l(t(v.moved??0));return("00000000"+g.toString(16)).slice(-8)}const Si=lr({name:"WATER",rows:127,length:3620,song:"/assets/cd/music/lost.mp3",start:{b:0,r:10},segments:[{from:0,to:198,mode:"cube",speed:0,label:"cube"},{from:198,to:263,mode:"cube",speed:1,label:"cube"},{from:263,to:323,mode:"ball",speed:1,label:"ball"},{from:323,to:421,mode:"ufo",speed:1,label:"ufo"},{from:421,to:423,mode:"cube",speed:1,label:"cube"},{from:423,to:439,mode:"cube",speed:0,label:"cube"},{from:439,to:484,mode:"spider",speed:0,label:"spider"},{from:484,to:489,mode:"spider",speed:0,label:"spider"},{from:489,to:492,mode:"ball",speed:0,label:"ball"},{from:492,to:512,mode:"ball",speed:0,label:"ball"},{from:512,to:525,mode:"ball",speed:1,label:"ball"},{from:525,to:606,mode:"cube",speed:1,label:"cube"},{from:606,to:650,mode:"ufo",speed:1,label:"ufo"},{from:650,to:657,mode:"ufo",speed:4,label:"ufo"},{from:657,to:733,mode:"cube",speed:4,label:"cube"},{from:733,to:767,mode:"cube",speed:2,label:"cube"},{from:767,to:769,mode:"cube",speed:4,label:"cube"},{from:769,to:824,mode:"ufo",speed:4,label:"ufo"},{from:824,to:871,mode:"ship",speed:4,label:"ship"},{from:871,to:873,mode:"cube",speed:4,label:"cube"},{from:873,to:879,mode:"cube",speed:3,label:"cube"},{from:879,to:968,mode:"wave",speed:3,label:"wave"},{from:968,to:1054,mode:"wave",speed:4,label:"wave"},{from:1054,to:1055,mode:"cube",speed:4,label:"cube"},{from:1055,to:1060,mode:"cube",speed:2,label:"cube"},{from:1060,to:1120,mode:"robot",speed:2,label:"robot"},{from:1120,to:1121,mode:"robot",speed:2,label:"robot"},{from:1121,to:1196,mode:"ball",speed:2,label:"ball"},{from:1196,to:1268,mode:"cube",speed:2,label:"cube"},{from:1268,to:1322,mode:"spider",speed:2,label:"spider"},{from:1322,to:1325,mode:"cube",speed:2,label:"cube"},{from:1325,to:1345,mode:"cube",speed:0,label:"cube"},{from:1345,to:1351,mode:"ship",speed:0,label:"ship"},{from:1351,to:1359,mode:"ship",speed:1,label:"ship"},{from:1359,to:1368,mode:"ship",speed:2,label:"ship"},{from:1368,to:1377,mode:"ship",speed:3,label:"ship"},{from:1377,to:1393,mode:"ship",speed:4,label:"ship"},{from:1393,to:1432,mode:"cube",speed:4,label:"cube"},{from:1432,to:1450,mode:"ship",speed:4,label:"ship"},{from:1450,to:1481,mode:"spider",speed:4,label:"spider"},{from:1481,to:1483,mode:"spider",speed:4,label:"spider"},{from:1483,to:1488,mode:"cube",speed:4,label:"cube"},{from:1488,to:1504,mode:"ship",speed:4,label:"ship"},{from:1504,to:1542,mode:"ball",speed:4,label:"ball"},{from:1542,to:1556,mode:"ship",speed:4,label:"ship"},{from:1556,to:1598,mode:"wave",speed:4,label:"wave"},{from:1598,to:1614,mode:"ship",speed:4,label:"ship"},{from:1614,to:1653,mode:"cube",speed:4,label:"cube"},{from:1653,to:1668,mode:"ship",speed:4,label:"ship"},{from:1668,to:1707,mode:"spider",speed:4,label:"spider"},{from:1707,to:1721,mode:"ship",speed:4,label:"ship"},{from:1721,to:1768,mode:"ufo",speed:4,label:"ufo"},{from:1768,to:1785,mode:"ufo",speed:0,label:"ufo"},{from:1785,to:1786,mode:"cube",speed:0,label:"cube"},{from:1786,to:1935,mode:"cube",speed:2,label:"cube"},{from:1935,to:2013,mode:"ship",speed:2,label:"ship"},{from:2013,to:2055,mode:"wave",speed:2,label:"wave"},{from:2055,to:2057,mode:"cube",speed:2,label:"cube"},{from:2057,to:2258,mode:"cube",speed:0,label:"cube"},{from:2258,to:2472,mode:"spider",speed:0,label:"spider"},{from:2472,to:2473,mode:"cube",speed:0,label:"cube"},{from:2473,to:2603,mode:"cube",speed:2,label:"cube"},{from:2603,to:3005,mode:"cube",speed:4,label:"cube"},{from:3005,to:3006,mode:"ship",speed:4,label:"ship"},{from:3006,to:3034,mode:"ship",speed:0,label:"ship"},{from:3034,to:3052,mode:"cube",speed:0,label:"cube"},{from:3052,to:3233,mode:"cube",speed:3,label:"cube"},{from:3233,to:3234,mode:"ufo",speed:3,label:"ufo"},{from:3234,to:3348,mode:"ufo",speed:4,label:"ufo"},{from:3348,to:3404,mode:"wave",speed:4,label:"wave"},{from:3404,to:3424,mode:"wave",speed:0,label:"wave"},{from:3424,to:3620,mode:"cube",speed:0,label:"cube"}]},`
 S 203 0 id=8
 S 204 0 id=8
 S 203 3 rot=180 id=8
@@ -7935,11 +7935,11 @@ H 663 18.95 1 0.05 fm=edge
 O 666 21 orb=yellow z=2
 O 668.5 23 orb=yellow z=2
 O 671 25 orb=yellow z=2
-W 667.033 14.167 2.933 5.667 z=5 id=1705
-W 670.033 17.667 2.933 5.667 z=5 id=1705
-W 671.539 15.644 1.921 3.712 z=5 id=1705
-W 662.407 22.389 2.185 4.222 z=5 id=1705
-W 662.907 25.889 2.185 4.222 z=5 id=1705
+W 667.033 14.167 2.933 5.667 id=1705 z=5
+W 670.033 17.667 2.933 5.667 id=1705 z=5
+W 671.539 15.644 1.921 3.712 id=1705 z=5
+W 662.407 22.389 2.185 4.222 id=1705 z=5
+W 662.907 25.889 2.185 4.222 id=1705 z=5
 O 674 27 orb=black z=2
 O 681 17 orb=blue z=2
 O 682 18 orb=black z=2
@@ -7964,13 +7964,13 @@ B 687 30
 S 685 27 rot=270 id=8
 S 685 26 rot=270 id=8
 S 691 28 rot=90 id=8
-W 677.033 28.667 2.933 5.667 z=5 id=1705
-W 677.649 24.857 1.701 3.287 z=5 id=1705
-W 679.827 21.233 2.347 4.533 z=5 id=1705
-W 684.767 13.083 1.467 2.833 z=5 id=1705
-W 678.033 11.667 2.933 5.667 z=5 id=1705
-W 685.327 15.233 2.347 4.533 z=5 id=1705
-W 680.246 25.078 2.508 4.845 z=5 id=1705
+W 677.033 28.667 2.933 5.667 id=1705 z=5
+W 677.649 24.857 1.701 3.287 id=1705 z=5
+W 679.827 21.233 2.347 4.533 id=1705 z=5
+W 684.767 13.083 1.467 2.833 id=1705 z=5
+W 678.033 11.667 2.933 5.667 id=1705 z=5
+W 685.327 15.233 2.347 4.533 id=1705 z=5
+W 680.246 25.078 2.508 4.845 id=1705 z=5
 B 695 26
 B 696 26
 B 693 28
@@ -7981,7 +7981,7 @@ B 695 28
 B 693 29
 B 694 29
 S 692 29 rot=270 id=8
-W 690.767 24.083 1.467 2.833 z=5 id=1705
+W 690.767 24.083 1.467 2.833 id=1705 z=5
 O 699 23 orb=yellow z=2
 B 693 20
 B 692 19
@@ -8043,12 +8043,12 @@ S 701 28 rot=-90 id=8
 S 701 29 rot=-90 id=8
 S 703 30 id=8
 S 702 30 id=8
-W 697.783 25.148 2.435 4.703 z=5 id=1705
-W 699.767 29.083 1.467 2.833 z=5 id=1705
-W 700.283 16.148 2.435 4.703 z=5 id=1705
-W 703.267 19.583 1.467 2.833 z=5 id=1705
+W 697.783 25.148 2.435 4.703 id=1705 z=5
+W 699.767 29.083 1.467 2.833 id=1705 z=5
+W 700.283 16.148 2.435 4.703 id=1705 z=5
+W 703.267 19.583 1.467 2.833 id=1705 z=5
 S 706 28 rot=90 id=8
-W 666.033 25.667 2.933 5.667 z=5 id=1705
+W 666.033 25.667 2.933 5.667 id=1705 z=5
 O 701 21 orb=black z=2
 B 710 16
 B 711 16
@@ -8095,13 +8095,13 @@ D 718 24.8 1 0.2 pad=blue rot=180 z=2
 D 722 20 1 0.2 pad=blue z=2
 D 726 24.8 1 0.2 pad=blue rot=180 z=2
 D 729 20 1 0.2 pad=blue z=2
-W 713.451 26.474 2.097 4.052 z=5 id=1705
-W 709.533 28.167 2.933 5.667 z=5 id=1705
-W 714.863 14.304 2.273 4.392 z=5 id=1705
-W 718.525 16.616 1.951 3.768 z=5 id=1705
-W 720.533 24.667 2.933 5.667 z=5 id=1705
-W 725.18 14.95 2.64 5.1 z=5 id=1705
-W 708.767 26.083 1.467 2.833 z=5 id=1705
+W 713.451 26.474 2.097 4.052 id=1705 z=5
+W 709.533 28.167 2.933 5.667 id=1705 z=5
+W 714.863 14.304 2.273 4.392 id=1705 z=5
+W 718.525 16.616 1.951 3.768 id=1705 z=5
+W 720.533 24.667 2.933 5.667 id=1705 z=5
+W 725.18 14.95 2.64 5.1 id=1705 z=5
+W 708.767 26.083 1.467 2.833 id=1705 z=5
 S 717 27 id=8
 S 718 26 id=8
 S 726 28 id=8
@@ -8117,7 +8117,7 @@ G 732 24 gd=1 z=2
 V 733 24 spd=2 z=2
 O 737 19 orb=yellow z=2
 O 739 22 orb=yellow z=2
-O 741 25 orb=pink col=13017343 z=2
+O 741 25 orb=pink dash=pink col=13017343 z=2
 B 746 19
 B 747 19
 B 746 18
@@ -8164,14 +8164,14 @@ B 762 19
 B 763 19
 B 761 19
 B 762 18
-W 740.033 14.667 2.933 5.667 z=5 id=1705
-W 744.033 24.667 2.933 5.667 z=5 id=1705
-W 750.202 25.993 2.596 5.015 z=5 id=1705
-W 748.032 23.63 1.936 3.74 z=5 id=1705
-W 746.51 28.588 1.98 3.825 z=5 id=1705
-W 759.767 26.083 1.467 2.833 z=5 id=1705
-W 755.033 16.667 2.933 5.667 z=5 id=1705
-W 751.407 15.389 2.185 4.222 z=5 id=1705
+W 740.033 14.667 2.933 5.667 id=1705 z=5
+W 744.033 24.667 2.933 5.667 id=1705 z=5
+W 750.202 25.993 2.596 5.015 id=1705 z=5
+W 748.032 23.63 1.936 3.74 id=1705 z=5
+W 746.51 28.588 1.98 3.825 id=1705 z=5
+W 759.767 26.083 1.467 2.833 id=1705 z=5
+W 755.033 16.667 2.933 5.667 id=1705 z=5
+W 751.407 15.389 2.185 4.222 id=1705 z=5
 B 769 18
 B 770 18
 B 769 17
@@ -8203,11 +8203,11 @@ B 777 16
 B 778 15
 B 777 17
 B 778 16
-W 775.767 15.083 1.467 2.833 z=5 id=1705
-W 777.767 17.083 1.467 2.833 z=5 id=1705
-W 771.569 21.701 1.863 3.598 z=5 id=1705
-W 783.686 19.928 1.628 3.145 z=5 id=1705
-W 779.327 25.233 2.347 4.533 z=5 id=1705
+W 775.767 15.083 1.467 2.833 id=1705 z=5
+W 777.767 17.083 1.467 2.833 id=1705 z=5
+W 771.569 21.701 1.863 3.598 id=1705 z=5
+W 783.686 19.928 1.628 3.145 id=1705 z=5
+W 779.327 25.233 2.347 4.533 id=1705 z=5
 B 781 14
 B 782 14
 B 783 14
@@ -8221,9 +8221,9 @@ B 787 28
 B 787 27
 B 785 28
 B 786 29
-W 790.686 15.928 1.628 3.145 z=5 id=1705
-W 789.686 23.928 1.628 3.145 z=5 id=1705
-W 782.686 27.928 1.628 3.145 z=5 id=1705
+W 790.686 15.928 1.628 3.145 id=1705 z=5
+W 789.686 23.928 1.628 3.145 id=1705 z=5
+W 782.686 27.928 1.628 3.145 id=1705 z=5
 N 791 15 z=2
 B 794 23
 B 795 23
@@ -8266,31 +8266,31 @@ S 783 16 id=8
 S 784 15 rot=90 id=8
 S 784 14 rot=90 id=8
 S 780 14 rot=-90 id=8
-W 800.033 11.667 2.933 5.667 z=5 id=1705
+W 800.033 11.667 2.933 5.667 id=1705 z=5
 B 803 15
 B 803 14
 B 802 13
 B 803 13
-W 803.767 15.083 1.467 2.833 z=5 id=1705
+W 803.767 15.083 1.467 2.833 id=1705 z=5
 B 804 15
 B 804 14
-W 800.033 24.667 2.933 5.667 z=5 id=1705
-W 810.767 27.083 1.467 2.833 z=5 id=1705
+W 800.033 24.667 2.933 5.667 id=1705 z=5
+W 810.767 27.083 1.467 2.833 id=1705 z=5
 B 810 29
 B 811 29
 B 812 29
 B 811 30
 B 810 28
-W 807.576 25.715 1.848 3.57 z=5 id=1705
-W 806.767 8.083 1.467 2.833 z=5 id=1705
-W 812.767 8.083 1.467 2.833 z=5 id=1705
+W 807.576 25.715 1.848 3.57 id=1705 z=5
+W 806.767 8.083 1.467 2.833 id=1705 z=5
+W 812.767 8.083 1.467 2.833 id=1705 z=5
 S 783 13 rot=180 id=8
 S 782 13 rot=180 id=8
 S 781 13 rot=180 id=8
-W 818.767 22.083 1.467 2.833 z=5 id=1705
-W 811.334 18.248 2.332 4.505 z=5 id=1705
-W 816.517 16.602 1.965 3.797 z=5 id=1705
-W 823.767 20.083 1.467 2.833 z=5 id=1705
+W 818.767 22.083 1.467 2.833 id=1705 z=5
+W 811.334 18.248 2.332 4.505 id=1705 z=5
+W 816.517 16.602 1.965 3.797 id=1705 z=5
+W 823.767 20.083 1.467 2.833 id=1705 z=5
 B 817 17
 B 816 17
 B 818 18
@@ -8300,7 +8300,7 @@ B 820 24
 B 820 23
 S 821 23 rot=90 id=8
 S 821 24 rot=90 id=8
-W 807.033 16.667 2.933 5.667 z=5 id=1705
+W 807.033 16.667 2.933 5.667 id=1705 z=5
 B 810 17
 B 809 17
 B 808 16
@@ -8330,32 +8330,32 @@ S 814 18 rot=90 id=8
 S 815 17 rot=-90 id=8
 S 806 17 rot=-90 id=8
 S 807 16 rot=-180 id=8
-W 818.767 15.083 1.467 2.833 z=5 id=1705
+W 818.767 15.083 1.467 2.833 id=1705 z=5
 B 818 16
 B 817 16
 R 824 18 to=ship z=2
 G 825 18 gd=1 z=2
-W 827.253 20.092 2.493 4.817 z=5 id=1705
-W 836.767 22.083 1.467 2.833 z=5 id=1705
-W 828.444 12.46 2.112 4.08 z=5 id=1705
-W 833.371 19.318 2.259 4.363 z=5 id=1705
-W 834.569 12.701 1.863 3.598 z=5 id=1705
-W 839.459 20.488 2.083 4.023 z=5 id=1705
-W 840.319 13.219 2.361 4.562 z=5 id=1705
-W 845.525 14.616 1.951 3.768 z=5 id=1705
-W 849.495 21.559 2.009 3.882 z=5 id=1705
-W 843.767 23.083 1.467 2.833 z=5 id=1705
-W 850.033 12.667 2.933 5.667 z=5 id=1705
-W 855.033 21.667 2.933 5.667 z=5 id=1705
-W 859.767 21.083 1.467 2.833 z=5 id=1705
-W 860.561 13.687 1.877 3.627 z=5 id=1705
-W 862.767 20.083 1.467 2.833 z=5 id=1705
-W 864.466 13.503 2.068 3.995 z=5 id=1705
-W 843.943 13.423 1.115 2.153 z=5 id=1705
-W 847.943 13.423 1.115 2.153 z=5 id=1705
-W 852.943 21.423 1.115 2.153 z=5 id=1705
-W 836.943 19.423 1.115 2.153 z=5 id=1705
-W 837.943 14.423 1.115 2.153 z=5 id=1705
+W 827.253 20.092 2.493 4.817 id=1705 z=5
+W 836.767 22.083 1.467 2.833 id=1705 z=5
+W 828.444 12.46 2.112 4.08 id=1705 z=5
+W 833.371 19.318 2.259 4.363 id=1705 z=5
+W 834.569 12.701 1.863 3.598 id=1705 z=5
+W 839.459 20.488 2.083 4.023 id=1705 z=5
+W 840.319 13.219 2.361 4.562 id=1705 z=5
+W 845.525 14.616 1.951 3.768 id=1705 z=5
+W 849.495 21.559 2.009 3.882 id=1705 z=5
+W 843.767 23.083 1.467 2.833 id=1705 z=5
+W 850.033 12.667 2.933 5.667 id=1705 z=5
+W 855.033 21.667 2.933 5.667 id=1705 z=5
+W 859.767 21.083 1.467 2.833 id=1705 z=5
+W 860.561 13.687 1.877 3.627 id=1705 z=5
+W 862.767 20.083 1.467 2.833 id=1705 z=5
+W 864.466 13.503 2.068 3.995 id=1705 z=5
+W 843.943 13.423 1.115 2.153 id=1705 z=5
+W 847.943 13.423 1.115 2.153 id=1705 z=5
+W 852.943 21.423 1.115 2.153 id=1705 z=5
+W 836.943 19.423 1.115 2.153 id=1705 z=5
+W 837.943 14.423 1.115 2.153 id=1705 z=5
 B 832 14
 B 833 15
 B 832 15
@@ -8391,9 +8391,9 @@ S 854 14 rot=-90 id=8
 S 854 13 rot=-90 id=8
 S 859 14 rot=90 id=8
 S 859 15 rot=90 id=8
-W 870.033 20.667 2.933 5.667 z=5 id=1705
-W 868.371 12.318 2.259 4.363 z=5 id=1705
-W 849.033 9.667 2.933 5.667 z=5 id=1705
+W 870.033 20.667 2.933 5.667 id=1705 z=5
+W 868.371 12.318 2.259 4.363 id=1705 z=5
+W 849.033 9.667 2.933 5.667 id=1705 z=5
 B 866 22
 B 867 22
 B 866 23
@@ -8419,18 +8419,18 @@ B 874 15
 B 872 15
 B 873 15
 R 879 26 to=wave z=2
-W 887.767 28.083 1.467 2.833 z=5 id=1705
-W 892.033 27.667 2.933 5.667 z=5 id=1705
-W 889.767 19.083 1.467 2.833 z=5 id=1705
-W 896.033 18.667 2.933 5.667 z=5 id=1705
-W 885.033 17.667 2.933 5.667 z=5 id=1705
+W 887.767 28.083 1.467 2.833 id=1705 z=5
+W 892.033 27.667 2.933 5.667 id=1705 z=5
+W 889.767 19.083 1.467 2.833 id=1705 z=5
+W 896.033 18.667 2.933 5.667 id=1705 z=5
+W 885.033 17.667 2.933 5.667 id=1705 z=5
 B 891 22
 B 892 21
 B 893 21
 B 893 22
 B 892 22
 N 710 24 z=2
-W 881.356 15.29 2.288 4.42 z=5 id=1705
+W 881.356 15.29 2.288 4.42 id=1705 z=5
 B 880 17
 B 881 17
 B 881 16
@@ -8438,12 +8438,12 @@ B 880 16
 B 879 16
 B 879 15
 B 882 17
-W 877.033 13.667 2.933 5.667 z=5 id=1705
+W 877.033 13.667 2.933 5.667 id=1705 z=5
 V 873 18 spd=3 z=2
-W 906.767 26.083 1.467 2.833 z=5 id=1705
-W 904.767 23.083 1.467 2.833 z=5 id=1705
-W 900.767 20.083 1.467 2.833 z=5 id=1705
-W 903.033 24.667 2.933 5.667 z=5 id=1705
+W 906.767 26.083 1.467 2.833 id=1705 z=5
+W 904.767 23.083 1.467 2.833 id=1705 z=5
+W 900.767 20.083 1.467 2.833 id=1705 z=5
+W 903.033 24.667 2.933 5.667 id=1705 z=5
 B 898 29
 B 898 30
 B 897 30
@@ -8466,14 +8466,14 @@ S 900 31 id=8
 S 901 31 id=8
 S 902 30 id=8
 S 896 30 id=8
-W 909.033 16.667 2.933 5.667 z=5 id=1705
-W 909.767 28.083 1.467 2.833 z=5 id=1705
-W 914.525 23.616 1.951 3.768 z=5 id=1705
+W 909.033 16.667 2.933 5.667 id=1705 z=5
+W 909.767 28.083 1.467 2.833 id=1705 z=5
+W 914.525 23.616 1.951 3.768 id=1705 z=5
 S 891 23 id=8
 S 892 23 id=8
 S 893 23 id=8
 S 890 22 rot=-90 id=8
-W 898.275 27.134 2.449 4.732 z=5 id=1705
+W 898.275 27.134 2.449 4.732 id=1705 z=5
 B 920 30
 B 921 30
 B 923 30
@@ -8513,14 +8513,14 @@ S 920 29 rot=180 id=8
 S 923 28 rot=180 id=8
 S 924 28 rot=180 id=8
 S 925 24 rot=90 id=8
-W 918.767 18.083 1.467 2.833 z=5 id=1705
-W 918.767 28.083 1.467 2.833 z=5 id=1705
-W 927.767 28.083 1.467 2.833 z=5 id=1705
-W 930.767 24.083 1.467 2.833 z=5 id=1705
-W 927.033 16.667 2.933 5.667 z=5 id=1705
-W 931.033 26.667 2.933 5.667 z=5 id=1705
-W 934.268 24.12 2.464 4.76 z=5 id=1705
-W 935.422 28.418 2.156 4.165 z=5 id=1705
+W 918.767 18.083 1.467 2.833 id=1705 z=5
+W 918.767 28.083 1.467 2.833 id=1705 z=5
+W 927.767 28.083 1.467 2.833 id=1705 z=5
+W 930.767 24.083 1.467 2.833 id=1705 z=5
+W 927.033 16.667 2.933 5.667 id=1705 z=5
+W 931.033 26.667 2.933 5.667 id=1705 z=5
+W 934.268 24.12 2.464 4.76 id=1705 z=5
+W 935.422 28.418 2.156 4.165 id=1705 z=5
 B 932 19
 B 934 19
 B 933 20
@@ -8536,14 +8536,14 @@ B 932 20
 S 932 21 id=8
 S 933 21 id=8
 S 936 21 id=8
-W 943.033 17.667 2.933 5.667 z=5 id=1705
-W 939.033 26.667 2.933 5.667 z=5 id=1705
-W 943.767 29.083 1.467 2.833 z=5 id=1705
-W 945.767 22.083 1.467 2.833 z=5 id=1705
-W 948.253 22.092 2.493 4.817 z=5 id=1705
-W 947.525 18.616 1.951 3.768 z=5 id=1705
-W 955.033 23.667 2.933 5.667 z=5 id=1705
-W 951.033 17.667 2.933 5.667 z=5 id=1705
+W 943.033 17.667 2.933 5.667 id=1705 z=5
+W 939.033 26.667 2.933 5.667 id=1705 z=5
+W 943.767 29.083 1.467 2.833 id=1705 z=5
+W 945.767 22.083 1.467 2.833 id=1705 z=5
+W 948.253 22.092 2.493 4.817 id=1705 z=5
+W 947.525 18.616 1.951 3.768 id=1705 z=5
+W 955.033 23.667 2.933 5.667 id=1705 z=5
+W 951.033 17.667 2.933 5.667 id=1705 z=5
 B 960 25
 B 960 27
 B 959 27
@@ -8565,9 +8565,9 @@ S 963 25 rot=90 id=8
 S 962 24 rot=180 id=8
 S 958 27 rot=270 id=8
 V 968 25 spd=4 z=2
-W 955.488 17.545 2.024 3.91 z=5 id=1705
-W 959.033 15.667 2.933 5.667 z=5 id=1705
-W 963.767 19.083 1.467 2.833 z=5 id=1705
+W 955.488 17.545 2.024 3.91 id=1705 z=5
+W 959.033 15.667 2.933 5.667 id=1705 z=5
+W 963.767 19.083 1.467 2.833 id=1705 z=5
 N 961 22 z=2
 B 967 30
 B 969 30
@@ -8604,17 +8604,17 @@ S 966 28 rot=-90 id=8
 S 970 27 rot=90 id=8
 S 972 21 rot=90 id=8
 S 969 22 id=8
-W 971.363 26.304 2.273 4.392 z=5 id=1705
-W 973.033 16.667 2.933 5.667 z=5 id=1705
-W 976.033 27.667 2.933 5.667 z=5 id=1705
-W 978.033 18.667 2.933 5.667 z=5 id=1705
-W 986.033 18.667 2.933 5.667 z=5 id=1705
-W 984.033 27.667 2.933 5.667 z=5 id=1705
-W 989.422 27.418 2.156 4.165 z=5 id=1705
-W 995.51 22.588 1.98 3.825 z=5 id=1705
-W 1001.767 26.083 1.467 2.833 z=5 id=1705
-W 997.767 28.083 1.467 2.833 z=5 id=1705
-W 975.921 21.381 1.159 2.238 z=5 id=1705
+W 971.363 26.304 2.273 4.392 id=1705 z=5
+W 973.033 16.667 2.933 5.667 id=1705 z=5
+W 976.033 27.667 2.933 5.667 id=1705 z=5
+W 978.033 18.667 2.933 5.667 id=1705 z=5
+W 986.033 18.667 2.933 5.667 id=1705 z=5
+W 984.033 27.667 2.933 5.667 id=1705 z=5
+W 989.422 27.418 2.156 4.165 id=1705 z=5
+W 995.51 22.588 1.98 3.825 id=1705 z=5
+W 1001.767 26.083 1.467 2.833 id=1705 z=5
+W 997.767 28.083 1.467 2.833 id=1705 z=5
+W 975.921 21.381 1.159 2.238 id=1705 z=5
 B 982 23
 B 983 23
 B 984 22
@@ -8651,13 +8651,13 @@ S 981 32 id=8
 S 982 32 id=8
 S 983 32 id=8
 S 984 32 id=8
-W 994.033 25.667 2.933 5.667 z=5 id=1705
-W 998.422 24.418 2.156 4.165 z=5 id=1705
+W 994.033 25.667 2.933 5.667 id=1705 z=5
+W 998.422 24.418 2.156 4.165 id=1705 z=5
 Z 1002 22 mini=1 z=2
-W 1003.033 27.667 2.933 5.667 z=5 id=1705
-W 1016.613 18.786 1.775 3.428 z=5 id=1705
-W 1021.033 27.667 2.933 5.667 z=5 id=1705
-W 1012.033 16.667 2.933 5.667 z=5 id=1705
+W 1003.033 27.667 2.933 5.667 id=1705 z=5
+W 1016.613 18.786 1.775 3.428 id=1705 z=5
+W 1021.033 27.667 2.933 5.667 id=1705 z=5
+W 1012.033 16.667 2.933 5.667 id=1705 z=5
 B 1010 19
 B 1009 19
 B 1008 19
@@ -8702,8 +8702,8 @@ S 1013 31 id=8
 S 1014 31 id=8
 S 1015 30 rot=90 id=8
 S 1015 29 rot=90 id=8
-W 1017.319 28.219 2.361 4.562 z=5 id=1705
-W 1021.767 18.083 1.467 2.833 z=5 id=1705
+W 1017.319 28.219 2.361 4.562 id=1705 z=5
+W 1021.767 18.083 1.467 2.833 id=1705 z=5
 B 1025 19
 B 1026 20
 B 1025 20
@@ -8729,8 +8729,8 @@ S 1024 20 id=8
 S 1025 21 id=8
 S 1026 21 id=8
 S 1027 21 id=8
-W 1029.767 19.083 1.467 2.833 z=5 id=1705
-W 1033.033 16.667 2.933 5.667 z=5 id=1705
+W 1029.767 19.083 1.467 2.833 id=1705 z=5
+W 1033.033 16.667 2.933 5.667 id=1705 z=5
 B 1026 27
 B 1025 27
 B 1026 29
@@ -8749,13 +8749,13 @@ S 1028 28 rot=180 id=8
 S 1031 28 rot=90 id=8
 S 1030 29 id=8
 S 1030 27 rot=180 id=8
-W 1033.033 26.667 2.933 5.667 z=5 id=1705
-W 1038.033 14.667 2.933 5.667 z=5 id=1705
-W 1037.767 29.083 1.467 2.833 z=5 id=1705
-W 1041.767 18.083 1.467 2.833 z=5 id=1705
-W 1036.5 20.5 2 2 z=5 id=1706
-W 1038.62 19.62 3.76 3.76 z=5 id=1706
-W 1041.033 27.667 2.933 5.667 z=5 id=1705
+W 1033.033 26.667 2.933 5.667 id=1705 z=5
+W 1038.033 14.667 2.933 5.667 id=1705 z=5
+W 1037.767 29.083 1.467 2.833 id=1705 z=5
+W 1041.767 18.083 1.467 2.833 id=1705 z=5
+W 1036.5 20.5 2 2 id=1706 z=5
+W 1038.62 19.62 3.76 3.76 id=1706 z=5
+W 1041.033 27.667 2.933 5.667 id=1705 z=5
 B 1045 28
 B 1046 29
 B 1045 29
@@ -8801,10 +8801,10 @@ S 1048 29 rot=90 id=8
 S 1048 30 rot=90 id=8
 S 1044 21 id=8
 R 1054 25 to=cube z=2
-W 1050.4 27.375 2.2 4.25 z=5 id=1705
-W 1052.385 19.347 2.229 4.307 z=5 id=1705
-W 1053.767 29.083 1.467 2.833 z=5 id=1705
-W 1048.767 30.083 1.467 2.833 z=5 id=1705
+W 1050.4 27.375 2.2 4.25 id=1705 z=5
+W 1052.385 19.347 2.229 4.307 id=1705 z=5
+W 1053.767 29.083 1.467 2.833 id=1705 z=5
+W 1048.767 30.083 1.467 2.833 id=1705 z=5
 B 1056 21
 B 1057 21
 B 1058 21
@@ -8829,7 +8829,7 @@ C 1059 22
 V 1055 25 spd=2 z=2
 R 1060 23 to=robot z=2
 O 1068 23 orb=yellow z=2
-O 1073 25 orb=pink col=13017343 z=2
+O 1073 25 orb=pink dash=pink col=13017343 z=2
 B 1078 23
 B 1078 22
 B 1078 21
@@ -8853,13 +8853,13 @@ E 1090 30.65 art=41 z=6
 E 1092 30.65 art=41 z=6
 E 1080 29.65 art=41 z=6
 O 1097 32 orb=yellow z=2
-O 1102 32 orb=green z=2
+O 1102 32 orb=green dash=green z=2
 B 1107 32
 B 1108 32
 B 1106 32
 B 1107 33
 E 1107 30.417 rot=180 art=106 z=7
-O 1112 30 orb=pink col=13017343 z=2
+O 1112 30 orb=pink dash=pink col=13017343 z=2
 D 1117 31.8 1 0.2 pad=blue rot=180 z=2
 D 1118 28 1 0.2 pad=blue z=2
 D 1120 30.8 1 0.2 pad=blue rot=180 z=2
@@ -8997,16 +8997,16 @@ S 1157 27 id=8
 S 1158 26 id=8
 S 1159 25 id=8
 O 1180 31 orb=blue z=2
-W 1179.767 32.083 1.467 2.833 z=5 id=1705
-W 1174.033 29.667 2.933 5.667 z=5 id=1705
-W 1169.033 23.667 2.933 5.667 z=5 id=1705
-W 1179.209 23.007 2.581 4.987 z=5 id=1705
-W 1162.033 28.667 2.933 5.667 z=5 id=1705
+W 1179.767 32.083 1.467 2.833 id=1705 z=5
+W 1174.033 29.667 2.933 5.667 id=1705 z=5
+W 1169.033 23.667 2.933 5.667 id=1705 z=5
+W 1179.209 23.007 2.581 4.987 id=1705 z=5
+W 1162.033 28.667 2.933 5.667 id=1705 z=5
 A 1184 25 rot=315 ar=pink z=2
 V 1120 29 spd=2 z=2
-W 1186.767 25.083 1.467 2.833 z=5 id=1705
-W 1190.033 24.667 2.933 5.667 z=5 id=1705
-W 1183.033 28.667 2.933 5.667 z=5 id=1705
+W 1186.767 25.083 1.467 2.833 id=1705 z=5
+W 1190.033 24.667 2.933 5.667 id=1705 z=5
+W 1183.033 28.667 2.933 5.667 id=1705 z=5
 D 1189 32.8 1 0.2 pad=blue rot=180 z=2
 D 1193 32.8 1 0.2 pad=blue rot=180 z=2
 D 1194 31 1 0.2 pad=blue z=2
@@ -9017,7 +9017,7 @@ R 1196 31 to=cube z=2
 G 1199 37 gd=1 z=2
 D 1204 31.967 1 0.2 pad=yellow z=2
 H 1204 31.5 1 0.5 fm=box
-O 1209 36 orb=green z=2
+O 1209 36 orb=green dash=green z=2
 K 1211 34 inert=1 z=2
 H 1211 39 rot=-90 fm=corner
 H 1211.002 40 0.05 1 rot=-90 fm=edge
@@ -9070,7 +9070,7 @@ S 1218 37 rot=90 id=8
 S 1218 38 rot=90 id=8
 S 1218 31 rot=90 id=8
 S 1218 30 rot=90 id=8
-W 1221.767 33.083 1.467 2.833 z=5 id=1705
+W 1221.767 33.083 1.467 2.833 id=1705 z=5
 H 1225 37 rot=-90 fm=corner
 H 1227 37 rot=180 fm=corner
 H 1225 31 fm=corner
@@ -9081,7 +9081,7 @@ H 1225.002 38 0.05 1 rot=-90 fm=edge
 H 1226 37 1 0.05 rot=-180 fm=edge
 H 1225.002 30 0.05 1 rot=-90 fm=edge
 H 1227.948 30 0.05 1 rot=-270 fm=edge
-O 1228 34 orb=pink col=13017343 z=2
+O 1228 34 orb=pink dash=pink col=13017343 z=2
 S 1228 38 rot=180 id=8
 S 1229 38 rot=180 id=8
 S 1230 38 rot=180 id=8
@@ -9095,8 +9095,8 @@ S 1231 30 id=8
 S 1232 30 id=8
 S 1233 30 id=8
 S 1234 30 id=8
-O 1233 32 orb=pink col=13017343 z=2
-O 1233 36 orb=pink col=13017343 z=2
+O 1233 32 orb=pink dash=pink col=13017343 z=2
+O 1233 36 orb=pink dash=pink col=13017343 z=2
 S 1234 38 rot=180 id=8
 S 1235 38 rot=180 id=8
 S 1235 30 id=8
@@ -9104,15 +9104,15 @@ S 1239 38 rot=180 id=8
 S 1239 30 id=8
 S 1240 30 id=8
 S 1240 38 rot=180 id=8
-O 1248 34 orb=pink col=13017343 z=2
+O 1248 34 orb=pink dash=pink col=13017343 z=2
 H 1245 31.5 1 0.5 fm=box
 H 1245 37 1 0.5 fm=box
-W 1247.473 36.517 2.053 3.967 z=5 id=1705
-W 1255.459 36.488 2.083 4.023 z=5 id=1705
-W 1251.473 36.517 2.053 3.967 z=5 id=1705
-W 1247.466 28.503 2.068 3.995 z=5 id=1705
-W 1251.437 28.446 2.127 4.108 z=5 id=1705
-W 1255.422 28.418 2.156 4.165 z=5 id=1705
+W 1247.473 36.517 2.053 3.967 id=1705 z=5
+W 1255.459 36.488 2.083 4.023 id=1705 z=5
+W 1251.473 36.517 2.053 3.967 id=1705 z=5
+W 1247.466 28.503 2.068 3.995 id=1705 z=5
+W 1251.437 28.446 2.127 4.108 id=1705 z=5
+W 1255.422 28.418 2.156 4.165 id=1705 z=5
 K 1258 34 inert=1 z=2
 D 1260 32 1 0.2 pad=blue z=2
 D 1262 36.8 1 0.2 pad=blue rot=180 z=2
@@ -9405,31 +9405,31 @@ V 1359 28 spd=2 z=2
 V 1368 28 spd=3 z=2
 V 1377 28 spd=4 z=2
 C 1344 32
-W 1359.481 28.531 2.039 3.938 z=5 id=1705
-W 1355.033 28.667 2.933 5.667 z=5 id=1705
-W 1363.033 29.667 2.933 5.667 z=5 id=1705
-W 1369.033 28.667 2.933 5.667 z=5 id=1705
-W 1375.033 29.667 2.933 5.667 z=5 id=1705
-W 1351.481 29.531 2.039 3.938 z=5 id=1705
-W 1366.767 29.083 1.467 2.833 z=5 id=1705
-W 1371.033 32.667 2.933 5.667 z=5 id=1705
-W 1366.033 33.667 2.933 5.667 z=5 id=1705
-W 1348.033 31.667 2.933 5.667 z=5 id=1705
-W 1344.033 34.667 2.933 5.667 z=5 id=1705
-W 1369.767 37.083 1.467 2.833 z=5 id=1705
-W 1375.767 35.083 1.467 2.833 z=5 id=1705
-W 1379.767 29.083 1.467 2.833 z=5 id=1705
-W 1382.033 30.667 2.933 5.667 z=5 id=1705
-W 1386.349 33.276 2.303 4.448 z=5 id=1705
-W 1389.767 36.083 1.467 2.833 z=5 id=1705
-W 1380.016 31.565 0.968 1.87 z=5 id=1705
-W 1378.422 33.418 2.156 4.165 z=5 id=1705
-W 1382.121 35.837 2.757 5.327 z=5 id=1705
-W 1386.422 37.418 2.156 4.165 z=5 id=1705
-W 1382.767 25.083 1.467 2.833 z=5 id=1705
-W 1386.033 23.667 2.933 5.667 z=5 id=1705
-W 1392.767 31.083 1.467 2.833 z=5 id=1705
-W 1395.114 24.822 2.772 5.355 z=5 id=1705
+W 1359.481 28.531 2.039 3.938 id=1705 z=5
+W 1355.033 28.667 2.933 5.667 id=1705 z=5
+W 1363.033 29.667 2.933 5.667 id=1705 z=5
+W 1369.033 28.667 2.933 5.667 id=1705 z=5
+W 1375.033 29.667 2.933 5.667 id=1705 z=5
+W 1351.481 29.531 2.039 3.938 id=1705 z=5
+W 1366.767 29.083 1.467 2.833 id=1705 z=5
+W 1371.033 32.667 2.933 5.667 id=1705 z=5
+W 1366.033 33.667 2.933 5.667 id=1705 z=5
+W 1348.033 31.667 2.933 5.667 id=1705 z=5
+W 1344.033 34.667 2.933 5.667 id=1705 z=5
+W 1369.767 37.083 1.467 2.833 id=1705 z=5
+W 1375.767 35.083 1.467 2.833 id=1705 z=5
+W 1379.767 29.083 1.467 2.833 id=1705 z=5
+W 1382.033 30.667 2.933 5.667 id=1705 z=5
+W 1386.349 33.276 2.303 4.448 id=1705 z=5
+W 1389.767 36.083 1.467 2.833 id=1705 z=5
+W 1380.016 31.565 0.968 1.87 id=1705 z=5
+W 1378.422 33.418 2.156 4.165 id=1705 z=5
+W 1382.121 35.837 2.757 5.327 id=1705 z=5
+W 1386.422 37.418 2.156 4.165 id=1705 z=5
+W 1382.767 25.083 1.467 2.833 id=1705 z=5
+W 1386.033 23.667 2.933 5.667 id=1705 z=5
+W 1392.767 31.083 1.467 2.833 id=1705 z=5
+W 1395.114 24.822 2.772 5.355 id=1705 z=5
 R 1393 35 to=cube z=2
 B 1398 32
 B 1397 32
@@ -9450,8 +9450,8 @@ S 1399 30 rot=90 id=8
 S 1400 31 rot=90 id=8
 S 1399 29 rot=90 id=8
 S 1399 28 rot=90 id=8
-W 1359.033 31.667 2.933 5.667 z=5 id=1705
-W 1353.033 33.667 2.933 5.667 z=5 id=1705
+W 1359.033 31.667 2.933 5.667 id=1705 z=5
+W 1353.033 33.667 2.933 5.667 id=1705 z=5
 D 1422 36.8 1 0.2 pad=blue rot=180 z=2
 D 1425 34 1 0.2 pad=blue z=2
 B 1422 37
@@ -9478,17 +9478,17 @@ S 1422 39 id=8
 S 1423 38 id=8
 S 1424 37 rot=90 id=8
 R 1432 35 to=ship z=2
-W 1436.767 37.083 1.467 2.833 z=5 id=1705
+W 1436.767 37.083 1.467 2.833 id=1705 z=5
 T 1433 35 tpy=-4.667 z=2
-W 1439.767 29.083 1.467 2.833 z=5 id=1705
-W 1435.767 32.083 1.467 2.833 z=5 id=1705
-W 1437.539 33.644 1.921 3.712 z=5 id=1705
-W 1440.033 35.667 2.933 5.667 z=5 id=1705
-W 1442.349 29.276 2.303 4.448 z=5 id=1705
-W 1446.033 30.667 2.933 5.667 z=5 id=1705
-W 1449.767 35.083 1.467 2.833 z=5 id=1705
-W 1444.444 39.46 2.112 4.08 z=5 id=1705
-W 1448.075 35.678 0.851 1.643 z=5 id=1705
+W 1439.767 29.083 1.467 2.833 id=1705 z=5
+W 1435.767 32.083 1.467 2.833 id=1705 z=5
+W 1437.539 33.644 1.921 3.712 id=1705 z=5
+W 1440.033 35.667 2.933 5.667 id=1705 z=5
+W 1442.349 29.276 2.303 4.448 id=1705 z=5
+W 1446.033 30.667 2.933 5.667 id=1705 z=5
+W 1449.767 35.083 1.467 2.833 id=1705 z=5
+W 1444.444 39.46 2.112 4.08 id=1705 z=5
+W 1448.075 35.678 0.851 1.643 id=1705 z=5
 B 1450 38
 B 1451 38
 R 1450 40 to=spider z=2
@@ -9634,25 +9634,25 @@ B 1487 36
 R 1488 41 to=ship z=2
 T 1489 41 tpy=-5.667 z=2
 G 1428 38 gd=1 z=2
-W 1390.033 26.667 2.933 5.667 z=5 id=1705
+W 1390.033 26.667 2.933 5.667 id=1705 z=5
 O 1401 35 orb=yellow z=2
-O 1409 35 orb=pink col=13017343 z=2
-O 1414 35 orb=green z=2
+O 1409 35 orb=pink dash=pink col=13017343 z=2
+O 1414 35 orb=green dash=green z=2
 B 1468 37
 B 1473 44
-W 1490.913 38.367 1.173 2.267 z=5 id=1705
+W 1490.913 38.367 1.173 2.267 id=1705 z=5
 V 1481 41 spd=4 z=2
-W 1490.767 33.083 1.467 2.833 z=5 id=1705
-W 1494.033 31.667 2.933 5.667 z=5 id=1705
-W 1492.033 39.667 2.933 5.667 z=5 id=1705
-W 1496.415 42.403 2.171 4.193 z=5 id=1705
-W 1499.29 45.163 2.42 4.675 z=5 id=1705
-W 1500.033 31.667 2.933 5.667 z=5 id=1705
-W 1497.459 35.488 2.083 4.023 z=5 id=1705
-W 1501.033 36.667 2.933 5.667 z=5 id=1705
-W 1496.133 41.792 0.733 1.417 z=5 id=1705
-W 1493.033 44.667 2.933 5.667 z=5 id=1705
-W 1505.033 33.667 2.933 5.667 z=5 id=1705
+W 1490.767 33.083 1.467 2.833 id=1705 z=5
+W 1494.033 31.667 2.933 5.667 id=1705 z=5
+W 1492.033 39.667 2.933 5.667 id=1705 z=5
+W 1496.415 42.403 2.171 4.193 id=1705 z=5
+W 1499.29 45.163 2.42 4.675 id=1705 z=5
+W 1500.033 31.667 2.933 5.667 id=1705 z=5
+W 1497.459 35.488 2.083 4.023 id=1705 z=5
+W 1501.033 36.667 2.933 5.667 id=1705 z=5
+W 1496.133 41.792 0.733 1.417 id=1705 z=5
+W 1493.033 44.667 2.933 5.667 id=1705 z=5
+W 1505.033 33.667 2.933 5.667 id=1705 z=5
 B 1504 42
 B 1506 42
 B 1505 41
@@ -9757,17 +9757,17 @@ R 1542 45 to=ship z=2
 T 1543 45 tpy=-4.667 z=2
 B 1534 41
 G 1541 45 gd=1 z=2
-W 1545.4 36.375 2.2 4.25 z=5 id=1705
-W 1549.033 36.667 2.933 5.667 z=5 id=1705
-W 1556.767 43.083 1.467 2.833 z=5 id=1705
-W 1553.033 39.667 2.933 5.667 z=5 id=1705
-W 1546.539 43.644 1.921 3.712 z=5 id=1705
-W 1545.033 46.667 2.933 5.667 z=5 id=1705
-W 1551.033 48.667 2.933 5.667 z=5 id=1705
-W 1552.133 47.792 0.733 1.417 z=5 id=1705
-W 1549.686 45.928 1.628 3.145 z=5 id=1705
-W 1550.847 41.239 1.305 2.522 z=5 id=1705
-W 1547.133 39.792 0.733 1.417 z=5 id=1705
+W 1545.4 36.375 2.2 4.25 id=1705 z=5
+W 1549.033 36.667 2.933 5.667 id=1705 z=5
+W 1556.767 43.083 1.467 2.833 id=1705 z=5
+W 1553.033 39.667 2.933 5.667 id=1705 z=5
+W 1546.539 43.644 1.921 3.712 id=1705 z=5
+W 1545.033 46.667 2.933 5.667 id=1705 z=5
+W 1551.033 48.667 2.933 5.667 id=1705 z=5
+W 1552.133 47.792 0.733 1.417 id=1705 z=5
+W 1549.686 45.928 1.628 3.145 id=1705 z=5
+W 1550.847 41.239 1.305 2.522 id=1705 z=5
+W 1547.133 39.792 0.733 1.417 id=1705 z=5
 V 198 1 spd=1 z=2
 H 472.027 5.95 1 0.05 fm=edge
 H 475 9 1 0.05 rot=180 fm=edge
@@ -9876,7 +9876,7 @@ B 553 18
 B 554 17
 D 554 16.8 1 0.2 pad=blue rot=180 z=2
 B 547 18
-O 557 8 orb=green z=2
+O 557 8 orb=green dash=green z=2
 G 559 5 gd=1 z=2
 D 561 2 1 0.2 pad=blue z=2
 D 565 9.8 1 0.2 pad=blue rot=180 z=2
@@ -9931,7 +9931,7 @@ B 577 10
 B 574 9
 D 561 11.833 1 0.2 pad=pink rot=180 z=2
 G 572 14 gd=1 z=2
-O 580 14 orb=pink col=13017343 z=2
+O 580 14 orb=pink dash=pink col=13017343 z=2
 D 582 15 1 0.2 pad=blue z=2
 D 585 22.8 1 0.2 pad=blue rot=180 z=2
 D 587 19 1 0.2 pad=blue z=2
@@ -9988,7 +9988,7 @@ B 587 14
 B 593 18
 B 595 17
 B 597 16
-O 600 18 orb=pink col=13017343 z=2
+O 600 18 orb=pink dash=pink col=13017343 z=2
 B 592 16
 B 594 15
 B 594 16
@@ -10051,7 +10051,7 @@ B 615 22 rot=180
 B 617 23 rot=180
 B 618 22 rot=180
 B 617 21 rot=180
-W 616.495 20.559 2.009 3.882 z=5 id=1705
+W 616.495 20.559 2.009 3.882 id=1705 z=5
 B 616 22
 B 617 28
 B 618 27
@@ -10073,7 +10073,7 @@ B 624 25
 B 624 23
 B 625 23
 B 623 25
-W 622.767 23.083 1.467 2.833 z=5 id=1705
+W 622.767 23.083 1.467 2.833 id=1705 z=5
 B 625 19
 B 623 18
 B 624 18
@@ -10083,7 +10083,7 @@ B 626 16
 B 624 16
 B 623 16
 B 623 17
-W 623.356 15.29 2.288 4.42 z=5 id=1705
+W 623.356 15.29 2.288 4.42 id=1705 z=5
 B 621 15
 B 629 26
 B 630 27
@@ -10135,18 +10135,18 @@ E 638 22 art=3823 z=3
 E 639 23 art=3823 z=3
 E 639 21 art=3823 z=3
 E 640 22 art=3823 z=3
-W 631.767 17.083 1.467 2.833 z=5 id=1705
-W 629.767 25.083 1.467 2.833 z=5 id=1705
-W 613.06 16.65 0.88 1.7 z=5 id=1705
-W 605.561 16.687 1.877 3.627 z=5 id=1705
-W 604.415 25.403 2.171 4.193 z=5 id=1705
-W 613.561 25.687 1.877 3.627 z=5 id=1705
-W 621.033 27.667 2.933 5.667 z=5 id=1705
-W 625.51 27.588 1.98 3.825 z=5 id=1705
-W 627.085 13.766 2.831 5.468 z=5 id=1705
-W 634.033 24.667 2.933 5.667 z=5 id=1705
-W 634.033 13.667 2.933 5.667 z=5 id=1705
-W 619.576 13.715 1.848 3.57 z=5 id=1705
+W 631.767 17.083 1.467 2.833 id=1705 z=5
+W 629.767 25.083 1.467 2.833 id=1705 z=5
+W 613.06 16.65 0.88 1.7 id=1705 z=5
+W 605.561 16.687 1.877 3.627 id=1705 z=5
+W 604.415 25.403 2.171 4.193 id=1705 z=5
+W 613.561 25.687 1.877 3.627 id=1705 z=5
+W 621.033 27.667 2.933 5.667 id=1705 z=5
+W 625.51 27.588 1.98 3.825 id=1705 z=5
+W 627.085 13.766 2.831 5.468 id=1705 z=5
+W 634.033 24.667 2.933 5.667 id=1705 z=5
+W 634.033 13.667 2.933 5.667 id=1705 z=5
+W 619.576 13.715 1.848 3.57 id=1705 z=5
 V 0 10 spd=0 z=2
 B 0 9
 B 0 14
@@ -10494,7 +10494,7 @@ B 151 2
 B 152 2
 B 152 3
 B 153 3
-O 154 5 orb=pink col=13017343 z=2
+O 154 5 orb=pink dash=pink col=13017343 z=2
 B 152 1
 B 157 4
 B 158 4
@@ -10691,7 +10691,7 @@ S 157 10 rot=180 id=8
 S 150 9 rot=180 id=8
 S 146 8 rot=180 id=8
 B 142 8
-W 1541.767 47.083 1.467 2.833 z=5 id=1705
+W 1541.767 47.083 1.467 2.833 id=1705 z=5
 R 1556 48 to=wave z=2
 B 1561 44
 B 1560 43
@@ -10745,7 +10745,7 @@ B 1568 46
 B 1570 47
 B 1571 47
 B 1571 46
-W 1568.033 43.667 2.933 5.667 z=5 id=1705
+W 1568.033 43.667 2.933 5.667 id=1705 z=5
 B 1578 50
 B 1579 50
 B 1578 51
@@ -10754,21 +10754,21 @@ B 1576 52
 B 1577 52
 B 1577 51
 B 1586 41
-W 1576.224 48.035 2.552 4.93 z=5 id=1705
-W 1561.407 41.389 2.185 4.222 z=5 id=1705
-W 1564.701 43.956 1.599 3.088 z=5 id=1705
-W 1562.422 50.418 2.156 4.165 z=5 id=1705
-W 1573.422 51.418 2.156 4.165 z=5 id=1705
-W 1572.422 43.418 2.156 4.165 z=5 id=1705
-W 1566.422 40.418 2.156 4.165 z=5 id=1705
-W 1570.422 40.418 2.156 4.165 z=5 id=1705
-W 1574.033 38.667 2.933 5.667 z=5 id=1705
+W 1576.224 48.035 2.552 4.93 id=1705 z=5
+W 1561.407 41.389 2.185 4.222 id=1705 z=5
+W 1564.701 43.956 1.599 3.088 id=1705 z=5
+W 1562.422 50.418 2.156 4.165 id=1705 z=5
+W 1573.422 51.418 2.156 4.165 id=1705 z=5
+W 1572.422 43.418 2.156 4.165 id=1705 z=5
+W 1566.422 40.418 2.156 4.165 id=1705 z=5
+W 1570.422 40.418 2.156 4.165 id=1705 z=5
+W 1574.033 38.667 2.933 5.667 id=1705 z=5
 Z 1578 45 mini=1 z=2
-W 1580.547 49.658 1.907 3.683 z=5 id=1705
-W 1585.327 50.233 2.347 4.533 z=5 id=1705
-W 1580.033 38.667 2.933 5.667 z=5 id=1705
-W 1586.033 38.667 2.933 5.667 z=5 id=1705
-W 1589.605 40.772 1.789 3.457 z=5 id=1705
+W 1580.547 49.658 1.907 3.683 id=1705 z=5
+W 1585.327 50.233 2.347 4.533 id=1705 z=5
+W 1580.033 38.667 2.933 5.667 id=1705 z=5
+W 1586.033 38.667 2.933 5.667 id=1705 z=5
+W 1589.605 40.772 1.789 3.457 id=1705 z=5
 B 1586 42
 B 1585 42
 B 1586 43
@@ -10784,19 +10784,19 @@ B 1591 52
 B 1592 51
 B 1593 52
 B 1592 52
-W 1590.767 50.083 1.467 2.833 z=5 id=1705
-W 1583.605 41.772 1.789 3.457 z=5 id=1705
-W 1588.987 51.508 1.027 1.983 z=5 id=1705
-W 1583.987 50.508 1.027 1.983 z=5 id=1705
-W 1594.107 38.808 2.787 5.383 z=5 id=1705
+W 1590.767 50.083 1.467 2.833 id=1705 z=5
+W 1583.605 41.772 1.789 3.457 id=1705 z=5
+W 1588.987 51.508 1.027 1.983 id=1705 z=5
+W 1583.987 50.508 1.027 1.983 id=1705 z=5
+W 1594.107 38.808 2.787 5.383 id=1705 z=5
 B 1594 42
 B 1593 43
 B 1594 43
-W 1592.767 41.083 1.467 2.833 z=5 id=1705
-W 1593.4 50.375 2.2 4.25 z=5 id=1705
+W 1592.767 41.083 1.467 2.833 id=1705 z=5
+W 1593.4 50.375 2.2 4.25 id=1705 z=5
 R 1598 47 to=ship z=2
 T 1599 47 tpy=-5.667 z=2
-W 1596.767 49.083 1.467 2.833 z=5 id=1705
+W 1596.767 49.083 1.467 2.833 id=1705 z=5
 B 1567 54
 B 1566 54
 B 1566 53
@@ -10804,31 +10804,31 @@ B 1565 53
 B 1565 54
 S 1566 52 rot=180 id=8
 S 1567 53 rot=180 id=8
-W 1520.033 46.667 2.933 5.667 z=5 id=1705
-W 1512.033 36.667 2.933 5.667 z=5 id=1705
-W 1528.033 36.667 2.933 5.667 z=5 id=1705
-W 1600.4 37.521 2.2 4.25 z=5 id=1705
-W 1604.033 37.813 2.933 5.667 z=5 id=1705
-W 1608.503 39.719 1.995 3.853 z=5 id=1705
-W 1601.539 44.79 1.921 3.712 z=5 id=1705
-W 1600.033 47.813 2.933 5.667 z=5 id=1705
-W 1607.033 48.813 2.933 5.667 z=5 id=1705
-W 1604.133 45.938 0.733 1.417 z=5 id=1705
-W 1604.686 47.074 1.628 3.145 z=5 id=1705
-W 1606.847 42.385 1.305 2.522 z=5 id=1705
-W 1602.133 40.938 0.733 1.417 z=5 id=1705
-W 1609.503 42.573 1.995 3.853 z=5 id=1705
+W 1520.033 46.667 2.933 5.667 id=1705 z=5
+W 1512.033 36.667 2.933 5.667 id=1705 z=5
+W 1528.033 36.667 2.933 5.667 id=1705 z=5
+W 1600.4 37.521 2.2 4.25 id=1705 z=5
+W 1604.033 37.813 2.933 5.667 id=1705 z=5
+W 1608.503 39.719 1.995 3.853 id=1705 z=5
+W 1601.539 44.79 1.921 3.712 id=1705 z=5
+W 1600.033 47.813 2.933 5.667 id=1705 z=5
+W 1607.033 48.813 2.933 5.667 id=1705 z=5
+W 1604.133 45.938 0.733 1.417 id=1705 z=5
+W 1604.686 47.074 1.628 3.145 id=1705 z=5
+W 1606.847 42.385 1.305 2.522 id=1705 z=5
+W 1602.133 40.938 0.733 1.417 id=1705 z=5
+W 1609.503 42.573 1.995 3.853 id=1705 z=5
 R 263 10 to=ball z=2
 E 1348 28 art=3823 z=3
 E 1347 28 art=3823 z=3
 E 1348 29 art=3823 z=3
 E 1348 27 art=3823 z=3
 E 1349 28 art=3823 z=3
-W 1613.033 43.667 2.933 5.667 z=5 id=1705
-W 1612.033 38.667 2.933 5.667 z=5 id=1705
-W 1611.089 45.707 0.821 1.587 z=5 id=1705
-W 1605.089 49.707 0.821 1.587 z=5 id=1705
-W 1611.862 51.268 1.276 2.465 z=5 id=1705
+W 1613.033 43.667 2.933 5.667 id=1705 z=5
+W 1612.033 38.667 2.933 5.667 id=1705 z=5
+W 1611.089 45.707 0.821 1.587 id=1705 z=5
+W 1605.089 49.707 0.821 1.587 id=1705 z=5
+W 1611.862 51.268 1.276 2.465 id=1705 z=5
 R 1614 50 to=cube z=2
 O 1620 46 orb=yellow z=2
 B 1627 47
@@ -10856,7 +10856,7 @@ S 1621 45 id=8
 S 1619 45.95 1 0.5 id=39
 S 1624 47 id=8
 S 1623 47 id=8
-O 1632 50 orb=green z=2
+O 1632 50 orb=green dash=green z=2
 B 1635 49
 B 1636 49
 D 1636 48.8 1 0.2 pad=blue rot=180 z=2
@@ -10886,25 +10886,25 @@ B 1650 46
 B 1650 45
 B 1647 46
 B 1642 43
-O 1643 47 orb=pink col=13017343 z=2
+O 1643 47 orb=pink dash=pink col=13017343 z=2
 R 1653 50 to=ship z=2
 T 1654 50 tpy=-5.667 z=2
-W 1654.9 41.021 2.2 4.25 z=5 id=1705
-W 1658.533 40.313 2.933 5.667 z=5 id=1705
-W 1663.003 45.219 1.995 3.853 z=5 id=1705
-W 1656.039 48.29 1.921 3.712 z=5 id=1705
-W 1654.533 51.313 2.933 5.667 z=5 id=1705
-W 1659.533 50.313 2.933 5.667 z=5 id=1705
-W 1658.633 49.438 0.733 1.417 z=5 id=1705
-W 1663.186 53.574 1.628 3.145 z=5 id=1705
-W 1665.347 47.885 1.305 2.522 z=5 id=1705
-W 1657.633 44.438 0.733 1.417 z=5 id=1705
-W 1663.003 42.073 1.995 3.853 z=5 id=1705
-W 1667.533 47.166 2.933 5.667 z=5 id=1705
-W 1666.533 42.166 2.933 5.667 z=5 id=1705
-W 1660.589 45.206 0.821 1.587 z=5 id=1705
-W 1663.589 52.206 0.821 1.587 z=5 id=1705
-W 1665.362 53.767 1.276 2.465 z=5 id=1705
+W 1654.9 41.021 2.2 4.25 id=1705 z=5
+W 1658.533 40.313 2.933 5.667 id=1705 z=5
+W 1663.003 45.219 1.995 3.853 id=1705 z=5
+W 1656.039 48.29 1.921 3.712 id=1705 z=5
+W 1654.533 51.313 2.933 5.667 id=1705 z=5
+W 1659.533 50.313 2.933 5.667 id=1705 z=5
+W 1658.633 49.438 0.733 1.417 id=1705 z=5
+W 1663.186 53.574 1.628 3.145 id=1705 z=5
+W 1665.347 47.885 1.305 2.522 id=1705 z=5
+W 1657.633 44.438 0.733 1.417 id=1705 z=5
+W 1663.003 42.073 1.995 3.853 id=1705 z=5
+W 1667.533 47.166 2.933 5.667 id=1705 z=5
+W 1666.533 42.166 2.933 5.667 id=1705 z=5
+W 1660.589 45.206 0.821 1.587 id=1705 z=5
+W 1663.589 52.206 0.821 1.587 id=1705 z=5
+W 1665.362 53.767 1.276 2.465 id=1705 z=5
 R 1668 54 to=spider z=2
 B 1673 51
 B 1672 52
@@ -11011,39 +11011,39 @@ B 1699 56
 B 1695 57
 B 1697 58
 B 1703 57
-W 1691.033 55.667 2.933 5.667 z=5 id=1705
-W 1684.349 49.276 2.303 4.448 z=5 id=1705
-W 1676.627 49.814 1.745 3.372 z=5 id=1705
-W 1698.767 50.083 1.467 2.833 z=5 id=1705
-W 1678.767 56.083 1.467 2.833 z=5 id=1705
-W 1666.767 56.083 1.467 2.833 z=5 id=1705
-W 1670.033 55.667 2.933 5.667 z=5 id=1705
+W 1691.033 55.667 2.933 5.667 id=1705 z=5
+W 1684.349 49.276 2.303 4.448 id=1705 z=5
+W 1676.627 49.814 1.745 3.372 id=1705 z=5
+W 1698.767 50.083 1.467 2.833 id=1705 z=5
+W 1678.767 56.083 1.467 2.833 id=1705 z=5
+W 1666.767 56.083 1.467 2.833 id=1705 z=5
+W 1670.033 55.667 2.933 5.667 id=1705 z=5
 B 1647 47
 B 1646 46
-W 1703.239 55.063 2.523 4.873 z=5 id=1705
-W 1707.73 54.013 1.54 2.975 z=5 id=1705
+W 1703.239 55.063 2.523 4.873 id=1705 z=5
+W 1707.73 54.013 1.54 2.975 id=1705 z=5
 T 1708 52 tpy=-4.667 z=2
 R 1707 52 to=ship z=2
-W 1704.767 49.083 1.467 2.833 z=5 id=1705
-W 1705.913 54.367 1.173 2.267 z=5 id=1705
-W 1709.047 48.867 1.173 2.267 z=5 id=1705
-W 1708.9 43.583 1.467 2.833 z=5 id=1705
-W 1712.167 42.167 2.933 5.667 z=5 id=1705
-W 1710.167 50.167 2.933 5.667 z=5 id=1705
-W 1714.548 52.903 2.171 4.193 z=5 id=1705
-W 1717.423 55.663 2.42 4.675 z=5 id=1705
-W 1718.167 42.167 2.933 5.667 z=5 id=1705
-W 1715.592 45.988 2.083 4.023 z=5 id=1705
-W 1719.167 47.167 2.933 5.667 z=5 id=1705
-W 1714.267 52.292 0.733 1.417 z=5 id=1705
-W 1710.167 55.167 2.933 5.667 z=5 id=1705
+W 1704.767 49.083 1.467 2.833 id=1705 z=5
+W 1705.913 54.367 1.173 2.267 id=1705 z=5
+W 1709.047 48.867 1.173 2.267 id=1705 z=5
+W 1708.9 43.583 1.467 2.833 id=1705 z=5
+W 1712.167 42.167 2.933 5.667 id=1705 z=5
+W 1710.167 50.167 2.933 5.667 id=1705 z=5
+W 1714.548 52.903 2.171 4.193 id=1705 z=5
+W 1717.423 55.663 2.42 4.675 id=1705 z=5
+W 1718.167 42.167 2.933 5.667 id=1705 z=5
+W 1715.592 45.988 2.083 4.023 id=1705 z=5
+W 1719.167 47.167 2.933 5.667 id=1705 z=5
+W 1714.267 52.292 0.733 1.417 id=1705 z=5
+W 1710.167 55.167 2.933 5.667 id=1705 z=5
 B 1695 56
 B 1694 56
 B 1687 52
 R 1721 54 to=ufo z=2
-W 1721.767 57.083 1.467 2.833 z=5 id=1705
-W 1723.767 60.083 1.467 2.833 z=5 id=1705
-W 1723.767 49.083 1.467 2.833 z=5 id=1705
+W 1721.767 57.083 1.467 2.833 id=1705 z=5
+W 1723.767 60.083 1.467 2.833 id=1705 z=5
+W 1723.767 49.083 1.467 2.833 id=1705 z=5
 B 1727 59
 B 1728 59
 B 1726 60
@@ -11090,17 +11090,17 @@ S 1726 52 id=8
 S 1727 53 id=8
 S 1728 53 id=8
 S 1730 53 id=8
-W 1732.583 49.729 1.833 3.542 z=5 id=1705
+W 1732.583 49.729 1.833 3.542 id=1705 z=5
 G 1730 55 gd=-1 z=2
-W 1734.033 58.667 2.933 5.667 z=5 id=1705
-W 1735.327 55.233 2.347 4.533 z=5 id=1705
-W 1738.767 54.083 1.467 2.833 z=5 id=1705
-W 1735.767 48.083 1.467 2.833 z=5 id=1705
-W 1738.767 47.083 1.467 2.833 z=5 id=1705
+W 1734.033 58.667 2.933 5.667 id=1705 z=5
+W 1735.327 55.233 2.347 4.533 id=1705 z=5
+W 1738.767 54.083 1.467 2.833 id=1705 z=5
+W 1735.767 48.083 1.467 2.833 id=1705 z=5
+W 1738.767 47.083 1.467 2.833 id=1705 z=5
 G 1740 51 gd=1 z=2
-W 1741.202 42.993 2.596 5.015 z=5 id=1705
-W 1745.415 48.403 2.171 4.193 z=5 id=1705
-W 1742.767 47.083 1.467 2.833 z=5 id=1705
+W 1741.202 42.993 2.596 5.015 id=1705 z=5
+W 1745.415 48.403 2.171 4.193 id=1705 z=5
+W 1742.767 47.083 1.467 2.833 id=1705 z=5
 B 1741 54
 B 1742 55
 B 1741 55
@@ -11119,15 +11119,15 @@ B 1736 47
 B 1735 48
 B 1736 48
 B 1739 47
-W 1748.767 50.083 1.467 2.833 z=5 id=1705
-W 1743.767 55.083 1.467 2.833 z=5 id=1705
-W 1746.033 55.667 2.933 5.667 z=5 id=1705
-W 1754.767 54.083 1.467 2.833 z=5 id=1705
-W 1753.033 45.667 2.933 5.667 z=5 id=1705
-W 1758.239 45.063 2.523 4.873 z=5 id=1705
-W 1758.033 54.667 2.933 5.667 z=5 id=1705
-W 1762.033 45.667 2.933 5.667 z=5 id=1705
-W 1762.767 56.083 1.467 2.833 z=5 id=1705
+W 1748.767 50.083 1.467 2.833 id=1705 z=5
+W 1743.767 55.083 1.467 2.833 id=1705 z=5
+W 1746.033 55.667 2.933 5.667 id=1705 z=5
+W 1754.767 54.083 1.467 2.833 id=1705 z=5
+W 1753.033 45.667 2.933 5.667 id=1705 z=5
+W 1758.239 45.063 2.523 4.873 id=1705 z=5
+W 1758.033 54.667 2.933 5.667 id=1705 z=5
+W 1762.033 45.667 2.933 5.667 id=1705 z=5
+W 1762.767 56.083 1.467 2.833 id=1705 z=5
 B 1752 56
 B 1751 56
 B 1751 57
@@ -11139,10 +11139,10 @@ B 1757 48
 B 1756 48
 B 1757 46
 B 1753 58
-W 1748.767 47.083 1.467 2.833 z=5 id=1705
-W 1732.767 57.083 1.467 2.833 z=5 id=1705
-W 1740.95 47.438 1.1 2.125 z=5 id=1705
-W 1745.415 44.403 2.171 4.193 z=5 id=1705
+W 1748.767 47.083 1.467 2.833 id=1705 z=5
+W 1732.767 57.083 1.467 2.833 id=1705 z=5
+W 1740.95 47.438 1.1 2.125 id=1705 z=5
+W 1745.415 44.403 2.171 4.193 id=1705 z=5
 B 1765 56
 B 1765 57
 B 1766 56
@@ -11152,11 +11152,11 @@ B 1764 57
 B 1764 56
 B 1768 58
 B 1765 58
-W 1750.913 49.367 1.173 2.267 z=5 id=1705
-W 1756.869 53.282 1.261 2.437 z=5 id=1705
-W 1761.869 54.282 1.261 2.437 z=5 id=1705
-W 1761.869 58.282 1.261 2.437 z=5 id=1705
-W 1755.869 56.282 1.261 2.437 z=5 id=1705
+W 1750.913 49.367 1.173 2.267 id=1705 z=5
+W 1756.869 53.282 1.261 2.437 id=1705 z=5
+W 1761.869 54.282 1.261 2.437 id=1705 z=5
+W 1761.869 58.282 1.261 2.437 id=1705 z=5
+W 1755.869 56.282 1.261 2.437 id=1705 z=5
 B 1765 50
 B 1765 49
 B 1765 48
@@ -11179,15 +11179,15 @@ S 1766 55 rot=180 id=8
 S 1767 55 rot=180 id=8
 V 1768 53 spd=0 z=2
 V 1786 53 spd=2 z=2
-W 1770.033 45.667 2.933 5.667 z=5 id=1705
-W 1775.033 45.667 2.933 5.667 z=5 id=1705
-W 1779.033 47.667 2.933 5.667 z=5 id=1705
-W 1769.033 54.667 2.933 5.667 z=5 id=1705
-W 1775.642 56.843 1.716 3.315 z=5 id=1705
-W 1777.855 56.253 1.291 2.493 z=5 id=1705
-W 1773.671 54.899 1.657 3.202 z=5 id=1705
-W 1773.038 57.608 0.924 1.785 z=5 id=1705
-W 1780.459 56.488 2.083 4.023 z=5 id=1705
+W 1770.033 45.667 2.933 5.667 id=1705 z=5
+W 1775.033 45.667 2.933 5.667 id=1705 z=5
+W 1779.033 47.667 2.933 5.667 id=1705 z=5
+W 1769.033 54.667 2.933 5.667 id=1705 z=5
+W 1775.642 56.843 1.716 3.315 id=1705 z=5
+W 1777.855 56.253 1.291 2.493 id=1705 z=5
+W 1773.671 54.899 1.657 3.202 id=1705 z=5
+W 1773.038 57.608 0.924 1.785 id=1705 z=5
+W 1780.459 56.488 2.083 4.023 id=1705 z=5
 B 1783 51
 B 1784 51
 B 1785 51
@@ -11234,7 +11234,7 @@ O 1796 54 orb=yellow z=2
 O 1800 55 orb=yellow z=2
 D 1807 58 1 0.2 pad=blue z=2
 D 1809 61.8 1 0.2 pad=blue rot=180 z=2
-O 1805 56 orb=pink col=13017343 z=2
+O 1805 56 orb=pink dash=pink col=13017343 z=2
 B 1811 55
 B 1812 55
 B 1810 54
@@ -11345,7 +11345,7 @@ B 1871 55
 O 1873 59 orb=yellow z=2
 D 1883 61.8 1 0.2 pad=blue rot=180 z=2
 D 1882 60 1 0.2 pad=blue z=2
-O 1878 60 orb=pink col=13017343 z=2
+O 1878 60 orb=pink dash=pink col=13017343 z=2
 B 1883 62
 B 1883 63
 B 1884 62
@@ -11418,12 +11418,12 @@ R 1935 59 to=ship z=2
 E 1912 60 art=3818 z=3
 B 1913 57
 B 1912 56
-W 1932.767 61.083 1.467 2.833 z=5 id=1705
-W 1925.767 61.083 1.467 2.833 z=5 id=1705
-W 1928.767 62.083 1.467 2.833 z=5 id=1705
-W 1932.4 53.375 2.2 4.25 z=5 id=1705
-W 1925.767 55.083 1.467 2.833 z=5 id=1705
-W 1929.767 55.083 1.467 2.833 z=5 id=1705
+W 1932.767 61.083 1.467 2.833 id=1705 z=5
+W 1925.767 61.083 1.467 2.833 id=1705 z=5
+W 1928.767 62.083 1.467 2.833 id=1705 z=5
+W 1932.4 53.375 2.2 4.25 id=1705 z=5
+W 1925.767 55.083 1.467 2.833 id=1705 z=5
+W 1929.767 55.083 1.467 2.833 id=1705 z=5
 B 1928 56
 B 1927 57
 B 1926 57
@@ -11442,15 +11442,15 @@ B 1929 62
 S 1929 61 rot=180 id=8
 S 1930 61 rot=180 id=8
 S 1931 61 rot=180 id=8
-W 1921.033 52.667 2.933 5.667 z=5 id=1705
-W 1921.033 61.667 2.933 5.667 z=5 id=1705
-W 1924.133 61.792 0.733 1.417 z=5 id=1705
-W 1903.033 53.667 2.933 5.667 z=5 id=1705
-W 1911.803 56.154 1.393 2.692 z=5 id=1705
-W 1906.033 62.667 2.933 5.667 z=5 id=1705
-W 1904.097 62.721 0.807 1.558 z=5 id=1705
-W 1913.097 62.721 0.807 1.558 z=5 id=1705
-W 1914.803 61.154 1.393 2.692 z=5 id=1705
+W 1921.033 52.667 2.933 5.667 id=1705 z=5
+W 1921.033 61.667 2.933 5.667 id=1705 z=5
+W 1924.133 61.792 0.733 1.417 id=1705 z=5
+W 1903.033 53.667 2.933 5.667 id=1705 z=5
+W 1911.803 56.154 1.393 2.692 id=1705 z=5
+W 1906.033 62.667 2.933 5.667 id=1705 z=5
+W 1904.097 62.721 0.807 1.558 id=1705 z=5
+W 1913.097 62.721 0.807 1.558 id=1705 z=5
+W 1914.803 61.154 1.393 2.692 id=1705 z=5
 B 1918 62
 B 1917 62
 B 1919 62
@@ -11477,11 +11477,11 @@ B 1905 56
 B 1904 58
 B 1908 55
 B 1910 55
-W 1901.569 63.701 1.863 3.598 z=5 id=1705
-W 1910.459 62.488 2.083 4.023 z=5 id=1705
-W 1937.033 51.667 2.933 5.667 z=5 id=1705
-W 1938.583 60.729 1.833 3.542 z=5 id=1705
-W 1942.033 53.667 2.933 5.667 z=5 id=1705
+W 1901.569 63.701 1.863 3.598 id=1705 z=5
+W 1910.459 62.488 2.083 4.023 id=1705 z=5
+W 1937.033 51.667 2.933 5.667 id=1705 z=5
+W 1938.583 60.729 1.833 3.542 id=1705 z=5
+W 1942.033 53.667 2.933 5.667 id=1705 z=5
 B 1935 62
 B 1936 62
 B 1936 63
@@ -11514,10 +11514,10 @@ B 1949 54
 B 1950 56
 B 1950 57
 B 1944 53
-W 1945.767 63.083 1.467 2.833 z=5 id=1705
-W 1955.033 59.667 2.933 5.667 z=5 id=1705
-W 1951.033 51.667 2.933 5.667 z=5 id=1705
-W 1951.737 62.027 1.525 2.947 z=5 id=1705
+W 1945.767 63.083 1.467 2.833 id=1705 z=5
+W 1955.033 59.667 2.933 5.667 id=1705 z=5
+W 1951.033 51.667 2.933 5.667 id=1705 z=5
+W 1951.737 62.027 1.525 2.947 id=1705 z=5
 B 1949 63
 B 1950 63
 B 1948 64
@@ -11526,9 +11526,9 @@ B 1949 64
 B 1949 65
 B 1950 64
 B 1947 66
-W 1958.001 54.537 0.997 1.927 z=5 id=1705
-W 1959.767 61.083 1.467 2.833 z=5 id=1705
-W 1960.033 51.667 2.933 5.667 z=5 id=1705
+W 1958.001 54.537 0.997 1.927 id=1705 z=5
+W 1959.767 61.083 1.467 2.833 id=1705 z=5
+W 1960.033 51.667 2.933 5.667 id=1705 z=5
 B 1963 55
 B 1964 55
 B 1963 56
@@ -11557,17 +11557,17 @@ B 1964 61
 S 1967 61 rot=90 id=8
 S 1965 56 rot=90 id=8
 S 1965 57 rot=90 id=8
-W 1972.033 56.667 2.933 5.667 z=5 id=1705
-W 1968.767 59.083 1.467 2.833 z=5 id=1705
-W 1968.767 52.083 1.467 2.833 z=5 id=1705
-W 1955.371 51.318 2.259 4.363 z=5 id=1705
-W 1976.033 59.667 2.933 5.667 z=5 id=1705
-W 1971.033 61.667 2.933 5.667 z=5 id=1705
+W 1972.033 56.667 2.933 5.667 id=1705 z=5
+W 1968.767 59.083 1.467 2.833 id=1705 z=5
+W 1968.767 52.083 1.467 2.833 id=1705 z=5
+W 1955.371 51.318 2.259 4.363 id=1705 z=5
+W 1976.033 59.667 2.933 5.667 id=1705 z=5
+W 1971.033 61.667 2.933 5.667 id=1705 z=5
 D 1870 57.967 1 0.2 pad=pink z=2
 G 1972 55 gd=-1 z=2
-W 1978.576 52.715 1.848 3.57 z=5 id=1705
-W 1981.444 54.46 2.112 4.08 z=5 id=1705
-W 1936.767 52.083 1.467 2.833 z=5 id=1705
+W 1978.576 52.715 1.848 3.57 id=1705 z=5
+W 1981.444 54.46 2.112 4.08 id=1705 z=5
+W 1936.767 52.083 1.467 2.833 id=1705 z=5
 S 1946 58 id=8
 S 1947 58 id=8
 S 1950 58 id=8
@@ -11584,9 +11584,9 @@ S 1949 57 rot=-90 id=8
 S 1951 57 rot=90 id=8
 S 1962 61 rot=180 id=8
 S 1966 55 rot=90 id=8
-W 1980.767 62.083 1.467 2.833 z=5 id=1705
-W 1986.033 52.667 2.933 5.667 z=5 id=1705
-W 1990.495 62.559 2.009 3.882 z=5 id=1705
+W 1980.767 62.083 1.467 2.833 id=1705 z=5
+W 1986.033 52.667 2.933 5.667 id=1705 z=5
+W 1990.495 62.559 2.009 3.882 id=1705 z=5
 B 1987 62
 B 1987 63
 B 1985 63
@@ -11615,13 +11615,13 @@ B 1991 57
 B 1991 58
 B 1990 58
 B 1988 56
-W 1984.231 62.049 2.537 4.902 z=5 id=1705
+W 1984.231 62.049 2.537 4.902 id=1705 z=5
 S 1988 62 rot=180 id=8
 S 1989 62 rot=180 id=8
-W 1995.363 61.304 2.273 4.392 z=5 id=1705
+W 1995.363 61.304 2.273 4.392 id=1705 z=5
 G 1995 59 gd=1 z=2
-W 1991.503 53.573 1.995 3.853 z=5 id=1705
-W 2000.767 63.083 1.467 2.833 z=5 id=1705
+W 1991.503 53.573 1.995 3.853 id=1705 z=5
+W 2000.767 63.083 1.467 2.833 id=1705 z=5
 B 2000 57
 B 1999 56
 B 2001 56
@@ -11630,8 +11630,8 @@ B 1999 55
 B 1998 56
 B 2001 54
 B 2002 54
-W 2004.033 51.667 2.933 5.667 z=5 id=1705
-W 2006.224 62.035 2.552 4.93 z=5 id=1705
+W 2004.033 51.667 2.933 5.667 id=1705 z=5
+W 2006.224 62.035 2.552 4.93 id=1705 z=5
 B 2004 63
 B 2002 63
 B 2003 63
@@ -11639,14 +11639,14 @@ B 2003 62
 B 2002 64
 B 2004 65
 B 2005 65
-W 1998.664 60.885 1.672 3.23 z=5 id=1705
-W 1992.862 61.268 1.276 2.465 z=5 id=1705
-W 1995.033 51.667 2.933 5.667 z=5 id=1705
-W 2000.481 53.531 2.039 3.938 z=5 id=1705
+W 1998.664 60.885 1.672 3.23 id=1705 z=5
+W 1992.862 61.268 1.276 2.465 id=1705 z=5
+W 1995.033 51.667 2.933 5.667 id=1705 z=5
+W 2000.481 53.531 2.039 3.938 id=1705 z=5
 R 2013 59 to=wave z=2
-W 2008.664 53.885 1.672 3.23 z=5 id=1705
-W 2009.767 61.083 1.467 2.833 z=5 id=1705
-W 2010.928 55.395 1.144 2.21 z=5 id=1705
+W 2008.664 53.885 1.672 3.23 id=1705 z=5
+W 2009.767 61.083 1.467 2.833 id=1705 z=5
+W 2010.928 55.395 1.144 2.21 id=1705 z=5
 S 2002 62 rot=180 id=8
 S 2004 62 rot=180 id=8
 S 2003 61 rot=180 id=8
@@ -11666,20 +11666,20 @@ B 2013 55
 B 2011 55
 B 2014 54
 B 2015 54
-W 2018.033 59.667 2.933 5.667 z=5 id=1705
-W 2017.363 52.304 2.273 4.392 z=5 id=1705
-W 2026.517 52.602 1.965 3.797 z=5 id=1705
-W 2022.525 60.616 1.951 3.768 z=5 id=1705
-W 2029.033 61.667 2.933 5.667 z=5 id=1705
-W 2030.517 52.602 1.965 3.797 z=5 id=1705
-W 2033.767 56.083 1.467 2.833 z=5 id=1705
-W 2035.429 62.432 2.141 4.137 z=5 id=1705
-W 2037.451 54.474 2.097 4.052 z=5 id=1705
-W 2044.407 59.389 2.185 4.222 z=5 id=1705
-W 2040.033 51.667 2.933 5.667 z=5 id=1705
-W 2047.767 57.083 1.467 2.833 z=5 id=1705
-W 2044.767 53.083 1.467 2.833 z=5 id=1705
-W 2022.767 52.083 1.467 2.833 z=5 id=1705
+W 2018.033 59.667 2.933 5.667 id=1705 z=5
+W 2017.363 52.304 2.273 4.392 id=1705 z=5
+W 2026.517 52.602 1.965 3.797 id=1705 z=5
+W 2022.525 60.616 1.951 3.768 id=1705 z=5
+W 2029.033 61.667 2.933 5.667 id=1705 z=5
+W 2030.517 52.602 1.965 3.797 id=1705 z=5
+W 2033.767 56.083 1.467 2.833 id=1705 z=5
+W 2035.429 62.432 2.141 4.137 id=1705 z=5
+W 2037.451 54.474 2.097 4.052 id=1705 z=5
+W 2044.407 59.389 2.185 4.222 id=1705 z=5
+W 2040.033 51.667 2.933 5.667 id=1705 z=5
+W 2047.767 57.083 1.467 2.833 id=1705 z=5
+W 2044.767 53.083 1.467 2.833 id=1705 z=5
+W 2022.767 52.083 1.467 2.833 id=1705 z=5
 B 2020 53
 B 2019 54
 B 2019 53
@@ -11749,12 +11749,12 @@ S 2020 59 rot=-180 id=8
 S 2021 59 rot=-180 id=8
 S 2015 62 rot=-270 id=8
 S 2015 63 rot=-270 id=8
-W 2025.532 59.63 1.936 3.74 z=5 id=1705
-W 2040.033 60.667 2.933 5.667 z=5 id=1705
-W 2053.767 55.083 1.467 2.833 z=5 id=1705
-W 2051.033 50.667 2.933 5.667 z=5 id=1705
-W 2056.033 50.667 2.933 5.667 z=5 id=1705
-W 2050.767 60.083 1.467 2.833 z=5 id=1705
+W 2025.532 59.63 1.936 3.74 id=1705 z=5
+W 2040.033 60.667 2.933 5.667 id=1705 z=5
+W 2053.767 55.083 1.467 2.833 id=1705 z=5
+W 2051.033 50.667 2.933 5.667 id=1705 z=5
+W 2056.033 50.667 2.933 5.667 id=1705 z=5
+W 2050.767 60.083 1.467 2.833 id=1705 z=5
 B 2048 53
 B 2049 53
 B 2046 53
@@ -11764,7 +11764,7 @@ B 2047 52
 B 2049 54
 B 2050 54
 B 2050 53
-W 2052.385 61.347 2.229 4.307 z=5 id=1705
+W 2052.385 61.347 2.229 4.307 id=1705 z=5
 R 2055 60 to=cube z=2
 B 2056 57
 B 2056 58
@@ -13352,10 +13352,10 @@ B 2539 74
 B 2538 73
 B 2532 70
 B 2531 70
-W 2534.767 70.083 1.467 2.833 z=5 id=1705
-W 2522.767 80.083 1.467 2.833 z=5 id=1705
-W 2525.767 83.083 1.467 2.833 z=5 id=1705
-W 2529.767 81.083 1.467 2.833 z=5 id=1705
+W 2534.767 70.083 1.467 2.833 id=1705 z=5
+W 2522.767 80.083 1.467 2.833 id=1705 z=5
+W 2525.767 83.083 1.467 2.833 id=1705 z=5
+W 2529.767 81.083 1.467 2.833 id=1705 z=5
 B 2527 84
 B 2528 84
 B 2529 83
@@ -13373,8 +13373,8 @@ B 2523 82
 B 2524 83
 B 2523 84
 B 2525 85
-W 2511.767 67.083 1.467 2.833 z=5 id=1705
-W 2514.767 68.083 1.467 2.833 z=5 id=1705
+W 2511.767 67.083 1.467 2.833 id=1705 z=5
+W 2514.767 68.083 1.467 2.833 id=1705 z=5
 B 2515 68
 B 2515 67
 B 2514 67
@@ -13382,13 +13382,13 @@ B 2512 67
 B 2513 68
 B 2513 67
 B 2514 68
-W 2484.767 64.083 1.467 2.833 z=5 id=1705
-W 2479.767 65.083 1.467 2.833 z=5 id=1705
-W 2481.767 63.083 1.467 2.833 z=5 id=1705
+W 2484.767 64.083 1.467 2.833 id=1705 z=5
+W 2479.767 65.083 1.467 2.833 id=1705 z=5
+W 2481.767 63.083 1.467 2.833 id=1705 z=5
 E 2539 75 rot=-90 art=3812 z=3
 A 2545 73 ar=purple tp=1 z=2
-W 2540.767 72.083 1.467 2.833 z=5 id=1705
-W 2543.767 70.083 1.467 2.833 z=5 id=1705
+W 2540.767 72.083 1.467 2.833 id=1705 z=5
+W 2543.767 70.083 1.467 2.833 id=1705 z=5
 B 2542 72
 B 2541 72
 B 2542 71
@@ -13401,7 +13401,7 @@ B 2540 70
 B 2548 72
 B 2548 71
 B 2547 71
-W 2546.767 71.083 1.467 2.833 z=5 id=1705
+W 2546.767 71.083 1.467 2.833 id=1705 z=5
 B 2545 79
 B 2546 79
 B 2544 80
@@ -13764,69 +13764,69 @@ B 2631 81.5 rot=-180 fy=1
 O 2647 84 orb=yellow z=2
 E 2641 87 art=3818 z=3
 O 2651 86 orb=yellow z=2
-O 2655 88 orb=green z=2
+O 2655 88 orb=green dash=green z=2
 O 2659 86 orb=yellow z=2
 O 2663 84 orb=yellow z=2
-O 2667 82 orb=green z=2
+O 2667 82 orb=green dash=green z=2
 O 2671 84 orb=yellow z=2
 O 2675 86 orb=yellow z=2
-O 2679 88 orb=green z=2
+O 2679 88 orb=green dash=green z=2
 O 2683 86 orb=yellow z=2
 A 2687 84 ar=green z=2
 O 2704 86 orb=yellow z=2
-O 2700 84 orb=green z=2
+O 2700 84 orb=green dash=green z=2
 O 2708 88 orb=yellow z=2
-O 2712 90 orb=green z=2
+O 2712 90 orb=green dash=green z=2
 O 2716 88 orb=yellow z=2
 O 2720 86 orb=yellow z=2
-O 2724 84 orb=green z=2
+O 2724 84 orb=green dash=green z=2
 O 2728 86 orb=yellow z=2
 O 2732 88 orb=yellow z=2
-O 2736 90 orb=green z=2
+O 2736 90 orb=green dash=green z=2
 O 2740 88 orb=yellow z=2
 A 2744 86 ar=green z=2
 O 2761 88 orb=yellow z=2
-O 2757 86 orb=green z=2
+O 2757 86 orb=green dash=green z=2
 O 2765 90 orb=yellow z=2
-O 2769 92 orb=green z=2
+O 2769 92 orb=green dash=green z=2
 O 2773 90 orb=yellow z=2
 O 2777 88 orb=yellow z=2
-O 2781 86 orb=green z=2
+O 2781 86 orb=green dash=green z=2
 O 2785 88 orb=yellow z=2
 O 2789 90 orb=yellow z=2
-O 2793 92 orb=green z=2
+O 2793 92 orb=green dash=green z=2
 O 2797 90 orb=yellow z=2
 E 2810.117 97.792 art=3818 z=3
 O 2867 90 orb=yellow fx=1 z=2
 E 2861 87 fx=1 art=3818 z=3
 O 2871 88 orb=yellow fx=1 z=2
-O 2875 86 orb=green fx=1 z=2
+O 2875 86 orb=green dash=green fx=1 z=2
 O 2879 88 orb=yellow fx=1 z=2
 O 2883 90 orb=yellow fx=1 z=2
-O 2887 92 orb=green fx=1 z=2
+O 2887 92 orb=green dash=green fx=1 z=2
 O 2891 90 orb=yellow fx=1 z=2
 O 2895 88 orb=yellow fx=1 z=2
-O 2899 86 orb=green fx=1 z=2
+O 2899 86 orb=green dash=green fx=1 z=2
 O 2903 88 orb=yellow fx=1 z=2
 A 2852 97 rot=45 ar=pink z=2
 A 2907 90 ar=green z=2
 O 2924 92 orb=yellow z=2
-O 2920 90 orb=green z=2
+O 2920 90 orb=green dash=green z=2
 O 2928 94 orb=yellow z=2
-O 2932 96 orb=green z=2
+O 2932 96 orb=green dash=green z=2
 O 2936 94 orb=yellow z=2
 O 2940 92 orb=yellow z=2
-O 2944 90 orb=green z=2
+O 2944 90 orb=green dash=green z=2
 O 2948 92 orb=yellow z=2
 O 2952 94 orb=yellow z=2
-O 2956 96 orb=green z=2
+O 2956 96 orb=green dash=green z=2
 O 2975.06 101 orb=yellow z=2
 E 2969.06 104 art=3818 z=3
 O 2979.06 103 orb=yellow z=2
-O 2983.06 105 orb=green z=2
+O 2983.06 105 orb=green dash=green z=2
 O 2987.06 103 orb=yellow z=2
 O 2991.06 101 orb=yellow z=2
-O 2995.06 99 orb=green z=2
+O 2995.06 99 orb=green dash=green z=2
 O 2999.06 101 orb=yellow z=2
 O 3003.06 103 orb=yellow z=2
 A 2960 94 rot=-45 ar=pink z=2
@@ -13834,23 +13834,23 @@ A 2632 77 rot=-45 ar=green z=2
 A 2801 88 rot=-45 ar=green z=2
 O 2816 95 orb=yellow z=2
 O 2820 97 orb=yellow z=2
-O 2824 99 orb=green z=2
+O 2824 99 orb=green dash=green z=2
 O 2828 97 orb=yellow z=2
 O 2832 95 orb=yellow z=2
-O 2836 93 orb=green z=2
+O 2836 93 orb=green dash=green z=2
 O 2840 95 orb=yellow z=2
 O 2844 97 orb=yellow z=2
-O 2848 99 orb=green z=2
+O 2848 99 orb=green dash=green z=2
 R 3005 104 to=ship z=2
 V 3006 104 spd=0 z=2
 C 3032 104
-W 3007.767 107.083 1.467 2.833 z=5 id=1705
-W 3007.767 98.083 1.467 2.833 z=5 id=1705
-W 3014.767 98.083 1.467 2.833 z=5 id=1705
-W 3015.583 107.729 1.833 3.542 z=5 id=1705
-W 3020.767 98.083 1.467 2.833 z=5 id=1705
-W 3027.767 107.083 1.467 2.833 z=5 id=1705
-W 3028.767 98.083 1.467 2.833 z=5 id=1705
+W 3007.767 107.083 1.467 2.833 id=1705 z=5
+W 3007.767 98.083 1.467 2.833 id=1705 z=5
+W 3014.767 98.083 1.467 2.833 id=1705 z=5
+W 3015.583 107.729 1.833 3.542 id=1705 z=5
+W 3020.767 98.083 1.467 2.833 id=1705 z=5
+W 3027.767 107.083 1.467 2.833 id=1705 z=5
+W 3028.767 98.083 1.467 2.833 id=1705 z=5
 B 3015 108
 B 3014 108
 B 3014 109
@@ -13880,15 +13880,15 @@ B 3024 98
 B 3022 97
 B 3026 97
 B 3027 97
-W 3024.033 107.667 2.933 5.667 z=5 id=1705
-W 3018.583 109.729 1.833 3.542 z=5 id=1705
-W 3020.261 106.106 2.479 4.788 z=5 id=1705
-W 3017.261 96.106 2.479 4.788 z=5 id=1705
-W 3012.972 99.48 1.056 2.04 z=5 id=1705
-W 3026.972 99.48 1.056 2.04 z=5 id=1705
-W 3011.033 107.667 2.933 5.667 z=5 id=1705
-W 3031.033 107.667 2.933 5.667 z=5 id=1705
-W 3032.033 95.667 2.933 5.667 z=5 id=1705
+W 3024.033 107.667 2.933 5.667 id=1705 z=5
+W 3018.583 109.729 1.833 3.542 id=1705 z=5
+W 3020.261 106.106 2.479 4.788 id=1705 z=5
+W 3017.261 96.106 2.479 4.788 id=1705 z=5
+W 3012.972 99.48 1.056 2.04 id=1705 z=5
+W 3026.972 99.48 1.056 2.04 id=1705 z=5
+W 3011.033 107.667 2.933 5.667 id=1705 z=5
+W 3031.033 107.667 2.933 5.667 id=1705 z=5
+W 3032.033 95.667 2.933 5.667 id=1705 z=5
 B 3033 102
 B 3034 102
 B 3034 101
@@ -13953,7 +13953,7 @@ B 3073 101
 B 3072 101
 B 3071 102
 B 3070 100
-O 3077 106 orb=green z=2
+O 3077 106 orb=green dash=green z=2
 O 3082 105 orb=yellow z=2
 B 3086 103
 B 3087 103
@@ -13961,7 +13961,7 @@ B 3055 101
 B 3053 98
 B 3087 104
 B 3088 104
-O 3093 102 orb=green z=2
+O 3093 102 orb=green dash=green z=2
 B 3085 105
 B 3090 103
 B 3099 100
@@ -14064,7 +14064,7 @@ B 3174 109
 B 3174 108
 B 3173 109
 O 3175 112 orb=yellow z=2
-O 3181 112 orb=green z=2
+O 3181 112 orb=green dash=green z=2
 B 3188 113
 B 3187 113
 B 3187 114
@@ -14143,14 +14143,14 @@ B 3226 112
 B 3227 111
 V 3234 113 spd=4 z=2
 R 3233 113 to=ufo z=2
-W 3237.767 115.083 1.467 2.833 z=5 id=1705
-W 3242.767 117.083 1.467 2.833 z=5 id=1705
-W 3242.767 107.083 1.467 2.833 z=5 id=1705
-W 3245.62 111.8 1.76 3.4 z=5 id=1705
+W 3237.767 115.083 1.467 2.833 id=1705 z=5
+W 3242.767 117.083 1.467 2.833 id=1705 z=5
+W 3242.767 107.083 1.467 2.833 id=1705 z=5
+W 3245.62 111.8 1.76 3.4 id=1705 z=5
 G 3246 116 gd=-1 z=2
-W 3245.767 118.083 1.467 2.833 z=5 id=1705
-W 3250.033 116.667 2.933 5.667 z=5 id=1705
-W 3249.089 107.707 0.821 1.587 z=5 id=1705
+W 3245.767 118.083 1.467 2.833 id=1705 z=5
+W 3250.033 116.667 2.933 5.667 id=1705 z=5
+W 3249.089 107.707 0.821 1.587 id=1705 z=5
 B 3238 110
 B 3238 109
 B 3237 110
@@ -14168,8 +14168,8 @@ B 3245 107
 S 3235 111 id=8
 S 3241 108 rot=90 id=8
 S 3245 108 id=8
-W 3246.517 105.602 1.965 3.797 z=5 id=1705
-W 3244.089 119.707 0.821 1.587 z=5 id=1705
+W 3246.517 105.602 1.965 3.797 id=1705 z=5
+W 3244.089 119.707 0.821 1.587 id=1705 z=5
 B 3240 116
 B 3240 117
 B 3241 117
@@ -14181,13 +14181,13 @@ B 3238 119
 S 3241 116 rot=180 id=8
 S 3237 119 rot=-90 id=8
 G 3252 113 gd=1 z=2
-W 3250.767 108.083 1.467 2.833 z=5 id=1705
-W 3256.767 111.083 1.467 2.833 z=5 id=1705
-W 3256.869 108.282 1.261 2.437 z=5 id=1705
-W 3259.767 113.083 1.467 2.833 z=5 id=1705
-W 3259.033 107.667 2.933 5.667 z=5 id=1705
-W 3262.767 111.083 1.467 2.833 z=5 id=1705
-W 3261.943 113.423 1.115 2.153 z=5 id=1705
+W 3250.767 108.083 1.467 2.833 id=1705 z=5
+W 3256.767 111.083 1.467 2.833 id=1705 z=5
+W 3256.869 108.282 1.261 2.437 id=1705 z=5
+W 3259.767 113.083 1.467 2.833 id=1705 z=5
+W 3259.033 107.667 2.933 5.667 id=1705 z=5
+W 3262.767 111.083 1.467 2.833 id=1705 z=5
+W 3261.943 113.423 1.115 2.153 id=1705 z=5
 T 3264 117 tpy=-7.667 z=2
 B 3255 109
 B 3254 109
@@ -14208,22 +14208,22 @@ B 3254 119
 B 3257 119
 B 3252 117
 B 3253 118
-W 3269.913 108.367 1.173 2.267 z=5 id=1705
-W 3265.767 113.083 1.467 2.833 z=5 id=1705
-W 3271.767 107.083 1.467 2.833 z=5 id=1705
-W 3267.033 114.667 2.933 5.667 z=5 id=1705
-W 3271.767 117.083 1.467 2.833 z=5 id=1705
-W 3272.053 109.636 0.895 1.728 z=5 id=1705
-W 3274.033 107.667 2.933 5.667 z=5 id=1705
-W 3271.082 115.693 0.836 1.615 z=5 id=1705
+W 3269.913 108.367 1.173 2.267 id=1705 z=5
+W 3265.767 113.083 1.467 2.833 id=1705 z=5
+W 3271.767 107.083 1.467 2.833 id=1705 z=5
+W 3267.033 114.667 2.933 5.667 id=1705 z=5
+W 3271.767 117.083 1.467 2.833 id=1705 z=5
+W 3272.053 109.636 0.895 1.728 id=1705 z=5
+W 3274.033 107.667 2.933 5.667 id=1705 z=5
+W 3271.082 115.693 0.836 1.615 id=1705 z=5
 G 3275 114 gd=-1 z=2
-W 3267.913 107.367 1.173 2.267 z=5 id=1705
-W 3275.283 116.148 2.435 4.703 z=5 id=1705
-W 3279.767 116.083 1.467 2.833 z=5 id=1705
-W 3278.075 115.678 0.851 1.643 z=5 id=1705
-W 3287.767 112.083 1.467 2.833 z=5 id=1705
-W 3283.767 106.083 1.467 2.833 z=5 id=1705
-W 3292.767 113.083 1.467 2.833 z=5 id=1705
+W 3267.913 107.367 1.173 2.267 id=1705 z=5
+W 3275.283 116.148 2.435 4.703 id=1705 z=5
+W 3279.767 116.083 1.467 2.833 id=1705 z=5
+W 3278.075 115.678 0.851 1.643 id=1705 z=5
+W 3287.767 112.083 1.467 2.833 id=1705 z=5
+W 3283.767 106.083 1.467 2.833 id=1705 z=5
+W 3292.767 113.083 1.467 2.833 id=1705 z=5
 B 3278 109
 B 3279 110
 B 3278 110
@@ -14236,9 +14236,9 @@ B 3277 109
 B 3278 111
 B 3276 107
 B 3275 107
-W 3280.231 107.049 2.537 4.902 z=5 id=1705
-W 3284.075 108.678 0.851 1.643 z=5 id=1705
-W 3286.378 105.333 2.244 4.335 z=5 id=1705
+W 3280.231 107.049 2.537 4.902 id=1705 z=5
+W 3284.075 108.678 0.851 1.643 id=1705 z=5
+W 3286.378 105.333 2.244 4.335 id=1705 z=5
 G 3288 110 gd=1 z=2
 B 3290 113
 B 3291 113
@@ -14250,10 +14250,10 @@ B 3293 115
 B 3292 115
 B 3291 116
 B 3290 116
-W 3285.334 114.248 2.332 4.505 z=5 id=1705
-W 3281.075 114.678 0.851 1.643 z=5 id=1705
-W 3282.869 115.282 1.261 2.437 z=5 id=1705
-W 3283.957 113.452 1.085 2.097 z=5 id=1705
+W 3285.334 114.248 2.332 4.505 id=1705 z=5
+W 3281.075 114.678 0.851 1.643 id=1705 z=5
+W 3282.869 115.282 1.261 2.437 id=1705 z=5
+W 3283.957 113.452 1.085 2.097 id=1705 z=5
 B 3290 106
 B 3291 107
 B 3290 107
@@ -14264,23 +14264,23 @@ B 3293 108
 B 3291 108
 B 3289 108
 B 3289 107
-W 3292.767 106.083 1.467 2.833 z=5 id=1705
-W 3294.033 114.667 2.933 5.667 z=5 id=1705
-W 3303.001 112.537 0.997 1.927 z=5 id=1705
-W 3299.95 108.438 1.1 2.125 z=5 id=1705
-W 3294.444 103.46 2.112 4.08 z=5 id=1705
-W 3299.033 116.667 2.933 5.667 z=5 id=1705
-W 3298.053 115.636 0.895 1.728 z=5 id=1705
-W 3300.033 99.667 2.933 5.667 z=5 id=1705
-W 3304.444 102.46 2.112 4.08 z=5 id=1705
-W 3307.033 104.667 2.933 5.667 z=5 id=1705
-W 3304.033 116.667 2.933 5.667 z=5 id=1705
-W 3311.444 115.46 2.112 4.08 z=5 id=1705
-W 3313.268 106.12 2.464 4.76 z=5 id=1705
-W 3319.033 104.667 2.933 5.667 z=5 id=1705
-W 3317.444 114.46 2.112 4.08 z=5 id=1705
-W 3323.444 106.46 2.112 4.08 z=5 id=1705
-W 3328.092 115.78 2.816 5.44 z=5 id=1705
+W 3292.767 106.083 1.467 2.833 id=1705 z=5
+W 3294.033 114.667 2.933 5.667 id=1705 z=5
+W 3303.001 112.537 0.997 1.927 id=1705 z=5
+W 3299.95 108.438 1.1 2.125 id=1705 z=5
+W 3294.444 103.46 2.112 4.08 id=1705 z=5
+W 3299.033 116.667 2.933 5.667 id=1705 z=5
+W 3298.053 115.636 0.895 1.728 id=1705 z=5
+W 3300.033 99.667 2.933 5.667 id=1705 z=5
+W 3304.444 102.46 2.112 4.08 id=1705 z=5
+W 3307.033 104.667 2.933 5.667 id=1705 z=5
+W 3304.033 116.667 2.933 5.667 id=1705 z=5
+W 3311.444 115.46 2.112 4.08 id=1705 z=5
+W 3313.268 106.12 2.464 4.76 id=1705 z=5
+W 3319.033 104.667 2.933 5.667 id=1705 z=5
+W 3317.444 114.46 2.112 4.08 id=1705 z=5
+W 3323.444 106.46 2.112 4.08 id=1705 z=5
+W 3328.092 115.78 2.816 5.44 id=1705 z=5
 B 3306 117
 B 3305 117
 B 3305 118
@@ -14320,10 +14320,10 @@ S 3322 114 rot=180 id=8
 S 3323 114 rot=180 id=8
 S 3324 115 rot=180 id=8
 S 3321 115 rot=180 id=8
-W 3308.767 117.083 1.467 2.833 z=5 id=1705
-W 3305.009 106.551 0.983 1.898 z=5 id=1705
-W 3297.884 104.31 1.232 2.38 z=5 id=1705
-W 3296.554 100.673 1.892 3.655 z=5 id=1705
+W 3308.767 117.083 1.467 2.833 id=1705 z=5
+W 3305.009 106.551 0.983 1.898 id=1705 z=5
+W 3297.884 104.31 1.232 2.38 id=1705 z=5
+W 3296.554 100.673 1.892 3.655 id=1705 z=5
 B 3315 116
 B 3316 116
 B 3314 116
@@ -14335,9 +14335,9 @@ B 3313 117
 S 3314 115 rot=180 id=8
 S 3315 115 rot=180 id=8
 S 3316 115 rot=180 id=8
-W 3316.972 108.48 1.056 2.04 z=5 id=1705
-W 3324.708 115.97 1.584 3.06 z=5 id=1705
-W 3326.84 114.225 1.32 2.55 z=5 id=1705
+W 3316.972 108.48 1.056 2.04 id=1705 z=5
+W 3324.708 115.97 1.584 3.06 id=1705 z=5
+W 3326.84 114.225 1.32 2.55 id=1705 z=5
 B 3327 108
 B 3328 108
 B 3328 107
@@ -14349,11 +14349,11 @@ B 3326 108
 S 3327 110 id=8
 S 3326 110 id=8
 S 3328 109 id=8
-W 3334.481 115.531 2.039 3.938 z=5 id=1705
-W 3327.488 105.545 2.024 3.91 z=5 id=1705
-W 3334.033 104.667 2.933 5.667 z=5 id=1705
-W 3338.525 104.616 1.951 3.768 z=5 id=1705
-W 3340.767 107.083 1.467 2.833 z=5 id=1705
+W 3334.481 115.531 2.039 3.938 id=1705 z=5
+W 3327.488 105.545 2.024 3.91 id=1705 z=5
+W 3334.033 104.667 2.933 5.667 id=1705 z=5
+W 3338.525 104.616 1.951 3.768 id=1705 z=5
+W 3340.767 107.083 1.467 2.833 id=1705 z=5
 B 3337 117
 B 3338 117
 B 3338 116
@@ -14364,12 +14364,12 @@ B 3339 119
 S 3336 116 rot=180 id=8
 S 3337 116 rot=180 id=8
 S 3338 115 rot=180 id=8
-W 3331.723 114.998 1.555 3.003 z=5 id=1705
-W 3330.605 103.772 1.789 3.457 z=5 id=1705
-W 3330.605 106.772 1.789 3.457 z=5 id=1705
-W 3337.957 107.452 1.085 2.097 z=5 id=1705
-W 3338.605 115.772 1.789 3.457 z=5 id=1705
-W 3345.033 114.667 2.933 5.667 z=5 id=1705
+W 3331.723 114.998 1.555 3.003 id=1705 z=5
+W 3330.605 103.772 1.789 3.457 id=1705 z=5
+W 3330.605 106.772 1.789 3.457 id=1705 z=5
+W 3337.957 107.452 1.085 2.097 id=1705 z=5
+W 3338.605 115.772 1.789 3.457 id=1705 z=5
+W 3345.033 114.667 2.933 5.667 id=1705 z=5
 B 3344 108
 B 3345 108
 B 3343 107
@@ -14387,30 +14387,30 @@ S 3344 109 id=8
 S 3345 109 id=8
 S 3346 109 id=8
 S 3347 109 id=8
-W 3341.605 114.772 1.789 3.457 z=5 id=1705
+W 3341.605 114.772 1.789 3.457 id=1705 z=5
 R 3348 112 to=wave z=2
-W 3350.767 113.083 1.467 2.833 z=5 id=1705
-W 3355.767 107.083 1.467 2.833 z=5 id=1705
-W 3359.979 112.494 1.041 2.012 z=5 id=1705
-W 3362.561 105.687 1.877 3.627 z=5 id=1705
-W 3365.979 110.494 1.041 2.012 z=5 id=1705
-W 3370.965 113.466 1.071 2.068 z=5 id=1705
-W 3376.767 109.083 1.467 2.833 z=5 id=1705
-W 3384.605 106.772 1.789 3.457 z=5 id=1705
-W 3389.067 110.664 0.865 1.672 z=5 id=1705
-W 3394.987 106.508 1.027 1.983 z=5 id=1705
-W 3400.935 106.409 1.129 2.182 z=5 id=1705
-W 3403.591 110.743 1.819 3.513 z=5 id=1705
-W 3349.767 105.083 1.467 2.833 z=5 id=1705
-W 3371.906 106.353 1.188 2.295 z=5 id=1705
-W 3354.767 116.083 1.467 2.833 z=5 id=1705
-W 3362.576 115.715 1.848 3.57 z=5 id=1705
-W 3376.767 115.083 1.467 2.833 z=5 id=1705
-W 3391.877 114.296 1.247 2.408 z=5 id=1705
-W 3398.503 115.573 1.995 3.853 z=5 id=1705
-W 3398.001 110.537 0.997 1.927 z=5 id=1705
-W 3385.664 114.885 1.672 3.23 z=5 id=1705
-W 3382.133 112.792 0.733 1.417 z=5 id=1705
+W 3350.767 113.083 1.467 2.833 id=1705 z=5
+W 3355.767 107.083 1.467 2.833 id=1705 z=5
+W 3359.979 112.494 1.041 2.012 id=1705 z=5
+W 3362.561 105.687 1.877 3.627 id=1705 z=5
+W 3365.979 110.494 1.041 2.012 id=1705 z=5
+W 3370.965 113.466 1.071 2.068 id=1705 z=5
+W 3376.767 109.083 1.467 2.833 id=1705 z=5
+W 3384.605 106.772 1.789 3.457 id=1705 z=5
+W 3389.067 110.664 0.865 1.672 id=1705 z=5
+W 3394.987 106.508 1.027 1.983 id=1705 z=5
+W 3400.935 106.409 1.129 2.182 id=1705 z=5
+W 3403.591 110.743 1.819 3.513 id=1705 z=5
+W 3349.767 105.083 1.467 2.833 id=1705 z=5
+W 3371.906 106.353 1.188 2.295 id=1705 z=5
+W 3354.767 116.083 1.467 2.833 id=1705 z=5
+W 3362.576 115.715 1.848 3.57 id=1705 z=5
+W 3376.767 115.083 1.467 2.833 id=1705 z=5
+W 3391.877 114.296 1.247 2.408 id=1705 z=5
+W 3398.503 115.573 1.995 3.853 id=1705 z=5
+W 3398.001 110.537 0.997 1.927 id=1705 z=5
+W 3385.664 114.885 1.672 3.23 id=1705 z=5
+W 3382.133 112.792 0.733 1.417 id=1705 z=5
 V 3404 108 spd=0 z=2
 V 3404 115 spd=0 z=2
 R 3424 112 to=cube z=2
@@ -15824,6 +15824,6 @@ E -1.167 7.833 art=3638 z=8 g=1
 E -1.167 8.833 art=3638 z=8 g=1
 P -16 -1 3652 1
 `),gr="#7ff0ff",Ti=[8384767,16769402,10551248,13017343,16752592],yt=8384767,Xt=16751211,xr=11,yr=1,Bi=115e4,Ei=720,Ot=90,Ci=120,Ai=-90,Sr=180,Tr=150,Br=150,Er=120,Mi=new Set(["ship","ufo","wave","ball"]),Cr=/(^|[?&])icons=1(&|$)/.test(location.search),Ar=/(^|[?&])art=1(&|$)/.test(location.search),Kt=Math.max(1,Number(/(^|[?&])band=([\d.]+)/.exec(location.search)?.[2]??6)),Ri=[{mode:"cube",key:"icon-cube",file:"cube"},{mode:"ship",key:"icon-ship",file:"ship"},{mode:"ball",key:"icon-ball",file:"ball"},{mode:"ufo",key:"icon-ufo",file:"bird"},{mode:"wave",key:"icon-wave",file:"dart"},{mode:"robot",key:"icon-robot",file:"robot"},{mode:"spider",key:"icon-spider",file:"spider"}];function Mr(m){const t=new DOMParser().parseFromString(m,"text/xml").querySelector("plist > dict");if(!t)return null;const l=Array.from(t.children),v=l.findIndex(r=>r.tagName==="key"&&r.textContent==="frames");if(v<0)return null;const h={},a=Array.from(l[v+1].children);for(let r=0;r<a.length;r++){if(a[r].tagName!=="key")continue;const e=(a[r].textContent??"").trim(),i=Array.from(a[r+1]?.children??[]),n=d=>{const f=i.findIndex(c=>c.tagName==="key"&&c.textContent===d);return f>=0?i[f+1]?.textContent??"":""},s=n("textureRect").match(/\{\{(-?[\d.]+),(-?[\d.]+)\},\{(-?[\d.]+),(-?[\d.]+)\}\}/);if(!s)continue;const o=n("spriteSourceSize").match(/\{(-?[\d.]+),(-?[\d.]+)\}/),u=n("spriteOffset").match(/\{(-?[\d.]+),(-?[\d.]+)\}/);h[e]={frame:{x:+s[1],y:+s[2],w:+s[3],h:+s[4]},rotated:n("textureRotated")==="true",sourceSize:{w:+(o?.[1]??s[3]),h:+(o?.[2]??s[4])},spriteSourceSize:{x:+(u?.[1]??0),y:-+(u?.[2]??0),w:+s[3],h:+s[4]}}}return Object.keys(h).length?h:null}function Rr(){return window.__GD_CHART==="gen"?_i({seed:20260913}):Si}const vt=Rr(),Pr=Vi(vt),bt={cube:[9369599,3107839],ship:[12448767,4160767],ball:[10479871,3120127],ufo:[13170431,4884223],wave:[10479871,3592447],robot:[11137279,4156415],spider:[13219583,5917695]},zr={yellow:16769402,pink:16752592,red:16747146,blue:10475775,green:10551248,black:12167167},Lr={yellow:16769402,pink:16752592,red:16747146,blue:10475775,purple:13017343},Pi={cube:8257456,ship:16752592,ball:16756838,ufo:16769402,wave:8384767,robot:13017343,spider:11060479},Zt=34,Qt=86,_t=["","(终末之诗 · 内容待填)","","把要放的文字填进 src/main.ts 里的 POEM 数组,","一行一个字符串,空字符串表示空行。",""],Fr="tuagfey-gd-easter",zi=26,Li=36,Or=["cube","ship","ball","ufo","wave","robot","spider"],Fi={cube:"方块",ship:"飞机",ball:"球",ufo:"UFO",wave:"波浪",robot:"机器人",spider:"蜘蛛"};function Dr(m){const g=m/Z,t=vt.segments.find(l=>g>=l.from&&g<l.to);return t?t.label||t.mode:""}class Hr extends Ft.Scene{constructor(){super(...arguments),this.world=new Gt(vt),this.acc=0,this.prevY=0,this.fps=0,this.fixed=!1,this.camX=0,this.camY=0,this.camInit=!1,this.camWorldY=0,this.camBottom=0,this.camCenter=0,this.camMode="cube",this.audio=null,this.started=!1,this.audioErr="",this.botStates=[],this.fp="",this.botMode=!1,this.botStarted=!1,this.demoMode=!1,this.demoWanted=!1,this.demoTape=null,this.demoTried=!1,this.demoLoaded=!1,this.demoEndX=0,this.demoErr="",this.demoSpeed=1,this.demoAcc=0,this.iconLayers=[],this.iconsReady=!1,this.artPool=[],this.artUsed=0,this.artReady=!1,this.guide=[],this.updates=0,this.lastDt=0,this.lastWallMs=0,this.lastSeekTry=0,this.deathLog=[],this.baseTick=0,this.airT=0,this.labels=[],this.phase="idle",this.dbgPause=!1,this.deathT=0,this.clicked=!1,this.prevHeld=!1,this.prevR=!1,this.restartPressed=!1,this.confirmLatch=!1,this.restartLatch=!1,this.godLatch=!1,this.prevG=!1,this.demoLatch=!1,this.padLatch=0,this.godWanted=!1,this.padMulWanted=1,this.modeLatch=0,this.portalLabels=[],this.poemT=0,this.egg=!1,this.godBtnEl=null,this.godBtnTxt="",this.demoBtnEl=null,this.demoBtnTxt="",this.viewFrac=1,this.viewTop=0,this.viewH=720,this.bufW=1280,this.drawn=0,this.fracT=0}artKeyOf(g){if(!this.artReady)return null;switch(g.kind){case"saw":return g.id===1706?"saw1706":"saw1705";case"pad":return g.pad?g.pad==="purple"?null:"pad_"+g.pad:null;case"check":return"checkpoint";case"coin":return"coin";case"block":return"block4";case"orb":return g.orb==="green"?"ringGreen":"ringY";case"spike":return g.id===39?"spike02":g.id===103?"spike03":g.id===392?"spike04":"spike01";default:return null}}guideYAt(g){const t=this.guide;if(!t.length)return null;if(g<=t[0][0])return t[0][1];const l=t[t.length-1];if(g>=l[0])return l[1];let v=0,h=t.length-1;for(;h-v>1;){const n=v+h>>1;t[n][0]<=g?v=n:h=n}const[a,r]=t[v],[e,i]=t[h];return r+(i-r)*((g-a)/Math.max(1e-6,e-a))}loadGuide(){fetch("/assets/gd-guide.json").then(g=>g.ok?g.json():Promise.reject(new Error("HTTP "+g.status))).then(g=>{this.guide=(g.points??[]).filter(t=>Array.isArray(t)&&t.length===2),console.log("[gd] 无敌轨道就绪:"+this.guide.length+" 个点 · ±"+Kt+" 块")}).catch(g=>{console.warn("[gd] 轨道没加载到,无敌只贴边界:"+g.message)})}clampToGuide(){const g=this.world;if(!g.god)return;const t=this.guideYAt(g.x/Z);if(t==null)return;const v=(g.y+g.box/2)/Z-t;if(Math.abs(v)<=Kt)return;const h=v>0?-1:1,a=Math.min(.5,Math.abs(v)-Kt)*Z;g.y+=h*a,h<0&&g.vy>0&&(g.vy=0),h>0&&g.vy<0&&(g.vy=0)}drawArtObject(g,t,l,v,h,a,r=16777215){const e=this.textures.get("gd-art"),i=e&&e.has(t)?e.get(t):null;if(!i)return!1;let n=this.artPool[this.artUsed];n||(n=this.add.image(0,0,"gd-art").setDepth(6),this.artPool.push(n)),this.artUsed++;const s=g.kind==="pad"?h/i.width:a/Math.max(1e-6,i.height);return n.setVisible(!0).setTexture("gd-art",t).setPosition(l,v),n.setRotation((g.rot??0)*Math.PI/180),n.setDisplaySize(i.width*s,i.height*s),n.setTint(r),!0}startRun(){if(this.phase!=="idle")return;this.phase="running",this.started=!0,this.world=new Gt(vt),this.world.god=this.godWanted,this.world.padMul=this.padMulWanted,this.baseTick=0,this.prevY=0,this.acc=0,this.airT=0,this.deathT=0,this.camInit=!1;const g=window.__GD_SONG;if(g&&g!==vt.song&&(vt.song=g,this.audio&&(this.audio.src=g)),!this.audio){const t=document.createElement("audio");t.src=vt.song,t.preload="auto",t.volume=.85,this.audio=t}this.playMusicAt(0)}playMusicAt(g){const t=this.audio;t&&(this.seekMusic(g),t.play().catch(l=>{this.audioErr=String(l&&l.message||l)}))}seekMusic(g){const t=this.audio;if(!t)return;const l=()=>{try{t.currentTime=g}catch{}};t.readyState>=1?l():t.addEventListener("loadedmetadata",l,{once:!0})}pauseMusic(){this.audio&&!this.audio.paused&&this.audio.pause()}unlockEaster(){try{localStorage.setItem(Fr,"1")}catch{}}tAtX(g){return Pr(Math.max(0,g)/Z)}retry(){const g=this.world;g.respawn(),this.baseTick=Math.floor(this.tAtX(g.checkX)*60),this.airT=0,this.acc=0,this.deathT=0,this.prevY=g.y,this.camInit=!1,this.phase="running",this.playMusicAt(this.tAtX(g.checkX))}restartRun(){if(this.demoAcc=0,this.demoEndX=0,this.demoMode||this.botMode){this.world=new Gt(vt),this.world.god=this.godWanted,this.world.padMul=this.padMulWanted,this.botStarted=!1,this.botStates=[],this.fp="",this.baseTick=0,this.prevY=0,this.airT=0,this.camInit=!1,this.phase="running",this.started=!0,this.playMusicAt(0);return}this.restartFromZero()}restartFromZero(){this.world.resetToStart(),this.baseTick=0,this.airT=0,this.acc=0,this.demoAcc=0,this.deathT=0,this.prevY=0,this.camInit=!1,this.phase="running",this.playMusicAt(0)}create(){this.g=this.add.graphics(),this.keys=this.input.keyboard.addKeys("SPACE,UP,W,R,G,B"),this.godWanted=/(^|[?&])god=1(&|$)/.test(location.search),this.world.god=this.godWanted,/(^|[?&])demo=1(&|$)/.test(location.search)&&(this.demoWanted=!0);const g=/(^|[?&])demospeed=([\d.]+)/.exec(location.search);g&&(this.demoSpeed=Math.max(.25,Math.min(40,Number(g[2])||1)));const t=/(^|[?&])padmul=([\d.]+)/.exec(location.search);if(t&&(this.padMulWanted=Math.max(.4,Math.min(1.5,Number(t[2])||1)),this.world.padMul=this.padMulWanted),this.cameras.main.setBackgroundColor("#05070d"),this.cameras.main.setZoom(this.zoomOf()),this.input.on("pointerdown",()=>{this.clicked=!0;const v=document.activeElement;v&&v!==document.body&&v.blur()}),window.addEventListener("keydown",v=>{(v.code==="Space"||v.code==="ArrowUp"||v.code==="KeyW")&&(this.confirmLatch=!0),v.code==="KeyR"&&(this.restartLatch=!0),v.code==="KeyG"&&(this.godLatch=!0),v.code==="KeyB"&&(this.demoLatch=!0),(v.code==="BracketLeft"||v.code==="Minus"||v.code==="NumpadSubtract"||v.code==="Comma")&&(this.padLatch-=1),(v.code==="BracketRight"||v.code==="Equal"||v.code==="NumpadAdd"||v.code==="Period")&&(this.padLatch+=1),/^Digit[1-7]$/.test(v.code)&&(this.modeLatch=Number(v.code.slice(5)))},!0),document.getElementById("gd-god")?.addEventListener("click",()=>{this.toggleGod(),this.blurSelf()}),document.getElementById("gd-demo")?.addEventListener("click",()=>{this.demoLatch=!0,this.blurSelf()}),document.getElementById("gd-restart")?.addEventListener("click",()=>{this.restartLatch=!0,this.blurSelf()}),document.getElementById("gd-pad-minus")?.addEventListener("click",()=>{this.padLatch-=1,this.blurSelf()}),document.getElementById("gd-pad-plus")?.addEventListener("click",()=>{this.padLatch+=1,this.blurSelf()}),Ar&&(this.textures.exists("gd-art")||this.load.atlas("gd-art","/assets/gd-art.png","/assets/gd-art.json"),this.load.once("complete",()=>{this.artReady=this.textures.exists("gd-art")}),this.load.start()),this.loadGuide(),Cr){const v=/(^|[?&])col1=([0-9a-fA-F]{6})/.exec(location.search),h=/(^|[?&])col2=([0-9a-fA-F]{6})/.exec(location.search);if(v)for(const a of Object.keys(bt))bt[a][0]=parseInt(v[2],16);if(h)for(const a of Object.keys(bt))bt[a][1]=parseInt(h[2],16);for(const a of Ri)this.load.image("iconimg-"+a.file,"/icons/"+a.file+".png"),this.load.text("iconxml-"+a.file,"/icons/"+a.file+".plist");this.load.once("complete",()=>{this.buildIcons()}),this.load.start()}const l={fontFamily:"ui-monospace, Consolas, monospace",align:"center"};this.uiTitle=this.add.text(0,0,"",{...l,fontSize:"44px",color:"#e2f6ff"}).setOrigin(.5).setDepth(20).setVisible(!1),this.uiHint=this.add.text(0,0,"",{...l,fontSize:"24px",color:gr}).setOrigin(.5).setDepth(20).setVisible(!1),this.poemText=this.add.text(0,0,_t.join(`
-`),{...l,fontSize:"26px",color:"#e2f6ff",lineSpacing:10}).setOrigin(.5,0).setDepth(19).setVisible(!1);for(const v of vt.objects){if(v.kind!=="text"||!v.text)continue;const h=this.add.text(v.b*Z,0,v.text,{fontFamily:"ui-monospace, Consolas, monospace",fontSize:Math.round(30*(v.size??1))+"px",color:"#e2f6ff"});h.setOrigin(.5,.5).setAlpha(.95),h.setData("isText",!0),h.setY(vt.rows*Z-(v.r+.5)*Z),this.labels.push(h)}for(const v of vt.objects){let h="",a=16777215;if(v.kind==="portal"&&v.to){const e=v.to;h=Fi[e]??e,a=Pi[e]??16769402}else if(v.kind==="gravity"){const e=(v.gdir??1)<0;h=e?"反重力↑":"重力↓",a=e?7324671:16765286}else continue;const r=this.add.text(0,0,h,{fontFamily:"ui-monospace, Consolas, monospace",fontSize:"16px",color:"#05070d",backgroundColor:"#"+a.toString(16).padStart(6,"0"),padding:{x:4,y:1}});r.setOrigin(.5,1).setDepth(18).setAlpha(.95),this.portalLabels.push({o:v,t:r})}}confirmDown(){const g=this.keys,t=!!(g.SPACE?.isDown||g.UP?.isDown||g.W?.isDown),l=t&&!this.prevHeld,v=!!g.R?.isDown&&!this.prevR||this.restartLatch;this.prevHeld=t,this.prevR=!!g.R?.isDown,this.restartPressed=v,this.restartLatch=!1;const h=!!g.G?.isDown&&!this.prevG||this.godLatch;return this.prevG=!!g.G?.isDown,this.godLatch=!1,h&&this.toggleGod(),(this.demoLatch||this.demoWanted)&&(this.demoLatch=!1,this.demoWanted=!1,this.toggleDemo()),this.padLatch&&(this.padMulWanted=Math.round(Math.max(.4,Math.min(1.5,this.padMulWanted+Math.sign(this.padLatch)*.05*Math.min(4,Math.abs(this.padLatch))))*100)/100,this.world.padMul=this.padMulWanted,this.padLatch=0),this.confirmLatch?(this.confirmLatch=!1,this.clicked=!1,!0):l?(this.clicked=!1,!0):this.clicked?(this.clicked=!1,!0):!1}toggleGod(){this.godWanted=!this.godWanted,this.world.god=this.godWanted,this.syncGodButton()}blurSelf(){const g=document.activeElement;g&&g!==document.body&&g.blur()}syncDemoButton(){this.demoBtnEl||(this.demoBtnEl=document.getElementById("gd-demo"));const g=this.demoBtnEl;if(!g)return;const t=this.demoMode?this.demoTape?"演示:开 ×"+this.demoSpeed.toFixed(2).replace(/\.?0+$/,""):this.demoErr?"演示:卷子加载失败":"演示:载入中…":"看 bot 通关";t!==this.demoBtnTxt&&(this.demoBtnTxt=t,g.textContent=t,g.classList.toggle("is-on",this.demoMode))}syncGodButton(){this.godBtnEl||(this.godBtnEl=document.getElementById("gd-god"));const g=this.godBtnEl;if(!g)return;const t=this.world.god?"无敌:开":"无敌:关";t!==this.godBtnTxt&&(this.godBtnTxt=t,g.textContent=t,g.classList.toggle("is-on",this.world.god))}measureFrac(){const g=document.getElementById("gd-canvas"),t=g?.getBoundingClientRect();if(!g||!t||t.height<=0||t.width<=0){this.viewFrac=1,this.viewTop=0,this.viewH=720,this.bufW=1280;return}this.viewH=Math.round(720*yr);let l=Math.round(this.viewH*(t.width/t.height));const v=l*this.viewH;if(v>Bi){const h=Math.sqrt(Bi/v);this.viewH=Math.max(240,Math.round(this.viewH*h)),l=Math.max(320,Math.round(l*h))}this.bufW=Math.max(320,l),this.viewFrac=1,this.viewTop=0}zoomOf(){return this.viewH/(xr*Z)}buildIcons(){for(const t of Ri){const l=this.textures.exists("iconimg-"+t.file)?this.textures.get("iconimg-"+t.file).getSourceImage():null,v=this.cache.text.get("iconxml-"+t.file);if(!l||!v)continue;const h=/<key>size<\/key>\s*<string>\{([\d.]+),([\d.]+)\}<\/string>/.exec(v);if(h&&(Math.abs(+h[1]-l.naturalWidth)>1||Math.abs(+h[2]-l.naturalHeight)>1)){console.warn("[gd] 图集与 plist 尺寸对不上,跳过:"+t.file+".png "+l.naturalWidth+"×"+l.naturalHeight+" vs plist 声明 "+h[1]+"×"+h[2]);continue}const a=Mr(v);if(!a)continue;const r=Object.keys(a).filter(u=>!/_2_|_extra_|_glow_/.test(u));if(!r.length)continue;const e=r.sort((u,d)=>a[d].sourceSize.w*a[d].sourceSize.h-a[u].sourceSize.w*a[u].sourceSize.h)[0],i=e.replace(/_(\d+)\.png$/,"_glow_$1.png"),n=[];for(const[u,d]of[["body",a[e]],["glow",a[i]]]){if(!d)continue;const f=Math.max(4,Math.round(d.sourceSize.w)),c=Math.max(4,Math.round(d.sourceSize.h)),p=document.createElement("canvas");p.width=f,p.height=c;const x=p.getContext("2d");if(!x)continue;const y=d.rotated?d.frame.h:d.frame.w,S=d.rotated?d.frame.w:d.frame.h,T=d.frame.w,B=d.frame.h,E=f/2+d.spriteSourceSize.x-T/2,A=c/2-d.spriteSourceSize.y-B/2;x.save(),x.translate(E+T/2,A+B/2),d.rotated&&x.rotate(-Math.PI/2),x.drawImage(l,d.frame.x,d.frame.y,y,S,-T/2,-B/2,T,B),x.restore();const C="icon-"+t.file+"-"+u;this.textures.exists(C)&&this.textures.remove(C),this.textures.addCanvas(C,p),n.push({layer:u,tex:C,w:f,h:c})}const s=n.find(u=>u.layer==="body");if(!s)continue;const o=n.find(u=>u.layer==="glow");this.iconLayers.push({mode:t.mode,body:this.add.image(0,0,s.tex).setVisible(!1).setDepth(16),glow:o?this.add.image(0,0,o.tex).setVisible(!1).setDepth(17):null,bw:s.w,bh:s.h,pxPerUnit:120/(Si.start,30)})}this.iconsReady=this.iconLayers.length>0,console.log("[gd] 形态图集就绪:"+this.iconLayers.map(t=>t.mode+"("+t.bw+"×"+t.bh+")").join(" "))}drawIconPlayer(g,t,l,v){const h=this.iconLayers.find(s=>s.mode===g.mode)??this.iconLayers[0],a=!g.done;for(const s of this.iconLayers){const o=a&&s===h;s.body.setVisible(o),s.glow?.setVisible(o)}let r=0;g.mode==="cube"?r=this.airT/(2*ot.jump/(ot.gravity*At)/60)*(Math.PI/2):g.mode==="ship"?r=Math.max(-.55,Math.min(.55,g.vy/ot.shipVyMax*.55)):g.mode==="ball"?r=g.x/Z*1.2:g.mode==="wave"?r=(g.vy>=0?1:-1)*Math.PI/4:g.mode==="ufo"&&(r=Math.max(-.3,Math.min(.3,g.vy/ot.flyUpMax*.3)));const[e]=bt[g.mode]??[16777215,16777215],i=g.dead?16743002:null,n=v/(h.pxPerUnit*30);h.body.setPosition(t,l).setRotation(r).setTint(i??e),h.body.setDisplaySize(h.bw*n,h.bh*n),h.glow&&(h.glow.setPosition(t,l).setRotation(r).setDisplaySize(h.bw*n,h.bh*n),h.glow.setTint(i??16777215).setAlpha(.75).setBlendMode(Ft.BlendModes.ADD))}pump(g){if(!(this.demoMode&&!this.demoTape))for(let t=0;t<g;t++){const l=this.world;if(l.dead)if(this.deathLog.length<20&&this.deathLog.push({tick:l.tick,x:+(l.x/Z).toFixed(2),y:+(l.y/Z).toFixed(2),vy:+(l.vy/Z).toFixed(2),mode:l.mode,gdir:l.gdir,chunk:g,at:t,hold:this.demoHold(l.tick)}),this.botMode||this.demoMode){if(this.demoMode){this.demoErr="演示卷已过期(物理更新过,等重新打包)",this.demoMode=!1,this.phase="idle",this.pauseMusic(),this.syncDemoButton();return}const a=l.checkX;l.respawn(),this.baseTick=Math.floor(this.tAtX(a)*60),this.airT=0}else{this.phase="dead",this.deathT=0,this.pauseMusic();return}const v=this.confirmLatch;this.confirmLatch=!1;const h=this.demoMode?this.demoHold(l.tick):this.botMode?mr(l):!!(this.keys.SPACE?.isDown||this.keys.UP?.isDown||this.keys.W?.isDown)||v;if((this.botMode||this.demoMode)&&!this.botStarted){this.botStarted=!0,this.started=!0,this.world=new Gt(vt),this.world.god=this.godWanted,this.world.padMul=this.padMulWanted,this.botStates=[],this.fp="",this.prevY=0,this.airT=0,this.baseTick=0;continue}if(this.prevY=l.y,l.frame(h),this.clampToGuide(),this.airT=l.onGround?0:this.airT+1/60,this.botMode&&(this.botStates.push(l.state),l.done&&!this.fp&&(this.fp=pr(this.botStates))),l.done){if(this.demoMode){this.demoEndX=l.x,this.phase="done",this.deathT=0,this.pauseMusic();break}this.botMode||(this.phase="poem",this.poemT=0,this.egg=!1,this.pauseMusic());break}}}demoHold(g){const t=this.demoTape;return!!t&&g>=0&&g<t.length&&t[g]}toggleDemo(){this.demoMode=!this.demoMode,this.demoMode?(this.loadTape(),this.world=new Gt(vt),this.world.god=this.godWanted,this.world.padMul=this.padMulWanted,this.botStarted=!1,this.botStates=[],this.fp="",this.phase="running",this.started=!0,this.baseTick=0,this.prevY=0,this.airT=0,this.camInit=!1,this.playMusicAt(0)):(this.demoErr="",this.restartFromZero()),this.syncDemoButton()}loadTape(){if(this.demoTried)return;this.demoTried=!0;const g=window.__GD_TAPE??"/assets/gd-tape.json";fetch(g).then(t=>t.ok?t.json():Promise.reject(new Error("HTTP "+t.status))).then(t=>{const l=[];let v=t.first;for(const h of t.rle){for(let a=0;a<h;a++)l.push(v);v=!v}this.demoTape=l,this.demoLoaded=!0,this.demoMode&&this.restartRun()}).catch(t=>{this.demoErr=t.message})}update(g,t){this.updates++,this.lastDt=Number.isFinite(t)?t:-1,this.expose(),this.fps=this.game.loop.actualFps,this.paintHud();const l=this.confirmDown(),v=this.restartPressed;if(v&&this.restartRun(),this.modeLatch){const h=Or[this.modeLatch-1];h&&(this.world.mode=h,this.world.gdir=1,this.world.vy=0,this.world.y=Math.max(0,Math.min(this.world.y,vt.rows*Z-ot.box))),this.modeLatch=0}if(this.phase==="idle"){l&&this.startRun(),this.followCamera(),this.draw(),this.paintUi();return}if(this.phase==="dead"){this.deathT+=t/1e3,this.deathT>.35&&(v?this.restartFromZero():l&&this.retry()),this.followCamera(),this.draw(),this.paintUi();return}if(this.phase==="poem"){const h=!!(this.keys.SPACE?.isDown||this.keys.UP?.isDown||this.keys.W?.isDown);this.poemT+=t/1e3*(h?3:1);const a=this.cameras.main.height/this.cameras.main.zoom,r=_t.length*Li+a;!this.egg&&this.poemT*zi>r&&(this.egg=!0,this.unlockEaster()),this.egg&&l&&(this.phase="idle",this.egg=!1,this.poemT=0),this.followCamera(),this.draw(),this.paintUi();return}if(this.phase==="done"){this.deathT+=t/1e3,(v||this.deathT>.5&&l)&&this.restartFromZero(),this.followCamera(),this.draw(),this.paintUi();return}if(this.botMode||this.demoMode){const h=performance.now(),a=this.lastWallMs?Math.min(.5,(h-this.lastWallMs)/1e3):0;this.lastWallMs=h;const r=this.botMode?8:this.demoSpeed;this.demoAcc+=a*r;const e=Math.min(240,Math.floor(this.demoAcc*60));e>0&&(this.demoAcc-=e/60,this.pump(e))}else if(!this.dbgPause){const h=this.audio,a=!!h&&!h.paused&&isFinite(h.duration)&&h.duration>0,r=1/60,e=(this.baseTick+this.world.tick)/60;if(a&&Math.abs(h.currentTime-e)<=1.5){const n=Math.max(0,Math.floor(h.currentTime*60)-this.baseTick);let s=0;for(;this.world.tick<n&&s<8;)this.pump(1),s++}else{if(a){const s=performance.now();s-this.lastSeekTry>1500&&(this.lastSeekTry=s,this.seekMusic(e))}this.acc+=Math.min(t/1e3,.5);let n=0;for(;this.acc>=r&&n<5;)this.acc-=r,this.pump(1),n++}}if(this.phase!=="running"){this.followCamera(),this.draw(),this.paintUi();return}this.followCamera(),this.draw(),this.paintUi(),this.expose()}paintHud(){this.syncGodButton(),this.syncDemoButton();const g=document.getElementById("gd-hud");if(!g)return;const t=this.world,l=[Fi[t.mode]??t.mode,Dr(t.x)||"",Math.round(t.progress*100)+"%","尝试 "+String(t.attempts).padStart(2,"0")];if(this.phase==="dead"&&l.push("摔了"),this.phase==="idle"&&l.push("按空格开始"),this.phase==="done"&&l.push("通关"),t.mode==="ship"&&l.push("按住 = 上升"),t.god&&l.push("★ 无敌"+(this.guide.length?" · 限轨 ±"+Kt+" 块":" · 只贴边界")),this.demoMode){const e=this.demoTape?this.demoTape.length:0;l.push(this.demoTape?"演示 bot 通关 ×"+this.demoSpeed.toFixed(2).replace(/\.?0+$/,"")+"("+(e/60/this.demoSpeed).toFixed(0)+"s 放完)":this.demoErr?"演示卷加载失败:"+this.demoErr:"演示卷载入中…")}Math.abs(t.padMul-1)>.001&&l.push("跳点×"+t.padMul.toFixed(2));const v=this.cameras.main,h=v.height/v.zoom/Z;l.push("可见 "+h.toFixed(1)+" 格");const a=document.getElementById("gd-canvas"),r=a?.parentElement??document.querySelector(".lost");if(a&&r){const e=a.getBoundingClientRect(),i=getComputedStyle(r),n=B=>parseFloat(i.getPropertyValue(B))||0,s=n("--ff-win-left"),o=n("--ff-win-top"),u=n("--ff-win-right"),d=n("--ff-win-bottom"),f=window.innerWidth-s-u,c=window.innerHeight-o-d,p=window.innerHeight-d-e.bottom,x=window.innerWidth-u-e.right,y=e.top-o;l.push("盒 "+Math.round(e.width)+"×"+Math.round(e.height)+"@"+Math.round(e.top)+" 窗 "+Math.round(f)+"×"+Math.round(c)+"@"+Math.round(o));const T=[["下",p],["右",x],["上",y]].filter(([,B])=>Math.abs(B)>1.5).map(([B,E])=>B+(E>0?"缝 ":"溢 ")+Math.abs(Math.round(E)));T.length&&l.push(T.join(" "))}this.viewFrac<.995&&l.push("画布被挡 "+Math.round((1-this.viewFrac)*100)+"%"),l.push("缓冲 "+this.bufW+"×"+this.viewH+" 绘 "+this.drawn),l.push(Math.round(this.fps)+" fps"),l.push(this.audio&&!this.audio.paused?"♪ "+this.audio.currentTime.toFixed(1)+"s":"暂停"),g.textContent=l.filter(Boolean).join(" · "),g.classList.toggle("is-dead",this.phase==="dead")}followCamera(){const g=this.cameras.main,t=g.width/g.zoom,l=g.height/g.zoom,v=vt.rows*Z,h=this.world,a=Math.max(0,h.x-t*.4);if(this.camX=a+t/2,h.mode!==this.camMode){if(Mi.has(h.mode)){const s=h.portalY;h.mode==="ball"?this.camCenter=s<Br?Er:Math.floor((s+Ot)/Z)*Z-Ot:this.camCenter=s<Sr?Tr:Math.floor((s+Ot)/Z)*Z-Ot}this.camMode=h.mode}const r=h.y+ot.box*h.sizeMul/2;let e;if(Mi.has(h.mode))e=this.camCenter-l/2;else{const s=h.gdir<0,o=s?Ci:Ot,u=s?Ot:Ci;let d=this.camBottom;r<=l+d-o?r<u+d&&(d=r-u):d=r-l+o,!s&&h.onGround&&h.y<=.001&&(d=Ai),e=d}this.camInit||(this.camBottom=e,this.camCenter=e+l/2,this.camInit=!0);const i=Math.min(Ai,v-l),n=Math.max(i,v-l);e=Math.max(i,Math.min(n,e)),this.camBottom=e,this.camCenter=e+l/2,this.camWorldY=v-this.camCenter,g.centerOn(this.camX,this.camWorldY)}paintUi(){const g=this.cameras.main,t=g.width/g.zoom,l=g.height/g.zoom,v=Math.max(t/2,this.camX),h=this.camWorldY,a=this.world,r=this.phase==="poem";if(this.poemText.setVisible(r),r){this.uiTitle.setVisible(this.egg),this.uiHint.setVisible(this.egg);const i=_t.length*Li;this.poemText.setPosition(v,h+l/2+i-this.poemT*zi),this.egg&&(this.uiTitle.setText("彩蛋已解锁"),this.uiHint.setText(`可前往 CD 页面查看(左下角会多出一个按钮)
+`),{...l,fontSize:"26px",color:"#e2f6ff",lineSpacing:10}).setOrigin(.5,0).setDepth(19).setVisible(!1);for(const v of vt.objects){if(v.kind!=="text"||!v.text)continue;const h=this.add.text(v.b*Z,0,v.text,{fontFamily:"ui-monospace, Consolas, monospace",fontSize:Math.round(30*(v.size??1))+"px",color:"#e2f6ff"});h.setOrigin(.5,.5).setAlpha(.95),h.setData("isText",!0),h.setY(vt.rows*Z-(v.r+.5)*Z),this.labels.push(h)}for(const v of vt.objects){let h="",a=16777215;if(v.kind==="portal"&&v.to){const e=v.to;h=Fi[e]??e,a=Pi[e]??16769402}else if(v.kind==="gravity"){const e=(v.gdir??1)<0;h=e?"反重力↑":"重力↓",a=e?7324671:16765286}else continue;const r=this.add.text(0,0,h,{fontFamily:"ui-monospace, Consolas, monospace",fontSize:"16px",color:"#05070d",backgroundColor:"#"+a.toString(16).padStart(6,"0"),padding:{x:4,y:1}});r.setOrigin(.5,1).setDepth(18).setAlpha(.95),this.portalLabels.push({o:v,t:r})}}confirmDown(){const g=this.keys,t=!!(g.SPACE?.isDown||g.UP?.isDown||g.W?.isDown),l=t&&!this.prevHeld,v=!!g.R?.isDown&&!this.prevR||this.restartLatch;this.prevHeld=t,this.prevR=!!g.R?.isDown,this.restartPressed=v,this.restartLatch=!1;const h=!!g.G?.isDown&&!this.prevG||this.godLatch;return this.prevG=!!g.G?.isDown,this.godLatch=!1,h&&this.toggleGod(),(this.demoLatch||this.demoWanted)&&(this.demoLatch=!1,this.demoWanted=!1,this.toggleDemo()),this.padLatch&&(this.padMulWanted=Math.round(Math.max(.4,Math.min(1.5,this.padMulWanted+Math.sign(this.padLatch)*.05*Math.min(4,Math.abs(this.padLatch))))*100)/100,this.world.padMul=this.padMulWanted,this.padLatch=0),this.confirmLatch?(this.confirmLatch=!1,this.clicked=!1,!0):l?(this.clicked=!1,!0):this.clicked?(this.clicked=!1,!0):!1}toggleGod(){this.godWanted=!this.godWanted,this.world.god=this.godWanted,this.syncGodButton()}blurSelf(){const g=document.activeElement;g&&g!==document.body&&g.blur()}syncDemoButton(){this.demoBtnEl||(this.demoBtnEl=document.getElementById("gd-demo"));const g=this.demoBtnEl;if(!g)return;const t=this.demoMode?this.demoTape?"演示:开 ×"+this.demoSpeed.toFixed(2).replace(/\.?0+$/,""):this.demoErr?"演示:卷子加载失败":"演示:载入中…":"看 bot 通关";t!==this.demoBtnTxt&&(this.demoBtnTxt=t,g.textContent=t,g.classList.toggle("is-on",this.demoMode))}syncGodButton(){this.godBtnEl||(this.godBtnEl=document.getElementById("gd-god"));const g=this.godBtnEl;if(!g)return;const t=this.world.god?"无敌:开":"无敌:关";t!==this.godBtnTxt&&(this.godBtnTxt=t,g.textContent=t,g.classList.toggle("is-on",this.world.god))}measureFrac(){const g=document.getElementById("gd-canvas"),t=g?.getBoundingClientRect();if(!g||!t||t.height<=0||t.width<=0){this.viewFrac=1,this.viewTop=0,this.viewH=720,this.bufW=1280;return}this.viewH=Math.round(720*yr);let l=Math.round(this.viewH*(t.width/t.height));const v=l*this.viewH;if(v>Bi){const h=Math.sqrt(Bi/v);this.viewH=Math.max(240,Math.round(this.viewH*h)),l=Math.max(320,Math.round(l*h))}this.bufW=Math.max(320,l),this.viewFrac=1,this.viewTop=0}zoomOf(){return this.viewH/(xr*Z)}buildIcons(){for(const t of Ri){const l=this.textures.exists("iconimg-"+t.file)?this.textures.get("iconimg-"+t.file).getSourceImage():null,v=this.cache.text.get("iconxml-"+t.file);if(!l||!v)continue;const h=/<key>size<\/key>\s*<string>\{([\d.]+),([\d.]+)\}<\/string>/.exec(v);if(h&&(Math.abs(+h[1]-l.naturalWidth)>1||Math.abs(+h[2]-l.naturalHeight)>1)){console.warn("[gd] 图集与 plist 尺寸对不上,跳过:"+t.file+".png "+l.naturalWidth+"×"+l.naturalHeight+" vs plist 声明 "+h[1]+"×"+h[2]);continue}const a=Mr(v);if(!a)continue;const r=Object.keys(a).filter(u=>!/_2_|_extra_|_glow_/.test(u));if(!r.length)continue;const e=r.sort((u,d)=>a[d].sourceSize.w*a[d].sourceSize.h-a[u].sourceSize.w*a[u].sourceSize.h)[0],i=e.replace(/_(\d+)\.png$/,"_glow_$1.png"),n=[];for(const[u,d]of[["body",a[e]],["glow",a[i]]]){if(!d)continue;const f=Math.max(4,Math.round(d.sourceSize.w)),c=Math.max(4,Math.round(d.sourceSize.h)),p=document.createElement("canvas");p.width=f,p.height=c;const x=p.getContext("2d");if(!x)continue;const y=d.rotated?d.frame.h:d.frame.w,S=d.rotated?d.frame.w:d.frame.h,T=d.frame.w,B=d.frame.h,E=f/2+d.spriteSourceSize.x-T/2,A=c/2-d.spriteSourceSize.y-B/2;x.save(),x.translate(E+T/2,A+B/2),d.rotated&&x.rotate(-Math.PI/2),x.drawImage(l,d.frame.x,d.frame.y,y,S,-T/2,-B/2,T,B),x.restore();const C="icon-"+t.file+"-"+u;this.textures.exists(C)&&this.textures.remove(C),this.textures.addCanvas(C,p),n.push({layer:u,tex:C,w:f,h:c})}const s=n.find(u=>u.layer==="body");if(!s)continue;const o=n.find(u=>u.layer==="glow");this.iconLayers.push({mode:t.mode,body:this.add.image(0,0,s.tex).setVisible(!1).setDepth(16),glow:o?this.add.image(0,0,o.tex).setVisible(!1).setDepth(17):null,bw:s.w,bh:s.h,pxPerUnit:120/(Si.start,30)})}this.iconsReady=this.iconLayers.length>0,console.log("[gd] 形态图集就绪:"+this.iconLayers.map(t=>t.mode+"("+t.bw+"×"+t.bh+")").join(" "))}drawIconPlayer(g,t,l,v){const h=this.iconLayers.find(s=>s.mode===g.mode)??this.iconLayers[0],a=!g.done;for(const s of this.iconLayers){const o=a&&s===h;s.body.setVisible(o),s.glow?.setVisible(o)}let r=0;g.mode==="cube"?r=g.onGround?0:this.airT/(2*ot.jump/(ot.gravity*At)/60)*(Math.PI/2):g.mode==="ship"?r=Math.max(-.55,Math.min(.55,g.vy/ot.shipVyMax*.55)):g.mode==="ball"?r=g.x/Z*1.2:g.mode==="wave"?r=(g.vy>=0?1:-1)*Math.PI/4:g.mode==="ufo"&&(r=Math.max(-.3,Math.min(.3,g.vy/ot.flyUpMax*.3)));const[e]=bt[g.mode]??[16777215,16777215],i=g.dead?16743002:null,n=v/(h.pxPerUnit*30);h.body.setPosition(t,l).setRotation(r).setTint(i??e),h.body.setDisplaySize(h.bw*n,h.bh*n),h.glow&&(h.glow.setPosition(t,l).setRotation(r).setDisplaySize(h.bw*n,h.bh*n),h.glow.setTint(i??16777215).setAlpha(.75).setBlendMode(Ft.BlendModes.ADD))}pump(g){if(!(this.demoMode&&!this.demoTape))for(let t=0;t<g;t++){const l=this.world;if(l.dead)if(this.deathLog.length<20&&this.deathLog.push({tick:l.tick,x:+(l.x/Z).toFixed(2),y:+(l.y/Z).toFixed(2),vy:+(l.vy/Z).toFixed(2),mode:l.mode,gdir:l.gdir,chunk:g,at:t,hold:this.demoHold(l.tick)}),this.botMode||this.demoMode){if(this.demoMode){this.demoErr="演示卷已过期(物理更新过,等重新打包)",this.demoMode=!1,this.phase="idle",this.pauseMusic(),this.syncDemoButton();return}const a=l.checkX;l.respawn(),this.baseTick=Math.floor(this.tAtX(a)*60),this.airT=0}else{this.phase="dead",this.deathT=0,this.pauseMusic();return}const v=this.confirmLatch;this.confirmLatch=!1;const h=this.demoMode?this.demoHold(l.tick):this.botMode?mr(l):!!(this.keys.SPACE?.isDown||this.keys.UP?.isDown||this.keys.W?.isDown)||v;if((this.botMode||this.demoMode)&&!this.botStarted){this.botStarted=!0,this.started=!0,this.world=new Gt(vt),this.world.god=this.godWanted,this.world.padMul=this.padMulWanted,this.botStates=[],this.fp="",this.prevY=0,this.airT=0,this.baseTick=0;continue}if(this.prevY=l.y,l.frame(h),this.clampToGuide(),this.airT=l.onGround?0:this.airT+1/60,this.botMode&&(this.botStates.push(l.state),l.done&&!this.fp&&(this.fp=pr(this.botStates))),l.done){if(this.demoMode){this.demoEndX=l.x,this.phase="done",this.deathT=0,this.pauseMusic();break}this.botMode||(this.phase="poem",this.poemT=0,this.egg=!1,this.pauseMusic());break}}}demoHold(g){const t=this.demoTape;return!!t&&g>=0&&g<t.length&&t[g]}toggleDemo(){this.demoMode=!this.demoMode,this.demoMode?(this.loadTape(),this.world=new Gt(vt),this.world.god=this.godWanted,this.world.padMul=this.padMulWanted,this.botStarted=!1,this.botStates=[],this.fp="",this.phase="running",this.started=!0,this.baseTick=0,this.prevY=0,this.airT=0,this.camInit=!1,this.playMusicAt(0)):(this.demoErr="",this.restartFromZero()),this.syncDemoButton()}loadTape(){if(this.demoTried)return;this.demoTried=!0;const g=window.__GD_TAPE??"/assets/gd-tape.json";fetch(g).then(t=>t.ok?t.json():Promise.reject(new Error("HTTP "+t.status))).then(t=>{const l=[];let v=t.first;for(const h of t.rle){for(let a=0;a<h;a++)l.push(v);v=!v}this.demoTape=l,this.demoLoaded=!0,this.demoMode&&this.restartRun()}).catch(t=>{this.demoErr=t.message})}update(g,t){this.updates++,this.lastDt=Number.isFinite(t)?t:-1,this.expose(),this.fps=this.game.loop.actualFps,this.paintHud();const l=this.confirmDown(),v=this.restartPressed;if(v&&this.restartRun(),this.modeLatch){const h=Or[this.modeLatch-1];h&&(this.world.mode=h,this.world.gdir=1,this.world.vy=0,this.world.y=Math.max(0,Math.min(this.world.y,vt.rows*Z-ot.box))),this.modeLatch=0}if(this.phase==="idle"){l&&this.startRun(),this.followCamera(),this.draw(),this.paintUi();return}if(this.phase==="dead"){this.deathT+=t/1e3,this.deathT>.35&&(v?this.restartFromZero():l&&this.retry()),this.followCamera(),this.draw(),this.paintUi();return}if(this.phase==="poem"){const h=!!(this.keys.SPACE?.isDown||this.keys.UP?.isDown||this.keys.W?.isDown);this.poemT+=t/1e3*(h?3:1);const a=this.cameras.main.height/this.cameras.main.zoom,r=_t.length*Li+a;!this.egg&&this.poemT*zi>r&&(this.egg=!0,this.unlockEaster()),this.egg&&l&&(this.phase="idle",this.egg=!1,this.poemT=0),this.followCamera(),this.draw(),this.paintUi();return}if(this.phase==="done"){this.deathT+=t/1e3,(v||this.deathT>.5&&l)&&this.restartFromZero(),this.followCamera(),this.draw(),this.paintUi();return}if(this.botMode||this.demoMode){const h=performance.now(),a=this.lastWallMs?Math.min(.5,(h-this.lastWallMs)/1e3):0;this.lastWallMs=h;const r=this.botMode?8:this.demoSpeed;this.demoAcc+=a*r;const e=Math.min(240,Math.floor(this.demoAcc*60));e>0&&(this.demoAcc-=e/60,this.pump(e))}else if(!this.dbgPause){const h=this.audio,a=!!h&&!h.paused&&isFinite(h.duration)&&h.duration>0,r=1/60,e=(this.baseTick+this.world.tick)/60;if(a&&Math.abs(h.currentTime-e)<=1.5){const n=Math.max(0,Math.floor(h.currentTime*60)-this.baseTick);let s=0;for(;this.world.tick<n&&s<8;)this.pump(1),s++}else{if(a){const s=performance.now();s-this.lastSeekTry>1500&&(this.lastSeekTry=s,this.seekMusic(e))}this.acc+=Math.min(t/1e3,.5);let n=0;for(;this.acc>=r&&n<5;)this.acc-=r,this.pump(1),n++}}if(this.phase!=="running"){this.followCamera(),this.draw(),this.paintUi();return}this.followCamera(),this.draw(),this.paintUi(),this.expose()}paintHud(){this.syncGodButton(),this.syncDemoButton();const g=document.getElementById("gd-hud");if(!g)return;const t=this.world,l=[Fi[t.mode]??t.mode,Dr(t.x)||"",Math.round(t.progress*100)+"%","尝试 "+String(t.attempts).padStart(2,"0")];if(this.phase==="dead"&&l.push("摔了"),this.phase==="idle"&&l.push("按空格开始"),this.phase==="done"&&l.push("通关"),t.mode==="ship"&&l.push("按住 = 上升"),t.god&&l.push("★ 无敌"+(this.guide.length?" · 限轨 ±"+Kt+" 块":" · 只贴边界")),this.demoMode){const e=this.demoTape?this.demoTape.length:0;l.push(this.demoTape?"演示 bot 通关 ×"+this.demoSpeed.toFixed(2).replace(/\.?0+$/,"")+"("+(e/60/this.demoSpeed).toFixed(0)+"s 放完)":this.demoErr?"演示卷加载失败:"+this.demoErr:"演示卷载入中…")}Math.abs(t.padMul-1)>.001&&l.push("跳点×"+t.padMul.toFixed(2));const v=this.cameras.main,h=v.height/v.zoom/Z;l.push("可见 "+h.toFixed(1)+" 格");const a=document.getElementById("gd-canvas"),r=a?.parentElement??document.querySelector(".lost");if(a&&r){const e=a.getBoundingClientRect(),i=getComputedStyle(r),n=B=>parseFloat(i.getPropertyValue(B))||0,s=n("--ff-win-left"),o=n("--ff-win-top"),u=n("--ff-win-right"),d=n("--ff-win-bottom"),f=window.innerWidth-s-u,c=window.innerHeight-o-d,p=window.innerHeight-d-e.bottom,x=window.innerWidth-u-e.right,y=e.top-o;l.push("盒 "+Math.round(e.width)+"×"+Math.round(e.height)+"@"+Math.round(e.top)+" 窗 "+Math.round(f)+"×"+Math.round(c)+"@"+Math.round(o));const T=[["下",p],["右",x],["上",y]].filter(([,B])=>Math.abs(B)>1.5).map(([B,E])=>B+(E>0?"缝 ":"溢 ")+Math.abs(Math.round(E)));T.length&&l.push(T.join(" "))}this.viewFrac<.995&&l.push("画布被挡 "+Math.round((1-this.viewFrac)*100)+"%"),l.push("缓冲 "+this.bufW+"×"+this.viewH+" 绘 "+this.drawn),l.push(Math.round(this.fps)+" fps"),l.push(this.audio&&!this.audio.paused?"♪ "+this.audio.currentTime.toFixed(1)+"s":"暂停"),g.textContent=l.filter(Boolean).join(" · "),g.classList.toggle("is-dead",this.phase==="dead")}followCamera(){const g=this.cameras.main,t=g.width/g.zoom,l=g.height/g.zoom,v=vt.rows*Z,h=this.world,a=Math.max(0,h.x-t*.4);if(this.camX=a+t/2,h.mode!==this.camMode){if(Mi.has(h.mode)){const s=h.portalY;h.mode==="ball"?this.camCenter=s<Br?Er:Math.floor((s+Ot)/Z)*Z-Ot:this.camCenter=s<Sr?Tr:Math.floor((s+Ot)/Z)*Z-Ot}this.camMode=h.mode}const r=h.y+ot.box*h.sizeMul/2;let e;if(Mi.has(h.mode))e=this.camCenter-l/2;else{const s=h.gdir<0,o=s?Ci:Ot,u=s?Ot:Ci;let d=this.camBottom;r<=l+d-o?r<u+d&&(d=r-u):d=r-l+o,!s&&h.onGround&&h.y<=.001&&(d=Ai),e=d}this.camInit||(this.camBottom=e,this.camCenter=e+l/2,this.camInit=!0);const i=Math.min(Ai,v-l),n=Math.max(i,v-l);e=Math.max(i,Math.min(n,e)),this.camBottom=e,this.camCenter=e+l/2,this.camWorldY=v-this.camCenter,g.centerOn(this.camX,this.camWorldY)}paintUi(){const g=this.cameras.main,t=g.width/g.zoom,l=g.height/g.zoom,v=Math.max(t/2,this.camX),h=this.camWorldY,a=this.world,r=this.phase==="poem";if(this.poemText.setVisible(r),r){this.uiTitle.setVisible(this.egg),this.uiHint.setVisible(this.egg);const i=_t.length*Li;this.poemText.setPosition(v,h+l/2+i-this.poemT*zi),this.egg&&(this.uiTitle.setText("彩蛋已解锁"),this.uiHint.setText(`可前往 CD 页面查看(左下角会多出一个按钮)
 按空格 / 点一下 回到开头`),this.uiTitle.setPosition(v,h-26),this.uiHint.setPosition(v,h+34));return}const e=this.phase!=="running";if(this.uiTitle.setVisible(e),this.uiHint.setVisible(e),!!e){if(this.phase==="idle")this.uiTitle.setText("第三张盘 · 迷茫"),this.uiHint.setText(`按 空格 开始(也可以点一下画面)
-按住 = 连跳 · 弹簧碰到就弹、不用按 · 跳环要按一下 · R = 重来`);else if(this.phase==="dead"){this.uiTitle.setText("摔了 · "+Math.round(a.progress*100)+"%");const i=vt.length>0?Math.round(a.checkX/Z/vt.length*100):0;this.uiHint.setText("空格 / 点一下 = 从上一处存档点("+i+"% 处)重来 · R = 从头开始")}else this.uiTitle.setText("通关 · "+Math.round(a.progress*100)+"%"),this.uiHint.setText("你跑完了这一张盘 · 按 R 再来一遍");this.uiTitle.setPosition(v,h-26),this.uiHint.setPosition(v,h+34)}}expose(){window.__gd={world:this.world,scene:this,level:vt,audio:this.audio?{t:this.audio.currentTime,paused:this.audio.paused,duration:this.audio.duration||0,err:this.audioErr,src:this.audio.src}:null,started:this.started,phase:this.phase,god:this.world.god,demoMode:this.demoMode,demoTape:this.demoTape,demoLoaded:this.demoLoaded,demoErr:this.demoErr,demoEndX:this.demoEndX,musicExpected:(this.baseTick+this.world.tick)/60,baseTick:this.baseTick,padMul:this.padMulWanted,demoSpeed:this.demoSpeed,demoAcc:this.demoAcc,updates:this.updates,lastDt:this.lastDt,deathLog:this.deathLog,retry:()=>this.retry(),restartRun:()=>this.restartRun(),tapeHold:g=>this.demoHold(g)}}applyViewport(g){(this.scale.height!==this.viewH||this.scale.width!==this.bufW)&&this.scale.resize(this.bufW,this.viewH);const t=document.getElementById("gd-canvas");t&&(t.style.width="100%",t.style.height="100%"),g.setViewport(0,0,this.bufW,this.viewH),g.setSize(this.bufW,this.viewH),g.setZoom(this.zoomOf())}draw(){const g=this.g,t=this.world,l=this.cameras.main;if(this.drawn=0,this.fixed||(this.fixed=!0,this.measureFrac(),this.applyViewport(l),window.addEventListener("resize",()=>{this.measureFrac(),this.applyViewport(l)})),this.fixed&&this.fracT++%20===0){const R=[this.viewTop,this.viewH,this.bufW];this.measureFrac(),(R[0]!==this.viewTop||R[1]!==this.viewH||R[2]!==this.bufW)&&this.applyViewport(l)}const v=t.x/Z,h=vt.segments.find(R=>v>=R.from&&v<R.to)||vt.segments[0],a=t.tint!=null?t.tint:Ti[vt.segments.indexOf(h)%Ti.length],r=l.width/l.zoom,e=l.height/l.zoom,i=this.camX-r/2,n=i+r,s=vt.rows*Z,o=R=>s-R,u=this.camWorldY-e/2,d=u+e,f=s-d,c=s-u,p=o(0),x=o(s),y=this.world.tick;g.clear(),g.fillStyle(197898,.72),g.fillRect(i,u,r,Math.max(0,p+Z-u)),g.fillRect(i,x-Z,r,Math.max(0,d-(x-Z))),g.lineStyle(1,a,.09);for(let R=Math.floor(i/Z);R<=n/Z;R++)g.lineBetween(R*Z,u,R*Z,d);const S=Math.max(0,Math.floor(f/Z)),T=Math.min(vt.rows,Math.ceil(c/Z));for(let R=S;R<=T;R++)g.lineBetween(i,o(R*Z),n,o(R*Z));g.lineStyle(2,a,.6).lineBetween(i,p,n,p),g.lineStyle(1,a,.42).lineBetween(i,x,n,x),g.lineStyle(1,a,.18);for(let R=1;R<=4;R++)g.lineBetween(i,p+R*22,n,p+R*22);for(const R of this.portalLabels){const P=t.offsetOf(R.o);R.t.setX((R.o.b+R.o.w/2+P.dx)*Z),R.t.setY(o((R.o.r+R.o.h+P.dy)*Z)-8)}for(let R=0;R<2;R++){this.artUsed=0;for(const P of vt.objects){if(P.kind==="deco"!=(R===0)||P.kind==="trigger"||(P.b+P.w)*Z<i-Ei||P.b*Z>n+Ei)continue;const w=t.offsetOf(P),I=(P.b+w.dx)*Z,O=P.w*Z,H=P.h*Z,L=o((P.r+P.h+w.dy)*Z),z=o((P.r+w.dy)*Z);if(I+O<i||I>n||(P.r+P.h+w.dy)*Z<f||(P.r+w.dy)*Z>c)continue;this.drawn++;const F=this.artKeyOf(P);if(!(F&&this.drawArtObject(P,F,I+O/2,z-H/2,O,H,P.kind==="block"?a:16777215)))switch(P.kind){case"platform":if(P.r<0){g.fillStyle(659224,.92).fillRect(I,L,O,H),g.fillStyle(a,.13).fillRect(I,L,O,H),g.lineStyle(2,a,.9).lineBetween(I,L+1,I+O,L+1),g.lineStyle(1,a,.22);for(let N=I+10;N<I+O;N+=18)g.lineBetween(N,L+4,N-6,L+H-2)}else{const N=Z*.34;g.fillStyle(a,.18).fillRect(I,L,O,N),g.lineStyle(2,a,.8).strokeRect(I+1,L+1,O-2,N-2)}break;case"block":{g.fillStyle(a,.2).fillRect(I,L,O,H),g.lineStyle(2,a,.85).strokeRect(I+1,L+1,O-2,H-2),g.fillStyle(a,.6).fillRect(I+3,L+3,O-6,2),g.fillStyle(a,.55).fillTriangle(I+O,L,I+O-9,L,I+O,L+9);break}case"spike":{const N=((P.rot??0)%360+360)%360,G=N===90||N===270,W=P.flipY?-1:1,D=N*Math.PI/180,b=Math.cos(D),U=Math.sin(D),V=G?1:Math.max(1,Math.round(P.w));for(let Y=0;Y<V;Y++){const X=G?I+O/2:I+(Y+.5)*Z,Q=z-H/2,j=Z*.47,$=Z*.9*P.h/2,tt=$*W,k=-$*W,et=(rt,it)=>[X+rt*b-it*U,Q+rt*U+it*b],_=et(-j,tt),J=et(0,k),q=et(j,tt);g.fillStyle(2757640,.95).fillTriangle(_[0],_[1],J[0],J[1],q[0],q[1]),g.lineStyle(2,Xt,.95),g.beginPath(),g.moveTo(_[0],_[1]),g.lineTo(J[0],J[1]),g.lineTo(q[0],q[1]),g.strokePath()}break}case"saw":{const N=O/Math.max(1e-6,P.w*Z),G=Math.max(5,(P.rad??30)*N),W=I+O/2,D=z-H/2,b=y*.12;g.fillStyle(2757640,.9).fillCircle(W,D,G),g.lineStyle(2,Xt,.95).strokeCircle(W,D,G);for(let U=0;U<12;U++){const V=b+U*Math.PI/6,Y=Math.cos(V),X=Math.sin(V);g.fillStyle(Xt,.9).fillTriangle(W+Y*G*.78,D+X*G*.78,W+Math.cos(V+.2)*G*1.12,D+Math.sin(V+.2)*G*1.12,W+Math.cos(V-.2)*G*1.12,D+Math.sin(V-.2)*G*1.12)}g.fillStyle(329485,1).fillCircle(W,D,G*.42);break}case"pad":{const N=Lr[P.pad??"yellow"]??16769402,G=Math.max(6,H);g.fillStyle(N,.85).fillRect(I+1,z-G,O-2,G),g.lineStyle(1,N,.9).strokeRect(I+1.5,z-G+.5,O-3,G-1);const W=((P.rot??0)%360+360)%360!==180;g.lineStyle(2,N,.95),g.beginPath();const D=z-G/2;W?(g.moveTo(I+5,D+2),g.lineTo(I+O/2,D-3),g.lineTo(I+O-5,D+2)):(g.moveTo(I+5,D-2),g.lineTo(I+O/2,D+3),g.lineTo(I+O-5,D-2)),g.strokePath();break}case"orb":{const N=zr[P.orb??"yellow"]??16769402,G=I+Z/2,W=o(P.r*Z+Z/2),D=.5+.5*Math.sin(y*.08);if(g.fillStyle(N,.1+.06*D).fillCircle(G,W,Z*.62),g.lineStyle(3,N,.95).strokeCircle(G,W,Z*.44),g.lineStyle(1,N,.35+.3*D).strokeCircle(G,W,Z*.66),g.lineStyle(3,N,.95),P.orb==="blue"||P.orb==="green")g.beginPath(),g.moveTo(G-6,W-4),g.lineTo(G,W-9),g.lineTo(G+6,W-4),g.moveTo(G-6,W+4),g.lineTo(G,W+9),g.lineTo(G+6,W+4),g.strokePath();else if(P.orb==="black")g.beginPath(),g.moveTo(G-7,W-6),g.lineTo(G,W+1),g.lineTo(G+7,W-6),g.moveTo(G-7,W+1),g.lineTo(G,W+8),g.lineTo(G+7,W+1),g.strokePath();else{const b=P.orb==="pink"?6:10;g.beginPath(),g.moveTo(G-7,W+b/2),g.lineTo(G,W-b),g.lineTo(G+7,W+b/2),g.strokePath()}break}case"pit":{const N=Z*2.4;g.fillStyle(0,.75).fillRect(I,z-N+Z,O,N),g.fillStyle(329485,.9).fillRect(I,z-N+Z,O,6),g.lineStyle(2,Xt,.8),g.beginPath(),g.moveTo(I,z),g.lineTo(I,z+Z*.9),g.lineTo(I+7,z+Z*1.5),g.lineTo(I,z+Z*2.1),g.moveTo(I+O,z),g.lineTo(I+O,z+Z*.9),g.lineTo(I+O-7,z+Z*1.5),g.lineTo(I+O,z+Z*2.1),g.strokePath();break}case"portal":{const N=P.to??"cube",G=Pi[N]??16769402,W=Zt,D=Qt,b=I+O/2,U=z-H/2;g.fillStyle(G,.16).fillEllipse(b,U,W,D),g.lineStyle(3,G,.95).strokeEllipse(b,U,W,D),g.lineStyle(1,G,.45).strokeEllipse(b,U,W*.72,D*.8),g.fillStyle(G,.95);const V=9;N==="cube"||N==="robot"||N==="spider"?(g.fillRect(b-V,U-V,V*2,V*2),N==="robot"&&(g.fillRect(b-V,U+V,4,5),g.fillRect(b+V-4,U+V,4,5)),N==="spider"&&(g.fillRect(b-V-5,U-V,5,3),g.fillRect(b+V,U-V,5,3))):N==="ball"?g.fillCircle(b,U,V):N==="ufo"?g.fillEllipse(b,U,V*2.6,V*1.1):g.fillTriangle(b+V,U,b-V,U-V,b-V,U+V);break}case"check":g.lineStyle(2,16764006,.9).lineBetween(I+Z*.2,z,I+Z*.2,L-Z*.1),g.fillStyle(16764006,.9).fillTriangle(I+Z*.2,L-Z*.1,I+Z*1.05,L+Z*.15,I+Z*.2,L+Z*.4);break;case"speed":{const N=o(P.r*Z+Z/2);g.lineStyle(3,10475775,.9),g.beginPath(),g.moveTo(I+6,N-8),g.lineTo(I+15,N),g.lineTo(I+6,N+8),g.moveTo(I+16,N-8),g.lineTo(I+25,N),g.lineTo(I+16,N+8),g.strokePath();break}case"gravity":{const N=(P.gdir??1)<0,G=N?7324671:16765286,W=I+O/2,D=z-H/2;g.fillStyle(G,.16).fillEllipse(W,D,Zt,Qt),g.lineStyle(3,G,.95).strokeEllipse(W,D,Zt,Qt),g.lineStyle(1,G,.45).strokeEllipse(W,D,Zt*.72,Qt*.8),g.lineStyle(4,G,.95),g.beginPath();const b=N?-1:1;g.moveTo(W,D-b*14),g.lineTo(W,D+b*14),g.moveTo(W-9,D+b*4),g.lineTo(W,D+b*15),g.lineTo(W+9,D+b*4),g.strokePath(),g.lineStyle(3,G,.8),g.lineBetween(W-12,D+b*22,W+12,D+b*22);break}case"size":{const N=P.mini!==!1,G=I+Z/2,W=o((P.r+P.h/2)*Z);g.lineStyle(2,N?16752592:10551248,.9).strokeCircle(G,W,Z*.45),g.fillStyle(N?16752592:10551248,.9).fillRect(G-(N?4:8),W-(N?4:8),N?8:16,N?8:16);break}case"frame":{g.lineStyle(2,a,.9);for(const N of ar({...P,b:P.b+w.dx,r:P.r+w.dy}))g.strokeRect(N.x0,o(N.y1),N.x1-N.x0,N.y1-N.y0);break}case"breakable":{if(t.isBroken(P))break;g.fillStyle(16756838,.16).fillRect(I,L,O,H),g.lineStyle(2,16756838,.9).strokeRect(I+1,L+1,O-2,H-2),g.lineStyle(1,16756838,.7),g.lineBetween(I+3,L+H-3,I+O-3,L+3),g.lineBetween(I+O*.3,L+2,I+O*.55,L+H*.55);break}case"coin":{if(t.isCoinTaken(P))break;const N=I+O/2,G=o((P.r+P.h/2)*Z),W=Math.abs(Math.cos(y*.05));g.fillStyle(16766826,.9).fillRect(N-O*.3*W,G-H*.3,O*.6*W,H*.6),g.lineStyle(2,16771496,.95).strokeRect(N-O*.3*W,G-H*.3,O*.6*W,H*.6);break}case"arrow":{const N=I+O/2,G=o((P.r+P.h/2)*Z),W=P.tp?13017343:P.arrow==="pink"?16752592:10551248;g.fillStyle(W,.12).fillCircle(N,G,Z*.55),g.lineStyle(3,W,.95).strokeCircle(N,G,Z*.42);const D=(P.rot??0)*Math.PI/180,b=Math.cos(D),U=Math.sin(D),V=Z*.5,Y=N+b*V*.62,X=G+U*V*.62;g.lineStyle(3,W,.95),g.beginPath(),g.moveTo(N-b*V*.5,G-U*V*.5),g.lineTo(Y,X),g.moveTo(Y,X),g.lineTo(Y-b*V*.45+U*V*.42,X-U*V*.45-b*V*.42),g.moveTo(Y,X),g.lineTo(Y-b*V*.45-U*V*.42,X-U*V*.45+b*V*.42),g.strokePath();break}case"clone":{const N=I+O/2,G=o((P.r+P.h/2)*Z);g.lineStyle(2,9147303,.75).strokeCircle(N,G,Z*.5),g.lineStyle(2,9147303,.45).strokeCircle(N,G,Z*.34);break}case"teleport":{const N=I+Z/2,G=o(P.r*Z+Z/2),W=P.exit?16752717:7325951,D=y*.06;g.lineStyle(3,W,.95).strokeCircle(N,G,Z*.95),g.fillStyle(W,.12).fillCircle(N,G,Z*.95),g.lineStyle(2,W,.8);for(let b=0;b<3;b++){const U=D+b*(Math.PI*2/3);g.beginPath(),g.arc(N,G,Z*.35+b*6,U,U+1.6,!1),g.strokePath()}g.fillStyle(W,.95).fillCircle(N,G,4);break}case"force":{const N=(P.fy??0)>=0;g.fillStyle(N?10551248:16752592,.1).fillRect(I,L,O,z-L),g.lineStyle(1,N?10551248:16752592,.45).strokeRect(I+1,L+1,O-2,z-L-2),g.lineStyle(2,N?10551248:16752592,.7);const G=26,W=y*1.6%G;for(let D=z-G+W;D>L;D-=G)g.beginPath(),N?(g.moveTo(I+O/2-7,D+7),g.lineTo(I+O/2,D-3),g.lineTo(I+O/2+7,D+7)):(g.moveTo(I+O/2-7,D-3),g.lineTo(I+O/2,D+7),g.lineTo(I+O/2+7,D-3)),g.strokePath();break}case"deco":this.drawDeco(g,P,I,O,z,o,y);break}}}for(let R=this.artUsed;R<this.artPool.length;R++)this.artPool[R].setVisible(!1);const B=ot.box*t.sizeMul,E=this.prevY+(t.y-this.prevY)*Math.min(1,this.acc*60),A=t.x+B/2,C=E+B/2;if(this.iconsReady&&this.drawIconPlayer(t,A,o(C),B),!this.iconsReady)if(t.mode==="ship"){const R=Math.max(-.55,Math.min(.55,t.vy/ot.shipVyMax*.55)),P=Math.sin(R),w=Math.cos(R),I=(H,L)=>A+H*w-L*P,O=(H,L)=>o(C+H*P+L*w);g.fillStyle(t.dead?16751211:14874367,.95),g.beginPath(),g.moveTo(I(B*.6,0),O(B*.6,0)),g.lineTo(I(-B*.45,-B*.3),O(-B*.45,-B*.3)),g.lineTo(I(-B*.45,B*.3),O(-B*.45,B*.3)),g.closePath(),g.fillPath()}else if(t.mode==="ball"){const R=B*.5;g.fillStyle(t.dead?16751211:14874367,.96).fillCircle(A,o(C),R),g.lineStyle(2,yt,.9).strokeCircle(A,o(C),R);const P=t.x/Z*1.2;g.lineStyle(2,yt,.75).lineBetween(A-Math.cos(P)*R*.65,o(C)-Math.sin(P)*R*.65,A+Math.cos(P)*R*.65,o(C)+Math.sin(P)*R*.65)}else if(t.mode==="ufo"){const R=o(C-B*.35);g.fillStyle(t.dead?16751211:14874367,.95),g.beginPath(),g.moveTo(A-B*.5,R),g.lineTo(A,o(C+B*.55)),g.lineTo(A+B*.5,R),g.closePath(),g.fillPath(),g.fillStyle(yt,.9).fillRect(A-B*.62,R,B*1.24,4)}else if(t.mode==="wave"){const R=t.vy>=0?1:-1;g.fillStyle(t.dead?16751211:14874367,.95),g.beginPath(),g.moveTo(A+11,o(C+R*11)),g.lineTo(A-9,o(C-R*9)),g.lineTo(A-3,o(C+R*3)),g.closePath(),g.fillPath(),g.lineStyle(2,yt,.85),g.strokePath()}else if(t.mode==="robot"){const R=B*.42,P=B*.72,w=o(C+P),I=o(C-P);g.fillStyle(t.dead?16751211:14874367,.96).fillRect(A-R,w,R*2,I-w),g.lineStyle(2,yt,.9).strokeRect(A-R,w,R*2,I-w),g.fillStyle(yt,.9).fillRect(A-R+3,w+4,R*2-6,3),g.lineStyle(3,yt,.9),g.lineBetween(A-R*.6,I,A-R*.6,I+6),g.lineBetween(A+R*.6,I,A+R*.6,I+6)}else if(t.mode==="spider"){const R=B*.42;g.fillStyle(t.dead?16751211:14874367,.96).fillRect(A-R,o(C+R),R*2,R*2),g.lineStyle(2,yt,.9).strokeRect(A-R,o(C+R),R*2,R*2),g.lineStyle(2,yt,.85);for(const P of[-1,1])g.lineBetween(A+P*R,o(C+R*.5),A+P*(R+7),o(C+R*.5)-8),g.lineBetween(A+P*R,o(C-R*.5),A+P*(R+7),o(C-R*.5)+8)}else{const R=this.airT/(2*ot.jump/(ot.gravity*At)/60)*(Math.PI/2),P=Math.sin(R),w=Math.cos(R),I=[[-B/2,-B/2],[B/2,-B/2],[B/2,B/2],[-B/2,B/2]];g.fillStyle(t.dead?16751211:14874367,.96),g.beginPath(),I.forEach(([O,H],L)=>{const z=A+O*w-H*P,F=o(C+O*P+H*w);L===0?g.moveTo(z,F):g.lineTo(z,F)}),g.closePath(),g.fillPath(),g.lineStyle(2,t.dead?16751211:yt,.9),g.strokePath()}g.lineStyle(1,16777215,.28).strokeRect(t.x+t.innerOff,o(E+t.innerOff+t.innerSize),t.innerSize,t.innerSize);const M=vt.length*Z;if(M>i&&M<n&&g.lineStyle(3,yt,.8).lineBetween(M,p,M,x),t.dead&&g.fillStyle(16739162,.1).fillRect(i,u,r,d-u),t.flash>0&&g.fillStyle(t.tint??16777215,.34*t.flash).fillRect(i,u,r,d-u),this.phase!=="running"){const R=Math.max(r/2,this.camX),P=this.camWorldY;g.fillStyle(197898,.82).fillRect(R-470,P-120,940,240),g.lineStyle(2,yt,.55).strokeRect(R-470,P-120,940,240),g.lineStyle(1,yt,.25).strokeRect(R-462,P-112,924,224)}}drawDeco(g,t,l,v,h,a,r){const e=l+v/2,i=a((t.r+t.h/2)*Z),n=((t.rot??0)%360+360)%360;switch(t.art){case 3638:g.fillStyle(0,.1).fillRect(l,a((t.r+t.h)*Z),v,t.h*Z);break;case 3810:{const s=r*0+0;g.fillStyle(16769402,.85),g.fillRect(e-v*.08,i-v*.45+s,v*.16,v*.6),g.fillCircle(e,i+v*.32,v*.1);break}case 3812:{const s=-(n*Math.PI/180)+Math.PI/2,o=v*.5;g.lineStyle(3,14874367,.75),g.beginPath(),g.moveTo(e-Math.cos(s)*o,i-Math.sin(s)*o),g.lineTo(e+Math.cos(s)*o,i+Math.sin(s)*o),g.moveTo(e+Math.cos(s)*o,i+Math.sin(s)*o),g.lineTo(e+Math.cos(s+2.5)*o*.8,i+Math.sin(s+2.5)*o*.8),g.moveTo(e+Math.cos(s)*o,i+Math.sin(s)*o),g.lineTo(e+Math.cos(s-2.5)*o*.8,i+Math.sin(s-2.5)*o*.8),g.strokePath();break}case 3823:g.lineStyle(2,16769402,.8).strokeCircle(e,i,v*.4),g.fillStyle(16769402,.8).fillCircle(e-v*.15,i-v*.1,2),g.fillStyle(16769402,.8).fillCircle(e+v*.15,i-v*.1,2),g.lineStyle(2,16769402,.8),g.beginPath(),g.arc(e,i+v*.05,v*.2,.3,Math.PI-.3,!1),g.strokePath();break;case 3818:g.lineStyle(3,16751211,.8),g.lineBetween(e-v*.3,i-v*.3,e+v*.3,i+v*.3),g.lineBetween(e+v*.3,i-v*.3,e-v*.3,i+v*.3);break;case 3848:g.fillStyle(10551248,.7).fillRect(e-v*.25,i-v*.1,v*.5,v*.45),g.fillRect(e-v*.1,i-v*.45,v*.2,v*.35);break;case 41:case 106:g.lineStyle(2,9147303,.7);for(let s=-1;s<=1;s++)g.strokeCircle(e,i+s*v*.4,v*.22);break}}}function wr(m,g={}){const t=typeof m!="string";return g.song&&(vt.song=g.song),new Ft.Game({type:t?Ft.WEBGL:Ft.AUTO,...t?{canvas:m}:{parent:m},backgroundColor:"#05070d",scale:{mode:Ft.Scale.NONE,width:1280,height:720},scene:[Hr],render:{preserveDrawingBuffer:!0},audio:{noAudio:!0}})}const Oi=document.getElementById("gd-canvas"),Ir=/Android|iPhone|iPod|Mobile/i.test(navigator.userAgent)||window.matchMedia&&window.matchMedia("(pointer: coarse)").matches&&window.innerWidth<900;function Nr(){const m=window;return typeof m.__GD_SONG=="string"&&m.__GD_SONG?m.__GD_SONG:document.documentElement.getAttribute("data-gd-song")||void 0}Oi?Ir?document.documentElement.setAttribute("data-gd","mobile"):(document.documentElement.setAttribute("data-gd","ok"),wr(Oi,{song:Nr()})):document.documentElement.setAttribute("data-gd","no-canvas")})();
+按住 = 连跳 · 弹簧碰到就弹、不用按 · 跳环要按一下 · R = 重来`);else if(this.phase==="dead"){this.uiTitle.setText("摔了 · "+Math.round(a.progress*100)+"%");const i=vt.length>0?Math.round(a.checkX/Z/vt.length*100):0;this.uiHint.setText("空格 / 点一下 = 从上一处存档点("+i+"% 处)重来 · R = 从头开始")}else this.uiTitle.setText("通关 · "+Math.round(a.progress*100)+"%"),this.uiHint.setText("你跑完了这一张盘 · 按 R 再来一遍");this.uiTitle.setPosition(v,h-26),this.uiHint.setPosition(v,h+34)}}expose(){window.__gd={world:this.world,scene:this,level:vt,audio:this.audio?{t:this.audio.currentTime,paused:this.audio.paused,duration:this.audio.duration||0,err:this.audioErr,src:this.audio.src}:null,started:this.started,phase:this.phase,god:this.world.god,demoMode:this.demoMode,demoTape:this.demoTape,demoLoaded:this.demoLoaded,demoErr:this.demoErr,demoEndX:this.demoEndX,musicExpected:(this.baseTick+this.world.tick)/60,baseTick:this.baseTick,padMul:this.padMulWanted,demoSpeed:this.demoSpeed,demoAcc:this.demoAcc,updates:this.updates,lastDt:this.lastDt,deathLog:this.deathLog,retry:()=>this.retry(),restartRun:()=>this.restartRun(),tapeHold:g=>this.demoHold(g)}}applyViewport(g){(this.scale.height!==this.viewH||this.scale.width!==this.bufW)&&this.scale.resize(this.bufW,this.viewH);const t=document.getElementById("gd-canvas");t&&(t.style.width="100%",t.style.height="100%"),g.setViewport(0,0,this.bufW,this.viewH),g.setSize(this.bufW,this.viewH),g.setZoom(this.zoomOf())}draw(){const g=this.g,t=this.world,l=this.cameras.main;if(this.drawn=0,this.fixed||(this.fixed=!0,this.measureFrac(),this.applyViewport(l),window.addEventListener("resize",()=>{this.measureFrac(),this.applyViewport(l)})),this.fixed&&this.fracT++%20===0){const R=[this.viewTop,this.viewH,this.bufW];this.measureFrac(),(R[0]!==this.viewTop||R[1]!==this.viewH||R[2]!==this.bufW)&&this.applyViewport(l)}const v=t.x/Z,h=vt.segments.find(R=>v>=R.from&&v<R.to)||vt.segments[0],a=t.tint!=null?t.tint:Ti[vt.segments.indexOf(h)%Ti.length],r=l.width/l.zoom,e=l.height/l.zoom,i=this.camX-r/2,n=i+r,s=vt.rows*Z,o=R=>s-R,u=this.camWorldY-e/2,d=u+e,f=s-d,c=s-u,p=o(0),x=o(s),y=this.world.tick;g.clear(),g.fillStyle(197898,.72),g.fillRect(i,u,r,Math.max(0,p+Z-u)),g.fillRect(i,x-Z,r,Math.max(0,d-(x-Z))),g.lineStyle(1,a,.09);for(let R=Math.floor(i/Z);R<=n/Z;R++)g.lineBetween(R*Z,u,R*Z,d);const S=Math.max(0,Math.floor(f/Z)),T=Math.min(vt.rows,Math.ceil(c/Z));for(let R=S;R<=T;R++)g.lineBetween(i,o(R*Z),n,o(R*Z));g.lineStyle(2,a,.6).lineBetween(i,p,n,p),g.lineStyle(1,a,.42).lineBetween(i,x,n,x),g.lineStyle(1,a,.18);for(let R=1;R<=4;R++)g.lineBetween(i,p+R*22,n,p+R*22);for(const R of this.portalLabels){const P=t.offsetOf(R.o);R.t.setX((R.o.b+R.o.w/2+P.dx)*Z),R.t.setY(o((R.o.r+R.o.h+P.dy)*Z)-8)}for(let R=0;R<2;R++){this.artUsed=0;for(const P of vt.objects){if(P.kind==="deco"!=(R===0)||P.kind==="trigger"||(P.b+P.w)*Z<i-Ei||P.b*Z>n+Ei)continue;const w=t.offsetOf(P),I=(P.b+w.dx)*Z,O=P.w*Z,H=P.h*Z,L=o((P.r+P.h+w.dy)*Z),z=o((P.r+w.dy)*Z);if(I+O<i||I>n||(P.r+P.h+w.dy)*Z<f||(P.r+w.dy)*Z>c)continue;this.drawn++;const F=this.artKeyOf(P);if(!(F&&this.drawArtObject(P,F,I+O/2,z-H/2,O,H,P.kind==="block"?a:16777215)))switch(P.kind){case"platform":if(P.r<0){g.fillStyle(659224,.92).fillRect(I,L,O,H),g.fillStyle(a,.13).fillRect(I,L,O,H),g.lineStyle(2,a,.9).lineBetween(I,L+1,I+O,L+1),g.lineStyle(1,a,.22);for(let N=I+10;N<I+O;N+=18)g.lineBetween(N,L+4,N-6,L+H-2)}else{const N=Z*.34;g.fillStyle(a,.18).fillRect(I,L,O,N),g.lineStyle(2,a,.8).strokeRect(I+1,L+1,O-2,N-2)}break;case"block":{g.fillStyle(a,.2).fillRect(I,L,O,H),g.lineStyle(2,a,.85).strokeRect(I+1,L+1,O-2,H-2),g.fillStyle(a,.6).fillRect(I+3,L+3,O-6,2),g.fillStyle(a,.55).fillTriangle(I+O,L,I+O-9,L,I+O,L+9);break}case"spike":{const N=((P.rot??0)%360+360)%360,G=N===90||N===270,W=P.flipY?-1:1,D=N*Math.PI/180,b=Math.cos(D),U=Math.sin(D),V=G?1:Math.max(1,Math.round(P.w));for(let Y=0;Y<V;Y++){const X=G?I+O/2:I+(Y+.5)*Z,Q=z-H/2,j=Z*.47,$=Z*.9*P.h/2,tt=$*W,k=-$*W,et=(rt,it)=>[X+rt*b-it*U,Q+rt*U+it*b],_=et(-j,tt),J=et(0,k),q=et(j,tt);g.fillStyle(2757640,.95).fillTriangle(_[0],_[1],J[0],J[1],q[0],q[1]),g.lineStyle(2,Xt,.95),g.beginPath(),g.moveTo(_[0],_[1]),g.lineTo(J[0],J[1]),g.lineTo(q[0],q[1]),g.strokePath()}break}case"saw":{const N=O/Math.max(1e-6,P.w*Z),G=Math.max(5,(P.rad??30)*N),W=I+O/2,D=z-H/2,b=y*.12;g.fillStyle(2757640,.9).fillCircle(W,D,G),g.lineStyle(2,Xt,.95).strokeCircle(W,D,G);for(let U=0;U<12;U++){const V=b+U*Math.PI/6,Y=Math.cos(V),X=Math.sin(V);g.fillStyle(Xt,.9).fillTriangle(W+Y*G*.78,D+X*G*.78,W+Math.cos(V+.2)*G*1.12,D+Math.sin(V+.2)*G*1.12,W+Math.cos(V-.2)*G*1.12,D+Math.sin(V-.2)*G*1.12)}g.fillStyle(329485,1).fillCircle(W,D,G*.42);break}case"pad":{const N=Lr[P.pad??"yellow"]??16769402,G=Math.max(6,H);g.fillStyle(N,.85).fillRect(I+1,z-G,O-2,G),g.lineStyle(1,N,.9).strokeRect(I+1.5,z-G+.5,O-3,G-1);const W=((P.rot??0)%360+360)%360!==180;g.lineStyle(2,N,.95),g.beginPath();const D=z-G/2;W?(g.moveTo(I+5,D+2),g.lineTo(I+O/2,D-3),g.lineTo(I+O-5,D+2)):(g.moveTo(I+5,D-2),g.lineTo(I+O/2,D+3),g.lineTo(I+O-5,D-2)),g.strokePath();break}case"orb":{const N=zr[P.orb??"yellow"]??16769402,G=I+Z/2,W=o(P.r*Z+Z/2),D=.5+.5*Math.sin(y*.08);if(g.fillStyle(N,.1+.06*D).fillCircle(G,W,Z*.62),g.lineStyle(3,N,.95).strokeCircle(G,W,Z*.44),g.lineStyle(1,N,.35+.3*D).strokeCircle(G,W,Z*.66),g.lineStyle(3,N,.95),P.orb==="blue"||P.orb==="green")g.beginPath(),g.moveTo(G-6,W-4),g.lineTo(G,W-9),g.lineTo(G+6,W-4),g.moveTo(G-6,W+4),g.lineTo(G,W+9),g.lineTo(G+6,W+4),g.strokePath();else if(P.orb==="black")g.beginPath(),g.moveTo(G-7,W-6),g.lineTo(G,W+1),g.lineTo(G+7,W-6),g.moveTo(G-7,W+1),g.lineTo(G,W+8),g.lineTo(G+7,W+1),g.strokePath();else{const b=P.orb==="pink"?6:10;g.beginPath(),g.moveTo(G-7,W+b/2),g.lineTo(G,W-b),g.lineTo(G+7,W+b/2),g.strokePath()}break}case"pit":{const N=Z*2.4;g.fillStyle(0,.75).fillRect(I,z-N+Z,O,N),g.fillStyle(329485,.9).fillRect(I,z-N+Z,O,6),g.lineStyle(2,Xt,.8),g.beginPath(),g.moveTo(I,z),g.lineTo(I,z+Z*.9),g.lineTo(I+7,z+Z*1.5),g.lineTo(I,z+Z*2.1),g.moveTo(I+O,z),g.lineTo(I+O,z+Z*.9),g.lineTo(I+O-7,z+Z*1.5),g.lineTo(I+O,z+Z*2.1),g.strokePath();break}case"portal":{const N=P.to??"cube",G=Pi[N]??16769402,W=Zt,D=Qt,b=I+O/2,U=z-H/2;g.fillStyle(G,.16).fillEllipse(b,U,W,D),g.lineStyle(3,G,.95).strokeEllipse(b,U,W,D),g.lineStyle(1,G,.45).strokeEllipse(b,U,W*.72,D*.8),g.fillStyle(G,.95);const V=9;N==="cube"||N==="robot"||N==="spider"?(g.fillRect(b-V,U-V,V*2,V*2),N==="robot"&&(g.fillRect(b-V,U+V,4,5),g.fillRect(b+V-4,U+V,4,5)),N==="spider"&&(g.fillRect(b-V-5,U-V,5,3),g.fillRect(b+V,U-V,5,3))):N==="ball"?g.fillCircle(b,U,V):N==="ufo"?g.fillEllipse(b,U,V*2.6,V*1.1):g.fillTriangle(b+V,U,b-V,U-V,b-V,U+V);break}case"check":g.lineStyle(2,16764006,.9).lineBetween(I+Z*.2,z,I+Z*.2,L-Z*.1),g.fillStyle(16764006,.9).fillTriangle(I+Z*.2,L-Z*.1,I+Z*1.05,L+Z*.15,I+Z*.2,L+Z*.4);break;case"speed":{const N=o(P.r*Z+Z/2);g.lineStyle(3,10475775,.9),g.beginPath(),g.moveTo(I+6,N-8),g.lineTo(I+15,N),g.lineTo(I+6,N+8),g.moveTo(I+16,N-8),g.lineTo(I+25,N),g.lineTo(I+16,N+8),g.strokePath();break}case"gravity":{const N=(P.gdir??1)<0,G=N?7324671:16765286,W=I+O/2,D=z-H/2;g.fillStyle(G,.16).fillEllipse(W,D,Zt,Qt),g.lineStyle(3,G,.95).strokeEllipse(W,D,Zt,Qt),g.lineStyle(1,G,.45).strokeEllipse(W,D,Zt*.72,Qt*.8),g.lineStyle(4,G,.95),g.beginPath();const b=N?-1:1;g.moveTo(W,D-b*14),g.lineTo(W,D+b*14),g.moveTo(W-9,D+b*4),g.lineTo(W,D+b*15),g.lineTo(W+9,D+b*4),g.strokePath(),g.lineStyle(3,G,.8),g.lineBetween(W-12,D+b*22,W+12,D+b*22);break}case"size":{const N=P.mini!==!1,G=I+Z/2,W=o((P.r+P.h/2)*Z);g.lineStyle(2,N?16752592:10551248,.9).strokeCircle(G,W,Z*.45),g.fillStyle(N?16752592:10551248,.9).fillRect(G-(N?4:8),W-(N?4:8),N?8:16,N?8:16);break}case"frame":{g.lineStyle(2,a,.9);for(const N of ar({...P,b:P.b+w.dx,r:P.r+w.dy}))g.strokeRect(N.x0,o(N.y1),N.x1-N.x0,N.y1-N.y0);break}case"breakable":{if(t.isBroken(P))break;g.fillStyle(16756838,.16).fillRect(I,L,O,H),g.lineStyle(2,16756838,.9).strokeRect(I+1,L+1,O-2,H-2),g.lineStyle(1,16756838,.7),g.lineBetween(I+3,L+H-3,I+O-3,L+3),g.lineBetween(I+O*.3,L+2,I+O*.55,L+H*.55);break}case"coin":{if(t.isCoinTaken(P))break;const N=I+O/2,G=o((P.r+P.h/2)*Z),W=Math.abs(Math.cos(y*.05));g.fillStyle(16766826,.9).fillRect(N-O*.3*W,G-H*.3,O*.6*W,H*.6),g.lineStyle(2,16771496,.95).strokeRect(N-O*.3*W,G-H*.3,O*.6*W,H*.6);break}case"arrow":{const N=I+O/2,G=o((P.r+P.h/2)*Z),W=P.tp?13017343:P.arrow==="pink"?16752592:10551248;g.fillStyle(W,.12).fillCircle(N,G,Z*.55),g.lineStyle(3,W,.95).strokeCircle(N,G,Z*.42);const D=(P.rot??0)*Math.PI/180,b=Math.cos(D),U=Math.sin(D),V=Z*.5,Y=N+b*V*.62,X=G+U*V*.62;g.lineStyle(3,W,.95),g.beginPath(),g.moveTo(N-b*V*.5,G-U*V*.5),g.lineTo(Y,X),g.moveTo(Y,X),g.lineTo(Y-b*V*.45+U*V*.42,X-U*V*.45-b*V*.42),g.moveTo(Y,X),g.lineTo(Y-b*V*.45-U*V*.42,X-U*V*.45+b*V*.42),g.strokePath();break}case"clone":{const N=I+O/2,G=o((P.r+P.h/2)*Z);g.lineStyle(2,9147303,.75).strokeCircle(N,G,Z*.5),g.lineStyle(2,9147303,.45).strokeCircle(N,G,Z*.34);break}case"teleport":{const N=I+Z/2,G=o(P.r*Z+Z/2),W=P.exit?16752717:7325951,D=y*.06;g.lineStyle(3,W,.95).strokeCircle(N,G,Z*.95),g.fillStyle(W,.12).fillCircle(N,G,Z*.95),g.lineStyle(2,W,.8);for(let b=0;b<3;b++){const U=D+b*(Math.PI*2/3);g.beginPath(),g.arc(N,G,Z*.35+b*6,U,U+1.6,!1),g.strokePath()}g.fillStyle(W,.95).fillCircle(N,G,4);break}case"force":{const N=(P.fy??0)>=0;g.fillStyle(N?10551248:16752592,.1).fillRect(I,L,O,z-L),g.lineStyle(1,N?10551248:16752592,.45).strokeRect(I+1,L+1,O-2,z-L-2),g.lineStyle(2,N?10551248:16752592,.7);const G=26,W=y*1.6%G;for(let D=z-G+W;D>L;D-=G)g.beginPath(),N?(g.moveTo(I+O/2-7,D+7),g.lineTo(I+O/2,D-3),g.lineTo(I+O/2+7,D+7)):(g.moveTo(I+O/2-7,D-3),g.lineTo(I+O/2,D+7),g.lineTo(I+O/2+7,D-3)),g.strokePath();break}case"deco":this.drawDeco(g,P,I,O,z,o,y);break}}}for(let R=this.artUsed;R<this.artPool.length;R++)this.artPool[R].setVisible(!1);const B=ot.box*t.sizeMul,E=this.prevY+(t.y-this.prevY)*Math.min(1,this.acc*60),A=t.x+B/2,C=E+B/2;if(this.iconsReady&&this.drawIconPlayer(t,A,o(C),B),!this.iconsReady)if(t.mode==="ship"){const R=Math.max(-.55,Math.min(.55,t.vy/ot.shipVyMax*.55)),P=Math.sin(R),w=Math.cos(R),I=(H,L)=>A+H*w-L*P,O=(H,L)=>o(C+H*P+L*w);g.fillStyle(t.dead?16751211:14874367,.95),g.beginPath(),g.moveTo(I(B*.6,0),O(B*.6,0)),g.lineTo(I(-B*.45,-B*.3),O(-B*.45,-B*.3)),g.lineTo(I(-B*.45,B*.3),O(-B*.45,B*.3)),g.closePath(),g.fillPath()}else if(t.mode==="ball"){const R=B*.5;g.fillStyle(t.dead?16751211:14874367,.96).fillCircle(A,o(C),R),g.lineStyle(2,yt,.9).strokeCircle(A,o(C),R);const P=t.x/Z*1.2;g.lineStyle(2,yt,.75).lineBetween(A-Math.cos(P)*R*.65,o(C)-Math.sin(P)*R*.65,A+Math.cos(P)*R*.65,o(C)+Math.sin(P)*R*.65)}else if(t.mode==="ufo"){const R=o(C-B*.35);g.fillStyle(t.dead?16751211:14874367,.95),g.beginPath(),g.moveTo(A-B*.5,R),g.lineTo(A,o(C+B*.55)),g.lineTo(A+B*.5,R),g.closePath(),g.fillPath(),g.fillStyle(yt,.9).fillRect(A-B*.62,R,B*1.24,4)}else if(t.mode==="wave"){const R=t.vy>=0?1:-1;g.fillStyle(t.dead?16751211:14874367,.95),g.beginPath(),g.moveTo(A+11,o(C+R*11)),g.lineTo(A-9,o(C-R*9)),g.lineTo(A-3,o(C+R*3)),g.closePath(),g.fillPath(),g.lineStyle(2,yt,.85),g.strokePath()}else if(t.mode==="robot"){const R=B*.42,P=B*.72,w=o(C+P),I=o(C-P);g.fillStyle(t.dead?16751211:14874367,.96).fillRect(A-R,w,R*2,I-w),g.lineStyle(2,yt,.9).strokeRect(A-R,w,R*2,I-w),g.fillStyle(yt,.9).fillRect(A-R+3,w+4,R*2-6,3),g.lineStyle(3,yt,.9),g.lineBetween(A-R*.6,I,A-R*.6,I+6),g.lineBetween(A+R*.6,I,A+R*.6,I+6)}else if(t.mode==="spider"){const R=B*.42;g.fillStyle(t.dead?16751211:14874367,.96).fillRect(A-R,o(C+R),R*2,R*2),g.lineStyle(2,yt,.9).strokeRect(A-R,o(C+R),R*2,R*2),g.lineStyle(2,yt,.85);for(const P of[-1,1])g.lineBetween(A+P*R,o(C+R*.5),A+P*(R+7),o(C+R*.5)-8),g.lineBetween(A+P*R,o(C-R*.5),A+P*(R+7),o(C-R*.5)+8)}else{const R=t.onGround?0:this.airT/(2*ot.jump/(ot.gravity*At)/60)*(Math.PI/2),P=Math.sin(R),w=Math.cos(R),I=[[-B/2,-B/2],[B/2,-B/2],[B/2,B/2],[-B/2,B/2]];g.fillStyle(t.dead?16751211:14874367,.96),g.beginPath(),I.forEach(([O,H],L)=>{const z=A+O*w-H*P,F=o(C+O*P+H*w);L===0?g.moveTo(z,F):g.lineTo(z,F)}),g.closePath(),g.fillPath(),g.lineStyle(2,t.dead?16751211:yt,.9),g.strokePath()}g.lineStyle(1,16777215,.28).strokeRect(t.x+t.innerOff,o(E+t.innerOff+t.innerSize),t.innerSize,t.innerSize);const M=vt.length*Z;if(M>i&&M<n&&g.lineStyle(3,yt,.8).lineBetween(M,p,M,x),t.dead&&g.fillStyle(16739162,.1).fillRect(i,u,r,d-u),t.flash>0&&g.fillStyle(t.tint??16777215,.34*t.flash).fillRect(i,u,r,d-u),this.phase!=="running"){const R=Math.max(r/2,this.camX),P=this.camWorldY;g.fillStyle(197898,.82).fillRect(R-470,P-120,940,240),g.lineStyle(2,yt,.55).strokeRect(R-470,P-120,940,240),g.lineStyle(1,yt,.25).strokeRect(R-462,P-112,924,224)}}drawDeco(g,t,l,v,h,a,r){const e=l+v/2,i=a((t.r+t.h/2)*Z),n=((t.rot??0)%360+360)%360;switch(t.art){case 3638:g.fillStyle(0,.1).fillRect(l,a((t.r+t.h)*Z),v,t.h*Z);break;case 3810:{const s=r*0+0;g.fillStyle(16769402,.85),g.fillRect(e-v*.08,i-v*.45+s,v*.16,v*.6),g.fillCircle(e,i+v*.32,v*.1);break}case 3812:{const s=-(n*Math.PI/180)+Math.PI/2,o=v*.5;g.lineStyle(3,14874367,.75),g.beginPath(),g.moveTo(e-Math.cos(s)*o,i-Math.sin(s)*o),g.lineTo(e+Math.cos(s)*o,i+Math.sin(s)*o),g.moveTo(e+Math.cos(s)*o,i+Math.sin(s)*o),g.lineTo(e+Math.cos(s+2.5)*o*.8,i+Math.sin(s+2.5)*o*.8),g.moveTo(e+Math.cos(s)*o,i+Math.sin(s)*o),g.lineTo(e+Math.cos(s-2.5)*o*.8,i+Math.sin(s-2.5)*o*.8),g.strokePath();break}case 3823:g.lineStyle(2,16769402,.8).strokeCircle(e,i,v*.4),g.fillStyle(16769402,.8).fillCircle(e-v*.15,i-v*.1,2),g.fillStyle(16769402,.8).fillCircle(e+v*.15,i-v*.1,2),g.lineStyle(2,16769402,.8),g.beginPath(),g.arc(e,i+v*.05,v*.2,.3,Math.PI-.3,!1),g.strokePath();break;case 3818:g.lineStyle(3,16751211,.8),g.lineBetween(e-v*.3,i-v*.3,e+v*.3,i+v*.3),g.lineBetween(e+v*.3,i-v*.3,e-v*.3,i+v*.3);break;case 3848:g.fillStyle(10551248,.7).fillRect(e-v*.25,i-v*.1,v*.5,v*.45),g.fillRect(e-v*.1,i-v*.45,v*.2,v*.35);break;case 41:case 106:g.lineStyle(2,9147303,.7);for(let s=-1;s<=1;s++)g.strokeCircle(e,i+s*v*.4,v*.22);break}}}function wr(m,g={}){const t=typeof m!="string";return g.song&&(vt.song=g.song),new Ft.Game({type:t?Ft.WEBGL:Ft.AUTO,...t?{canvas:m}:{parent:m},backgroundColor:"#05070d",scale:{mode:Ft.Scale.NONE,width:1280,height:720},scene:[Hr],render:{preserveDrawingBuffer:!0},audio:{noAudio:!0}})}const Oi=document.getElementById("gd-canvas"),Ir=/Android|iPhone|iPod|Mobile/i.test(navigator.userAgent)||window.matchMedia&&window.matchMedia("(pointer: coarse)").matches&&window.innerWidth<900;function Nr(){const m=window;return typeof m.__GD_SONG=="string"&&m.__GD_SONG?m.__GD_SONG:document.documentElement.getAttribute("data-gd-song")||void 0}Oi?Ir?document.documentElement.setAttribute("data-gd","mobile"):(document.documentElement.setAttribute("data-gd","ok"),wr(Oi,{song:Nr()})):document.documentElement.setAttribute("data-gd","no-canvas")})();
