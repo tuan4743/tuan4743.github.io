@@ -157,7 +157,13 @@ export class World {
    *  我们现在的组合是"实心外框 + 刺内框"(两边各取了宽松的那一半),所以这条差值必须能量化:
    *  用 `tools/hazbox-audit.ts` 数"改外框会多死多少帧"(当前自由路线:55/2970 帧,最深压进 0.31 块)。
    *  `autoplay.ts --hazbox=outer` 打开。 */
-  hazBoxIsOuter = false;
+  /* ★★ 2026-09 默认改成【外框】判险(用户实测:"cube 都快进刺的一半都没死" ✓ = 我们太宽容了)。
+     依据是引擎自己早就引过的那条:`gdp@2.11 checkCollisions.cpp:440-445` —— 危险物用
+     `player->getObjectRect()`(即 30×30 外框),而不是 7.5×7.5 的内框。
+     另一份反编译写的是内框,所以我们之前取了"实心外框 + 刺内框"这个各取宽松的组合 ✗ ——
+     实测的后果就是"扎进刺里一大截才死" ✓。现在两边都用外框 ✓。
+     (要回到旧行为:`autoplay.ts --hazbox=inner` / 页面里给 hazBoxIsOuter = false 即可。) */
+  hazBoxIsOuter = true;
   /** 飞行类(飞机/UFO/波浪):不落地、碰到实心即死(见实心侧撞那一段的注释) */
   get isFlyMode() { return this.mode === 'ship' || this.mode === 'ufo' || this.mode === 'wave'; }
   /** ★★ 飞行类碰实心是否即死。默认【按关卡来源】:
