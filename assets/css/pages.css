@@ -1343,7 +1343,12 @@
 .lost-cv {
     position: relative;
     z-index: 2;
-    filter: grayscale(0.5) blur(1.1px) brightness(1.06) contrast(0.95);
+    /* ★★ 2026-09 用户:"涟漪强度有点大,帧率比较低"。
+       画布上的 filter(灰阶+模糊)是【每帧一次全屏合成】,分辨率越高越贵 ✗;
+       涟漪原来用 backdrop-filter + SVG 湍流,更是每帧重算整屏 ✗✗(帧率杀手)。
+       现在这两样都撤掉:灰阶/朦胧交给一层便宜的叠加(见 .fx-fog),涟漪降级成
+       "缓慢流动的条纹叠加"(纯 background 动画,零滤镜)✓ */
+    filter: none;
 }
 /* 水流拖影(近似运动模糊):左右各一层极淡的横向偏移拷贝,靠 CSS 动画来回蹭 */
 .fx-smear {
@@ -1366,10 +1371,10 @@
     z-index: 3;
     pointer-events: none;
     background: linear-gradient(180deg,
-        rgba(26, 128, 158, 0.30) 0%,
-        rgba(10, 78, 104, 0.44) 45%,
-        rgba(2, 24, 36, 0.66) 100%);
-    backdrop-filter: blur(2.5px) saturate(0.85);
+        rgba(38, 122, 148, 0.34) 0%,
+        rgba(14, 74, 98, 0.52) 45%,
+        rgba(3, 26, 38, 0.74) 100%);
+    /* blur 撤掉(每帧全屏 backdrop-filter = 帧率杀手 ✗);浓度靠上面的渐变补回来 ✓ */
 }
 /* 顶部水下光束:动态(三条斜光带,各自呼吸 + 缓慢摇摆),不再用静态贴图 */
 .fx-beams {
@@ -1387,8 +1392,9 @@
     height: 132%;
     width: 16%;
     display: block;
-    background: linear-gradient(180deg, rgba(196, 240, 255, 0.55) 0%, rgba(150, 220, 255, 0.18) 45%, rgba(150, 220, 255, 0) 100%);
-    filter: blur(9px);
+    /* 光带本身是渐变(边缘本来就是软的)⇒ 去掉做样子的 blur(9px):那是三条全屏滤镜 ✗ */
+    background: linear-gradient(90deg, rgba(196, 240, 255, 0) 0%, rgba(196, 240, 255, 0.5) 45%, rgba(196, 240, 255, 0) 100%),
+                linear-gradient(180deg, rgba(150, 220, 255, 0.42) 0%, rgba(150, 220, 255, 0.14) 50%, rgba(150, 220, 255, 0) 100%);
     transform-origin: 50% 0;
     animation: fxBeam 11s ease-in-out infinite alternate;
 }
@@ -1399,8 +1405,9 @@
     from { opacity: 0.35; transform: translateX(-2%) rotate(8deg) scaleY(0.96); }
     to   { opacity: 0.85; transform: translateX(2%)  rotate(13deg) scaleY(1.04); }
 }
-/* 涟漪:★ 上一版写成 filter: url(#gdRipple) 作用在【空 div】上 —— 过滤"没有内容"= 什么都看不见 ✗
-   (用户:"没有涟漪")。正确做法是 backdrop-filter: 过滤【它背后】的画面(画布)⇒ 才有折射/涟漪感 ✓ */
+/* 涟漪(降级版):★ 上一版用 backdrop-filter + SVG 湍流 —— 效果有了,但那是【每帧重算整屏】✗,
+   用户实测"帧率比较低" ✓。现在换成:两条极淡的斜条纹缓慢流动(纯 background-position 动画,
+   零滤镜、零合成开销)✓ 强度按用户口径调小(opacity 0.10 → 0.055) */
 .fx-ripple {
     position: absolute;
     inset: 0;
@@ -1408,8 +1415,15 @@
     width: 100%;
     height: 100%;
     pointer-events: none;
-    -webkit-backdrop-filter: url(#gdRipple);
-    backdrop-filter: url(#gdRipple);
+    opacity: 0.055;
+    background-image:
+        repeating-linear-gradient(104deg, rgba(220, 245, 255, 0.9) 0 2px, rgba(220, 245, 255, 0) 2px 26px),
+        repeating-linear-gradient(76deg, rgba(190, 235, 255, 0.7) 0 1px, rgba(190, 235, 255, 0) 1px 34px);
+    animation: fxRipple 26s linear infinite;
+}
+@keyframes fxRipple {
+    from { background-position: 0 0, 0 0; }
+    to   { background-position: 220px 140px, -160px 100px; }
 }
 /* 歌词:屏幕正下贴边,淡入淡出(JS 只改 opacity 和文字) */
 .lost-lyric {
