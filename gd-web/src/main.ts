@@ -832,8 +832,12 @@ class Scene extends Phaser.Scene {
     }
     let rot = 0;
     if (w.mode === 'cube') {
-      /* ★ 落地吸平 + 方向取负号(见下面矢量那条的说明) */
-      rot = w.onGround ? 0 : -(this.airT / (2 * P.jump / (P.gravity * Y_TIME_SCALE) / 60)) * (Math.PI / 2);
+      /* ★★★ 2026-09 找到"改了半天完全没变化"的真凶:【玩家是这条路径画的】✓
+         `if (this.iconsReady) this.drawIconPlayer(...)` —— 页面里图集是就绪的 ✓,
+         所以矢量那一条(我之前十几轮改的地方)【根本不执行】✗✓✓;
+         而这条里的 `w.onGround ? 0` 就是"落地突兀回正"的来源 ✓✓。
+         现在:直接读状态机算好的角度(在帧循环里更新,和走哪条绘制路径无关 ✓) */
+      rot = this.spinLast;
     } else if (w.mode === 'ship') {
       rot = Math.max(-0.55, Math.min(0.55, w.vy / P.shipVyMax * 0.55));
     } else if (w.mode === 'ball') {
