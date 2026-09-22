@@ -783,7 +783,15 @@ export class World {
       this.vy = Math.abs(this.vx) * dir.y;
       this.y += this.vy * (sY / Y_TIME_SCALE);      // ★ 不带 0.9 的步长
       if (d.t > 0.5 || !hold) this.dash = null;
-      if (this.y < 0 || this.y + this.box > this.rows * U) { this.die(); return; }
+      /* ★★ 2026-09 修(用户:"bird 都没碰到就死了"):飞行类掉到地面线 y<0 时,
+         原版是【有地面就落上去滑行】,只有真的掉进坑里才死 —— 我们以前一律 die() ✗。
+         实测(改前):ufo/ship/wave 贴地飘十几帧就死 ✓ 就是这个。 */
+      if (this.y < 0) {
+        const g = this.floors.find((f) => this.x + this.box > f.x0 && this.x < f.x1);
+        if (g) { this.y = 0; this.vy = 0; this.onGround = true; }
+        else { this.die(); return; }
+      }
+      if (this.y + this.box > this.rows * U) { this.die(); return; }
       this.onGround = false;
     } else if (this.mode === 'ship') {
       /* 飞机:照 OpenGD PlayerObject::updateJump 的 ship 分支 ——
@@ -796,7 +804,15 @@ export class World {
       this.vy -= P.gravity * this.gdir * shipAccel * extraBoost / size * sY;
       this.vy = Math.max(P.flyDownMax / size, Math.min(P.flyUpMax / size, this.vy));
       this.y += this.vy * sY;
-      if (this.y < 0 || this.y + this.box > this.rows * U) { this.die(); return; }
+      /* ★★ 2026-09 修(用户:"bird 都没碰到就死了"):飞行类掉到地面线 y<0 时,
+         原版是【有地面就落上去滑行】,只有真的掉进坑里才死 —— 我们以前一律 die() ✗。
+         实测(改前):ufo/ship/wave 贴地飘十几帧就死 ✓ 就是这个。 */
+      if (this.y < 0) {
+        const g = this.floors.find((f) => this.x + this.box > f.x0 && this.x < f.x1);
+        if (g) { this.y = 0; this.vy = 0; this.onGround = true; }
+        else { this.die(); return; }
+      }
+      if (this.y + this.box > this.rows * U) { this.die(); return; }
     } else if (this.mode === 'wave') {
       /* ★★ 2026-09 按 PlayerObject::update 的 Dart 分支修(用户贴的反编译):
              v31 = getCurrentXVelocity(a1) * a2;              // 本帧【水平位移】,不乘 0.9
@@ -806,7 +822,15 @@ export class World {
          vy 这个字段仍旧记 ±vx(迷你/反重力时带上符号),这样别处读 vy 的语义不变 ✓ */
       this.vy = (hold ? 1 : -1) * this.vx * this.gdir * (this.mini ? 2 : 1);
       this.y += this.vy * (sY / Y_TIME_SCALE);
-      if (this.y < 0 || this.y + this.box > this.rows * U) { this.die(); return; }
+      /* ★★ 2026-09 修(用户:"bird 都没碰到就死了"):飞行类掉到地面线 y<0 时,
+         原版是【有地面就落上去滑行】,只有真的掉进坑里才死 —— 我们以前一律 die() ✗。
+         实测(改前):ufo/ship/wave 贴地飘十几帧就死 ✓ 就是这个。 */
+      if (this.y < 0) {
+        const g = this.floors.find((f) => this.x + this.box > f.x0 && this.x < f.x1);
+        if (g) { this.y = 0; this.vy = 0; this.onGround = true; }
+        else { this.die(); return; }
+      }
+      if (this.y + this.box > this.rows * U) { this.die(); return; }
     } else if (this.mode === 'ufo') {
       /* UFO:照 OpenGD —— 点一下是【赋值】:newVel = flipMod × (迷你?8:7) × 体积;
          重力只有常重力的一半(上升 0.8 / 下落 1.2 再 ×0.5),所以飞着才跟手。 */
@@ -820,7 +844,15 @@ export class World {
       this.vy -= P.gravity * this.gdir * (falling ? 0.8 : 1.2) * 0.5 / size * sY;
       this.vy = Math.max(P.flyDownMax / size, Math.min(P.flyUpMax / size, this.vy));
       this.y += this.vy * sY;
-      if (this.y < 0 || this.y + this.box > this.rows * U) { this.die(); return; }
+      /* ★★ 2026-09 修(用户:"bird 都没碰到就死了"):飞行类掉到地面线 y<0 时,
+         原版是【有地面就落上去滑行】,只有真的掉进坑里才死 —— 我们以前一律 die() ✗。
+         实测(改前):ufo/ship/wave 贴地飘十几帧就死 ✓ 就是这个。 */
+      if (this.y < 0) {
+        const g = this.floors.find((f) => this.x + this.box > f.x0 && this.x < f.x1);
+        if (g) { this.y = 0; this.vy = 0; this.onGround = true; }
+        else { this.die(); return; }
+      }
+      if (this.y + this.box > this.rows * U) { this.die(); return; }
     } else if (this.mode === 'ball') {
       /* 球:重力 ×0.6;★ 只有在【地面上】点一下才跳 —— 原版是
          "先按旧重力方向给起跳初速 → 翻重力(速度减半)→ 再 ×0.6"。
