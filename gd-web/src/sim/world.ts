@@ -546,7 +546,9 @@ export class World {
   }
 
   /** 速度(单位/帧)—— 速度门给的是"速度值 × 倍率",不是直接的每帧位移 */
-  get vx() { return vxOf(this.speedIdx); }
+  /* ★★ 2026-09 自由移动(演示铺用,用户:"demo 做成自由移动,不再固定往前")——
+     为 true 时横向由 freeDir(−1 左 / 0 停 / +1 右)决定;否则按 GD 的恒速前进 ✓ */
+  get vx() { return this.freeMove ? this.freeDir * vxOf(this.speedIdx) : vxOf(this.speedIdx); }
 
   /** 关卡高度(行)。★ 不再是全局常量 ROWS:第三张盘用户的铺面有 121 格高,
    *  而视口永远只有 10 行 —— 上下边界必须跟着【这一关】走。 */
@@ -1483,6 +1485,11 @@ export class World {
    *  die() 直接返回,而调用点后面都是 `return` —— 于是那一帧的后续结算跳过,人继续往前走。
    *  掉出世界(坑)也死不了,所以下面加了一条兜底:掉到地面线以下就放回地面,免得一直往下掉。 */
   god = false;
+  /** ★★ 2026-09 演示铺的【自由移动】模式(用户:"demo 做成自由移动,不再固定往前")——
+   *  为 true 时:横向速度不再取自速度档,而是由 freeDir 决定(−1 左 / 0 停 / +1 右)✓
+   *  页面侧只需要在每帧前设 freeDir(←/→ 或 A/D),并让相机双向跟随 ✓ */
+  freeMove = false;
+  freeDir = 0;
 
   private die() {
     if (this.god) return;

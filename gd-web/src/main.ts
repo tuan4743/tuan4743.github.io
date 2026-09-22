@@ -517,7 +517,8 @@ class Scene extends Phaser.Scene {
     this.g = this.add.graphics();
     /* ★★ 2026-09 用户:"把按键,提示全删掉,按b还是有反应" ⇒ 只保留跳跃键(SPACE/↑/W)✓
        删掉 R(重开) / G(无敌,已停用) / B(演示·机器人)—— 这三个是调试入口 ✓ */
-    this.keys = this.input.keyboard!.addKeys('SPACE,UP,W') as Record<string, Phaser.Input.Keyboard.Key>;
+    /* ★★ 2026-09 演示铺的自由移动:←/→ 或 A/D 决定左右(freeDir 在帧循环里设 ✓) */
+    this.keys = this.input.keyboard!.addKeys('SPACE,UP,W,A,D,LEFT,RIGHT') as Record<string, Phaser.Input.Keyboard.Key>;
     /* ★★ 2026-09 用户:"单次测试游戏耗时太长" ⇒ 加【URL 传送参数】,不用从头玩 ✓
          ?from=2500    从 x=2500 开始(自动取该 x 之前【最近的存档点】状态,再把人放过去 ✓)
          ?cp=3         直接跳到第 3 个存档点 ✓
@@ -546,6 +547,8 @@ class Scene extends Phaser.Scene {
         w.reset(px, mode, py);
         w.god = false;
       }
+      /* ★ 演示铺:默认【自由移动】(←/→ 或 A/D 走,不按就停 ✓)—— 用户:"demo 做成自由移动,不再固定往前" */
+      if (/(^|[?&])level=demo(&|$)/.test(location.search)) w.freeMove = true;
     }
     /* ★ 无敌模式:页面按 G 切;也可以开局就用 URL 打开(?god=1),验收脚本直接改 __gd.world.god */
     this.godWanted = /(^|[?&])god=1(&|$)/.test(location.search);
@@ -987,6 +990,14 @@ class Scene extends Phaser.Scene {
       /* ★ 无敌模式的"轨道上限":开着无敌时不许飞离规划走廊(见 clampToGuide) */
       this.clampToGuide();
       this.airT = w0.onGround ? 0 : this.airT + 1 / 60;
+      /* ★★ 2026-09 演示铺自由移动(用户:"demo 做成自由移动,不再固定往前"):
+         ←/A = 左,→/D = 右,都不按 = 停住 ✓;只在 freeMove(world 侧)为真时生效 ✓ */
+      if (w0.freeMove) {
+        const k = this.keys;
+        const right = !!(k.RIGHT?.isDown || k.D?.isDown);
+        const left = !!(k.LEFT?.isDown || k.A?.isDown);
+        w0.freeDir = (right ? 1 : 0) - (left ? 1 : 0);
+      }
       /* ★★ 2026-09 照源码抄的方块自转(PlayerObject::updateRotation,IDA 144749 / 144846):
            · 目标角:空中时 = 当前角 + 180°(源码 v85 = getRotation + 180 ✓)⇒ 目标永远在前面 180°,
              所以【一直在转】✓,落地则由下面的"最近 90°"接管 ✓
