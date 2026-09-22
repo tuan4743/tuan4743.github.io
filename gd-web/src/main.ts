@@ -872,10 +872,9 @@ class Scene extends Phaser.Scene {
     const k = B / (L.pxPerUnit * 30);                     // 120 px = 30 单位 → k = B/120
     L.body.setPosition(cxw, cyw).setRotation(rot);   // ★ 用户口径 A:贴图原样,不染色(去掉 setTint)✗
     L.body.setDisplaySize(L.bw * k, L.bh * k);
-    if (L.glow) {
-      L.glow.setPosition(cxw, cyw).setRotation(rot).setDisplaySize(L.bw * k, L.bh * k);
-      L.glow.setTint(kill ?? 0xffffff).setAlpha(0.75).setBlendMode(Phaser.BlendModes.ADD);
-    }
+    /* ★★ 2026-09 用户:"原本贴图就只是一个透明的框" ⇒ 去掉 glow 层(不再叠一层发光)✗
+       (buildIcons 那边也随之不再需要 glow,但这里先彻底不画 ✓ —— 两层叠着就是"拼到一起" ✓) */
+    if (L.glow) L.glow.setVisible(false);
   }
 
   /** 推进 n 帧模拟(输入按当前模式取:演示卷 / 机器人 / 键盘) */
