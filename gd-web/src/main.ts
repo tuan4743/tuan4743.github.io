@@ -384,7 +384,7 @@ class Scene extends Phaser.Scene {
     this.phase = 'running';
     this.started = true;
     this.world = new World(LEVEL);
-    this.world.god = this.godWanted;      // 无敌开关要跟着新世界走
+    this.world.god = false;   /* ★ 2026-09 用户:"把无敌模式直接给我删掉" ⇒ 恒为 false,开关不再生效 */      // 无敌开关要跟着新世界走
     this.world.padMul = this.padMulWanted;
     this.baseTick = 0;
     this.prevY = 0;
@@ -479,7 +479,7 @@ class Scene extends Phaser.Scene {
     this.demoEndX = 0;
     if (this.demoMode || this.botMode) {
       this.world = new World(LEVEL);
-      this.world.god = this.godWanted;
+      this.world.god = false;   /* ★ 2026-09 用户:"把无敌模式直接给我删掉" ⇒ 恒为 false,开关不再生效 */
       this.world.padMul = this.padMulWanted;
       this.botStarted = false;              // 让 pump 里"干净开局"那一段重新走一遍
       this.botStates = [];
@@ -512,7 +512,7 @@ class Scene extends Phaser.Scene {
     this.keys = this.input.keyboard!.addKeys('SPACE,UP,W,R,G,B') as Record<string, Phaser.Input.Keyboard.Key>;
     /* ★ 无敌模式:页面按 G 切;也可以开局就用 URL 打开(?god=1),验收脚本直接改 __gd.world.god */
     this.godWanted = /(^|[?&])god=1(&|$)/.test(location.search);
-    this.world.god = this.godWanted;
+    this.world.god = false;   /* ★ 2026-09 用户:"把无敌模式直接给我删掉" ⇒ 恒为 false,开关不再生效 */
     /* ?demo=1 —— 开局直接演示"bot 通关"(和按 B / 点右下角按钮等效)
        ?demospeed=4 —— 演示倍速(默认 1 = 正常速度;20086 帧的卷子正常速度播 334.8 秒) */
     if (/(^|[?&])demo=1(&|$)/.test(location.search)) this.demoWanted = true;
@@ -667,7 +667,7 @@ class Scene extends Phaser.Scene {
   /** 无敌开关:键盘 G 和屏幕右下角那个按钮都走这里(状态写在按钮上,不用猜开没开) */
   toggleGod() {
     this.godWanted = !this.godWanted;
-    this.world.god = this.godWanted;
+    this.world.god = false;   /* ★ 2026-09 用户:"把无敌模式直接给我删掉" ⇒ 恒为 false,开关不再生效 */
     this.syncGodButton();
   }
 
@@ -918,7 +918,7 @@ class Scene extends Phaser.Scene {
         this.botStarted = true;
         this.started = true;
         this.world = new World(LEVEL);
-        this.world.god = this.godWanted;
+        this.world.god = false;   /* ★ 2026-09 用户:"把无敌模式直接给我删掉" ⇒ 恒为 false,开关不再生效 */
         this.world.padMul = this.padMulWanted;
         this.botStates = [];
         this.fp = '';
@@ -987,7 +987,7 @@ class Scene extends Phaser.Scene {
     if (this.demoMode) {
       this.loadTape();
       this.world = new World(LEVEL);
-      this.world.god = this.godWanted;
+      this.world.god = false;   /* ★ 2026-09 用户:"把无敌模式直接给我删掉" ⇒ 恒为 false,开关不再生效 */
       this.world.padMul = this.padMulWanted;
       this.botStarted = false;
       this.botStates = [];
