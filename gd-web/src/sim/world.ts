@@ -185,6 +185,26 @@ export class World {
    *  reset() 里又把 gdir/speedIdx 硬写成 1 ⇒ 在"快速档"或"反重力段"摔死后,
    *  复活出来的是常速+正常重力 —— 同一段路完全对不上 ✗(用户:"存档点机制绝对是错的")。 */
   checkSpeed = 1; checkGdir: 1 | -1 = 1;
+  /** ★★ 方块自转状态(2026-09 重写:状态放 sim 里,渲染只读)
+   *  规则(照源码结构 PlayerObject::runNormalRotation + updateRotation):
+   *   · 离地即开始转,空中匀速(速率 = 180° / 一次标称跳的滞空)
+   *   · 每到一个 180° 的目标就续下一个 ⇒ 掉得久就一直转(能数出圈数)✓
+   *   · 落地:补齐到最近的 180° 倍数(因此落地永远没有斜角),但【不回正到 0】✓
+   *  不再每帧重算"预计落地时间"⇒ 不会抖 ✓;不再起跳归零 ✓ */
+  spinAng = 0;
+  spinTarget = 0;
+  updateSpin(dt: number, stepT: number) {
+    if (this.onGround) {
+      /* ★ 落地:吸附到【最近】的 180° 倍数(不是"下一个" ✗ —— 那会让一次跳转出 360°,
+         用户实测就是这个问题)。用 2~3 帧快速收敛,不是瞬间跳变 ✓ */
+      const nearest = Math.round(this.spinAng / Math.PI) * Math.PI;
+      this.spinAng += (nearest - this.spinAng) * 0.5;
+      if (Math.abs(nearest - this.spinAng) < 0.005) { this.spinAng = nearest; this.spinTarget = nearest; }
+      return;
+    }
+    this.spinAng -= (Math.PI / stepT) * dt;                 // 方向:屏幕顺时针(见绘图里的说明)
+    if (this.spinAng <= this.spinTarget) this.spinTarget -= Math.PI;   // 到目标就续 180°
+  }
   /** 最近一次跨过的形态门的中心 y(相机在飞行类形态里"钉视口"要用,原版口径) */
   portalY = 0;
   /** 这张铺面是不是"GD 导出的真实关卡"(决定事件物件用相交判还是跨 x 判,见 hitEvent) */
