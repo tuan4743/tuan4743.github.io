@@ -77,7 +77,9 @@ const baked = JSON.parse(fs.readFileSync('../static/assets/gd-player-parts.json'
 for (const mode of Object.keys(baked)) {
   const info = baked[mode];
   const iconNo = info.sheet.replace(/^(robot|spider)_/, '');          // 我们这张图集的编号(01 / 13)
-  const atlas = dec(fs.readFileSync(RES + '\\' + info.sheet + '.png'));
+  /* ★ 用【UHD 图集】切(用户:"比较糙,可能因为你用的是普通的而不是 uhd 版本"✓)
+     —— JSON 里的 frames 矩形也已经是 uhd 那套 ✓,两者配套 ✓ */
+  const atlas = dec(fs.readFileSync(RES + '\\' + info.sheet + '-uhd.png'));
   const used = [...new Set(info.sprites.map((s) => s.tex))];
   let n = 0;
   for (const texRaw of used) {
