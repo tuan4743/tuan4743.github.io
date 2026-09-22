@@ -625,6 +625,15 @@ class Scene extends Phaser.Scene {
         this.load.image('iconimg-' + a.file, '/icons/' + a.file + '.png');
         this.load.text('iconxml-' + a.file, '/icons/' + a.file + '.plist');
       }
+      /* ★ 机器人/蜘蛛的【部件图 + 部件表】(官方 AnimDesc 烘出来的 ✓,见 main.ts 里的 TODO)
+         —— 每个形态 4 张部件图,文件名与 JSON 里的 tex 一一对应 ✓ */
+      for (const mode of ['robot', 'spider']) {
+        for (const no of ['01', '02', '03', '04']) {
+          const key = 'part-' + mode + '-' + (mode === 'robot' ? 'robot_01_' : 'spider_13_') + no + '_001.png';
+          this.load.image(key, '/icons/part-' + mode + '-' + (mode === 'robot' ? 'robot_01_' : 'spider_13_') + no + '_001.png');
+        }
+      }
+      this.load.json('gd-parts', '/assets/gd-player-parts.json');
       this.load.once('complete', () => { this.buildIcons(); });
       this.load.start();
     }
@@ -1886,6 +1895,38 @@ class Scene extends Phaser.Scene {
     /* ★ 图集就绪就用真图标(见 buildIcons);没就绪/加载失败时走下面这套矢量兜底。
        注意图标用的是绘图空间坐标(和 Graphics 一样,y 走 Y() 翻转),所以这里给它 Y(cyw) */
     /* robot / spider 不走图标(见下面的说明:部件摆位数据不在我们手上 ✗)⇒ 用矢量画 ✓ */
+    /* ★★★ 2026-09 robot / spider:按【官方部件表】摆多 sprite(规格见 buildIcons 上方的 TODO)
+       数据 = cache.json('gd-parts')(由 tools/bake-player-parts.ts 从官方 AnimDesc 烘出 ✓)
+       坐标 = 部件 px 与 position 同尺度 ⇒ 直接当世界单位用 ✓(屏幕 y 取反 ✓)
+       首次用到某形态时懒加载 4 个部件 sprite,之后每帧只改位置与显隐 ✓ */
+    let drewParts = false;
+    if (w.mode === 'robot' || w.mode === 'spider') {
+      const self = this as unknown as { partSprites?: Record<string, Phaser.GameObjects.Image[]> };
+      self.partSprites = self.partSprites ?? {};
+      let arr = self.partSprites[w.mode];
+      if (!arr) {
+        const all = this.cache.json.get('gd-parts') as Record<string, { sprites: Array<{ tex: string; x: number; y: number; z: number }> }> | undefined;
+        const info = all?.[w.mode];
+        const prefix = w.mode === 'robot' ? 'robot_01_' : 'spider_13_';
+        arr = (info?.sprites ?? []).map((s) => {
+          const no = /_(\d+)_001\.png$/.exec(s.tex)?.[1] ?? '01';
+          const img = this.add.image(cxw, Y(cyw), 'part-' + w.mode + '-' + prefix + no + '_001.png').setDepth(16).setVisible(false);
+          img.setData('dx', s.x);
+          img.setData('dy', s.y);
+          return img;
+        });
+        self.partSprites[w.mode] = arr;
+      }
+      const k = B / 30;                                  // 部件表与世界单位 1:1(方块 30 单位)✓
+      for (const img of arr) {
+        const src = this.textures.get(img.texture.key).getSourceImage() as HTMLImageElement | undefined;
+        const wpx = src?.width ?? 1, hpx = src?.height ?? 1;
+        img.setVisible(!w.done)
+          .setPosition(cxw + (img.getData('dx') as number) * k, Y(cyw) - (img.getData('dy') as number) * k)
+          .setDisplaySize(Math.max(1, wpx * k), Math.max(1, hpx * k));
+      }
+      drewParts = arr.length > 0;
+    }
     if (this.iconsReady && w.mode !== 'robot' && w.mode !== 'spider') this.drawIconPlayer(w, cxw, Y(cyw), B);
     /* ★★ 2026-09 修"cube 根本没有贴图"(我上一轮引入的 ✗):
        drawIconPlayer 在没有该形态图层时会直接 return ⇒ 而这里只要 iconsReady 就跳过矢量 ✗
@@ -1902,7 +1943,7 @@ class Scene extends Phaser.Scene {
                 而不是现在这种"拼错的方框" ✗;等拿到 GJ*Sprite 的动画数据再换成贴图 ✓
        (矢量那套在下面 else 分支里,本来就有 ✓ —— 这里只要不认这两个形态的 icon ✓) */
     const NO_ICON_MODES = new Set(['robot', 'spider']);
-    if (this.iconsReady && !NO_ICON_MODES.has(w.mode) && this.iconLayers.some((l) => l.mode === w.mode)) { /* 图标已经画了,矢量那套跳过 */ } else if (w.mode === 'ship') {
+    if (drewParts) { /* robot/spider 的部件 sprite 已经画了,矢量那套跳过 */ } else if (this.iconsReady && !NO_ICON_MODES.has(w.mode) && this.iconLayers.some((l) => l.mode === w.mode)) { /* 图标已经画了,矢量那套跳过 */ } else if (w.mode === 'ship') {
       /* 手动画三角:Phaser 4 里没有 Phaser.Geom.Point(v3 的写法会直接抛错) */
       const rot = Math.max(-0.55, Math.min(0.55, w.vy / P.shipVyMax * 0.55));
       const s = Math.sin(rot), c = Math.cos(rot);
