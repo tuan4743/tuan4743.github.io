@@ -4,7 +4,7 @@
    跑法:
      cd gd-web
      node tools/dat-to-chart.ts --file=../static/levels/CCLocalLevels.dat --level=WATER
-       [--out=src/sim/charts/water.ts] [--song=/assets/cd/music/lost.mp3]
+       [--out=src/sim/charts/water.ts] [--song=/levels/WATER.mp3]
 
    干的事:
      ① 解包 .dat → 取指定那一关的物件行;
@@ -29,7 +29,7 @@ const arg = (name: string, dflt = '') => {
 
 const FILE = arg('file', path.resolve(HERE, '..', '..', 'static', 'levels', 'CCLocalLevels.dat'));
 const WANT = arg('level', 'WATER');
-const SONG = arg('song', '/assets/cd/music/lost.mp3');
+const SONG = arg('song', '/levels/WATER.mp3');
 const OUT = arg('out', path.resolve(HERE, '..', 'src', 'sim', 'charts', 'water.ts'));
 
 const levels = loadSave(FILE);

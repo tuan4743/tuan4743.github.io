@@ -8994,7 +8994,7 @@ export const WATER_CHART = makeChart({
   name: "WATER",
   rows: 127,
   length: 3620,
-  song: "/assets/levels/WATER.mp3",
+  song: "/levels/WATER.mp3",
   start: { b: 0, r: 10 },
   segments: [
   { from: 0, to: 198, mode: 'cube', speed: 0, label: 'cube' },
