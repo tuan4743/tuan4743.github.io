@@ -864,7 +864,14 @@ export class World {
       } else {
         /* ★ 方块的重力也是【按速度档查表】的 m_gravity(updateTimeMod.cpp:8-26);
            其它形态(球/蜘蛛/飞船/UFO/波浪)用固定 0.958199 —— 见 constants 里那张表的注释。 */
-        this.vy -= cubeGravityOf(this.speedIdx) * this.gdir * sY;
+        /* ★★ 2026-09 试过一次、已回退:按 updateJump.cpp:23-42 把这里改成
+         `gravity × 0.4 × 1.2`(0.48×)并加"朝 gravity×2 收敛"——
+         结果【一跳峰值 6.70 块】,而原作是 2.17 块(测试 `常量表:一跳峰值` 直接抓出来了 ✗)。
+         结论:`updateJump` 里那个带 step/multiplier 的 `yAccel` 【不是】 m_yVelocity ——
+         用户贴的 PlayerObject::update 里另有一个 `m_accelerationOrSpeed` 累加器,
+         那套 0.4/1.2 的公式属于它;纵向速度走的是 addToYVelocity 那条路。
+         ⇒ 在把这两条路的关系读清楚之前,这里保持原样(1.0×gravity,一跳 2.17 块吻合原作)。 */
+      this.vy -= cubeGravityOf(this.speedIdx) * this.gdir * sY;
       }
       /* ★ 终端速度只夹【下落】方向(原作在 falling 分支里夹):
          所以黄弹簧的 16 能原样生效,峰值才有 4.45 块,而不是被夹到 3.9。
