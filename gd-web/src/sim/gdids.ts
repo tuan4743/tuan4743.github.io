@@ -470,6 +470,7 @@ export function decodeObjects(text: string): Obj[] {
       switch (k) {
         case 'to': o.to = v as Mode; break;
         case 'orb': o.orb = v as OrbKind; break;
+        case 'dash': o.dash = v as 'pink' | 'green'; break;   // ★ 冲刺环:解码这一环以前也漏了
         case 'pad': o.pad = v as PadKind; break;
         case 'spd': o.speed = Number(v); break;
         case 'gd': o.gdir = Number(v) as 1 | -1; break;
