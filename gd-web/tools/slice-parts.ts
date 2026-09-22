@@ -81,8 +81,11 @@ for (const mode of Object.keys(baked)) {
   const used = [...new Set(info.sprites.map((s) => s.tex))];
   let n = 0;
   for (const texRaw of used) {
-    const fr = info.frames[texRaw];                                   // ★ 用【原始帧名】查矩形
-    if (!fr) { console.log('  ! 表里缺 ' + texRaw); continue; }
+    /* ★ 查表的键要【换成我们图集的编号】✓(烘好的帧表是按 spider_13_* / robot_01_* 建的 ✓,
+       而 AnimDesc 引用的是 spider_01_* ✗ —— 上一版就是这样查空的 ✓) */
+    const key = texRaw.replace(/^(robot|spider)_\d+_/, (_m, p1: string) => p1 + '_' + iconNo + '_');
+    const fr = info.frames[key];
+    if (!fr) { console.log('  ! 表里缺 ' + key); continue; }
     const [rx, ry, rw, rh] = fr.rect;
     const img: Img = { w: rw, h: rh, data: new Uint8Array(rw * rh * 4) };
     for (let y = 0; y < rh; y++) for (let x = 0; x < rw; x++) {
