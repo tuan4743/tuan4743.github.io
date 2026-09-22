@@ -57,8 +57,15 @@ function readFrames(sheet: string) {
     const b = m[2];
     const tr = /\{\{([-0-9.]+),([-0-9.]+)\},\{([-0-9.]+),([-0-9.]+)\}\}/.exec(b);
     const sp = /<key>spriteSize<\/key>\s*<string>\{([0-9]+),([0-9]+)\}/.exec(b);
+    /* ★ 部件自己的 spriteOffset(用户:"蜘蛛腿的位置太高了,robot 也有点" ⇒ 就是缺这一项 ✓)
+       —— 它表示"内容在自己画布里的位置",叠加到 AnimDesc 的 position 上才是最终落点 ✓ */
+    const of = /<key>spriteOffset<\/key>\s*<string>\{(-?[0-9.]+),(-?[0-9.]+)\}/.exec(b);
     if (!tr) continue;
-    frames[m[1]] = { rect: [+tr[1], +tr[2], +tr[3], +tr[4]], w: sp ? +sp[1] : +tr[3], h: sp ? +sp[2] : +tr[4] };
+    frames[m[1]] = {
+      rect: [+tr[1], +tr[2], +tr[3], +tr[4]],
+      w: sp ? +sp[1] : +tr[3], h: sp ? +sp[2] : +tr[4],
+      ox: of ? +of[1] : 0, oy: of ? +of[2] : 0,
+    };
   }
   return frames;
 }

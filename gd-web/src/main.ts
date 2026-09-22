@@ -1902,6 +1902,7 @@ class Scene extends Phaser.Scene {
       let arr = self.partSprites[w.mode];
       const all = this.cache.json.get('gd-parts-anim') as Record<string, {
         scale: number;
+        frames: Record<string, { ox: number; oy: number }>;
         anims: Record<string, Array<Array<{ tex: string; x: number; y: number; z: number }>>>;
       }> | undefined;
       const info = all?.[w.mode];
@@ -1932,8 +1933,13 @@ class Scene extends Phaser.Scene {
         if (img.texture.key !== '__DEFAULT') img.setTexture(key, sp.tex);
         else img.setTexture(key, sp.tex);
         const fr = this.textures.getFrame(key, sp.tex);
+        /* ★ 叠加部件自己的 spriteOffset(用户:"蜘蛛腿的位置太高了,robot 也有点" ⇒ 缺的就是这一项 ✓)
+           AnimDesc 的 position 是"部件锚点",而部件内容在它自己的画布里还有偏移 ✓
+           再乘 uhd→布局的 scale(0.25)✓ */
+        const fo = info?.frames?.[sp.tex];
+        const ox = (fo?.ox ?? 0) * sc, oy = (fo?.oy ?? 0) * sc;
         img.setVisible(!w.done)
-          .setPosition(cxw + sp.x * k, Y(cyw) - sp.y * k)
+          .setPosition(cxw + (sp.x + ox) * (B / 30), Y(cyw) - (sp.y + oy) * (B / 30))
           .setDisplaySize(Math.max(1, fr.width * k), Math.max(1, fr.height * k));
       }
       drewParts = arr.length > 0 && list.length > 0;
