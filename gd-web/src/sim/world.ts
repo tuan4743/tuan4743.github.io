@@ -825,7 +825,10 @@ export class World {
              if (m_maxDuration > 0.0 && m_totalTime - m_dashStartTime > m_maxDuration) stopDashing;
          环/箭头没有自带 m_maxDuration 时,原版的默认就是约 0.5 秒 ✓(这也是我最初写 0.5 的来源)。
          ⇒ 规则:松手即停,或到 0.5 秒上限即停 ✓。 */
-      if (!hold || d.t > 0.5) this.dash = null;
+      /* ★★ 2026-09 用户:"冲刺箭头逻辑还是错的,没有最大持续时间,按多久就冲刺多久" ⇒
+         去掉 0.5 秒上限 ✓ —— 冲刺【只由按住/松开决定】:按住一直冲,松手立刻停 ✓
+         (源码那行 `m_maxDuration > 0` 只在环自带时长时生效;本关的环/箭头没有 ⇒ 不限时 ✓)*/
+      if (!hold) this.dash = null;
       /* ★★ 2026-09 修(用户:"bird 都没碰到就死了"):飞行类掉到地面线 y<0 时,
          原版是【有地面就落上去滑行】,只有真的掉进坑里才死 —— 我们以前一律 die() ✗。
          实测(改前):ufo/ship/wave 贴地飘十几帧就死 ✓ 就是这个。 */
