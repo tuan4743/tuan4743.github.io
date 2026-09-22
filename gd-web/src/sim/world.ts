@@ -1261,7 +1261,12 @@ export class World {
       if (!this.hitEvent(b, prevX)) continue;
       this.armedChecks.add(b);
       this.checkX = b.x0;
-      this.checkY = this.y;                 // ★ 存档点记的是"人越过它时的位置"(原版口径)
+      /* ★★ 2026-09 用户:"复活点是从那个点开始,不是它的上面开始"。
+         以前记的是【人跨过它时的 y】(this.y)⇒ 复活落在存档点上方一截 ✗。
+         现在记【存档点自己那个点】:x 用它的 x0,y 用它的格子中心(y = r+0.5 格)再减去半个玩家高
+         —— 这样复活时人的【脚底】正好落在存档点那一点上 ✓
+         (注意不要用 b.y0:存档点的判定盒比一格高,盒底会比那个点低 10 格以上 ✗) */
+      this.checkY = ((b.o.r ?? 0) + 0.5) * U - this.box / 2;
       this.checkMode = this.mode; this.checkSize = this.sizeMul;
       this.checkSpeed = this.speedIdx; this.checkGdir = this.gdir;   // ★ 速度档 + 重力方向一起存档
     }
