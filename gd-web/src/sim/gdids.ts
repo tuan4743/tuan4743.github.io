@@ -199,6 +199,10 @@ export interface Spec {
   w?: number; h?: number;       // 默认包围盒(块),缺省 1×1;刺的 h 同时就是【刺的高度】
   scaled?: boolean;             // 128/129 是不是缩放(锯片这类)
   orb?: OrbKind; pad?: PadKind; to?: Mode; speed?: number; gdir?: 1 | -1;
+  /** ★★ 冲刺环(用户口径:"绿色/粉色冲刺环"):这两个 id 原版走的是 startDashing ——
+   *  进入 dash 状态(方向由 m_dashX/m_dashY 决定,之后每帧 纵向位移 = 水平位移 × m_dashY),
+   *  【不是】给一个纵向速度 ✗。以前 141/1022 被当成普通跳环 ⇒ "冲刺大错特错" ✓。 */
+  dash?: 'pink' | 'green';
   frame?: 'edge' | 'corner' | 'u' | 'box';
   arrow?: 'green' | 'pink' | 'purple';
   art?: number;                 // 装饰图号(绘制时按它挑画法)
@@ -250,8 +254,8 @@ export const GD_SPEC: Record<number, Spec> = {
 
   /* ---- 跳环(空中要按一下)---- */
   36: { kind: 'orb', orb: 'yellow', note: '黄色跳环' },
-  141: { kind: 'orb', orb: 'pink', col: 0xc6a0ff, note: '紫/粉色跳环(用户口径:紫;物理按 0.72 小跳)' },
-  1022: { kind: 'orb', orb: 'green', note: '绿色跳环(翻重力+跳)' },
+  141: { kind: 'orb', orb: 'pink', dash: 'pink', col: 0xc6a0ff, note: '★冲刺环(粉):进入 dash 状态,不是跳环' },
+  1022: { kind: 'orb', orb: 'green', dash: 'green', note: '★冲刺环(绿):进入 dash 状态,不是跳环' },
   84: { kind: 'orb', orb: 'blue', note: '蓝色跳环(翻重力)' },
   1330: { kind: 'orb', orb: 'black', note: '黑色冲刺环' },
 
