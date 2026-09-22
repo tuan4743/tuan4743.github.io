@@ -1282,7 +1282,7 @@ G 732 24 gd=1 z=2
 V 733 24 spd=2 z=2
 O 737 19 orb=yellow z=2
 O 739 22 orb=yellow z=2
-O 741 25 orb=pink col=13017343 z=2
+O 741 25 orb=pink dash=pink col=13017343 z=2
 B 746 19
 B 747 19
 B 746 18
@@ -1994,7 +1994,7 @@ C 1059 22
 V 1055 25 spd=2 z=2
 R 1060 23 to=robot z=2
 O 1068 23 orb=yellow z=2
-O 1073 25 orb=pink col=13017343 z=2
+O 1073 25 orb=pink dash=pink col=13017343 z=2
 B 1078 23
 B 1078 22
 B 1078 21
@@ -2018,13 +2018,13 @@ E 1090 30.65 art=41 z=6
 E 1092 30.65 art=41 z=6
 E 1080 29.65 art=41 z=6
 O 1097 32 orb=yellow z=2
-O 1102 32 orb=green z=2
+O 1102 32 orb=green dash=green z=2
 B 1107 32
 B 1108 32
 B 1106 32
 B 1107 33
 E 1107 30.417 rot=180 art=106 z=7
-O 1112 30 orb=pink col=13017343 z=2
+O 1112 30 orb=pink dash=pink col=13017343 z=2
 D 1117 31.8 1 0.2 pad=blue rot=180 z=2
 D 1118 28 1 0.2 pad=blue z=2
 D 1120 30.8 1 0.2 pad=blue rot=180 z=2
@@ -2182,7 +2182,7 @@ R 1196 31 to=cube z=2
 G 1199 37 gd=1 z=2
 D 1204 31.967 1 0.2 pad=yellow z=2
 H 1204 31.5 1 0.5 fm=box
-O 1209 36 orb=green z=2
+O 1209 36 orb=green dash=green z=2
 K 1211 34 inert=1 z=2
 H 1211 39 rot=-90 fm=corner
 H 1211.002 40 0.05 1 rot=-90 fm=edge
@@ -2246,7 +2246,7 @@ H 1225.002 38 0.05 1 rot=-90 fm=edge
 H 1226 37 1 0.05 rot=-180 fm=edge
 H 1225.002 30 0.05 1 rot=-90 fm=edge
 H 1227.948 30 0.05 1 rot=-270 fm=edge
-O 1228 34 orb=pink col=13017343 z=2
+O 1228 34 orb=pink dash=pink col=13017343 z=2
 S 1228 38 rot=180 id=8
 S 1229 38 rot=180 id=8
 S 1230 38 rot=180 id=8
@@ -2260,8 +2260,8 @@ S 1231 30 id=8
 S 1232 30 id=8
 S 1233 30 id=8
 S 1234 30 id=8
-O 1233 32 orb=pink col=13017343 z=2
-O 1233 36 orb=pink col=13017343 z=2
+O 1233 32 orb=pink dash=pink col=13017343 z=2
+O 1233 36 orb=pink dash=pink col=13017343 z=2
 S 1234 38 rot=180 id=8
 S 1235 38 rot=180 id=8
 S 1235 30 id=8
@@ -2269,7 +2269,7 @@ S 1239 38 rot=180 id=8
 S 1239 30 id=8
 S 1240 30 id=8
 S 1240 38 rot=180 id=8
-O 1248 34 orb=pink col=13017343 z=2
+O 1248 34 orb=pink dash=pink col=13017343 z=2
 H 1245 31.5 1 0.5 fm=box
 H 1245 37 1 0.5 fm=box
 W 1247.473 36.517 2.053 3.967 id=1705 z=5
@@ -2801,8 +2801,8 @@ T 1489 41 tpy=-5.667 z=2
 G 1428 38 gd=1 z=2
 W 1390.033 26.667 2.933 5.667 id=1705 z=5
 O 1401 35 orb=yellow z=2
-O 1409 35 orb=pink col=13017343 z=2
-O 1414 35 orb=green z=2
+O 1409 35 orb=pink dash=pink col=13017343 z=2
+O 1414 35 orb=green dash=green z=2
 B 1468 37
 B 1473 44
 W 1490.913 38.367 1.173 2.267 id=1705 z=5
@@ -3041,7 +3041,7 @@ B 553 18
 B 554 17
 D 554 16.8 1 0.2 pad=blue rot=180 z=2
 B 547 18
-O 557 8 orb=green z=2
+O 557 8 orb=green dash=green z=2
 G 559 5 gd=1 z=2
 D 561 2 1 0.2 pad=blue z=2
 D 565 9.8 1 0.2 pad=blue rot=180 z=2
@@ -3096,7 +3096,7 @@ B 577 10
 B 574 9
 D 561 11.833 1 0.2 pad=pink rot=180 z=2
 G 572 14 gd=1 z=2
-O 580 14 orb=pink col=13017343 z=2
+O 580 14 orb=pink dash=pink col=13017343 z=2
 D 582 15 1 0.2 pad=blue z=2
 D 585 22.8 1 0.2 pad=blue rot=180 z=2
 D 587 19 1 0.2 pad=blue z=2
@@ -3153,7 +3153,7 @@ B 587 14
 B 593 18
 B 595 17
 B 597 16
-O 600 18 orb=pink col=13017343 z=2
+O 600 18 orb=pink dash=pink col=13017343 z=2
 B 592 16
 B 594 15
 B 594 16
@@ -3659,7 +3659,7 @@ B 151 2
 B 152 2
 B 152 3
 B 153 3
-O 154 5 orb=pink col=13017343 z=2
+O 154 5 orb=pink dash=pink col=13017343 z=2
 B 152 1
 B 157 4
 B 158 4
@@ -4021,7 +4021,7 @@ S 1621 45 id=8
 S 1619 45.95 1 0.5 id=39
 S 1624 47 id=8
 S 1623 47 id=8
-O 1632 50 orb=green z=2
+O 1632 50 orb=green dash=green z=2
 B 1635 49
 B 1636 49
 D 1636 48.8 1 0.2 pad=blue rot=180 z=2
@@ -4051,7 +4051,7 @@ B 1650 46
 B 1650 45
 B 1647 46
 B 1642 43
-O 1643 47 orb=pink col=13017343 z=2
+O 1643 47 orb=pink dash=pink col=13017343 z=2
 R 1653 50 to=ship z=2
 T 1654 50 tpy=-5.667 z=2
 W 1654.9 41.021 2.2 4.25 id=1705 z=5
@@ -4399,7 +4399,7 @@ O 1796 54 orb=yellow z=2
 O 1800 55 orb=yellow z=2
 D 1807 58 1 0.2 pad=blue z=2
 D 1809 61.8 1 0.2 pad=blue rot=180 z=2
-O 1805 56 orb=pink col=13017343 z=2
+O 1805 56 orb=pink dash=pink col=13017343 z=2
 B 1811 55
 B 1812 55
 B 1810 54
@@ -4510,7 +4510,7 @@ B 1871 55
 O 1873 59 orb=yellow z=2
 D 1883 61.8 1 0.2 pad=blue rot=180 z=2
 D 1882 60 1 0.2 pad=blue z=2
-O 1878 60 orb=pink col=13017343 z=2
+O 1878 60 orb=pink dash=pink col=13017343 z=2
 B 1883 62
 B 1883 63
 B 1884 62
@@ -6929,69 +6929,69 @@ B 2631 81.5 rot=-180 fy=1
 O 2647 84 orb=yellow z=2
 E 2641 87 art=3818 z=3
 O 2651 86 orb=yellow z=2
-O 2655 88 orb=green z=2
+O 2655 88 orb=green dash=green z=2
 O 2659 86 orb=yellow z=2
 O 2663 84 orb=yellow z=2
-O 2667 82 orb=green z=2
+O 2667 82 orb=green dash=green z=2
 O 2671 84 orb=yellow z=2
 O 2675 86 orb=yellow z=2
-O 2679 88 orb=green z=2
+O 2679 88 orb=green dash=green z=2
 O 2683 86 orb=yellow z=2
 A 2687 84 ar=green z=2
 O 2704 86 orb=yellow z=2
-O 2700 84 orb=green z=2
+O 2700 84 orb=green dash=green z=2
 O 2708 88 orb=yellow z=2
-O 2712 90 orb=green z=2
+O 2712 90 orb=green dash=green z=2
 O 2716 88 orb=yellow z=2
 O 2720 86 orb=yellow z=2
-O 2724 84 orb=green z=2
+O 2724 84 orb=green dash=green z=2
 O 2728 86 orb=yellow z=2
 O 2732 88 orb=yellow z=2
-O 2736 90 orb=green z=2
+O 2736 90 orb=green dash=green z=2
 O 2740 88 orb=yellow z=2
 A 2744 86 ar=green z=2
 O 2761 88 orb=yellow z=2
-O 2757 86 orb=green z=2
+O 2757 86 orb=green dash=green z=2
 O 2765 90 orb=yellow z=2
-O 2769 92 orb=green z=2
+O 2769 92 orb=green dash=green z=2
 O 2773 90 orb=yellow z=2
 O 2777 88 orb=yellow z=2
-O 2781 86 orb=green z=2
+O 2781 86 orb=green dash=green z=2
 O 2785 88 orb=yellow z=2
 O 2789 90 orb=yellow z=2
-O 2793 92 orb=green z=2
+O 2793 92 orb=green dash=green z=2
 O 2797 90 orb=yellow z=2
 E 2810.117 97.792 art=3818 z=3
 O 2867 90 orb=yellow fx=1 z=2
 E 2861 87 fx=1 art=3818 z=3
 O 2871 88 orb=yellow fx=1 z=2
-O 2875 86 orb=green fx=1 z=2
+O 2875 86 orb=green dash=green fx=1 z=2
 O 2879 88 orb=yellow fx=1 z=2
 O 2883 90 orb=yellow fx=1 z=2
-O 2887 92 orb=green fx=1 z=2
+O 2887 92 orb=green dash=green fx=1 z=2
 O 2891 90 orb=yellow fx=1 z=2
 O 2895 88 orb=yellow fx=1 z=2
-O 2899 86 orb=green fx=1 z=2
+O 2899 86 orb=green dash=green fx=1 z=2
 O 2903 88 orb=yellow fx=1 z=2
 A 2852 97 rot=45 ar=pink z=2
 A 2907 90 ar=green z=2
 O 2924 92 orb=yellow z=2
-O 2920 90 orb=green z=2
+O 2920 90 orb=green dash=green z=2
 O 2928 94 orb=yellow z=2
-O 2932 96 orb=green z=2
+O 2932 96 orb=green dash=green z=2
 O 2936 94 orb=yellow z=2
 O 2940 92 orb=yellow z=2
-O 2944 90 orb=green z=2
+O 2944 90 orb=green dash=green z=2
 O 2948 92 orb=yellow z=2
 O 2952 94 orb=yellow z=2
-O 2956 96 orb=green z=2
+O 2956 96 orb=green dash=green z=2
 O 2975.06 101 orb=yellow z=2
 E 2969.06 104 art=3818 z=3
 O 2979.06 103 orb=yellow z=2
-O 2983.06 105 orb=green z=2
+O 2983.06 105 orb=green dash=green z=2
 O 2987.06 103 orb=yellow z=2
 O 2991.06 101 orb=yellow z=2
-O 2995.06 99 orb=green z=2
+O 2995.06 99 orb=green dash=green z=2
 O 2999.06 101 orb=yellow z=2
 O 3003.06 103 orb=yellow z=2
 A 2960 94 rot=-45 ar=pink z=2
@@ -6999,13 +6999,13 @@ A 2632 77 rot=-45 ar=green z=2
 A 2801 88 rot=-45 ar=green z=2
 O 2816 95 orb=yellow z=2
 O 2820 97 orb=yellow z=2
-O 2824 99 orb=green z=2
+O 2824 99 orb=green dash=green z=2
 O 2828 97 orb=yellow z=2
 O 2832 95 orb=yellow z=2
-O 2836 93 orb=green z=2
+O 2836 93 orb=green dash=green z=2
 O 2840 95 orb=yellow z=2
 O 2844 97 orb=yellow z=2
-O 2848 99 orb=green z=2
+O 2848 99 orb=green dash=green z=2
 R 3005 104 to=ship z=2
 V 3006 104 spd=0 z=2
 C 3032 104
@@ -7118,7 +7118,7 @@ B 3073 101
 B 3072 101
 B 3071 102
 B 3070 100
-O 3077 106 orb=green z=2
+O 3077 106 orb=green dash=green z=2
 O 3082 105 orb=yellow z=2
 B 3086 103
 B 3087 103
@@ -7126,7 +7126,7 @@ B 3055 101
 B 3053 98
 B 3087 104
 B 3088 104
-O 3093 102 orb=green z=2
+O 3093 102 orb=green dash=green z=2
 B 3085 105
 B 3090 103
 B 3099 100
@@ -7229,7 +7229,7 @@ B 3174 109
 B 3174 108
 B 3173 109
 O 3175 112 orb=yellow z=2
-O 3181 112 orb=green z=2
+O 3181 112 orb=green dash=green z=2
 B 3188 113
 B 3187 113
 B 3187 114

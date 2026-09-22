@@ -364,6 +364,9 @@ const ints = (s: string | undefined): number[] =>
     o.rad = rr * (Math.abs(sx) + Math.abs(sy)) / 2;
   }
   if (spec.orb) o.orb = spec.orb;
+  if (spec.dash) o.dash = spec.dash;        // ★ 冲刺环(141/1022):以前这一行漏了
+                                            //   ⇒ 对象身上没有 dash ⇒ 编码器也写不出 dash=
+                                            //   ⇒ 引擎永远走不到 dash 分支(用户:"冲刺大错特错")
   if (spec.pad) o.pad = spec.pad;
   if (spec.exit) o.exit = true;
   if (spec.to) o.to = spec.to;
