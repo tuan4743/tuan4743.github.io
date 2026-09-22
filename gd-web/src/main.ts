@@ -843,16 +843,12 @@ class Scene extends Phaser.Scene {
          我们以前只画第 1 层 ✗ ⇒ robot/spider 缺腿 ✓✓
          ⇒ 现在把同一图标的 _2_ / _3_ 层按顺序叠到同一张画布上,每层用自己的 spriteSourceSize 定位 ✓
          (_glow_ 依旧不画 ✓;_extra_ 是额外素材,不叠 ✓) */
+      /* ★★★ 2026-09 回退多层拼装(我的错):把 _2_/_3_ 直接叠到【身体那张画布】上 ✗ ——
+         每一层的 spriteSourceSize 是相对【它自己的画布】的 ⇒ 直接叠会错位,
+         用户实测"更错了:spider/robot 还是没腿,UFO 贴图也出错了" ✓✓
+         ⇒ 先回到【只画基础帧】(至少不错位 ✓);真正的多层合成要按各层自己的画布单独合成
+           (或读 GD 的部件合成表),那是下一件事 ✗ —— 不在没验证的情况下硬叠 ✗ */
       const layerNames = [name];
-      for (const k of [2, 3]) {
-        /* ★ 帧号是【末尾三位】(_001),部件标记插在它前面:
-             player_348_001.png → player_348_2_001.png
-             robot_01_01_001.png → robot_01_01_2_001.png
-           我上一版写成 replace(/_(\d+)\.png$/, '_2_$1.png') ✗ —— 那会把 _001 换成 _2_001
-           并丢掉原来的 _001 ⇒ 永远找不到 _2_ 层 ✓✓(离线自证显示"7 个形态都只有 1 层" ✓) */
-        const nk = name.replace(/_(\d{3})\.png$/, '_' + k + '_$1.png');
-        if (F[nk]) layerNames.push(nk);
-      }
       {
         const base = F[name];
         const W = Math.max(4, Math.round(base.sourceSize.w)), H = Math.max(4, Math.round(base.sourceSize.h));
