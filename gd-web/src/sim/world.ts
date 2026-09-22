@@ -866,7 +866,12 @@ export class World {
              if (m_vehicleSize != 1.0) v34 += v34;            // 迷你翻倍
          即:纵向位移 = ±水平位移(严格 45°),**不经过 y 轴那个 ×0.9**(以前我们走 sY ⇒ 斜率 42° ✗)。
          vy 这个字段仍旧记 ±vx(迷你/反重力时带上符号),这样别处读 vy 的语义不变 ✓ */
-      this.vy = (hold ? 1 : -1) * this.vx * this.gdir * (this.mini ? 2 : 1);
+      /* ★★★ 2026-09 用户定位:"自由模式和 dart 组合导致的 bug" ✓✓ —— 完全正确:
+         源码里波浪的纵向是 `v33 = fabs(v31) × flipMod` ⇒ 用【位移的绝对值】✓
+         而我们写的是 `this.vx`(带符号 ✗)⇒ 自由移动往左走(freeDir=-1 ⇒ vx<0)时,
+         纵向符号跟着翻 ✗;freeDir=0 时更是完全不动 ✗✓
+         ⇒ 改成 Math.abs(vx) ✓(固定向前时两者等价,自由模式才正确 ✓) */
+      this.vy = (hold ? 1 : -1) * Math.abs(this.vx) * this.gdir * (this.mini ? 2 : 1);
       this.y += this.vy * (sY / Y_TIME_SCALE);
       /* ★★ 2026-09 修(用户:"bird 都没碰到就死了"):飞行类掉到地面线 y<0 时,
          原版是【有地面就落上去滑行】,只有真的掉进坑里才死 —— 我们以前一律 die() ✗。
