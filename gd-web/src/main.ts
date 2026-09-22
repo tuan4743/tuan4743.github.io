@@ -843,20 +843,19 @@ class Scene extends Phaser.Scene {
          我们以前只画第 1 层 ✗ ⇒ robot/spider 缺腿 ✓✓
          ⇒ 现在把同一图标的 _2_ / _3_ 层按顺序叠到同一张画布上,每层用自己的 spriteSourceSize 定位 ✓
          (_glow_ 依旧不画 ✓;_extra_ 是额外素材,不叠 ✓) */
-      /* ★★★ 2026-09 多层合成(第二版,按实测规则):每一层是【独立画布 + 自己的偏移】✓
-         实测(cube/bird/robot/spider):
-             robot : 身体 112×78 偏移(1,0)   +   _2_ 96×70 偏移(0,−7)   ← 腿(自己的画布)
-             spider: 身体  86×62 偏移(−3,3)  +   _2_ 65×43 偏移(6,−2)
-             bird  : 身体 134×108(0,11) + _2_ 128×72(0,3) + _3_ 116×196(0,61)
-         ⇒ 不能叠进身体那张画布 ✗(上一版就是这么错的 ✓)。正确做法:
-             取一张足够大的画布,把每一层按【自己的偏移】放在【同一个中心】上 ✓
-             (即:层中心 = 画布中心 + 该层偏移 ✓,再画它的内容 ✓)
-         _glow_ 不画 ✓;_extra_ 不叠 ✓ */
+      /* ★★★ 2026-09 照源码定论(用户:"能不能照搬源码,不要给我瞎写"):
+         我在 IDA 里找到了玩家图标的真正组装者 ——
+             PlayerObject::createRobot (IDA 141642)  +  GJRobotSprite::create   ← 机器人【腿】是独立 sprite 类
+             PlayerObject::createSpider(IDA 141739)  +  GJSpiderSprite::create  ← 蜘蛛【腿】同理
+             headers: GJRobotSprite.h / GJSpiderSprite.h(都是 CCAnimatedSprite 子类 ✓)
+         而对象侧的 sub_346540(..., "_001.png", "_2_001.png")(IDA 171816)说明:
+             `_2_` 后缀是【第二帧 / 动画帧】,不是"第二层部件" ✗✓
+         ⇒ 我前面两版"把 _2_ 当腿叠上去"是【原理就错了】✗✗ —— 腿根本不在玩家图集里,
+           而在 GJRobotSprite / GJSpiderSprite 这两套【独立动画 sprite】里 ✓
+         ⇒ 先回到【只画基础帧】(不再破坏其它形态 ✓);要还原腿必须:
+             ① 找到 GJRobotSprite/GJSpiderSprite 的贴图(可能在 GameSheet 里,或在别的 sheet ✗)
+             ② 按 createRobot / createSpider 的摆位抄 ✓ */
       const layerNames = [name];
-      for (const k of [2, 3]) {
-        const nk = name.replace(/_(\d{3})\.png$/, '_' + k + '_$1.png');
-        if (F[nk]) layerNames.push(nk);
-      }
       {
         const base = F[name];
         /* 画布尺寸 = 各层 内容尺寸 + 2×|偏移| 的最大值(保证都放得下 ✓) */
