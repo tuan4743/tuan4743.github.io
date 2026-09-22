@@ -787,7 +787,11 @@ export class World {
       this.x += this.vx * sY;
       this.vy = Math.abs(this.vx) * dir.y;
       this.y += this.vy * (sY / Y_TIME_SCALE);      // ★ 不带 0.9 的步长
-      if (d.t > 0.5 || !hold) this.dash = null;
+      /* ★★ 2026-09 去掉"0.5 秒上限"(那是我编的 ✗)。依据用户贴的 PlayerObject::update:
+             if (m_maxDuration > 0.0 && m_totalTime - m_dashStartTime > m_maxDuration) stopDashing;
+         —— 上限只在【环自己带 m_maxDuration 且 > 0】时才生效 ✓;这一关的冲刺环没有这个字段
+         (等价于 0)⇒ 没有时间上限 ✓,冲刺由【按住/松开】控制 ✓。 */
+      if (!hold) this.dash = null;
       /* ★★ 2026-09 修(用户:"bird 都没碰到就死了"):飞行类掉到地面线 y<0 时,
          原版是【有地面就落上去滑行】,只有真的掉进坑里才死 —— 我们以前一律 die() ✗。
          实测(改前):ufo/ship/wave 贴地飘十几帧就死 ✓ 就是这个。 */
