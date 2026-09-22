@@ -803,6 +803,20 @@ class Scene extends Phaser.Scene {
    *  画进两张离屏 canvas(一主一发光),再注册成 Phaser 贴图。
    *  ★ 不再按帧号轮播:GD 的玩家图集是按部件拆的(蜘蛛 02/03/04 是腿等部件,画布尺寸还不一样),
    *    没有部件合成表就轮播 = 一会儿只有腿一会儿只有眼睛(用户报的"贴图是乱的")。 */
+  /** ★★★ TODO(下一步,数据已全部就位 —— 只差这段实现):
+   *  robot / spider 的图标 = 【按官方部件表摆多个 sprite】(不是合成一张画布 ✗)
+   *
+   *  数据:static/assets/gd-player-parts.json(由 tools/bake-player-parts.ts 从官方
+   *        Resources/Robot_AnimDesc.plist · Spider_AnimDesc.plist 烘出)
+   *     robot : 7 个部件(4 个唯一贴图)   spider: 6 个部件(4 个唯一贴图)
+   *     每个部件 = { tex, x, y, sx, sy, z }
+   *  贴图:static/icons/part-<mode>-<frame>.png(由 tools/slice-parts.ts 切好,8 张 ✓)
+   *
+   *  坐标:部件尺寸 5~28 px、position ±7.5 ⇒ 与世界单位 1:1(方块 30 单位)⇒ 直接用,零换算 ✓
+   *  画法:for (每个部件,按 z 升序) sprite.setPosition(cxw + x, cyw - y).setDisplaySize(w, h)
+   *        —— y 取反是因为世界坐标 y 向上、屏幕 y 向下 ✓
+   *  验收:robot 应有躯干(带眼)+ 两节腿 + 脚;spider 应有身体 + 腿 ✓
+   */
   private buildIcons() {
     const REF_PX = 120;                       // GD 玩家图集的密度:1 块 = 120 px(方块主图就是 120×120)
     for (const a of ICON_ATLAS) {
