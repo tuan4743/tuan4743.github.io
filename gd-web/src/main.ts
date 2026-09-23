@@ -261,6 +261,8 @@ class Scene extends Phaser.Scene {
   /** 演示的时间累积器(秒)—— 按真实时间推进,和刷新率无关 */
   demoAcc = 0;
   /** 形态图集(static/icons)建好的图层。见 buildIcons() */
+  /** 载具里的"驾驶位 cube"(UFO/飞船/球/波浪箭里坐着的那颗)✓ 见 drawIconPlayer */
+  pilot: Phaser.GameObjects.Image | null = null;
   private iconLayers: Array<{
     mode: Mode;
     body: Phaser.GameObjects.Image;
@@ -1991,6 +1993,10 @@ class Scene extends Phaser.Scene {
         if (img.texture.key !== '__DEFAULT') img.setTexture(key, sp.tex);
         else img.setTexture(key, sp.tex);
         const fr = this.textures.getFrame(key, sp.tex);
+        /* ★★★ 2026-09 用户:"spider 没有上色" —— robot/spider 走的是这条【部件动画】路,
+           而它以前【完全没染色】✗(染色只加在 drawIconPlayer 里 ⇒ 这两个形态永远是白灰底 ✓)
+           官方部件名自带层号:xxx_2_001 = 第二色层、其余 = 主体层 ⇒ 分别用玩家色 1 / 2 染 ✓ */
+        img.setTint(sp.tex.includes('_2_') ? PLAYER_C2 : PLAYER_C1);
         /* ★ 叠加部件自己的 spriteOffset(用户:"蜘蛛腿的位置太高了,robot 也有点" ⇒ 缺的就是这一项 ✓)
            AnimDesc 的 position 是"部件锚点",而部件内容在它自己的画布里还有偏移 ✓
            再乘 uhd→布局的 scale(0.25)✓ */
@@ -2010,6 +2016,16 @@ class Scene extends Phaser.Scene {
     const hasLayer = this.iconLayers.some((l) => l.mode === w.mode);
     if (hasLayer && w.mode !== 'robot' && w.mode !== 'spider') this.drawIconPlayer(w, cxw, Y(cyw), B);
     if (!hasLayer) console.warn('[gd] 形态 ' + w.mode + ' 没有图层 ⇒ 走矢量画法(图集就绪=' + this.iconsReady + ')');
+    /* ★★★ 2026-09 用户:"bird 外观是一个 UFO,但驾驶位在原版是独立的一个 cube,所以现在驾驶位是空的"
+       —— 原版载具(UFO/飞船/球/波浪箭)里坐着的是【玩家自己的 cube 图标】,我们以前只画载具 ⇒ 驾驶位空 ✗
+       做法:再建一张图,用 cube 那一层的贴图,跟着玩家走、同色 ✓
+       (各载具里 cube 的确切缩放/偏移还没从源码核到 ⇒ 现在【同尺寸居中】,已记待办 ✓) */
+    if (!this.pilot) this.pilot = this.add.image(0, 0, 'icon-cube-body').setVisible(false).setDepth(16.5);
+    const PILOT_MODES = new Set(['ship', 'ufo', 'wave', 'ball']);
+    if (PILOT_MODES.has(w.mode)) {
+      this.pilot.setVisible(on).setPosition(cxw, cyw).setRotation(0).setFlipY(w.gdir < 0)
+        .setTint(w.dead ? 0xff7a5a : PLAYER_C1).setDisplaySize(B, B);
+    } else this.pilot.setVisible(false);
     /* ★★★ 2026-09 双人:玩家 2 也画一遍(状态换进换出,所以画法和玩家 1 完全一样 ✓)
        已知缺口:robot/spider 的【部件动画】那条路(P2 目前只画图标本体)✗ 已记进待办 ✓ */
     if (w.dualInto()) {
