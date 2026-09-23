@@ -986,6 +986,38 @@ class Scene extends Phaser.Scene {
         this.textures.addCanvas(tex, cv);
         made.push({ layer: 'body', tex, w: W, h: H });
       }
+      /* ★★★ 2026-09 用户:"贴图为什么我感觉就上色了一半,是不是还有一半青色没有上" —— 正是 ✓
+         官方图标是【两层颜色】:主体层(_001)用玩家色 1、第二色层(_2_)用玩家色 2 ✓
+         我们以前只叠主体 ⇒ 第二色那一半(本关是青色 1006)根本没画 ✗
+         ⇒ 再把 _2_ 层单独烘一张画布,挂在图层的 glow 槽上(glow 现在不画,槽位空着 ✓),
+            位置/旋转/尺寸跟着主体走,只是染成玩家色 2 ✓ */
+      {
+        const n2 = name.replace(/_(\d+)\.png$/, '_2_$1.png');
+        const base = F[name];
+        const f2 = F[n2];
+        if (f2 && base) {
+          const W = Math.max(4, Math.round(base.sourceSize.w)), H = Math.max(4, Math.round(base.sourceSize.h));
+          const cv = document.createElement('canvas');
+          cv.width = W; cv.height = H;
+          const c2 = cv.getContext('2d');
+          if (c2) {
+            const sw = f2.rotated ? f2.frame.h : f2.frame.w;
+            const sh = f2.rotated ? f2.frame.w : f2.frame.h;
+            const tw = f2.frame.w, th = f2.frame.h;
+            const dx = W / 2 + f2.spriteSourceSize.x - tw / 2;
+            const dy = H / 2 - f2.spriteSourceSize.y - th / 2;
+            c2.save();
+            c2.translate(dx + tw / 2, dy + th / 2);
+            if (f2.rotated) c2.rotate(-Math.PI / 2);
+            c2.drawImage(img, f2.frame.x, f2.frame.y, sw, sh, -tw / 2, -th / 2, tw, th);
+            c2.restore();
+            const tex2 = 'icon-' + a.file + '-c2';
+            if (this.textures.exists(tex2)) this.textures.remove(tex2);
+            this.textures.addCanvas(tex2, cv);
+            made.push({ layer: 'glow', tex: tex2, w: W, h: H });
+          }
+        }
+      }
       const body = made.find((m) => m.layer === 'body');
       if (!body) continue;
       const glow = made.find((m) => m.layer === 'glow');
@@ -1043,6 +1075,11 @@ class Scene extends Phaser.Scene {
     /* ★★★ 2026-09 用户:"反转重力方向时,贴图也要反转" —— 重力反了就上下翻 ✓
        (原版 flipGravity 之后飞机/球/UFO/浪/蜘蛛的贴图整个是倒的 ✓) */
     L.body.setFlipY(w.gdir < 0);
+    /* ★★★ 2026-09 第二色层(用户:"是不是还有一半青色没有上"):跟着主体走,染玩家色 2 ✓ */
+    if (L.glow) {
+      L.glow.setVisible(on).setPosition(cxw, cyw).setRotation(rot).setFlipY(w.gdir < 0)
+        .setTint(w.dead ? 0xff7a5a : PLAYER_C2).setDisplaySize(L.bw * k, L.bh * k);
+    }
     L.body.setDisplaySize(L.bw * k, L.bh * k);
     /* ★★ 2026-09 用户:"原本贴图就只是一个透明的框" ⇒ 去掉 glow 层(不再叠一层发光)✗
        (buildIcons 那边也随之不再需要 glow,但这里先彻底不画 ✓ —— 两层叠着就是"拼到一起" ✓) */

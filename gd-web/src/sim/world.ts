@@ -93,6 +93,8 @@ const DOOR_KINDS = new Set(['portal', 'gravity', 'speed', 'size']);
 const FIXED_CAM_MODES = new Set<Mode>(['ship', 'ufo', 'wave', 'ball']);
 /** GD 屏幕 480×320(点)⇒ 纵向 320 单位 = 10.67 格。限制框 = 进门高度 ± 半屏 ✓ */
 const VIEW_H = 320;
+/** ★ 限制框总开关:【默认关】—— 用户实测碰到 bird 门卡死,区间常数还没核到,先不开 ✓ 见 applyAirLimit */
+const AIR_LIMIT_ON = false;
 
 /** 一次触发产生的动画(位移 / 往返) */
 interface Anim {
@@ -789,6 +791,11 @@ export class World {
       区间 = 进门高度 portalY ± 半屏高(VIEW_H = 320 单位 = GD 480×320 的纵向 ✓)
       ★ 待核:半屏这个"一屏高"是我按 GD 屏高取的;要精确到原版常数得再去挖 updateJump 里的比较值 ✓ */
   private applyAirLimit() {
+    /* ★★★ 2026-09 【默认关】—— 用户实测:"碰到 bird 门卡死了"(连续两次)。
+       这条限高是我按"进门高度 ± 半屏"实现的,但区间常数没从源码核到 ⇒
+       在 UFO 那种贴顶/贴地的窄走廊里,夹取很可能把人推进实心块 ⇒ 反复死亡 = 看起来就是卡死 ✗
+       ⇒ 在拿到原版常数之前【不开】(要试就把它置 true;别的逻辑一行没动 ✓) */
+    if (!AIR_LIMIT_ON) return;
     if (!FIXED_CAM_MODES.has(this.mode)) return;
     /* ★ 只有【真的从门进来过】才夹(portalY > 0):
        测试/合成关卡里直接以球/飞机形态开局时 portalY = 0,这时夹取会把人锁在 y≤5.3 一带,
