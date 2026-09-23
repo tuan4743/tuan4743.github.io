@@ -74,7 +74,7 @@ const ICON_ENABLED = true;   // ★ 临时默认打开(用户 2026-09:"要")—�
  *    · 砖块 block001_01..07 = 按邻居自动拼接的 7 块(哪块对应哪条边,plist 里没有);
  *  而 plist 只给"每块多大、在图集哪儿",不给"摆在哪" ⇒ 我按"各自画布中心对齐"拼出来的全是错位碎片。
  *  所以:默认**不加载**这张图集(省 121 KB),要研究就加 `?art=1`(代码保留,别再当默认)。 */
-const ART_ENABLED = false;   // ★ 用户 2026-09:"把物件贴图去掉" ⇒ 关掉(物件继续矢量画法 ✓)
+const ART_ENABLED = true;    // ★ 2026-09 重新打开:现在用的是【官方图集 + 真映射】(不是早期那套猜的表 ✓)
 /** ★★ 无敌模式的"轨道上限"(用户口径:"给无敌模式加个上限,不允许脱离预定轨道")。
  *  为什么:无敌本身解决不了"人卡出墙/飞到天上"—— 以前只贴住关卡边界(0 ~ 127 格),
  *  于是开了无敌就能一路飞到 y=110 把整关绕过去,玩起来完全不是这张图。
@@ -264,24 +264,17 @@ class Scene extends Phaser.Scene {
   artReady = false;
 
   /** 物件 → 图集帧名(没有就返回 null,走矢量画法)。
-   *  映射依据见 tools/verify/build-art.mjs 的 MAP:锯片按尺寸钉死、弹簧板按颜色、存档点/硬币唯一命中;
-   *  刺的 4 个 id 按"经典刺/小刺"顺序对 spike_01..04(这一条是外观推断,不确定但影响很小); */
+   *  ★★★ 2026-09 改成读【官方真映射】:static/assets/gd-object-atlas.json 的 ids
+   *      (id → 帧名,来自 OpenGD 的 Content/Custom/object.json;图集是官方 GJ_GameSheet{02}-uhd ✓)
+   *      —— 早期那套"按尺寸/颜色/唯一命中"猜出来的自造表(见 git 历史里的 build-art MAP)已废弃 ✗
+   *  线框(468/469/470)按用户口径不做贴图 ⇒ 排除 ✓ */
   private artKeyOf(o: Obj): string | null {
     if (!this.artReady) return null;
-    switch (o.kind) {
-      case 'saw': return o.id === 1706 ? 'saw1706' : 'saw1705';
-      case 'pad': return o.pad ? (o.pad === 'purple' ? null : 'pad_' + o.pad) : null;
-      case 'check': return 'checkpoint';
-      case 'coin': return 'coin';
-      /* 砖块:用户口径"砖块用第一版" = block001 那套。同一套 7 块是原版按邻居自动拼的,
-         位置对应关系 plist 里没有(要从像素上推,工具里那一步先没做出来)⇒ 先用其中一块平铺,
-         视觉上等价于以前的矢量方块(每格一块),等拼接表做出来再换。 */
-      case 'block': return 'block4';
-      /* 跳环:用户口径"环除了颜色没区别,除了绿环和黑环" ⇒ 一张底图染色,绿环单独用 gravJumpRing */
-      case 'orb': return o.orb === 'green' ? 'ringGreen' : 'ringY';
-      case 'spike': return o.id === 39 ? 'spike02' : o.id === 103 ? 'spike03' : o.id === 392 ? 'spike04' : 'spike01';
-      default: return null;
-    }
+    if (o.kind === 'frame') return null;
+    const pack = this.cache.json.get('gd-art-ids') as { ids?: Record<string, string> } | undefined;
+    const id = (o as unknown as { id?: number }).id;
+    if (id == null || !pack?.ids) return null;
+    return pack.ids[String(id)] ?? null;      // 有帧 ⇒ 画贴图;没帧 ⇒ null ⇒ 矢量 ✓
   }
 
   /** 无敌模式的轨道夹取:加载规划走廊(static/assets/gd-guide.json),按 x 插值出这条走廊的高度,
