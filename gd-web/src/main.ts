@@ -11,7 +11,7 @@
 
 import Phaser from 'phaser';
 import { generateLevel, makeRealTimeAxis, type Level, type Mode, type Obj } from './sim/level.ts';
-import { World, botThink, frameOf, groundHeightOf, type RunState } from './sim/world.ts';
+import { World, botThink, type RunState } from './sim/world.ts';
 import { frameRects } from './sim/gdids.ts';
 import { fingerprint } from './sim/replay.ts';
 import { P, U, Y_TIME_SCALE } from './sim/constants.ts';
@@ -1556,15 +1556,15 @@ class Scene extends Phaser.Scene {
     const py = midY + (P.box * w.sizeMul) / 2;           // 视点中心(单人时就是人中心 ✓)
     let bottom: number;
     if (CAM_FIXED_MODES.has(w.mode)) {
-      /* ★★ 钉死在【进门算好的目标】上,只做 0.1/帧 的平滑靠拢 ✓
-         ★★★ 但必须【吸到格线上】(用户:"你框位置搞成带小数的干啥")——
-         源码里相机 y 就是 `floor(v/30)*30`(asm 451070)⇒ 不对齐的话,框面会带小数、
-         而且过渡途中框会从小数位置扫过玩家 ⇒ 挤人 ✗。这里 Math.round 到 30 的整数倍 ✓ */
-      this.camPinY = this.camPinY == null ? this.camPinTarget
-        : this.camPinY + (this.camPinTarget - this.camPinY) * 0.1;
-      const snapped = Math.round(this.camPinY / U) * U;   // ← 一格对齐(源码 floor(v/30)*30 的等价)
-      bottom = snapped - vh / 2;
+      /* ★★★ 2026-09 用户:"逻辑前后不搭" ⇒ 根子就在这儿:
+         相机中心【每帧】朝 sim 算出来的那个框的中心靠(0.1/帧),而【框本身】由 sim 按玩家算 ✓
+         ⇒ 只有一套数:sim 的 limLo/limHi;页面不自己算框,也不"进门钉一次" ✗
+         (框的下沿在 sim 里已经按 30 对齐、下线是地面 ⇒ 相机跟着它走就是整数格 ✓) */
+      const want = (w.limLo + w.limHi) / 2;
+      this.camPinY = this.camPinY == null ? want : this.camPinY + (want - this.camPinY) * 0.1;
+      bottom = this.camPinY - vh / 2;
     } else {
+      this.camPinY = null;
       const flip = w.gdir < 0;
       const unk2 = flip ? CAM_MID : CAM_LOW;             // 上沿余量
       const unk3 = flip ? CAM_LOW : CAM_MID;             // 下沿余量
@@ -1584,20 +1584,10 @@ class Scene extends Phaser.Scene {
     bottom = Math.max(lo, Math.min(hi, bottom));
     this.camBottom = bottom;
     this.camCenter = bottom + vh / 2;
-    /* ★★★ 限高框 = 取景窗口本身(见 sim 的 frameOf:源码里两块地面只跟窗口有关 ✓)
-       ⇒ 页面只把【取景上下边】发出去,框的门锚定 / 安全网一律撤掉 ✗(那两个都是我自己加的 ✗)
-       ★ 相机:进门那一下按源码公式把目标吸到格线上,之后 0.1/帧 平滑靠拢 ✓ */
-    const bandOn = CAM_FIXED_MODES.has(w.mode);
-    if (bandOn && !this.camPinned) {
-      /* ★ 源码(asm 451064-451076):相机中心 = max(90, floor((目标y − gh/2)/30)×30) + gh/2
-         (gh = 该形态的"这段高度",球 234 / 飞船·UFO·波浪 300 / 其余 270 ✓)我们坐标 = 原版 − 90 ✓ */
-      const gh = groundHeightOf(w.mode);
-      const py = w.y + (P.box * w.sizeMul) / 2;
-      this.camPinTarget = Math.max(0, Math.floor((py - gh / 2) / U) * U) + gh / 2;
-      this.camPinY = this.camBottom + vh / 2;
-      this.camPinned = true;
-      this.bandT = 0;                     // ★ 进场进度归零 ⇒ 两块地面从窗口外收进来 ✓
-    } else if (!bandOn) this.camPinned = false;
+    /* ★★★ 两条框面【只读 sim 的数】(limLo/limHi = 按玩家算的那一段)⇒ 画面与判定同源 ✓
+       ✗ 撤掉:进门钉一次的 camPinTarget、门锚定、安全网、带子的位移动画 —— 全是我自己加的 ✗ */
+    const bandOn = CAM_FIXED_MODES.has(w.mode) && w.limHi > w.limLo;
+    if (!bandOn) this.camPinned = false;
     w.airLo = bottom;
     w.airHi = bottom + vh;
     {
@@ -1618,7 +1608,7 @@ class Scene extends Phaser.Scene {
          `updateCameraBGArt` 每帧只是把它们【摆】在窗口边上(asm 431211 地面 / 431218 天花板),
          显隐由 `toggleVisible01(层, 层.y 在窗口内)` 决定 ✓ —— "落位"的感觉来自【相机】进门后 0.1/帧靠拢 ✓,
          不是框自己从画外滑进来 ✗(那套 bandHiY/bandLoY 是我编的 ✗,撤掉) */
-      const fr = frameOf(w.mode, w.airLo as number, w.airHi as number);
+      const fr = { lo: w.limLo, hi: w.limHi };                 // ← sim 算好的那两条面(唯一来源 ✓)
       const bandH = Scene.GROUND_TILE * Scene.BAND_SCALE;      // 带宽 = 贴图高 × 缩放 ✓(32 单位)
       /* ★★★ 2026-09 用户:"上边框你写的是从下面出来的,这才是顶飞的原因" ✓✓ —— 完全正确:
          我给两条带加了"从框外收回来"的位移(`hiY = fr.hi + OUT×(1-e)`)✗ ⇒ 带子先出现在别处、

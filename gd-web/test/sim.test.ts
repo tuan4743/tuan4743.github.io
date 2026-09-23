@@ -603,20 +603,21 @@ test('飞行类碰实心:撞侧面死、擦到顶面【落上去】(flySolid 开
   const capW = new World(capLv, undefined, undefined, { flySolid: true });
   capW.reset(19 * U, 'ufo', 3.5 * U);
   capW.speedIdx = 1; capW.gdir = 1; capW.vy = 0;
-  /* ★ 框高 = 源码 getGroundHeightForMode(ufo = 300),以相机为中心 ✓ */
-  capW.airLo = 300; capW.airHi = 630;                   // 取景放在关卡中段:框 [315,615] 全在关卡内 ✓
-  const fr = frameOf('ufo', capW.airLo, capW.airHi);
-  assert.equal(Math.round(fr.hi - fr.lo), groundHeightOf('ufo'), 'ufo 的这段高度 = 300(getGroundHeightForMode)✓');
-  capW.y = fr.hi - 4 * U; capW.vy = 0; capW.onGround = false;   // 从框内偏上出发,硬顶
-  const cap = fr.hi - 12 - capW.box / 2;
-  for (let f = 0; f < 40 && !capW.dead; f++) capW.frame(f % 8 === 0);   // 一路往上顶(别飞过铺面尽头)
-  /* 硬顶几帧:必须【贴住、不能穿过去】—— 源码那一支同时 setYVel(0) ✓
-     (一帧不够:UFO 的纵向速度被源码夹在 flyUpMax = 8/frame ⇒ 一帧只走 8 单位) */
-  for (let i = 0; i < 6; i++) { capW.vy = 20; capW.frame(false); }
-  assert.ok(!capW.dead && capW.y <= cap + 0.001 && capW.y > cap - 1 && capW.vy <= 0.5,
-    '限高:UFO 硬顶天花板应该【贴住、不穿过去】y=' + cap.toFixed(1) + '、纵向速度被清零(实测 y=' + capW.y.toFixed(2) +
-    ',vy=' + capW.vy.toFixed(2) + ',死=' + capW.dead + ',关卡顶=' + (capW.rows * U) + ',x=' + (capW.x / U).toFixed(1) +
-    ';框 ' + Math.round(fr.lo) + '~' + Math.round(fr.hi) + '(八格)' + ')');
+  /* ★ 框 = frameOf(形态, 玩家中心):下沿按 30 对齐、下限是地面、高 = getGroundHeightForMode ✓
+     ★★ 关键性质(用户:"逻辑前后不搭"的根):框【跟着玩家走】⇒ 爬升时框一起上移,
+        永远把人装在里面 ⇒ 不会出现"被固定的墙推回来(顶飞)" ✓ */
+  const gh = groundHeightOf('ufo');
+  for (let f = 0; f < 40 && !capW.dead; f++) capW.frame(f % 8 === 0);   // 一路往上顶
+  assert.equal(Math.round(capW.limHi - capW.limLo), gh, 'ufo 的这段高度 = 300 ✓');
+  assert.equal(capW.limLo % U, 0, '框下沿必须落在 30 的格线上(源码 floor(v/30)*30)✓');
+  assert.ok(capW.limLo >= 0, '框下沿不低于地面 ✓');
+  const c0 = capW.limLo;
+  for (let f = 0; f < 30; f++) capW.frame(f % 8 === 0);                 // 再爬一段
+  assert.ok(capW.limLo > c0, '爬升时框要跟着上移(实测 ' + c0 + ' → ' + capW.limLo + ')✓');
+  assert.ok(!capW.dead, '全程不该死 ✓');
+  const pc = capW.y + capW.box / 2;
+  assert.ok(pc > capW.limLo && pc < capW.limHi, '玩家必须一直在这段区间内(中心 ' + Math.round(pc) +
+    ' ∈ [' + Math.round(capW.limLo) + ',' + Math.round(capW.limHi) + '])✓');
 });
 
 test('限高框的下框面就是这个形态的"地面":站在上面能跳(用户:"还是会被吸住无法跳起")', () => {
@@ -626,7 +627,7 @@ test('限高框的下框面就是这个形态的"地面":站在上面能跳(用�
   w.reset(0, 'ball', 5 * U);
   w.onGround = false; w.vy = 0;
   w.airLo = 0; w.airHi = 320;                       // 框 = 视口中点(160)± 4 格 ⇒ [40, 280]
-  const fr = frameOf('ball', w.airLo, w.airHi);
+  const fr = frameOf('ball', w.y + w.box / 2);
   for (let i = 0; i < 200 && !w.onGround; i++) w.frame(false);
   assert.ok(w.onGround, '应该站住(y=' + (w.y / U).toFixed(2) + ' 块;框下沿 ' + (fr.lo / U).toFixed(2) + ')');
   /* 站位是"框下沿或关卡自己的地面,取高的那个" —— 这里合成关卡的平台在 0,框下沿在 fr.lo ✓ */

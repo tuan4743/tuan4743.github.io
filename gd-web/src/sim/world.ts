@@ -140,15 +140,18 @@ export function groundHeightOf(mode: Mode): number {
   return 270;
 }
 
-export function frameOf(mode: Mode, airLo: number, airHi: number): { lo: number; hi: number } {
-  /* ★★★ 照 `animateInDualGroundNew`(asm 451046-451141):
-       相机中心 = max(90, floor((目标y − gh/2)/30)×30) + gh/2     ← 相机钉在【这段高度的中心】
-     每帧 `updateCameraBGArt`(asm 431105-431233)再把两块地面摆在窗口边上一带子往内铺 ✓
-     ⇒ 框 = 【以相机为中心、高 gh 的一段】(gh 由上面那张表给 ✓)
-     我们坐标(我们 = 原版 − 90):中心 = 取景中点(相机,已吸在格线上 ✓),上下各 gh/2 ✓ */
-  const c = Math.round(((airLo + airHi) / 2) / U) * U;
+/** ★★★ 2026-09 限高框 = 源码 `animateInDualGroundNew`(asm 451046-451141)那条,【跟着玩家走】:
+ *     v8 = getTargetFlyCameraY(player)               ← 目标由【玩家】给
+ *     v11 = v8 − gh/2; if (!this[690]) v11 = floorf(v11/30)*30; if (v11 <= 90) v11 = 90
+ *     this[170] = v11 + gh/2                          ← 相机(框中心)= 那条对齐后的值 + gh/2
+ *   ⇒ v11 就是【框的下沿】:按 30 格线对齐、下限是地面;框 = [v11, v11 + gh] ✓
+ *   我们坐标(我们 = 原版 − 90,且 this.y 是【脚底】):下沿 = max(0, floor((玩家中心 − gh/2)/30)×30) ✓
+ *   ★ 关键:它是【每帧按玩家算】的(相机每子步都 updateCamera)—— 我之前做成"进门钉一次"✗
+ *     才会出现"人一离开那个固定位置就被推回来(顶飞)"✓ */
+export function frameOf(mode: Mode, playerCenterY: number): { lo: number; hi: number } {
   const gh = groundHeightOf(mode);
-  return { lo: c - gh / 2, hi: c + gh / 2 };
+  const lo = Math.max(0, Math.floor((playerCenterY - gh / 2) / U) * U);
+  return { lo, hi: lo + gh };
 }
 
 /** 一次触发产生的动画(位移 / 往返) */
@@ -846,8 +849,13 @@ export class World {
    *  null = 页面还没跑(测试/机器人)⇒ 只夹地面、不夹天花板 ✓ */
   airLo: number | null = null;
   airHi: number | null = null;
-  /** 限高诊断:状态一变就打一行(用户在页面里跑一次就能定性 ✓ 不刷屏 ✗) */
+  /** 限高框诊断:状态一变就打一行(用户在页面里跑一次就能定性 ✓ 不刷屏 ✗) */
   private airDbg = '';
+  /** ★★★ 限高框的两条面(世界 y):【每帧由 applyAirLimit 按玩家算出来】,页面画框 + 锁相机都读它 ✓
+   *  ⇒ 画面和判定用同一组数,不再"前后不搭" ✓(以前页面自己算一套、sim 自己算一套 ✗)
+   *  limHi === limLo 表示当前形态没有框 ✓ */
+  limLo = 0;
+  limHi = 0;
   /** ★★★ 2026-09 限高(限制框)——【照搬源码】✓ 用户:"限高代码需要照搬,机制是类似创建上下两边的地面"
    *
    *  机制(真源码,不是猜的):
@@ -873,10 +881,11 @@ export class World {
    *  ★ 只在【相机钉死的形态】(飞船 / UFO / 波浪 / 球)生效:这几个形态 airHi/airLo 是钉死的 ✓
    *    方块 / 机器人 / 蜘蛛的相机跟着人走 ⇒ 拿它当框会变成一堵跟着人跑的墙 ✗ */
   private applyAirLimit() {
-    if (this.mode === 'cube') return;                    // 源码:只夹【非方块】那一支 ✓
-    if (this.airLo == null || this.airHi == null) return;   // 页面还没跑:不夹 ✓
-    if (!FIXED_CAM_MODES.has(this.mode)) return;
-    const f = frameOf(this.mode, this.airLo as number, this.airHi as number);
+    if (!FIXED_CAM_MODES.has(this.mode)) { this.limLo = 0; this.limHi = 0; return; }
+    /* ★★★ 框 = frameOf(形态, 玩家中心):跟着玩家算、下沿按 30 对齐、下限是地面 ✓
+       (以前那版是"按取景中点"⇒ 相机钉死时人一离开就被推回来,就是"顶飞"✓) */
+    const f = frameOf(this.mode, this.y + this.box / 2);
+    this.limLo = f.lo; this.limHi = f.hi;
     /* 下框面(这个形态的"地面"):贴回去 + hitGround + setYVel(0) —— 源码 `if (!isGravityFlipped()) hitGround(false)`
        ★ hitGround 必须照搬:原版【地面根本不是物件】,球能在地上跳靠的就是这一句把落地标记置上 ✓
          (我们这里也有真地面物件,但夹取先跑、人不陷进去 ⇒ 那套"踩实体"识别不到 ⇒ 球/机器人永远跳不起来 ✗ 实测过)
@@ -892,7 +901,8 @@ export class World {
     if (this.y >= top - 0.001 && this.airDbg !== this.mode) {
       this.airDbg = this.mode;
       console.info('[gd] 限高:形态=' + this.mode + ' · 框=' + Math.round(f.lo) + '~' + Math.round(f.hi) +
-        '(八格 ' + FLY_BAND + ') · 上框面=' + Math.round(f.hi) + ' · 上限(脚底)=' + Math.round(top));
+        '(这段高度 ' + groundHeightOf(this.mode) + ') · 玩家中心=' + Math.round(this.y + this.box / 2) +
+        ' · 上限(脚底)=' + Math.round(top));
     }
     if (this.y > top) {
       this.y = top;
