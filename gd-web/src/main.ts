@@ -285,11 +285,18 @@ class Scene extends Phaser.Scene {
    *             camPinY      = 相机【实际】所在的高度,每帧朝 target 靠 0.1 ✓ */
   camPinTarget = 0;
   camPinY: number | null = null;
-  /** ★★★ 2026-09 用户:"为什么限高框没有出现的动画" —— 原版进门是 tweenCeiling/tweenBottomGround
-   *  (EaseInOut 0.1 秒,反编译 PlayLayer.cpp:1911)把两条地面【拉进来】✓
-   *  bandT = 0→1 的进度,进门那一刻归零 ✓ */
-  bandT = 1;
-  private bandMode: Mode | null = null;
+  /** ★★★ 2026-09 用户:"为什么限高框没有出现的动画" + "动画太快了"
+   *  原版进门是 tweenCeiling/tweenBottomGround 把两条地面【拉进来】;相机那边是
+   *  `m_obCamPos.y = GameToolbox::iLerp(m_obCamPos.y, cam.y, 0.1f, dt/60)`(每帧靠 0.1,约 0.5 秒收敛)✓
+   *  ⇒ 两条框用【和相机同一套】每帧 0.1 的指数靠拢(不是我自己定的 0.1 秒线性 ✗ —— 那个太快,用户实测)
+   *  bandHiY / bandLoY = 两条框面【当前实际】所在的高度;null = 还没进场(从画外开始)✓ */
+  bandHiY: number | null = null;
+  bandLoY: number | null = null;
+  /** 两条框的贴图色:原版地面贴图是白的,由【关卡地面色(通道 1001)】染色
+   *  (GJGroundLayer::updateGround01Color / OpenGD `_colorChannels.at(1001)._color`)✓
+   *  ★ 本关 chart 里还没有通道数据(只硬编了玩家色 1005/1006)⇒ 先用【页面地面线已经在用的那个色】,
+   *    拿到关卡的 kS38 就换成 1001 的真值 ✓ */
+  bandTint = 0xffffff;
   private iconLayers: Array<{
     mode: Mode;
     body: Phaser.GameObjects.Image;
@@ -1514,7 +1521,7 @@ class Scene extends Phaser.Scene {
              ③ 两条框的进场进度归零 ⇒ 下面 bandT 播 0.1 秒 EaseInOut ✓ */
         this.camPinTarget = this.camCenter;
         if (this.camPinY == null) this.camPinY = this.camBottom + vh / 2;
-        this.bandT = 0;
+        this.bandHiY = null; this.bandLoY = null;      // 两条框从画外开始进场 ✓
       } else {
         this.camPinY = null;
       }
@@ -1565,16 +1572,24 @@ class Scene extends Phaser.Scene {
          这个作用域里现成的换算就是 `rowsU - y` ⇒ 直接算,不碰只在 draw() 里存在的 Y() ✓ */
       const drawY = (wy: number) => rowsU - wy;
       const wide = vw + 2 * Scene.GROUND_TILE;
-      /* ★ 两条框的进场动画(用户:"为什么限高框没有出现的动画"):原版进门 tweenCeiling/tweenBottomGround
-         是 EaseInOut 0.1 秒把两条地面【拉进来】(反编译 PlayLayer.cpp:1911)✓
-         这里同款:进度 bandT 0→1,缓动取 smoothstep(与 EaseInOut 同形),起点在画外 128 单位 ✓ */
-      const dtSec = Math.min(0.05, this.game.loop.delta / 1000);
-      this.bandT = Math.min(1, this.bandT + dtSec / 0.1);
-      const e = this.bandT * this.bandT * (3 - 2 * this.bandT);
+      /* ★★★ 用户:"地面贴图没有颜色" —— 原版这条贴图是白的,靠【关卡地面色】染
+         (GJGroundLayer::updateGround01Color / OpenGD `_colorChannels.at(1001)._color` ✓)
+         ★ 本关 chart 里还没有颜色通道数据(只硬编了玩家色 1005/1006)⇒ 先用【页面地面线已经在用的那个色】
+           (= color 触发器色 w.tint,否则本段配色 PAL)⇒ 拿到关卡 kS38 就换成通道 1001 的真值 ✓ */
+      {
+        const bx0 = w.x / U;
+        const seg0 = LEVEL.segments.find((sg) => bx0 >= sg.from && bx0 < sg.to) || LEVEL.segments[0];
+        this.bandTint = w.tint != null ? w.tint : PAL[LEVEL.segments.indexOf(seg0) % PAL.length];
+      }
+      /* ★ 两条框的进场(用户:"为什么限高框没有出现的动画" + "动画太快了"):
+         用【和相机完全同一套】每帧靠 0.1 的指数逼近(原版 updateCamera 的 iLerp ✓,约 0.5 秒收敛),
+         起点在画外一格贴图(128 单位)⇒ 看得见"拉进来"的过程 ✓(0.1 秒线性那个是我自己定的 ✗ 太快) */
       const fr = frameOf(w.airLo as number, w.airHi as number);
-      const hiFrom = (w.airHi as number) + Scene.GROUND_TILE, loFrom = (w.airLo as number) - Scene.GROUND_TILE;
-      const hiY = hiFrom + (fr.hi - hiFrom) * e;         // 上框面(世界 y)
-      const loY = loFrom + (fr.lo - loFrom) * e;         // 下框面(世界 y)
+      this.bandHiY = this.bandHiY == null ? (w.airHi as number) + Scene.GROUND_TILE
+        : this.bandHiY + (fr.hi - this.bandHiY) * 0.1;
+      this.bandLoY = this.bandLoY == null ? (w.airLo as number) - Scene.GROUND_TILE
+        : this.bandLoY + (fr.lo - this.bandLoY) * 0.1;
+      const hiY = this.bandHiY, loY = this.bandLoY;
       /* ★★ 探针实测(tools/verify/gd-limit-shot.mjs):第一版建出来的 TileSprite 贴图是 `__MISSING` ✗
          —— 建对象那一刻 'gd-ground' 还没就绪,Phaser 就退化成缺省贴图,而且【不会自己换回来】✗
          ⇒ 就绪了才建;万一已经建成 __MISSING,销毁重建一次 ✓(自愈,不用刷新页面) */
@@ -1604,7 +1619,9 @@ class Scene extends Phaser.Scene {
         c.setVisible(bandOn); cl.setVisible(bandOn);
         gb.setVisible(bandOn); gl.setVisible(bandOn);
         if (bandOn) {
-          /* ★ 贴图【不动】(用户:"为什么地面贴图会动")⇒ 不设 tilePositionX ✓ */
+          /* ★ 贴图【不动】(用户:"为什么地面贴图会动")⇒ 不设 tilePositionX ✓
+             ★ 上色:白贴图 × 地面色(GD 就是这么染的 ✓) */
+          c.setTint(this.bandTint); gb.setTint(this.bandTint);
           c.setPosition(this.camX, drawY(hiY)).setSize(wide, Scene.GROUND_TILE);
           cl.setPosition(this.camX, drawY(hiY) + 1).setSize(wide, 2);
           gb.setPosition(this.camX, drawY(loY)).setSize(wide, Scene.GROUND_TILE);
