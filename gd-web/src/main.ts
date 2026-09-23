@@ -265,11 +265,18 @@ class Scene extends Phaser.Scene {
   pilot: Phaser.GameObjects.Image | null = null;
   /** 驾驶位诊断只打一次 ✓ */
   pilotDbgLogged = false;
-  /** ★★★ 2026-09 限高框的【外观】:上下各一条地面(用户:"没有贴图,我都看不到限高框在哪")——
-   *  源码里 GJFlyGroundLayer : GJGroundLayer 就是这个外观层 ✓ 所以它必须画出来 ✓
-   *  airRects = 地面本体(暗底) · airLines = 内沿那条亮线 ✓ 都在 build 阶段建好,每帧只改位置 ✓ */
-  airRects: Phaser.GameObjects.Rectangle[] = [];
-  airLines: Phaser.GameObjects.Rectangle[] = [];
+  /** ★★★ 2026-09 限高框(限制框)的【外观】= 原版天花板本体(用户:"没有贴图,我都看不到限高框在哪,
+   *  我怎么知道生没生效")—— 源码里 GJFlyGroundLayer : GJGroundLayer,而 GJBaseGameLayer::createGroundLayer
+   *  一次建两块地面、第二块纵向镜像 ⇒ 天花板就是【倒过来的地面】✓
+   *  ⇒ 所以这里画的不是我自己编的黑条 ✗,而是【地面贴图本体】镜像平铺:
+   *     贴图 = groundSquare_01_001.png(128×128,从 APK 原样取出 ✓ 1 世界单位 = 1 像素 ⇒ 铺出来就是原版尺度)
+   *     面   = 视口上边 − 12(源码换算:天花板节点 = 进场高度 + 148 = 视口上边 − 12,见 sim 的 applyAirLimit)
+   *     朝向 = flipY 镜像 ✓ · 平铺跟着关卡滚(tilePositionX = −camX,对应原版 updateGroundPos)✓ */
+  ceiling: Phaser.GameObjects.TileSprite | null = null;
+  /** 天花板下沿那条亮线(原版是 floorLine_001.png,就压在地面顶边 ✓) */
+  ceilingLine: Phaser.GameObjects.Rectangle | null = null;
+  /** 天花板贴图一格 = groundSquare_01_001.png 的 128×128 ✓ */
+  static readonly GROUND_TILE = 128;
   private iconLayers: Array<{
     mode: Mode;
     body: Phaser.GameObjects.Image;
@@ -642,6 +649,8 @@ class Scene extends Phaser.Scene {
        ★ 密度:1 像素 = 1 单位(方块 30 单位 = 30 px),所以画画时 k = 物件高度(单位) / 帧高(px)。
        ★ id → 帧名的映射【不在游戏的数据文件里】(那是编译进 exe 的代码);这里靠"尺寸/颜色/唯一命中"钉,
          每条都在 build-art.mjs 的 MAP 里写了理由。线框(468/469/470)按用户口径不做贴图。 */
+    /* ★★★ 2026-09 限高框(限制框)的外观 —— 用户:"没有贴图,我都看不到限高框在哪,我怎么知道生没生效" */
+    this.load.image('gd-ground', '/icons/groundSquare_01_001.png?v=' + ART_V);
     if (ART_ENABLED) {
       /* ★★★ 2026-09 换成【官方图集 + 真映射】—— 由 tools/bake-object-atlas.ts 烘出:
            GJ_GameSheet{02}-uhd 两张 uhd 图集 + 38 帧矩形 + 38 条 id→帧名(来自 OpenGD 的 object.json ✓)
@@ -1525,29 +1534,43 @@ class Scene extends Phaser.Scene {
     w.airLo = bottom;
     w.airHi = bottom + vh;
     /* ★★★ 2026-09 用户:"没有贴图,我都看不到限高框在哪" ⇒ 把限高框【画出来】✓
-       原版就是这个样子:飞行形态下上下各一条地面(源码 GJFlyGroundLayer 是地面外观层 ✓)
+       原版就是这个样子:飞行形态下天花板是一条【倒过来的地面】(GJFlyGroundLayer : GJGroundLayer ✓),
+       下边那条地面本来就是关卡地面(不用另画)⇒ 这里只画天花板那一条 ✓
        建对象放在这里(update 阶段,不是 render 途中 ⇒ 不会像 pilot 那次卡死 ✓) */
-    if (!this.airRects.length) {
-      for (let i = 0; i < 2; i++) {
-        this.airRects.push(this.add.rectangle(0, 0, 10, 10, 0x0a0f18, 0.92).setDepth(7).setVisible(false));
-        this.airLines.push(this.add.rectangle(0, 0, 10, 2, 0xbfe9ff, 0.45).setDepth(8).setVisible(false));
-      }
-    }
     {
-      const fly = CAM_FIXED_MODES.has(w.mode);
-      const wide = vw + 800;
       /* ★★★ 2026-09 修 `Uncaught ReferenceError: Y is not defined`(用户给的报错原文)——
          `Y()` 是【绘图空间】的映射,只在 draw() 里可用 ✗;这个取景方法里没有它 ✗
          (类型检查为什么没拦住:它在 .d.ts 里被声明成了全局 ⇒ 编译期"有",运行时模块里"没有" ✗
           —— 和上上轮那个 `on is not defined` 是同一类"只有跑起来才炸"的错误 ✗)
-         这个作用域里现成的换算就是 `rowsU - y`(下一行 this.camWorldY = rowsU - this.camCenter ✓ 用的就是它)
+         这个作用域里现成的换算就是 `rowsU - y`(下面 this.camWorldY = rowsU - this.camCenter ✓ 用的就是它)
          ⇒ 直接算,不碰 Y ✓ */
       const drawY = (wy: number) => rowsU - wy;
-      const yBot = drawY(bottom) + 2000, yTop = drawY(bottom + vh) - 2000;
-      this.airRects[0].setVisible(fly).setPosition(this.camX, yBot).setSize(wide, 4000);
-      this.airRects[1].setVisible(fly).setPosition(this.camX, yTop).setSize(wide, 4000);
-      this.airLines[0].setVisible(fly).setPosition(this.camX, drawY(bottom) + 1).setSize(wide, 2);
-      this.airLines[1].setVisible(fly).setPosition(this.camX, drawY(bottom + vh) - 1).setSize(wide, 2);
+      const fly = CAM_FIXED_MODES.has(w.mode);
+      /* ★ 天花板【面】= 视口上边 − 12(源码:天花板节点 = 进场高度 + 148 = 视口上边 − 12;
+         飞行 388 / 球 358、视口中心 240 / 210 ⇒ 两个都正好差 12 ✓)
+         ★ 只在【相机钉死的形态】显示:原版天花板是进门那一刻 tweenCeiling(388/358) 拉进来的,
+           方块/机器人/蜘蛛进门不拉 ⇒ 它留在屏幕上方(看不见)✓ 我们这里直接不显示 ✓ */
+      const wide = vw + 2 * Scene.GROUND_TILE;
+      const surf = bottom + vh - 12;                     // 天花板面(世界 y)= 视口上边 − 12 ✓
+      const drawSurf = drawY(surf);
+      if (!this.ceiling) {
+        /* ★ 用 TileSprite 而不是矩形:原版就是【一张 REPEAT 的地面贴图】横着铺 ✓
+           (GJGroundLayer::loadGroundSprites / init 把贴图拉成整屏宽 ✓) */
+        this.ceiling = this.add.tileSprite(0, 0, wide, Scene.GROUND_TILE, 'gd-ground')
+          .setOrigin(0.5, 1)                              // 原点在【下沿】⇒ 下沿就是天花板面 ✓
+          .setFlipY(true)                                 // 纵向镜像 = 原版那记 setScaleY(-1) ✓
+          .setTint(0x1b2740)                              // 压成场地那种暗色(地面贴图是白的,原版靠通道 1001 上色)
+          .setDepth(7).setVisible(false);
+        /* 下沿那条亮线 = 原版 floorLine_001.png(压在地面顶边 = 天花板面上)✓ */
+        this.ceilingLine = this.add.rectangle(0, 0, wide, 2, 0xbfe9ff, 0.85).setDepth(8).setVisible(false);
+      }
+      this.ceiling.setVisible(fly);
+      (this.ceilingLine as Phaser.GameObjects.Rectangle).setVisible(fly);
+      if (fly) {
+        this.ceiling.setPosition(this.camX, drawSurf).setSize(wide, Scene.GROUND_TILE);
+        this.ceiling.tilePositionX = -this.camX;          // 贴图钉在世界坐标上(跟着关卡滚)✓
+        (this.ceilingLine as Phaser.GameObjects.Rectangle).setPosition(this.camX, drawSurf + 1).setSize(wide, 2);
+      }
     }
     this.camWorldY = rowsU - this.camCenter;             // 换算成 Phaser 相机的绘图空间 y
     cam.centerOn(this.camX, this.camWorldY);

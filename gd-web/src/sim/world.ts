@@ -91,11 +91,6 @@ const ZERO_OFF = { dx: 0, dy: 0 };
 const DOOR_KINDS = new Set(['portal', 'gravity', 'speed', 'size']);
 /** 进门钉死视口的形态(= 原版有"限制框"的那几个):球 / 飞船 / UFO / 波浪 ✓ 见 applyAirLimit */
 const FIXED_CAM_MODES = new Set<Mode>(['ship', 'ufo', 'wave', 'ball']);
-/** GD 屏幕 480×320(点)⇒ 纵向 320 单位 = 10.67 格。限制框 = 进门高度 ± 半屏 ✓ */
-const VIEW_H = 320;
-/** ★ 限制框总开关:用户已澄清"卡死是 UFO 里那颗 cube(渲染途中 add.image),不是限高"
- *  ⇒ 重新打开 ✓(机制已按他的口径改成"上下两块虚拟地面" ✓ 见 applyAirLimit) */
-const AIR_LIMIT_ON = true;    // ★ 边界改由页面提供之后重新打开(单变量测试 ✓ 见 applyAirLimit)
 
 /** 一次触发产生的动画(位移 / 往返) */
 interface Anim {
@@ -785,64 +780,69 @@ export class World {
     if (this.vy * this.gdir < 0) this.vy = Math.max(-P.vyMax, Math.min(P.vyMax, this.vy));
   }
 
-  /** ★★★ 2026-09 用户:"ball,bird,dart,spider,ship 在原版有一个限制框 —— 不是贴图的框,
-      而是【游玩中的限高,限制在一个固定高度区间】",口径选定:【进门那一刻锁定的固定区间】✓
-      出处口径:这些形态在原版里视口是【进门时钉死】的(我们 main.ts 的 CAM_FIXED_MODES 已照做 ✓),
-      人被夹在那一屏里:撞到看不见的上/下边就贴住、纵向速度清零(玩家俗称"限制框" ✓)
-      区间 = 进门高度 portalY ± 半屏高(VIEW_H = 320 单位 = GD 480×320 的纵向 ✓)
-      ★ 待核:半屏这个"一屏高"是我按 GD 屏高取的;要精确到原版常数得再去挖 updateJump 里的比较值 ✓ */
-  /** ★★★ 2026-09 限制框的两块"虚拟地面"边界(世界 y,单位):【由页面每帧写入】✓
-   *  用户口径:"机制是类似创建上下两边的地面" —— 这两块地面就是【屏幕的上下边】
-   *  (这几个形态的相机是进门钉死的 ⇒ 屏幕边 = 固定的上下边 ✓)
-   *  以前 sim 自己算 portalY ± 半屏 ✗ ⇒ 和页面那套 CAM_* 常数对不上,会出现"半空中一堵看不见的墙"✗
-   *  null = 页面还没跑(测试/机器人)⇒ 不夹 ✓ */
+  /** ★★★ 2026-09 限高(限制框)—— 用户:"限高代码需要照搬,机制是类似创建上下两边的地面"
+   *  这两块"地面"就是【原版的面板】【上下各一块地面】,由页面每帧写入(世界 y,单位):
+   *   · airHi = 取景上边 —— 天花板(第二块地面)的【节点】位置,见 applyAirLimit 里的换算 ✓
+   *   · airLo = 取景下边 —— 只作诊断用;原版的下边是【关卡地面本身】,不是屏幕边 ✓
+   *  null = 页面还没跑(测试/机器人)⇒ 只夹地面、不夹天花板 ✓ */
   airLo: number | null = null;
   airHi: number | null = null;
   /** 限高诊断:状态一变就打一行(用户在页面里跑一次就能定性 ✓ 不刷屏 ✗) */
   private airDbg = '';
-  /* ★★★ 2026-09 限制框的【两块实体地面】(用户:"限高框没有实体,还原原版")
-     它们是横跨全关卡的实心面,和普通方块走同一条碰撞路径 ✓
-     ★ 默认【不进】solids —— 常驻在天边的盒子会被地面扫描当成地面,把落点判定改掉 ✗
-       (前两次 sim.test 掉到 42/43 就是这个原因);由 applyAirLimit 按需加入/移出 ✓ */
-  private readonly airFloors: Box[] = [0, 1].map(() => ({ x0: 0, x1: 0, y0: -1e9, y1: -1e9, o: { kind: 'block' } as unknown as Obj }) as Box);
-
+  /** ★★★ 2026-09 限高(限制框)——【照搬源码】✓ 用户:"限高代码需要照搬,机制是类似创建上下两边的地面"
+   *
+   *  机制(真源码,不是猜的):
+   *   · GJFlyGroundLayer : public GJGroundLayer     (headers/Layers/GJFlyGroundLayer.h:12)
+   *     ⇒ 原版的"飞行限高"就是【第二块地面】,外观也走地面那一套
+   *       (GJFlyGroundLayer::init 只多一句 `this[332]=0`,几何全继承 GJGroundLayer ✓ 反编译 381674-381682)
+   *   · GJBaseGameLayer::createGroundLayer          (反编译 418286-418311)
+   *     ⇒ 一次建【两块】GJGroundLayer(this+632 = 地面 / this+633 = 天花板),第二块再调一次虚表 +72
+   *       传 -1082130432 = 0xC0000000 = -2.0f ⇒ 纵向镜像 —— 天花板就是【倒过来的地面】✓
+   *   · GJGroundLayer::init                         (反编译 382185)
+   *     `*(float *)(this + 336) = 128.0 - 贴图高` ⇒ 地面【顶面】永远在 节点 + 128
+   *     (真贴图 groundSquare_01_001.png 实测就是 128×128 ⇒ 偏移 = 0 ⇒ 顶面 = 节点 + 128 ✓)
+   *   · PlayLayer::checkCollisions 的【非方块】那一支(照录,OpenGD PlayLayer.cpp:1259-1282):
+   *        y < 地面节点 + 相机 + (迷你 ? 87 : 93)          ⇒ 贴回去 + setYVel(0);正向重力时 hitGround
+   *        y > 天花板 − (迷你 ? 234 : 240) + 视口中心 − 12  ⇒ 贴回去 + setYVel(0);反重力时 hitGround
+   *
+   *  换到我们的坐标(我们 = 原版 − 90:原版地面顶面 90 = 我们的 0,页面那套 CAM_* 常数也是这么来的 ✓):
+   *   · 地面顶面 = 0 ⇒ 下限 = 0(我们的 y 是【脚底】,站在地面上就是脚底贴 0)✓
+   *   · 原版天花板节点 = 进场高度 + 148 = 视口上边 − 12(飞行 388 / 球 358,视口中心 240 / 210
+   *     ⇒ 两个都正好差 12 ✓)⇒ 上限 = (视口上边 − 12) − 12 = 视口上边 − 24(迷你 +6,源码 234 那一档)
+   *   ⇒ 天花板的【面】永远在屏幕顶边下 12 单位 —— 这就是原版飞行时能看见的那条地面缝 ✓(页面照它画 ✓)
+   *
+   *  ★ 天花板只在【相机钉死的形态】(飞船 / UFO / 波浪 / 球)生效:这几个形态 airHi 是钉死的 ✓
+   *    方块 / 机器人 / 蜘蛛的相机跟着人走 ⇒ 拿 airHi 当天花板会变成一堵跟着人跑的墙 ✗ */
   private applyAirLimit() {
-    /* ★★★ 2026-09 用户:"限高框没有实体,还原原版" —— 关键是【实体】两个字 ✓
-       源码依据:GJGroundLayer 里有 getGroundY() / positionGround(float) / updateGroundPos(...)
-       ⇒ 原版的地面是【能碰撞的对象】,限高就是"上下各有一块地面",不是把 y 夹住 ✗
-       ⇒ 所以这里改成:把两块【实体地面】按需登记进实心表 solids(和普通方块同一条路径 ✓),
-          位置 = 页面给的取景边(球/飞船/UFO/波浪的相机钉死 ⇒ 这两条边固定 ✓)
-          ⇒ 落地/站住/弹跳/顶头全走【已有的地面逻辑】✓✓
-       ★★ 关键细节(前两次 sim.test 掉到 42/43 的真因):不用时必须【从 solids 里移出】✗——
-          常驻在天边的盒子会被 sim 的地面扫描当成地面,把落点判定整个改掉 ✗
-          (前两次我用 node -e 文本替换去删 push,锚点没匹配上却以为删掉了 ✗) */
-    const a = this.airFloors[0], b = this.airFloors[1];
-    const on = AIR_LIMIT_ON && FIXED_CAM_MODES.has(this.mode) && this.airLo != null && this.airHi != null;
-    /* ★★★ 2026-09 一行诊断(和驾驶位那次同一招 ✓):把"区间有没有到 sim / 盒子进没进碰撞表 /
-       人现在在区间里的哪个位置"一次打全 ⇒ 用户跑一次就能定性,不用再来回猜 ✗ */
-    {
-      const key = on ? ('开 ' + Math.round(this.airLo as number) + '~' + Math.round(this.airHi as number) + ' 形态=' + this.mode)
-        : ('关 形态=' + this.mode + ' 视口=' + (this.airLo == null ? 'null(页面没给)' : '有'));
-      if (key !== this.airDbg) {
-        this.airDbg = key;
-        console.info('[gd] 限高:' + key + ' · 两块盒子在碰撞表里=' + (this.solids.indexOf(a) >= 0 && this.solids.indexOf(b) >= 0) +
-          ' · 玩家y=' + (this.y / U).toFixed(2) + '格 · 判定盒高=' + this.box);
-      }
+    if (this.mode === 'cube') return;                    // 源码:只夹【非方块】那一支 ✓
+    /* 地面:贴回去 + hitGround + setYVel(0) —— 源码这一支是 `if (!isGravityFlipped()) player->hitGround(false)`
+       ★ hitGround 必须照搬:原版【地面根本不是物件】,方块能站在地上、球能在地上跳,
+         靠的就是这一次 hitGround 把落地标记置上 ✓(我们这里也有真地面物件,但夹取先跑,
+         人不陷进去 ⇒ 那套"踩实体"识别不到 ⇒ 不补这一句球/机器人就永远跳不起来 ✗ 实测过 ✓)
+       ★ 坐标口径:我们的 this.y 是【脚底】不是中心(见落台那段的 `this.y = b.y1`),
+         原版比较的却是中心 ⇒ 上边那一夹要减半个判定盒,地面这一夹正好就是 0 ✓ */
+    if (this.y < 0) {
+      this.y = 0;
+      if (this.gdir > 0) this.onGround = true;
+      this.vy = 0;
     }
-    if (!on) {
-      for (const f of this.airFloors) {
-        f.x0 = 0; f.x1 = 0; f.y0 = -1e9; f.y1 = -1e9;
-        const i = this.solids.indexOf(f);
-        if (i >= 0) this.solids.splice(i, 1);        // ★ 不用就移出碰撞表 ✓
-      }
-      return;
+    if (!FIXED_CAM_MODES.has(this.mode) || this.airHi == null) return;
+    /* 天花板(源码比较的是【人中心】,我们的 y 是脚底 ⇒ 减半个判定盒):
+       center ≤ (视口上边 − 12) − 12  ⇒  y ≤ 视口上边 − 24 − 半个判定盒(迷你 +6,源码 234 那一档) */
+    const top = (this.airHi as number) - 24 - this.box / 2 + (this.mini ? 6 : 0);
+    /* 一行诊断(用户:"我都看不到限高框在哪,我怎么知道生没生效")—— 【顶到的那一刻】打一次 ✓ */
+    if (this.y >= top - 0.001 && this.airDbg !== this.mode) {
+      this.airDbg = this.mode;
+      console.info('[gd] 限高:形态=' + this.mode + ' · 视口=' + Math.round(this.airLo as number) + '~' +
+        Math.round(this.airHi as number) + ' · 天花板面=' + Math.round((this.airHi as number) - 12) +
+        ' · 上限(脚底)=' + Math.round(top) + ' · 地面 = 0');
     }
-    const lo = Math.max(0, this.airLo as number);
-    const hi = Math.min(this.rows * U, this.airHi as number);
-    const x0 = -1000, x1 = this.level.length * U + 2000;
-    a.x0 = x0; a.x1 = x1; a.y0 = lo - 4000; a.y1 = lo;     // 下边那块:顶面 = 取景下边 ✓
-    b.x0 = x0; b.x1 = x1; b.y0 = hi; b.y1 = hi + 4000;     // 上边那块:底面 = 取景上边 ✓
-    for (const f of this.airFloors) if (this.solids.indexOf(f) < 0) this.solids.push(f);   // ★ 用时才进 ✓
+    /* 天花板:贴回去 + setYVel(0)(反重力时源码那一支是 hitGround(true) ✓) */
+    if (this.y > top) {
+      this.y = top;
+      if (this.gdir < 0) this.onGround = true;
+      this.vy = 0;
+    }
   }
 
   /** 弹簧 / 跳环给的推力方向(0 = 没有推力飞行)。见 applyFallClamp */
@@ -1064,12 +1064,10 @@ export class World {
            而终点速度的夹取在下面(918 行之后)⇒ 连续翻转会【复利式放大】(1.75^n)✗✓
            ⇒ 乘完立刻夹一次(源码的 max(-15, yAccel) 就是终端速度夹取 ✓),把复利掐断 ✓ */
         this.applyFallClamp();
-    this.applyAirLimit();          // ★ 限制框(球/飞船/UFO/波浪):夹在进门锁定的那一屏内 ✓
         this.onGround = false;
       }
       this.vy -= P.gravity * P.ballGravityMul * this.gdir * sY;
       this.applyFallClamp();
-    this.applyAirLimit();          // ★ 限制框(球/飞船/UFO/波浪):夹在进门锁定的那一屏内 ✓
       this.y += this.vy * sY;
     } else if (this.mode === 'spider') {
       /* 蜘蛛:点一下【传送到对面】再翻重力(反编译:搜索带厚度 = 体积 ×8) */
@@ -1078,7 +1076,6 @@ export class World {
          以前这里漏了乘,蜘蛛掉得跟方块一样快。 */
       this.vy -= P.gravity * P.ballGravityMul * this.gdir * sY;
       this.applyFallClamp();
-    this.applyAirLimit();          // ★ 限制框(球/飞船/UFO/波浪):夹在进门锁定的那一屏内 ✓
       this.y += this.vy * sY;
     } else {
       /* 方块 / 机器人:按住且在落地状态就起跳 —— 按住不放 = 落地自动连跳(原作手感)。
@@ -1121,9 +1118,12 @@ export class World {
          所以黄弹簧的 16 能原样生效,峰值才有 4.45 块,而不是被夹到 3.9。
          ★ 而【弹簧/跳环刚推出去的那一段】连下落方向也不夹 —— 见 applyFallClamp。 */
       this.applyFallClamp();
-    this.applyAirLimit();          // ★ 限制框(球/飞船/UFO/波浪):夹在进门锁定的那一屏内 ✓
       this.y += this.vy * sY;
     }
+
+    /* ★★★ 2026-09 限高(限制框):照搬 PlayLayer::checkCollisions —— 位置推进【之后】、物件碰撞【之前】
+       夹一次上下边(源码里 checkCollisions 也是每个子步跑一次 ✓) */
+    this.applyAirLimit();
 
     /* --- 踩实体:顺着重力方向接住(正重力踩上面;反重力贴天花板与方块底面) ---
      * 方块 / 球 / 机器人 / 蜘蛛都走这段;飞机、UFO、波浪是"飞行类",碰到即死。 */

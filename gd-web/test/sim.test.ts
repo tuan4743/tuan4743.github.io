@@ -557,7 +557,7 @@ test('飞行类碰实心:撞侧面死、擦到顶面【落上去】(flySolid 开
        · 判定盒要用【外框】(playerobject.cpp:86 `setTextureRect(Rect(0,0,30,30))`);
        · 擦到【顶面】要落上去贴着滑 —— 原版飞行类贴着地面/平台飞是安全的,只有撞侧面/底面才死。
      所以这个测试现在要同时验三件事:落顶面 ✓、撞侧面 ✗死、flySolid=关时保持旧行为。 */
-  const lv = solo([{ kind: 'block', b: 18, r: 2, w: 6, h: 1 }]);   // 空中一块 6×1 的台面(顶面 y=3)
+  const lv = solo([floor60, { kind: 'block', b: 18, r: 2, w: 6, h: 1 }]);   // 空中一块 6×1 的台面(顶面 y=3)+ 一条地面
   const run = (flySolid: boolean, mode: 'ufo' | 'ship', x0: number) => {
     const w = new World(lv, undefined, undefined, { flySolid });
     w.reset(x0 * U, mode, 3.5 * U);
@@ -576,10 +576,13 @@ test('飞行类碰实心:撞侧面死、擦到顶面【落上去】(flySolid 开
   const land = run(true, 'ufo', 19);
   assert.ok(land.landed > 0 && Math.abs(land.landed - 3) < 0.05,
     'flySolid=开:应该落在方块顶面 y=3 上,实测落点 y=' + land.landed.toFixed(2));
-  /* ② flySolid=关(自铺面):保持旧行为 —— 穿过方块,一路掉到世界底边才死 */
+  /* ② 地面线:★ 2026-09 —— 原版【地面根本不是物件,地面就是这条夹取】:
+        PlayLayer::checkCollisions 非方块那一支 `y < 地面节点+相机 + (迷你?87:93) ⇒ 贴回 + setYVel(0)` ✓
+        ⇒ 飞行类掉到地面线会【落上去停住】,不会一路穿到世界底边 ✗
+        (见 src/sim/world.ts 的 applyAirLimit;机制源头 GJFlyGroundLayer : GJGroundLayer ✓) */
   const off = run(false, 'ufo', 19);
-  assert.ok(off.landed < 0 && off.y < 0.5,
-    'flySolid=关(自铺面):保持旧行为 —— 穿过方块、死在世界底边,实测 y=' + off.y.toFixed(2));
+  assert.ok(!off.dead && Math.abs(off.y) < 0.05,
+    'flySolid=关(自铺面):飞行类落到【地面】上停住(原版地面夹取),实测 y=' + off.y.toFixed(2));
   /* ③ 撞【侧面】必须死(平飞撞一堵从地面顶到关卡顶的竖墙 —— 墙矮了飞行类会从上面飞过去) */
   const wall = solo([{ kind: 'block', b: 12, r: 0, w: 1, h: 38 }]);
   for (const mode of ['ufo', 'ship'] as const) {
@@ -588,6 +591,25 @@ test('飞行类碰实心:撞侧面死、擦到顶面【落上去】(flySolid 开
     for (let f = 0; f < 80 && !w.dead; f++) w.frame(false);
     assert.ok(w.dead, mode + ' 平飞撞竖墙应该死,实测活着到了 x=' + (w.x / U).toFixed(2));
   }
+  /* ④ ★★★ 2026-09 限高(限制框)= 照搬源码那一夹 —— 用户:"限高代码需要照搬""机制是类似创建上下两边的地面"
+        源码 PlayLayer::checkCollisions 非方块那一支:
+          y > 天花板 − (迷你 ? 234 : 240) + 视口中心 − 12  ⇒ 贴回 + setYVel(0) ✓
+        换到我们的坐标(我们 = 原版 − 90;原版天花板节点 = 进场高度 + 148 = 视口上边 − 12;
+        我们的 y 是【脚底】不是中心 ⇒ 再减半个判定盒):
+          脚底上限 = 视口上边 − 24 − 半个判定盒 ✓ */
+  const capW = new World(lv, undefined, undefined, { flySolid: true });
+  capW.reset(19 * U, 'ufo', 3.5 * U);
+  capW.speedIdx = 1; capW.gdir = 1; capW.vy = 0;
+  /* ★ 视口上边要落在【关卡顶下面】(不然先撞上"超过关卡顶即死"那一条,测不到限高) */
+  capW.airHi = capW.rows * U - 60; capW.airLo = capW.airHi - 320;   // 视口 = 一屏(320 单位)
+  const cap = (capW.airHi as number) - 24 - capW.box / 2;
+  for (let f = 0; f < 40 && !capW.dead; f++) capW.frame(f % 8 === 0);   // 一路往上顶(别飞过铺面尽头)
+  /* 硬顶一次:必须【精确贴住】天花板,不能穿过去 —— 源码那一支同时 setYVel(0) ✓ */
+  capW.vy = 20; capW.frame(false);
+  assert.ok(!capW.dead && Math.abs(capW.y - cap) < 0.01 && capW.vy <= 0.5,
+    '限高:UFO 硬顶天花板应该精确贴住 y=' + cap.toFixed(1) + '、纵向速度清零(实测 y=' + capW.y.toFixed(2) +
+    ',vy=' + capW.vy.toFixed(2) + ',死=' + capW.dead + ',关卡顶=' + (capW.rows * U) + ',x=' + (capW.x / U).toFixed(1) +
+    ';视口上边 ' + capW.airHi + ' ⇒ 天花板面 ' + ((capW.airHi as number) - 12) + ')');
 });
 
 test('黑环(冲刺):不管当前速度,直接把垂直速度设成 15 并朝重力方向', () => {
