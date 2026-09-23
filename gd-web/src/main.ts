@@ -1180,17 +1180,25 @@ class Scene extends Phaser.Scene {
              (源码 144846 那两个重载里就是这么调的 ✓)⇒ 落地收平是【缓动】,不是瞬跳、也不是回正到 0 ✓
          这次一个自创常数都没有:180° 和 0.175 都是源码里的 ✓,唯一的换算用本档速度归一化 ✓ */
       if (w0.mode === 'cube') {
-        const spd = Math.max(0.5, Math.abs(w0.vx) / 5.7700018);      // 本档速度 ÷ 1 档速度
-        /* ★★ 2026-09 修转速:这个块在【子步循环】里(一帧跑 n 次 ✗)——
-           原来的 step=0.175 会让缓动在一帧内就收敛到 180°,而方块转 180° 看起来和没转一样 ✗✓
-           ⇒ 除以 n,让它每帧只推进一次 ✓(用户:"cube 根本不会旋转")*/
-        const step = Math.min(1, (0.175 * spd) / Math.max(1, n));
+        /* ★★★ 2026-09 用户:"cube 的旋转力度太大,照搬原版的旋转机制"
+           原版出处:PlayerObject::runNormalRotation(反编译 144512-144542 行)——
+             角速度是【常数】:ω(度/秒) = 180 × (速度因子 this+589) × a3 ÷ v7
+               v7 = 0.33333(当 this+504 == 1.0 时 0.43333),a3 = 1.0(从 runRotateAction 传 1.0)
+               符号:v6 = -1(重力反时)再乘 reverseMod/flipMod(±1)
+             ⇒ 基准 = 180 ÷ 0.33333 = **540 度/秒**(一圈 2/3 秒),是【匀速积分】✓
+           我们以前是【朝"当前角 + 180°"做指数缓动、步长 0.175×速度】✗ ——
+             目标永远在前面 180° ⇒ 一直追、一上来就猛转 ⇒ 正是"力度太大" ✓✓
+           ⇒ 现在改成按源码常数匀速转 ✓(重力反了反向:源码那个 v6 = -1 ✓)
+           落地收平那段【没动】:原版是 stopRotation(_, 22),那个 22 的口径我还没核,
+             而现在的收平手感是你之前定过的("不再回正")⇒ 只改空中的转速这一个变量 ✓ */
         if (w0.onGround) {
+          const step = Math.min(1, (0.175 * Math.max(0.5, Math.abs(w0.vx) / 5.7700018)) / Math.max(1, n));
           const near = Math.round(this.spinLast / (Math.PI / 2)) * (Math.PI / 2);   // 最近的 90° 倍数
           this.spinLast += (near - this.spinLast) * step;
         } else {
-          const target = this.spinLast - Math.PI;                    // 目标 = 当前 − 180°(顺时针)
-          this.spinLast += (target - this.spinLast) * step;
+          const RAD_PER_SEC = (180 / 0.33333) * (Math.PI / 180);      // 540°/s = 源码常数 ✓
+          const dir = w0.gdir < 0 ? 1 : -1;                           // 重力反 ⇒ 反向 ✓
+          this.spinLast += dir * RAD_PER_SEC * (n / 60);              // 一帧 n 个子步 = n/60 秒 ✓
         }
       } else {
         this.spinLast = 0;
