@@ -1552,10 +1552,13 @@ class Scene extends Phaser.Scene {
     let bottom: number;
     if (CAM_FIXED_MODES.has(w.mode)) {
       /* ★★ 钉死在【进门算好的目标】上,只做 0.1/帧 的平滑靠拢 ✓
-         (每帧按格跟人 = 视野一格一格跳,晃死 ✗ —— 用户指出 ✓;animateInDualGroundNew 只是进门那一次 ✓) */
+         ★★★ 但必须【吸到格线上】(用户:"你框位置搞成带小数的干啥")——
+         源码里相机 y 就是 `floor(v/30)*30`(asm 451070)⇒ 不对齐的话,框面会带小数、
+         而且过渡途中框会从小数位置扫过玩家 ⇒ 挤人 ✗。这里 Math.round 到 30 的整数倍 ✓ */
       this.camPinY = this.camPinY == null ? this.camPinTarget
         : this.camPinY + (this.camPinTarget - this.camPinY) * 0.1;
-      bottom = this.camPinY - vh / 2;
+      const snapped = Math.round(this.camPinY / U) * U;   // ← 一格对齐(源码 floor(v/30)*30 的等价)
+      bottom = snapped - vh / 2;
     } else {
       const flip = w.gdir < 0;
       const unk2 = flip ? CAM_MID : CAM_LOW;             // 上沿余量
