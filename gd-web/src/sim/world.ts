@@ -95,7 +95,7 @@ const FIXED_CAM_MODES = new Set<Mode>(['ship', 'ufo', 'wave', 'ball']);
 const VIEW_H = 320;
 /** ★ 限制框总开关:用户已澄清"卡死是 UFO 里那颗 cube(渲染途中 add.image),不是限高"
  *  ⇒ 重新打开 ✓(机制已按他的口径改成"上下两块虚拟地面" ✓ 见 applyAirLimit) */
-const AIR_LIMIT_ON = true;
+const AIR_LIMIT_ON = false;   // ★ 暂时关:用户连报卡死,先逐个变量定性(见 applyAirLimit 注释)
 
 /** 一次触发产生的动画(位移 / 往返) */
 interface Anim {

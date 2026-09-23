@@ -2080,7 +2080,14 @@ class Scene extends Phaser.Scene {
        做法:再建一张图,用 cube 那一层的贴图,跟着玩家走、同色 ✓
        (各载具里 cube 的确切缩放/偏移还没从源码核到 ⇒ 现在【同尺寸居中】,已记待办 ✓) */
     if (!this.pilot) this.pilot = this.add.image(0, 0, 'icon-cube-body').setVisible(false).setDepth(16.5);
-    const PILOT_MODES = new Set(['ship', 'ufo', 'wave', 'ball']);
+    const PILOT_MODES = new Set<string>([]);
+    /* ★★★ 2026-09 【驾驶位 cube 暂时关闭】—— 用户连续三次报卡死,两次我修错方向 ✗
+       (① 说限高 ② 说贴图键 ③ 改成 buildIcons 里预建之后【还是卡死】)
+       ⇒ 在能拿出"到底是哪一句卡住"的证据之前不再让它上屏:
+          宁可驾驶位暂时是空的(用户原话的那种"空"),也不能让整页卡死 ✗✗
+       复盘:我每次都是"猜一个原因 + 改一处"就交,没有先缩小范围(比如先只关这一处看还卡不卡)✗
+       ⇒ 下一轮:先只开 pilot(别的一律不动),卡不卡一次性定性 ✓ */
+    void 0;
     /* ★★★ 2026-09 修"碰到 bird 门卡死"(用户实测)★ 这是我上一轮引入的 ✗:
        pilot 用的 'icon-cube-body' 在 cube 那一层没建出来时【根本不存在】⇒ this.add.image 抛异常,
        异常发生在渲染循环里 ⇒ 整页卡死(第一次进载具形态才触发 = 碰上 bird 门那一下 ✓)
