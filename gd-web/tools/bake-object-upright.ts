@@ -167,7 +167,10 @@ for (const line of (lv as unknown as { lines: string[] }).lines) {
 const ORB_MAP: Record<string, string> = {
   '36': 'ring_01_001.png', '84': 'ring_01_001.png', '141': 'ring_01_001.png', '1022': 'ring_01_001.png',
   '1330': 'ring_01_001.png', '1333': 'gravring_01_001.png', '1704': 'd_arrow_01_001.png',
-  '1751': 'd_arrow_01_001.png', '2063': 'ring_01_001.png',
+  '1751': 'd_arrow_01_001.png',
+  /* ★ 修正:2063 在我们引擎里是【存档点】(gdids.ts `2063: kind 'check'`),以前也当环画了 ✗
+     ⇒ 换官方存档点旗帜 checkpoint_01_001.png(68×126 标准 px,GameSheet 里有 ✓) */
+  '2063': 'checkpoint_01_001.png',
 };
 const table = JSON.parse(fs.readFileSync('../../.tmp/OpenGD-object.json', 'utf8')) as Record<string, { texture_name?: string }>;
 const want = new Set<string>(Object.values(ORB_MAP));

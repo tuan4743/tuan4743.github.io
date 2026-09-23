@@ -76,7 +76,7 @@ const ICON_ENABLED = true;   // ★ 临时默认打开(用户 2026-09:"要")—�
  *  所以:默认**不加载**这张图集(省 121 KB),要研究就加 `?art=1`(代码保留,别再当默认)。 */
 const ART_ENABLED = true;    // ★ 2026-09 重新打开:现在用的是【官方图集 + 真映射】(不是早期那套猜的表 ✓)
 /* 图集版本号:每次重烘 gd-object-atlas.json / gd-art-*.png 就改一次 ⇒ 浏览器不会吃旧缓存 ✓ */
-const ART_V = 'u2';
+const ART_V = 'u3';
 /** ★★ 无敌模式的"轨道上限"(用户口径:"给无敌模式加个上限,不允许脱离预定轨道")。
  *  为什么:无敌本身解决不了"人卡出墙/飞到天上"—— 以前只贴住关卡边界(0 ~ 127 格),
  *  于是开了无敌就能一路飞到 y=110 把整关绕过去,玩起来完全不是这张图。
@@ -161,8 +161,15 @@ const ICON_COL: Record<Mode, [number, number]> = {
 
 /* 跳环 / 弹簧的配色(和游戏里的常识一致:黄=跳,粉=小跳,蓝=翻重力,绿=翻重力+跳) */
 const ORB_COL: Record<string, number> = {
-  yellow: 0xffe17a, pink: 0xff9fd0, red: 0xff8a8a, blue: 0x9fd8ff, green: 0xa0ffd0, black: 0xb9a7ff,
+  yellow: 0xffc800, pink: 0xff00ff, red: 0xff6400, blue: 0x0000ff, green: 0x00ff00, black: 0x2a2a2a,
 };
+/* ★ 2026-09 环/冲刺箭头的染色:官方环图是【纯白】的(tools/ring-colors.ts 实测
+   ring_01 / ring_02 / gravring_01 / dashRing_01 / d_arrow_01 主色全是 (255,255,255) ✓)
+   ⇒ GD 是按类型染色 ✓ 色值出自反编译 PlayerObject::ringJump(.tmp/gdp211/ringJump.cpp):
+       kBlueRing (0,0,255) · kPinkRing (255,0,255) · kGreenRing (0,255,0) · kRedRing (255,100,0)
+       默认(黄) (255,200,0)
+   ⇒ 上面 ORB_COL 已换成这套官方值(矢量兜底和贴图染色共用一张表 ✓) */
+const ARROW_COL: Record<string, number> = { green: 0x00ff00, pink: 0xff00ff, purple: 0xc060ff };
 const PAD_COL: Record<string, number> = {
   yellow: 0xffe17a, pink: 0xff9fd0, red: 0xff8a8a, blue: 0x9fd8ff, purple: 0xc6a0ff,
 };
@@ -321,6 +328,14 @@ class Scene extends Phaser.Scene {
     w.y += dir * push;
     if (dir < 0 && w.vy > 0) w.vy = 0;
     if (dir > 0 && w.vy < 0) w.vy = 0;
+  }
+
+  /** 贴图染色:砖用关卡主色;环/冲刺箭头按 GD 的类型色(tools/ring-colors.ts 证明官方环图是纯白的 ✓) */
+  private artTintOf(o: Obj, blockTint: number): number {
+    if (o.kind === 'block') return blockTint;
+    if (o.kind === 'orb') return ORB_COL[o.orb ?? 'yellow'] ?? 0xffffff;
+    if (o.kind === 'arrow') return ARROW_COL[o.arrow ?? 'green'] ?? 0xffffff;
+    return 0xffffff;
   }
 
   /** 把一个池子里的 Image 摆好;返回 false 表示这帧没画(调用方走矢量兜底) */
@@ -1600,7 +1615,7 @@ class Scene extends Phaser.Scene {
            我们的深度:砖/贴图 6 · 玩家 16/17 ⇒ back = 7(压着砖、在玩家后)、front = 17.5(盖住玩家)✓ */
         const backKey = artKey.replace('_front_', '_back_');
         const hasBack = backKey !== artKey && !!this.textures.get('gd-art')?.has(backKey);
-        const col = o.kind === 'block' ? tint : 0xffffff;
+        const col = this.artTintOf(o, tint);
         const ax = obx + obw / 2, ay = oBot - obh / 2;
         if (hasBack) this.drawArtObject(o, backKey, ax, ay, col, 7);
         if (this.drawArtObject(o, artKey, ax, ay, col, hasBack ? 17.5 : 6)) continue;
