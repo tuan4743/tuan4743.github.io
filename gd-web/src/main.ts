@@ -11,7 +11,7 @@
 
 import Phaser from 'phaser';
 import { generateLevel, makeRealTimeAxis, type Level, type Mode, type Obj } from './sim/level.ts';
-import { World, botThink, frameOf, portalFrame, type RunState } from './sim/world.ts';
+import { World, botThink, frameOf, type RunState } from './sim/world.ts';
 import { frameRects } from './sim/gdids.ts';
 import { fingerprint } from './sim/replay.ts';
 import { P, U, Y_TIME_SCALE } from './sim/constants.ts';
@@ -1580,27 +1580,20 @@ class Scene extends Phaser.Scene {
     bottom = Math.max(lo, Math.min(hi, bottom));
     this.camBottom = bottom;
     this.camCenter = bottom + vh / 2;
-    /* ★★★ 2026-09 限高框 = 【门锚定】(用户口径:球门 上三下四 / UFO·ship·wave 上四下五 ✓)
-       锚点 = sim 的 portalY = 门的判定盒中心(`(b.y0 + b.y1)/2`,跨过门那一刻写入 ✓)
-       ★★ 实测教训:在【自动/演示】流程里 portalY 可能是旧的(甚至是 0)⇒ 框落到玩家不在的地方
-          ⇒ 人被往下拽("什么玩意")✗ ⇒ 加安全网:钉框这一刻若玩家不在框内,就把框整体平移到玩家在框内 ✓
-          (只平移到"能装下玩家"为止,之后锁死不动 ✓) */
-    const LIMIT_FRAME_ON = true;
-    const bandOn = LIMIT_FRAME_ON && CAM_FIXED_MODES.has(w.mode);
-    let pf = bandOn ? portalFrame(w.portalY, w.mode) : null;
-    if (pf) {
-      const py0 = w.y + (P.box * w.sizeMul) / 2;          // 玩家中心
-      const need = P.box * w.sizeMul + 30;                // 玩家 + 一点余量
-      /* ★★ 平移量必须【整格】(探针实测:上一版平移出 429.5 这种小数 ⇒ 框面又带小数 ✗) */
-      if (py0 > pf.hi - need) {
-        const d = Math.ceil((py0 - (pf.hi - need)) / U) * U;
-        pf = { lo: pf.lo + d, hi: pf.hi + d };
-      }
-      if (py0 < pf.lo + need) {
-        const d = Math.ceil(((pf.lo + need) - py0) / U) * U;
-        pf = { lo: pf.lo - d, hi: pf.hi - d };
-      }
-    }
+    /* ★★★ 限高框 = 取景窗口本身(见 sim 的 frameOf:源码里两块地面只跟窗口有关 ✓)
+       ⇒ 页面只把【取景上下边】发出去,框的门锚定 / 安全网一律撤掉 ✗(那两个都是我自己加的 ✗)
+       ★ 相机:进门那一下按源码公式把目标吸到格线上,之后 0.1/帧 平滑靠拢 ✓ */
+    const bandOn = CAM_FIXED_MODES.has(w.mode);
+    if (bandOn && !this.camPinned) {
+      const camBottomWant = Math.max(0, Math.floor((w.y + (P.box * w.sizeMul) / 2 - vh / 2) / U) * U);
+      this.camPinTarget = camBottomWant + vh / 2;
+      this.camPinY = this.camBottom + vh / 2;
+      this.camPinned = true;
+      this.bandHiY = null; this.bandLoY = null;
+    } else if (!bandOn) this.camPinned = false;
+    w.airLo = bottom;
+    w.airHi = bottom + vh;
+    const pf: { lo: number; hi: number } | null = null;
     if (bandOn && !this.camPinned) {
       this.camPinTarget = Math.round(((pf as { lo: number; hi: number }).lo + (pf as { lo: number; hi: number }).hi) / 2 / U) * U;
       this.camPinY = this.camBottom + vh / 2;

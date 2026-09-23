@@ -129,9 +129,15 @@ export function portalFrame(portalY: number, mode: Mode): { lo: number; hi: numb
 }
 
 export function frameOf(airLo: number, airHi: number): { lo: number; hi: number } {
-  /* ★ 页面把"门锚定的那段区间"直接写进 airLo/airHi(见 main.ts 的 portalFrame 调用)⇒ 这里只是转发 ✓
-     (锚门这件事只有页面知道 —— 它才知道刚跨过的是哪个门 ✓) */
-  return { lo: airLo, hi: airHi };
+  /* ★★★ 2026-09 照 `GJBaseGameLayer::updateCameraBGArt`(asm 430982 那个类 / 体 431105-431233)的结构:
+       地面层 y = 窗口下边 + 缩放×91.0(= 贴窗口下边)、天花板层 y = 窗口顶 − 1(贴窗口上边),
+       两块再 scaleGround(缩放) ⇒ 带子往内铺 ⇒ 框就是【取景窗口本身】(屏幕锚定 ✓,与门/玩家无关 ✗)
+     取景 330、要求空档正好八格(240 ⇒ 上下各余 90/2 = 45)、且两面都在格线上 ⇒
+       下框面 = 取景下边 + 30(1 格)  上框面 = 下框面 + 240(8 格)  ⇒ 上余 60 ✓ 全在格线上 ✓
+     (以前锚门/锚玩家/锚相机中心全是错的 ✗ —— 源码里这两块地面从头到尾只跟【窗口】有关 ✓) */
+  const base = Math.round(airLo / U) * U;
+  const lo = base + U;
+  return { lo, hi: lo + FLY_BAND };
 }
 
 /** 一次触发产生的动画(位移 / 往返) */
