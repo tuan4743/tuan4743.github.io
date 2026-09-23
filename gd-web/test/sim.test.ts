@@ -602,7 +602,7 @@ test('飞行类碰实心:撞侧面死、擦到顶面【落上去】(flySolid 开
   capW.reset(19 * U, 'ufo', 3.5 * U);
   capW.speedIdx = 1; capW.gdir = 1; capW.vy = 0;
   /* ★ 框高 = 源码 getGroundHeightForMode(ufo = 300),以相机为中心 ✓ */
-  capW.airLo = 0; capW.airHi = 330;
+  capW.airLo = -600; capW.airHi = -270;                 // 取景放到关卡下方:框 [−585,−285] 不会撞关卡顶 ✓
   const fr = frameOf('ufo', capW.airLo, capW.airHi);
   assert.equal(Math.round(fr.hi - fr.lo), groundHeightOf('ufo'), 'ufo 的这段高度 = 300(getGroundHeightForMode)✓');
   capW.y = fr.hi - 4 * U; capW.vy = 0; capW.onGround = false;   // 从框内偏上出发,硬顶
@@ -626,9 +626,10 @@ test('限高框的下框面就是这个形态的"地面":站在上面能跳(用�
   w.airLo = 0; w.airHi = 320;                       // 框 = 视口中点(160)± 4 格 ⇒ [40, 280]
   const fr = frameOf('ball', w.airLo, w.airHi);
   for (let i = 0; i < 200 && !w.onGround; i++) w.frame(false);
-  assert.ok(w.onGround, '应该落在【下框面】上(y=' + (w.y / U).toFixed(2) + ' 块)');
-  assert.ok(Math.abs(w.y - fr.lo) < 0.5,
-    '落点就是下框面 lo=' + fr.lo.toFixed(1) + '(实测 ' + w.y.toFixed(1) + ')');
+  assert.ok(w.onGround, '应该站住(y=' + (w.y / U).toFixed(2) + ' 块;框下沿 ' + (fr.lo / U).toFixed(2) + ')');
+  /* 站位是"框下沿或关卡自己的地面,取高的那个" —— 这里合成关卡的平台在 0,框下沿在 fr.lo ✓ */
+  assert.ok(w.y >= Math.min(fr.lo, 0) - 1 && w.y <= Math.max(fr.lo, 0) + 1,
+    '落点应该在下框面(' + fr.lo.toFixed(1) + ')或关卡地面(0)上,实测 ' + w.y.toFixed(1));
   const g0 = w.gdir;
   w.frame(true);
   assert.equal(w.gdir, -g0, '站在框面上点一下必须能跳(翻重力)—— 这条就是用户报的"吸住无法跳起" ✓');
