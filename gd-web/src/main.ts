@@ -1616,16 +1616,13 @@ class Scene extends Phaser.Scene {
         const seg0 = LEVEL.segments.find((sg) => bx0 >= sg.from && bx0 < sg.to) || LEVEL.segments[0];
         this.bandTint = w.tint != null ? w.tint : PAL[LEVEL.segments.indexOf(seg0) % PAL.length];
       }
-      /* ★ 两条框的进场(用户:"为什么限高框没有出现的动画" + "动画太快了"):
-         用【和相机完全同一套】每帧靠 0.1 的指数逼近(原版 updateCamera 的 iLerp ✓,约 0.5 秒收敛),
-         起点在画外一格贴图(128 单位)⇒ 看得见"拉进来"的过程 ✓(0.1 秒线性那个是我自己定的 ✗ 太快) */
+      /* ★★★ 2026-09 用户:"位置对了,出场全错" ⇒ 源码里这两块地面【没有进场动画】✗:
+         `updateCameraBGArt` 每帧只是把它们【摆】在窗口边上(asm 431211 地面 / 431218 天花板),
+         显隐由 `toggleVisible01(层, 层.y 在窗口内)` 决定 ✓ —— "落位"的感觉来自【相机】进门后 0.1/帧靠拢 ✓,
+         不是框自己从画外滑进来 ✗(那套 bandHiY/bandLoY 是我编的 ✗,撤掉) */
       const fr = frameOf(w.airLo as number, w.airHi as number);
       const bandH = Scene.GROUND_TILE * Scene.BAND_SCALE;      // 带宽 = 贴图高 × 缩放 ✓(32 单位)
-      this.bandHiY = this.bandHiY == null ? (w.airHi as number) + bandH
-        : this.bandHiY + (fr.hi - this.bandHiY) * 0.1;
-      this.bandLoY = this.bandLoY == null ? (w.airLo as number) - bandH
-        : this.bandLoY + (fr.lo - this.bandLoY) * 0.1;
-      const hiY = this.bandHiY, loY = this.bandLoY;
+      const hiY = fr.hi, loY = fr.lo;
       /* ★★ 探针实测(tools/verify/gd-limit-shot.mjs):第一版建出来的 TileSprite 贴图是 `__MISSING` ✗
          —— 建对象那一刻 'gd-ground' 还没就绪,Phaser 就退化成缺省贴图,而且【不会自己换回来】✗
          ⇒ 就绪了才建;万一已经建成 __MISSING,销毁重建一次 ✓(自愈,不用刷新页面) */
