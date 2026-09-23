@@ -798,6 +798,8 @@ export class World {
    *  null = 页面还没跑(测试/机器人)⇒ 不夹 ✓ */
   airLo: number | null = null;
   airHi: number | null = null;
+  /** 限高诊断:状态一变就打一行(用户在页面里跑一次就能定性 ✓ 不刷屏 ✗) */
+  private airDbg = '';
   /* ★★★ 2026-09 限制框的【两块实体地面】(用户:"限高框没有实体,还原原版")
      它们是横跨全关卡的实心面,和普通方块走同一条碰撞路径 ✓
      ★ 默认【不进】solids —— 常驻在天边的盒子会被地面扫描当成地面,把落点判定改掉 ✗
@@ -816,6 +818,17 @@ export class World {
           (前两次我用 node -e 文本替换去删 push,锚点没匹配上却以为删掉了 ✗) */
     const a = this.airFloors[0], b = this.airFloors[1];
     const on = AIR_LIMIT_ON && FIXED_CAM_MODES.has(this.mode) && this.airLo != null && this.airHi != null;
+    /* ★★★ 2026-09 一行诊断(和驾驶位那次同一招 ✓):把"区间有没有到 sim / 盒子进没进碰撞表 /
+       人现在在区间里的哪个位置"一次打全 ⇒ 用户跑一次就能定性,不用再来回猜 ✗ */
+    {
+      const key = on ? ('开 ' + Math.round(this.airLo as number) + '~' + Math.round(this.airHi as number) + ' 形态=' + this.mode)
+        : ('关 形态=' + this.mode + ' 视口=' + (this.airLo == null ? 'null(页面没给)' : '有'));
+      if (key !== this.airDbg) {
+        this.airDbg = key;
+        console.info('[gd] 限高:' + key + ' · 两块盒子在碰撞表里=' + (this.solids.indexOf(a) >= 0 && this.solids.indexOf(b) >= 0) +
+          ' · 玩家y=' + (this.y / U).toFixed(2) + '格 · 判定盒高=' + this.box);
+      }
+    }
     if (!on) {
       for (const f of this.airFloors) {
         f.x0 = 0; f.x1 = 0; f.y0 = -1e9; f.y1 = -1e9;
