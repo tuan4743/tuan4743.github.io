@@ -261,6 +261,9 @@ class Scene extends Phaser.Scene {
   /** ★ 物件贴图池:每帧按可见物件取用,用完把多余的藏起来(避免几千个 Image 常驻) */
   private artPool: Phaser.GameObjects.Image[] = [];
   private artUsed = 0;
+  /** ★ 临时诊断文字(?artdbg=1 时创建;见 create() 里那段说明) */
+  private artDbg?: Phaser.GameObjects.Text;
+  private artHits = 0;
   artReady = false;
 
   /** 物件 → 图集帧名(没有就返回 null,走矢量画法)。
@@ -606,7 +609,14 @@ class Scene extends Phaser.Scene {
       this.load.once('complete', () => { this.artReady = this.textures.exists('gd-art'); });
       this.load.start();
     }
-    /* ★★ 2026-09 用户:"全删掉,页面不留任何东西" ⇒ 除了画布,其它界面元素一律移除 ✓
+    /* ★★★ 2026-09 临时诊断(用户:"还是没有贴图",而服务器上 JSON/图集都 200 ✓):
+       加 ?artdbg=1 就在画面左上角显示四个数:ART 开关 / artReady / ids 条数 / 本次画了几张贴图
+       —— 一眼就能定位是"没加载"还是"没命中",不用开控制台 ✓(平时不显示,不违反"页面不留东西" ✓) */
+    if (/(^|[?&])artdbg=1(&|$)/.test(location.search)) {
+      const dbg = this.add.text(8, 8, '', { fontFamily: 'monospace', fontSize: '16px', color: '#ffd479' }).setDepth(99);
+      dbg.setScrollFactor(0);
+      this.artDbg = dbg;
+    }
        (HUD 进度条 / 按键提示 / 五个调试按钮 / 手机提示 / 遮罩 / 底部参考行 —— 全部删掉) */
     for (const sel of ['#gd-hud', '#gd-tools', '#gd-god', '#gd-demo', '#gd-restart', '#gd-pad-minus', '#gd-pad-plus',
                        '.lost-tip', '.gd-tools', '.gd-mobile-note', '.lost-veil', '.lost-wip__ref']) {
@@ -1553,6 +1563,13 @@ class Scene extends Phaser.Scene {
     }
     for (let pass = 0; pass < 2; pass++) {
     this.artUsed = 0;                              // ★ 贴图池:这一帧从 0 开始分配,画完把剩下的藏掉
+    if (this.artDbg) {
+      const pack = this.cache.json.get('gd-art-ids') as { ids?: Record<string, string> } | undefined;
+      this.artDbg.setText('ART=' + ART_ENABLED + ' ready=' + this.artReady
+        + ' ids=' + Object.keys(pack?.ids ?? {}).length
+        + ' 命中=' + this.artHits + ' 已画=' + this.artUsed);
+      this.artHits = 0;
+    }
     for (const o of LEVEL.objects) {
       if ((o.kind === 'deco') !== (pass === 0)) continue;
       if (o.kind === 'trigger') continue;         // 触发器是个逻辑物件,不画
@@ -1570,6 +1587,7 @@ class Scene extends Phaser.Scene {
       this.drawn++;
       /* ★ 有贴图的物件直接画贴图(锯片/弹簧板/存档点/硬币/刺),没贴图的走下面的矢量画法 */
       const artKey = this.artKeyOf(o);
+      if (artKey) this.artHits++;
       if (artKey && this.drawArtObject(o, artKey, obx + obw / 2, oBot - obh / 2, obw, obh, o.kind === 'block' ? tint : 0xffffff)) continue;
       switch (o.kind) {
         case 'platform':
