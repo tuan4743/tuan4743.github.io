@@ -263,6 +263,11 @@ class Scene extends Phaser.Scene {
   /** 形态图集(static/icons)建好的图层。见 buildIcons() */
   /** 载具里的"驾驶位 cube"(UFO/飞船/球/波浪箭里坐着的那颗)✓ 见 drawIconPlayer */
   pilot: Phaser.GameObjects.Image | null = null;
+  /** ★★★ 2026-09 限高框的【外观】:上下各一条地面(用户:"没有贴图,我都看不到限高框在哪")——
+   *  源码里 GJFlyGroundLayer : GJGroundLayer 就是这个外观层 ✓ 所以它必须画出来 ✓
+   *  airRects = 地面本体(暗底) · airLines = 内沿那条亮线 ✓ 都在 build 阶段建好,每帧只改位置 ✓ */
+  airRects: Phaser.GameObjects.Rectangle[] = [];
+  airLines: Phaser.GameObjects.Rectangle[] = [];
   private iconLayers: Array<{
     mode: Mode;
     body: Phaser.GameObjects.Image;
@@ -1517,6 +1522,25 @@ class Scene extends Phaser.Scene {
        (以前 sim 自己算 portalY ± 半屏 ✗ 和这里这套 CAM_* 常数对不上 ⇒ 会凭空多出一堵墙 ✗) */
     w.airLo = bottom;
     w.airHi = bottom + vh;
+    /* ★★★ 2026-09 用户:"没有贴图,我都看不到限高框在哪" ⇒ 把限高框【画出来】✓
+       原版就是这个样子:飞行形态下上下各一条地面(源码 GJFlyGroundLayer 是地面外观层 ✓)
+       建对象放在这里(update 阶段,不是 render 途中 ⇒ 不会像 pilot 那次卡死 ✓) */
+    if (!this.airRects.length) {
+      for (let i = 0; i < 2; i++) {
+        this.airRects.push(this.add.rectangle(0, 0, 10, 10, 0x0a0f18, 0.92).setDepth(7).setVisible(false));
+        this.airLines.push(this.add.rectangle(0, 0, 10, 2, 0xbfe9ff, 0.45).setDepth(8).setVisible(false));
+      }
+    }
+    {
+      const fly = CAM_FIXED_MODES.has(w.mode);
+      const wide = vw + 800;
+      /* 下边那块:整条带在视口下边【以下】⇒ 它的上沿正好是限高线 ✓;上边那块反之 ✓ */
+      const yBot = Y(bottom) + 2000, yTop = Y(bottom + vh) - 2000;
+      this.airRects[0].setVisible(fly).setPosition(this.camX, yBot).setSize(wide, 4000);
+      this.airRects[1].setVisible(fly).setPosition(this.camX, yTop).setSize(wide, 4000);
+      this.airLines[0].setVisible(fly).setPosition(this.camX, Y(bottom) + 1).setSize(wide, 2);
+      this.airLines[1].setVisible(fly).setPosition(this.camX, Y(bottom + vh) - 1).setSize(wide, 2);
+    }
     this.camWorldY = rowsU - this.camCenter;             // 换算成 Phaser 相机的绘图空间 y
     cam.centerOn(this.camX, this.camWorldY);
   }
