@@ -839,7 +839,7 @@ export class World {
        ★ 坐标口径:我们的 this.y 是【脚底】不是中心(见落台那段 `this.y = b.y1`)⇒ 下框面直接用 ✓ */
     if (this.y < f.lo) {
       this.y = f.lo;
-      if (this.gdir > 0) this.onGround = true;
+      if (this.gdir > 0) { this.onGround = true; this.airHold = true; }
       this.vy = 0;
     }
     /* 上框面(天花板):源码比较的是【人中心】⇒ 减半个判定盒(迷你 +6,源码 234 那一档) */
@@ -852,10 +852,19 @@ export class World {
     }
     if (this.y > top) {
       this.y = top;
-      if (this.gdir < 0) this.onGround = true;
+      if (this.gdir < 0) { this.onGround = true; this.airHold = true; }
       this.vy = 0;
     }
   }
+
+  /** ★★★ 2026-09 用户:"还是会被吸住无法跳起" —— 根因:夹在下框面时置的 onGround,
+   *  会被【同一子步后面】那段"踩实体"扫描清掉(框面底下没有实体 ✗)⇒ 球站在框面上按不出跳 ✓
+   *  ⇒ 夹取先照源码跑(位置 + setYVel(0) + hitGround),等踩实体扫完再把这次 hitGround 补回去 ✓
+   *  每子步开头由 applyAirLimit 置 false,扫完由 reassertAirGround 收尾 ✓ */
+  reassertAirGround() {
+    if (this.airHold) { this.onGround = true; this.airHold = false; }
+  }
+  private airHold = false;
 
   /** 弹簧 / 跳环给的推力方向(0 = 没有推力飞行)。见 applyFallClamp */
   private boostDir: 1 | -1 | 0 = 0;
@@ -1579,6 +1588,9 @@ export class World {
     }
 
     if (this.x >= this.level.length * U) { this.done = true; }
+    /* ★★★ 2026-09 用户:"还是会被吸住无法跳起" —— 夹取的 hitGround 在这里补回去:
+       它必须排在【踩实体扫描之后】(扫描会把 onGround 清掉,因为框面底下没有实体 ✗)✓ */
+    this.reassertAirGround();
     void prevVy;
   }
 

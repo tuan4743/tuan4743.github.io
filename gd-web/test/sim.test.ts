@@ -616,6 +616,23 @@ test('飞行类碰实心:撞侧面死、擦到顶面【落上去】(flySolid 开
     ';框 ' + Math.round(fr.lo) + '~' + Math.round(fr.hi) + '(八格)' + ')');
 });
 
+test('限高框的下框面就是这个形态的"地面":站在上面能跳(用户:"还是会被吸住无法跳起")', () => {
+  /* 根因:夹在下框面时置的 onGround 会被同一子步后面的"踩实体"扫描清掉(框面底下没有实体 ✗)
+     ⇒ 球站在框面上按不出跳。修法:踩实体扫完再把这次 hitGround 补回去(见 reassertAirGround)✓ */
+  const w = new World(solo([floor60]), undefined, undefined, { flySolid: true });
+  w.reset(0, 'ball', 5 * U);
+  w.onGround = false; w.vy = 0;
+  w.airLo = 0; w.airHi = 320;                       // 框 = 视口中点(160)± 4 格 ⇒ [40, 280]
+  const fr = frameOf(w.airLo, w.airHi);
+  for (let i = 0; i < 200 && !w.onGround; i++) w.frame(false);
+  assert.ok(w.onGround, '应该落在【下框面】上(y=' + (w.y / U).toFixed(2) + ' 块)');
+  assert.ok(Math.abs(w.y - fr.lo) < 0.5,
+    '落点就是下框面 lo=' + fr.lo.toFixed(1) + '(实测 ' + w.y.toFixed(1) + ')');
+  const g0 = w.gdir;
+  w.frame(true);
+  assert.equal(w.gdir, -g0, '站在框面上点一下必须能跳(翻重力)—— 这条就是用户报的"吸住无法跳起" ✓');
+});
+
 test('黑环(冲刺):不管当前速度,直接把垂直速度设成 15 并朝重力方向', () => {
   const lv = solo([
     { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
