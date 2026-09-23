@@ -263,6 +263,8 @@ class Scene extends Phaser.Scene {
   /** 形态图集(static/icons)建好的图层。见 buildIcons() */
   /** 载具里的"驾驶位 cube"(UFO/飞船/球/波浪箭里坐着的那颗)✓ 见 drawIconPlayer */
   pilot: Phaser.GameObjects.Image | null = null;
+  /** 驾驶位诊断只打一次 ✓ */
+  pilotDbgLogged = false;
   /** ★★★ 2026-09 限高框的【外观】:上下各一条地面(用户:"没有贴图,我都看不到限高框在哪")——
    *  源码里 GJFlyGroundLayer : GJGroundLayer 就是这个外观层 ✓ 所以它必须画出来 ✓
    *  airRects = 地面本体(暗底) · airLines = 内沿那条亮线 ✓ 都在 build 阶段建好,每帧只改位置 ✓ */
@@ -2112,7 +2114,22 @@ class Scene extends Phaser.Scene {
        —— 原版载具(UFO/飞船/球/波浪箭)里坐着的是【玩家自己的 cube 图标】,我们以前只画载具 ⇒ 驾驶位空 ✗
        做法:再建一张图,用 cube 那一层的贴图,跟着玩家走、同色 ✓
        (各载具里 cube 的确切缩放/偏移还没从源码核到 ⇒ 现在【同尺寸居中】,已记待办 ✓) */
-    if (!this.pilot) this.pilot = this.add.image(0, 0, 'icon-cube-body').setVisible(false).setDepth(16.5);
+    /* ★★★ 2026-09 修"UFO 驾驶位没有 cube":旧的【渲染途中懒创建】删掉 ✗
+       (当初卡死就是它 —— add.image 发生在 draw 里 ⇒ 显示列表被遍历时被改 ✗)
+       换成一行【一次性】诊断(挂在 pilot 对象上 ⇒ 只打一次,不刷屏 ✗):
+         · "已建" ⇒ 问题在绘制/可见性
+         · "没建出来" ⇒ 问题在 buildIcons 那一步(并打出 icon-cube-body 在不在)
+       有这一行就能定性,不用再来回猜 ✓ */
+    {
+      const dbg = this.pilot as unknown as { _dbg?: boolean } | null;
+      const state = this.pilot ? ('已建 · 贴图=' + this.pilot.texture.key + ' · visible=' + this.pilot.visible)
+        : ('【没建出来】· icon-cube-body 存在吗=' + this.textures.exists('icon-cube-body') + ' · 图集就绪=' + this.iconsReady);
+      if (!dbg?._dbg) {
+        if (dbg) dbg._dbg = true;
+        this.pilotDbgLogged = true;
+        console.info('[gd] 驾驶位 cube:' + state + ' · 形态=' + w.mode);
+      }
+    }
     const PILOT_MODES = new Set(['ship', 'ufo', 'wave', 'ball']);
     /* ★★★ 2026-09 单变量复测:上一次卡死(g114)那一版里,除了这个 pilot 【限高也是开着的】✗
        ⇒ 我一直没做过"只开 pilot、限高关着"的干净测试。现在就是这样:
