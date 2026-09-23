@@ -2015,17 +2015,23 @@ class Scene extends Phaser.Scene {
        现在:这个形态【真有图层】才走图集并跳过矢量;没有就走矢量兜底 ⇒ 无论图层成不成都有东西 ✓ */
     const hasLayer = this.iconLayers.some((l) => l.mode === w.mode);
     if (hasLayer && w.mode !== 'robot' && w.mode !== 'spider') this.drawIconPlayer(w, cxw, Y(cyw), B);
-    if (!hasLayer) console.warn('[gd] 形态 ' + w.mode + ' 没有图层 ⇒ 走矢量画法(图集就绪=' + this.iconsReady + ')');
+    /* ★ 这里【绝不能】每帧 console.warn:devtools 开着时一帧一条会把页面拖死(用户已经踩过一次卡死 ✗)
+       ⇒ 只在"形态图层表"变化时打一次(buildIcons 结束时那条 [gd] 日志已经够定位 ✓) */
     /* ★★★ 2026-09 用户:"bird 外观是一个 UFO,但驾驶位在原版是独立的一个 cube,所以现在驾驶位是空的"
        —— 原版载具(UFO/飞船/球/波浪箭)里坐着的是【玩家自己的 cube 图标】,我们以前只画载具 ⇒ 驾驶位空 ✗
        做法:再建一张图,用 cube 那一层的贴图,跟着玩家走、同色 ✓
        (各载具里 cube 的确切缩放/偏移还没从源码核到 ⇒ 现在【同尺寸居中】,已记待办 ✓) */
     if (!this.pilot) this.pilot = this.add.image(0, 0, 'icon-cube-body').setVisible(false).setDepth(16.5);
     const PILOT_MODES = new Set(['ship', 'ufo', 'wave', 'ball']);
-    if (PILOT_MODES.has(w.mode)) {
+    /* ★★★ 2026-09 修"碰到 bird 门卡死"(用户实测)★ 这是我上一轮引入的 ✗:
+       pilot 用的 'icon-cube-body' 在 cube 那一层没建出来时【根本不存在】⇒ this.add.image 抛异常,
+       异常发生在渲染循环里 ⇒ 整页卡死(第一次进载具形态才触发 = 碰上 bird 门那一下 ✓)
+       => 先查 textures.exists,没有就【不画驾驶位】,绝不抛 ✓ */
+    if (PILOT_MODES.has(w.mode) && this.textures.exists('icon-cube-body')) {
+      if (!this.pilot) this.pilot = this.add.image(0, 0, 'icon-cube-body').setVisible(false).setDepth(16.5);
       this.pilot.setVisible(on).setPosition(cxw, cyw).setRotation(0).setFlipY(w.gdir < 0)
         .setTint(w.dead ? 0xff7a5a : PLAYER_C1).setDisplaySize(B, B);
-    } else this.pilot.setVisible(false);
+    } else this.pilot?.setVisible(false);
     /* ★★★ 2026-09 双人:玩家 2 也画一遍(状态换进换出,所以画法和玩家 1 完全一样 ✓)
        已知缺口:robot/spider 的【部件动画】那条路(P2 目前只画图标本体)✗ 已记进待办 ✓ */
     if (w.dualInto()) {
