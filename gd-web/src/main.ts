@@ -44,10 +44,9 @@ const CULL_MARGIN = 24 * 30;
 const CAM_LOW = 90;                       // 上沿余量 3 格
 const CAM_MID = 120;                      // 下沿余量 4 格
 const CAM_GROUND_BOTTOM = -90;            // 站在地面上:视野下边(地面之上 3 格)
-const CAM_FLY_BELOW = 180;                // 进门时算"低空"的阈值(6 格)
-const CAM_FLY_CENTER = 150;               // 低空进门 → 视口中心固定在 5 格
-const CAM_BALL_BELOW = 150;
-const CAM_BALL_CENTER = 120;
+/* ★ 2026-09 删掉 CAM_FLY_BELOW / CAM_FLY_CENTER / CAM_BALL_BELOW / CAM_BALL_CENTER:
+   那四个是我从 OpenGD 抄的"门高度阈值"(180/150/120)✗ —— 真源码(asm 451064-451076)算相机目标
+   只用【玩家中心 + 屏高 + 30 对齐 + 地面下限】,没有门高度这一档 ✓ 留着只会误导 ✗ */
 /** 视口【钉死】的形态(原版:除方块外都固定;用户点名 Wave/UFO 就是这样)。
  *  ★ 机器人 / 蜘蛛:OpenGD 没给它们设中心(沿用上一个值),但用户那关这两段要纵爬 5~16 格,
  *    钉死会把人拍出画外 —— 所以这两种按方块跟随。这两行是我们自己定的,已写进文档。 */
@@ -1523,14 +1522,15 @@ class Scene extends Phaser.Scene {
            我们这套引擎的门是【越过 x 就生效】(DOOR_KINDS,"到达这一 x 就触发")⇒ 玩家可能在上/下很远的地方 ✗,
            再拿门的 y 去锁 ⇒ 框落在玩家根本不在的高度上(就是"高度不对" ✓)
            ⇒ 等价量是【越过那一刻玩家自己的 y】:公式照源码不动,只把输入换成它 ✓ */
-        const portalY = w.y;
-        if (w.mode === 'ball') {
-          this.camCenter = portalY < CAM_BALL_BELOW ? CAM_BALL_CENTER
-            : Math.floor((portalY + CAM_LOW) / U) * U - CAM_LOW;
-        } else {
-          this.camCenter = portalY < CAM_FLY_BELOW ? CAM_FLY_CENTER
-            : Math.floor((portalY + CAM_LOW) / U) * U - CAM_LOW;
-        }
+        /* (原来这里从门/玩家高度取 m_fCameraYCenter 的那套 CAM_* 阈值已删——真源码用的是下面那条玩家公式 ✓) */
+        /* ★★★ 源码(asm 451064-451076,`animateInDualGroundNew`)—— 这是【进门那一刻算一次目标】的地方:
+             v8 = getTargetFlyCameraY(player); v11 = floor((v8 − 屏高/2)/30)*30; if (v11 <= 90) v11 = 90
+             *(this+680) = v11 + 屏高/2
+           ⇒ 我们坐标:camBottom = max(0, floor((玩家中心 − 屏高/2)/30) × 30) ⇒ 相机中心 = 它 + 屏高/2 ✓
+           ★★ 用户:"摄像机跟人是要把人晃死吗?" —— 对 ✗:这个公式只在【进门那一下】用一次,
+              之后相机是【钉住】的(每帧按格跟人 ⇒ 视野一格一格跳 ✗)。我上一版把它挂到每帧了 ✗ */
+        const camBottomWant = Math.max(0, Math.floor((w.y + (P.box * w.sizeMul) / 2 - vh / 2) / U) * U);
+        this.camCenter = camBottomWant + vh / 2;
         /* ★★★ 2026-09 用户两条:"为什么摄像机是突然被固定的" + "为什么限高框没有出现的动画"
            ⇒ ① 区间锁在【进门这一刻的目标视口中心】(此前 sim 拿到的是每帧移动的视口 ⇒ 框会跟着飘 ✗)
              ② 相机实际高度每帧朝目标靠 0.1(照搬 updateCamera 末尾那句 iLerp ✓,不是瞬移 ✗)
@@ -1551,17 +1551,11 @@ class Scene extends Phaser.Scene {
     const py = midY + (P.box * w.sizeMul) / 2;           // 视点中心(单人时就是人中心 ✓)
     let bottom: number;
     if (CAM_FIXED_MODES.has(w.mode)) {
-      /* ★★★ 2026-09 用户:"摄像头位置" ⇒ 去挖源码,挖到了(asm 451064-451076,
-         `GJBaseGameLayer::animateInDualGroundNew`,进门那一刻就是它摆相机):
-             v8  = getTargetFlyCameraY(player)        ← 目标来自【玩家】,不是门 ✗(我前几版锁门/锁进门高度都错)
-             v11 = v8 − 屏高/2; v11 = floor(v11/30)*30 ← 向下对齐到【一格】
-             if (v11 <= 90.0) v11 = 90.0              ← 下限 90(= 原版地面面;我们的 0)
-             *(this+680) = v11 + 屏高/2               ← 相机中心
-         ⇒ 换成我们的坐标(我们 = 原版 − 90):
-             camBottom = max(0, floor((玩家中心 − 屏高/2) / 30) × 30)   ← 跟着人走 ✓ 按格对齐 ✓ 不低过地面 ✓
-         限高框锚在屏幕上 ⇒ 相机跟着人走 = 框自然跟着人走 ✓✓(这才是"限制框"的手感 ✓)
-         ★ 旧的 camPinY/camPinTarget(钉死 + 0.1 靠拢)因此作废 —— 保留字段不再使用 ✗ */
-      bottom = Math.max(0, Math.floor((py - vh / 2) / U) * U);
+      /* ★★ 钉死在【进门算好的目标】上,只做 0.1/帧 的平滑靠拢 ✓
+         (每帧按格跟人 = 视野一格一格跳,晃死 ✗ —— 用户指出 ✓;animateInDualGroundNew 只是进门那一次 ✓) */
+      this.camPinY = this.camPinY == null ? this.camPinTarget
+        : this.camPinY + (this.camPinTarget - this.camPinY) * 0.1;
+      bottom = this.camPinY - vh / 2;
     } else {
       const flip = w.gdir < 0;
       const unk2 = flip ? CAM_MID : CAM_LOW;             // 上沿余量
