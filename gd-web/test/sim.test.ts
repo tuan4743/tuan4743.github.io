@@ -598,11 +598,11 @@ test('飞行类碰实心:撞侧面死、擦到顶面【落上去】(flySolid 开
         相机局部;贴图 128 高、镜像后挂节点下面 ⇒ 面 = 节点 − 128 ⇒ 面离视口上边 =(320+128)−节点;
         我们的 y 是【脚底】不是中心 ⇒ 再减半个判定盒):
           脚底上限 = 视口上边 − 12(源码数反推)− 12 − 半个判定盒 ✓ */
-  const capW = new World(lv, undefined, undefined, { flySolid: true });
+  const capW = new World(solo([floor60, { kind: 'block', b: 0, r: 0, w: 1, h: 40 }]), undefined, undefined, { flySolid: true });
   capW.reset(19 * U, 'ufo', 3.5 * U);
   capW.speedIdx = 1; capW.gdir = 1; capW.vy = 0;
   /* ★ 框高 = 源码 getGroundHeightForMode(ufo = 300),以相机为中心 ✓ */
-  capW.airLo = -600; capW.airHi = -270;                 // 取景放到关卡下方:框 [−585,−285] 不会撞关卡顶 ✓
+  capW.airLo = 300; capW.airHi = 630;                   // 取景放在关卡中段:框 [315,615] 全在关卡内 ✓
   const fr = frameOf('ufo', capW.airLo, capW.airHi);
   assert.equal(Math.round(fr.hi - fr.lo), groundHeightOf('ufo'), 'ufo 的这段高度 = 300(getGroundHeightForMode)✓');
   capW.y = fr.hi - 4 * U; capW.vy = 0; capW.onGround = false;   // 从框内偏上出发,硬顶
