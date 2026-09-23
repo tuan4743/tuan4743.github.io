@@ -1556,9 +1556,10 @@ export class World {
          建的,门改成忠实行为后它在第一个飞机缝前会撞死。真实铺面(level.fromGD)走原版口径,
          老关卡保留旧的抬升 —— 两边都不坏。 */
       if (!this.strict && to === 'ship' && this.y < 3 * U) this.y = 3 * U;
-      /* ★★★ 2026-09 限制框(见 applyAirLimit):【进门这一刻的高度】就是这一屏的中心,
-         之后人被夹在这一屏里 ⇒ 这就是"固定高度区间"的锁 ✓ */
-      this.portalY = this.y;
+      /* ★★★ 2026-09 定位(用户:"现在是上一下六!!!给我找出原因"):这里原来还有一行
+         `this.portalY = this.y;` ✗✗ —— 它在上面那行(门的判定盒中心 ✓)之后【8 行】又把锚点
+         覆盖成【玩家跨门那一刻站的高度】✗ ⇒ 限高框变成"按玩家位置摆"(实测球门因此低 2 格,
+         上三下四变成上一下六 ✓)。限高框的锚点必须是【门自己的位置】⇒ 该行删除 ✓ */
     }
     for (const b of this.speeds) {
       if (this.armedSpeeds.has(b)) continue;
