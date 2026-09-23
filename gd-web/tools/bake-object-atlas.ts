@@ -67,5 +67,13 @@ for (const src of SOURCES) {
   console.log('  ' + src.image + ': 命中 ' + frames.length + ' 帧');
 }
 console.log('合计命中 ' + found + ' / ' + want.size + (found === want.size ? '  ✓ 全中' : '  (缺 ' + (want.size - found) + ' 个,那些 id 继续矢量 ✓)'));
-fs.writeFileSync('../static/assets/gd-object-atlas.json', JSON.stringify({ textures, meta: { app: 'gd-decomp-bake-objects', scale: '1' } }, null, 1), 'utf8');
+/* ★ 一并烘出【id → 帧名】映射(引擎按 id 取帧要用它 ✓;只含命中的 ⇒ 缺帧的 id 自然走矢量 ✓) */
+const idMap: Record<string, string> = {};
+const hitFrames = new Set(textures.flatMap((t) => t.frames.map((f) => f.filename)));
+for (const id of ids) {
+  const t = table[String(id)]?.texture_name;
+  if (t && hitFrames.has(t)) idMap[String(id)] = t;
+}
+console.log('  id → 帧 映射 ' + Object.keys(idMap).length + ' 条(其余 id 走矢量 ✓)');
+fs.writeFileSync('../static/assets/gd-object-atlas.json', JSON.stringify({ textures, ids: idMap, meta: { app: 'gd-decomp-bake-objects', scale: '1' } }, null, 1), 'utf8');
 console.log('  ⇒ static/assets/gd-object-atlas.json(' + Math.round(fs.statSync('../static/assets/gd-object-atlas.json').size / 1024) + ' KB)');
