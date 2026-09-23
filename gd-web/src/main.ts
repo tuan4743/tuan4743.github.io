@@ -299,8 +299,7 @@ class Scene extends Phaser.Scene {
    *  `updateCameraBGArt` 里两块地面的位置都 `× 它` ⇒ 进场时【两条带从外面收进来】(地面自下而上、
    *  天花板自上而下 ✓),0.5 秒、缓动 smoothstep(源码 tweenValue 的 rate/2.0 等效)✓
    *  ★ 判定和画面用【同一组动画中的面】⇒ 不会出现"带子在动、判定在最终位置"的错位(那就是顶飞 ✓) */
-  bandT = 1;
-  /** 动画中的两条面(判定与画面共用 ✓):进场时从最终位置外 3 格收到面上 ✓ */
+  /** 动画中的两条面(判定与画面共用 ✓):首次进场从框外 3 格收到面上;相邻切换从当前位置移过去 ✓ */
   animLo = 0;
   animHi = 0;
   /** 两条框的贴图色:原版地面贴图是白的,由【关卡地面色(通道 1001)】染色
@@ -1561,18 +1560,17 @@ class Scene extends Phaser.Scene {
          ⇒ 进门那一刻【定住】:锚点 = 那一刻的玩家位置,框 = 锚点 ± gh/2(下沿不低于地面 0)✓
          ⇒ 之后相机不动(不吸格线、不跟人)⇒ 不晃 ✓;框也不动 ⇒ 不会被拽 ✓;两条带【静态】贴在框面上 ✓
          ✗ 我之前每帧跟人 / 每帧吸格线,都是我自己加的,两次都被你否掉 ✓ */
-      if (!this.camPinned) {
-        /* ★★★ 用户口径:"球门中心的格子上三下四,UFO门中心的上四下五,wave 上四下五,ship 上四下五
-           —— 每个门都不一样" ⇒ 框锚在【门所在那一格】上 ✓(不是玩家、不是相机 ✗ —— 我前面几版全锚错了)
-           portalFrame:hi = 门中心 + (上+0.5)×30,lo = 门中心 − (下+0.5)×30
-           (门那格 1 格高 ⇒ 两面都落在 30 的格线上 ✓ —— 这就是"为什么不是整格"的答案 ✓) */
-        /* 门那一格的下沿【先吸到格线】(门可能被记成格心 30k+15,也可能记成格边界 30k)⇒
-           这样不论哪种,两条面都永远是 30 的整数倍 ✓(用户:"为什么还不是整格" ✓) */
-        const cellBottom = Math.round((w.portalY - U / 2) / U) * U;
-        const ud = PORTAL_FRAME[w.mode] || { up: 4, down: 5 };
-        let fr = { lo: cellBottom - ud.down * U, hi: cellBottom + U + ud.up * U };
-        /* 兜底(只按【整格】平移,绝不缩放):万一这一刻玩家不在框内(自动/演示流程里 portalY 可能是旧值),
-           把整段框平移到他装得下为止 ⇒ 永远不会把人从框外拽进来(那就是"顶飞" ✓) */
+      /* ★★★ 用户:"相邻状态,如 UFO→球,不该重新播放动画,而是从当前位置移动" ✓
+         源码正是如此:animateInDualGroundNew 进门时先把 `this[218]` 按【新旧布局比例】重算
+         (asm 451106-451121),再从当前值 tween 到 1.0 ⇒ "接着走",不是重播 ✓ */
+      const cellBottom = Math.round((w.portalY - U / 2) / U) * U;   // 门那一格下沿吸到格线 ✓
+      const ud = PORTAL_FRAME[w.mode] || { up: 4, down: 5 };
+      let fr = { lo: cellBottom - ud.down * U, hi: cellBottom + U + ud.up * U };
+      const firstEntry = !this.camPinned;                 // 从方块/其它非飞行形态【第一次】进来 ✓
+      /* ★★ 兜底【只在进门那一刻】用一次 ✗ 不能每帧跑:每帧跑就等于"框跟着玩家走"(用户明确否掉的 ✗,
+         探针实测 lo 被推到 106、永远 settled=false ✓)。进门那一刻若玩家不在框内(自动/演示流程里
+         portalY 可能是旧值),把整段框按【整格】平移到他装得下为止 ⇒ 不会被从框外拽进来 ✓ */
+      if (firstEntry) {
         const pcenter = w.y + (P.box * w.sizeMul) / 2;
         const need = 45;
         if (pcenter > fr.hi - need) {
@@ -1583,23 +1581,23 @@ class Scene extends Phaser.Scene {
           const d = Math.ceil(((fr.lo + need) - pcenter) / U) * U;
           fr = { lo: fr.lo - d, hi: fr.hi - d };
         }
-        this.frameLo = fr.lo; this.frameHi = fr.hi;
-        this.camPinTarget = (fr.lo + fr.hi) / 2;      // 相机 = 框中心,进门平滑靠过去一次 ✓
-        this.camPinY = this.camBottom + vh / 2;
-        this.camPinned = true;
-        this.bandT = 0;                               // ★ 进场动画从 0 开始 ✓
       }
-      /* ★★★ 进场动画(源码 this[218] / +872)✓:两条带从【最终位置外 3 格】收到各自面上,
-         0.5 秒 smoothstep ⇒ 地面自下而上、天花板自上而下 ✓(不是"上框从下面出来" ✗)
-         判定与画面共用这两个【动画中的面】⇒ 绝不错位 ✓ */
-      const dtSec = Math.min(0.05, this.game.loop.delta / 1000);
-      this.bandT = Math.min(1, this.bandT + dtSec / 0.5);
-      const e = this.bandT * this.bandT * (3 - 2 * this.bandT);
-      const open = 3 * U * (1 - e);
-      this.animLo = (this.frameLo as number) - open;
-      this.animHi = this.frameHi + open;
+      this.frameLo = fr.lo; this.frameHi = fr.hi;
+      this.camPinTarget = (fr.lo + fr.hi) / 2;            // 相机中心 = 新框中心(平滑靠 ✓)
+      if (firstEntry) {
+        this.camPinY = this.camBottom + vh / 2;
+        this.animLo = fr.lo - 3 * U; this.animHi = fr.hi + 3 * U;   // ★ 只有首次才从框外收进来 ✓
+        this.camPinned = true;
+      }
+      /* 相邻切换(UFO→球):animLo/animHi 【原样保留】⇒ 从【当前位置】移动到新位置 ✓(不重播 ✗) */
       this.camPinY = this.camPinY == null ? this.camPinTarget
         : this.camPinY + (this.camPinTarget - this.camPinY) * 0.1;
+      this.animLo += ((this.frameLo as number) - this.animLo) * 0.12;
+      this.animHi += (this.frameHi - this.animHi) * 0.12;
+      /* ★ 收尾【吸死】:指数逼近永远差那么一点点(实测 60.0005)⇒ 差得够小就直接落到位,
+         保证停下来时两条面是【精确的 30 整数倍】(用户:"为什么还不是整格" ✓) */
+      if (Math.abs((this.frameLo as number) - this.animLo) < 0.5) this.animLo = this.frameLo as number;
+      if (Math.abs(this.frameHi - this.animHi) < 0.5) this.animHi = this.frameHi;
       bottom = this.camPinY - vh / 2;
     } else {
       this.camPinY = null; this.camPinned = false; this.frameLo = null;
