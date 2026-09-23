@@ -660,8 +660,13 @@ class Scene extends Phaser.Scene {
       if (q) for (const k of Object.keys(ICON_COL) as Mode[]) ICON_COL[k][0] = parseInt(q[2], 16);
       if (q2) for (const k of Object.keys(ICON_COL) as Mode[]) ICON_COL[k][1] = parseInt(q2[2], 16);
       for (const a of ICON_ATLAS) {
-        this.load.image('iconimg-' + a.file, '/icons/' + a.file + '.png');
-        this.load.text('iconxml-' + a.file, '/icons/' + a.file + '.plist');
+        /* ★★★ 2026-09 修"cube.png 208×252 vs plist 252×244"(用户给的 console 原文):
+           服务器上的 cube.png 已经是新的(252×244,fetch 实测 ✓),但浏览器缓存里存着【换图之前】
+           那份 208×252 ✗ —— 而 /icons/*.png 这个 URL 没有版本尾巴,于是每次都拿旧的:
+           尺寸校验不过 ⇒ cube 那层被跳过 ⇒ cube 没贴图 + 载具驾驶位空 ✓✓
+           ⇒ 图标 URL 也带上 ART_V(和 gd-object-atlas.json 一个办法 ✓) */
+        this.load.image('iconimg-' + a.file, '/icons/' + a.file + '.png?v=' + ART_V);
+        this.load.text('iconxml-' + a.file, '/icons/' + a.file + '.plist?v=' + ART_V);
       }
       /* ★ 机器人/蜘蛛:【UHD 图集】+ 部件动画表(官方 AnimDesc 烘出来的 ✓)
          —— 用 multiatlas 一次加载两张 uhd 图集(JSON 里的 image 字段相对 /icons/ ✓),
