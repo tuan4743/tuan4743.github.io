@@ -601,11 +601,10 @@ test('飞行类碰实心:撞侧面死、擦到顶面【落上去】(flySolid 开
   const capW = new World(lv, undefined, undefined, { flySolid: true });
   capW.reset(19 * U, 'ufo', 3.5 * U);
   capW.speedIdx = 1; capW.gdir = 1; capW.vy = 0;
-  /* ★ 框 = 【门锚定】(用户口径):UFO 门 上四下五 ⇒ 中间那格是门自己 ⇒ 共十格 ✓ */
-  capW.portalY = 100;                                   // 合成关卡只有 10 格高 ⇒ 门放低一点,免得先撞"超过关卡顶即死"
-  const fr = portalFrame(capW.portalY, 'ufo');
-  capW.airLo = fr.lo; capW.airHi = fr.hi;               // 页面就是把门锚定的区间写进这两个字段 ✓
-  assert.equal(Math.round(fr.hi - fr.lo), (4 + 5 + 1) * U, 'ufo 门:上四下五 + 门自己那格 = 十格');
+  /* ★ 框 = 取景窗口锚定(见 frameOf):下框面 = 取景下边 + 1 格,上框面 = 再 +8 格 ⇒ 空档八格 ✓ */
+  capW.airLo = 0; capW.airHi = 330;                     // 取景 = 一屏(330)
+  const fr = frameOf(capW.airLo, capW.airHi);
+  assert.equal(Math.round(fr.hi - fr.lo), FLY_BAND, '空档必须正好八格(240)');
   capW.y = fr.hi - 4 * U; capW.vy = 0; capW.onGround = false;   // 从框内偏上出发,硬顶
   const cap = fr.hi - 12 - capW.box / 2;
   for (let f = 0; f < 40 && !capW.dead; f++) capW.frame(f % 8 === 0);   // 一路往上顶(别飞过铺面尽头)
