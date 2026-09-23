@@ -1073,7 +1073,11 @@ class Scene extends Phaser.Scene {
        this.add.image 建 pilot ✗:那是在 display list 被遍历的时候往里塞对象 ⇒ 卡死 ✓✓
        ⇒ 改成在这里(图集构建完、渲染还没开始)就把它建好,绘制时只改位置/尺寸/颜色 ✓ */
     if (this.textures.exists('icon-cube-body')) {
-      this.pilot = this.add.image(0, 0, 'icon-cube-body').setVisible(false).setDepth(16.5);
+      /* ★★★ 2026-09 用户:"继续修UFO的cube" —— 探针实测驾驶位 cube 的 depth=16.5 >
+         载具本体 16 / 第二色层 15.5 ⇒ 【cube 画在 UFO 上面】✗
+         原版是反的:cube 是玩家本体、UFO/飞船是【坐在外面的载具】,载具压在本体上面
+         (座舱盖住 cube 的上半,只露出下面一截 ✓)⇒ 驾驶位必须排在载具两层【之下】✓ */
+      this.pilot = this.add.image(0, 0, 'icon-cube-body').setVisible(false).setDepth(15);
     }
     this.iconsReady = this.iconLayers.length > 0;
     console.log('[gd] 形态图集就绪:' + this.iconLayers.map((l) => l.mode + '(' + l.bw + '×' + l.bh + ')').join(' '));
