@@ -876,7 +876,7 @@ export class World {
     if (this.mode === 'cube') return;                    // 源码:只夹【非方块】那一支 ✓
     if (this.airLo == null || this.airHi == null) return;   // 页面还没跑:不夹 ✓
     if (!FIXED_CAM_MODES.has(this.mode)) return;
-    const f = frameOf(this.airLo as number, this.airHi as number);
+    const f = frameOf(this.mode, this.airLo as number, this.airHi as number);
     /* 下框面(这个形态的"地面"):贴回去 + hitGround + setYVel(0) —— 源码 `if (!isGravityFlipped()) hitGround(false)`
        ★ hitGround 必须照搬:原版【地面根本不是物件】,球能在地上跳靠的就是这一句把落地标记置上 ✓
          (我们这里也有真地面物件,但夹取先跑、人不陷进去 ⇒ 那套"踩实体"识别不到 ⇒ 球/机器人永远跳不起来 ✗ 实测过)
