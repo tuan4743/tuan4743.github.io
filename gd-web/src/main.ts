@@ -76,7 +76,7 @@ const ICON_ENABLED = true;   // ★ 临时默认打开(用户 2026-09:"要")—�
  *  所以:默认**不加载**这张图集(省 121 KB),要研究就加 `?art=1`(代码保留,别再当默认)。 */
 const ART_ENABLED = true;    // ★ 2026-09 重新打开:现在用的是【官方图集 + 真映射】(不是早期那套猜的表 ✓)
 /* 图集版本号:每次重烘 gd-object-atlas.json / gd-art-*.png 就改一次 ⇒ 浏览器不会吃旧缓存 ✓ */
-const ART_V = 'u1';
+const ART_V = 'u2';
 /** ★★ 无敌模式的"轨道上限"(用户口径:"给无敌模式加个上限,不允许脱离预定轨道")。
  *  为什么:无敌本身解决不了"人卡出墙/飞到天上"—— 以前只贴住关卡边界(0 ~ 127 格),
  *  于是开了无敌就能一路飞到 y=110 把整关绕过去,玩起来完全不是这张图。
@@ -324,12 +324,12 @@ class Scene extends Phaser.Scene {
   }
 
   /** 把一个池子里的 Image 摆好;返回 false 表示这帧没画(调用方走矢量兜底) */
-  private drawArtObject(o: Obj, key: string, dx: number, dy: number, cwU: number, chU: number, tintCol = 0xffffff): boolean {
+  private drawArtObject(o: Obj, key: string, dx: number, dy: number, tintCol = 0xffffff, depth = 6): boolean {
     const tex = this.textures.get('gd-art');
     const fr = tex && tex.has(key) ? tex.get(key) : null;
     if (!fr) return false;
     let img = this.artPool[this.artUsed];
-    if (!img) { img = this.add.image(0, 0, 'gd-art').setDepth(6); this.artPool.push(img); }
+    if (!img) { img = this.add.image(0, 0, 'gd-art').setDepth(depth); this.artPool.push(img); }
     this.artUsed++;
     /* ★★★ 2026-09 用户:"速度门/形态门等贴图方向不对或者大小不对,原版门贴图大小应该是竖着的三格"
        —— 以前 k = 物件判定盒高 ÷ 帧高 ✗ ⇒ 门在铺面里是 1 格高的物件,
@@ -338,10 +338,17 @@ class Scene extends Phaser.Scene {
        ⇒ k = 1/4(我们用的是 uhd 图集 ✓)⇒ 3 格高的门自然就是 90 单位高 ✓
        锚点:门/速度门/迷你门 = 贴图【底边贴物件底边】(否则 3 格美术会往上冒 1 格 ✓);其余居中 ✓ */
     const k = 0.25;                                   // uhd:4 px = 1 世界单位
-    const isDoor = o.kind === 'portal' || o.kind === 'speed' || o.kind === 'size';
     const dispW = fr.width * k, dispH = fr.height * k;
-    const drawY = isDoor ? dy + chU / 2 + dispH / 2 : dy;   // dy 是物件中心 ⇒ 门口要抬到"底边对齐" ✓
-    img.setVisible(true).setTexture('gd-art', key).setPosition(dx, drawY);
+    /* ★★★ 2026-09 用户:"竖了,但整体偏高/偏低" —— 病根是我上一轮给门加的【底边对齐】✗
+       硬证据(GD 自己的判定表 _pHitboxes,见 gdids.ts,单位 1 块 = 30):
+         形态门 34×86 == 贴图 34×85 ✓  速度门 0 档 35×44 == 贴图 35×44 ✓
+         速度门 2 档 51×56 == 50.5×56.5 ✓  3 档 65×56 ✓  4 档 69×56 ✓
+       ⇒ 门的判定盒【就是贴图外框】,而 GD 的判定盒以【物件中心】为心 ⇒ 贴图必须【居中】画,
+          和砖/刺/环一个规矩 ✓
+       上一轮 `dy + chU/2 + dispH/2` 把 3 格高的门整体抬了 (86+85)/2 = 85.5 单位 ≈ 2.85 格 ✗
+       —— 这正是"整体偏高";也解释了更早那次"速度门往下偏移两格":同一个锚点来回错 ✓ */
+    const drawY = dy;                                 // 居中 ✓(isDoor 只留给注释/后续层判断用)
+    img.setVisible(true).setTexture('gd-art', key).setPosition(dx, drawY).setDepth(depth);
     img.setRotation(((o.rot ?? 0) * Math.PI) / 180);
     /* ★★★ 2026-09 用户:"速度箭头有几个箭头的方向不对,各种门贴图也是方向不对"
        —— GD 里门/箭头的朝向来自【flipX / flipY】(不是 rot ✗),我们以前没做 ⇒ 该翻的都没翻 ✓ */
@@ -1585,7 +1592,19 @@ class Scene extends Phaser.Scene {
       this.drawn++;
       /* ★ 有贴图的物件直接画贴图(锯片/弹簧板/存档点/硬币/刺),没贴图的走下面的矢量画法 */
       const artKey = this.artKeyOf(o);
-      if (artKey && this.drawArtObject(o, artKey, obx + obw / 2, oBot - obh / 2, obw, obh, o.kind === 'block' ? tint : 0xffffff)) continue;
+      if (artKey) {
+        /* ★★★ 2026-09 用户:"补 back 层" —— 原版门是两层:
+             portal_XX_back 画在【玩家后面】、portal_XX_front 画在【玩家前面】
+           出处(反编译 GameObject:: 那个建门精灵的函数):back/front 各建一个 CCSpritePlus,
+             位置都取物件自己的 getPosition(),并 followSprite(物件) ⇒ 同一位置、只是层不同 ✓
+           我们的深度:砖/贴图 6 · 玩家 16/17 ⇒ back = 7(压着砖、在玩家后)、front = 17.5(盖住玩家)✓ */
+        const backKey = artKey.replace('_front_', '_back_');
+        const hasBack = backKey !== artKey && !!this.textures.get('gd-art')?.has(backKey);
+        const col = o.kind === 'block' ? tint : 0xffffff;
+        const ax = obx + obw / 2, ay = oBot - obh / 2;
+        if (hasBack) this.drawArtObject(o, backKey, ax, ay, col, 7);
+        if (this.drawArtObject(o, artKey, ax, ay, col, hasBack ? 17.5 : 6)) continue;
+      }
       switch (o.kind) {
         case 'platform':
           if (o.r < 0) {

@@ -172,7 +172,10 @@ const ORB_MAP: Record<string, string> = {
 const table = JSON.parse(fs.readFileSync('../../.tmp/OpenGD-object.json', 'utf8')) as Record<string, { texture_name?: string }>;
 const want = new Set<string>(Object.values(ORB_MAP));
 for (const id of ids) { const t = table[String(id)]?.texture_name; if (t) want.add(t); }
-console.log('本关 id ' + ids.size + ' 种 ⇒ 需要的贴图帧 ' + want.size + ' 个');
+/* ★ 门的 back 层也要(用户:"补 back 层")—— 原名是 portal_XX_front_001.png ⇒ 换成 _back_ ✓
+   反编译:GD 给门建 back/front 两个精灵,位置都取物件自己的 getPosition() ⇒ 同位置不同层 ✓ */
+for (const n of [...want]) if (n.includes('_front_')) want.add(n.replace('_front_', '_back_'));
+console.log('本关 id ' + ids.size + ' 种 ⇒ 需要的贴图帧 ' + want.size + ' 个(含门的 back 层 ✓)');
 
 /* 2) 逐帧:取出【直立】的大图块(必要时转正,方向用标准图集当参照 ✓) */
 type OutFrame = { filename: string; img: Img };
