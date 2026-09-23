@@ -75,6 +75,8 @@ const ICON_ENABLED = true;   // ★ 临时默认打开(用户 2026-09:"要")—�
  *  而 plist 只给"每块多大、在图集哪儿",不给"摆在哪" ⇒ 我按"各自画布中心对齐"拼出来的全是错位碎片。
  *  所以:默认**不加载**这张图集(省 121 KB),要研究就加 `?art=1`(代码保留,别再当默认)。 */
 const ART_ENABLED = true;    // ★ 2026-09 重新打开:现在用的是【官方图集 + 真映射】(不是早期那套猜的表 ✓)
+/* 图集版本号:每次重烘 gd-object-atlas.json / gd-art-*.png 就改一次 ⇒ 浏览器不会吃旧缓存 ✓ */
+const ART_V = 'u1';
 /** ★★ 无敌模式的"轨道上限"(用户口径:"给无敌模式加个上限,不允许脱离预定轨道")。
  *  为什么:无敌本身解决不了"人卡出墙/飞到天上"—— 以前只贴住关卡边界(0 ~ 127 格),
  *  于是开了无敌就能一路飞到 y=110 把整关绕过去,玩起来完全不是这张图。
@@ -613,8 +615,9 @@ class Scene extends Phaser.Scene {
            GJ_GameSheet{02}-uhd 两张 uhd 图集 + 38 帧矩形 + 38 条 id→帧名(来自 OpenGD 的 object.json ✓)
          ⇒ 不再用早期"尺寸/颜色/唯一命中"猜出来的自造表 ✗
          注:取帧那一处若仍按旧帧名查,会全部查空 ⇒ 必须先改用本 JSON 的 ids 映射(下一步)✓ */
-      if (!this.textures.exists('gd-art')) this.load.multiatlas('gd-art', '/assets/gd-object-atlas.json', '/icons/');
-      this.load.json('gd-art-ids', '/assets/gd-object-atlas.json');
+      /* ★ 2026-09 图集 JSON 加版本尾巴:换图集时浏览器才不会拿旧的(JSON 是运行时抓的,不吃 bundle 的 ?v= ✗) */
+      if (!this.textures.exists('gd-art')) this.load.multiatlas('gd-art', '/assets/gd-object-atlas.json?v=' + ART_V, '/icons/');
+      this.load.json('gd-art-ids', '/assets/gd-object-atlas.json?v=' + ART_V);
       this.load.once('complete', () => { this.artReady = this.textures.exists('gd-art'); });
       this.load.start();
     }
