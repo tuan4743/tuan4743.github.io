@@ -1566,7 +1566,9 @@ class Scene extends Phaser.Scene {
          ✗ 我之前每帧跟人 / 每帧吸格线,都是我自己加的,两次都被你否掉 ✓ */
       if (!this.camPinned) {
         const gh = groundHeightOf(w.mode);
-        const lo = Math.max(0, py - gh / 2);
+        /* ★★★ 下沿必须【按 30 格线对齐】—— 源码进门那一步就是 `floorf(v11/30)*30`(asm 451070)✓,
+           我在换方案时把这句丢了 ✗(用户:"为什么还不是整格")。下限 = 地面 0 ✓(asm 449845) */
+        const lo = Math.max(0, Math.floor((py - gh / 2) / U) * U);
         this.frameLo = lo; this.frameHi = lo + gh;
         this.camPinTarget = lo + gh / 2;              // 相机中心 = 框中心
         this.camPinY = this.camBottom + vh / 2;       // 从当前视口平滑靠过去(不瞬移 ✓)
