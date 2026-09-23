@@ -164,12 +164,28 @@ for (const line of (lv as unknown as { lines: string[] }).lines) {
   const id = Number(f['1']);
   if (Number.isFinite(id)) ids.add(id);
 }
+/* ★★★ 2026-09 修正(用户:"冲刺箭头(粉色和绿色)都没有贴图"):
+ *   我上一版以为"环都是一张白图靠染色"(只统计了 alpha>200 的像素,漏掉了【半透明的彩色内芯】✗)
+ *   —— tools/sheet-peek.ts 放大一看,每种环【本身就是带颜色的不同帧】:
+ *      ring_01        黄芯(120×120 uhd)⇒ 黄跳环
+ *      gravring_01    青芯          ⇒ 蓝环(翻重力)
+ *      gravJumpRing_01 绿芯 + 断环   ⇒ 绿环(翻重力+跳)
+ *      ring_03        品红芯        ⇒ 粉环(小跳)
+ *      dropRing_01    黑芯          ⇒ 黑环(冲刺)
+ *      dashRing_01    环 + 绿箭头    ⇒ 绿冲刺环(1704)
+ *      dashRing_02    环 + 品红箭头  ⇒ 粉冲刺环(1751)
+ *      teleportRing / spiderRing / ring_02(红芯) 分别是传送球/蜘蛛球/红环(本关没用到)
+ *   ⇒ 染色方案作废,直接【按类型换帧】✓(art 自带颜色,和原版一致 ✓) */
 const ORB_MAP: Record<string, string> = {
-  '36': 'ring_01_001.png', '84': 'ring_01_001.png', '141': 'ring_01_001.png', '1022': 'ring_01_001.png',
-  '1330': 'ring_01_001.png', '1333': 'gravring_01_001.png', '1704': 'd_arrow_01_001.png',
-  '1751': 'd_arrow_01_001.png',
-  /* ★ 修正:2063 在我们引擎里是【存档点】(gdids.ts `2063: kind 'check'`),以前也当环画了 ✗
-     ⇒ 换官方存档点旗帜 checkpoint_01_001.png(68×126 标准 px,GameSheet 里有 ✓) */
+  '36': 'ring_01_001.png',            // 黄跳环(黄芯 ✓)
+  '84': 'gravring_01_001.png',        // 蓝环:翻重力(青芯 ✓)
+  '141': 'ring_03_001.png',           // 粉环:小跳(品红芯 ✓)
+  '1022': 'gravJumpRing_01_001.png',  // 绿环:翻重力 + 跳(绿芯 ✓)
+  '1330': 'dropRing_01_001.png',      // 黑环:冲刺(黑芯 ✓)
+  '1333': 'gravring_01_001.png',      // 绿重力环(本关没用到,先照旧 ✓)
+  '1704': 'dashRing_01_001.png',      // 绿冲刺环(环 + 绿箭头 ✓)
+  '1751': 'dashRing_02_001.png',      // 粉冲刺环(环 + 品红箭头 ✓)
+  /* 2063 在我们引擎里是【存档点】(gdids.ts kind 'check')⇒ 官方存档点旗帜 ✓ */
   '2063': 'checkpoint_01_001.png',
 };
 const table = JSON.parse(fs.readFileSync('../../.tmp/OpenGD-object.json', 'utf8')) as Record<string, { texture_name?: string }>;

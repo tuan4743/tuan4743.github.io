@@ -76,7 +76,7 @@ const ICON_ENABLED = true;   // ★ 临时默认打开(用户 2026-09:"要")—�
  *  所以:默认**不加载**这张图集(省 121 KB),要研究就加 `?art=1`(代码保留,别再当默认)。 */
 const ART_ENABLED = true;    // ★ 2026-09 重新打开:现在用的是【官方图集 + 真映射】(不是早期那套猜的表 ✓)
 /* 图集版本号:每次重烘 gd-object-atlas.json / gd-art-*.png 就改一次 ⇒ 浏览器不会吃旧缓存 ✓ */
-const ART_V = 'u3';
+const ART_V = 'u4';
 /** ★★ 无敌模式的"轨道上限"(用户口径:"给无敌模式加个上限,不允许脱离预定轨道")。
  *  为什么:无敌本身解决不了"人卡出墙/飞到天上"—— 以前只贴住关卡边界(0 ~ 127 格),
  *  于是开了无敌就能一路飞到 y=110 把整关绕过去,玩起来完全不是这张图。
@@ -160,16 +160,11 @@ const ICON_COL: Record<Mode, [number, number]> = {
 };
 
 /* 跳环 / 弹簧的配色(和游戏里的常识一致:黄=跳,粉=小跳,蓝=翻重力,绿=翻重力+跳) */
+/* ★ 2026-09 环/冲刺环【不染色】:官方每种环本来就是带颜色的不同帧(见 artTintOf 的注释 ✓)
+   下面这张表只给【矢量兜底】用(贴图缺失时才走),颜色照官方口味调过 ✓ */
 const ORB_COL: Record<string, number> = {
   yellow: 0xffc800, pink: 0xff00ff, red: 0xff6400, blue: 0x0000ff, green: 0x00ff00, black: 0x2a2a2a,
 };
-/* ★ 2026-09 环/冲刺箭头的染色:官方环图是【纯白】的(tools/ring-colors.ts 实测
-   ring_01 / ring_02 / gravring_01 / dashRing_01 / d_arrow_01 主色全是 (255,255,255) ✓)
-   ⇒ GD 是按类型染色 ✓ 色值出自反编译 PlayerObject::ringJump(.tmp/gdp211/ringJump.cpp):
-       kBlueRing (0,0,255) · kPinkRing (255,0,255) · kGreenRing (0,255,0) · kRedRing (255,100,0)
-       默认(黄) (255,200,0)
-   ⇒ 上面 ORB_COL 已换成这套官方值(矢量兜底和贴图染色共用一张表 ✓) */
-const ARROW_COL: Record<string, number> = { green: 0x00ff00, pink: 0xff00ff, purple: 0xc060ff };
 const PAD_COL: Record<string, number> = {
   yellow: 0xffe17a, pink: 0xff9fd0, red: 0xff8a8a, blue: 0x9fd8ff, purple: 0xc6a0ff,
 };
@@ -330,12 +325,12 @@ class Scene extends Phaser.Scene {
     if (dir > 0 && w.vy < 0) w.vy = 0;
   }
 
-  /** 贴图染色:砖用关卡主色;环/冲刺箭头按 GD 的类型色(tools/ring-colors.ts 证明官方环图是纯白的 ✓) */
+  /** 贴图染色:砖用关卡主色;环/冲刺环【不染】—— 官方每种环本来就是带颜色的不同帧
+   *  (tools/sheet-peek.ts 放大验证:ring_01 黄芯 · gravring_01 青芯 · gravJumpRing_01 绿芯 ·
+   *   ring_03 品红芯 · dropRing_01 黑芯 · dashRing_01/02 环+绿/品红箭头 ✓)
+   *  ⇒ 2026-09 那版"按类型染色"已作废(当时只统计 alpha>200 的像素,漏了半透明彩色内芯 ✗) */
   private artTintOf(o: Obj, blockTint: number): number {
-    if (o.kind === 'block') return blockTint;
-    if (o.kind === 'orb') return ORB_COL[o.orb ?? 'yellow'] ?? 0xffffff;
-    if (o.kind === 'arrow') return ARROW_COL[o.arrow ?? 'green'] ?? 0xffffff;
-    return 0xffffff;
+    return o.kind === 'block' ? blockTint : 0xffffff;
   }
 
   /** 把一个池子里的 Image 摆好;返回 false 表示这帧没画(调用方走矢量兜底) */
@@ -1605,20 +1600,16 @@ class Scene extends Phaser.Scene {
       if (obx + obw < x0 || obx > x1) continue;
       if ((o.r + o.h + off.dy) * U < lowY || (o.r + off.dy) * U > highY) continue;
       this.drawn++;
-      /* ★ 有贴图的物件直接画贴图(锯片/弹簧板/存档点/硬币/刺),没贴图的走下面的矢量画法 */
+      /* ★ 有贴图的物件直接画贴图(锯片/弹簧板/存档点/硬币/刺/环),没贴图的走下面的矢量画法 */
       const artKey = this.artKeyOf(o);
       if (artKey) {
-        /* ★★★ 2026-09 用户:"补 back 层" —— 原版门是两层:
-             portal_XX_back 画在【玩家后面】、portal_XX_front 画在【玩家前面】
-           出处(反编译 GameObject:: 那个建门精灵的函数):back/front 各建一个 CCSpritePlus,
-             位置都取物件自己的 getPosition(),并 followSprite(物件) ⇒ 同一位置、只是层不同 ✓
-           我们的深度:砖/贴图 6 · 玩家 16/17 ⇒ back = 7(压着砖、在玩家后)、front = 17.5(盖住玩家)✓ */
-        const backKey = artKey.replace('_front_', '_back_');
-        const hasBack = backKey !== artKey && !!this.textures.get('gd-art')?.has(backKey);
-        const col = this.artTintOf(o, tint);
-        const ax = obx + obw / 2, ay = oBot - obh / 2;
-        if (hasBack) this.drawArtObject(o, backKey, ax, ay, col, 7);
-        if (this.drawArtObject(o, artKey, ax, ay, col, hasBack ? 17.5 : 6)) continue;
+        /* ★★★ 2026-09 门的 back 层【撤回】—— 用户:"你把后层放到了和前层相同的位置,导致混在一起了" ✗
+           我按反编译给门加了两层(back 深度 7 / front 深度 17.5),查证结果:
+             反编译里 GD 确实会为门建一个 back 物件,位置就是门前层的 getPosition()(同位置 ✓),
+             z = 前层 z − 100 + v37 ⇒ 在前层【后面 100 档】(90133–90177 行)
+           ⇒ 位置相同这事本身没错,但【把两张半透明美术叠在一起】会让门明显发闷/发糊 ✗
+           ⇒ 在能拿到原版门的逐帧对照之前,先只画 front 一层(回到 g102 用户没说"混"的状态 ✓) */
+        if (this.drawArtObject(o, artKey, obx + obw / 2, oBot - obh / 2, this.artTintOf(o, tint))) continue;
       }
       switch (o.kind) {
         case 'platform':

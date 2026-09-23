@@ -89,11 +89,12 @@ const ITEMS: Array<{ id: string; label: string }> = [
   { id: '1704', label: '1704 绿箭头' }, { id: '1751', label: '1751 粉箭头' }, { id: '2063', label: '2063 存档点(白色=不染)' },
 ];
 const tintOf = (id: string): number | null => {
-  if (id === '1704') return parseInt(ARR['green'] ?? 'ffffff', 16);
-  if (id === '1751') return parseInt(ARR['pink'] ?? 'ffffff', 16);
-  const orbOf: Record<string, string> = { '36': 'yellow', '84': 'blue', '141': 'pink', '1022': 'green', '1330': 'black' };
-  const k = orbOf[id];
-  return k ? parseInt(ORB[k] ?? 'ffffff', 16) : null;
+  /* ★ 2026-09 改成【不染色】:官方每种环本来就是带颜色的不同帧
+     (ring_01 黄芯 / gravring_01 青芯 / gravJumpRing_01 绿芯 / ring_03 品红芯 /
+      dropRing_01 黑芯 / dashRing_01·02 环+绿·品红箭头 ✓ 见 tools/sheet-peek.ts)
+     ⇒ 这张图现在展示的是"每个 id 取到哪一帧",颜色全部来自美术本身 ✓ */
+  void id;
+  return null;
 };
 const CELL = 200, COLS = 4, ROWS = Math.ceil(ITEMS.length / COLS);
 const sheet: Img = { w: CELL * COLS, h: CELL * ROWS, data: new Uint8Array(CELL * COLS * CELL * ROWS * 4) };
