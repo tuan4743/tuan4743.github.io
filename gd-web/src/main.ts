@@ -1591,8 +1591,15 @@ class Scene extends Phaser.Scene {
     if (pf) {
       const py0 = w.y + (P.box * w.sizeMul) / 2;          // 玩家中心
       const need = P.box * w.sizeMul + 30;                // 玩家 + 一点余量
-      if (py0 > pf.hi - need) { const d = py0 - (pf.hi - need); pf = { lo: pf.lo + d, hi: pf.hi + d }; }
-      if (py0 < pf.lo + need) { const d = (pf.lo + need) - py0; pf = { lo: pf.lo - d, hi: pf.hi - d }; }
+      /* ★★ 平移量必须【整格】(探针实测:上一版平移出 429.5 这种小数 ⇒ 框面又带小数 ✗) */
+      if (py0 > pf.hi - need) {
+        const d = Math.ceil((py0 - (pf.hi - need)) / U) * U;
+        pf = { lo: pf.lo + d, hi: pf.hi + d };
+      }
+      if (py0 < pf.lo + need) {
+        const d = Math.ceil(((pf.lo + need) - py0) / U) * U;
+        pf = { lo: pf.lo - d, hi: pf.hi - d };
+      }
     }
     if (bandOn && !this.camPinned) {
       this.camPinTarget = Math.round(((pf as { lo: number; hi: number }).lo + (pf as { lo: number; hi: number }).hi) / 2 / U) * U;
