@@ -295,17 +295,14 @@ class Scene extends Phaser.Scene {
   /** ★★★ 限高框的两条面(世界 y):【页面推给 sim】的唯一来源 —— 画面与判定同源 ✓ */
   frameLo: number | null = null;
   frameHi = 0;
-  /** ★★★ 进场进度 = 源码 `*(this + 872)`(=`this[218]`,animateInDualGroundNew 里 tweenValue 到 1.0)✓
-   *  `updateCameraBGArt` 里天花板/地面都是 `× v53` 乘它 ⇒ 0 时两块在窗口【外】、1 时收到位 ✓
-   *  (地面从下往上收、天花板从上往下收 —— 不是我上一版那种"从下面滑上来"✗) */
+  /** ★★★ 进门动画进度(源码 `this[218]` = `+872`,animateInDualGroundNew 里 tweenValue 到 1.0)✓
+   *  `updateCameraBGArt` 里两块地面的位置都 `× 它` ⇒ 进场时【两条带从外面收进来】(地面自下而上、
+   *  天花板自上而下 ✓),0.5 秒、缓动 smoothstep(源码 tweenValue 的 rate/2.0 等效)✓
+   *  ★ 判定和画面用【同一组动画中的面】⇒ 不会出现"带子在动、判定在最终位置"的错位(那就是顶飞 ✓) */
   bandT = 1;
-  /** ★★★ 2026-09 用户:"为什么限高框没有出现的动画" + "动画太快了"
-   *  原版进门是 tweenCeiling/tweenBottomGround 把两条地面【拉进来】;相机那边是
-   *  `m_obCamPos.y = GameToolbox::iLerp(m_obCamPos.y, cam.y, 0.1f, dt/60)`(每帧靠 0.1,约 0.5 秒收敛)✓
-   *  ⇒ 两条框用【和相机同一套】每帧 0.1 的指数靠拢(不是我自己定的 0.1 秒线性 ✗ —— 那个太快,用户实测)
-   *  bandHiY / bandLoY = 两条框面【当前实际】所在的高度;null = 还没进场(从画外开始)✓ */
-  bandHiY: number | null = null;
-  bandLoY: number | null = null;
+  /** 动画中的两条面(判定与画面共用 ✓):进场时从最终位置外 3 格收到面上 ✓ */
+  animLo = 0;
+  animHi = 0;
   /** 两条框的贴图色:原版地面贴图是白的,由【关卡地面色(通道 1001)】染色
    *  (GJGroundLayer::updateGround01Color / OpenGD `_colorChannels.at(1001)._color`)✓
    *  ★ 本关 chart 里还没有通道数据(只硬编了玩家色 1005/1006)⇒ 先用【页面地面线已经在用的那个色】,
@@ -1590,7 +1587,17 @@ class Scene extends Phaser.Scene {
         this.camPinTarget = (fr.lo + fr.hi) / 2;      // 相机 = 框中心,进门平滑靠过去一次 ✓
         this.camPinY = this.camBottom + vh / 2;
         this.camPinned = true;
+        this.bandT = 0;                               // ★ 进场动画从 0 开始 ✓
       }
+      /* ★★★ 进场动画(源码 this[218] / +872)✓:两条带从【最终位置外 3 格】收到各自面上,
+         0.5 秒 smoothstep ⇒ 地面自下而上、天花板自上而下 ✓(不是"上框从下面出来" ✗)
+         判定与画面共用这两个【动画中的面】⇒ 绝不错位 ✓ */
+      const dtSec = Math.min(0.05, this.game.loop.delta / 1000);
+      this.bandT = Math.min(1, this.bandT + dtSec / 0.5);
+      const e = this.bandT * this.bandT * (3 - 2 * this.bandT);
+      const open = 3 * U * (1 - e);
+      this.animLo = (this.frameLo as number) - open;
+      this.animHi = this.frameHi + open;
       this.camPinY = this.camPinY == null ? this.camPinTarget
         : this.camPinY + (this.camPinTarget - this.camPinY) * 0.1;
       bottom = this.camPinY - vh / 2;
@@ -1617,7 +1624,7 @@ class Scene extends Phaser.Scene {
     this.camCenter = bottom + vh / 2;
     /* ★★★ 把【框的两条面】发给 sim —— 唯一来源:页面推框、sim 夹取都用它 ✓(画面=判定 ✓) */
     const bandOn = CAM_FIXED_MODES.has(w.mode) && this.frameLo != null;
-    if (bandOn) { w.airLo = this.frameLo as number; w.airHi = this.frameHi as number; }
+    if (bandOn) { w.airLo = this.animLo; w.airHi = this.animHi; }
     else { w.airLo = bottom; w.airHi = bottom + vh; }
     {
       /* ★★★ 2026-09 修 `Uncaught ReferenceError: Y is not defined`(用户给的报错原文)——
