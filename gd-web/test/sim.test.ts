@@ -597,7 +597,7 @@ test('飞行类碰实心:撞侧面死、擦到顶面【落上去】(flySolid 开
         换到我们的坐标(我们 = 原版 − 90;原版天花板节点 = 进门 tweenCeiling(388)/球(358),
         相机局部;贴图 128 高、镜像后挂节点下面 ⇒ 面 = 节点 − 128 ⇒ 面离视口上边 =(320+128)−节点;
         我们的 y 是【脚底】不是中心 ⇒ 再减半个判定盒):
-          脚底上限 = 视口上边 − 缝厚(飞行 60 / 球 90)− 12 − 半个判定盒 ✓ */
+          脚底上限 = 视口上边 − 12(源码数反推)− 12 − 半个判定盒 ✓ */
   const capW = new World(lv, undefined, undefined, { flySolid: true });
   capW.reset(19 * U, 'ufo', 3.5 * U);
   capW.speedIdx = 1; capW.gdir = 1; capW.vy = 0;
