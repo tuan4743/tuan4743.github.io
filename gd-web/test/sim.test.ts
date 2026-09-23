@@ -603,21 +603,19 @@ test('飞行类碰实心:撞侧面死、擦到顶面【落上去】(flySolid 开
   const capW = new World(capLv, undefined, undefined, { flySolid: true });
   capW.reset(19 * U, 'ufo', 3.5 * U);
   capW.speedIdx = 1; capW.gdir = 1; capW.vy = 0;
-  /* ★ 框 = frameOf(形态, 玩家中心):下沿按 30 对齐、下限是地面、高 = getGroundHeightForMode ✓
-     ★★ 关键性质(用户:"逻辑前后不搭"的根):框【跟着玩家走】⇒ 爬升时框一起上移,
-        永远把人装在里面 ⇒ 不会出现"被固定的墙推回来(顶飞)" ✓ */
+  /* ★ 契约:框由【页面】给(页面持有相机)⇒ sim 原样采用 + 夹在里面 ✓
+     位置规则在页面里:相机连续跟玩家(不吸格线 ✓)、框 = 相机中心 ± gh/2、下沿不低于地面 ✓ */
   const gh = groundHeightOf('ufo');
-  for (let f = 0; f < 40 && !capW.dead; f++) capW.frame(f % 8 === 0);   // 一路往上顶
-  assert.equal(Math.round(capW.limHi - capW.limLo), gh, 'ufo 的这段高度 = 300 ✓');
-  assert.equal(capW.limLo % U, 0, '框下沿必须落在 30 的格线上(源码 floor(v/30)*30)✓');
-  assert.ok(capW.limLo >= 0, '框下沿不低于地面 ✓');
-  const c0 = capW.limLo;
-  for (let f = 0; f < 30; f++) capW.frame(f % 8 === 0);                 // 再爬一段
-  assert.ok(capW.limLo > c0, '爬升时框要跟着上移(实测 ' + c0 + ' → ' + capW.limLo + ')✓');
-  assert.ok(!capW.dead, '全程不该死 ✓');
-  const pc = capW.y + capW.box / 2;
-  assert.ok(pc > capW.limLo && pc < capW.limHi, '玩家必须一直在这段区间内(中心 ' + Math.round(pc) +
-    ' ∈ [' + Math.round(capW.limLo) + ',' + Math.round(capW.limHi) + '])✓');
+  capW.airLo = 0; capW.airHi = gh;                      // 页面把两条面发给 sim ✓
+  capW.y = 4 * U; capW.vy = 0; capW.onGround = false;
+  capW.frame(false);
+  assert.equal(Math.round(capW.limHi - capW.limLo), gh, 'sim 必须原样采用页面给的框(= getGroundHeightForMode)✓');
+  for (let i = 0; i < 20; i++) { capW.vy = -60; capW.frame(false); }   // 一路硬往下砸
+  assert.ok(capW.y >= capW.limLo - 0.01, '不能穿出【下框面】(实测 y=' + capW.y.toFixed(2) +
+    ', 下框面=' + capW.limLo.toFixed(2) + ')✓');
+  capW.vy = 60; for (let i = 0; i < 4; i++) capW.frame(false);   // 硬往上顶
+  const top = capW.limHi - 12 - capW.box / 2;
+  assert.ok(capW.y <= top + 0.01, '不能穿出【上框面】(实测 y=' + capW.y.toFixed(2) + ', 上限=' + top.toFixed(2) + ')✓');
 });
 
 test('限高框的下框面就是这个形态的"地面":站在上面能跳(用户:"还是会被吸住无法跳起")', () => {

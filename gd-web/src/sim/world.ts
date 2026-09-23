@@ -881,26 +881,30 @@ export class World {
    *  ★ 只在【相机钉死的形态】(飞船 / UFO / 波浪 / 球)生效:这几个形态 airHi/airLo 是钉死的 ✓
    *    方块 / 机器人 / 蜘蛛的相机跟着人走 ⇒ 拿它当框会变成一堵跟着人跑的墙 ✗ */
   private applyAirLimit() {
-    if (!FIXED_CAM_MODES.has(this.mode)) { this.limLo = 0; this.limHi = 0; return; }
-    /* ★★★ 框 = frameOf(形态, 玩家中心):跟着玩家算、下沿按 30 对齐、下限是地面 ✓
-       (以前那版是"按取景中点"⇒ 相机钉死时人一离开就被推回来,就是"顶飞"✓) */
-    const f = frameOf(this.mode, this.y + this.box / 2);
-    this.limLo = f.lo; this.limHi = f.hi;
+    if (!FIXED_CAM_MODES.has(this.mode) || this.airLo == null || this.airHi == null) {
+      this.limLo = 0; this.limHi = 0;
+      return;
+    }
+    /* ★★★ 唯一来源:两条面由【页面】给(相机在页面手里)⇒ sim 夹取和页面画框永远是同一组数 ✓
+       位置规则(页面里):相机【连续】跟着玩家(每帧不吸 30 格线 ✗ —— 那是我之前晃的原因 ✓),
+       框 = 相机中心 ± gh/2,下沿不低于地面(源码 asm 449845 `(gh/2)/缩放 + 90` = 我们的 0 ✓) */
+    this.limLo = this.airLo as number;
+    this.limHi = this.airHi as number;
     /* 下框面(这个形态的"地面"):贴回去 + hitGround + setYVel(0) —— 源码 `if (!isGravityFlipped()) hitGround(false)`
        ★ hitGround 必须照搬:原版【地面根本不是物件】,球能在地上跳靠的就是这一句把落地标记置上 ✓
          (我们这里也有真地面物件,但夹取先跑、人不陷进去 ⇒ 那套"踩实体"识别不到 ⇒ 球/机器人永远跳不起来 ✗ 实测过)
        ★ 坐标口径:我们的 this.y 是【脚底】不是中心(见落台那段 `this.y = b.y1`)⇒ 下框面直接用 ✓ */
-    if (this.y < f.lo) {
-      this.y = f.lo;
+    if (this.y < this.limLo) {
+      this.y = this.limLo;
       if (this.gdir > 0) { this.onGround = true; this.airHold = true; }
       this.vy = 0;
     }
     /* 上框面(天花板):源码比较的是【人中心】⇒ 减半个判定盒(迷你 +6,源码 234 那一档) */
-    const top = f.hi - 12 - this.box / 2 + (this.mini ? 6 : 0);
+    const top = this.limHi - 12 - this.box / 2 + (this.mini ? 6 : 0);
     /* 一行诊断(用户:"我都看不到限高框在哪,我怎么知道生没生效")—— 【顶到的那一刻】打一次 ✓ */
     if (this.y >= top - 0.001 && this.airDbg !== this.mode) {
       this.airDbg = this.mode;
-      console.info('[gd] 限高:形态=' + this.mode + ' · 框=' + Math.round(f.lo) + '~' + Math.round(f.hi) +
+      console.info('[gd] 限高:形态=' + this.mode + ' · 框=' + Math.round(this.limLo) + '~' + Math.round(this.limHi) +
         '(这段高度 ' + groundHeightOf(this.mode) + ') · 玩家中心=' + Math.round(this.y + this.box / 2) +
         ' · 上限(脚底)=' + Math.round(top));
     }
