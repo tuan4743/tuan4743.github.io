@@ -1512,6 +1512,11 @@ class Scene extends Phaser.Scene {
     bottom = Math.max(lo, Math.min(hi, bottom));
     this.camBottom = bottom;
     this.camCenter = bottom + vh / 2;
+    /* ★★★ 2026-09 限制框(用户:"机制是类似创建上下两边的地面"):把【当前取景范围】告诉 sim ——
+       球/飞船/UFO/波浪的相机是进门钉死的,于是屏幕上下边就是那两块看不见的地面 ✓
+       (以前 sim 自己算 portalY ± 半屏 ✗ 和这里这套 CAM_* 常数对不上 ⇒ 会凭空多出一堵墙 ✗) */
+    w.airLo = bottom;
+    w.airHi = bottom + vh;
     this.camWorldY = rowsU - this.camCenter;             // 换算成 Phaser 相机的绘图空间 y
     cam.centerOn(this.camX, this.camWorldY);
   }

@@ -95,7 +95,7 @@ const FIXED_CAM_MODES = new Set<Mode>(['ship', 'ufo', 'wave', 'ball']);
 const VIEW_H = 320;
 /** ★ 限制框总开关:用户已澄清"卡死是 UFO 里那颗 cube(渲染途中 add.image),不是限高"
  *  ⇒ 重新打开 ✓(机制已按他的口径改成"上下两块虚拟地面" ✓ 见 applyAirLimit) */
-const AIR_LIMIT_ON = false;   // ★ 暂时关:用户连报卡死,先逐个变量定性(见 applyAirLimit 注释)
+const AIR_LIMIT_ON = true;    // ★ 边界改由页面提供之后重新打开(单变量测试 ✓ 见 applyAirLimit)
 
 /** 一次触发产生的动画(位移 / 往返) */
 interface Anim {
@@ -791,6 +791,14 @@ export class World {
       人被夹在那一屏里:撞到看不见的上/下边就贴住、纵向速度清零(玩家俗称"限制框" ✓)
       区间 = 进门高度 portalY ± 半屏高(VIEW_H = 320 单位 = GD 480×320 的纵向 ✓)
       ★ 待核:半屏这个"一屏高"是我按 GD 屏高取的;要精确到原版常数得再去挖 updateJump 里的比较值 ✓ */
+  /** ★★★ 2026-09 限制框的两块"虚拟地面"边界(世界 y,单位):【由页面每帧写入】✓
+   *  用户口径:"机制是类似创建上下两边的地面" —— 这两块地面就是【屏幕的上下边】
+   *  (这几个形态的相机是进门钉死的 ⇒ 屏幕边 = 固定的上下边 ✓)
+   *  以前 sim 自己算 portalY ± 半屏 ✗ ⇒ 和页面那套 CAM_* 常数对不上,会出现"半空中一堵看不见的墙"✗
+   *  null = 页面还没跑(测试/机器人)⇒ 不夹 ✓ */
+  airLo: number | null = null;
+  airHi: number | null = null;
+
   private applyAirLimit() {
     /* ★★★ 2026-09 【默认关】—— 用户实测:"碰到 bird 门卡死了"(连续两次)。
        这条限高是我按"进门高度 ± 半屏"实现的,但区间常数没从源码核到 ⇒
@@ -803,10 +811,11 @@ export class World {
        连"球贴方块底面"这种验证过的行为都会被切掉(实测:sim.test 从 43 掉到 42 ✗)⇒ 必须放行 ✓
        待办:进门高度为 0 的那一段(地面高度进飞机)也得夹 —— 要一个独立的 airLimitOn 标志,
              并且把原版的区间常数挖出来之后一起做 ✓ */
-    if (this.portalY <= 0) return;
-    const half = VIEW_H / 2;
-    const lo = Math.max(0, this.portalY - half);
-    const hi = Math.min(this.rows * U - this.box, this.portalY + half - this.box);
+    /* ★ 边界改成页面给的(上面那两个字段)✓ 页面没给就当没这回事(测试/机器人)✓ */
+    const y0 = this.airLo, y1 = this.airHi;
+    if (y0 == null || y1 == null) return;
+    const lo = Math.max(0, y0);
+    const hi = Math.min(this.rows * U - this.box, y1 - this.box);
     /* ★★★ 2026-09 用户口径:"限高机制是类似创建上下两边的地面" —— 所以不是"把 y 夹回去"✗,
        而是当成【上下两块虚拟地面】:下边 = 正常重力的地面(落上去就算站住 ✓),
        上边 = 反重力时的地面(头撞上去同样算站住 ✓)。球会像踩地面一样弹,飞机/UFO 顶到就贴住 ✓ */
