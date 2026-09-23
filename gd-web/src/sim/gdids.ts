@@ -446,7 +446,10 @@ export function encodeObjects(objs: Obj[]): string {
     if (o.mini != null) ex.push('mini=' + (o.mini ? 1 : 0));
     /* ★ 圆判定物件(锯片族)与刺族都要带上 ID —— 半径/判定盒是按 ID 查表的,
        紧凑文本里丢了 ID 就只能退回猜的包围盒(踩过:整关照旧按矩形判 + 37 根刺查不到表值)。 */
-    if (o.id != null && (GD_HITBOX_RADIUS[o.id] != null || o.kind === 'spike')) ex.push('id=' + o.id);
+    /* ★★★ 2026-09 修"物件贴图还是没有贴图":以前只给【锯片 + 刺】写 id ✗
+       ⇒ 方块/弹簧板/跳环/形态门…的 id 全丢了 ⇒ 引擎按 id 查官方贴图帧时查不到 ⇒ 什么都不画 ✓✓
+       (早期不需要 id:判定盒按尺寸/种类推 ✓;现在贴图必须按 id 取帧 ⇒ 统一写出来 ✓) */
+    if (o.id != null) ex.push('id=' + o.id);
     if (o.col != null) ex.push('col=' + o.col);
     if (o.z != null) ex.push('z=' + o.z);
     if (o.groups?.length) ex.push('g=' + o.groups.join('.'));
