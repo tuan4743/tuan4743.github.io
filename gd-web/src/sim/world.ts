@@ -93,8 +93,9 @@ const DOOR_KINDS = new Set(['portal', 'gravity', 'speed', 'size']);
 const FIXED_CAM_MODES = new Set<Mode>(['ship', 'ufo', 'wave', 'ball']);
 /** GD 屏幕 480×320(点)⇒ 纵向 320 单位 = 10.67 格。限制框 = 进门高度 ± 半屏 ✓ */
 const VIEW_H = 320;
-/** ★ 限制框总开关:【默认关】—— 用户实测碰到 bird 门卡死,区间常数还没核到,先不开 ✓ 见 applyAirLimit */
-const AIR_LIMIT_ON = false;
+/** ★ 限制框总开关:用户已澄清"卡死是 UFO 里那颗 cube(渲染途中 add.image),不是限高"
+ *  ⇒ 重新打开 ✓(机制已按他的口径改成"上下两块虚拟地面" ✓ 见 applyAirLimit) */
+const AIR_LIMIT_ON = true;
 
 /** 一次触发产生的动画(位移 / 往返) */
 interface Anim {
@@ -806,8 +807,11 @@ export class World {
     const half = VIEW_H / 2;
     const lo = Math.max(0, this.portalY - half);
     const hi = Math.min(this.rows * U - this.box, this.portalY + half - this.box);
-    if (this.y > hi) { this.y = hi; if (this.vy > 0) this.vy = 0; }
-    if (this.y < lo) { this.y = lo; if (this.vy < 0) this.vy = 0; }
+    /* ★★★ 2026-09 用户口径:"限高机制是类似创建上下两边的地面" —— 所以不是"把 y 夹回去"✗,
+       而是当成【上下两块虚拟地面】:下边 = 正常重力的地面(落上去就算站住 ✓),
+       上边 = 反重力时的地面(头撞上去同样算站住 ✓)。球会像踩地面一样弹,飞机/UFO 顶到就贴住 ✓ */
+    if (this.y > hi) { this.y = hi; if (this.vy > 0) this.vy = 0; if (this.gdir > 0) this.onGround = true; }
+    if (this.y < lo) { this.y = lo; if (this.vy < 0) this.vy = 0; if (this.gdir < 0) this.onGround = true; }
   }
 
   /** 弹簧 / 跳环给的推力方向(0 = 没有推力飞行)。见 applyFallClamp */

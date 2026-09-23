@@ -1029,6 +1029,12 @@ class Scene extends Phaser.Scene {
         pxPerUnit: REF_PX / (WATER_CHART.start ? 30 : 30),          // 见 REF_PX:120 px = 1 块 = 30 单位
       });
     }
+    /* ★★★ 2026-09 修"还是卡死,问题是 UFO 里面的 cube"(用户定位)—— 我上一轮是【在渲染途中】
+       this.add.image 建 pilot ✗:那是在 display list 被遍历的时候往里塞对象 ⇒ 卡死 ✓✓
+       ⇒ 改成在这里(图集构建完、渲染还没开始)就把它建好,绘制时只改位置/尺寸/颜色 ✓ */
+    if (this.textures.exists('icon-cube-body')) {
+      this.pilot = this.add.image(0, 0, 'icon-cube-body').setVisible(false).setDepth(16.5);
+    }
     this.iconsReady = this.iconLayers.length > 0;
     console.log('[gd] 形态图集就绪:' + this.iconLayers.map((l) => l.mode + '(' + l.bw + '×' + l.bh + ')').join(' '));
   }
@@ -1083,7 +1089,9 @@ class Scene extends Phaser.Scene {
     L.body.setDisplaySize(L.bw * k, L.bh * k);
     /* ★★ 2026-09 用户:"原本贴图就只是一个透明的框" ⇒ 去掉 glow 层(不再叠一层发光)✗
        (buildIcons 那边也随之不再需要 glow,但这里先彻底不画 ✓ —— 两层叠着就是"拼到一起" ✓) */
-    if (L.glow) L.glow.setVisible(false);
+    /* ★★★ 2026-09 修"cube 还是只有一种颜色":下面这行(上一版留下的)把我刚画的第二色层又关了 ✗✗
+       它当时的理由是"不要叠发光",但那个槽位现在放的是【第二色层 _2_】,不是发光 ✓ */
+    // if (L.glow) L.glow.setVisible(false);   // ✗ 删掉:第二色层要用
   }
 
   /** 推进 n 帧模拟(输入按当前模式取:演示卷 / 机器人 / 键盘) */
@@ -2077,8 +2085,8 @@ class Scene extends Phaser.Scene {
        pilot 用的 'icon-cube-body' 在 cube 那一层没建出来时【根本不存在】⇒ this.add.image 抛异常,
        异常发生在渲染循环里 ⇒ 整页卡死(第一次进载具形态才触发 = 碰上 bird 门那一下 ✓)
        => 先查 textures.exists,没有就【不画驾驶位】,绝不抛 ✓ */
-    if (PILOT_MODES.has(w.mode) && this.textures.exists('icon-cube-body')) {
-      if (!this.pilot) this.pilot = this.add.image(0, 0, 'icon-cube-body').setVisible(false).setDepth(16.5);
+    if (PILOT_MODES.has(w.mode) && this.pilot) {
+      /* ★ pilot 在 buildIcons 里就建好了(渲染途中 add.image 会卡死 ✗ 见那里的注释)⇒ 这里只摆 ✓ */
       this.pilot.setVisible(on).setPosition(cxw, cyw).setRotation(0).setFlipY(w.gdir < 0)
         .setTint(w.dead ? 0xff7a5a : PLAYER_C1).setDisplaySize(B, B);
     } else this.pilot?.setVisible(false);
