@@ -111,14 +111,27 @@ export const FLY_BAND = 8 * U;
  *    (相机被门锁住 ⇒ 屏幕锚定 = 一段固定的世界区间 ✓,这就是"进门锁定的一段固定区间" ✓) */
 export const GROUND_FACE_OFF = 91;
 
+/** 每个门的上下格数(用户口径:"球门中心的格子上三下四,UFO门中心的格子上四下五,
+ *  wave 上四下五,ship 上四下五 —— 每个门都不一样")✓
+ *  ⇒ 框锚在【门所在那一格】上(不是玩家、不是相机 ✗ —— 我前面七版全锚错了),中间那格是门自己 ✓
+ *  ball:3+1+4 = 八格 ✓ */
+export const PORTAL_FRAME: Record<string, { up: number; down: number }> = {
+  ball: { up: 3, down: 4 },
+  ufo: { up: 4, down: 5 },
+  ship: { up: 4, down: 5 },
+  wave: { up: 4, down: 5 },
+};
+
+/** 以【门中心 y】和形态算出两条框面(世界 y)✓ 页面拿它画框、sim 拿它夹取 —— 同一个来源 ✓ */
+export function portalFrame(portalY: number, mode: Mode): { lo: number; hi: number } {
+  const f = PORTAL_FRAME[mode] || { up: 4, down: 5 };
+  return { hi: portalY + (f.up + 0.5) * U, lo: portalY - (f.down + 0.5) * U };
+}
+
 export function frameOf(airLo: number, airHi: number): { lo: number; hi: number } {
-  /* ★★★ 用户:"还是没修" —— 上一版我从【取景下边 + 90】量,但视口高 330 ⇒ 半屏 165 = 5.5 格 ✗,
-     于是"取景下边"本身就带半格 ⇒ round 之后框面落在 snapped−60 / snapped−90 之间跳 ✗✗
-     ⇒ 改从【相机中心】量(相机已经被吸到 30 的整数倍上 ✓,画面正中):上下各 4 格
-        下框面 = 中心 − 120 ,  上框面 = 中心 + 120   ⇒ 两面都是 30 的整数倍 ✓✓ 空档 = 八格 ✓
-     (这仍然是"屏幕锚定"✓ —— 相机钉住 ⇒ 这一段世界区间固定 ✓;只是量取点换成整数格的中心 ✓) */
-  const mid = Math.round(((airLo + airHi) / 2) / U) * U;
-  return { lo: mid - FLY_BAND / 2, hi: mid + FLY_BAND / 2 };
+  /* ★ 页面把"门锚定的那段区间"直接写进 airLo/airHi(见 main.ts 的 portalFrame 调用)⇒ 这里只是转发 ✓
+     (锚门这件事只有页面知道 —— 它才知道刚跨过的是哪个门 ✓) */
+  return { lo: airLo, hi: airHi };
 }
 
 /** 一次触发产生的动画(位移 / 往返) */

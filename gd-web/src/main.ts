@@ -11,7 +11,7 @@
 
 import Phaser from 'phaser';
 import { generateLevel, makeRealTimeAxis, type Level, type Mode, type Obj } from './sim/level.ts';
-import { World, botThink, frameOf, type RunState } from './sim/world.ts';
+import { World, botThink, frameOf, portalFrame, type RunState } from './sim/world.ts';
 import { frameRects } from './sim/gdids.ts';
 import { fingerprint } from './sim/replay.ts';
 import { P, U, Y_TIME_SCALE } from './sim/constants.ts';
@@ -290,6 +290,8 @@ class Scene extends Phaser.Scene {
    *             camPinY      = 相机【实际】所在的高度,每帧朝 target 靠 0.1 ✓ */
   camPinTarget = 0;
   camPinY: number | null = null;
+  /** 这次形态进门是否已经钉过(锚门那段区间只算一次 ✓) */
+  camPinned = false;
   /** ★★★ 2026-09 用户:"为什么限高框没有出现的动画" + "动画太快了"
    *  原版进门是 tweenCeiling/tweenBottomGround 把两条地面【拉进来】;相机那边是
    *  `m_obCamPos.y = GameToolbox::iLerp(m_obCamPos.y, cam.y, 0.1f, dt/60)`(每帧靠 0.1,约 0.5 秒收敛)✓
@@ -1535,9 +1537,8 @@ class Scene extends Phaser.Scene {
            ⇒ ① 区间锁在【进门这一刻的目标视口中心】(此前 sim 拿到的是每帧移动的视口 ⇒ 框会跟着飘 ✗)
              ② 相机实际高度每帧朝目标靠 0.1(照搬 updateCamera 末尾那句 iLerp ✓,不是瞬移 ✗)
              ③ 两条框的进场进度归零 ⇒ 下面 bandT 播 0.1 秒 EaseInOut ✓ */
-        this.camPinTarget = this.camCenter;
-        if (this.camPinY == null) this.camPinY = this.camBottom + vh / 2;
-        this.bandHiY = null; this.bandLoY = null;      // 两条框从画外开始进场 ✓
+        /* ★ 相机目标现在由【门锚定的那段区间】决定(见下面 portalFrame 那段)⇒ 这里不再算 camCenter ✗ */
+        this.camPinY = null; this.camPinned = false;      // 两条框从画外开始进场 ✓
       } else {
         this.camPinY = null;
       }
@@ -1579,14 +1580,19 @@ class Scene extends Phaser.Scene {
     bottom = Math.max(lo, Math.min(hi, bottom));
     this.camBottom = bottom;
     this.camCenter = bottom + vh / 2;
-    /* ★★★ 2026-09 限制框(用户:"机制是类似创建上下两边的地面" + "原版限高八格" + "进门时锁定的一段固定区间"):
-       区间 = 进门那一刻钉死的视口中心 ± 4 格(八格 = 240 单位)⇒ 上下两条【面】由 frameOf 给出 ✓
-       ① 框锁在 camPinTarget 上(不是每帧移动的视口 ⇒ 框不会飘 ✓)
-       ② 相机只是平滑靠过去(camPinY),框本身不动 ✓ */
+    /* ★★★ 2026-09 限高框 = 【门锚定】(用户:"球门中心的格子上三下四,UFO门中心的上四下五",
+       每个门一套偏移 ✓)—— 页面把这一段直接写进 airLo/airHi ⇒ sim 夹取和下面画框都用它 ✓
+       ★ 相机跟着【这段区间的中心】钉住(吸到 30 的整数倍 ✓)⇒ 框在屏上、不会带小数 ✓ */
     const bandOn = CAM_FIXED_MODES.has(w.mode);
-    const lockCenter = bandOn ? this.camPinTarget : this.camCenter;
-    w.airLo = lockCenter - vh / 2;
-    w.airHi = lockCenter + vh / 2;
+    const pf = bandOn ? portalFrame(w.portalY, w.mode) : null;
+    if (bandOn && !this.camPinned) {
+      this.camPinTarget = Math.round(((pf as { lo: number; hi: number }).lo + (pf as { lo: number; hi: number }).hi) / 2 / U) * U;
+      this.camPinY = this.camBottom + vh / 2;
+      this.camPinned = true;
+      this.bandHiY = null; this.bandLoY = null;
+    } else if (!bandOn) this.camPinned = false;
+    w.airLo = pf ? pf.lo : bottom;
+    w.airHi = pf ? pf.hi : bottom + vh;
     {
       /* ★★★ 2026-09 修 `Uncaught ReferenceError: Y is not defined`(用户给的报错原文)——
          这个作用域里现成的换算就是 `rowsU - y` ⇒ 直接算,不碰只在 draw() 里存在的 Y() ✓ */
