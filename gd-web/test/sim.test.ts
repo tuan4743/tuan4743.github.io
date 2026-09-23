@@ -598,7 +598,9 @@ test('飞行类碰实心:撞侧面死、擦到顶面【落上去】(flySolid 开
         相机局部;贴图 128 高、镜像后挂节点下面 ⇒ 面 = 节点 − 128 ⇒ 面离视口上边 =(320+128)−节点;
         我们的 y 是【脚底】不是中心 ⇒ 再减半个判定盒):
           脚底上限 = 视口上边 − 12(源码数反推)− 12 − 半个判定盒 ✓ */
-  const capW = new World(solo([floor60, { kind: 'block', b: 0, r: 0, w: 1, h: 40 }]), undefined, undefined, { flySolid: true });
+  /* ★ 合成关只有 10 格高,而 ufo 的框高就是 300(10 格)⇒ 框顶必然超过关卡顶 ⇒ 先把它加高到 40 格 ✓ */
+  const capLv = { ...solo([floor60]), rows: 40 } as typeof lv;
+  const capW = new World(capLv, undefined, undefined, { flySolid: true });
   capW.reset(19 * U, 'ufo', 3.5 * U);
   capW.speedIdx = 1; capW.gdir = 1; capW.vy = 0;
   /* ★ 框高 = 源码 getGroundHeightForMode(ufo = 300),以相机为中心 ✓ */
