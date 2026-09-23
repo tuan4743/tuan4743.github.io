@@ -1404,7 +1404,11 @@ class Scene extends Phaser.Scene {
     }
 
     /* ---- 纵向:视野下边(世界 y、单位) ---- */
-    const py = w.y + (P.box * w.sizeMul) / 2;            // 人中心
+    /* ★★★ 2026-09 双人(克隆门 286/287):两个人【x 相同、y 可以不同】⇒ 纵向取两人中点,
+       这样两个玩家都在屏内 ✓(两人共用一套输入,见 sim/world.ts 的 dual 那段) */
+    const p2 = w.p2Pos();
+    const midY = p2 ? (w.y + p2.y) / 2 : w.y;
+    const py = midY + (P.box * w.sizeMul) / 2;           // 视点中心(单人时就是人中心 ✓)
     let bottom: number;
     if (CAM_FIXED_MODES.has(w.mode)) {
       bottom = this.camCenter - vh / 2;                  // 钉死:视口中心 = 进门时的高度
@@ -1983,6 +1987,13 @@ class Scene extends Phaser.Scene {
       drewParts = arr.length > 0 && list.length > 0;
     }
     if (this.iconsReady && w.mode !== 'robot' && w.mode !== 'spider') this.drawIconPlayer(w, cxw, Y(cyw), B);
+    /* ★★★ 2026-09 双人:玩家 2 也画一遍(状态换进换出,所以画法和玩家 1 完全一样 ✓)
+       已知缺口:robot/spider 的【部件动画】那条路(P2 目前只画图标本体)✗ 已记进待办 ✓ */
+    if (w.dualInto()) {
+      const B2 = P.box * w.sizeMul;
+      this.drawIconPlayer(w, w.x + B2 / 2, Y(w.y + B2 / 2), B2);
+      w.dualBack();
+    }
     /* ★★ 2026-09 修"cube 根本没有贴图"(我上一轮引入的 ✗):
        drawIconPlayer 在没有该形态图层时会直接 return ⇒ 而这里只要 iconsReady 就跳过矢量 ✗
        ⇒ cube(图集尺寸不符被跳过)两边都不画 = 【什么都看不见】✓✓

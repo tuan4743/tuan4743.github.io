@@ -208,6 +208,8 @@ export interface Spec {
   art?: number;                 // 装饰图号(绘制时按它挑画法)
   tp?: boolean;                 // 瞬移到头顶的那个方块 + 翻重力(3004 / 3005)
   inert?: boolean;              // 只标记、不生效(克隆门 286/287)
+  dualOn?: boolean;             // 克隆门 286:开双人
+  dualOff?: boolean;            // 克隆回收门 287:收双人
   mini?: boolean;               // 尺寸门:true = 缩小,false = 恢复
   exit?: boolean;               // 传送门:出口(橙)
   col?: number;                 // 显示色覆盖(用户说 141 是紫的,物理仍按粉色环)
@@ -294,8 +296,8 @@ export const GD_SPEC: Record<number, Spec> = {
   /* ---- 传送 / 克隆 / 存档 / 硬币 ---- */
   747: { kind: 'teleport', note: '传送门入口(蓝)。原版要配 748 出口;这关只有入口 → 不生效(见文档)' },
   748: { kind: 'teleport', exit: true, note: '传送门出口(橙)' },
-  286: { kind: 'clone', inert: true, note: '克隆门(先只标记,不做克隆)' },
-  287: { kind: 'clone', inert: true, note: '克隆回收门(先只标记)' },
+  286: { kind: 'clone', dualOn: true, note: '克隆门:开双人(在门口生成玩家 2)' },
+  287: { kind: 'clone', dualOff: true, note: '克隆回收门:收双人(回到单人)' },
   2063: { kind: 'check', note: '存档点' },
   1329: { kind: 'coin', note: '硬币(收集)' },
 

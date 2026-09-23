@@ -67,6 +67,14 @@ export interface WorldSnap {
   /** 落块横向吸附用:上一次落在哪块上、当时的相对位置 */
   snapObj: Obj | null; snapDist: number;
   sets: Array<Array<Box>>;
+  /** 双人:是否开着、玩家 2 的状态(旧快照没有这两个字段 ⇒ restore 里按单人处理 ✓) */
+  dual?: boolean; p2?: PState | null;
+}
+
+/** 一个玩家的逐帧状态(双人时玩家 1 用主字段、玩家 2 存这里,物理靠"换进换出"复用同一套 substep) */
+export interface PState {
+  x: number; y: number; vy: number; onGround: boolean; mode: Mode;
+  gdir: number; speedIdx: number; dead: boolean; deadT: number;
 }
 
 /** 会被触发器推动的物件:记下它的判定盒与"原始坐标",每帧按偏移重写 */
@@ -210,6 +218,7 @@ export class World {
   private armedPortals = new Set<Box>();
   private armedSpeeds = new Set<Box>();
   private armedSizes = new Set<Box>();
+  private armedClones = new Set<Box>();
   private armedGravs = new Set<Box>();
   private armedOrbs = new Set<Box>();
   private armedPads = new Set<Box>();
@@ -448,7 +457,9 @@ export class World {
         [...this.armedChecks], [...this.armedPortals], [...this.armedSpeeds], [...this.armedSizes],
         [...this.armedGravs], [...this.armedOrbs], [...this.armedPads], [...this.armedArrows],
         [...this.armedTriggers], [...this.broken], [...this.gotCoins], [...this.handledPortals],
+        [...this.armedClones],
       ],
+      dual: this.dual, p2: this.p2 ? { ...this.p2 } : null,
     };
   }
 
@@ -462,10 +473,14 @@ export class World {
     this.tint = s.tint; this.tintGround = s.tintGround; this.flash = s.flash;
     this.dash = s.dash ? { ...s.dash } : null;
     this.snapObj = s.snapObj; this.snapDist = s.snapDist;
-    const [c, p, sp, sz, gv, ob, pd, aw, tg, br, gc, hp] = s.sets;
+    const [c, p, sp, sz, gv, ob, pd, aw, tg, br, gc, hp, cl] = s.sets;
     this.armedChecks = new Set(c); this.armedPortals = new Set(p); this.armedSpeeds = new Set(sp);
     this.armedSizes = new Set(sz); this.armedGravs = new Set(gv); this.armedOrbs = new Set(ob);
     this.armedPads = new Set(pd); this.armedArrows = new Set(aw); this.armedTriggers = new Set(tg);
+    this.armedClones = new Set(cl ?? []);
+    this.dual = s.dual ?? false;
+    this.p2 = s.p2 ? { ...s.p2 } : null;
+    this.dualSave = null;
     this.broken.clear(); for (const b of br) this.broken.add(b);
     this.gotCoins.clear(); for (const b of gc) this.gotCoins.add(b);
     this.handledPortals.clear(); for (const b of hp ?? []) this.handledPortals.add(b);
@@ -641,6 +656,43 @@ export class World {
   }
 
   /** 推进一帧。hold = 是否按住(方块:长按连跳;飞机:按住上升) */
+  /* ===== 双人(克隆门 286 = 开 · 287 = 收)=====
+     出处:.tmp/GDsrc/headers/includes.h:1320 `DualPortal = 23` / 1324 `SoloPortal = 24`
+       (OpenGD 的 object.json 里 286 → object_type 23、287 → 24 ✓)
+     实现:玩家 2 的【逐帧状态】存这里,物理用"换进换出主字段"的办法跑同一套 substep ✓
+     待补(照搬源码前不猜):原版第二个玩家的生成偏移与双人相机口径,见 HANDOVER 待办 ✓ */
+  dual = false;
+  private p2: PState | null = null;
+  private dualSave: PState | null = null;
+  private takeState(): PState {
+    return {
+      x: this.x, y: this.y, vy: this.vy, onGround: this.onGround, mode: this.mode,
+      gdir: this.gdir, speedIdx: this.speedIdx, dead: this.dead, deadT: this.deadT,
+    };
+  }
+  private putState(s: PState) {
+    this.x = s.x; this.y = s.y; this.vy = s.vy; this.onGround = s.onGround; this.mode = s.mode;
+    this.gdir = s.gdir; this.speedIdx = s.speedIdx; this.dead = s.dead; this.deadT = s.deadT;
+  }
+  /** 渲染/相机用:临时把玩家 2 的状态换进主字段(读完/画完【必须】dualBack() ✓)。
+   *  返回 false = 现在没有玩家 2(单人),调用方照旧 ✓ */
+  dualInto(): boolean {
+    if (!this.dual || !this.p2 || this.dualSave) return false;
+    this.dualSave = this.takeState();
+    this.putState(this.p2);
+    return true;
+  }
+  dualBack() {
+    if (!this.dualSave) return;
+    this.p2 = this.takeState();
+    this.putState(this.dualSave);
+    this.dualSave = null;
+  }
+  /** 玩家 2 现在在哪(相机要取两人的中点用 ✓);没有玩家 2 就返回 null */
+  p2Pos(): { x: number; y: number } | null {
+    return this.dual && this.p2 ? { x: this.p2.x, y: this.p2.y } : null;
+  }
+
   frame(hold: boolean) {
     /* 按键的"上升沿":原作 pushButton 就是在这个时刻清掉环的可用标记 */
     if (hold && !this.prevHold) { this.pressFresh = true; this.pressAux = false; }
@@ -676,6 +728,25 @@ export class World {
          正常档 5.193/4 = 1.30(<1.5 勉强) · 快速档 6.457/4 = 1.61 ✗ · 更快 7.8/4 = 1.95 ✗ · 最快 9.6/4 = 2.40 ✗✗
        ⇒ 只要速度高过正常档,一步就跨过整根杆 ✓ 正是用户报的现象。
        现在:x/y 都按【单位/帧】直接比 SUBSTEP_MAX(1.2),不够就继续切 ✓ */
+    this.advance(hold);
+    /* ★★★ 2026-09 双人(克隆门 286 开 / 287 收):玩家 2 用【同一套 substep】跑 ——
+       把它的状态换进主字段、跑完再换回来收好(不复制第二遍物理 ✓)。
+       同一帧、同一个 hold ⇒ 两人共用输入,和原版双人一致
+       (出处:事件枚举 PortalDualOn/Off = 57/58,见 .tmp/GDsrc/headers/includes.h:1404-1405)✓ */
+    if (this.dual && this.p2) {
+      const save = this.takeState();
+      this.putState(this.p2);
+      this.advance(hold);
+      this.p2 = this.takeState();
+      this.putState(save);
+      /* 双人里任一人死 = 这一趟结束(原版:一个死就重开)✓ */
+      if (this.p2.dead) { this.dead = true; this.deadT = 0; }
+    }
+    this.tick++;
+  }
+
+  /** 一个玩家的一帧物理(自适应切子步 + 积分)—— 玩家 1 / 玩家 2 共用它 ✓ */
+  private advance(hold: boolean) {
     const needY = Math.abs(this.vy) * Y_TIME_SCALE;
     const needX = Math.abs(vxOf(this.speedIdx));
     const need = Math.max(needY, needX) / SUBSTEP_MAX;
@@ -684,7 +755,6 @@ export class World {
     /* ★ 帧初位置:落台容错要用它(原版 m_lastPosition 就是每帧记一次,见 substep 里的说明) */
     this.frameY0 = this.y;
     for (let i = 0; i < n; i++) this.substep(d, hold);
-    this.tick++;
   }
 
   /** ★ 弹簧/跳环力度的运行时微调(页面上按 [ / ] 改,HUD 会显示)。
@@ -1388,6 +1458,16 @@ export class World {
       this.x = dst.x0;
       if (this.y + this.box > this.rows * U) this.y = this.rows * U - this.box;
       if (this.y < 0) this.y = 0;
+    }
+    for (const b of this.clones) {
+      if (this.armedClones.has(b)) continue;
+      if (!this.hitEvent(b, prevX)) continue;
+      this.armedClones.add(b);
+      /* 收双人的是 287(克隆回收门)。★ 用【物件 id】判:Spec 上的 dualOff 没被搬进物件
+         (level.ts 只白名单搬字段),而 id 是搬进来的(实测 x=516 那个 id=287 ✓) */
+      if (b.o.id === 287 || b.o.dualOff) { this.dual = false; this.p2 = null; continue; }
+      /* 286 = 开双人:玩家 2 在【进门那一点】生成(门洞 86 单位高,从任意高度进都行)✓ */
+      if (!this.dual) { this.dual = true; this.p2 = this.takeState(); }
     }
     for (const b of this.sizes) {
       if (this.armedSizes.has(b)) continue;
