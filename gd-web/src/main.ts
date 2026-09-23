@@ -11,7 +11,7 @@
 
 import Phaser from 'phaser';
 import { generateLevel, makeRealTimeAxis, type Level, type Mode, type Obj } from './sim/level.ts';
-import { World, botThink, groundHeightOf, type RunState } from './sim/world.ts';
+import { World, botThink, PORTAL_FRAME, type RunState } from './sim/world.ts';
 import { frameRects } from './sim/gdids.ts';
 import { fingerprint } from './sim/replay.ts';
 import { P, U, Y_TIME_SCALE } from './sim/constants.ts';
@@ -1565,13 +1565,30 @@ class Scene extends Phaser.Scene {
          ⇒ 之后相机不动(不吸格线、不跟人)⇒ 不晃 ✓;框也不动 ⇒ 不会被拽 ✓;两条带【静态】贴在框面上 ✓
          ✗ 我之前每帧跟人 / 每帧吸格线,都是我自己加的,两次都被你否掉 ✓ */
       if (!this.camPinned) {
-        const gh = groundHeightOf(w.mode);
-        /* ★★★ 下沿必须【按 30 格线对齐】—— 源码进门那一步就是 `floorf(v11/30)*30`(asm 451070)✓,
-           我在换方案时把这句丢了 ✗(用户:"为什么还不是整格")。下限 = 地面 0 ✓(asm 449845) */
-        const lo = Math.max(0, Math.floor((py - gh / 2) / U) * U);
-        this.frameLo = lo; this.frameHi = lo + gh;
-        this.camPinTarget = lo + gh / 2;              // 相机中心 = 框中心
-        this.camPinY = this.camBottom + vh / 2;       // 从当前视口平滑靠过去(不瞬移 ✓)
+        /* ★★★ 用户口径:"球门中心的格子上三下四,UFO门中心的上四下五,wave 上四下五,ship 上四下五
+           —— 每个门都不一样" ⇒ 框锚在【门所在那一格】上 ✓(不是玩家、不是相机 ✗ —— 我前面几版全锚错了)
+           portalFrame:hi = 门中心 + (上+0.5)×30,lo = 门中心 − (下+0.5)×30
+           (门那格 1 格高 ⇒ 两面都落在 30 的格线上 ✓ —— 这就是"为什么不是整格"的答案 ✓) */
+        /* 门那一格的下沿【先吸到格线】(门可能被记成格心 30k+15,也可能记成格边界 30k)⇒
+           这样不论哪种,两条面都永远是 30 的整数倍 ✓(用户:"为什么还不是整格" ✓) */
+        const cellBottom = Math.round((w.portalY - U / 2) / U) * U;
+        const ud = PORTAL_FRAME[w.mode] || { up: 4, down: 5 };
+        let fr = { lo: cellBottom - ud.down * U, hi: cellBottom + U + ud.up * U };
+        /* 兜底(只按【整格】平移,绝不缩放):万一这一刻玩家不在框内(自动/演示流程里 portalY 可能是旧值),
+           把整段框平移到他装得下为止 ⇒ 永远不会把人从框外拽进来(那就是"顶飞" ✓) */
+        const pcenter = w.y + (P.box * w.sizeMul) / 2;
+        const need = 45;
+        if (pcenter > fr.hi - need) {
+          const d = Math.ceil((pcenter - (fr.hi - need)) / U) * U;
+          fr = { lo: fr.lo + d, hi: fr.hi + d };
+        }
+        if (pcenter < fr.lo + need) {
+          const d = Math.ceil(((fr.lo + need) - pcenter) / U) * U;
+          fr = { lo: fr.lo - d, hi: fr.hi - d };
+        }
+        this.frameLo = fr.lo; this.frameHi = fr.hi;
+        this.camPinTarget = (fr.lo + fr.hi) / 2;      // 相机 = 框中心,进门平滑靠过去一次 ✓
+        this.camPinY = this.camBottom + vh / 2;
         this.camPinned = true;
       }
       this.camPinY = this.camPinY == null ? this.camPinTarget
