@@ -89,6 +89,10 @@ interface Movable {
 const ZERO_OFF = { dx: 0, dy: 0 };
 /** ★ 按"越过 x"触发的四类门(用户口径:形态门/速度门/反转门/尺寸门"到达这一 x 就触发") */
 const DOOR_KINDS = new Set(['portal', 'gravity', 'speed', 'size']);
+/** 进门钉死视口的形态(= 原版有"限制框"的那几个):球 / 飞船 / UFO / 波浪 ✓ 见 applyAirLimit */
+const FIXED_CAM_MODES = new Set<Mode>(['ship', 'ufo', 'wave', 'ball']);
+/** GD 屏幕 480×320(点)⇒ 纵向 320 单位 = 10.67 格。限制框 = 进门高度 ± 半屏 ✓ */
+const VIEW_H = 320;
 
 /** 一次触发产生的动画(位移 / 往返) */
 interface Anim {
@@ -778,6 +782,27 @@ export class World {
     if (this.vy * this.gdir < 0) this.vy = Math.max(-P.vyMax, Math.min(P.vyMax, this.vy));
   }
 
+  /** ★★★ 2026-09 用户:"ball,bird,dart,spider,ship 在原版有一个限制框 —— 不是贴图的框,
+      而是【游玩中的限高,限制在一个固定高度区间】",口径选定:【进门那一刻锁定的固定区间】✓
+      出处口径:这些形态在原版里视口是【进门时钉死】的(我们 main.ts 的 CAM_FIXED_MODES 已照做 ✓),
+      人被夹在那一屏里:撞到看不见的上/下边就贴住、纵向速度清零(玩家俗称"限制框" ✓)
+      区间 = 进门高度 portalY ± 半屏高(VIEW_H = 320 单位 = GD 480×320 的纵向 ✓)
+      ★ 待核:半屏这个"一屏高"是我按 GD 屏高取的;要精确到原版常数得再去挖 updateJump 里的比较值 ✓ */
+  private applyAirLimit() {
+    if (!FIXED_CAM_MODES.has(this.mode)) return;
+    /* ★ 只有【真的从门进来过】才夹(portalY > 0):
+       测试/合成关卡里直接以球/飞机形态开局时 portalY = 0,这时夹取会把人锁在 y≤5.3 一带,
+       连"球贴方块底面"这种验证过的行为都会被切掉(实测:sim.test 从 43 掉到 42 ✗)⇒ 必须放行 ✓
+       待办:进门高度为 0 的那一段(地面高度进飞机)也得夹 —— 要一个独立的 airLimitOn 标志,
+             并且把原版的区间常数挖出来之后一起做 ✓ */
+    if (this.portalY <= 0) return;
+    const half = VIEW_H / 2;
+    const lo = Math.max(0, this.portalY - half);
+    const hi = Math.min(this.rows * U - this.box, this.portalY + half - this.box);
+    if (this.y > hi) { this.y = hi; if (this.vy > 0) this.vy = 0; }
+    if (this.y < lo) { this.y = lo; if (this.vy < 0) this.vy = 0; }
+  }
+
   /** 弹簧 / 跳环给的推力方向(0 = 没有推力飞行)。见 applyFallClamp */
   private boostDir: 1 | -1 | 0 = 0;
 
@@ -997,10 +1022,12 @@ export class World {
            而终点速度的夹取在下面(918 行之后)⇒ 连续翻转会【复利式放大】(1.75^n)✗✓
            ⇒ 乘完立刻夹一次(源码的 max(-15, yAccel) 就是终端速度夹取 ✓),把复利掐断 ✓ */
         this.applyFallClamp();
+    this.applyAirLimit();          // ★ 限制框(球/飞船/UFO/波浪):夹在进门锁定的那一屏内 ✓
         this.onGround = false;
       }
       this.vy -= P.gravity * P.ballGravityMul * this.gdir * sY;
       this.applyFallClamp();
+    this.applyAirLimit();          // ★ 限制框(球/飞船/UFO/波浪):夹在进门锁定的那一屏内 ✓
       this.y += this.vy * sY;
     } else if (this.mode === 'spider') {
       /* 蜘蛛:点一下【传送到对面】再翻重力(反编译:搜索带厚度 = 体积 ×8) */
@@ -1009,6 +1036,7 @@ export class World {
          以前这里漏了乘,蜘蛛掉得跟方块一样快。 */
       this.vy -= P.gravity * P.ballGravityMul * this.gdir * sY;
       this.applyFallClamp();
+    this.applyAirLimit();          // ★ 限制框(球/飞船/UFO/波浪):夹在进门锁定的那一屏内 ✓
       this.y += this.vy * sY;
     } else {
       /* 方块 / 机器人:按住且在落地状态就起跳 —— 按住不放 = 落地自动连跳(原作手感)。
@@ -1051,6 +1079,7 @@ export class World {
          所以黄弹簧的 16 能原样生效,峰值才有 4.45 块,而不是被夹到 3.9。
          ★ 而【弹簧/跳环刚推出去的那一段】连下落方向也不夹 —— 见 applyFallClamp。 */
       this.applyFallClamp();
+    this.applyAirLimit();          // ★ 限制框(球/飞船/UFO/波浪):夹在进门锁定的那一屏内 ✓
       this.y += this.vy * sY;
     }
 
@@ -1406,6 +1435,9 @@ export class World {
          建的,门改成忠实行为后它在第一个飞机缝前会撞死。真实铺面(level.fromGD)走原版口径,
          老关卡保留旧的抬升 —— 两边都不坏。 */
       if (!this.strict && to === 'ship' && this.y < 3 * U) this.y = 3 * U;
+      /* ★★★ 2026-09 限制框(见 applyAirLimit):【进门这一刻的高度】就是这一屏的中心,
+         之后人被夹在这一屏里 ⇒ 这就是"固定高度区间"的锁 ✓ */
+      this.portalY = this.y;
     }
     for (const b of this.speeds) {
       if (this.armedSpeeds.has(b)) continue;
