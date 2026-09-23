@@ -11,7 +11,7 @@
 
 import Phaser from 'phaser';
 import { generateLevel, makeRealTimeAxis, type Level, type Mode, type Obj } from './sim/level.ts';
-import { World, botThink, ceilStripOf, type RunState } from './sim/world.ts';
+import { World, botThink, frameOf, type RunState } from './sim/world.ts';
 import { frameRects } from './sim/gdids.ts';
 import { fingerprint } from './sim/replay.ts';
 import { P, U, Y_TIME_SCALE } from './sim/constants.ts';
@@ -273,10 +273,23 @@ class Scene extends Phaser.Scene {
    *     面   = 视口上边 − 12(源码换算:天花板节点 = 进场高度 + 148 = 视口上边 − 12,见 sim 的 applyAirLimit)
    *     朝向 = flipY 镜像 ✓ · 平铺跟着关卡滚(tilePositionX = −camX,对应原版 updateGroundPos)✓ */
   ceiling: Phaser.GameObjects.TileSprite | null = null;
-  /** 天花板下沿那条亮线(原版是 floorLine_001.png,就压在地面顶边 ✓) */
+  /** 上框下沿那条亮线(原版是 floorLine_001.png)✓ */
   ceilingLine: Phaser.GameObjects.Rectangle | null = null;
+  /** ★★★ 2026-09 用户:"没有地面的框" ⇒ 下框(这个形态的"地面")也要画 —— 原版上下各一条地面 ✓ */
+  groundBand: Phaser.GameObjects.TileSprite | null = null;
+  groundLine: Phaser.GameObjects.Rectangle | null = null;
   /** 天花板贴图一格 = groundSquare_01_001.png 的 128×128 ✓ */
   static readonly GROUND_TILE = 128;
+  /** ★★★ 2026-09 用户:"为什么摄像机是突然被固定的" —— 原版是每帧 iLerp(0.1) 靠过去,不是瞬移 ✓
+   *  这两个值:camPinTarget = 进门那一刻锁定的视口中心(区间就锁在它身上 ✓,sim 拿到的框也用它 ✓)
+   *             camPinY      = 相机【实际】所在的高度,每帧朝 target 靠 0.1 ✓ */
+  camPinTarget = 0;
+  camPinY: number | null = null;
+  /** ★★★ 2026-09 用户:"为什么限高框没有出现的动画" —— 原版进门是 tweenCeiling/tweenBottomGround
+   *  (EaseInOut 0.1 秒,反编译 PlayLayer.cpp:1911)把两条地面【拉进来】✓
+   *  bandT = 0→1 的进度,进门那一刻归零 ✓ */
+  bandT = 1;
+  private bandMode: Mode | null = null;
   private iconLayers: Array<{
     mode: Mode;
     body: Phaser.GameObjects.Image;
@@ -1495,10 +1508,18 @@ class Scene extends Phaser.Scene {
           this.camCenter = portalY < CAM_FLY_BELOW ? CAM_FLY_CENTER
             : Math.floor((portalY + CAM_LOW) / U) * U - CAM_LOW;
         }
+        /* ★★★ 2026-09 用户两条:"为什么摄像机是突然被固定的" + "为什么限高框没有出现的动画"
+           ⇒ ① 区间锁在【进门这一刻的目标视口中心】(此前 sim 拿到的是每帧移动的视口 ⇒ 框会跟着飘 ✗)
+             ② 相机实际高度每帧朝目标靠 0.1(照搬 updateCamera 末尾那句 iLerp ✓,不是瞬移 ✗)
+             ③ 两条框的进场进度归零 ⇒ 下面 bandT 播 0.1 秒 EaseInOut ✓ */
+        this.camPinTarget = this.camCenter;
+        if (this.camPinY == null) this.camPinY = this.camBottom + vh / 2;
+        this.bandT = 0;
+      } else {
+        this.camPinY = null;
       }
       this.camMode = w.mode;
     }
-
     /* ---- 纵向:视野下边(世界 y、单位) ---- */
     /* ★★★ 2026-09 双人(克隆门 286/287):两个人【x 相同、y 可以不同】⇒ 纵向取两人中点,
        这样两个玩家都在屏内 ✓(两人共用一套输入,见 sim/world.ts 的 dual 那段) */
@@ -1507,7 +1528,10 @@ class Scene extends Phaser.Scene {
     const py = midY + (P.box * w.sizeMul) / 2;           // 视点中心(单人时就是人中心 ✓)
     let bottom: number;
     if (CAM_FIXED_MODES.has(w.mode)) {
-      bottom = this.camCenter - vh / 2;                  // 钉死:视口中心 = 进门时的高度
+      /* ★★★ 2026-09 用户:"为什么摄像机是突然被固定的" ⇒ 平滑靠过去(原版 iLerp 0.1/帧)✓ */
+      this.camPinY = this.camPinY == null ? this.camPinTarget
+        : this.camPinY + (this.camPinTarget - this.camPinY) * 0.1;
+      bottom = this.camPinY - vh / 2;                    // 视口中心朝"进门锁定值"靠拢
     } else {
       const flip = w.gdir < 0;
       const unk2 = flip ? CAM_MID : CAM_LOW;             // 上沿余量
@@ -1528,61 +1552,63 @@ class Scene extends Phaser.Scene {
     bottom = Math.max(lo, Math.min(hi, bottom));
     this.camBottom = bottom;
     this.camCenter = bottom + vh / 2;
-    /* ★★★ 2026-09 限制框(用户:"机制是类似创建上下两边的地面"):把【当前取景范围】告诉 sim ——
-       球/飞船/UFO/波浪的相机是进门钉死的,于是屏幕上下边就是那两块看不见的地面 ✓
-       (以前 sim 自己算 portalY ± 半屏 ✗ 和这里这套 CAM_* 常数对不上 ⇒ 会凭空多出一堵墙 ✗) */
-    w.airLo = bottom;
-    w.airHi = bottom + vh;
-    /* ★★★ 2026-09 用户:"没有贴图,我都看不到限高框在哪" ⇒ 把限高框【画出来】✓
-       原版就是这个样子:飞行形态下天花板是一条【倒过来的地面】(GJFlyGroundLayer : GJGroundLayer ✓),
-       下边那条地面本来就是关卡地面(不用另画)⇒ 这里只画天花板那一条 ✓
-       建对象放在这里(update 阶段,不是 render 途中 ⇒ 不会像 pilot 那次卡死 ✓) */
+    /* ★★★ 2026-09 限制框(用户:"机制是类似创建上下两边的地面" + "原版限高八格" + "进门时锁定的一段固定区间"):
+       区间 = 进门那一刻钉死的视口中心 ± 4 格(八格 = 240 单位)⇒ 上下两条【面】由 frameOf 给出 ✓
+       ① 框锁在 camPinTarget 上(不是每帧移动的视口 ⇒ 框不会飘 ✓)
+       ② 相机只是平滑靠过去(camPinY),框本身不动 ✓ */
+    const bandOn = CAM_FIXED_MODES.has(w.mode);
+    const lockCenter = bandOn ? this.camPinTarget : this.camCenter;
+    w.airLo = lockCenter - vh / 2;
+    w.airHi = lockCenter + vh / 2;
     {
       /* ★★★ 2026-09 修 `Uncaught ReferenceError: Y is not defined`(用户给的报错原文)——
-         `Y()` 是【绘图空间】的映射,只在 draw() 里可用 ✗;这个取景方法里没有它 ✗
-         (类型检查为什么没拦住:它在 .d.ts 里被声明成了全局 ⇒ 编译期"有",运行时模块里"没有" ✗
-          —— 和上上轮那个 `on is not defined` 是同一类"只有跑起来才炸"的错误 ✗)
-         这个作用域里现成的换算就是 `rowsU - y`(下面 this.camWorldY = rowsU - this.camCenter ✓ 用的就是它)
-         ⇒ 直接算,不碰 Y ✓ */
+         这个作用域里现成的换算就是 `rowsU - y` ⇒ 直接算,不碰只在 draw() 里存在的 Y() ✓ */
       const drawY = (wy: number) => rowsU - wy;
-      const fly = CAM_FIXED_MODES.has(w.mode);
-      /* ★ 天花板【面】= 视口上边 − 12(源码:天花板节点 = 进场高度 + 148 = 视口上边 − 12;
-         飞行 388 / 球 358、视口中心 240 / 210 ⇒ 两个都正好差 12 ✓)
-         ★ 只在【相机钉死的形态】显示:原版天花板是进门那一刻 tweenCeiling(388/358) 拉进来的,
-           方块/机器人/蜘蛛进门不拉 ⇒ 它留在屏幕上方(看不见)✓ 我们这里直接不显示 ✓ */
       const wide = vw + 2 * Scene.GROUND_TILE;
-      /* ★ 天花板【面】(这条地面缝的下沿)= 视口上边 − 12 —— 出自源码那组数反推
-         (判定式 `上限 = 天花板 − 240 + 视口中心 − 12` ⇒ 面 = 视口中心 + 148;飞行 388=240+148 ✓
-          球 358=210+148 ✓;视口上边 = 视口中心 + 屏高/2 ⇒ 面 = 视口上边 − 12,形态无关 ✓)
-         ★ 和 sim 共用 ceilStripOf ⇒ 画的和夹的永远是同一条 ✗ 不会再各算一套 */
-      const strip = ceilStripOf(w.mode);
-      const surf = bottom + vh - strip;                  // 天花板面(世界 y)
-      const drawSurf = drawY(surf);
+      /* ★ 两条框的进场动画(用户:"为什么限高框没有出现的动画"):原版进门 tweenCeiling/tweenBottomGround
+         是 EaseInOut 0.1 秒把两条地面【拉进来】(反编译 PlayLayer.cpp:1911)✓
+         这里同款:进度 bandT 0→1,缓动取 smoothstep(与 EaseInOut 同形),起点在画外 128 单位 ✓ */
+      const dtSec = Math.min(0.05, this.game.loop.delta / 1000);
+      this.bandT = Math.min(1, this.bandT + dtSec / 0.1);
+      const e = this.bandT * this.bandT * (3 - 2 * this.bandT);
+      const fr = frameOf(w.airLo as number, w.airHi as number);
+      const hiFrom = (w.airHi as number) + Scene.GROUND_TILE, loFrom = (w.airLo as number) - Scene.GROUND_TILE;
+      const hiY = hiFrom + (fr.hi - hiFrom) * e;         // 上框面(世界 y)
+      const loY = loFrom + (fr.lo - loFrom) * e;         // 下框面(世界 y)
       /* ★★ 探针实测(tools/verify/gd-limit-shot.mjs):第一版建出来的 TileSprite 贴图是 `__MISSING` ✗
          —— 建对象那一刻 'gd-ground' 还没就绪,Phaser 就退化成缺省贴图,而且【不会自己换回来】✗
          ⇒ 就绪了才建;万一已经建成 __MISSING,销毁重建一次 ✓(自愈,不用刷新页面) */
       if (this.ceiling && this.ceiling.texture.key === '__MISSING') { this.ceiling.destroy(); this.ceiling = null; }
+      if (this.groundBand && this.groundBand.texture.key === '__MISSING') { this.groundBand.destroy(); this.groundBand = null; }
       const groundReady = this.textures.exists('gd-ground') && !!this.textures.getFrame('gd-ground');
       if (!this.ceiling && groundReady) {
-        /* ★ 用 TileSprite 而不是矩形:原版就是【一张 REPEAT 的地面贴图】横着铺 ✓
-           (GJGroundLayer::loadGroundSprites / init 把贴图拉成整屏宽 ✓) */
+        /* ★ 上框 = 地面贴图【竖着镜像】(原版 GJFlyGroundLayer 就是倒过来的地面 ✓),不透明、不上色 ✓ */
         this.ceiling = this.add.tileSprite(0, 0, wide, Scene.GROUND_TILE, 'gd-ground')
-          .setOrigin(0.5, 1)                              // 原点在【下沿】⇒ 下沿就是天花板面 ✓
-          .setFlipY(true)                                 // 纵向镜像 = 原版那记 setScaleY(-1) ✓
-          /* ★ 不透明、不上色(用户:"不要透明")—— 贴图本来就是地面本体,白底由关卡地面色(通道 1001)染;
-             本关 1001 还没解析 ⇒ 先保持原图原样、完全不透明 ✓
-             (上一版压成 55% 透明 + 暗色 ⇒ 用户看到的还是"看不清" ✗) */
+          .setOrigin(0.5, 1)                              // 原点在【下沿】⇒ 下沿就是上框面 ✓
+          .setFlipY(true)
           .setDepth(7).setVisible(false);
-        /* 下沿那条亮线 = 原版 floorLine_001.png(压在地面顶边 = 天花板面上)✓ */
+        /* 下沿那条亮线 = 原版 floorLine_001.png(压在地面顶边 = 框面上)✓ */
         this.ceilingLine = this.add.rectangle(0, 0, wide, 2, 0xbfe9ff, 0.85).setDepth(8).setVisible(false);
+        /* ★★★ 用户:"没有地面的框" ⇒ 下框(这个形态的地面)也要画:同一条贴图,正着放、挂在框面【下面】✓ */
+        this.groundBand = this.add.tileSprite(0, 0, wide, Scene.GROUND_TILE, 'gd-ground')
+          .setOrigin(0.5, 0)                              // 原点在【上沿】⇒ 上沿就是下框面 ✓
+          .setDepth(7).setVisible(false);
+        this.groundLine = this.add.rectangle(0, 0, wide, 2, 0xbfe9ff, 0.85).setDepth(8).setVisible(false);
       }
-      if (this.ceiling) {
-        this.ceiling.setVisible(fly);
-        (this.ceilingLine as Phaser.GameObjects.Rectangle).setVisible(fly);
-        if (fly) {
-          this.ceiling.setPosition(this.camX, drawSurf).setSize(wide, Scene.GROUND_TILE);
-          this.ceiling.tilePositionX = -this.camX;        // 贴图钉在世界坐标上(跟着关卡滚)✓
-          (this.ceilingLine as Phaser.GameObjects.Rectangle).setPosition(this.camX, drawSurf + 1).setSize(wide, 2);
+      if (this.ceiling && this.groundBand) {
+        const c = this.ceiling, gb = this.groundBand;
+        const cl = this.ceilingLine as Phaser.GameObjects.Rectangle;
+        const gl = this.groundLine as Phaser.GameObjects.Rectangle;
+        /* ★ 只在【相机钉死的形态】显示:原版这两条是进门那一刻 tween 进来的,
+           方块/机器人/蜘蛛进门不拉 ⇒ 它们留在画外(看不见)✓ 我们直接不显示 ✓ */
+        c.setVisible(bandOn); cl.setVisible(bandOn);
+        gb.setVisible(bandOn); gl.setVisible(bandOn);
+        if (bandOn) {
+          /* ★ 贴图【不动】(用户:"为什么地面贴图会动")⇒ 不设 tilePositionX ✓ */
+          c.setPosition(this.camX, drawY(hiY)).setSize(wide, Scene.GROUND_TILE);
+          cl.setPosition(this.camX, drawY(hiY) + 1).setSize(wide, 2);
+          gb.setPosition(this.camX, drawY(loY)).setSize(wide, Scene.GROUND_TILE);
+          gl.setPosition(this.camX, drawY(loY) - 1).setSize(wide, 2);
         }
       }
     }

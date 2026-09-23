@@ -13,7 +13,7 @@ import { dirname, join } from 'node:path';
 
 import { P, U, ROWS, JUMP_SPAN_BLOCKS, JUMP_AIRTIME_S, arcSpan, PAD, ORB } from '../src/sim/constants.ts';
 import { generateLevel, tightestGap, tOfX, countKinds, type Level, type Segment } from '../src/sim/level.ts';
-import { World, botThink, ceilStripOf } from '../src/sim/world.ts';
+import { World, botThink, frameOf, FLY_BAND } from '../src/sim/world.ts';
 import { recordBot, replay, fingerprint } from '../src/sim/replay.ts';
 import { decodeGmd, encodeGmdText, parseGmdText } from '../src/sim/gmd.ts';
 import { coverage, formatReport } from '../src/sim/gdmap.ts';
@@ -601,9 +601,11 @@ test('飞行类碰实心:撞侧面死、擦到顶面【落上去】(flySolid 开
   const capW = new World(lv, undefined, undefined, { flySolid: true });
   capW.reset(19 * U, 'ufo', 3.5 * U);
   capW.speedIdx = 1; capW.gdir = 1; capW.vy = 0;
-  /* ★ 视口上边要落在【关卡顶下面】(不然先撞上"超过关卡顶即死"那一条,测不到限高) */
-  capW.airHi = capW.rows * U - 60; capW.airLo = capW.airHi - 320;   // 视口 = 一屏(320 单位)
-  const cap = (capW.airHi as number) - ceilStripOf('ufo') - 12 - capW.box / 2;
+  /* ★ 视口(airLo~airHi)由页面给;框 = 视口中点 ± 半格框(= 八格 ⇒ ±4 格)✓ */
+  capW.airLo = capW.rows * U - 420; capW.airHi = capW.airLo + 320;   // 视口 = 一屏(320 单位)
+  const fr = frameOf(capW.airLo, capW.airHi);
+  assert.equal(Math.round(fr.hi - fr.lo), FLY_BAND, '框高必须是八格(240 单位)');
+  const cap = fr.hi - 12 - capW.box / 2;
   for (let f = 0; f < 40 && !capW.dead; f++) capW.frame(f % 8 === 0);   // 一路往上顶(别飞过铺面尽头)
   /* 硬顶几帧:必须【贴住、不能穿过去】—— 源码那一支同时 setYVel(0) ✓
      (一帧不够:UFO 的纵向速度被源码夹在 flyUpMax = 8/frame ⇒ 一帧只走 8 单位) */
@@ -611,7 +613,7 @@ test('飞行类碰实心:撞侧面死、擦到顶面【落上去】(flySolid 开
   assert.ok(!capW.dead && capW.y <= cap + 0.001 && capW.y > cap - 1 && capW.vy <= 0.5,
     '限高:UFO 硬顶天花板应该【贴住、不穿过去】y=' + cap.toFixed(1) + '、纵向速度被清零(实测 y=' + capW.y.toFixed(2) +
     ',vy=' + capW.vy.toFixed(2) + ',死=' + capW.dead + ',关卡顶=' + (capW.rows * U) + ',x=' + (capW.x / U).toFixed(1) +
-    ';视口上边 ' + capW.airHi + ' ⇒ 天花板面 ' + ((capW.airHi as number) - ceilStripOf('ufo')) + ')');
+    ';框 ' + Math.round(fr.lo) + '~' + Math.round(fr.hi) + '(八格)' + ')');
 });
 
 test('黑环(冲刺):不管当前速度,直接把垂直速度设成 15 并朝重力方向', () => {

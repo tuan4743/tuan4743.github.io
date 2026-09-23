@@ -92,17 +92,20 @@ const DOOR_KINDS = new Set(['portal', 'gravity', 'speed', 'size']);
 /** 进门钉死视口的形态(= 原版有"限制框"的那几个):球 / 飞船 / UFO / 波浪 ✓ 见 applyAirLimit */
 const FIXED_CAM_MODES = new Set<Mode>(['ship', 'ufo', 'wave', 'ball']);
 
-/** ★★★ 2026-09 限高:天花板【面】离视口上边多少单位。
- *  出处 —— 只用源码自己那组数,不再自己推几何:
- *   · 天花板 = 第二块地面(GJFlyGroundLayer : GJGroundLayer),进门 tweenCeiling(388)、球 tweenCeiling(358);
- *   · PlayLayer::checkCollisions 非方块那一支:`上限 = 天花板 − (迷你?234:240) + 视口中心 − 12`
- *     ⇒ 反推天花板(面)= 视口中心 + 148,而且【两种形态都对得上】:
- *         飞行 388 = 240 + 148 ✓   球 358 = 210 + 148 ✓
- *   · 而视口上边 = 视口中心 + 屏高/2(320/2 = 160)⇒ 天花板【面】= 视口上边 − 12 ✓(形态无关 ✓)
- *  ★ 上一版我按"贴图 128×128 的几何"推出 60/90 ✗ —— 那等于把 tween 值当成【图层节点】,
- *    于是天花板被摆到 60/90 的位置:位置错、球门一进去就被夹住动弹不得(用户实测)✗
- *  ⇒ 只认源码这组数:面 = 视口上边 − 12,飞行 / 球 / 迷你 全都一样 ✓ */
-export function ceilStripOf(_mode: Mode): number { return 12; }
+/** ★★★ 2026-09 限高框 =【进门锁定的那一段固定区间】,高度【八格】(用户口径:"原版限高八格")。
+ *  八格 = 8 × 30 = 240 单位,中线 = 钉死视口的中点 ⇒ 上下各 4 格 = ±120 ✓
+ *  机制源头:上下各一条地面(GJFlyGroundLayer : GJGroundLayer,进门 tweenCeiling 拉进来)✓
+ *  判定形式照 PlayLayer::checkCollisions 非方块那一支:
+ *     贴地:`center ≥ 下框面 + 半个盒`(源码 90 + 15 = 105)⇒ 我们的 y 是脚底 ⇒ `y ≥ 下框面` ✓
+ *     顶头:`center ≤ 上框面 − 12`(源码那个 -12)⇒ `y ≤ 上框面 − 12 − 半个盒`(迷你 +6)✓
+ *  ★ 页面画的两条框和这里夹的两条,【共用这一个函数】⇒ 不会再各算一套 ✗ */
+export const FLY_BAND = 8 * U;
+
+/** 限高框的两条面(世界 y):给页面画框、给物理夹取,同一个来源 ✓ */
+export function frameOf(airLo: number, airHi: number): { lo: number; hi: number } {
+  const mid = (airLo + airHi) / 2;
+  return { lo: mid - FLY_BAND / 2, hi: mid + FLY_BAND / 2 };
+}
 
 /** 一次触发产生的动画(位移 / 往返) */
 interface Anim {
@@ -817,42 +820,36 @@ export class World {
    *        y < 地面节点 + 相机 + (迷你 ? 87 : 93)          ⇒ 贴回去 + setYVel(0);正向重力时 hitGround
    *        y > 天花板 − (迷你 ? 234 : 240) + 视口中心 − 12  ⇒ 贴回去 + setYVel(0);反重力时 hitGround
    *
-   *  换到我们的坐标(我们 = 原版 − 90:原版地面顶面 90 = 我们的 0,页面那套 CAM_* 常数也是这么来的 ✓):
-   *   · 地面顶面 = 0 ⇒ 下限 = 0(我们的 y 是【脚底】,站在地面上就是脚底贴 0)✓
-   *   · 原版天花板节点 = 进门那一刻 tweenCeiling(388)/球(358);按源码自己那条判定式反推,
-   *     天花板【面】= 视口中心 + 148(飞行 388 = 240+148 ✓ 球 358 = 210+148 ✓)
-   *     ⇒ 面 = 视口上边 − 12(见 ceilStripOf,形态无关 ✓)
-   *     ⇒ 上限 = 面 − 12(源码那个 -12)− 半个判定盒(迷你 +6,源码 234 那一档)
-   *   ⇒ 这就是原版飞行时能看见的那一条【地面缝】,页面照它画 ✓
+   *  换到我们的坐标(用户口径:"原版限高八格" + "进门时锁定的一段固定区间"):
+   *   · 区间 = 进门钉死视口的中点 ± 4 格(八格 = 240 单位)⇒ 上下两条【面】见 frameOf ✓
+   *   · 下框面 = 这个形态的"地面"(贴上去 + hitGround + setYVel(0))✓
+   *   · 上框面 = 天花板:center ≤ 面 − 12(源码那个 -12)⇒ 脚底上限 = 面 − 12 − 半个判定盒(迷你 +6)✓
+   *   · 两条面页面都画出来(原版就是上下各一条地面 ✓)
    *
-   *  ★ 天花板只在【相机钉死的形态】(飞船 / UFO / 波浪 / 球)生效:这几个形态 airHi 是钉死的 ✓
-   *    方块 / 机器人 / 蜘蛛的相机跟着人走 ⇒ 拿 airHi 当天花板会变成一堵跟着人跑的墙 ✗ */
+   *  ★ 只在【相机钉死的形态】(飞船 / UFO / 波浪 / 球)生效:这几个形态 airHi/airLo 是钉死的 ✓
+   *    方块 / 机器人 / 蜘蛛的相机跟着人走 ⇒ 拿它当框会变成一堵跟着人跑的墙 ✗ */
   private applyAirLimit() {
     if (this.mode === 'cube') return;                    // 源码:只夹【非方块】那一支 ✓
-    /* 地面:贴回去 + hitGround + setYVel(0) —— 源码这一支是 `if (!isGravityFlipped()) player->hitGround(false)`
-       ★ hitGround 必须照搬:原版【地面根本不是物件】,方块能站在地上、球能在地上跳,
-         靠的就是这一次 hitGround 把落地标记置上 ✓(我们这里也有真地面物件,但夹取先跑,
-         人不陷进去 ⇒ 那套"踩实体"识别不到 ⇒ 不补这一句球/机器人就永远跳不起来 ✗ 实测过 ✓)
-       ★ 坐标口径:我们的 this.y 是【脚底】不是中心(见落台那段的 `this.y = b.y1`),
-         原版比较的却是中心 ⇒ 上边那一夹要减半个判定盒,地面这一夹正好就是 0 ✓ */
-    if (this.y < 0) {
-      this.y = 0;
+    if (this.airLo == null || this.airHi == null) return;   // 页面还没跑:不夹 ✓
+    if (!FIXED_CAM_MODES.has(this.mode)) return;
+    const f = frameOf(this.airLo as number, this.airHi as number);
+    /* 下框面(这个形态的"地面"):贴回去 + hitGround + setYVel(0) —— 源码 `if (!isGravityFlipped()) hitGround(false)`
+       ★ hitGround 必须照搬:原版【地面根本不是物件】,球能在地上跳靠的就是这一句把落地标记置上 ✓
+         (我们这里也有真地面物件,但夹取先跑、人不陷进去 ⇒ 那套"踩实体"识别不到 ⇒ 球/机器人永远跳不起来 ✗ 实测过)
+       ★ 坐标口径:我们的 this.y 是【脚底】不是中心(见落台那段 `this.y = b.y1`)⇒ 下框面直接用 ✓ */
+    if (this.y < f.lo) {
+      this.y = f.lo;
       if (this.gdir > 0) this.onGround = true;
       this.vy = 0;
     }
-    if (!FIXED_CAM_MODES.has(this.mode) || this.airHi == null) return;
-    /* 天花板(源码比较的是【人中心】,我们的 y 是脚底 ⇒ 减半个判定盒):
-       面 = 视口上边 − 12(源码数反推,见 ceilStripOf)
-       center ≤ 面 − 12(源码那个 -12)  ⇒  y ≤ 面 − 12 − 半个判定盒(迷你 +6,源码 234 那一档) */
-    const top = (this.airHi as number) - ceilStripOf(this.mode) - 12 - this.box / 2 + (this.mini ? 6 : 0);
+    /* 上框面(天花板):源码比较的是【人中心】⇒ 减半个判定盒(迷你 +6,源码 234 那一档) */
+    const top = f.hi - 12 - this.box / 2 + (this.mini ? 6 : 0);
     /* 一行诊断(用户:"我都看不到限高框在哪,我怎么知道生没生效")—— 【顶到的那一刻】打一次 ✓ */
     if (this.y >= top - 0.001 && this.airDbg !== this.mode) {
       this.airDbg = this.mode;
-      console.info('[gd] 限高:形态=' + this.mode + ' · 视口=' + Math.round(this.airLo as number) + '~' +
-        Math.round(this.airHi as number) + ' · 天花板面=' + Math.round((this.airHi as number) - ceilStripOf(this.mode)) +
-        ' · 上限(脚底)=' + Math.round(top) + ' · 地面 = 0');
+      console.info('[gd] 限高:形态=' + this.mode + ' · 框=' + Math.round(f.lo) + '~' + Math.round(f.hi) +
+        '(八格 ' + FLY_BAND + ') · 上框面=' + Math.round(f.hi) + ' · 上限(脚底)=' + Math.round(top));
     }
-    /* 天花板:贴回去 + setYVel(0)(反重力时源码那一支是 hitGround(true) ✓) */
     if (this.y > top) {
       this.y = top;
       if (this.gdir < 0) this.onGround = true;
