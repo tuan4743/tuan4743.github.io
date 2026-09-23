@@ -336,7 +336,9 @@ class Scene extends Phaser.Scene {
        ⇒ k = 1/4(我们用的是 uhd 图集 ✓)⇒ 3 格高的门自然就是 90 单位高 ✓
        锚点:门/速度门/迷你门 = 贴图【底边贴物件底边】(否则 3 格美术会往上冒 1 格 ✓);其余居中 ✓ */
     const k = 0.25;                                   // uhd:4 px = 1 世界单位
-    const isDoor = o.kind === 'portal' || o.kind === 'speed' || o.kind === 'size';
+    /* ★ 2026-09 用户:"0 档速度的贴图往下偏移了两格" ⇒ 速度门的美术比门矮,不该按"底边对齐"(那是给 3 格高的门用的 ✓)
+       只有 portal(形态门)按底边;speed / size 保持居中 ✓ */
+    const isDoor = o.kind === 'portal';
     const dispW = fr.width * k, dispH = fr.height * k;
     const drawY = isDoor ? dy + chU / 2 + dispH / 2 : dy;   // dy 是物件中心 ⇒ 门口要抬到"底边对齐" ✓
     img.setVisible(true).setTexture('gd-art', key).setPosition(dx, drawY);

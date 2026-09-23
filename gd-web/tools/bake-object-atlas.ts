@@ -68,10 +68,15 @@ for (const src of SOURCES) {
     const b = m[2];
     const tr = /\{\{(-?[0-9.]+),(-?[0-9.]+)\},\{([0-9.]+),([0-9.]+)\}\}/.exec(b);
     if (!tr) continue;
+    const rot = /<key>textureRotated<\/key>\s*<true\/>/.test(b);
+    /* ★★★ 2026-09 用户:"门的方向是反的(旋转了 90°)" —— Phaser 的 JSON 图集约定:
+       rotated 帧要在 frame 里给【未旋转的 w/h】(宽高互换),由 rotated:true 让 Phaser 转回来 ✓
+       我们之前直接把图集里【躺着的 w/h】写上 ⇒ Phaser 又转一次 ⇒ 门就横躺/反了 ✓✓ */
+    const w = Number(tr[3]), h = Number(tr[4]);
     frames.push({
       filename: name,
-      frame: { x: +tr[1], y: +tr[2], w: +tr[3], h: +tr[4] },
-      rotated: /<key>textureRotated<\/key>\s*<true\/>/.test(b),
+      frame: { x: +tr[1], y: +tr[2], w: rot ? h : w, h: rot ? w : h },
+      rotated: rot,
     });
   }
   if (!frames.length) continue;
