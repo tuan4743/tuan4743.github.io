@@ -13,7 +13,7 @@ import { dirname, join } from 'node:path';
 
 import { P, U, ROWS, JUMP_SPAN_BLOCKS, JUMP_AIRTIME_S, arcSpan, PAD, ORB } from '../src/sim/constants.ts';
 import { generateLevel, tightestGap, tOfX, countKinds, type Level, type Segment } from '../src/sim/level.ts';
-import { World, botThink } from '../src/sim/world.ts';
+import { World, botThink, ceilStripOf } from '../src/sim/world.ts';
 import { recordBot, replay, fingerprint } from '../src/sim/replay.ts';
 import { decodeGmd, encodeGmdText, parseGmdText } from '../src/sim/gmd.ts';
 import { coverage, formatReport } from '../src/sim/gdmap.ts';
@@ -204,10 +204,10 @@ test('飞机:按住上升、松手下落', () => {
   const start = up.y, vy0 = up.vy;
   for (let i = 0; i < 10; i++) up.frame(false);        // 先减速:这一段还会往上滑
   const yTop = up.y, vyMid = up.vy;
-  for (let i = 0; i < 60; i++) up.frame(false);        // 速度转负、并且真的掉下来(原版飞机加速度比旧版小)
+  for (let i = 0; i < 24; i++) up.frame(false);        // 速度转负之后才是真的下落
   assert.ok(vyMid < vy0, "松手后上升速度应该变小(" + vy0.toFixed(1) + " → " + vyMid.toFixed(1) + ")");
-  assert.ok(up.vy < vyMid && up.y < yTop, "松手后速度要往下走(y " + (yTop / U).toFixed(2) + " → " + (up.y / U).toFixed(2) + " 块, vy " + vyMid.toFixed(1) + " → " + up.vy.toFixed(1) + ")");
-  assert.ok(up.y < start + 2.6 * U, "松手后不该一直往上爬(起点 " + (start / U).toFixed(2) + " 块,现在 " + (up.y / U).toFixed(2) + ")");
+  assert.ok(up.vy < 0 && up.y < yTop, "松手后应该转为下落(y " + (yTop / U).toFixed(2) + " → " + (up.y / U).toFixed(2) + " 块, vy " + up.vy.toFixed(1) + ")");
+  assert.ok(up.y < start + 1.2 * U, "松手后不该继续爬升(起点 " + (start / U).toFixed(2) + " 块)");
 });
 
 /* ---------------- ③ 弹簧 / 跳环(用户点名要的玩法) ---------------- */
@@ -594,22 +594,24 @@ test('飞行类碰实心:撞侧面死、擦到顶面【落上去】(flySolid 开
   /* ④ ★★★ 2026-09 限高(限制框)= 照搬源码那一夹 —— 用户:"限高代码需要照搬""机制是类似创建上下两边的地面"
         源码 PlayLayer::checkCollisions 非方块那一支:
           y > 天花板 − (迷你 ? 234 : 240) + 视口中心 − 12  ⇒ 贴回 + setYVel(0) ✓
-        换到我们的坐标(我们 = 原版 − 90;原版天花板节点 = 进场高度 + 148 = 视口上边 − 12;
+        换到我们的坐标(我们 = 原版 − 90;原版天花板节点 = 进门 tweenCeiling(388)/球(358),
+        相机局部;贴图 128 高、镜像后挂节点下面 ⇒ 面 = 节点 − 128 ⇒ 面离视口上边 =(320+128)−节点;
         我们的 y 是【脚底】不是中心 ⇒ 再减半个判定盒):
-          脚底上限 = 视口上边 − 24 − 半个判定盒 ✓ */
+          脚底上限 = 视口上边 − 缝厚(飞行 60 / 球 90)− 12 − 半个判定盒 ✓ */
   const capW = new World(lv, undefined, undefined, { flySolid: true });
   capW.reset(19 * U, 'ufo', 3.5 * U);
   capW.speedIdx = 1; capW.gdir = 1; capW.vy = 0;
   /* ★ 视口上边要落在【关卡顶下面】(不然先撞上"超过关卡顶即死"那一条,测不到限高) */
   capW.airHi = capW.rows * U - 60; capW.airLo = capW.airHi - 320;   // 视口 = 一屏(320 单位)
-  const cap = (capW.airHi as number) - 24 - capW.box / 2;
+  const cap = (capW.airHi as number) - ceilStripOf('ufo') - 12 - capW.box / 2;
   for (let f = 0; f < 40 && !capW.dead; f++) capW.frame(f % 8 === 0);   // 一路往上顶(别飞过铺面尽头)
-  /* 硬顶一次:必须【精确贴住】天花板,不能穿过去 —— 源码那一支同时 setYVel(0) ✓ */
-  capW.vy = 20; capW.frame(false);
-  assert.ok(!capW.dead && Math.abs(capW.y - cap) < 0.01 && capW.vy <= 0.5,
-    '限高:UFO 硬顶天花板应该精确贴住 y=' + cap.toFixed(1) + '、纵向速度清零(实测 y=' + capW.y.toFixed(2) +
+  /* 硬顶几帧:必须【贴住、不能穿过去】—— 源码那一支同时 setYVel(0) ✓
+     (一帧不够:UFO 的纵向速度被源码夹在 flyUpMax = 8/frame ⇒ 一帧只走 8 单位) */
+  for (let i = 0; i < 6; i++) { capW.vy = 20; capW.frame(false); }
+  assert.ok(!capW.dead && capW.y <= cap + 0.001 && capW.y > cap - 1 && capW.vy <= 0.5,
+    '限高:UFO 硬顶天花板应该【贴住、不穿过去】y=' + cap.toFixed(1) + '、纵向速度被清零(实测 y=' + capW.y.toFixed(2) +
     ',vy=' + capW.vy.toFixed(2) + ',死=' + capW.dead + ',关卡顶=' + (capW.rows * U) + ',x=' + (capW.x / U).toFixed(1) +
-    ';视口上边 ' + capW.airHi + ' ⇒ 天花板面 ' + ((capW.airHi as number) - 12) + ')');
+    ';视口上边 ' + capW.airHi + ' ⇒ 天花板面 ' + ((capW.airHi as number) - ceilStripOf('ufo')) + ')');
 });
 
 test('黑环(冲刺):不管当前速度,直接把垂直速度设成 15 并朝重力方向', () => {

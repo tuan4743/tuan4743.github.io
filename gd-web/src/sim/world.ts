@@ -92,6 +92,19 @@ const DOOR_KINDS = new Set(['portal', 'gravity', 'speed', 'size']);
 /** 进门钉死视口的形态(= 原版有"限制框"的那几个):球 / 飞船 / UFO / 波浪 ✓ 见 applyAirLimit */
 const FIXED_CAM_MODES = new Set<Mode>(['ship', 'ufo', 'wave', 'ball']);
 
+/** ★★★ 2026-09 限高:天花板那条地面缝的厚度(单位)= 视口上边 − 天花板【面】。
+ *  出处(真实几何,不是估的):
+ *   · 天花板 = 第二块地面(GJFlyGroundLayer : GJGroundLayer),进门时 tweenCeiling(388) / 球(358)
+ *     —— 这是【相机局部】的节点高度,相机局部原点 = 视口下边;
+ *   · GJGroundLayer::init:`*(float*)(this+336) = 128.0 - 贴图高`,而 groundSquare_01_001.png 实测 128×128
+ *     ⇒ 地面贴图占 [节点, 节点+128],【面】= 节点 + 128;天花板是它镜像(scaleY = -1 那一记)
+ *     ⇒ 天花板的【面】= 节点 − 128;
+ *   · 原版屏高 320、贴图 128 ⇒ 面离视口上边 = (320 + 128) − 节点:
+ *       飞行/飞船/UFO/波浪:448 − 388 = 60 ✓   球:448 − 358 = 90 ✓
+ *  ⇒ 这条缝在屏幕上就是 60/90 单位厚的一条地面(1440×900 下约 1/5 屏高),不是看不见的细线 ✓
+ *  ★ 页面(main.ts)画的就是这一条,sim 夹的也是这一条 —— 两边共用这个函数,不会再各算一套 ✗ */
+export function ceilStripOf(mode: Mode): number { return mode === 'ball' ? 90 : 60; }
+
 /** 一次触发产生的动画(位移 / 往返) */
 interface Anim {
   ms: Movable[];
@@ -807,9 +820,11 @@ export class World {
    *
    *  换到我们的坐标(我们 = 原版 − 90:原版地面顶面 90 = 我们的 0,页面那套 CAM_* 常数也是这么来的 ✓):
    *   · 地面顶面 = 0 ⇒ 下限 = 0(我们的 y 是【脚底】,站在地面上就是脚底贴 0)✓
-   *   · 原版天花板节点 = 进场高度 + 148 = 视口上边 − 12(飞行 388 / 球 358,视口中心 240 / 210
-   *     ⇒ 两个都正好差 12 ✓)⇒ 上限 = (视口上边 − 12) − 12 = 视口上边 − 24(迷你 +6,源码 234 那一档)
-   *   ⇒ 天花板的【面】永远在屏幕顶边下 12 单位 —— 这就是原版飞行时能看见的那条地面缝 ✓(页面照它画 ✓)
+   *   · 原版天花板节点 = 进门那一刻 tweenCeiling(388)/球(358),相机局部坐标(原点 = 视口下边);
+   *     贴图 128 高、镜向后挂在节点【下面】⇒ 天花板的【面】= 节点 − 128
+   *     ⇒ 面离视口上边 =(屏高 320 + 贴图 128)− 节点 = 飞行 60 / 球 90(见 ceilStripOf)
+   *     ⇒ 上限 = 面 − 12(源码那个 -12)− 半个判定盒(迷你 +6,源码 234 那一档)
+   *   ⇒ 这就是原版飞行时能看见的那一条【地面缝】,60/90 单位厚,不是一条看不见的细线 ✓(页面照它画 ✓)
    *
    *  ★ 天花板只在【相机钉死的形态】(飞船 / UFO / 波浪 / 球)生效:这几个形态 airHi 是钉死的 ✓
    *    方块 / 机器人 / 蜘蛛的相机跟着人走 ⇒ 拿 airHi 当天花板会变成一堵跟着人跑的墙 ✗ */
@@ -828,13 +843,14 @@ export class World {
     }
     if (!FIXED_CAM_MODES.has(this.mode) || this.airHi == null) return;
     /* 天花板(源码比较的是【人中心】,我们的 y 是脚底 ⇒ 减半个判定盒):
-       center ≤ (视口上边 − 12) − 12  ⇒  y ≤ 视口上边 − 24 − 半个判定盒(迷你 +6,源码 234 那一档) */
-    const top = (this.airHi as number) - 24 - this.box / 2 + (this.mini ? 6 : 0);
+       面 = 视口上边 − 缝厚(飞行 60 / 球 90,见 ceilStripOf)
+       center ≤ 面 − 12(源码那个 -12)  ⇒  y ≤ 面 − 12 − 半个判定盒(迷你 +6,源码 234 那一档) */
+    const top = (this.airHi as number) - ceilStripOf(this.mode) - 12 - this.box / 2 + (this.mini ? 6 : 0);
     /* 一行诊断(用户:"我都看不到限高框在哪,我怎么知道生没生效")—— 【顶到的那一刻】打一次 ✓ */
     if (this.y >= top - 0.001 && this.airDbg !== this.mode) {
       this.airDbg = this.mode;
       console.info('[gd] 限高:形态=' + this.mode + ' · 视口=' + Math.round(this.airLo as number) + '~' +
-        Math.round(this.airHi as number) + ' · 天花板面=' + Math.round((this.airHi as number) - 12) +
+        Math.round(this.airHi as number) + ' · 天花板面=' + Math.round((this.airHi as number) - ceilStripOf(this.mode)) +
         ' · 上限(脚底)=' + Math.round(top) + ' · 地面 = 0');
     }
     /* 天花板:贴回去 + setYVel(0)(反重力时源码那一支是 hitGround(true) ✓) */

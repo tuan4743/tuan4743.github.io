@@ -11,7 +11,7 @@
 
 import Phaser from 'phaser';
 import { generateLevel, makeRealTimeAxis, type Level, type Mode, type Obj } from './sim/level.ts';
-import { World, botThink, type RunState } from './sim/world.ts';
+import { World, botThink, ceilStripOf, type RunState } from './sim/world.ts';
 import { frameRects } from './sim/gdids.ts';
 import { fingerprint } from './sim/replay.ts';
 import { P, U, Y_TIME_SCALE } from './sim/constants.ts';
@@ -1551,25 +1551,40 @@ class Scene extends Phaser.Scene {
          ★ 只在【相机钉死的形态】显示:原版天花板是进门那一刻 tweenCeiling(388/358) 拉进来的,
            方块/机器人/蜘蛛进门不拉 ⇒ 它留在屏幕上方(看不见)✓ 我们这里直接不显示 ✓ */
       const wide = vw + 2 * Scene.GROUND_TILE;
-      const surf = bottom + vh - 12;                     // 天花板面(世界 y)= 视口上边 − 12 ✓
+      /* ★ 天花板【面】(这条地面缝的下沿)= 视口上边 − 缝厚;缝厚飞行 60 / 球 90,出自源码几何
+         (天花板节点 388/358、贴图 128 高、镜像后挂节点下面 ⇒ 面 = 节点 − 128 ⇒ 448 − 节点)✓
+         ★ 和 sim 共用 ceilStripOf ⇒ 画的和夹的永远是同一条 ✗ 不会再各算一套 */
+      const strip = ceilStripOf(w.mode);
+      const surf = bottom + vh - strip;                  // 天花板面(世界 y)
       const drawSurf = drawY(surf);
-      if (!this.ceiling) {
+      /* ★★ 探针实测(tools/verify/gd-limit-shot.mjs):第一版建出来的 TileSprite 贴图是 `__MISSING` ✗
+         —— 建对象那一刻 'gd-ground' 还没就绪,Phaser 就退化成缺省贴图,而且【不会自己换回来】✗
+         ⇒ 就绪了才建;万一已经建成 __MISSING,销毁重建一次 ✓(自愈,不用刷新页面) */
+      if (this.ceiling && this.ceiling.texture.key === '__MISSING') { this.ceiling.destroy(); this.ceiling = null; }
+      const groundReady = this.textures.exists('gd-ground') && !!this.textures.getFrame('gd-ground');
+      if (!this.ceiling && groundReady) {
         /* ★ 用 TileSprite 而不是矩形:原版就是【一张 REPEAT 的地面贴图】横着铺 ✓
            (GJGroundLayer::loadGroundSprites / init 把贴图拉成整屏宽 ✓) */
         this.ceiling = this.add.tileSprite(0, 0, wide, Scene.GROUND_TILE, 'gd-ground')
           .setOrigin(0.5, 1)                              // 原点在【下沿】⇒ 下沿就是天花板面 ✓
           .setFlipY(true)                                 // 纵向镜像 = 原版那记 setScaleY(-1) ✓
-          .setTint(0x1b2740)                              // 压成场地那种暗色(地面贴图是白的,原版靠通道 1001 上色)
+          /* ★ 不上色、只压透明度:原版这层贴图是【白的】,由关卡地面色(通道 1001)染色;
+             本关的 1001 我们还没解析(kS38 只取了 1005/1006)⇒ 先按原图 55% 显示。
+             为什么不照上一版染成暗色:探针实测(1440×900 出图)染暗之后和 #05070d 几乎分不出来 ⇒
+             用户看到的还是"没变化" ✗ —— 这一层的存在意义就是【看得见】✓ */
+          .setAlpha(0.55)
           .setDepth(7).setVisible(false);
         /* 下沿那条亮线 = 原版 floorLine_001.png(压在地面顶边 = 天花板面上)✓ */
         this.ceilingLine = this.add.rectangle(0, 0, wide, 2, 0xbfe9ff, 0.85).setDepth(8).setVisible(false);
       }
-      this.ceiling.setVisible(fly);
-      (this.ceilingLine as Phaser.GameObjects.Rectangle).setVisible(fly);
-      if (fly) {
-        this.ceiling.setPosition(this.camX, drawSurf).setSize(wide, Scene.GROUND_TILE);
-        this.ceiling.tilePositionX = -this.camX;          // 贴图钉在世界坐标上(跟着关卡滚)✓
-        (this.ceilingLine as Phaser.GameObjects.Rectangle).setPosition(this.camX, drawSurf + 1).setSize(wide, 2);
+      if (this.ceiling) {
+        this.ceiling.setVisible(fly);
+        (this.ceilingLine as Phaser.GameObjects.Rectangle).setVisible(fly);
+        if (fly) {
+          this.ceiling.setPosition(this.camX, drawSurf).setSize(wide, Scene.GROUND_TILE);
+          this.ceiling.tilePositionX = -this.camX;        // 贴图钉在世界坐标上(跟着关卡滚)✓
+          (this.ceilingLine as Phaser.GameObjects.Rectangle).setPosition(this.camX, drawSurf + 1).setSize(wide, 2);
+        }
       }
     }
     this.camWorldY = rowsU - this.camCenter;             // 换算成 Phaser 相机的绘图空间 y
