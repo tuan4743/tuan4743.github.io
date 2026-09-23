@@ -1,0 +1,410 @@
+{
+ "textures": [
+  {
+   "image": "GJ_GameSheet-uhd.png",
+   "format": "RGBA8888",
+   "size": {
+    "w": 0,
+    "h": 0
+   },
+   "scale": 1,
+   "frames": [
+    {
+     "filename": "blockOutline_02_001.png",
+     "frame": {
+      "x": 1745,
+      "y": 315,
+      "w": 120,
+      "h": 6
+     },
+     "rotated": true
+    },
+    {
+     "filename": "blockOutline_03_001.png",
+     "frame": {
+      "x": 1517,
+      "y": 2019,
+      "w": 120,
+      "h": 120
+     },
+     "rotated": false
+    },
+    {
+     "filename": "blockOutline_04_001.png",
+     "frame": {
+      "x": 1639,
+      "y": 2105,
+      "w": 120,
+      "h": 120
+     },
+     "rotated": false
+    },
+    {
+     "filename": "blockOutline_10_001.png",
+     "frame": {
+      "x": 725,
+      "y": 3930,
+      "w": 60,
+      "h": 60
+     },
+     "rotated": false
+    },
+    {
+     "filename": "blockOutline_11_001.png",
+     "frame": {
+      "x": 223,
+      "y": 3139,
+      "w": 120,
+      "h": 60
+     },
+     "rotated": false
+    },
+    {
+     "filename": "brick_02_001.png",
+     "frame": {
+      "x": 1883,
+      "y": 2243,
+      "w": 120,
+      "h": 120
+     },
+     "rotated": false
+    },
+    {
+     "filename": "bump_01_001.png",
+     "frame": {
+      "x": 3691,
+      "y": 725,
+      "w": 100,
+      "h": 16
+     },
+     "rotated": true
+    },
+    {
+     "filename": "bump_03_001.png",
+     "frame": {
+      "x": 605,
+      "y": 3088,
+      "w": 100,
+      "h": 20
+     },
+     "rotated": false
+    },
+    {
+     "filename": "chain_01_001.png",
+     "frame": {
+      "x": 498,
+      "y": 523,
+      "w": 78,
+      "h": 278
+     },
+     "rotated": true
+    },
+    {
+     "filename": "d_02_chain_01_001.png",
+     "frame": {
+      "x": 1,
+      "y": 854,
+      "w": 108,
+      "h": 262
+     },
+     "rotated": true
+    },
+    {
+     "filename": "gravbump_01_001.png",
+     "frame": {
+      "x": 605,
+      "y": 3062,
+      "w": 100,
+      "h": 24
+     },
+     "rotated": false
+    },
+    {
+     "filename": "sawblade_01_001.png",
+     "frame": {
+      "x": 1423,
+      "y": 145,
+      "w": 168,
+      "h": 328
+     },
+     "rotated": true
+    },
+    {
+     "filename": "sawblade_02_001.png",
+     "frame": {
+      "x": 2537,
+      "y": 1,
+      "w": 240,
+      "h": 240
+     },
+     "rotated": false
+    },
+    {
+     "filename": "spike_01_001.png",
+     "frame": {
+      "x": 3927,
+      "y": 3470,
+      "w": 120,
+      "h": 120
+     },
+     "rotated": false
+    },
+    {
+     "filename": "spike_02_001.png",
+     "frame": {
+      "x": 773,
+      "y": 3249,
+      "w": 120,
+      "h": 54
+     },
+     "rotated": false
+    },
+    {
+     "filename": "spike_03_001.png",
+     "frame": {
+      "x": 2899,
+      "y": 1640,
+      "w": 80,
+      "h": 76
+     },
+     "rotated": true
+    },
+    {
+     "filename": "spike_04_001.png",
+     "frame": {
+      "x": 481,
+      "y": 3930,
+      "w": 50,
+      "h": 48
+     },
+     "rotated": true
+    },
+    {
+     "filename": "square_01_001.png",
+     "frame": {
+      "x": 2963,
+      "y": 3073,
+      "w": 120,
+      "h": 120
+     },
+     "rotated": false
+    },
+    {
+     "filename": "square_08_001.png",
+     "frame": {
+      "x": 309,
+      "y": 2085,
+      "w": 120,
+      "h": 120
+     },
+     "rotated": false
+    }
+   ]
+  },
+  {
+   "image": "GJ_GameSheet02-uhd.png",
+   "format": "RGBA8888",
+   "size": {
+    "w": 0,
+    "h": 0
+   },
+   "scale": 1,
+   "frames": [
+    {
+     "filename": "boost_01_001.png",
+     "frame": {
+      "x": 2096,
+      "y": 636,
+      "w": 140,
+      "h": 174
+     },
+     "rotated": false
+    },
+    {
+     "filename": "boost_02_001.png",
+     "frame": {
+      "x": 2848,
+      "y": 2,
+      "w": 132,
+      "h": 226
+     },
+     "rotated": true
+    },
+    {
+     "filename": "boost_03_001.png",
+     "frame": {
+      "x": 2,
+      "y": 1819,
+      "w": 202,
+      "h": 226
+     },
+     "rotated": false
+    },
+    {
+     "filename": "boost_04_001.png",
+     "frame": {
+      "x": 1192,
+      "y": 22,
+      "w": 260,
+      "h": 226
+     },
+     "rotated": false
+    },
+    {
+     "filename": "boost_05_001.png",
+     "frame": {
+      "x": 913,
+      "y": 22,
+      "w": 276,
+      "h": 226
+     },
+     "rotated": false
+    },
+    {
+     "filename": "portal_01_front_001.png",
+     "frame": {
+      "x": 1124,
+      "y": 479,
+      "w": 96,
+      "h": 302
+     },
+     "rotated": false
+    },
+    {
+     "filename": "portal_02_front_001.png",
+     "frame": {
+      "x": 808,
+      "y": 1004,
+      "w": 96,
+      "h": 302
+     },
+     "rotated": true
+    },
+    {
+     "filename": "portal_03_front_001.png",
+     "frame": {
+      "x": 2,
+      "y": 1476,
+      "w": 134,
+      "h": 340
+     },
+     "rotated": false
+    },
+    {
+     "filename": "portal_04_front_001.png",
+     "frame": {
+      "x": 1455,
+      "y": 22,
+      "w": 134,
+      "h": 340
+     },
+     "rotated": true
+    },
+    {
+     "filename": "portal_07_front_001.png",
+     "frame": {
+      "x": 1455,
+      "y": 159,
+      "w": 134,
+      "h": 340
+     },
+     "rotated": true
+    },
+    {
+     "filename": "portal_08_front_001.png",
+     "frame": {
+      "x": 2,
+      "y": 1115,
+      "w": 128,
+      "h": 358
+     },
+     "rotated": false
+    },
+    {
+     "filename": "portal_09_front_001.png",
+     "frame": {
+      "x": 338,
+      "y": 385,
+      "w": 127,
+      "h": 358
+     },
+     "rotated": false
+    },
+    {
+     "filename": "portal_10_front_001.png",
+     "frame": {
+      "x": 913,
+      "y": 251,
+      "w": 134,
+      "h": 340
+     },
+     "rotated": true
+    },
+    {
+     "filename": "portal_11_front_001.png",
+     "frame": {
+      "x": 181,
+      "y": 22,
+      "w": 162,
+      "h": 360
+     },
+     "rotated": false
+    },
+    {
+     "filename": "portal_12_front_001.png",
+     "frame": {
+      "x": 2,
+      "y": 752,
+      "w": 162,
+      "h": 360
+     },
+     "rotated": false
+    },
+    {
+     "filename": "portal_13_front_001.png",
+     "frame": {
+      "x": 503,
+      "y": 335,
+      "w": 134,
+      "h": 340
+     },
+     "rotated": true
+    },
+    {
+     "filename": "portal_14_front_001.png",
+     "frame": {
+      "x": 468,
+      "y": 472,
+      "w": 134,
+      "h": 340
+     },
+     "rotated": true
+    },
+    {
+     "filename": "portal_17_front_001.png",
+     "frame": {
+      "x": 1455,
+      "y": 296,
+      "w": 134,
+      "h": 338
+     },
+     "rotated": true
+    },
+    {
+     "filename": "secretCoin_2_01_001.png",
+     "frame": {
+      "x": 1794,
+      "y": 1039,
+      "w": 160,
+      "h": 160
+     },
+     "rotated": false
+    }
+   ]
+  }
+ ],
+ "meta": {
+  "app": "gd-decomp-bake-objects",
+  "scale": "1"
+ }
+}
