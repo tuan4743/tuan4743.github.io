@@ -1567,21 +1567,9 @@ class Scene extends Phaser.Scene {
       const ud = PORTAL_FRAME[w.mode] || { up: 4, down: 5 };
       let fr = { lo: cellBottom - ud.down * U, hi: cellBottom + U + ud.up * U };
       const firstEntry = !this.camPinned;                 // 从方块/其它非飞行形态【第一次】进来 ✓
-      /* ★★ 兜底【只在进门那一刻】用一次 ✗ 不能每帧跑:每帧跑就等于"框跟着玩家走"(用户明确否掉的 ✗,
-         探针实测 lo 被推到 106、永远 settled=false ✓)。进门那一刻若玩家不在框内(自动/演示流程里
-         portalY 可能是旧值),把整段框按【整格】平移到他装得下为止 ⇒ 不会被从框外拽进来 ✓ */
-      if (firstEntry) {
-        const pcenter = w.y + (P.box * w.sizeMul) / 2;
-        const need = 45;
-        if (pcenter > fr.hi - need) {
-          const d = Math.ceil((pcenter - (fr.hi - need)) / U) * U;
-          fr = { lo: fr.lo + d, hi: fr.hi + d };
-        }
-        if (pcenter < fr.lo + need) {
-          const d = Math.ceil(((fr.lo + need) - pcenter) / U) * U;
-          fr = { lo: fr.lo - d, hi: fr.hi - d };
-        }
-      }
+      /* ★★★ 用户:"门那一格 ± 上下格数是他妈对的,你现在这一版是他妈会根据玩家位置调整动画"
+         ⇒ 框【只由门决定】✓,我原来那段"玩家不在框内就整格平移"的兜底 = 按玩家位置调整 ✗ ⇒ 整段删掉 ✓
+         (它会让框跟着玩家跑,和相机不跟人自相矛盾 ✓) */
       this.frameLo = fr.lo; this.frameHi = fr.hi;
       this.camPinTarget = (fr.lo + fr.hi) / 2;            // 相机中心 = 新框中心(平滑靠 ✓)
       if (firstEntry) {
