@@ -128,16 +128,27 @@ export function portalFrame(portalY: number, mode: Mode): { lo: number; hi: numb
   return { hi: portalY + (f.up + 0.5) * U, lo: portalY - (f.down + 0.5) * U };
 }
 
-export function frameOf(airLo: number, airHi: number): { lo: number; hi: number } {
-  /* ★★★ 2026-09 照 `GJBaseGameLayer::updateCameraBGArt`(asm 430982 那个类 / 体 431105-431233)的结构:
-       地面层 y = 窗口下边 + 缩放×91.0(= 贴窗口下边)、天花板层 y = 窗口顶 − 1(贴窗口上边),
-       两块再 scaleGround(缩放) ⇒ 带子往内铺 ⇒ 框就是【取景窗口本身】(屏幕锚定 ✓,与门/玩家无关 ✗)
-     取景 330、要求空档正好八格(240 ⇒ 上下各余 90/2 = 45)、且两面都在格线上 ⇒
-       下框面 = 取景下边 + 30(1 格)  上框面 = 下框面 + 240(8 格)  ⇒ 上余 60 ✓ 全在格线上 ✓
-     (以前锚门/锚玩家/锚相机中心全是错的 ✗ —— 源码里这两块地面从头到尾只跟【窗口】有关 ✓) */
-  const base = Math.round(airLo / U) * U;
-  const lo = base + U;
-  return { lo, hi: lo + FLY_BAND };
+/** ★★★ 2026-09 每形态的"这段高度" = 源码 `GJBaseGameLayer::getGroundHeightForMode`(asm 419619-419650)✓
+ *  返回值是 float 位模式,译成十进制:
+ *      mode 16(球)               → 234.0     ← 用户:"球门 上三下四"(≈8 格)✓
+ *      mode 5(飞船) / 19(UFO) / 26 / 41(波浪) → 300.0     ← 用户:"上四下五"(10 格)✓ 精确
+ *      其余(含 23/24 双人门)      → 270.0
+ *  ⇒ 单人时 `getGroundHeight` 就是纯查表(asm 420553-420590,双人才取两个玩家的较大值 ✓) */
+export function groundHeightOf(mode: Mode): number {
+  if (mode === 'ball') return 234;
+  if (mode === 'ship' || mode === 'ufo' || mode === 'wave') return 300;
+  return 270;
+}
+
+export function frameOf(mode: Mode, airLo: number, airHi: number): { lo: number; hi: number } {
+  /* ★★★ 照 `animateInDualGroundNew`(asm 451046-451141):
+       相机中心 = max(90, floor((目标y − gh/2)/30)×30) + gh/2     ← 相机钉在【这段高度的中心】
+     每帧 `updateCameraBGArt`(asm 431105-431233)再把两块地面摆在窗口边上一带子往内铺 ✓
+     ⇒ 框 = 【以相机为中心、高 gh 的一段】(gh 由上面那张表给 ✓)
+     我们坐标(我们 = 原版 − 90):中心 = 取景中点(相机,已吸在格线上 ✓),上下各 gh/2 ✓ */
+  const c = Math.round(((airLo + airHi) / 2) / U) * U;
+  const gh = groundHeightOf(mode);
+  return { lo: c - gh / 2, hi: c + gh / 2 };
 }
 
 /** 一次触发产生的动画(位移 / 往返) */

@@ -13,7 +13,7 @@ import { dirname, join } from 'node:path';
 
 import { P, U, ROWS, JUMP_SPAN_BLOCKS, JUMP_AIRTIME_S, arcSpan, PAD, ORB } from '../src/sim/constants.ts';
 import { generateLevel, tightestGap, tOfX, countKinds, type Level, type Segment } from '../src/sim/level.ts';
-import { World, botThink, frameOf, portalFrame, FLY_BAND } from '../src/sim/world.ts';
+import { World, botThink, frameOf, groundHeightOf, FLY_BAND } from '../src/sim/world.ts';
 import { recordBot, replay, fingerprint } from '../src/sim/replay.ts';
 import { decodeGmd, encodeGmdText, parseGmdText } from '../src/sim/gmd.ts';
 import { coverage, formatReport } from '../src/sim/gdmap.ts';
@@ -601,10 +601,10 @@ test('飞行类碰实心:撞侧面死、擦到顶面【落上去】(flySolid 开
   const capW = new World(lv, undefined, undefined, { flySolid: true });
   capW.reset(19 * U, 'ufo', 3.5 * U);
   capW.speedIdx = 1; capW.gdir = 1; capW.vy = 0;
-  /* ★ 框 = 取景窗口锚定(见 frameOf):下框面 = 取景下边 + 1 格,上框面 = 再 +8 格 ⇒ 空档八格 ✓ */
-  capW.airLo = 0; capW.airHi = 330;                     // 取景 = 一屏(330)
-  const fr = frameOf(capW.airLo, capW.airHi);
-  assert.equal(Math.round(fr.hi - fr.lo), FLY_BAND, '空档必须正好八格(240)');
+  /* ★ 框高 = 源码 getGroundHeightForMode(ufo = 300),以相机为中心 ✓ */
+  capW.airLo = 0; capW.airHi = 330;
+  const fr = frameOf('ufo', capW.airLo, capW.airHi);
+  assert.equal(Math.round(fr.hi - fr.lo), groundHeightOf('ufo'), 'ufo 的这段高度 = 300(getGroundHeightForMode)✓');
   capW.y = fr.hi - 4 * U; capW.vy = 0; capW.onGround = false;   // 从框内偏上出发,硬顶
   const cap = fr.hi - 12 - capW.box / 2;
   for (let f = 0; f < 40 && !capW.dead; f++) capW.frame(f % 8 === 0);   // 一路往上顶(别飞过铺面尽头)
@@ -624,7 +624,7 @@ test('限高框的下框面就是这个形态的"地面":站在上面能跳(用�
   w.reset(0, 'ball', 5 * U);
   w.onGround = false; w.vy = 0;
   w.airLo = 0; w.airHi = 320;                       // 框 = 视口中点(160)± 4 格 ⇒ [40, 280]
-  const fr = frameOf(w.airLo, w.airHi);
+  const fr = frameOf('ball', w.airLo, w.airHi);
   for (let i = 0; i < 200 && !w.onGround; i++) w.frame(false);
   assert.ok(w.onGround, '应该落在【下框面】上(y=' + (w.y / U).toFixed(2) + ' 块)');
   assert.ok(Math.abs(w.y - fr.lo) < 0.5,

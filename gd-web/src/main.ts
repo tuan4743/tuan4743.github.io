@@ -11,7 +11,7 @@
 
 import Phaser from 'phaser';
 import { generateLevel, makeRealTimeAxis, type Level, type Mode, type Obj } from './sim/level.ts';
-import { World, botThink, frameOf, type RunState } from './sim/world.ts';
+import { World, botThink, frameOf, groundHeightOf, type RunState } from './sim/world.ts';
 import { frameRects } from './sim/gdids.ts';
 import { fingerprint } from './sim/replay.ts';
 import { P, U, Y_TIME_SCALE } from './sim/constants.ts';
@@ -1585,11 +1585,13 @@ class Scene extends Phaser.Scene {
        ★ 相机:进门那一下按源码公式把目标吸到格线上,之后 0.1/帧 平滑靠拢 ✓ */
     const bandOn = CAM_FIXED_MODES.has(w.mode);
     if (bandOn && !this.camPinned) {
-      const camBottomWant = Math.max(0, Math.floor((w.y + (P.box * w.sizeMul) / 2 - vh / 2) / U) * U);
-      this.camPinTarget = camBottomWant + vh / 2;
+      /* ★ 源码(asm 451064-451076):相机中心 = max(90, floor((目标y − gh/2)/30)×30) + gh/2
+         (gh = 该形态的"这段高度",球 234 / 飞船·UFO·波浪 300 / 其余 270 ✓)我们坐标 = 原版 − 90 ✓ */
+      const gh = groundHeightOf(w.mode);
+      const py = w.y + (P.box * w.sizeMul) / 2;
+      this.camPinTarget = Math.max(0, Math.floor((py - gh / 2) / U) * U) + gh / 2;
       this.camPinY = this.camBottom + vh / 2;
       this.camPinned = true;
-      this.bandHiY = null; this.bandLoY = null;
     } else if (!bandOn) this.camPinned = false;
     w.airLo = bottom;
     w.airHi = bottom + vh;
@@ -1620,7 +1622,7 @@ class Scene extends Phaser.Scene {
          `updateCameraBGArt` 每帧只是把它们【摆】在窗口边上(asm 431211 地面 / 431218 天花板),
          显隐由 `toggleVisible01(层, 层.y 在窗口内)` 决定 ✓ —— "落位"的感觉来自【相机】进门后 0.1/帧靠拢 ✓,
          不是框自己从画外滑进来 ✗(那套 bandHiY/bandLoY 是我编的 ✗,撤掉) */
-      const fr = frameOf(w.airLo as number, w.airHi as number);
+      const fr = frameOf(w.mode, w.airLo as number, w.airHi as number);
       const bandH = Scene.GROUND_TILE * Scene.BAND_SCALE;      // 带宽 = 贴图高 × 缩放 ✓(32 单位)
       const hiY = fr.hi, loY = fr.lo;
       /* ★★ 探针实测(tools/verify/gd-limit-shot.mjs):第一版建出来的 TileSprite 贴图是 `__MISSING` ✗
