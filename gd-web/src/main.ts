@@ -165,6 +165,12 @@ const ICON_COL: Record<Mode, [number, number]> = {
 const ORB_COL: Record<string, number> = {
   yellow: 0xffc800, pink: 0xff00ff, red: 0xff6400, blue: 0x0000ff, green: 0x00ff00, black: 0x2a2a2a,
 };
+/* ★★★ 2026-09 玩家颜色(用户:"玩家贴图没有上色,有点诡异"):
+   取本关的颜色通道 1005 / 1006 —— 实测 (125,255,0) 亮绿 / (0,255,255) 青,正是 GD 默认的
+   P1 绿 / P2 青 ✓ 官方图标美术是白灰底,GD 就是拿这两个颜色去染的 ✓
+   (以后接"关卡自定义玩家色"就把这两个值改成读 kS38 的 1005/1006 ✓) */
+const PLAYER_C1 = 0x7dff00;
+const PLAYER_C2 = 0x00ffff;
 const PAD_COL: Record<string, number> = {
   yellow: 0xffe17a, pink: 0xff9fd0, red: 0xff8a8a, blue: 0x9fd8ff, purple: 0xc6a0ff,
 };
@@ -701,7 +707,7 @@ class Scene extends Phaser.Scene {
         backgroundColor: '#' + col.toString(16).padStart(6, '0'),
         padding: { x: 4, y: 1 },
       });
-      t.setOrigin(0.5, 1).setDepth(18).setAlpha(0.95);
+      t.setOrigin(0.5, 1).setDepth(18).setAlpha(0.95).setVisible(false);   // ★ 用户:"门上面的文字去掉" ✓
       this.portalLabels.push({ o, t });
     }
   }
@@ -904,7 +910,11 @@ class Scene extends Phaser.Scene {
          ⇒ 先回到【只画基础帧】(不再破坏其它形态 ✓);要还原腿必须:
              ① 找到 GJRobotSprite/GJSpiderSprite 的贴图(可能在 GameSheet 里,或在别的 sheet ✗)
              ② 按 createRobot / createSpider 的摆位抄 ✓ */
-      const layerNames = [name];
+      /* ★★★ 2026-09 用户:"ball,bird,dart,spider,ship 等在原版有一个限制框,这个没有还原出来"
+         —— 官方图标图集里每个形态是【四层】:主体(_001)+ 第二色(_2_)+ 描边/框(_extra_)+ 发光(_glow_)
+            (实测 cube/ship/ball/bird/dart/spider 六套里 _extra_ 全都在 ✓)
+         我们以前【只叠主体】✗ ⇒ 少了那圈"框" ✓ ⇒ 现在把 _extra_ 一起叠进来 ✓(_glow_ 照旧不叠 ✓) */
+      const layerNames = [name, name.replace(/_(\d+)\.png$/, '_extra_$1.png')].filter((n) => !!F[n]);
       {
         const base = F[name];
         /* 画布尺寸 = 各层 内容尺寸 + 2×|偏移| 的最大值(保证都放得下 ✓) */
@@ -1016,10 +1026,16 @@ class Scene extends Phaser.Scene {
     } else if (w.mode === 'ufo') {
       rot = Math.max(-0.3, Math.min(0.3, w.vy / P.flyUpMax * 0.3));
     }
-    const [c1] = ICON_COL[w.mode] ?? [0xffffff, 0xffffff];
-    const kill = w.dead ? 0xff7a5a : null;
     const k = B / (L.pxPerUnit * 30);                     // 120 px = 30 单位 → k = B/120
-    L.body.setPosition(cxw, cyw).setRotation(rot);   // ★ 用户口径 A:贴图原样,不染色(去掉 setTint)✗
+    L.body.setPosition(cxw, cyw).setRotation(rot);
+    /* ★★★ 2026-09 用户:"玩家贴图没有上色,有点诡异" —— 上色 ✓
+       官方图标美术是白/灰底,GD 用玩家颜色染:主体 = 玩家色 1、框/第二色(_extra_/_2_) = 玩家色 2 ✓
+       (我们目前把主体与 _extra_ 合成在一张画布上 ⇒ 整体染玩家色 1,框会跟着主体同色;
+        要完全照原版得拆成两张画布分别染 —— 已记进待办 ✓) */
+    L.body.setTint(w.dead ? 0xff7a5a : PLAYER_C1);
+    /* ★★★ 2026-09 用户:"反转重力方向时,贴图也要反转" —— 重力反了就上下翻 ✓
+       (原版 flipGravity 之后飞机/球/UFO/浪/蜘蛛的贴图整个是倒的 ✓) */
+    L.body.setFlipY(w.gdir < 0);
     L.body.setDisplaySize(L.bw * k, L.bh * k);
     /* ★★ 2026-09 用户:"原本贴图就只是一个透明的框" ⇒ 去掉 glow 层(不再叠一层发光)✗
        (buildIcons 那边也随之不再需要 glow,但这里先彻底不画 ✓ —— 两层叠着就是"拼到一起" ✓) */
@@ -1986,7 +2002,14 @@ class Scene extends Phaser.Scene {
       }
       drewParts = arr.length > 0 && list.length > 0;
     }
-    if (this.iconsReady && w.mode !== 'robot' && w.mode !== 'spider') this.drawIconPlayer(w, cxw, Y(cyw), B);
+    /* ★★★ 2026-09 修"cube 贴图还是没有"(用户第三次报):原来这里判断的是【图集整体就绪】✗,
+       而 drawIconPlayer 里是【按形态找图层】——cube 那层没建出来时它直接 return,
+       上面又因为 iconsReady 跳过了矢量 ⇒ 【两边都不画 = 什么都看不见】✓✓
+       (1986 行那段注释早就写明要改成"按形态判断",代码没改 ✗)
+       现在:这个形态【真有图层】才走图集并跳过矢量;没有就走矢量兜底 ⇒ 无论图层成不成都有东西 ✓ */
+    const hasLayer = this.iconLayers.some((l) => l.mode === w.mode);
+    if (hasLayer && w.mode !== 'robot' && w.mode !== 'spider') this.drawIconPlayer(w, cxw, Y(cyw), B);
+    if (!hasLayer) console.warn('[gd] 形态 ' + w.mode + ' 没有图层 ⇒ 走矢量画法(图集就绪=' + this.iconsReady + ')');
     /* ★★★ 2026-09 双人:玩家 2 也画一遍(状态换进换出,所以画法和玩家 1 完全一样 ✓)
        已知缺口:robot/spider 的【部件动画】那条路(P2 目前只画图标本体)✗ 已记进待办 ✓ */
     if (w.dualInto()) {
