@@ -1536,12 +1536,18 @@ class Scene extends Phaser.Scene {
     {
       const fly = CAM_FIXED_MODES.has(w.mode);
       const wide = vw + 800;
-      /* 下边那块:整条带在视口下边【以下】⇒ 它的上沿正好是限高线 ✓;上边那块反之 ✓ */
-      const yBot = Y(bottom) + 2000, yTop = Y(bottom + vh) - 2000;
+      /* ★★★ 2026-09 修 `Uncaught ReferenceError: Y is not defined`(用户给的报错原文)——
+         `Y()` 是【绘图空间】的映射,只在 draw() 里可用 ✗;这个取景方法里没有它 ✗
+         (类型检查为什么没拦住:它在 .d.ts 里被声明成了全局 ⇒ 编译期"有",运行时模块里"没有" ✗
+          —— 和上上轮那个 `on is not defined` 是同一类"只有跑起来才炸"的错误 ✗)
+         这个作用域里现成的换算就是 `rowsU - y`(下一行 this.camWorldY = rowsU - this.camCenter ✓ 用的就是它)
+         ⇒ 直接算,不碰 Y ✓ */
+      const drawY = (wy: number) => rowsU - wy;
+      const yBot = drawY(bottom) + 2000, yTop = drawY(bottom + vh) - 2000;
       this.airRects[0].setVisible(fly).setPosition(this.camX, yBot).setSize(wide, 4000);
       this.airRects[1].setVisible(fly).setPosition(this.camX, yTop).setSize(wide, 4000);
-      this.airLines[0].setVisible(fly).setPosition(this.camX, Y(bottom) + 1).setSize(wide, 2);
-      this.airLines[1].setVisible(fly).setPosition(this.camX, Y(bottom + vh) - 1).setSize(wide, 2);
+      this.airLines[0].setVisible(fly).setPosition(this.camX, drawY(bottom) + 1).setSize(wide, 2);
+      this.airLines[1].setVisible(fly).setPosition(this.camX, drawY(bottom + vh) - 1).setSize(wide, 2);
     }
     this.camWorldY = rowsU - this.camCenter;             // 换算成 Phaser 相机的绘图空间 y
     cam.centerOn(this.camX, this.camWorldY);
