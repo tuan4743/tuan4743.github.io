@@ -2095,8 +2095,15 @@ class Scene extends Phaser.Scene {
        异常发生在渲染循环里 ⇒ 整页卡死(第一次进载具形态才触发 = 碰上 bird 门那一下 ✓)
        => 先查 textures.exists,没有就【不画驾驶位】,绝不抛 ✓ */
     if (PILOT_MODES.has(w.mode) && this.pilot) {
-      /* ★ pilot 在 buildIcons 里就建好了(渲染途中 add.image 会卡死 ✗ 见那里的注释)⇒ 这里只摆 ✓ */
-      this.pilot.setVisible(on).setPosition(cxw, cyw).setRotation(0).setFlipY(w.gdir < 0)
+      /* ★★★ 2026-09 卡死真凶(用户给的报错原文):`on is not defined` ✗✗
+         这段在 draw() 里,而我抄了 drawIconPlayer() 作用域里的变量名 on —— 这里根本没有 on ⇒
+         每帧抛一次异常 ⇒ Phaser 的 update/draw 链断掉 ⇒ 整页卡死 ✓✓✓
+         (这也解释了:g108 加 pilot ⇒ 第一次卡死;g114 我只改了"预建时机"、没碰这个变量 ⇒ 还是卡;
+          g115 整段关掉 ⇒ 不卡 ✓)
+         ★ 教训:构建(vite/esbuild)【不做类型检查】✗ ⇒ 这种作用域错误能一路进包 ⇒
+           以后交付前必须跑一次 npx tsc --noEmit ✓
+         这里用本作用域内的等价条件 ✓ */
+      this.pilot.setVisible(!w.done).setPosition(cxw, cyw).setRotation(0).setFlipY(w.gdir < 0)
         .setTint(w.dead ? 0xff7a5a : PLAYER_C1).setDisplaySize(B, B);
     } else this.pilot?.setVisible(false);
     /* ★★★ 2026-09 双人:玩家 2 也画一遍(状态换进换出,所以画法和玩家 1 完全一样 ✓)
