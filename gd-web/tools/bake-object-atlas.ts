@@ -29,9 +29,24 @@ for (const line of (lv as unknown as { lines: string[] }).lines) {
   const id = Number(f['1']);
   if (Number.isFinite(id)) ids.add(id);
 }
-/* 2) id → texture_name */
+/* 2b) ★★★ 2026-09 跳环族:OpenGD 的 table 里【没有】这些 id ✗(36/141/1022/1704/1751 …),
+       但官方图集里有本体帧(实测搜出来的 ✓):ring_01_001(白环)/ gravring_01_001(重力环)
+       —— GD 的环都是"一张白底图 + 按颜色染色",用户也说过"环除了颜色没区别,除了绿环和黑环" ✓
+       所以这里【手工补名】:跳环 → ring_01_001 · 绿/黑环 → gravring_01_001 · 冲刺箭头 → d_arrow_01_001 ✓ */
+const ORB_MAP: Record<string, string> = {
+  '36': 'ring_01_001.png',      // 黄环
+  '84': 'ring_01_001.png',      // 蓝环(重力翻转)
+  '141': 'ring_01_001.png',     // 粉环
+  '1022': 'ring_01_001.png',    // 绿环
+  '1330': 'ring_01_001.png',    // 红环
+  '1333': 'gravring_01_001.png',// 绿环(重力环)
+  '1704': 'd_arrow_01_001.png', // 绿冲刺箭头
+  '1751': 'd_arrow_01_001.png', // 粉冲刺箭头
+  '2063': 'ring_01_001.png',    // 关卡里的另一个环
+};
+
 const table = JSON.parse(fs.readFileSync('../../.tmp/OpenGD-object.json', 'utf8')) as Record<string, { texture_name?: string }>;
-const want = new Set<string>();
+const want = new Set<string>(Object.values(ORB_MAP));   // ★ 跳环族的帧也一起要(见上面的 ORB_MAP ✓)
 for (const id of ids) {
   const t = table[String(id)]?.texture_name;
   if (t) want.add(t);
@@ -73,6 +88,10 @@ const hitFrames = new Set(textures.flatMap((t) => t.frames.map((f) => f.filename
 for (const id of ids) {
   const t = table[String(id)]?.texture_name;
   if (t && hitFrames.has(t)) idMap[String(id)] = t;
+}
+/* ★ 跳环族的手工补名(只补本关真的用到的 id ✓) */
+for (const [id, frame] of Object.entries(ORB_MAP)) {
+  if (ids.has(Number(id)) && hitFrames.has(frame)) idMap[id] = frame;
 }
 console.log('  id → 帧 映射 ' + Object.keys(idMap).length + ' 条(其余 id 走矢量 ✓)');
 fs.writeFileSync('../static/assets/gd-object-atlas.json', JSON.stringify({ textures, ids: idMap, meta: { app: 'gd-decomp-bake-objects', scale: '1' } }, null, 1), 'utf8');

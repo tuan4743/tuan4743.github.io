@@ -99,7 +99,10 @@ for (const mode of process.argv.slice(2)) {
      —— 用来一眼看清"这套 sheet 里到底有哪些部件"(robot.png 到底是腿还是别的 ✓) */
   if (process.env.SHEET) {
     const atlas = decodePng(fs.readFileSync(path.resolve('..', 'static', 'icons', mode + '.png')));
-    const keys = Object.keys(F).filter((k) => !/_glow_/.test(k));
+    /* ★ FILTER=正则:只印相匹配的帧(否则 585 帧会印成一张巨图 ✗);最多 36 帧 ✓ */
+    const keys = Object.keys(F).filter((k) => !/_glow_/.test(k))
+      .filter((k) => !process.env.FILTER || new RegExp(process.env.FILTER, 'i').test(k))
+      .slice(0, 36);
     const cols = 4, cell = 90, rows = Math.ceil(keys.length / cols);
     const W = cols * cell, H = rows * cell;
     const cv = new Uint8Array(W * H * 4);
