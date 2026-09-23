@@ -1568,11 +1568,9 @@ class Scene extends Phaser.Scene {
         this.ceiling = this.add.tileSprite(0, 0, wide, Scene.GROUND_TILE, 'gd-ground')
           .setOrigin(0.5, 1)                              // 原点在【下沿】⇒ 下沿就是天花板面 ✓
           .setFlipY(true)                                 // 纵向镜像 = 原版那记 setScaleY(-1) ✓
-          /* ★ 不上色、只压透明度:原版这层贴图是【白的】,由关卡地面色(通道 1001)染色;
-             本关的 1001 我们还没解析(kS38 只取了 1005/1006)⇒ 先按原图 55% 显示。
-             为什么不照上一版染成暗色:探针实测(1440×900 出图)染暗之后和 #05070d 几乎分不出来 ⇒
-             用户看到的还是"没变化" ✗ —— 这一层的存在意义就是【看得见】✓ */
-          .setAlpha(0.55)
+          /* ★ 不透明、不上色(用户:"不要透明")—— 贴图本来就是地面本体,白底由关卡地面色(通道 1001)染;
+             本关 1001 还没解析 ⇒ 先保持原图原样、完全不透明 ✓
+             (上一版压成 55% 透明 + 暗色 ⇒ 用户看到的还是"看不清" ✗) */
           .setDepth(7).setVisible(false);
         /* 下沿那条亮线 = 原版 floorLine_001.png(压在地面顶边 = 天花板面上)✓ */
         this.ceilingLine = this.add.rectangle(0, 0, wide, 2, 0xbfe9ff, 0.85).setDepth(8).setVisible(false);

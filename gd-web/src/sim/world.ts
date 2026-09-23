@@ -92,18 +92,17 @@ const DOOR_KINDS = new Set(['portal', 'gravity', 'speed', 'size']);
 /** 进门钉死视口的形态(= 原版有"限制框"的那几个):球 / 飞船 / UFO / 波浪 ✓ 见 applyAirLimit */
 const FIXED_CAM_MODES = new Set<Mode>(['ship', 'ufo', 'wave', 'ball']);
 
-/** ★★★ 2026-09 限高:天花板那条地面缝的厚度(单位)= 视口上边 − 天花板【面】。
- *  出处(真实几何,不是估的):
- *   · 天花板 = 第二块地面(GJFlyGroundLayer : GJGroundLayer),进门时 tweenCeiling(388) / 球(358)
- *     —— 这是【相机局部】的节点高度,相机局部原点 = 视口下边;
- *   · GJGroundLayer::init:`*(float*)(this+336) = 128.0 - 贴图高`,而 groundSquare_01_001.png 实测 128×128
- *     ⇒ 地面贴图占 [节点, 节点+128],【面】= 节点 + 128;天花板是它镜像(scaleY = -1 那一记)
- *     ⇒ 天花板的【面】= 节点 − 128;
- *   · 原版屏高 320、贴图 128 ⇒ 面离视口上边 = (320 + 128) − 节点:
- *       飞行/飞船/UFO/波浪:448 − 388 = 60 ✓   球:448 − 358 = 90 ✓
- *  ⇒ 这条缝在屏幕上就是 60/90 单位厚的一条地面(1440×900 下约 1/5 屏高),不是看不见的细线 ✓
- *  ★ 页面(main.ts)画的就是这一条,sim 夹的也是这一条 —— 两边共用这个函数,不会再各算一套 ✗ */
-export function ceilStripOf(mode: Mode): number { return mode === 'ball' ? 90 : 60; }
+/** ★★★ 2026-09 限高:天花板【面】离视口上边多少单位。
+ *  出处 —— 只用源码自己那组数,不再自己推几何:
+ *   · 天花板 = 第二块地面(GJFlyGroundLayer : GJGroundLayer),进门 tweenCeiling(388)、球 tweenCeiling(358);
+ *   · PlayLayer::checkCollisions 非方块那一支:`上限 = 天花板 − (迷你?234:240) + 视口中心 − 12`
+ *     ⇒ 反推天花板(面)= 视口中心 + 148,而且【两种形态都对得上】:
+ *         飞行 388 = 240 + 148 ✓   球 358 = 210 + 148 ✓
+ *   · 而视口上边 = 视口中心 + 屏高/2(320/2 = 160)⇒ 天花板【面】= 视口上边 − 12 ✓(形态无关 ✓)
+ *  ★ 上一版我按"贴图 128×128 的几何"推出 60/90 ✗ —— 那等于把 tween 值当成【图层节点】,
+ *    于是天花板被摆到 60/90 的位置:位置错、球门一进去就被夹住动弹不得(用户实测)✗
+ *  ⇒ 只认源码这组数:面 = 视口上边 − 12,飞行 / 球 / 迷你 全都一样 ✓ */
+export function ceilStripOf(_mode: Mode): number { return 12; }
 
 /** 一次触发产生的动画(位移 / 往返) */
 interface Anim {
