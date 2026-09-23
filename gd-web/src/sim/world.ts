@@ -101,10 +101,19 @@ const FIXED_CAM_MODES = new Set<Mode>(['ship', 'ufo', 'wave', 'ball']);
  *  ★ 页面画的两条框和这里夹的两条,【共用这一个函数】⇒ 不会再各算一套 ✗ */
 export const FLY_BAND = 8 * U;
 
-/** 限高框的两条面(世界 y):给页面画框、给物理夹取,同一个来源 ✓ */
-export function frameOf(airLo: number, airHi: number): { lo: number; hi: number } {
-  const mid = (airLo + airHi) / 2;
-  return { lo: mid - FLY_BAND / 2, hi: mid + FLY_BAND / 2 };
+/** 限高框的两条面(世界 y):给页面画框、给物理夹取,同一个来源 ✓
+ *  ★★★ 2026-09 用户:"我在说限框【整体高度/位置】不对" —— 位置按【源码】来,不再锁玩家 ✗:
+ *   · 地面层 y = 相机 y + 【91.0】(asm 431211:`v59 = *(float *)(v51 + 4) + *(float *)(a1 + 328) * 91.0`,
+ *     v51 是相机节点、+328 是地面缩放 —— 缩放为 1 时就是"地面面 = 取景下边 + 91")✓
+ *   · 天花板层贴【窗口顶】(asm 431218:y = 窗口高/2 + A652/2 − 1 ⇒ 取景上边 − 1)✓
+ *   · 两者之差 = 屏高 − 91 ≈ 239 ≈ 240 = 八格 ✓✓ —— 和用户口径"空挡就是 8 格"完全吻合 ✓
+ *  ⇒ 所以框是【屏幕锚定】的:下框面 = airLo + 91,上框面 = 下框面 + 八格(240)✓
+ *    (相机被门锁住 ⇒ 屏幕锚定 = 一段固定的世界区间 ✓,这就是"进门锁定的一段固定区间" ✓) */
+export const GROUND_FACE_OFF = 91;
+
+export function frameOf(airLo: number, _airHi: number): { lo: number; hi: number } {
+  const lo = airLo + GROUND_FACE_OFF;
+  return { lo, hi: lo + FLY_BAND };
 }
 
 /** 一次触发产生的动画(位移 / 往返) */

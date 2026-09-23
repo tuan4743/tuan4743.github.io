@@ -280,6 +280,12 @@ class Scene extends Phaser.Scene {
   groundLine: Phaser.GameObjects.Rectangle | null = null;
   /** 天花板贴图一格 = groundSquare_01_001.png 的 128×128 ✓ */
   static readonly GROUND_TILE = 128;
+  /** ★★★ 2026-09 用户:"空挡就是 8 格 … 我在说限框【整体高度】不对" ✓
+   *  带子的厚度不是固定 128 ✗ —— 源码里是 `scaleGround(带, 地面缩放)`(asm 431178/431179),
+   *  即【贴图高 × 缩放】✓。按用户口径反推:8 格空档(240)+ 上下两条带要正好排进一屏(320/330):
+   *   (屏 330 − 240)/2 = 45,取 128 × 0.25 = 32 ⇒ 整体 240 + 64 = 304,上下各余 13 ✓ 一屏排满 ✓
+   *  ⇒ 带宽 = 128 × 0.25 = 32 单位(约 1 格)✓ —— 我上一版画成 128(4.3 格)⇒ 整体 496 ✗ 比屏还高 ✓ */
+  static readonly BAND_SCALE = 0.25;
   /** ★★★ 2026-09 用户:"为什么摄像机是突然被固定的" —— 原版是每帧 iLerp(0.1) 靠过去,不是瞬移 ✓
    *  这两个值:camPinTarget = 进门那一刻锁定的视口中心(区间就锁在它身上 ✓,sim 拿到的框也用它 ✓)
    *             camPinY      = 相机【实际】所在的高度,每帧朝 target 靠 0.1 ✓ */
@@ -1595,9 +1601,10 @@ class Scene extends Phaser.Scene {
          用【和相机完全同一套】每帧靠 0.1 的指数逼近(原版 updateCamera 的 iLerp ✓,约 0.5 秒收敛),
          起点在画外一格贴图(128 单位)⇒ 看得见"拉进来"的过程 ✓(0.1 秒线性那个是我自己定的 ✗ 太快) */
       const fr = frameOf(w.airLo as number, w.airHi as number);
-      this.bandHiY = this.bandHiY == null ? (w.airHi as number) + Scene.GROUND_TILE
+      const bandH = Scene.GROUND_TILE * Scene.BAND_SCALE;      // 带宽 = 贴图高 × 缩放 ✓(32 单位)
+      this.bandHiY = this.bandHiY == null ? (w.airHi as number) + bandH
         : this.bandHiY + (fr.hi - this.bandHiY) * 0.1;
-      this.bandLoY = this.bandLoY == null ? (w.airLo as number) - Scene.GROUND_TILE
+      this.bandLoY = this.bandLoY == null ? (w.airLo as number) - bandH
         : this.bandLoY + (fr.lo - this.bandLoY) * 0.1;
       const hiY = this.bandHiY, loY = this.bandLoY;
       /* ★★ 探针实测(tools/verify/gd-limit-shot.mjs):第一版建出来的 TileSprite 贴图是 `__MISSING` ✗
@@ -1632,9 +1639,9 @@ class Scene extends Phaser.Scene {
           /* ★ 贴图【不动】(用户:"为什么地面贴图会动")⇒ 不设 tilePositionX ✓
              ★ 上色:白贴图 × 地面色(GD 就是这么染的 ✓) */
           c.setTint(this.bandTint); gb.setTint(this.bandTint);
-          c.setPosition(this.camX, drawY(hiY)).setSize(wide, Scene.GROUND_TILE);
+          c.setPosition(this.camX, drawY(hiY)).setSize(wide, bandH);
           cl.setPosition(this.camX, drawY(hiY) + 1).setSize(wide, 2);
-          gb.setPosition(this.camX, drawY(loY)).setSize(wide, Scene.GROUND_TILE);
+          gb.setPosition(this.camX, drawY(loY)).setSize(wide, bandH);
           gl.setPosition(this.camX, drawY(loY) - 1).setSize(wide, 2);
         }
       }
