@@ -1620,15 +1620,13 @@ class Scene extends Phaser.Scene {
          不是框自己从画外滑进来 ✗(那套 bandHiY/bandLoY 是我编的 ✗,撤掉) */
       const fr = frameOf(w.mode, w.airLo as number, w.airHi as number);
       const bandH = Scene.GROUND_TILE * Scene.BAND_SCALE;      // 带宽 = 贴图高 × 缩放 ✓(32 单位)
-      /* ★★★ 进场动画(源码 `this[218]` / `+872`,asm 451106-451131 + 431218 的 `× v53`)✓
-         进度 0 → 1:两块地面从窗口【外】收到各自的位置(地面自下而上、天花板自上而下 ✓)
-         时长 0.5 秒、缓动取 smoothstep(源码 tweenValue 那个 rate/2.0 的等效)✓ */
-      const dtSec = Math.min(0.05, this.game.loop.delta / 1000);
-      this.bandT = Math.min(1, this.bandT + dtSec / 0.5);
-      const e = this.bandT * this.bandT * (3 - 2 * this.bandT);
-      const OUT = 2 * U;                                        // 起点在框外 2 格
-      const loY = fr.lo - OUT * (1 - e);
-      const hiY = fr.hi + OUT * (1 - e);
+      /* ★★★ 2026-09 用户:"上边框你写的是从下面出来的,这才是顶飞的原因" ✓✓ —— 完全正确:
+         我给两条带加了"从框外收回来"的位移(`hiY = fr.hi + OUT×(1-e)`)✗ ⇒ 带子先出现在别处、
+         而 sim 的夹取按【最终面】算 ⇒ 人和带子互相错位 ⇒ 一碰就被推飞 ✓
+         ⇒ 撤掉带子的位移:两条带【永远就在各自的面上】(和夹取共用同一组数 ✓)。
+         源码里也是这个结构:带子每帧只是被【摆】在位置上(431211/431218),没有任何位移动画 ✓;
+         `this[218]` 那个进度影响的是【区间布局】,不是带子的滑动 ✓(布局过渡我下一步按它做) */
+      const hiY = fr.hi, loY = fr.lo;
       /* ★★ 探针实测(tools/verify/gd-limit-shot.mjs):第一版建出来的 TileSprite 贴图是 `__MISSING` ✗
          —— 建对象那一刻 'gd-ground' 还没就绪,Phaser 就退化成缺省贴图,而且【不会自己换回来】✗
          ⇒ 就绪了才建;万一已经建成 __MISSING,销毁重建一次 ✓(自愈,不用刷新页面) */
