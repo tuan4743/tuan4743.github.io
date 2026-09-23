@@ -1551,10 +1551,17 @@ class Scene extends Phaser.Scene {
     const py = midY + (P.box * w.sizeMul) / 2;           // 视点中心(单人时就是人中心 ✓)
     let bottom: number;
     if (CAM_FIXED_MODES.has(w.mode)) {
-      /* ★★★ 2026-09 用户:"为什么摄像机是突然被固定的" ⇒ 平滑靠过去(原版 iLerp 0.1/帧)✓ */
-      this.camPinY = this.camPinY == null ? this.camPinTarget
-        : this.camPinY + (this.camPinTarget - this.camPinY) * 0.1;
-      bottom = this.camPinY - vh / 2;                    // 视口中心朝"进门锁定值"靠拢
+      /* ★★★ 2026-09 用户:"摄像头位置" ⇒ 去挖源码,挖到了(asm 451064-451076,
+         `GJBaseGameLayer::animateInDualGroundNew`,进门那一刻就是它摆相机):
+             v8  = getTargetFlyCameraY(player)        ← 目标来自【玩家】,不是门 ✗(我前几版锁门/锁进门高度都错)
+             v11 = v8 − 屏高/2; v11 = floor(v11/30)*30 ← 向下对齐到【一格】
+             if (v11 <= 90.0) v11 = 90.0              ← 下限 90(= 原版地面面;我们的 0)
+             *(this+680) = v11 + 屏高/2               ← 相机中心
+         ⇒ 换成我们的坐标(我们 = 原版 − 90):
+             camBottom = max(0, floor((玩家中心 − 屏高/2) / 30) × 30)   ← 跟着人走 ✓ 按格对齐 ✓ 不低过地面 ✓
+         限高框锚在屏幕上 ⇒ 相机跟着人走 = 框自然跟着人走 ✓✓(这才是"限制框"的手感 ✓)
+         ★ 旧的 camPinY/camPinTarget(钉死 + 0.1 靠拢)因此作废 —— 保留字段不再使用 ✗ */
+      bottom = Math.max(0, Math.floor((py - vh / 2) / U) * U);
     } else {
       const flip = w.gdir < 0;
       const unk2 = flip ? CAM_MID : CAM_LOW;             // 上沿余量
