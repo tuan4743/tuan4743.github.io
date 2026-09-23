@@ -604,7 +604,12 @@ class Scene extends Phaser.Scene {
        ★ id → 帧名的映射【不在游戏的数据文件里】(那是编译进 exe 的代码);这里靠"尺寸/颜色/唯一命中"钉,
          每条都在 build-art.mjs 的 MAP 里写了理由。线框(468/469/470)按用户口径不做贴图。 */
     if (ART_ENABLED) {
-      if (!this.textures.exists('gd-art')) this.load.atlas('gd-art', '/assets/gd-art.png', '/assets/gd-art.json');
+      /* ★★★ 2026-09 换成【官方图集 + 真映射】—— 由 tools/bake-object-atlas.ts 烘出:
+           GJ_GameSheet{02}-uhd 两张 uhd 图集 + 38 帧矩形 + 38 条 id→帧名(来自 OpenGD 的 object.json ✓)
+         ⇒ 不再用早期"尺寸/颜色/唯一命中"猜出来的自造表 ✗
+         注:取帧那一处若仍按旧帧名查,会全部查空 ⇒ 必须先改用本 JSON 的 ids 映射(下一步)✓ */
+      if (!this.textures.exists('gd-art')) this.load.multiatlas('gd-art', '/assets/gd-object-atlas.json', '/icons/');
+      this.load.json('gd-art-ids', '/assets/gd-object-atlas.json');
       this.load.once('complete', () => { this.artReady = this.textures.exists('gd-art'); });
       this.load.start();
     }
