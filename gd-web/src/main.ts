@@ -329,15 +329,23 @@ class Scene extends Phaser.Scene {
     let img = this.artPool[this.artUsed];
     if (!img) { img = this.add.image(0, 0, 'gd-art').setDepth(6); this.artPool.push(img); }
     this.artUsed++;
-    /* k:一格里的贴图按"物件高度(单位)/ 帧高(px)"等比缩放;弹簧板太扁,改用宽度对齐(GD 的板也是横向铺满) */
-    const k = (o.kind === 'pad' ? cwU / fr.width : chU / Math.max(1e-6, fr.height));
-    img.setVisible(true).setTexture('gd-art', key).setPosition(dx, dy);
+    /* ★★★ 2026-09 用户:"速度门/形态门等贴图方向不对或者大小不对,原版门贴图大小应该是竖着的三格"
+       —— 以前 k = 物件判定盒高 ÷ 帧高 ✗ ⇒ 门在铺面里是 1 格高的物件,
+          于是把【3 格高】的门美术硬压成 1 格 ⇒ 又扁又怪 ✓✓
+       改成【官方美术密度】:标准图集 1 px = 1 单位,uhd 图集 4 px = 1 单位
+       ⇒ k = 1/4(我们用的是 uhd 图集 ✓)⇒ 3 格高的门自然就是 90 单位高 ✓
+       锚点:门/速度门/迷你门 = 贴图【底边贴物件底边】(否则 3 格美术会往上冒 1 格 ✓);其余居中 ✓ */
+    const k = 0.25;                                   // uhd:4 px = 1 世界单位
+    const isDoor = o.kind === 'portal' || o.kind === 'speed' || o.kind === 'size';
+    const dispW = fr.width * k, dispH = fr.height * k;
+    const drawY = isDoor ? dy + chU / 2 + dispH / 2 : dy;   // dy 是物件中心 ⇒ 门口要抬到"底边对齐" ✓
+    img.setVisible(true).setTexture('gd-art', key).setPosition(dx, drawY);
     img.setRotation(((o.rot ?? 0) * Math.PI) / 180);
     /* ★★★ 2026-09 用户:"速度箭头有几个箭头的方向不对,各种门贴图也是方向不对"
        —— GD 里门/箭头的朝向来自【flipX / flipY】(不是 rot ✗),我们以前没做 ⇒ 该翻的都没翻 ✓ */
     img.setFlipX(!!o.flipX);
     img.setFlipY(!!o.flipY);
-    img.setDisplaySize(fr.width * k, fr.height * k);
+    img.setDisplaySize(dispW, dispH);
     img.setTint(tintCol);
     return true;
   }
