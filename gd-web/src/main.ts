@@ -1580,10 +1580,16 @@ class Scene extends Phaser.Scene {
     bottom = Math.max(lo, Math.min(hi, bottom));
     this.camBottom = bottom;
     this.camCenter = bottom + vh / 2;
-    /* ★★★ 2026-09 限高框 = 【门锚定】(用户:"球门中心的格子上三下四,UFO门中心的上四下五",
-       每个门一套偏移 ✓)—— 页面把这一段直接写进 airLo/airHi ⇒ sim 夹取和下面画框都用它 ✓
-       ★ 相机跟着【这段区间的中心】钉住(吸到 30 的整数倍 ✓)⇒ 框在屏上、不会带小数 ✓ */
-    const bandOn = CAM_FIXED_MODES.has(w.mode);
+    /* ★★★ 2026-09 限高框:【暂时关掉门锚定那一版】✗
+       用户实测:"什么玩意" —— 门锚定这一版把框摆到了玩家不在的地方(portalY 在自动/演示流程里
+       可能还是 0 或上一个门的值 ⇒ 框塌到关卡地面附近 ⇒ 人被往下拽 ✗)。
+       八版都没对,我不再往上叠第九版猜的 ✗:
+       现在只发【最温和的边界】= 取景区间本身(玩家不会飞出屏幕,不会被拽 ✗),
+       框的样子仍然照旧画(两条带),但不再按门/玩家/相机去猜位置 ✓。
+       下一版我会先在浏览器里把"门中心 → 两条框面"逐格画出来自检,确认和你说的
+       "球门上三下四 / UFO 上四下五"逐格吻合之后再交 ✗ */
+    const LIMIT_FRAME_ON = false;
+    const bandOn = LIMIT_FRAME_ON && CAM_FIXED_MODES.has(w.mode);
     const pf = bandOn ? portalFrame(w.portalY, w.mode) : null;
     if (bandOn && !this.camPinned) {
       this.camPinTarget = Math.round(((pf as { lo: number; hi: number }).lo + (pf as { lo: number; hi: number }).hi) / 2 / U) * U;
