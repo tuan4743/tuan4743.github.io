@@ -292,6 +292,10 @@ class Scene extends Phaser.Scene {
   camPinY: number | null = null;
   /** 这次形态进门是否已经钉过(锚门那段区间只算一次 ✓) */
   camPinned = false;
+  /** ★★★ 进场进度 = 源码 `*(this + 872)`(=`this[218]`,animateInDualGroundNew 里 tweenValue 到 1.0)✓
+   *  `updateCameraBGArt` 里天花板/地面都是 `× v53` 乘它 ⇒ 0 时两块在窗口【外】、1 时收到位 ✓
+   *  (地面从下往上收、天花板从上往下收 —— 不是我上一版那种"从下面滑上来"✗) */
+  bandT = 1;
   /** ★★★ 2026-09 用户:"为什么限高框没有出现的动画" + "动画太快了"
    *  原版进门是 tweenCeiling/tweenBottomGround 把两条地面【拉进来】;相机那边是
    *  `m_obCamPos.y = GameToolbox::iLerp(m_obCamPos.y, cam.y, 0.1f, dt/60)`(每帧靠 0.1,约 0.5 秒收敛)✓
@@ -1592,18 +1596,10 @@ class Scene extends Phaser.Scene {
       this.camPinTarget = Math.max(0, Math.floor((py - gh / 2) / U) * U) + gh / 2;
       this.camPinY = this.camBottom + vh / 2;
       this.camPinned = true;
+      this.bandT = 0;                     // ★ 进场进度归零 ⇒ 两块地面从窗口外收进来 ✓
     } else if (!bandOn) this.camPinned = false;
     w.airLo = bottom;
     w.airHi = bottom + vh;
-    const pf: { lo: number; hi: number } | null = null;
-    if (bandOn && !this.camPinned) {
-      this.camPinTarget = Math.round(((pf as { lo: number; hi: number }).lo + (pf as { lo: number; hi: number }).hi) / 2 / U) * U;
-      this.camPinY = this.camBottom + vh / 2;
-      this.camPinned = true;
-      this.bandHiY = null; this.bandLoY = null;
-    } else if (!bandOn) this.camPinned = false;
-    w.airLo = pf ? pf.lo : bottom;
-    w.airHi = pf ? pf.hi : bottom + vh;
     {
       /* ★★★ 2026-09 修 `Uncaught ReferenceError: Y is not defined`(用户给的报错原文)——
          这个作用域里现成的换算就是 `rowsU - y` ⇒ 直接算,不碰只在 draw() 里存在的 Y() ✓ */
@@ -1624,7 +1620,15 @@ class Scene extends Phaser.Scene {
          不是框自己从画外滑进来 ✗(那套 bandHiY/bandLoY 是我编的 ✗,撤掉) */
       const fr = frameOf(w.mode, w.airLo as number, w.airHi as number);
       const bandH = Scene.GROUND_TILE * Scene.BAND_SCALE;      // 带宽 = 贴图高 × 缩放 ✓(32 单位)
-      const hiY = fr.hi, loY = fr.lo;
+      /* ★★★ 进场动画(源码 `this[218]` / `+872`,asm 451106-451131 + 431218 的 `× v53`)✓
+         进度 0 → 1:两块地面从窗口【外】收到各自的位置(地面自下而上、天花板自上而下 ✓)
+         时长 0.5 秒、缓动取 smoothstep(源码 tweenValue 那个 rate/2.0 的等效)✓ */
+      const dtSec = Math.min(0.05, this.game.loop.delta / 1000);
+      this.bandT = Math.min(1, this.bandT + dtSec / 0.5);
+      const e = this.bandT * this.bandT * (3 - 2 * this.bandT);
+      const OUT = 2 * U;                                        // 起点在框外 2 格
+      const loY = fr.lo - OUT * (1 - e);
+      const hiY = fr.hi + OUT * (1 - e);
       /* ★★ 探针实测(tools/verify/gd-limit-shot.mjs):第一版建出来的 TileSprite 贴图是 `__MISSING` ✗
          —— 建对象那一刻 'gd-ground' 还没就绪,Phaser 就退化成缺省贴图,而且【不会自己换回来】✗
          ⇒ 就绪了才建;万一已经建成 __MISSING,销毁重建一次 ✓(自愈,不用刷新页面) */
