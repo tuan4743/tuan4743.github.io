@@ -798,29 +798,38 @@ export class World {
    *  null = 页面还没跑(测试/机器人)⇒ 不夹 ✓ */
   airLo: number | null = null;
   airHi: number | null = null;
+  /* ★★★ 2026-09 限制框的【两块实体地面】(用户:"限高框没有实体,还原原版")
+     它们是横跨全关卡的实心面,和普通方块走同一条碰撞路径 ✓
+     ★ 默认【不进】solids —— 常驻在天边的盒子会被地面扫描当成地面,把落点判定改掉 ✗
+       (前两次 sim.test 掉到 42/43 就是这个原因);由 applyAirLimit 按需加入/移出 ✓ */
+  private readonly airFloors: Box[] = [0, 1].map(() => ({ x0: 0, x1: 0, y0: -1e9, y1: -1e9, o: { kind: 'block' } as unknown as Obj }) as Box);
 
   private applyAirLimit() {
-    /* ★★★ 2026-09 【默认关】—— 用户实测:"碰到 bird 门卡死了"(连续两次)。
-       这条限高是我按"进门高度 ± 半屏"实现的,但区间常数没从源码核到 ⇒
-       在 UFO 那种贴顶/贴地的窄走廊里,夹取很可能把人推进实心块 ⇒ 反复死亡 = 看起来就是卡死 ✗
-       ⇒ 在拿到原版常数之前【不开】(要试就把它置 true;别的逻辑一行没动 ✓) */
-    if (!AIR_LIMIT_ON) return;
-    if (!FIXED_CAM_MODES.has(this.mode)) return;
-    /* ★ 只有【真的从门进来过】才夹(portalY > 0):
-       测试/合成关卡里直接以球/飞机形态开局时 portalY = 0,这时夹取会把人锁在 y≤5.3 一带,
-       连"球贴方块底面"这种验证过的行为都会被切掉(实测:sim.test 从 43 掉到 42 ✗)⇒ 必须放行 ✓
-       待办:进门高度为 0 的那一段(地面高度进飞机)也得夹 —— 要一个独立的 airLimitOn 标志,
-             并且把原版的区间常数挖出来之后一起做 ✓ */
-    /* ★ 边界改成页面给的(上面那两个字段)✓ 页面没给就当没这回事(测试/机器人)✓ */
-    const y0 = this.airLo, y1 = this.airHi;
-    if (y0 == null || y1 == null) return;
-    const lo = Math.max(0, y0);
-    const hi = Math.min(this.rows * U - this.box, y1 - this.box);
-    /* ★★★ 2026-09 用户口径:"限高机制是类似创建上下两边的地面" —— 所以不是"把 y 夹回去"✗,
-       而是当成【上下两块虚拟地面】:下边 = 正常重力的地面(落上去就算站住 ✓),
-       上边 = 反重力时的地面(头撞上去同样算站住 ✓)。球会像踩地面一样弹,飞机/UFO 顶到就贴住 ✓ */
-    if (this.y > hi) { this.y = hi; if (this.vy > 0) this.vy = 0; if (this.gdir > 0) this.onGround = true; }
-    if (this.y < lo) { this.y = lo; if (this.vy < 0) this.vy = 0; if (this.gdir < 0) this.onGround = true; }
+    /* ★★★ 2026-09 用户:"限高框没有实体,还原原版" —— 关键是【实体】两个字 ✓
+       源码依据:GJGroundLayer 里有 getGroundY() / positionGround(float) / updateGroundPos(...)
+       ⇒ 原版的地面是【能碰撞的对象】,限高就是"上下各有一块地面",不是把 y 夹住 ✗
+       ⇒ 所以这里改成:把两块【实体地面】按需登记进实心表 solids(和普通方块同一条路径 ✓),
+          位置 = 页面给的取景边(球/飞船/UFO/波浪的相机钉死 ⇒ 这两条边固定 ✓)
+          ⇒ 落地/站住/弹跳/顶头全走【已有的地面逻辑】✓✓
+       ★★ 关键细节(前两次 sim.test 掉到 42/43 的真因):不用时必须【从 solids 里移出】✗——
+          常驻在天边的盒子会被 sim 的地面扫描当成地面,把落点判定整个改掉 ✗
+          (前两次我用 node -e 文本替换去删 push,锚点没匹配上却以为删掉了 ✗) */
+    const a = this.airFloors[0], b = this.airFloors[1];
+    const on = AIR_LIMIT_ON && FIXED_CAM_MODES.has(this.mode) && this.airLo != null && this.airHi != null;
+    if (!on) {
+      for (const f of this.airFloors) {
+        f.x0 = 0; f.x1 = 0; f.y0 = -1e9; f.y1 = -1e9;
+        const i = this.solids.indexOf(f);
+        if (i >= 0) this.solids.splice(i, 1);        // ★ 不用就移出碰撞表 ✓
+      }
+      return;
+    }
+    const lo = Math.max(0, this.airLo as number);
+    const hi = Math.min(this.rows * U, this.airHi as number);
+    const x0 = -1000, x1 = this.level.length * U + 2000;
+    a.x0 = x0; a.x1 = x1; a.y0 = lo - 4000; a.y1 = lo;     // 下边那块:顶面 = 取景下边 ✓
+    b.x0 = x0; b.x1 = x1; b.y0 = hi; b.y1 = hi + 4000;     // 上边那块:底面 = 取景上边 ✓
+    for (const f of this.airFloors) if (this.solids.indexOf(f) < 0) this.solids.push(f);   // ★ 用时才进 ✓
   }
 
   /** 弹簧 / 跳环给的推力方向(0 = 没有推力飞行)。见 applyFallClamp */
