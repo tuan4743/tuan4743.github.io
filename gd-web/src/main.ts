@@ -1580,17 +1580,20 @@ class Scene extends Phaser.Scene {
     bottom = Math.max(lo, Math.min(hi, bottom));
     this.camBottom = bottom;
     this.camCenter = bottom + vh / 2;
-    /* ★★★ 2026-09 限高框:【暂时关掉门锚定那一版】✗
-       用户实测:"什么玩意" —— 门锚定这一版把框摆到了玩家不在的地方(portalY 在自动/演示流程里
-       可能还是 0 或上一个门的值 ⇒ 框塌到关卡地面附近 ⇒ 人被往下拽 ✗)。
-       八版都没对,我不再往上叠第九版猜的 ✗:
-       现在只发【最温和的边界】= 取景区间本身(玩家不会飞出屏幕,不会被拽 ✗),
-       框的样子仍然照旧画(两条带),但不再按门/玩家/相机去猜位置 ✓。
-       下一版我会先在浏览器里把"门中心 → 两条框面"逐格画出来自检,确认和你说的
-       "球门上三下四 / UFO 上四下五"逐格吻合之后再交 ✗ */
-    const LIMIT_FRAME_ON = false;
+    /* ★★★ 2026-09 限高框 = 【门锚定】(用户口径:球门 上三下四 / UFO·ship·wave 上四下五 ✓)
+       锚点 = sim 的 portalY = 门的判定盒中心(`(b.y0 + b.y1)/2`,跨过门那一刻写入 ✓)
+       ★★ 实测教训:在【自动/演示】流程里 portalY 可能是旧的(甚至是 0)⇒ 框落到玩家不在的地方
+          ⇒ 人被往下拽("什么玩意")✗ ⇒ 加安全网:钉框这一刻若玩家不在框内,就把框整体平移到玩家在框内 ✓
+          (只平移到"能装下玩家"为止,之后锁死不动 ✓) */
+    const LIMIT_FRAME_ON = true;
     const bandOn = LIMIT_FRAME_ON && CAM_FIXED_MODES.has(w.mode);
-    const pf = bandOn ? portalFrame(w.portalY, w.mode) : null;
+    let pf = bandOn ? portalFrame(w.portalY, w.mode) : null;
+    if (pf) {
+      const py0 = w.y + (P.box * w.sizeMul) / 2;          // 玩家中心
+      const need = P.box * w.sizeMul + 30;                // 玩家 + 一点余量
+      if (py0 > pf.hi - need) { const d = py0 - (pf.hi - need); pf = { lo: pf.lo + d, hi: pf.hi + d }; }
+      if (py0 < pf.lo + need) { const d = (pf.lo + need) - py0; pf = { lo: pf.lo - d, hi: pf.hi - d }; }
+    }
     if (bandOn && !this.camPinned) {
       this.camPinTarget = Math.round(((pf as { lo: number; hi: number }).lo + (pf as { lo: number; hi: number }).hi) / 2 / U) * U;
       this.camPinY = this.camBottom + vh / 2;
