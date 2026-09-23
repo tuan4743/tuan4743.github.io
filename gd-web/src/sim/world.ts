@@ -111,8 +111,13 @@ export const FLY_BAND = 8 * U;
  *    (相机被门锁住 ⇒ 屏幕锚定 = 一段固定的世界区间 ✓,这就是"进门锁定的一段固定区间" ✓) */
 export const GROUND_FACE_OFF = 91;
 
-export function frameOf(airLo: number, _airHi: number): { lo: number; hi: number } {
-  const lo = airLo + GROUND_FACE_OFF;
+export function frameOf(airLo: number, airHi: number): { lo: number; hi: number } {
+  /* 八格空档【在取景里居中】(用户:"空挡就是 8 格" + 上一版把 91 当下框面 ⇒ 整体压到屏幕偏上 ✗"更错了")
+     取景 330、空档 240 ⇒ 上下各留 (330−240)/2 = 45 ✓
+     带厚 32(= 128 × 0.25)正好放进这 45 里 ⇒ 32 + 13 + 240 + 13 + 32 = 330 = 一屏排满 ✓
+     ★ 那个 91 是【地面带】的偏移(原版地面贴屏幕下边往上 91),不是飞行框的下框面 ✗ —— 我上一版用错了 ✗ */
+  const margin = Math.max(0, ((airHi - airLo) - FLY_BAND) / 2);
+  const lo = airLo + margin;
   return { lo, hi: lo + FLY_BAND };
 }
 
