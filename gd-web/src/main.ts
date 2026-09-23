@@ -1507,7 +1507,13 @@ class Scene extends Phaser.Scene {
     /* ---- 形态切换:记下"进门时的视口中心"(原版 m_fCameraYCenter) ---- */
     if (w.mode !== this.camMode) {
       if (CAM_FIXED_MODES.has(w.mode)) {
-        const portalY = w.portalY;                       // 门的位置(世界 y)
+        /* ★★★ 2026-09 用户定位:"高度不对,我觉得是因为我们形态门是到达这个 x 就生效的" ✓✓ 完全正确:
+           原版的门是【碰到】才生效(门有 y,玩家必须和它重叠)⇒ 那一刻玩家就在门的高度上,
+           所以源码 m_fCameraYCenter 用门的高度 = 玩家的高度 ✓;
+           我们这套引擎的门是【越过 x 就生效】(DOOR_KINDS,"到达这一 x 就触发")⇒ 玩家可能在上/下很远的地方 ✗,
+           再拿门的 y 去锁 ⇒ 框落在玩家根本不在的高度上(就是"高度不对" ✓)
+           ⇒ 等价量是【越过那一刻玩家自己的 y】:公式照源码不动,只把输入换成它 ✓ */
+        const portalY = w.y;
         if (w.mode === 'ball') {
           this.camCenter = portalY < CAM_BALL_BELOW ? CAM_BALL_CENTER
             : Math.floor((portalY + CAM_LOW) / U) * U - CAM_LOW;
