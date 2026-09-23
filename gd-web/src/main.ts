@@ -1559,18 +1559,24 @@ class Scene extends Phaser.Scene {
     const py = midY + (P.box * w.sizeMul) / 2;           // 视点中心(单人时就是人中心 ✓)
     let bottom: number;
     if (CAM_FIXED_MODES.has(w.mode)) {
-      /* ★★★ 2026-09 三条反馈的公共解(不再切换方案):
-         · "摄像机跟人是要把人晃死吗" ⇒ 晃的根是【每帧把目标吸到 30 格线】✗ —— 现在目标 = 玩家中心,
-           【连续、不吸格线】,只用 0.12/帧 平滑 ⇒ 世界平滑滚动,不会一格一格跳 ✓
-         · "直接被顶飞" ⇒ 框由【当前相机】推出来(相机 ± gh/2,下沿不低于地面)⇒ 人永远在自己框里 ✓
-         · 源码:updateCamera 每子步直接赋值、无插值 ✓;449845 那条 `(gh/2)/缩放 + 90` 就是"下沿不低于地面" ✓ */
-      const gh = groundHeightOf(w.mode);
-      this.camPinY = this.camPinY == null ? py : this.camPinY + (py - this.camPinY) * 0.12;
+      /* ★★★ 用户反复强调:"摄像机不要跟着移动" ✓ —— 这条 OpenGD 的实现也是这么写的:
+         `if (gamemode != Cube) cam.y = -屏高/2 + m_fCameraYCenter`(钉死;只有方块才带跟随带 unk2/unk3)✓
+         ⇒ 进门那一刻【定住】:锚点 = 那一刻的玩家位置,框 = 锚点 ± gh/2(下沿不低于地面 0)✓
+         ⇒ 之后相机不动(不吸格线、不跟人)⇒ 不晃 ✓;框也不动 ⇒ 不会被拽 ✓;两条带【静态】贴在框面上 ✓
+         ✗ 我之前每帧跟人 / 每帧吸格线,都是我自己加的,两次都被你否掉 ✓ */
+      if (!this.camPinned) {
+        const gh = groundHeightOf(w.mode);
+        const lo = Math.max(0, py - gh / 2);
+        this.frameLo = lo; this.frameHi = lo + gh;
+        this.camPinTarget = lo + gh / 2;              // 相机中心 = 框中心
+        this.camPinY = this.camBottom + vh / 2;       // 从当前视口平滑靠过去(不瞬移 ✓)
+        this.camPinned = true;
+      }
+      this.camPinY = this.camPinY == null ? this.camPinTarget
+        : this.camPinY + (this.camPinTarget - this.camPinY) * 0.1;
       bottom = this.camPinY - vh / 2;
-      const lo = Math.max(0, this.camPinY - gh / 2);
-      this.frameLo = lo; this.frameHi = lo + gh;
     } else {
-      this.camPinY = null; this.frameLo = null;
+      this.camPinY = null; this.camPinned = false; this.frameLo = null;
       const flip = w.gdir < 0;
       const unk2 = flip ? CAM_MID : CAM_LOW;             // 上沿余量
       const unk3 = flip ? CAM_LOW : CAM_MID;             // 下沿余量
