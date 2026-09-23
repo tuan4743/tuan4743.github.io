@@ -1024,7 +1024,11 @@ class Scene extends Phaser.Scene {
       this.iconLayers.push({
         mode: a.mode,
         body: this.add.image(0, 0, body.tex).setVisible(false).setDepth(16),
-        glow: glow ? this.add.image(0, 0, glow.tex).setVisible(false).setDepth(17) : null,
+        /* ★★★ 2026-09 修"贴图变成纯青"(用户实测):我把第二色层画到了主体【上面】✗,
+           而官方图标是【第二色(内芯)在下、主体(外框)在上】——
+           主体层自己的内部是透空的,内芯从下面透出来才是原版那个样子 ✓
+           ⇒ 第二色层的深度放到主体【下面】(主体 16 ⇒ 内芯 15.5)✓ */
+        glow: glow ? this.add.image(0, 0, glow.tex).setVisible(false).setDepth(15.5) : null,
         bw: body.w, bh: body.h,
         pxPerUnit: REF_PX / (WATER_CHART.start ? 30 : 30),          // 见 REF_PX:120 px = 1 块 = 30 单位
       });
@@ -2080,14 +2084,12 @@ class Scene extends Phaser.Scene {
        做法:再建一张图,用 cube 那一层的贴图,跟着玩家走、同色 ✓
        (各载具里 cube 的确切缩放/偏移还没从源码核到 ⇒ 现在【同尺寸居中】,已记待办 ✓) */
     if (!this.pilot) this.pilot = this.add.image(0, 0, 'icon-cube-body').setVisible(false).setDepth(16.5);
-    const PILOT_MODES = new Set<string>([]);
-    /* ★★★ 2026-09 【驾驶位 cube 暂时关闭】—— 用户连续三次报卡死,两次我修错方向 ✗
-       (① 说限高 ② 说贴图键 ③ 改成 buildIcons 里预建之后【还是卡死】)
-       ⇒ 在能拿出"到底是哪一句卡住"的证据之前不再让它上屏:
-          宁可驾驶位暂时是空的(用户原话的那种"空"),也不能让整页卡死 ✗✗
-       复盘:我每次都是"猜一个原因 + 改一处"就交,没有先缩小范围(比如先只关这一处看还卡不卡)✗
-       ⇒ 下一轮:先只开 pilot(别的一律不动),卡不卡一次性定性 ✓ */
-    void 0;
+    const PILOT_MODES = new Set(['ship', 'ufo', 'wave', 'ball']);
+    /* ★★★ 2026-09 单变量复测:上一次卡死(g114)那一版里,除了这个 pilot 【限高也是开着的】✗
+       ⇒ 我一直没做过"只开 pilot、限高关着"的干净测试。现在就是这样:
+           限高 AIR_LIMIT_ON = false(关着) · pilot 开 · 其余都保持基线 ✓
+       若这版不卡 ⇒ 卡死是限高(它会把 UFO 段夹在 portalY ± 160 的区间里,那一段要往上飞就死循环 ✗)
+       若这版还卡 ⇒ pilot 确实是元凶,我拿掉它换别的做法(不再猜)✓ */
     /* ★★★ 2026-09 修"碰到 bird 门卡死"(用户实测)★ 这是我上一轮引入的 ✗:
        pilot 用的 'icon-cube-body' 在 cube 那一层没建出来时【根本不存在】⇒ this.add.image 抛异常,
        异常发生在渲染循环里 ⇒ 整页卡死(第一次进载具形态才触发 = 碰上 bird 门那一下 ✓)
