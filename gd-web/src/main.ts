@@ -333,6 +333,10 @@ class Scene extends Phaser.Scene {
     const k = (o.kind === 'pad' ? cwU / fr.width : chU / Math.max(1e-6, fr.height));
     img.setVisible(true).setTexture('gd-art', key).setPosition(dx, dy);
     img.setRotation(((o.rot ?? 0) * Math.PI) / 180);
+    /* ★★★ 2026-09 用户:"速度箭头有几个箭头的方向不对,各种门贴图也是方向不对"
+       —— GD 里门/箭头的朝向来自【flipX / flipY】(不是 rot ✗),我们以前没做 ⇒ 该翻的都没翻 ✓ */
+    img.setFlipX(!!o.flipX);
+    img.setFlipY(!!o.flipY);
     img.setDisplaySize(fr.width * k, fr.height * k);
     img.setTint(tintCol);
     return true;
