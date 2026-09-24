@@ -150,6 +150,12 @@ export function hitboxOf(o: Obj): [number, number] | null {
     case 'saw': return null;                                      // 判定 = 自己的包围盒(见上面注释)
     case 'coin': return GD_HITBOX.coin;
     case 'portal': return GD_HITBOX.portal;
+    /* ★★★ 2026-09-26 克隆门(286/287)也要走【官方门洞尺寸】34×86,以前它没在这张表里 ⇒
+       落到"物件自己的包围盒"(1×1 格 = 30×30)✗ —— 而 world.ts 里那条注释写的是
+       "门洞 86 单位高,从任意高度进都行",说明当初就是按 86 高写的代码,表里却漏了 ⇒ 前后不一致 ✓
+       后果(实测):玩家在门口跑到 y=6.94 时盒子只交叠 0.94 格 ⇒ 有时过门不触发、有时触发,
+       全看当时离地多高 ✗。克隆门的贴图就是 portal_11/12(和形态门同一族)⇒ 按门的盒子走 ✓ */
+    case 'clone': return GD_HITBOX.portal;
     case 'gravity': return GD_HITBOX.gravity;
     case 'size': return GD_HITBOX.size;
     case 'speed': return GD_HITBOX.speed[o.speed ?? 1] ?? null;

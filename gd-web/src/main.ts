@@ -2440,7 +2440,10 @@ class Scene extends Phaser.Scene {
         .setTint(w.dead ? 0xff7a5a : PLAYER_C1).setDisplaySize(B * PILOT_SCALE, B * PILOT_SCALE);
     } else this.pilot?.setVisible(false);
     /* ★★★ 2026-09 双人:玩家 2 也画一遍(状态换进换出,所以画法和玩家 1 完全一样 ✓)
-       已知缺口:robot/spider 的【部件动画】那条路(P2 目前只画图标本体)✗ 已记进待办 ✓ */
+       ★★ 2026-09-26 现状:【这条现在是死路】—— 按用户口径"克隆门只标记、不做双人",
+          sim 里不会再置 dual(见 world.ts 的 clones 循环)⇒ dualInto() 永远返回 false ✓
+          保留代码是为了"哪天真要做双人"时有底子;真要开,必须连相机取两人中点、
+          两人都活着才算过、p2 的部件动画一起做完,别只开一半 ✗ */
     if (w.dualInto()) {
       const B2 = P.box * w.sizeMul;
       this.drawIconPlayer(w, w.x + B2 / 2, Y(w.y + B2 / 2), B2);

@@ -1169,3 +1169,37 @@ test('存档点正好压在可破坏砖上:复活必须被顶出实心,不能一
   for (let i = 0; i < 30; i++) w.frame(false);
   assert.ok(!w.dead, '复活后要能活下来(不被压死)');
 });
+
+/* ---------------- 克隆门(286/287):只标记、不做双人(用户口径) ----------------
+ * 用户报「克隆出了严重的 bug,无法描述」⇒ 复现到了:过 286 门会【凭空多出一个玩家 2】。
+ * 那套双人是半套实现(代码里引过反编译 PortalDualOn/Off = 57/58),按口径关掉 ✓ */
+test('克隆门只标记:过门不开双人、也不凭空多出玩家 2', () => {
+  const gate: Obj = { kind: 'clone', b: 8, r: 0, w: 1, h: 1, id: 286 };
+  const a = new World(solo([floor60, gate]));
+  const b = new World(solo([floor60]));                 // 对照组:没有门
+  let passedAt = -1;
+  for (let i = 0; i < 240; i++) {
+    a.frame(botThink(a)); b.frame(botThink(b));
+    assert.equal(a.dual, false, '克隆门不许开双人(第 ' + i + ' 帧)');
+    assert.equal(a.p2, null, '不许凭空多出玩家 2(第 ' + i + ' 帧)');
+    if (passedAt < 0 && a.x > 9 * U) passedAt = i;
+  }
+  assert.ok(passedAt >= 0, '要真的跑过门(x 只到 ' + (a.x / U).toFixed(2) + ' 格)');
+  /* ★★ 关键断言:门不产生任何影响 ⇒ 有门 / 没门 两条轨迹必须逐字段一致 */
+  assert.equal(a.x, b.x, 'x 必须一致');
+  assert.equal(a.y, b.y, 'y 必须一致');
+  assert.equal(a.vy, b.vy, 'vy 必须一致');
+  assert.equal(a.dead, b.dead, '生死必须一致');
+  assert.equal(a.mode, b.mode, '形态必须一致');
+});
+
+test('克隆门的判定盒 = 官方门洞 34×86(以前是 1×1 格 ⇒ 触发时有时无)', () => {
+  const w = new World(solo([floor60, { kind: 'clone', b: 8, r: 0, w: 1, h: 1, id: 286 }]));
+  assert.equal(w.clones.length, 1, '克隆门要进 clones 列表(只标记)');
+  const bx = w.clones[0];
+  assert.ok(Math.abs((bx.x1 - bx.x0) - 34) < 0.01, '宽 = 34 单位,实测 ' + (bx.x1 - bx.x0));
+  assert.ok(Math.abs((bx.y1 - bx.y0) - 86) < 0.01, '高 = 86 单位,实测 ' + (bx.y1 - bx.y0));
+  /* 锚点 = 物件中心:1×1 的门放在 (8,0) ⇒ 中心 (8.5,0.5) 格 = (255,15) 单位 */
+  assert.ok(Math.abs(bx.x0 - (8.5 * U - 17)) < 0.01 && Math.abs(bx.y0 - (0.5 * U - 43)) < 0.01,
+    '锚点应为物件中心,实测 x0=' + bx.x0 + ' y0=' + bx.y0);
+});

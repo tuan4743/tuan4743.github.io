@@ -367,7 +367,7 @@ export class World {
            (3004/3005 紫箭/紫板原表里没有,仍用包围盒兜底。) */
         case 'coin': this.coins.push(hbBox(o) ?? b); break;
         case 'arrow': this.arrows.push(hbBox(o) ?? b); break;
-        case 'clone': this.clones.push(b); break;
+        case 'clone': this.clones.push(hbBox(o) ?? b); break;   // ★ 走官方门洞盒 34×86(以前是 1×1 格,见 gdids.hitboxOf)
         case 'platform': {
           /* 单向平台:只从上面接住,不致死(自动铺面的浮空平台就是它)。
              ★ 662(半格线框块)不在这里 —— 它在原版是【实心】的,走 kind 'frame' + fm=box,
@@ -1741,11 +1741,17 @@ export class World {
       if (this.armedClones.has(b)) continue;
       if (!this.hitEvent(b, prevX)) continue;
       this.armedClones.add(b);
-      /* 收双人的是 287(克隆回收门)。★ 用【物件 id】判:Spec 上的 dualOff 没被搬进物件
-         (level.ts 只白名单搬字段),而 id 是搬进来的(实测 x=516 那个 id=287 ✓) */
-      if (b.o.id === 287 || b.o.dualOff) { this.dual = false; this.p2 = null; continue; }
-      /* 286 = 开双人:玩家 2 在【进门那一点】生成(门洞 86 单位高,从任意高度进都行)✓ */
-      if (!this.dual) { this.dual = true; this.p2 = this.takeState(); }
+      /* ★★★ 2026-09-26 用户口径:克隆门【只标记、不生效】—— 我们不做双人 ✗
+         ── 以前这里是真的开双人(`this.dual = true; this.p2 = this.takeState()`),
+            于是玩家跑过 x=1211 那个 286 门时【凭空多出一个玩家 2】(实测:过线当帧 dual=1、
+            p2 出现,之后两套物理各自演化)—— 用户的原话就是"克隆出了严重的 bug,无法描述" ✗✗
+         ── 反编译里确实有 PortalDualOn/Off(事件 57/58),所以"原版有这个机制"没错;
+            但真要做双人,得连【两人都活着才算过】、【相机取两人中点】、【双人专用判死/存档】、
+            p2 的绘制与部件动画一起做 —— 现在只有半套,半套跑在关卡里就是"说不清的怪现象" ✓
+         ── 所以按口径关掉:过门只记一个 armed(不再触发任何效果),顺便把可能残留的
+            dual/p2 状态清干净(旧存档快照/tag 里可能带着 dual=true)✓ */
+      this.dual = false;
+      this.p2 = null;
     }
     for (const b of this.sizes) {
       if (this.armedSizes.has(b)) continue;
