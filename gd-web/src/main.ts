@@ -505,6 +505,29 @@ class Scene extends Phaser.Scene {
   private prevR = false;
   private restartPressed = false;
   private confirmLatch = false;     // 真实的 keydown 事件(比"每帧查 isDown"可靠:极短的一下也收得到)
+  /* ★★★ 2026-09-26 用户:"低帧率会直接影响游戏(不是卡,是游戏逻辑跟着变)" —— 探针实测(gd-fps-check):
+       ×1 限速:模拟 43.9 fps(该 60 ✗,正好是"Phaser 平滑 delta 少算 25%"那条已知问题)、
+       ×6 限速(渲染 3 fps):模拟只剩 24.9 fps ⇒ 世界整体变慢 2.4 倍,跳跃距离/节奏全变 ✗✗
+     两个修法:
+       ① 推进用【墙上时间】自己量,不用 Phaser 的平滑 delta ✓(见 update 里 play 分支)
+       ② 按键按【ev.timeStamp】记成时间线,补步时每一模拟帧取【它自己那一刻】的状态 ✓
+          —— 以前一帧补 N 步时,这 N 步共用同一个轮询状态 ⇒ 低帧率下按下时机能差一整帧渲染 ✗
+          (timeStamp 用的是硬件事件时间,即使主线程忙、处理器晚跑,时刻也是准的 ✓) */
+  private inputLog: Array<{ t: number; down: boolean }> = [];
+  private simWallMs = 0;            // 模拟时钟(墙上毫秒刻度):每推一步 += 1000/60
+  private tapPending = false;       // 比一帧还短的一下:至少喂给一步 ✓(原 confirmLatch 的保底)
+  private lastPlayMs = 0;           // play 分支上一次推进的墙上时刻
+  private logInput(down: boolean, t: number) {
+    this.inputLog.push({ t, down });
+    if (down) this.tapPending = true;
+    if (this.inputLog.length > 6000) this.inputLog.splice(0, 3000);
+  }
+  /** 取"墙上时刻 t 那一刻"的按键状态(时间线里最后一条 ≤ t 的事件)✓ */
+  private holdAt(t: number): boolean {
+    let down = false;
+    for (const e of this.inputLog) { if (e.t > t) break; down = e.down; }
+    return down;
+  }
   private restartLatch = false;
   private godLatch = false;         // G 键:无敌模式
   private prevG = false;
@@ -717,7 +740,10 @@ class Scene extends Phaser.Scene {
        ★ 不再"焦点在输入框里就不理":用户实测 R/G 没反应,查出来是站内搜索框还留着焦点 ——
          指向输入框的 keydown 我们一样要接。玩之前点一下画面就会把焦点从搜索框上拿走(见下面 pointerdown)。 */
     window.addEventListener('keydown', (ev: KeyboardEvent) => {
-      if (ev.code === 'Space' || ev.code === 'ArrowUp' || ev.code === 'KeyW') this.confirmLatch = true;
+      if (ev.code === 'Space' || ev.code === 'ArrowUp' || ev.code === 'KeyW') {
+        this.confirmLatch = true;
+        this.logInput(true, ev.timeStamp || performance.now());     // ★ 时间线:按硬件事件时刻记 ✓
+      }
       /* ★★ 2026-09 用户:"把按键,提示全删掉,按 b 还是有反应" —— B 的处理器就在窗口级监听这里 ✗
          R(重开)/ G(无敌,已停用)/ B(演示·机器人)三个调试入口一并删掉 ✓,只留跳跃键 ✓ */
       void ev;
@@ -727,6 +753,10 @@ class Scene extends Phaser.Scene {
       if (ev.code === 'BracketLeft' || ev.code === 'Minus' || ev.code === 'NumpadSubtract' || ev.code === 'Comma') this.padLatch -= 1;
       if (ev.code === 'BracketRight' || ev.code === 'Equal' || ev.code === 'NumpadAdd' || ev.code === 'Period') this.padLatch += 1;
       if (/^Digit[1-7]$/.test(ev.code)) this.modeLatch = Number(ev.code.slice(5));
+    }, true);
+    /* ★ 松手也要进时间线:不然"按住"和"一下"在补步里分不出来 ✓ */
+    window.addEventListener('keyup', (ev: KeyboardEvent) => {
+      if (ev.code === 'Space' || ev.code === 'ArrowUp' || ev.code === 'KeyW') this.logInput(false, ev.timeStamp || performance.now());
     }, true);
     /* ★ 再给几个【能点的】按钮:键盘在某些环境里会被别的东西吃掉(用户实测 R/G 没反应),
        按钮用鼠标/触屏都能按,而且状态直接写在按钮上 —— 不用猜到底开没开。 */
@@ -1294,9 +1324,19 @@ class Scene extends Phaser.Scene {
          本帧第一个物理帧吃掉它并立刻清掉 ⇒ 追赶帧不会把它当成"一直按住" ✓ */
       const useLatch = this.confirmLatch;
       this.confirmLatch = false;
+      /* ★★★ 2026-09-26:每一步取【它自己那一刻】的按键状态(见 inputLog 的说明)——
+         以前这一帧补的 N 步共用同一个轮询状态,低帧率下按下时机能偏一整帧渲染 ✗
+         模拟时钟 simWallMs 每步 +1000/60;和墙上时间差超过 0.5 秒(刚换局/刚复活)就重新对齐 ✓ */
+      const nowStepMs = performance.now();
+      if (!this.simWallMs || Math.abs(nowStepMs - this.simWallMs) > 500) this.simWallMs = nowStepMs;
+      const stepClock = this.simWallMs;
+      this.simWallMs += 1000 / 60;
+      const tap = this.tapPending;                  // 比一帧还短的一下:只喂第一步,别当成"按住"✓
+      this.tapPending = false;
+      const liveHold = !!(this.keys.SPACE?.isDown || this.keys.UP?.isDown || this.keys.W?.isDown);
       const hold = this.demoMode ? this.demoHold(w0.tick)
         : this.botMode ? botThink(w0)
-          : (!!(this.keys.SPACE?.isDown || this.keys.UP?.isDown || this.keys.W?.isDown) || useLatch);
+          : ((this.inputLog.length ? this.holdAt(stepClock) : liveHold) || tap || useLatch);
       if ((this.botMode || this.demoMode) && !this.botStarted) {       // 开机器人 = 从干净的一局开始,方便和 Node 侧对指纹
         this.botStarted = true;
         this.started = true;
@@ -1511,15 +1551,31 @@ class Scene extends Phaser.Scene {
         /* ★ 由音乐驱动:画面里的障碍正好落在它对应的那一拍上 */
         const target = Math.max(0, Math.floor(a!.currentTime * 60) - this.baseTick);
         let n = 0;
-        while (this.world.tick < target && n < 8) { this.pump(1); n++; }
+        /* ★★ 2026-09-24 用户:"低帧率会直接影响游戏(不是卡,是游戏逻辑跟着变)" ——
+           一帧只补 8 帧模拟 ⇒ 低于 ~7.5 FPS 就跟不上音乐时钟,模拟开始落后真实时间 ✗,
+           而落后 = 同样一段墙上时间内推进的模拟帧变少 = 跳跃高度/间距判定全变 ✗✗
+           ⇒ 上限放到 0.5 秒的量(30 帧):只要 ≥2 FPS 就跟得上真实时间 ✓
+           (模拟本身是固定 1/60 步长 ⇒ 轨迹只跟"推了多少帧"有关,与渲染帧率无关 ✓) */
+        while (this.world.tick < target && n < 30) { this.pump(1); n++; }
       } else {
         if (live) {
           const now = performance.now();
           if (now - this.lastSeekTry > 1500) { this.lastSeekTry = now; this.seekMusic(wantT); }
         }
-        this.acc += Math.min(dtMs / 1000, 0.5);
+        /* ★★★ 2026-09-26 用户:"低帧率直接影响游戏" —— 这里以前累加的是 Phaser 的 dtMs(平滑过的),
+           而上面那段注释自己就写过它"183 次 update/6 秒只累出 5.5 秒 ⇒ 慢 25%" ✗
+           探针实测:不限速时模拟只有 43.9 fps(该 60)、限到 3 fps 渲染时模拟只剩 24.9 fps
+           ⇒ 世界整体变慢、跳跃距离/节奏全变 ✗✗ 现在改用 performance.now() 自己量墙上时间 ✓ */
+        const nowMs = performance.now();
+        const dtWallMs = this.lastPlayMs ? Math.min(500, nowMs - this.lastPlayMs) : dtMs;
+        this.lastPlayMs = nowMs;
+        this.acc += Math.min(dtWallMs / 1000, 0.5);
         let n = 0;
-        while (this.acc >= step && n < 5) { this.acc -= step; this.pump(1); n++; }
+        /* ★★ 同上(低帧率不许改游戏逻辑):原来一帧最多补 5 帧 ⇒ 低于 12 FPS 就开始"游戏变慢" ✗
+           ⇒ 放到 30 帧(0.5 秒),再把"补不完的欠账"丢掉,免得越补越落后(螺旋)✓ */
+        const MAXSTEPS = 30;
+        while (this.acc >= step && n < MAXSTEPS) { this.acc -= step; this.pump(1); n++; }
+        if (this.acc > step * MAXSTEPS) this.acc = 0;
       }
     }
     if (this.phase !== 'running') { this.followCamera(); this.draw(); this.paintUi(); return; }   // pump 里可能刚死/刚通关
@@ -1599,6 +1655,11 @@ class Scene extends Phaser.Scene {
    *  坐标:世界 y 朝上,Phaser 相机 y 是【绘图空间】(朝下、0 在关卡顶),最后换算一次。 */
   private followCamera() {
     const cam = this.cameras.main;
+    /* ★★ 2026-09-24 用户:"zoom 触发器没生效" —— sim 侧其实一直在缓动(world.zoom 0.725 精确落点),
+       但相机缩放只在 applyViewport()(create/resize 时)设过一次 ⇒ 之后 zoom 怎么变,画面都不动 ✗✗
+       ⇒ 每帧在这里先设一次。必须在下面读 cam.zoom 算 vw/vh 之前设 ✓
+         (限高框/上下两条带/视口高 vh 都是按 cam.zoom 现算的 ⇒ 缩放时它们一起跟着缩 ✓) */
+    cam.setZoom(this.zoomOf());
     const vw = cam.width / cam.zoom;
     const vh = cam.height / cam.zoom;
     const rowsU = LEVEL.rows * U;
