@@ -2321,8 +2321,15 @@ class Scene extends Phaser.Scene {
          ⇒ 驾驶位少了那一次 Y() 换算 ⇒ 被画到屏幕上方约 3500 单位处 ⇒ depth 再高也看不见 ✓✓✓
          (实测:UFO 段 pilotY=128 vs 玩家 playerY=3682 ⇒ dy=-3554;x 完全相同 ⇒ 只差 y 的换算 ✓)
          ⇒ 这里改成同一套坐标:Y(cyw) ✓(Y 在本作用域可用 ✓;当年那次卡死是 `on` 未定义,不是 Y ✓) */
-      this.pilot.setVisible(!w.done).setPosition(cxw, Y(cyw)).setRotation(0).setFlipY(w.gdir < 0)
-        .setTint(w.dead ? 0xff7a5a : PLAYER_C1).setDisplaySize(B, B);
+      /* ★★★ 用户:"位置大小都不对,现在不是坐在驾驶舱的,是直接覆盖到了贴图上方" ✓
+         ⇒ 驾驶位那颗 cube 必须【比载具小、并且落在座舱里】:
+            · 尺寸:0.7 × 玩家盒(30 → 21 单位)✓(和载具 34×28 比,留出碟身 ✓)
+            · 位置:往下挪 DOWN_PILOT(画布坐标 y 向下 ⇒ +)让它坐在碟身里,而不是压在顶上 ✓
+         这两个数是看的(不是源码常数 ✗)—— 你说"再小一点/再低一点"我改这两个数 ✓ */
+      const PILOT_SCALE = 0.7;
+      const DOWN_PILOT = 5;
+      this.pilot.setVisible(!w.done).setPosition(cxw, Y(cyw) + DOWN_PILOT).setRotation(0).setFlipY(w.gdir < 0)
+        .setTint(w.dead ? 0xff7a5a : PLAYER_C1).setDisplaySize(B * PILOT_SCALE, B * PILOT_SCALE);
     } else this.pilot?.setVisible(false);
     /* ★★★ 2026-09 双人:玩家 2 也画一遍(状态换进换出,所以画法和玩家 1 完全一样 ✓)
        已知缺口:robot/spider 的【部件动画】那条路(P2 目前只画图标本体)✗ 已记进待办 ✓ */
