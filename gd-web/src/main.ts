@@ -12,7 +12,7 @@
 import Phaser from 'phaser';
 import { generateLevel, makeRealTimeAxis, type Level, type Mode, type Obj } from './sim/level.ts';
 import { World, botThink, PORTAL_FRAME, type RunState } from './sim/world.ts';
-import { frameRects } from './sim/gdids.ts';
+import { frameRects, GD_SPEC } from './sim/gdids.ts';
 import { fingerprint } from './sim/replay.ts';
 import { P, U, Y_TIME_SCALE } from './sim/constants.ts';
 import { WATER_CHART } from './sim/charts/water.ts';
@@ -405,11 +405,15 @@ class Scene extends Phaser.Scene {
        ⇒ k = 1/4(我们用的是 uhd 图集 ✓)⇒ 3 格高的门自然就是 90 单位高 ✓
        锚点:门/速度门/迷你门 = 贴图【底边贴物件底边】(否则 3 格美术会往上冒 1 格 ✓);其余居中 ✓ */
     const k = 0.25;                                   // uhd:4 px = 1 世界单位
-    /* ★★ 2026-09-24 用户:"锯片没有大小区别" —— 病根:显示尺寸【只按帧算】,物件自己的缩放没进去 ✗
-       现在乘一道 物件实际大小 ÷ 帧的官方大小(键 128/129 的缩放这才真的体现在画面上)✓
-       非缩放物件这个比值 ≈ 1(实测门 34×86/贴图 34×85、锯片 44×85/帧 42×82)⇒ 不会带歪别的东西 ✓ */
-    const sx = (o.w * U) / (fr.width * k), sy = (o.h * U) / (fr.height * k);
-    const dispW = fr.width * k * sx, dispH = fr.height * k * sy;
+    /* ★★ 2026-09-24 用户:"锯片没有大小区别" —— 病根:显示尺寸只按【帧】算,物件缩放没进去 ✗
+       ★★★ 改法必须是【原始美术 × 物件的缩放倍率】,不能是"撑满判定盒":
+         GD 里美术尺寸 ≠ 判定盒尺寸(锯片美术 85×85 正方,判定盒 44×85 窄长条)——
+         撑满判定盒会把正方锯片压成窄条 ⇒ 看起来"只有一半" ✗✗(差点犯这个错)
+         缩放倍率 = 物件实际大小 ÷ 该 ID 的【基础】大小(键 128/129 已经乘进 o.w/o.h)✓
+       非缩放件倍率恒为 1 ⇒ 门/砖/刺/环都不受影响 ✓ */
+    const spec = o.id != null ? GD_SPEC[o.id] : undefined;
+    const fx = spec?.w ? o.w / spec.w : 1, fy = spec?.h ? o.h / spec.h : 1;
+    const dispW = fr.width * k * fx, dispH = fr.height * k * fy;
     /* ★★★ 2026-09 用户:"竖了,但整体偏高/偏低" —— 病根是我上一轮给门加的【底边对齐】✗
        硬证据(GD 自己的判定表 _pHitboxes,见 gdids.ts,单位 1 块 = 30):
          形态门 34×86 == 贴图 34×85 ✓  速度门 0 档 35×44 == 贴图 35×44 ✓
