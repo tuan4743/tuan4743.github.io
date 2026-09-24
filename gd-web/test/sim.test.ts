@@ -1137,3 +1137,35 @@ test('pulse 停闪:带 loop 但 dur=0 ⇒ 周期归零、之后不再闪(用户�
   for (let i = 0; i < 120; i++) { w.frame(false); if (w.flash > was) after++; was = w.flash; }
   assert.equal(after, 0, '停闪之后不该再闪,实测 ' + after);
 });
+
+/* ---------------- 存档点复活(用户 2026-09-25 报的 bug)----------------
+ * 原话:"复活位置不是存档点而是存档点前面,导致复活在可破坏砖块内部直接死" */
+test('存档点复活:对准存档点那一格(不是它的左边缘)', () => {
+  /* 要用【两格宽】的存档点才验得出来:老代码记 b.x0(左边缘)⇒ 人会复活在存档点【前面】半格 ✗ */
+  const w = new World(solo([floor60, { kind: 'check', b: 11, r: 0, w: 2, h: 1 }]));
+  for (let i = 0; i < 240 && w.checkX === 0; i++) w.frame(false);
+  assert.ok(w.checkX > 0, '要碰到存档点(没碰到说明触发就没生效)');
+  assert.equal(w.checkX, 12 * U - U / 2, '复活点要对准存档点中心:实测 ' + (w.checkX / U) + ' 格,应为 11.5 格');
+  w.respawn();
+  assert.equal(w.x, 12 * U - U / 2);
+  assert.equal(w.y, 0, '脚下就是存档点那一行,不该被顶起来');
+});
+
+test('存档点正好压在可破坏砖上:复活必须被顶出实心,不能一出来就死', () => {
+  /* 结构和用户遇到的一模一样:存档点与可破坏砖在【同一格】。
+     reset() 会清空 broken ⇒ 砖在复活时【恢复】⇒ 落在砖里就必死 ✗ */
+  const lv = solo([
+    floor60,
+    { kind: 'breakable', b: 11, r: 0, w: 1, h: 1 },
+    { kind: 'check', b: 11, r: 0, w: 1, h: 1 },
+  ]);
+  const w = new World(lv);
+  for (let i = 0; i < 240 && w.checkX === 0; i++) w.frame(false);
+  assert.ok(w.checkX > 0, '要碰到存档点');
+  w.respawn();
+  const bx0 = 11 * U, bx1 = 12 * U, by0 = 0, by1 = U;
+  const overlap = w.x < bx1 - 0.001 && w.x + w.box > bx0 + 0.001 && w.y < by1 - 0.001 && w.y + w.box > by0 + 0.001;
+  assert.ok(!overlap, '复活点不许落在可破坏砖里面(实测 y=' + (w.y / U) + ' 格)');
+  for (let i = 0; i < 30; i++) w.frame(false);
+  assert.ok(!w.dead, '复活后要能活下来(不被压死)');
+});

@@ -448,15 +448,27 @@ class Scene extends Phaser.Scene {
          ② 池子复用的 origin 没复位 ⇒ 已在上面的常规设置里无条件复位了 ✓
        两片都定位在【物件中心】(dx, drawY)⇒ 绕同一个点旋转,转起来不会散架 ✓ */
     if (o.kind === 'saw') {
+      /* ★★★ 2026-09-25 用户:"锯片的两个贴图中间有条线" ——
+         两片是【正好对接】在物件中心的:每片的内侧边缘都是刀片美术被裁断的那一列,
+         再叠上贴图过滤(双线性)和落点不一定在整数像素上,接缝处就显出一条淡线 ✗
+         修法:两片各朝对方【多铺 ov 个单位】——显示宽度 +ov,同时把【锚点那一侧朝中心挪 ov】:
+           锚点在右边的片(origin x = 1)往右挪 ⇒ 内边越过中心 ov、外边一个像素不动 ✓
+           锚点在左边的片(origin x = 0)往左挪 ⇒ 同理 ✓
+         ⇒ 中间那一带被两片叠着画(线被盖住),而【刀片总外宽一个像素都没变】✓
+         (另一条路是给图集设 NEAREST 过滤,但那会把整关美术都变成硬边,改动面太大 ✗) */
+      const ov = 1.0;                                  // 看的、不是源码常数:1 单位 ≈ 4 px @uhd
       let img2 = this.artPool[this.artUsed];
       if (!img2) { img2 = this.add.image(0, 0, 'gd-art').setDepth(depth); this.artPool.push(img2); }
       this.artUsed++;
-      img.setOrigin(o.flipX ? 0 : 1, 0.5).setPosition(dx, drawY).setFlipX(!!o.flipX);
+      img.setOrigin(o.flipX ? 0 : 1, 0.5)
+        .setPosition(dx + (o.flipX ? -ov : ov), drawY)
+        .setFlipX(!!o.flipX)
+        .setDisplaySize(dispW + ov, dispH);
       img2.setVisible(true).setTexture('gd-art', key)
-        .setOrigin(o.flipX ? 1 : 0, 0.5).setPosition(dx, drawY).setDepth(depth)
+        .setOrigin(o.flipX ? 1 : 0, 0.5).setPosition(dx + (o.flipX ? ov : -ov), drawY).setDepth(depth)
         .setRotation(((o.rot ?? 0) * Math.PI) / 180 + spin)
         .setFlipX(!o.flipX).setFlipY(!!o.flipY)
-        .setDisplaySize(dispW, dispH).setTint(tintCol);
+        .setDisplaySize(dispW + ov, dispH).setTint(tintCol);
     }
     return true;
   }

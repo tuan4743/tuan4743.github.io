@@ -735,9 +735,38 @@ export class World {
     return { x0: this.x, x1: this.x + this.box, y0: this.y, y1: this.y + this.box };
   }
 
+  /** 复活点安全化(用户口径:"复活在可破坏砖块内部直接死" 必须结构性排除,不能靠运气):
+   *  这一点落在实心(含可破坏砖 / 线框杆)里,就【往上顶】1/4 格一格地找空位,最多 8 格;
+   *  顶过就只打一行日志 —— 铺面本身把这个存档点放在砖里,值得知道一次 ✓
+   *  ★ 不查 this.broken:复活时砖块会全部恢复(reset 里清空 broken),所以【恢复后】的砖才算数 ✓ */
+  private safeSpawnY(x: number, y: number): number {
+    if (!this.overlapsSolid(x, y)) return y;
+    for (let k = 1; k <= 32; k++) {
+      const yy = y + k * (U / 4);
+      if (!this.overlapsSolid(x, yy)) {
+        console.log('[gd] 复活点被实心占住 (x=' + (x / U).toFixed(2) + ', y=' + (y / U).toFixed(2) +
+          ' 格)⇒ 上移 ' + (k / 4) + ' 格到 y=' + (yy / U).toFixed(2) + ' 格');
+        return yy;
+      }
+    }
+    return y;
+  }
+
+  /** 玩家的盒子在 (x,y) 处会不会和实心重叠(留 0.001 容差:正好贴着不算重叠) */
+  private overlapsSolid(x: number, y: number): boolean {
+    const x1 = x + this.box, y1 = y + this.box;
+    const hit = (arr: Box[]) => arr.some((s) =>
+      x < s.x1 - 0.001 && x1 > s.x0 + 0.001 && y < s.y1 - 0.001 && y1 > s.y0 + 0.001);
+    return hit(this.solids) || hit(this.breakables) || hit(this.frames);
+  }
+
   reset(startX: number, mode: Mode, startY = 0) {
     this.tick = 0;
-    this.x = startX; this.y = startY; this.vy = 0; this.onGround = true;
+    /* ★★★ 2026-09-25 用户:"复活在可破坏砖块内部直接死" ——
+       reset() 会把 broken 清空(= 可破坏砖全部恢复),所以如果存档点那一格本来就是砖,
+       复活就正好落在【恢复后的砖】里面 ⇒ 一出来就被压死 ✗
+       这不是位置算错,是【结构性】问题 ⇒ 交给 safeSpawnY:落在实心里就往上顶出去 ✓ */
+    this.x = startX; this.y = this.safeSpawnY(startX, startY); this.vy = 0; this.onGround = true;
     this.portalY = startY;
     this.mode = mode; this.gdir = this.checkGdir; this.speedIdx = this.checkSpeed;
     /* ★★ 2026-09 修:以前这里写死 `gdir = 1; speedIdx = 1` ⇒
@@ -1730,7 +1759,11 @@ export class World {
       if (this.armedChecks.has(b)) continue;
       if (!this.hitEvent(b, prevX)) continue;
       this.armedChecks.add(b);
-      this.checkX = b.x0;
+      /* ★★★ 2026-09-25 修(用户:"复活位置不是存档点而是存档点前面,导致复活在可破坏砖块内部直接死"):
+         以前记 b.x0 = 存档点判定盒的【左边缘】⇒ 复活时人的【左边缘】落在那里,
+         整体比存档点靠前半格以上 ✗;现在 x 也记【存档点自己那个点】= 判定盒中心
+         (和下面 y 的口径一致,人正好站在存档点那一格上)✓ */
+      this.checkX = (b.x0 + b.x1) / 2 - this.box / 2;
       /* ★★ 2026-09 用户:"复活点是从那个点开始,不是它的上面开始"。
          以前记的是【人跨过它时的 y】(this.y)⇒ 复活落在存档点上方一截 ✗。
          现在记【存档点自己那个点】:x 用它的 x0,y 用它的格子中心(y = r+0.5 格)再减去半个玩家高
