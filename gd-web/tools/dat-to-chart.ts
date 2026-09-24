@@ -31,6 +31,10 @@ const FILE = arg('file', path.resolve(HERE, '..', '..', 'static', 'levels', 'CCL
 const WANT = arg('level', 'WATER');
 const SONG = arg('song', '/levels/WATER.mp3');
 const OUT = arg('out', path.resolve(HERE, '..', 'src', 'sim', 'charts', 'water.ts'));
+/* ★ 用户口径(2026-09):pulse 不一个个放,【背景跟 BPM 闪】——
+   所以这里按 --bpm= 注入【唯一一个】pulse 触发器在开头,它带 loop ⇒ sim 每 dur 秒把背景闪一次 ✓
+   dur = 60 / BPM(一拍的长度,秒)。BPM 由 tools/../.tmp/bpm.json 的分析结果给,不猜 ✓ */
+const BPM = Number(arg('bpm', '0')) || 0;
 
 const levels = loadSave(FILE);
 console.log('存档 ' + FILE);
@@ -103,6 +107,20 @@ const ROWS = Math.ceil(maxY + 4);
 
 /* 地面:原版的地面是隐含的(不占物件),我们得自己补一条 —— 顺便往外各铺 16 块 */
 objs.push({ kind: 'platform', b: -16, r: -1, w: LENGTH + 32, h: 1 });
+
+/* ★ 按 BPM 注入唯一那个 pulse(见文件头 --bpm 说明)——
+   放在出生点往右 2 格、和出生点同一行:触发器是【外框相交】判过线的,
+   放到别的高度(比如 r=1)玩家一辈子碰不到 ⇒ 一次都不闪 ✗(别照抄编辑器里"随手放开头"的位置) */
+if (BPM > 0) {
+  const beat = 60 / BPM;
+  const sb = start ? start.b : 0.5, sr = start ? Math.floor(start.r) : 10;
+  objs.push({
+    kind: 'trigger', trigger: 'pulse', id: 1006,
+    b: sb + 2, r: sr, w: 1, h: 1, dur: beat, loop: true,
+  });
+  console.log('\n★ 注入 1 个 pulse 触发器(BPM=' + BPM + ' ⇒ 每拍 ' + beat.toFixed(4) + ' 秒,带 loop=背景跟 BPM 闪)');
+  console.log('   位置 x=' + (sb + 2).toFixed(2) + ' 格(出生点右边 2 格)、y=' + sr + ' 格 —— 和出生点同一行才碰得到 ✓');
+}
 
 /* ---------- 切段:形态门 / 速度门 ---------- */
 const events = objs.filter((o) => o.kind === 'portal' || o.kind === 'speed').sort((a, b) => a.b - b.b);

@@ -198,6 +198,11 @@ export class World {
   /* ★ touch 标记(用户口径:只标记不生效):他在铺面里标一个位置,再告诉我那里要挂什么特效 ✓
      这里只负责【收着 + 打清单】,不参与判定、不参与开火 —— 清单见 tools/trigger-report.ts 与控制台 */
   readonly markers: Box[] = [];
+  /* ★★ 光圈事件(touch 标记过线时由【sim】发出,渲染层照着画):x/y = 世界单位、t = 已活帧数。
+     为什么由 sim 发、由 sim 推进生命周期:定点、可回放 —— 渲染层自己计时的话,
+     回放/倍速下光圈就会和玩家错位 ✗
+     用户口径:48 个 touch 标记都是同一种特效 —— 在标记位置炸开一个扩散到【2 格】的光圈然后消失 ✓ */
+  readonly rings: Array<{ x: number; y: number; t: number }> = [];
   readonly sizes: Box[] = [];       // 尺寸门:迷你 / 放大
   readonly teleports: Box[] = [];   // 传送门:蓝(入口) → 橙(出口),单向
   /* ★ 会动的东西:带 groups 的物件都在这里,触发器改的是它们的【运行时偏移】,
@@ -291,6 +296,11 @@ export class World {
   private armedPads = new Set<Box>();
   private armedArrows = new Set<Box>();
   private markersLogged = false;    // 触摸标记清单只打一次(见 substep 里的 [gd] 触摸标记)
+  private armedMarkers = new Set<Box>();
+  /* ★ BPM 背景闪(用户口径:pulse 不一个个放,改成背景跟 BPM 闪,只放一个在开头):
+     那个 pulse 触发器带 loop ⇒ 这里记住周期,每 dur 秒把 flash 拉满一次 ⇒ 走现成的整屏闪光渲染 ✓ */
+  private pulsePeriod = 0;
+  private pulseT = 0;
   private armedTriggers = new Set<Box>();
   constructor(level: Level, startX?: number, startY?: number, opts?: { sawUnscaled?: boolean; hazOuter?: boolean; flySolid?: boolean }) {
     this.level = level;
@@ -598,6 +608,9 @@ export class World {
     } else if (o.trigger === 'pulse') {
       this.flash = 1;
       if (o.color != null) this.tint = o.color;
+      /* ★ 带 loop 的 pulse = "背景跟 BPM 闪"那个总开关(用户口径:只放一个在开头)——
+         dur = 一拍的长度(秒)⇒ 之后每 dur 秒自动闪一次,不用铺一堆 pulse 触发器 ✓ */
+      if (o.loop && o.dur) { this.pulsePeriod = o.dur; this.pulseT = 0; }
     }
     /* rotate 只影响画法(判定是轴对齐盒),这里不做几何;颜色/闪烁见上 */
   }
@@ -605,6 +618,13 @@ export class World {
   /** 每帧推进动画(定点:按帧走,所以回放仍然逐帧一致) */
   private stepAnims() {
     if (this.flash > 0) this.flash = Math.max(0, this.flash - 0.08);
+    /* ★ BPM 背景闪:每 pulsePeriod 秒拉满一次 flash(背景闪光的渲染是现成的)✓ */
+    if (this.pulsePeriod > 0) {
+      this.pulseT += 1 / 60;
+      while (this.pulseT >= this.pulsePeriod) { this.pulseT -= this.pulsePeriod; this.flash = 1; }
+    }
+    /* ★ 光圈:活够 21 帧(0.35 秒)就删掉 —— 由 sim 推进 ⇒ 回放一致 ✓ */
+    for (let i = this.rings.length - 1; i >= 0; i--) if (++this.rings[i].t > 21) this.rings.splice(i, 1);
     if (!this.anims.length) return;
     const keep: Anim[] = [];
     let moved = false;
@@ -692,6 +712,8 @@ export class World {
     /* 重来 = 会动的东西回到原位、颜色与闪烁清空(和原作"重开一局"一致) */
     this.anims = [];
     this.flash = 0;
+    this.pulsePeriod = 0; this.pulseT = 0; this.rings.length = 0;
+    this.armedMarkers.clear();
     this.tint = null;
     this.tintGround = false;
     for (const m of this.movables) { m.dx = 0; m.dy = 0; }
@@ -1606,6 +1628,14 @@ export class World {
       if (!this.hitEvent(b, prevX)) continue;
       this.armedTriggers.add(b);
       this.fire(b.o);
+    }
+    /* ★★ touch 标记过线 ⇒ 发一个光圈事件(用户口径:48 个标记都是"扩散到 2 格然后消失"的光圈)✓
+       注意这是【纯视觉】:不进判定、不影响物理,但事件由 sim 发 ⇒ 回放/倍速下位置一致 ✓ */
+    for (const b of this.markers) {
+      if (this.armedMarkers.has(b)) continue;
+      if (!this.hitEvent(b, prevX)) continue;
+      this.armedMarkers.add(b);
+      this.rings.push({ x: (b.o.b + b.o.w / 2) * U, y: (b.o.r + b.o.h / 2) * U, t: 0 });   // ★ 单位制(w.y 是单位,不是格)
     }
     /* --- 传送门:【单向】蓝门(入口) → 橙门(出口),同频道配对 ---
      * ★ 原版口径:进蓝门就被送到同频道的橙门;橙门自己不送人(所以不会来回弹)。

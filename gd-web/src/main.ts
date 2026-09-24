@@ -2471,6 +2471,19 @@ class Scene extends Phaser.Scene {
     if (w.dead) g.fillStyle(0xff6b5a, 0.10).fillRect(x0, dy0, vw, dy1 - dy0);
     /* pulse 触发器:全屏闪一下 */
     if (w.flash > 0) g.fillStyle(w.tint ?? 0xffffff, 0.34 * w.flash).fillRect(x0, dy0, vw, dy1 - dy0);
+    /* ★★ touch 光圈(用户口径:48 个标记统一一个特效 —— 在标记位置炸开、半径扩散到【2 格】然后消失)✓
+       位置和年龄都来自 sim(w.rings,单位制)⇒ 回放/倍速下不会和玩家错位 ✓
+       下面这几个数是我调的(看的、不是源码常数):起始半径 6 单位、终了 60 单位(2 格)、
+       线宽 3.5→1.2、生命周期 21 帧(0.35 秒,写在 world 里)· 一外一内两道圈 = "光"的感觉 ✓ */
+    for (const r of w.rings) {
+      const p = r.t / 21;
+      const rad = 6 + 54 * p;
+      const a = Math.max(0, 1 - p * p);
+      g.lineStyle(3.5 - 2.3 * p, 0xffffff, 0.85 * a);
+      g.strokeCircle(r.x, Y(r.y), rad);
+      g.lineStyle(1.2, HLD, 0.55 * a);
+      g.strokeCircle(r.x, Y(r.y), rad * 0.72);
+    }
     /* 开场 / 死亡 / 通关界面:半透明面板(文字是 Text 对象,这里只画底板) */
     if (this.phase !== 'running') {
       const px = this.world.freeMove ? this.camX : Math.max(vw / 2, this.camX), py = this.camWorldY;

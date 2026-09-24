@@ -1,6 +1,6 @@
 /* 生成物 —— 由 tools/dat-to-chart.ts 从 CCLocalLevels.dat 生成,别手改。
- * 关卡:WATER · 物件 8980 个(含 1 条补的地面)· 长 3620 块 · 高 127 格
- * 段:按形态门/速度门切,共 72 段
+ * 关卡:WATER · 物件 12142 个(含 1 条补的地面)· 长 3620 块 · 高 127 格
+ * 段:按形态门/速度门切,共 70 段
  * 重新生成:cd gd-web && node tools/dat-to-chart.ts --level=WATER
  *
  * 物件表格式:每行 "code b r [w] [h] [key=value …]",默认 w=h=1 —— 见 sim/gdids.ts 的文件头。
@@ -8,47 +8,26 @@
 import { makeChart } from '../gdids.ts';
 
 const TABLE = `
-S 203 0 id=8
-S 204 0 id=8
-S 203 3 rot=180 id=8
-S 204 3 rot=180 id=8
-D 202 -0.033 1 0.2 pad=pink id=140 z=2
-S 202 3 rot=180 id=8
-S 211 0 id=8
-S 215 -0.05 1 0.5 id=39
-S 216 0 id=8
-S 217 0 id=8
-S 218 0 id=8
-S 219 0 id=8
-S 220 0 id=8
-O 217.5 1 orb=yellow id=36 z=2
-D 221 1 1 0.2 pad=blue id=67 z=2
-B 221 0 id=1
-D 215 -0.2 1 0.2 pad=blue rot=180 id=67 z=2
-B 222 4 id=1
-D 222 3.8 1 0.2 pad=blue rot=180 id=67 z=2
-H 227 1 fm=corner id=469
-H 228 1.95 1 0.05 fm=edge id=468
-H 227 0 0.05 1 rot=270 fm=edge id=468
-H 229 1 rot=-270 fm=corner id=469
-H 229.95 0 0.05 1 rot=-270 fm=edge id=468
-S 229 2 id=8
-D 225 -0.033 1 0.2 pad=pink id=140 z=2
+S 203 -1 id=8 g=6
+S 204 -1 id=8 g=6
+S 203 8 rot=180 id=8 g=7
+S 204 8 rot=180 id=8 g=7
+D 202 -1.033 1 0.2 pad=pink id=140 z=2 g=6
+S 202 8 rot=180 id=8 g=7
+S 211 -1 id=8 g=8
+S 215 -2.05 1 0.5 id=39 g=9
+S 216 -2 id=8 g=9
+S 217 -2 id=8 g=9
+S 218 -2 id=8 g=9
+S 219 -2 id=8 g=9
+S 220 -2 id=8 g=9
+O 217.5 -1 orb=yellow id=36 z=2 g=9
+D 221 0 1 0.2 pad=blue id=67 z=2 g=2
+D 222 8.8 1 0.2 pad=blue rot=180 id=67 z=2 g=3
+S 229 -1 id=8 g=4
+D 225 -3.033 1 0.2 pad=pink id=140 z=2 g=4
 H 231.5 3 1 0.5 fm=box id=662
-H 235 4 fm=corner id=469
-H 236 4.95 1 0.05 fm=edge id=468
-H 237 4.95 1 0.05 fm=edge id=468
-H 238 4.95 1 0.05 fm=edge id=468
-H 235 3 0.05 1 rot=270 fm=edge id=468
-H 235 2 0.05 1 rot=270 fm=edge id=468
-H 235 1 0.05 1 rot=270 fm=edge id=468
-H 235 0 0.05 1 rot=270 fm=edge id=468
-H 239 4 rot=90 fm=corner id=469
-H 239.95 3 0.05 1 rot=-270 fm=edge id=468
-H 239.95 2 0.05 1 rot=-270 fm=edge id=468
-H 239.95 1 0.05 1 rot=-270 fm=edge id=468
-H 239.95 0 0.05 1 rot=-270 fm=edge id=468
-S 239 5 id=8
+S 239 -1 id=8 g=5
 H 241.5 5.5 1 0.5 fm=box id=662
 H 246 5.5 1 0.5 fm=box id=662
 H 250.5 5.5 1 0.5 fm=box id=662
@@ -57,11 +36,11 @@ H 258 8 1 0.5 fm=box id=662
 D 258 8.5 1 0.2 pad=blue id=67 z=2
 D 259 11.8 1 0.2 pad=blue rot=180 id=67 z=2
 H 259 12 1 0.5 fm=box id=662
-S 227 4 rot=180 id=8
-S 226 0 id=8
-S 226 4 rot=180 id=8
-S 225 4 rot=180 id=8
-S 224 4 rot=180 id=8
+S 227 9 rot=180 id=8 g=3
+S 226 -3 id=8 g=4
+S 226 9 rot=180 id=8 g=3
+S 225 9 rot=180 id=8 g=3
+S 224 9 rot=180 id=8 g=3
 S 240 0 id=8
 S 241 0 id=8
 S 242 0 id=8
@@ -80,99 +59,33 @@ S 254 0 id=8
 S 255 0 id=8
 S 256 0 id=8
 S 257 0 id=8
-H 261 7 fm=corner id=469
-H 261 6 0.05 1 rot=270 fm=edge id=468
-H 261 5 0.05 1 rot=270 fm=edge id=468
-H 261 4 0.05 1 rot=270 fm=edge id=468
-H 261 3 0.05 1 rot=270 fm=edge id=468
-H 261 2 0.05 1 rot=270 fm=edge id=468
-H 261 1 0.05 1 rot=270 fm=edge id=468
-H 261 0 0.05 1 rot=270 fm=edge id=468
 H 261 -1 0.05 1 rot=270 fm=edge id=468
 S 260 0 id=8
 S 259 0 id=8
 S 258 0 id=8
-H 262 7.95 1 0.05 fm=edge id=468
-H 263 7.95 1 0.05 fm=edge id=468
-H 264 7.95 1 0.05 fm=edge id=468
 S 263 7.95 1 0.5 id=39
-H 265 7 rot=90 fm=corner id=469
-H 265.95 6 0.05 1 rot=90 fm=edge id=468
-H 265.95 5 0.05 1 rot=90 fm=edge id=468
-H 265.95 4 0.05 1 rot=90 fm=edge id=468
-H 265.95 3 0.05 1 rot=90 fm=edge id=468
-H 265.95 2 0.05 1 rot=90 fm=edge id=468
-H 265.95 1 0.05 1 rot=90 fm=edge id=468
-H 265.95 0 0.05 1 rot=90 fm=edge id=468
 H 265.95 -1 0.05 1 rot=90 fm=edge id=468
-H 266 8 0.05 1 rot=-90 fm=edge id=468
-H 266 9 fm=corner id=469
-H 267 9.95 1 0.05 fm=edge id=468
-H 268 9.95 1 0.05 fm=edge id=468
-H 269 9.95 1 0.05 fm=edge id=468
 S 265 8 id=8
 S 264 8 id=8
 S 265 9 rot=-90 id=8
-H 267 14 1 0.05 rot=180 fm=edge id=468
-H 268 14 1 0.05 rot=180 fm=edge id=468
-H 269 14 1 0.05 rot=180 fm=edge id=468
-H 270 14 1 0.05 rot=180 fm=edge id=468
-H 271 14 1 0.05 rot=180 fm=edge id=468
-H 272 14 1 0.05 rot=180 fm=edge id=468
-H 273 14 1 0.05 rot=180 fm=edge id=468
-H 266 14 1 0.05 rot=180 fm=edge id=468
-H 265 14 1 0.05 rot=180 fm=edge id=468
-H 264 14 1 0.05 rot=180 fm=edge id=468
-H 263 14 1 0.05 rot=180 fm=edge id=468
-H 262 14 1 0.05 rot=180 fm=edge id=468
 S 273 13 rot=180 id=8
-H 275 5.95 1 0.05 fm=edge id=468
-H 276 5.95 1 0.05 fm=edge id=468
-H 277 5.95 1 0.05 fm=edge id=468
-H 278 5.95 1 0.05 fm=edge id=468
-H 279 5.95 1 0.05 fm=edge id=468
-H 280 5.95 1 0.05 fm=edge id=468
-H 281 5.95 1 0.05 fm=edge id=468
 S 271 10 id=8
 S 272 9 id=8
-H 271 9 rot=90 fm=corner id=469
-H 272 8 rot=90 fm=corner id=469
-H 274 5.95 1 0.05 fm=edge id=468
-H 275 12 rot=270 fm=corner id=469
-H 276 11 rot=270 fm=corner id=469
-H 277 11 1 0.05 rot=180 fm=edge id=468
-H 278 11 1 0.05 rot=180 fm=edge id=468
-H 279 11 1 0.05 rot=180 fm=edge id=468
 H 277 8 1 0.5 fm=box id=662
 H 278 8 1 0.5 fm=box id=662
 H 279 8 1 0.5 fm=box id=662
-S 278 5.95 1 0.5 id=39
-S 281 7.55 1 0.5 rot=180 id=39
 H 280 8 1 0.5 fm=box id=662
 H 281 8 1 0.5 fm=box id=662
-H 280 11 1 0.05 rot=180 fm=edge id=468
-H 281 11 1 0.05 rot=180 fm=edge id=468
-H 282 11 rot=180 fm=corner id=469
-H 283 12 rot=180 fm=corner id=469
-H 284 13 rot=180 fm=corner id=469
-H 274 13 rot=270 fm=corner id=469
-S 274 12 rot=180 id=8
 S 275 11 rot=180 id=8
 S 276 10 rot=180 id=8
 S 277 10 rot=180 id=8
 S 278 10 rot=180 id=8
-S 279 10 rot=180 id=8
-S 280 10 rot=180 id=8
-S 281 10 rot=180 id=8
 S 282 10 rot=180 id=8
 S 281 8.5 id=8
 S 280 8.5 id=8
 S 279 8.5 id=8
 S 278 8.5 id=8
 S 277 8.5 id=8
-H 282 5.95 1 0.05 fm=edge id=468
-H 283 5.95 1 0.05 fm=edge id=468
-H 284 5.95 1 0.05 fm=edge id=468
 S 283 11 rot=180 id=8
 S 284 12 rot=180 id=8
 S 285 13 rot=180 id=8
@@ -190,19 +103,8 @@ S 292 13 rot=180 id=8
 H 290 13.95 1 0.05 fm=edge id=468
 H 291 13.95 1 0.05 fm=edge id=468
 H 292 13.95 1 0.05 fm=edge id=468
-H 294 5.95 1 0.05 fm=edge id=468
-H 295 5.95 1 0.05 fm=edge id=468
-H 296 5.95 1 0.05 fm=edge id=468
-H 297 5.95 1 0.05 fm=edge id=468
-H 298 5.95 1 0.05 fm=edge id=468
-H 286 7 fm=corner id=469
-H 287 8 fm=corner id=469
-H 288 9 fm=corner id=469
-H 289 9.95 1 0.05 fm=edge id=468
-H 285 6 fm=corner id=469
 S 303 7 rot=180 id=8
 S 299 6 id=8
-S 300 6 id=8
 H 303 8 1 0.5 fm=box id=662
 H 302 8 1 0.5 fm=box id=662
 H 301 8 1 0.5 fm=box id=662
@@ -214,561 +116,67 @@ S 297 9 rot=180 id=8
 S 298 9 rot=180 id=8
 S 299 9 rot=180 id=8
 S 300 9 rot=180 id=8
-S 301 9 rot=180 id=8
-S 302 9 rot=180 id=8
 S 303 9 rot=180 id=8
-H 297 10 1 0.05 rot=180 fm=edge id=468
-H 298 10 1 0.05 rot=180 fm=edge id=468
-H 299 10 1 0.05 rot=180 fm=edge id=468
-H 300 10 1 0.05 rot=180 fm=edge id=468
-H 301 10 1 0.05 rot=180 fm=edge id=468
-H 302 10 1 0.05 rot=180 fm=edge id=468
-H 299 5.95 1 0.05 fm=edge id=468
-H 300 5.95 1 0.05 fm=edge id=468
-H 301 5.95 1 0.05 fm=edge id=468
-H 302 5.95 1 0.05 fm=edge id=468
-H 303 5.95 1 0.05 fm=edge id=468
-H 303 10 1 0.05 rot=180 fm=edge id=468
-H 304 5.95 1 0.05 fm=edge id=468
-H 305 5.95 1 0.05 fm=edge id=468
-H 306 5.95 1 0.05 fm=edge id=468
-H 307 5.95 1 0.05 fm=edge id=468
 S 307 6 id=8
-H 304 10 rot=180 fm=corner id=469
-H 305 11 rot=180 fm=corner id=469
-H 306 12 rot=180 fm=corner id=469
-H 307 13 rot=180 fm=corner id=469
 S 304 9 rot=180 id=8
 S 305 10 rot=180 id=8
-S 306 11 rot=180 id=8
 S 307 12 rot=180 id=8
-H 308 13.95 1 0.05 fm=edge id=468
-H 309 13.95 1 0.05 fm=edge id=468
-H 310 13.95 1 0.05 fm=edge id=468
-S 308 13 rot=180 id=8
-S 309 13 rot=180 id=8
-S 311 13 rot=180 id=8
-S 310 13 rot=180 id=8
-H 311 13.95 1 0.05 fm=edge id=468
 S 308 7 id=8
-S 309 6 id=8
-H 308 6 fm=u id=470
-H 309 6 1 0.05 rot=180 fm=edge id=468
-H 310 6 1 0.05 rot=180 fm=edge id=468
 D 312 12.3 1 0.2 pad=blue rot=180 id=67 z=2
 H 312 12.5 1 0.5 fm=box id=662
-H 313 6 1 0.05 rot=180 fm=edge id=468
-H 314 6 1 0.05 rot=180 fm=edge id=468
-H 315 6 1 0.05 rot=180 fm=edge id=468
-H 316 6 1 0.05 rot=180 fm=edge id=468
-H 317 6 1 0.05 rot=180 fm=edge id=468
-H 319 6 1 0.05 rot=180 fm=edge id=468
-S 284 5.95 1 0.5 id=39
-S 285 6.95 1 0.5 id=39
-S 286 7.95 1 0.5 id=39
-S 287 8.95 1 0.5 id=39
-H 311 6 1 0.05 rot=180 fm=edge id=468
-H 312 6 1 0.05 rot=180 fm=edge id=468
 G 308 11 gd=1 id=10 z=2
 D 311 10 1 0.2 pad=blue id=67 z=2
 H 311 9.5 1 0.5 fm=box id=662
 D 316 6 1 0.2 pad=blue id=67 z=2
 D 317 8.8 1 0.2 pad=blue rot=180 id=67 z=2
 H 317 9 1 0.5 fm=box id=662
-H 318 6 1 0.05 rot=180 fm=edge id=468
 D 320 9.8 1 0.2 pad=blue rot=180 id=67 z=2
 D 319 6 1 0.2 pad=blue id=67 z=2
-H 320 6 1 0.05 rot=180 fm=edge id=468
-H 321 6 1 0.05 rot=180 fm=edge id=468
-H 322 6 1 0.05 rot=180 fm=edge id=468
-H 323 6 1 0.05 rot=180 fm=edge id=468
 H 320 10 1 0.5 fm=box id=662
-R 323 7 to=ufo id=111 z=2
-H 327 11.95 1 0.05 fm=edge id=468
-H 326 11.95 1 0.05 fm=edge id=468
-H 325 11.95 1 0.05 fm=edge id=468
-H 324 11.95 1 0.05 fm=edge id=468
-H 323 11.95 1 0.05 fm=edge id=468
-H 322 11.95 1 0.05 fm=edge id=468
-H 321 11.95 1 0.05 fm=edge id=468
-H 320 11.95 1 0.05 fm=edge id=468
-H 319 11.95 1 0.05 fm=edge id=468
-H 318 11.95 1 0.05 fm=edge id=468
-H 317 11.95 1 0.05 fm=edge id=468
-H 316 11.95 1 0.05 fm=edge id=468
-H 315 11.95 1 0.05 fm=edge id=468
-H 314 11.95 1 0.05 fm=edge id=468
-H 313.95 12 0.05 1 rot=90 fm=edge id=468
-H 313 13 rot=90 fm=corner id=469
-H 312 13.95 1 0.05 fm=edge id=468
-H 324 5 rot=90 fm=corner id=469
-H 324.95 4 0.05 1 rot=90 fm=edge id=468
-H 324.95 3 0.05 1 rot=90 fm=edge id=468
-H 325 2 rot=-90 fm=corner id=469
-H 326 2 1 0.05 rot=180 fm=edge id=468
-H 327 2 1 0.05 rot=180 fm=edge id=468
-H 328 2 1 0.05 rot=180 fm=edge id=468
-S 330 4 id=8
-S 331 4 id=8
-S 329 3 id=8
-S 328 2 id=8
-H 330 3 fm=corner id=469
-H 329 2 fm=corner id=469
-H 330 3.95 1 0.05 fm=edge id=468
-H 331 3.95 1 0.05 fm=edge id=468
-S 330 8 rot=-180 id=8
-H 330 9 rot=-90 fm=corner id=469
-H 329 10 rot=-90 fm=corner id=469
-H 328 11 rot=-90 fm=corner id=469
-S 329 9 rot=-180 id=8
-S 328 10 rot=-180 id=8
-S 327 11 rot=-180 id=8
-S 334 6.95 1 0.5 id=39
-S 332 9 rot=180 id=8
-S 333 10 rot=180 id=8
-S 334 10 rot=180 id=8
-S 335 10 rot=180 id=8
-S 336 11 rot=180 id=8
-S 337 11 rot=180 id=8
-S 336 7 id=8
-S 335 7 id=8
-S 337 7 id=8
-S 332 5 id=8
-S 333 6 id=8
-S 331 8 rot=180 id=8
-H 331 9 rot=180 fm=corner id=469
-H 332 10 rot=180 fm=corner id=469
-H 333 11 1 0.05 rot=180 fm=edge id=468
-H 334 11 1 0.05 rot=180 fm=edge id=468
-H 335 11 rot=180 fm=corner id=469
-H 332 4 fm=corner id=469
-H 333 5 fm=corner id=469
-H 334 6 fm=corner id=469
-H 335 6.95 1 0.05 fm=edge id=468
-H 336 6.95 1 0.05 fm=edge id=468
-H 337 6.95 1 0.05 fm=edge id=468
 G 337 9 gd=-1 id=11 z=2
-S 338 11 rot=180 id=8
-S 340 10 rot=180 id=8
-S 341 9 rot=180 id=8
-S 339 11 rot=180 id=8
-S 342 8 rot=-180 id=8
-S 338 6 id=8
-S 339 5 id=8
-S 340 4 id=8
 G 345 5 gd=1 id=10 z=2
-S 341 3 id=8
-S 342 3 id=8
-S 343 3 id=8
-H 340 11 rot=-90 fm=corner id=469
-H 341 10 rot=-90 fm=corner id=469
-H 342 9 rot=-90 fm=corner id=469
-H 343 8 rot=-90 fm=corner id=469
 E 339 9 rot=90 art=3812 id=3812 z=3
 E 347 5 rot=270 art=3812 id=3812 z=3
-E 328 4 rot=270 art=3812 id=3812 z=3
+E 327 6 rot=270 art=3812 id=3812 z=3
 E 331 6 rot=270 art=3812 id=3812 z=3
 E 334 8 rot=270 art=3812 id=3812 z=3
 E 340 8 rot=90 art=3812 id=3812 z=3
 E 341 7 rot=90 art=3812 id=3812 z=3
 E 348 6 rot=-90 art=3812 id=3812 z=3
 E 349 7 rot=-90 art=3812 id=3812 z=3
-S 344 3 id=8
-S 345 3 id=8
-S 346 3 id=8
-S 343 7 rot=180 id=8
-S 344 7 rot=180 id=8
-S 345 7 rot=180 id=8
-S 346 8 rot=180 id=8
-S 347 9 rot=180 id=8
-S 348 10 rot=180 id=8
-S 349 10 rot=180 id=8
-S 347 4 id=8
-S 348 5 id=8
-S 349 6 id=8
-S 350 7 id=8
-S 351 7 id=8
-S 352 6 id=8
-S 353 5 id=8
-S 354 4 id=8
-S 350 10 rot=180 id=8
-S 351 10 rot=180 id=8
-S 352 10 rot=180 id=8
-S 353 10 rot=180 id=8
-S 354 10 rot=180 id=8
-S 355 4 id=8
-S 356 4 id=8
-S 357 4 id=8
-S 355 9 rot=180 id=8
-S 356 8 rot=180 id=8
-S 358 5 id=8
 E 356 5 rot=270 art=3812 id=3812 z=3
-S 357 8 rot=180 id=8
-S 358 8 rot=180 id=8
-S 359 8 rot=180 id=8
-S 360 9 rot=180 id=8
 E 360 6 rot=-90 art=3812 id=3812 z=3
-S 359 5 id=8
-S 360 5 id=8
-S 361 10 rot=180 id=8
-S 362 10 rot=180 id=8
-S 363 10 rot=180 id=8
 E 364 7 rot=-90 art=3812 id=3812 z=3
-S 361 5 id=8
-S 362 6 id=8
-S 363 6 id=8
-S 364 6 id=8
-S 365 6 id=8
-S 364 11 rot=180 id=8
-S 365 11 rot=180 id=8
-S 366 11 rot=180 id=8
-S 367 11 rot=180 id=8
-S 368 10 rot=180 id=8
 A 367 9 rot=90 ar=pink id=1751 z=2
-S 366 5 id=8
-S 367 5 id=8
-S 368 5 id=8
-S 369 5 id=8
-S 370 5 id=8
-S 371 5 id=8
-S 372 4 id=8
-S 373 4 id=8
-S 374 4 id=8
-S 375 3 id=8
-S 376 3 id=8
-S 377 3 id=8
 E 374 7 rot=90 art=3812 id=3812 z=3
 E 378 6 rot=90 art=3812 id=3812 z=3
-S 373 8 rot=180 id=8
-S 374 8 rot=180 id=8
-S 375 8 rot=180 id=8
-S 376 7 rot=180 id=8
-S 377 7 rot=180 id=8
-S 378 7 rot=180 id=8
-S 379 7 rot=180 id=8
-S 380 6 rot=180 id=8
 G 380 4 gd=1 id=10 z=2
 E 370 8 rot=90 art=3812 id=3812 z=3
-S 372 8 rot=180 id=8
-S 378 2 id=8
-S 379 2 id=8
-S 380 2 id=8
-S 386 2 id=8
 E 385 2 rot=-90 art=3812 id=3812 z=3
 E 388 3 rot=-90 art=3812 id=3812 z=3
-S 387 2 id=8
-S 388 2 id=8
-S 389 2 id=8
-S 381 6 rot=180 id=8
-S 382 6 rot=180 id=8
-S 383 6 rot=180 id=8
-S 384 6 rot=180 id=8
-S 385 6 rot=180 id=8
-S 386 6 rot=180 id=8
-S 387 6 rot=180 id=8
-S 388 6 rot=180 id=8
-S 389 6 rot=180 id=8
 E 392 4 rot=-90 art=3812 id=3812 z=3
-S 390 3 id=8
-S 391 3 id=8
-S 392 3 id=8
-S 390 7 rot=180 id=8
-S 391 7 rot=180 id=8
-S 392 7 rot=180 id=8
-S 393 8 rot=180 id=8
-S 394 8 rot=180 id=8
-S 395 8 rot=180 id=8
 E 397 5 rot=-90 art=3812 id=3812 z=3
 E 398 6 rot=-90 art=3812 id=3812 z=3
-S 393 4 id=8
-S 394 4 id=8
-S 395 4 id=8
-S 396 4 id=8
-S 397 4 id=8
-S 398 5 id=8
-S 399 6 id=8
-S 396 8 rot=180 id=8
-S 397 9 rot=180 id=8
-S 398 10 rot=180 id=8
-S 400 7 id=8
-S 399 10 rot=-180 id=8
-S 400 11 rot=-180 id=8
-S 401 7 id=8
-S 401 11 rot=-180 id=8
-S 402 11 rot=-180 id=8
 E 401 8 rot=-90 art=3812 id=3812 z=3
-S 402 7 id=8
-S 403 11 rot=180 id=8
-S 404 11 rot=180 id=8
 A 404 9 rot=90 ar=pink id=1751 z=2
 E 407 8 rot=90 art=3812 id=3812 z=3
-S 403 7 id=8
-S 404 6 id=8
-S 405 6 id=8
-S 406 6 id=8
-S 407 5 id=8
-S 408 5 id=8
-S 409 4 id=8
-S 410 3 id=8
-S 410 8 rot=180 id=8
-S 411 7 rot=180 id=8
-S 412 6 rot=180 id=8
-S 413 5 rot=180 id=8
 E 418 3 rot=-90 art=3812 id=3812 z=3
-S 415 5 rot=180 id=8
-S 417 6 rot=180 id=8
-S 417 2 id=8
-S 418 2 id=8
-S 418 7 rot=180 id=8
-S 419 7 rot=180 id=8
-S 420 7 rot=180 id=8
-S 421 7 rot=180 id=8
-H 418 1.95 1 0.05 fm=edge id=468
-S 419 2 id=8
-H 420 3 fm=corner id=469
-H 420.002 2 0.05 1 rot=270 fm=edge id=468
-H 419 1.95 1 0.05 fm=edge id=468
-H 421 3.95 1 0.05 fm=edge id=468
-H 422 3.95 1 0.05 fm=edge id=468
-H 423 3.95 1 0.05 fm=edge id=468
-H 424 3.95 1 0.05 fm=edge id=468
-H 410 2 rot=90 fm=corner id=469
-H 409 3 rot=90 fm=corner id=469
-H 408 4 rot=90 fm=corner id=469
-H 406 5 rot=90 fm=corner id=469
-H 403 6 rot=90 fm=corner id=469
-H 407 4.95 1 0.05 fm=edge id=468
-H 405 5.95 1 0.05 fm=edge id=468
-H 402 6.95 1 0.05 fm=edge id=468
-H 401 6.95 1 0.05 fm=edge id=468
-H 400 6 fm=corner id=469
-H 399 5 fm=corner id=469
-H 398 4 fm=corner id=469
-H 397 3.95 1 0.05 fm=edge id=468
-H 395 3.95 1 0.05 fm=edge id=468
-H 396 3.95 1 0.05 fm=edge id=468
-H 394 3.95 1 0.05 fm=edge id=468
-H 393 3 fm=corner id=469
-H 390 2 fm=corner id=469
-H 392 2.95 1 0.05 fm=edge id=468
-H 391 2.95 1 0.05 fm=edge id=468
-H 389 1.95 1 0.05 fm=edge id=468
-H 388 1.95 1 0.05 fm=edge id=468
-H 387 1.95 1 0.05 fm=edge id=468
-H 386 1.95 1 0.05 fm=edge id=468
-H 385 1.95 1 0.05 fm=edge id=468
-H 384 1.95 1 0.05 fm=edge id=468
-H 382 1.95 1 0.05 fm=edge id=468
-H 383 1.95 1 0.05 fm=edge id=468
-H 381 1.95 1 0.05 fm=edge id=468
-H 380 1.95 1 0.05 fm=edge id=468
-H 379 1.95 1 0.05 fm=edge id=468
-H 378 1.95 1 0.05 fm=edge id=468
-H 377 2 rot=90 fm=corner id=469
-H 374 3 rot=90 fm=corner id=469
-H 371 4 rot=90 fm=corner id=469
-H 376 2.95 1 0.05 fm=edge id=468
-H 375 2.95 1 0.05 fm=edge id=468
-H 373 3.95 1 0.05 fm=edge id=468
-H 372 3.95 1 0.05 fm=edge id=468
-H 370 4.95 1 0.05 fm=edge id=468
-H 369 4.95 1 0.05 fm=edge id=468
-H 368 4.95 1 0.05 fm=edge id=468
-H 367 4.95 1 0.05 fm=edge id=468
-H 366 4.95 1 0.05 fm=edge id=468
-H 365 5 rot=90 fm=corner id=469
-H 362 5 fm=corner id=469
-H 364 5.95 1 0.05 fm=edge id=468
-H 363 5.95 1 0.05 fm=edge id=468
-H 361 4.95 1 0.05 fm=edge id=468
-H 360 4.95 1 0.05 fm=edge id=468
-H 359 4.95 1 0.05 fm=edge id=468
-H 358 4 fm=corner id=469
-H 353 4 rot=90 fm=corner id=469
-H 352 5 rot=90 fm=corner id=469
-H 351 6 rot=90 fm=corner id=469
-H 350 6 fm=corner id=469
-H 349 5 fm=corner id=469
-H 348 4 fm=corner id=469
-H 347 3 fm=corner id=469
-H 357 3.95 1 0.05 fm=edge id=468
-H 356 3.95 1 0.05 fm=edge id=468
-H 355 3.95 1 0.05 fm=edge id=468
-H 354 3.95 1 0.05 fm=edge id=468
-H 346 2.95 1 0.05 fm=edge id=468
-H 345 2.95 1 0.05 fm=edge id=468
-H 344 2.95 1 0.05 fm=edge id=468
-H 343 2.95 1 0.05 fm=edge id=468
-H 342 2.95 1 0.05 fm=edge id=468
-H 341 2.95 1 0.05 fm=edge id=468
-H 340 3 rot=90 fm=corner id=469
-H 339 4 rot=90 fm=corner id=469
-H 338 5 rot=90 fm=corner id=469
-H 337 6 rot=90 fm=corner id=469
-H 344 8 1 0.05 rot=180 fm=edge id=468
-H 345 8 rot=180 fm=corner id=469
-H 346 9 rot=180 fm=corner id=469
-H 347 10 rot=180 fm=corner id=469
-H 348 11 1 0.05 rot=180 fm=edge id=468
-H 349 11 1 0.05 rot=180 fm=edge id=468
-H 350 11 1 0.05 rot=180 fm=edge id=468
-H 351 11 1 0.05 rot=180 fm=edge id=468
-H 352 11 1 0.05 rot=180 fm=edge id=468
-H 353 11 1 0.05 rot=180 fm=edge id=468
-H 354 11 1 0.05 rot=180 fm=edge id=468
-H 355 10 rot=-90 fm=corner id=469
-H 356 9 rot=-90 fm=corner id=469
-H 359 9 rot=180 fm=corner id=469
-H 360 10 rot=180 fm=corner id=469
-H 357 9 1 0.05 rot=180 fm=edge id=468
-H 358 9 1 0.05 rot=180 fm=edge id=468
-H 361 11 1 0.05 rot=180 fm=edge id=468
-H 362 11 1 0.05 rot=180 fm=edge id=468
-H 363 11 rot=180 fm=corner id=469
-H 364 12 1 0.05 rot=180 fm=edge id=468
-H 365 12 1 0.05 rot=180 fm=edge id=468
-H 366 12 1 0.05 rot=180 fm=edge id=468
-H 367 12 1 0.05 rot=180 fm=edge id=468
-H 368 11 rot=-90 fm=corner id=469
-H 369 10 rot=-90 fm=corner id=469
-H 372 9 rot=-90 fm=corner id=469
-H 370 10 1 0.05 rot=180 fm=edge id=468
-H 371 10 1 0.05 rot=180 fm=edge id=468
-H 373 9 1 0.05 rot=180 fm=edge id=468
-H 374 9 1 0.05 rot=180 fm=edge id=468
-H 375 9 1 0.05 rot=180 fm=edge id=468
-H 376 8 rot=-90 fm=corner id=469
-H 377 8 1 0.05 rot=180 fm=edge id=468
-H 378 8 1 0.05 rot=180 fm=edge id=468
-H 379 8 1 0.05 rot=180 fm=edge id=468
-H 380 7 rot=-90 fm=corner id=469
-H 381 7 1 0.05 rot=180 fm=edge id=468
-H 382 7 1 0.05 rot=180 fm=edge id=468
-H 383 7 1 0.05 rot=180 fm=edge id=468
-H 384 7 1 0.05 rot=180 fm=edge id=468
-H 385 7 1 0.05 rot=180 fm=edge id=468
-H 386 7 1 0.05 rot=180 fm=edge id=468
-H 387 7 1 0.05 rot=180 fm=edge id=468
-H 388 7 1 0.05 rot=180 fm=edge id=468
-H 390 8 1 0.05 rot=180 fm=edge id=468
-H 391 8 1 0.05 rot=180 fm=edge id=468
-H 389 7 rot=180 fm=corner id=469
-H 392 8 rot=180 fm=corner id=469
-H 396 9 rot=180 fm=corner id=469
-H 397 10 rot=180 fm=corner id=469
-H 399 11 rot=180 fm=corner id=469
-H 393 9 1 0.05 rot=180 fm=edge id=468
-H 394 9 1 0.05 rot=180 fm=edge id=468
-H 395 9 1 0.05 rot=180 fm=edge id=468
-H 398 11 1 0.05 rot=180 fm=edge id=468
-H 400 12 1 0.05 rot=180 fm=edge id=468
-H 401 12 1 0.05 rot=180 fm=edge id=468
-H 402 12 1 0.05 rot=180 fm=edge id=468
-H 403 12 1 0.05 rot=180 fm=edge id=468
-H 404 12 1 0.05 rot=180 fm=edge id=468
-H 405 11 rot=-90 fm=corner id=469
-H 410 9 rot=-90 fm=corner id=469
-H 411 8 rot=-90 fm=corner id=469
-H 412 7 rot=-90 fm=corner id=469
-H 413 6 rot=-90 fm=corner id=469
-H 415 5.95 1 0.05 fm=edge id=468
-H 417 7 rot=180 fm=corner id=469
-H 418 7.95 1 0.05 fm=edge id=468
-H 419 7.95 1 0.05 fm=edge id=468
-H 420 7.95 1 0.05 fm=edge id=468
-H 421 8 rot=180 fm=corner id=469
-H 421.948 9 0.05 1 rot=90 fm=edge id=468
-H 421.948 10 0.05 1 rot=90 fm=edge id=468
-H 421.948 11 0.05 1 rot=90 fm=edge id=468
-H 421.948 12 0.05 1 rot=90 fm=edge id=468
-H 421.948 13 0.05 1 rot=90 fm=edge id=468
-H 421.948 14 0.05 1 rot=90 fm=edge id=468
-H 421.948 15 0.05 1 rot=90 fm=edge id=468
-H 421.948 16 0.05 1 rot=90 fm=edge id=468
-H 421.948 17 0.05 1 rot=90 fm=edge id=468
-S 369 9.55 1 0.5 rot=180 id=39
-S 370 9.55 1 0.5 rot=180 id=39
-S 371 9.55 1 0.5 rot=180 id=39
-S 405 10.55 1 0.5 rot=180 id=39
-S 406 10.55 1 0.5 rot=180 id=39
-S 407 10.55 1 0.5 rot=180 id=39
-S 408 10.55 1 0.5 rot=180 id=39
-H 406 11 1 0.05 rot=180 fm=edge id=468
-H 407 11 1 0.05 rot=180 fm=edge id=468
-H 408 11 1 0.05 rot=180 fm=edge id=468
-H 409 10 rot=-90 fm=corner id=469
-S 409 9 rot=180 id=8
 R 421 5 to=cube id=12 z=2
 E 367 7 art=3810 id=3810 z=3
 E 404 8 art=3810 id=3810 z=3
 G 408 7 gd=1 id=10 z=2
 E 414 2 rot=-90 art=3812 id=3812 z=3
-S 416 2 id=8
-S 415 2 id=8
-H 417 1.95 1 0.05 fm=edge id=468
-H 416 1.95 1 0.05 fm=edge id=468
-H 415 1.95 1 0.05 fm=edge id=468
-H 413 1.95 1 0.05 fm=edge id=468
-H 414 1.95 1 0.05 fm=edge id=468
-S 414 5 rot=180 id=8
-H 414 6 1 0.05 rot=180 fm=edge id=468
-H 415 6 rot=180 fm=corner id=469
-S 416 6 rot=180 id=8
-H 416 7 1 0.05 rot=180 fm=edge id=468
-H 412 1.95 1 0.05 fm=edge id=468
-S 411 1.95 1 0.5 id=39
-H 411 1.95 1 0.05 fm=edge id=468
-S 223 4 rot=180 id=8
-S 312 13 rot=180 id=8
-S 313 13 rot=180 id=8
+S 223 9 rot=180 id=8 g=3
 S 314 11 rot=180 id=8
-S 315 11 rot=180 id=8
-S 316 11 rot=180 id=8
-S 317 11 rot=180 id=8
-S 318 11 rot=180 id=8
-S 319 11 rot=180 id=8
-S 320 11 rot=180 id=8
-S 321 11 rot=180 id=8
-S 322 11 rot=180 id=8
-S 323 11 rot=180 id=8
-S 324 11 rot=180 id=8
-S 325 11 rot=180 id=8
-S 326 11 rot=180 id=8
-C 315 7 id=2063
-S 306 6 id=8
-S 310 6 id=8
+C 315 6 id=2063
 E 305 6 rot=-90 art=3812 id=3812 z=3
 H 310 9.5 1 0.5 fm=box id=662
-S 311 6 id=8
 S 312 6 id=8
-S 313 6 id=8
-E 328 6 art=3810 id=3810 z=3
 E 283 6 rot=-90 art=3812 id=3812 z=3
-D 286 12.833 1 0.2 pad=yellow rot=180 id=35 z=2
-H 286 13 rot=180 fm=u id=470
 S 293 13 rot=180 id=8
 S 294 12 rot=180 id=8
 S 295 11 rot=180 id=8
 S 296 10 rot=180 id=8
-H 297 10 rot=-90 fm=corner id=469
-H 296 11 rot=-90 fm=corner id=469
-H 295 12 rot=-90 fm=corner id=469
-H 294 13 rot=-90 fm=corner id=469
-S 327 2 id=8
-S 326 2 id=8
-S 325 2 id=8
-H 426 3.95 1 0.05 fm=edge id=468
-H 425 3.95 1 0.05 fm=edge id=468
-H 427 3 rot=90 fm=corner id=469
-H 427.948 2 0.05 1 rot=-270 fm=edge id=468
-H 427.948 1 0.05 1 rot=-270 fm=edge id=468
-H 427.948 0 0.05 1 rot=-270 fm=edge id=468
-H 290 9 rot=90 fm=corner id=469
-H 291 8 rot=90 fm=corner id=469
-H 292 7 rot=90 fm=corner id=469
-H 293 6 rot=90 fm=corner id=469
-S 291 9 id=8
-S 292 8 id=8
 H 430 4 1 0.5 fm=box id=662
 H 434 5.5 1 0.5 fm=box id=662
 S 428 0 id=8
@@ -781,251 +189,26 @@ S 434 0 id=8
 S 435 0 id=8
 S 436 0 id=8
 S 437 0 id=8
-H 443 5.95 1 0.05 fm=edge id=468
-H 444 5.95 1 0.05 fm=edge id=468
-H 438 5 fm=corner id=469
-H 438.002 4 0.05 1 rot=-90 fm=edge id=468
-H 438.002 3 0.05 1 rot=-90 fm=edge id=468
-H 438.002 2 0.05 1 rot=-90 fm=edge id=468
-H 438.002 1 0.05 1 rot=-90 fm=edge id=468
-H 438.002 0 0.05 1 rot=-90 fm=edge id=468
-H 439 5.95 1 0.05 fm=edge id=468
-H 440 5.95 1 0.05 fm=edge id=468
-H 441 5.95 1 0.05 fm=edge id=468
-H 442 5.95 1 0.05 fm=edge id=468
 R 439 7 to=spider id=1331 z=2
-H 445 9 rot=-90 fm=corner id=469
-H 445.002 10 0.05 1 rot=-90 fm=edge id=468
-H 445.002 11 0.05 1 rot=-90 fm=edge id=468
-H 446 9 1 0.05 rot=180 fm=edge id=468
-H 447 9 1 0.05 rot=180 fm=edge id=468
-H 448 9 rot=-180 fm=corner id=469
-H 448.948 10 0.05 1 rot=90 fm=edge id=468
-H 448.948 11 0.05 1 rot=90 fm=edge id=468
-H 448 5 fm=corner id=469
-H 448.002 4 0.05 1 rot=-90 fm=edge id=468
-H 448.002 3 0.05 1 rot=-90 fm=edge id=468
-H 449 5.95 1 0.05 fm=edge id=468
-H 448.002 2 0.05 1 rot=-90 fm=edge id=468
-H 448.002 1 0.05 1 rot=-90 fm=edge id=468
-H 448.002 0 0.05 1 rot=-90 fm=edge id=468
-H 450 5.95 1 0.05 fm=edge id=468
-H 451 5 rot=90 fm=corner id=469
-H 451.948 4 0.05 1 rot=-270 fm=edge id=468
-H 451.948 3 0.05 1 rot=-270 fm=edge id=468
-H 451.948 2 0.05 1 rot=-270 fm=edge id=468
-H 451.948 1 0.05 1 rot=-270 fm=edge id=468
-H 451.948 0 0.05 1 rot=-270 fm=edge id=468
-H 451 9 rot=-90 fm=corner id=469
-H 454 9 rot=180 fm=corner id=469
-H 451.002 10 0.05 1 rot=-90 fm=edge id=468
-H 451.002 11 0.05 1 rot=-90 fm=edge id=468
-H 454.948 11 0.05 1 rot=90 fm=edge id=468
-H 454.948 10 0.05 1 rot=90 fm=edge id=468
-H 453 9 1 0.05 rot=180 fm=edge id=468
-H 452 9 1 0.05 rot=180 fm=edge id=468
-H 454 5 fm=corner id=469
-H 456 5 rot=-270 fm=corner id=469
-H 456.948 4 0.05 1 rot=90 fm=edge id=468
-H 456.948 3 0.05 1 rot=90 fm=edge id=468
-H 454.002 4 0.05 1 rot=-90 fm=edge id=468
-H 454.002 3 0.05 1 rot=-90 fm=edge id=468
-H 455 5.95 1 0.05 fm=edge id=468
-H 454.002 2 0.05 1 rot=-90 fm=edge id=468
-H 454.002 1 0.05 1 rot=-90 fm=edge id=468
-H 454.002 0 0.05 1 rot=-90 fm=edge id=468
-H 456.948 2 0.05 1 rot=90 fm=edge id=468
-H 456.948 1 0.05 1 rot=90 fm=edge id=468
-H 456.948 0 0.05 1 rot=90 fm=edge id=468
-H 445 5 rot=90 fm=corner id=469
-H 445.948 4 0.05 1 rot=90 fm=edge id=468
-H 445.948 3 0.05 1 rot=90 fm=edge id=468
-H 445.948 2 0.05 1 rot=90 fm=edge id=468
-H 445.948 1 0.05 1 rot=90 fm=edge id=468
-H 445.948 0 0.05 1 rot=90 fm=edge id=468
 E 445 6 rot=-90 art=3812 id=3812 z=3
 E 448 8 rot=90 art=3812 id=3812 z=3
 E 451 6 rot=-90 art=3812 id=3812 z=3
 E 454 8 rot=90 art=3812 id=3812 z=3
 E 456 6 rot=-90 art=3812 id=3812 z=3
-H 456 9 rot=-90 fm=corner id=469
-H 458 9 rot=180 fm=corner id=469
-H 456.002 10 0.05 1 rot=-90 fm=edge id=468
-H 456.002 11 0.05 1 rot=-90 fm=edge id=468
-H 458.948 11 0.05 1 rot=90 fm=edge id=468
-H 458.948 10 0.05 1 rot=90 fm=edge id=468
-H 457 9 1 0.05 rot=-180 fm=edge id=468
 E 458 8 rot=90 art=3812 id=3812 z=3
-H 458 5 fm=corner id=469
-H 461 5 rot=-270 fm=corner id=469
-H 459 5.95 1 0.05 fm=edge id=468
-H 460 5.95 1 0.05 fm=edge id=468
-H 458.002 4 0.05 1 rot=270 fm=edge id=468
-H 458.002 3 0.05 1 rot=270 fm=edge id=468
-H 458.002 2 0.05 1 rot=270 fm=edge id=468
-H 458.002 1 0.05 1 rot=270 fm=edge id=468
-H 458.002 0 0.05 1 rot=270 fm=edge id=468
-H 461.948 4 0.05 1 rot=90 fm=edge id=468
-H 461.948 3 0.05 1 rot=90 fm=edge id=468
-H 461.948 2 0.05 1 rot=90 fm=edge id=468
-H 461.948 1 0.05 1 rot=90 fm=edge id=468
-H 461.948 0 0.05 1 rot=90 fm=edge id=468
 E 461 6 rot=-90 art=3812 id=3812 z=3
-H 461 9 rot=270 fm=corner id=469
-H 464 9 rot=180 fm=corner id=469
-H 461.002 10 0.05 1 rot=-90 fm=edge id=468
-H 461.002 11 0.05 1 rot=-90 fm=edge id=468
-H 464.948 11 0.05 1 rot=90 fm=edge id=468
-H 464.948 10 0.05 1 rot=90 fm=edge id=468
-H 463 9 1 0.05 rot=180 fm=edge id=468
-H 462 9 1 0.05 rot=180 fm=edge id=468
-H 464 5 fm=corner id=469
-H 467 5 rot=90 fm=corner id=469
-H 465 5.95 1 0.05 fm=edge id=468
-H 466 5.95 1 0.05 fm=edge id=468
-H 464.002 4 0.05 1 rot=-90 fm=edge id=468
-H 464.002 3 0.05 1 rot=-90 fm=edge id=468
-H 464.002 2 0.05 1 rot=-90 fm=edge id=468
-H 464.002 1 0.05 1 rot=-90 fm=edge id=468
-H 464.002 0 0.05 1 rot=-90 fm=edge id=468
-H 467.948 4 0.05 1 rot=90 fm=edge id=468
-H 467.948 3 0.05 1 rot=90 fm=edge id=468
-H 467.948 1 0.05 1 rot=90 fm=edge id=468
-H 467.948 0 0.05 1 rot=90 fm=edge id=468
-H 467.948 2 0.05 1 rot=90 fm=edge id=468
-H 467 9 rot=-90 fm=corner id=469
-H 470 9 rot=180 fm=corner id=469
-H 468 9 1 0.05 rot=180 fm=edge id=468
-H 467.002 10 0.05 1 rot=-90 fm=edge id=468
-H 467.002 11 0.05 1 rot=-90 fm=edge id=468
-H 470.948 11 0.05 1 rot=90 fm=edge id=468
-H 470.948 10 0.05 1 rot=90 fm=edge id=468
-H 469 5 fm=corner id=469
-H 473 5 rot=90 fm=corner id=469
-H 470 5.95 1 0.05 fm=edge id=468
-H 471 5.95 1 0.05 fm=edge id=468
-H 469.002 4 0.05 1 rot=-90 fm=edge id=468
-H 469.002 3 0.05 1 rot=-90 fm=edge id=468
-H 469.002 2 0.05 1 rot=-90 fm=edge id=468
-H 469.002 1 0.05 1 rot=-90 fm=edge id=468
-H 469.002 0 0.05 1 rot=-90 fm=edge id=468
-H 473.948 4 0.05 1 rot=90 fm=edge id=468
-H 473.948 3 0.05 1 rot=90 fm=edge id=468
-H 473.948 2 0.05 1 rot=90 fm=edge id=468
-H 473.948 1 0.05 1 rot=90 fm=edge id=468
-H 473.948 0 0.05 1 rot=90 fm=edge id=468
-H 472 9 rot=-90 fm=corner id=469
-H 472.002 11 0.05 1 rot=270 fm=edge id=468
-H 476 9 rot=180 fm=corner id=469
-H 473 9 1 0.05 rot=180 fm=edge id=468
-H 474 9 1 0.05 rot=180 fm=edge id=468
-H 476.948 11 0.05 1 rot=90 fm=edge id=468
-H 477 5.95 1 0.05 fm=edge id=468
-H 478 9 rot=-90 fm=corner id=469
-H 478.002 11 0.05 1 rot=270 fm=edge id=468
-H 479 9 1 0.05 rot=180 fm=edge id=468
-H 481 5 rot=90 fm=corner id=469
-H 481.948 4 0.05 1 rot=90 fm=edge id=468
-H 481.948 3 0.05 1 rot=90 fm=edge id=468
-H 481.948 2 0.05 1 rot=90 fm=edge id=468
-H 481.948 1 0.05 1 rot=90 fm=edge id=468
-H 481.948 0 0.05 1 rot=90 fm=edge id=468
-H 480 9 1 0.05 rot=180 fm=edge id=468
-H 481 9 1 0.05 rot=180 fm=edge id=468
-H 489 9 rot=180 fm=corner id=469
-H 489.948 11 0.05 1 rot=90 fm=edge id=468
-H 489.948 10 0.05 1 rot=90 fm=edge id=468
-H 488 9 1 0.05 rot=180 fm=edge id=468
-H 489 5 fm=corner id=469
-H 489.002 4 0.05 1 rot=-90 fm=edge id=468
-H 489.002 3 0.05 1 rot=-90 fm=edge id=468
-H 489.002 1 0.05 1 rot=-90 fm=edge id=468
-H 489.002 0 0.05 1 rot=-90 fm=edge id=468
-H 489.002 2 0.05 1 rot=-90 fm=edge id=468
-H 491 5.95 1 0.05 fm=edge id=468
-H 490 5.95 1 0.05 fm=edge id=468
 K 490 7 inert=1 id=286 z=2
-H 495 9 1 0.05 rot=180 fm=edge id=468
-H 496 9 1 0.05 rot=180 fm=edge id=468
-H 497 9 1 0.05 rot=180 fm=edge id=468
-H 492 5.95 1 0.05 fm=edge id=468
-H 493 5.95 1 0.05 fm=edge id=468
-H 494 5.95 1 0.05 fm=edge id=468
-H 495 5.95 1 0.05 fm=edge id=468
-H 496 5.95 1 0.05 fm=edge id=468
 R 492 10 to=ball id=47 z=2
-H 494 9 rot=-90 fm=corner id=469
-H 494 10 fm=corner id=469
-H 495 10.95 1 0.05 fm=edge id=468
-H 496 10.95 1 0.05 fm=edge id=468
-H 497 10.95 1 0.05 fm=edge id=468
-H 498 10.95 1 0.05 fm=edge id=468
-H 499 10.95 1 0.05 fm=edge id=468
-H 500 10.95 1 0.05 fm=edge id=468
-H 501 10.95 1 0.05 fm=edge id=468
-H 503 10.95 1 0.05 fm=edge id=468
-H 502 10.95 1 0.05 fm=edge id=468
-H 504 10.95 1 0.05 fm=edge id=468
-H 505 10.95 1 0.05 fm=edge id=468
-H 506 10.95 1 0.05 fm=edge id=468
-H 507 10.95 1 0.05 fm=edge id=468
-H 508 10.95 1 0.05 fm=edge id=468
-H 509 10.95 1 0.05 fm=edge id=468
-H 510 10.95 1 0.05 fm=edge id=468
-H 511 10.95 1 0.05 fm=edge id=468
-H 498 9 1 0.05 rot=180 fm=edge id=468
-H 499 9 1 0.05 rot=180 fm=edge id=468
-H 500 9 1 0.05 rot=180 fm=edge id=468
-H 501 9 1 0.05 rot=180 fm=edge id=468
-H 502 9 1 0.05 rot=180 fm=edge id=468
 S 493.3 9.25 1 0.5 rot=270 id=39
-H 497 5.95 1 0.05 fm=edge id=468
-H 498 5.95 1 0.05 fm=edge id=468
-H 499 5.95 1 0.05 fm=edge id=468
-H 500 5.95 1 0.05 fm=edge id=468
-H 501 5.95 1 0.05 fm=edge id=468
-H 502 5.95 1 0.05 fm=edge id=468
 R 489 7 to=ball id=47 z=2
 S 494 8 rot=180 id=8
 S 495 8 rot=180 id=8
 S 496 8 rot=180 id=8
-H 503 5.95 1 0.05 fm=edge id=468
-H 504 5.95 1 0.05 fm=edge id=468
-H 505 5.95 1 0.05 fm=edge id=468
-H 506 5.95 1 0.05 fm=edge id=468
-H 507 5.95 1 0.05 fm=edge id=468
-H 503 9 1 0.05 rot=180 fm=edge id=468
-H 504 9 1 0.05 rot=180 fm=edge id=468
-H 505 9 1 0.05 rot=180 fm=edge id=468
-H 506 9 1 0.05 rot=180 fm=edge id=468
-D 498 6 1 0.2 pad=blue id=67 z=2
 D 499 8.8 1 0.2 pad=blue rot=180 id=67 z=2
 S 501 8 rot=180 id=8
 S 502 8 rot=180 id=8
 D 504 6 1 0.2 pad=blue id=67 z=2
 D 505 8.8 1 0.2 pad=blue rot=180 id=67 z=2
-H 507 9 1 0.05 rot=180 fm=edge id=468
-H 508 9 1 0.05 rot=180 fm=edge id=468
-H 509 9 1 0.05 rot=180 fm=edge id=468
-H 510 9 1 0.05 rot=180 fm=edge id=468
-H 511 9 1 0.05 rot=180 fm=edge id=468
-H 508 5.95 1 0.05 fm=edge id=468
-H 509 5.95 1 0.05 fm=edge id=468
-H 511 5.95 1 0.05 fm=edge id=468
-H 512 5.95 1 0.05 fm=edge id=468
-H 510 5.95 1 0.05 fm=edge id=468
-H 514 5.95 1 0.05 fm=edge id=468
-H 513 5.95 1 0.05 fm=edge id=468
-H 516 5.95 1 0.05 fm=edge id=468
-H 517 5.95 1 0.05 fm=edge id=468
-H 515 5.95 1 0.05 fm=edge id=468
-H 512 9 1 0.05 rot=180 fm=edge id=468
-H 513 9 1 0.05 rot=180 fm=edge id=468
-H 514 9 1 0.05 rot=180 fm=edge id=468
-H 516 9 1 0.05 rot=180 fm=edge id=468
-H 515 9 1 0.05 rot=180 fm=edge id=468
-H 512 10.95 1 0.05 fm=edge id=468
-H 513 10.95 1 0.05 fm=edge id=468
 D 510 6 1 0.2 pad=blue id=67 z=2
 D 511 8.8 1 0.2 pad=blue rot=180 id=67 z=2
 X 501 6 id=143
@@ -1036,67 +219,22 @@ S 509 8 rot=180 id=8
 S 513 8 rot=180 id=8
 S 514 8 rot=180 id=8
 S 515 8 rot=180 id=8
-X 498 11 id=143
 X 504 11 id=143
 X 507 11 id=143
 X 510 11 id=143
 X 513 11 id=143
-H 518 5.95 1 0.05 fm=edge id=468
-H 519 5.95 1 0.05 fm=edge id=468
-H 522 5.95 1 0.05 fm=edge id=468
-H 520 5.95 1 0.05 fm=edge id=468
-H 521 5.95 1 0.05 fm=edge id=468
-H 523 5.95 1 0.05 fm=edge id=468
-H 524 5.95 1 0.05 fm=edge id=468
-H 643 18.95 1 0.05 fm=edge id=468
-K 516 7 inert=1 id=287 z=2
-H 514 10.95 1 0.05 fm=edge id=468
-H 515 10.95 1 0.05 fm=edge id=468
-H 515.948 11 0.05 1 rot=90 fm=edge id=468
-H 516.948 8 0.05 1 rot=90 fm=edge id=468
-H 516.948 7 0.05 1 rot=90 fm=edge id=468
-H 517 7 1 0.05 rot=180 fm=edge id=468
-H 518 7 1 0.05 rot=180 fm=edge id=468
-H 519 7 1 0.05 rot=180 fm=edge id=468
-H 520 7 1 0.05 rot=180 fm=edge id=468
-H 521 7 1 0.05 rot=180 fm=edge id=468
 X 517 6 id=143
 X 518 6 id=143
 X 519 6 id=143
-X 520 6 id=143
-X 521 6 id=143
 X 522 6 id=143
 X 523 6 id=143
 X 524 6 id=143
-H 522 7 1 0.05 rot=180 fm=edge id=468
-H 523 7 1 0.05 rot=180 fm=edge id=468
-H 524 7 1 0.05 rot=180 fm=edge id=468
 E 461 8 art=3810 id=3810 z=3
-H 644 18.95 1 0.05 fm=edge id=468
-H 645 18.95 1 0.05 fm=edge id=468
-H 646 18.95 1 0.05 fm=edge id=468
-H 647 18.95 1 0.05 fm=edge id=468
 C 643 19 id=2063
-H 648 18.95 1 0.05 fm=edge id=468
-H 649 18.95 1 0.05 fm=edge id=468
 V 512 7 spd=1 id=201 z=2
 V 423 5 spd=0 id=200 z=2
-H 650 18.95 1 0.05 fm=edge id=468
-H 651 18.95 1 0.05 fm=edge id=468
-H 652 18.95 1 0.05 fm=edge id=468
-H 653 18.95 1 0.05 fm=edge id=468
-H 654 18.95 1 0.05 fm=edge id=468
-H 655 18.95 1 0.05 fm=edge id=468
-H 656 18.95 1 0.05 fm=edge id=468
-H 658 18.95 1 0.05 fm=edge id=468
-H 657 18.95 1 0.05 fm=edge id=468
-H 659 18.95 1 0.05 fm=edge id=468
-H 660 18.95 1 0.05 fm=edge id=468
-H 661 18.95 1 0.05 fm=edge id=468
-H 662 18.95 1 0.05 fm=edge id=468
 V 650 20 spd=4 id=1334 z=2
 R 657 20 to=cube id=12 z=2
-H 663 18.95 1 0.05 fm=edge id=468
 O 666 21 orb=yellow id=36 z=2
 O 668.5 23 orb=yellow id=36 z=2
 O 671 25 orb=yellow id=36 z=2
@@ -1133,7 +271,7 @@ W 677.033 28.667 2.933 5.667 id=1705 z=5
 W 677.649 24.857 1.701 3.287 id=1705 z=5
 W 679.827 21.233 2.347 4.533 id=1705 z=5
 W 684.767 13.083 1.467 2.833 id=1705 z=5
-W 678.033 11.667 2.933 5.667 id=1705 z=5
+W 677.033 10.667 2.933 5.667 id=1705 z=5
 W 685.327 15.233 2.347 4.533 id=1705 z=5
 W 680.246 25.078 2.508 4.845 id=1705 z=5
 B 695 26 id=83
@@ -1330,10 +468,10 @@ B 763 19 id=83
 B 761 19 id=83
 B 762 18 id=83
 W 740.033 14.667 2.933 5.667 id=1705 z=5
-W 744.033 24.667 2.933 5.667 id=1705 z=5
-W 750.202 25.993 2.596 5.015 id=1705 z=5
-W 748.032 23.63 1.936 3.74 id=1705 z=5
-W 746.51 28.588 1.98 3.825 id=1705 z=5
+W 744.033 26.667 2.933 5.667 id=1705 z=5
+W 749.202 26.993 2.596 5.015 id=1705 z=5
+W 747.032 24.63 1.936 3.74 id=1705 z=5
+W 747.51 30.588 1.98 3.825 id=1705 z=5
 W 759.767 26.083 1.467 2.833 id=1705 z=5
 W 755.033 16.667 2.933 5.667 id=1705 z=5
 W 751.407 15.389 2.185 4.222 id=1705 z=5
@@ -2038,33 +1176,9 @@ B 1118 27 id=83
 B 1118 26 id=83
 B 1118 25 id=83
 B 1118 24 id=83
-H 1122 26 fm=corner id=469
-H 1122.002 25 0.05 1 rot=-90 fm=edge id=468
-H 1122.002 24 0.05 1 rot=-90 fm=edge id=468
-H 1123 26.95 1 0.05 fm=edge id=468
-H 1124 26.95 1 0.05 fm=edge id=468
-H 1125 26.95 1 0.05 fm=edge id=468
-H 1126 26.95 1 0.05 fm=edge id=468
-H 1127 26.95 1 0.05 fm=edge id=468
-H 1128 26.95 1 0.05 fm=edge id=468
-H 1129 26.95 1 0.05 fm=edge id=468
-H 1130 26.95 1 0.05 fm=edge id=468
-H 1131 26.95 1 0.05 fm=edge id=468
-H 1132 26.95 1 0.05 fm=edge id=468
-H 1123 30 rot=-90 fm=corner id=469
-H 1123.002 31 0.05 1 rot=-90 fm=edge id=468
-H 1123.002 32 0.05 1 rot=-90 fm=edge id=468
-H 1123.002 33 0.05 1 rot=-90 fm=edge id=468
-H 1124 30 1 0.05 rot=-180 fm=edge id=468
-H 1125 30 1 0.05 rot=-180 fm=edge id=468
-H 1126 30 1 0.05 rot=-180 fm=edge id=468
-H 1127 30 1 0.05 rot=-180 fm=edge id=468
 X 1127 29 id=143
 X 1127 28 id=143
 X 1127 27 id=143
-H 1128 30 rot=-180 fm=corner id=469
-H 1129 31 rot=-180 fm=corner id=469
-H 1130 32 rot=-180 fm=corner id=469
 S 1129 30 rot=180 id=8
 S 1130 31 rot=180 id=8
 S 1131 32 rot=180 id=8
@@ -2078,22 +1192,11 @@ H 1135 29 1 0.5 fm=box id=662
 S 1136 28 rot=180 id=8
 H 1136 29 1 0.5 fm=box id=662
 H 1137 29 1 0.5 fm=box id=662
-H 1133 26 rot=90 fm=corner id=469
-H 1135 24.95 1 0.05 fm=edge id=468
-H 1136 24.95 1 0.05 fm=edge id=468
-H 1137 24.95 1 0.05 fm=edge id=468
-H 1138 24.95 1 0.05 fm=edge id=468
-H 1139 24.95 1 0.05 fm=edge id=468
-H 1140 24.95 1 0.05 fm=edge id=468
-H 1134 25 rot=90 fm=corner id=469
 S 1133 27 id=8
 S 1134 26 id=8
 S 1135 25 id=8
-H 1138 32 rot=-90 fm=corner id=469
-H 1139 31 rot=180 fm=u id=470
 H 1140 32 rot=180 fm=corner id=469
 S 1137 32 rot=180 id=8
-S 1138 31 rot=180 id=8
 S 1139 30 rot=180 id=8
 S 1140 31 rot=180 id=8
 S 1141 32 rot=180 id=8
@@ -2103,7 +1206,6 @@ S 1134 32 rot=180 id=8
 S 1135 32 rot=180 id=8
 S 1136 32 rot=180 id=8
 S 1142 32 rot=180 id=8
-S 1141 25 id=8
 H 1149 29 1 0.5 fm=box id=662
 D 1144 32.8 1 0.2 pad=blue rot=180 id=67 z=2
 D 1145 31 1 0.2 pad=blue id=67 z=2
@@ -2112,18 +1214,6 @@ D 1148 32.8 1 0.2 pad=blue rot=180 id=67 z=2
 H 1150 29 1 0.5 fm=box id=662
 H 1151 29 1 0.5 fm=box id=662
 H 1152 29 1 0.5 fm=box id=662
-H 1142 25 fm=corner id=469
-H 1143 26 fm=corner id=469
-H 1144 26.95 1 0.05 fm=edge id=468
-H 1145 26.95 1 0.05 fm=edge id=468
-H 1146 26.95 1 0.05 fm=edge id=468
-H 1147 26.95 1 0.05 fm=edge id=468
-H 1148 26.95 1 0.05 fm=edge id=468
-H 1149 26.95 1 0.05 fm=edge id=468
-H 1150 26.95 1 0.05 fm=edge id=468
-H 1151 26.95 1 0.05 fm=edge id=468
-H 1152 26.95 1 0.05 fm=edge id=468
-S 1142 26 id=8
 S 1143 27 id=8
 S 1144 27 id=8
 S 1145 27 id=8
@@ -2137,30 +1227,14 @@ S 1152 27 id=8
 H 1153 29 1 0.5 fm=box id=662
 H 1154 29 1 0.5 fm=box id=662
 S 1154 29.5 id=8
-H 1153 26.95 1 0.05 fm=edge id=468
-H 1154 26.95 1 0.05 fm=edge id=468
-H 1155 26.95 1 0.05 fm=edge id=468
-H 1156 26.95 1 0.05 fm=edge id=468
 S 1150 32 rot=180 id=8
 S 1151 32 rot=180 id=8
 S 1153 27 id=8
 S 1154 27 id=8
 S 1155 27 id=8
 S 1156 27 id=8
-H 1157 26 rot=90 fm=corner id=469
-H 1158 25 rot=90 fm=corner id=469
-H 1159 25 1 0.05 rot=180 fm=edge id=468
-H 1160 25 1 0.05 rot=180 fm=edge id=468
-H 1161 25 1 0.05 rot=180 fm=edge id=468
-H 1162 25 1 0.05 rot=180 fm=edge id=468
-H 1163 25 1 0.05 rot=180 fm=edge id=468
-H 1164 25 1 0.05 rot=180 fm=edge id=468
-H 1165 25 1 0.05 rot=180 fm=edge id=468
-H 1166 25 1 0.05 rot=180 fm=edge id=468
-H 1167 25 1 0.05 rot=180 fm=edge id=468
 S 1157 27 id=8
 S 1158 26 id=8
-S 1159 25 id=8
 O 1180 31 orb=blue id=84 z=2
 W 1179.767 32.083 1.467 2.833 id=1705 z=5
 W 1174.033 29.667 2.933 5.667 id=1705 z=5
@@ -2184,87 +1258,31 @@ D 1204 31.967 1 0.2 pad=yellow id=35 z=2
 H 1204 31.5 1 0.5 fm=box id=662
 O 1209 36 orb=green id=1022 z=2
 K 1211 34 inert=1 id=286 z=2
-H 1211 39 rot=-90 fm=corner id=469
-H 1211.002 40 0.05 1 rot=-90 fm=edge id=468
-H 1211.002 41 0.05 1 rot=-90 fm=edge id=468
-H 1211.002 42 0.05 1 rot=-90 fm=edge id=468
-H 1212 39 1 0.05 rot=-180 fm=edge id=468
-H 1213 39 1 0.05 rot=-180 fm=edge id=468
-H 1214 39 1 0.05 rot=-180 fm=edge id=468
-H 1216 39 1 0.05 rot=-180 fm=edge id=468
-H 1217 39 1 0.05 rot=-180 fm=edge id=468
-H 1215 39 1 0.05 rot=-180 fm=edge id=468
-H 1218 39 1 0.05 rot=-180 fm=edge id=468
-H 1219 39 1 0.05 rot=-180 fm=edge id=468
-H 1220 39 1 0.05 rot=-180 fm=edge id=468
-H 1221 39 1 0.05 rot=-180 fm=edge id=468
-H 1222 39 1 0.05 rot=-180 fm=edge id=468
-H 1212 29.95 1 0.05 fm=edge id=468
-H 1213 29.95 1 0.05 fm=edge id=468
-H 1214 29.95 1 0.05 fm=edge id=468
-H 1215 29.95 1 0.05 fm=edge id=468
-H 1216 29.95 1 0.05 fm=edge id=468
-H 1217 29.95 1 0.05 fm=edge id=468
-H 1218 29.95 1 0.05 fm=edge id=468
-H 1219 29.95 1 0.05 fm=edge id=468
-H 1220 29.95 1 0.05 fm=edge id=468
-H 1221 29.95 1 0.05 fm=edge id=468
-H 1222 29.95 1 0.05 fm=edge id=468
-H 1224 29.95 1 0.05 fm=edge id=468
-H 1225 29.95 1 0.05 fm=edge id=468
-H 1226 29.95 1 0.05 fm=edge id=468
-H 1227 29.95 1 0.05 fm=edge id=468
-H 1223 29.95 1 0.05 fm=edge id=468
-H 1211 29 fm=corner id=469
-H 1211.002 28 0.05 1 rot=-90 fm=edge id=468
-H 1211.002 27 0.05 1 rot=-90 fm=edge id=468
-H 1211.002 26 0.05 1 rot=-90 fm=edge id=468
-H 1211.002 25 0.05 1 rot=-90 fm=edge id=468
-H 1215 31 fm=corner id=469
-H 1215 37 rot=-90 fm=corner id=469
-H 1217 31 rot=-270 fm=corner id=469
-H 1217 37 rot=-180 fm=corner id=469
-H 1216 31.95 1 0.05 fm=edge id=468
-H 1215.002 30 0.05 1 rot=-90 fm=edge id=468
-H 1217.948 30 0.05 1 rot=90 fm=edge id=468
-H 1217.948 38 0.05 1 rot=90 fm=edge id=468
-H 1215.002 38 0.05 1 rot=270 fm=edge id=468
-H 1216 37 1 0.05 rot=180 fm=edge id=468
 O 1219 34 orb=black id=1330 z=2
-S 1218 37 rot=90 id=8
-S 1218 38 rot=90 id=8
-S 1218 31 rot=90 id=8
-S 1218 30 rot=90 id=8
+S 1218 39 rot=90 id=8 g=10
+S 1218 40 rot=90 id=8 g=10
+S 1218 29 rot=90 id=8 g=11
+S 1218 28 rot=90 id=8 g=11
 W 1221.767 33.083 1.467 2.833 id=1705 z=5
-H 1225 37 rot=-90 fm=corner id=469
-H 1227 37 rot=180 fm=corner id=469
-H 1225 31 fm=corner id=469
-H 1227 31 rot=90 fm=corner id=469
-H 1226 31.95 1 0.05 fm=edge id=468
-H 1227.948 38 0.05 1 rot=90 fm=edge id=468
-H 1225.002 38 0.05 1 rot=-90 fm=edge id=468
-H 1226 37 1 0.05 rot=-180 fm=edge id=468
-H 1225.002 30 0.05 1 rot=-90 fm=edge id=468
-H 1227.948 30 0.05 1 rot=-270 fm=edge id=468
 O 1228 34 orb=pink id=141 col=13017343 z=2
-S 1228 38 rot=180 id=8
-S 1229 38 rot=180 id=8
-S 1230 38 rot=180 id=8
-S 1231 38 rot=180 id=8
-S 1233 38 rot=180 id=8
-S 1232 38 rot=180 id=8
-S 1228 30 id=8
-S 1229 30 id=8
-S 1230 30 id=8
-S 1231 30 id=8
-S 1232 30 id=8
-S 1233 30 id=8
-S 1234 30 id=8
+S 1228 40 rot=180 id=8 g=12
+S 1229 40 rot=180 id=8 g=12
+S 1230 40 rot=180 id=8 g=12
+S 1231 40 rot=180 id=8 g=12
+S 1233 40 rot=180 id=8 g=12
+S 1232 40 rot=180 id=8 g=12
+S 1228 28 id=8 g=13
+S 1229 28 id=8 g=13
+S 1230 28 id=8 g=13
+S 1231 28 id=8 g=13
+S 1232 28 id=8 g=13
+S 1233 28 id=8 g=13
+S 1234 28 id=8 g=13
 O 1233 32 orb=pink id=141 col=13017343 z=2
 O 1233 36 orb=pink id=141 col=13017343 z=2
-S 1234 38 rot=180 id=8
-S 1235 38 rot=180 id=8
-S 1235 30 id=8
+S 1234 40 rot=180 id=8 g=12
+S 1235 40 rot=180 id=8 g=12
+S 1235 28 id=8 g=13
 S 1239 38 rot=180 id=8
 S 1239 30 id=8
 S 1240 30 id=8
@@ -2272,292 +1290,21 @@ S 1240 38 rot=180 id=8
 O 1248 34 orb=pink id=141 col=13017343 z=2
 H 1245 31.5 1 0.5 fm=box id=662
 H 1245 37 1 0.5 fm=box id=662
-W 1247.473 36.517 2.053 3.967 id=1705 z=5
-W 1255.459 36.488 2.083 4.023 id=1705 z=5
-W 1251.473 36.517 2.053 3.967 id=1705 z=5
-W 1247.466 28.503 2.068 3.995 id=1705 z=5
-W 1251.437 28.446 2.127 4.108 id=1705 z=5
-W 1255.422 28.418 2.156 4.165 id=1705 z=5
+W 1247.473 39.517 2.053 3.967 id=1705 z=5 g=14
+W 1255.459 39.488 2.083 4.023 id=1705 z=5 g=16
+W 1251.473 39.517 2.053 3.967 id=1705 z=5 g=15
+W 1247.466 25.503 2.068 3.995 id=1705 z=5 g=17
+W 1251.437 25.446 2.127 4.108 id=1705 z=5 g=18
+W 1255.422 25.418 2.156 4.165 id=1705 z=5 g=19
 K 1258 34 inert=1 id=287 z=2
 D 1260 32 1 0.2 pad=blue id=67 z=2
 D 1262 36.8 1 0.2 pad=blue rot=180 id=67 z=2
 D 1263 32 1 0.2 pad=blue id=67 z=2
 D 1265 36.8 1 0.2 pad=blue rot=-180 id=67 z=2
-H 1261 37 rot=-90 fm=corner id=469
-H 1266 37 rot=-180 fm=corner id=469
-H 1264 31 rot=-270 fm=corner id=469
-H 1259 31 fm=corner id=469
-H 1260 31.95 1 0.05 fm=edge id=468
-H 1261 31.95 1 0.05 fm=edge id=468
-H 1262 31.95 1 0.05 fm=edge id=468
-H 1263 31.95 1 0.05 fm=edge id=468
-H 1264.948 30 0.05 1 rot=90 fm=edge id=468
-H 1264.948 29 0.05 1 rot=90 fm=edge id=468
-H 1264.948 28 0.05 1 rot=90 fm=edge id=468
-H 1264.948 27 0.05 1 rot=90 fm=edge id=468
-H 1259.002 30 0.05 1 rot=270 fm=edge id=468
-H 1259.002 29 0.05 1 rot=270 fm=edge id=468
-H 1259.002 28 0.05 1 rot=270 fm=edge id=468
-H 1259.002 27 0.05 1 rot=270 fm=edge id=468
-H 1259.002 26 0.05 1 rot=270 fm=edge id=468
-H 1264.948 26 0.05 1 rot=90 fm=edge id=468
-H 1262 37 1 0.05 rot=180 fm=edge id=468
-H 1264 37 1 0.05 rot=180 fm=edge id=468
-H 1263 37 1 0.05 rot=180 fm=edge id=468
-H 1265 37 1 0.05 rot=180 fm=edge id=468
-H 1261.002 38 0.05 1 rot=270 fm=edge id=468
-H 1261.002 39 0.05 1 rot=270 fm=edge id=468
-H 1261.002 40 0.05 1 rot=270 fm=edge id=468
-H 1261.002 41 0.05 1 rot=270 fm=edge id=468
-H 1266.948 38 0.05 1 rot=90 fm=edge id=468
-H 1266.948 39 0.05 1 rot=90 fm=edge id=468
-H 1266.948 40 0.05 1 rot=90 fm=edge id=468
-H 1266.948 41 0.05 1 rot=90 fm=edge id=468
-H 1267 31 fm=corner id=469
-H 1268 31.95 1 0.05 fm=edge id=468
-H 1269 31.95 1 0.05 fm=edge id=468
-H 1270 31.95 1 0.05 fm=edge id=468
-H 1271 31.95 1 0.05 fm=edge id=468
-H 1267.002 30 0.05 1 rot=-90 fm=edge id=468
-H 1267.002 29 0.05 1 rot=-90 fm=edge id=468
-H 1267.002 28 0.05 1 rot=-90 fm=edge id=468
-H 1267.002 27 0.05 1 rot=-90 fm=edge id=468
-H 1267.002 26 0.05 1 rot=-90 fm=edge id=468
 R 1268 33 to=spider id=1331 z=2
-H 1272 31.95 1 0.05 fm=edge id=468
-H 1273 31.95 1 0.05 fm=edge id=468
-H 1274 31 rot=90 fm=corner id=469
-H 1274.948 30 0.05 1 rot=90 fm=edge id=468
-H 1274.948 28 0.05 1 rot=90 fm=edge id=468
-H 1274.948 29 0.05 1 rot=90 fm=edge id=468
-H 1274.948 27 0.05 1 rot=90 fm=edge id=468
-H 1274.948 26 0.05 1 rot=90 fm=edge id=468
-H 1274 37 rot=-90 fm=corner id=469
-H 1277 37 rot=-180 fm=corner id=469
-H 1276 37 1 0.05 rot=180 fm=edge id=468
-H 1275 37 1 0.05 rot=180 fm=edge id=468
-H 1274.002 38 0.05 1 rot=270 fm=edge id=468
-H 1274.002 39 0.05 1 rot=270 fm=edge id=468
-H 1274.002 40 0.05 1 rot=270 fm=edge id=468
-H 1274.002 41 0.05 1 rot=270 fm=edge id=468
-H 1274.002 42 0.05 1 rot=270 fm=edge id=468
-H 1261.002 42 0.05 1 rot=270 fm=edge id=468
-H 1266.948 42 0.05 1 rot=90 fm=edge id=468
-H 1277.948 38 0.05 1 rot=90 fm=edge id=468
-H 1277.948 40 0.05 1 rot=90 fm=edge id=468
-H 1277.948 41 0.05 1 rot=90 fm=edge id=468
-H 1277.948 42 0.05 1 rot=90 fm=edge id=468
-H 1277.948 39 0.05 1 rot=90 fm=edge id=468
-H 1277 31 fm=corner id=469
-H 1277.002 30 0.05 1 rot=-90 fm=edge id=468
-H 1277.002 29 0.05 1 rot=-90 fm=edge id=468
-H 1277.002 28 0.05 1 rot=-90 fm=edge id=468
-H 1277.002 27 0.05 1 rot=-90 fm=edge id=468
-H 1277.002 26 0.05 1 rot=-90 fm=edge id=468
-H 1278 31.95 1 0.05 fm=edge id=468
-H 1279 31.95 1 0.05 fm=edge id=468
-H 1280 31.95 1 0.05 fm=edge id=468
-H 1281 31 rot=90 fm=corner id=469
-H 1281.948 29 0.05 1 rot=90 fm=edge id=468
-H 1281.948 30 0.05 1 rot=90 fm=edge id=468
-H 1281.948 28 0.05 1 rot=90 fm=edge id=468
-H 1281.948 27 0.05 1 rot=90 fm=edge id=468
-H 1281.948 26 0.05 1 rot=90 fm=edge id=468
-H 1281 37 rot=-90 fm=corner id=469
-H 1281.002 38 0.05 1 rot=-90 fm=edge id=468
-H 1281.002 39 0.05 1 rot=-90 fm=edge id=468
-H 1281.002 41 0.05 1 rot=-90 fm=edge id=468
-H 1281.002 40 0.05 1 rot=-90 fm=edge id=468
-H 1281.002 42 0.05 1 rot=-90 fm=edge id=468
-H 1282 37 1 0.05 rot=180 fm=edge id=468
-H 1283 37 1 0.05 rot=180 fm=edge id=468
-H 1284 37 rot=180 fm=corner id=469
-H 1284.948 38 0.05 1 rot=90 fm=edge id=468
-H 1284.948 39 0.05 1 rot=90 fm=edge id=468
-H 1284.948 40 0.05 1 rot=90 fm=edge id=468
-H 1284.948 41 0.05 1 rot=90 fm=edge id=468
-H 1284.948 42 0.05 1 rot=90 fm=edge id=468
-H 1284 31 fm=corner id=469
-H 1284.002 29 0.05 1 rot=-90 fm=edge id=468
-H 1284.002 28 0.05 1 rot=-90 fm=edge id=468
-H 1284.002 30 0.05 1 rot=-90 fm=edge id=468
-H 1284.002 27 0.05 1 rot=-90 fm=edge id=468
-H 1284.002 26 0.05 1 rot=-90 fm=edge id=468
-H 1285 31.95 1 0.05 fm=edge id=468
-H 1286 31 rot=90 fm=corner id=469
-H 1286.948 29 0.05 1 rot=90 fm=edge id=468
-H 1286.948 30 0.05 1 rot=90 fm=edge id=468
-H 1286.948 28 0.05 1 rot=90 fm=edge id=468
-H 1286.948 27 0.05 1 rot=90 fm=edge id=468
-H 1286.948 26 0.05 1 rot=90 fm=edge id=468
-H 1286 37 rot=-90 fm=corner id=469
-H 1286.002 38 0.05 1 rot=-90 fm=edge id=468
-H 1286.002 39 0.05 1 rot=-90 fm=edge id=468
-H 1286.002 40 0.05 1 rot=-90 fm=edge id=468
-H 1286.002 41 0.05 1 rot=-90 fm=edge id=468
-H 1286.002 42 0.05 1 rot=-90 fm=edge id=468
-H 1287 37 1 0.05 rot=-180 fm=edge id=468
-H 1288 37 1 0.05 rot=-180 fm=edge id=468
-H 1289 37 1 0.05 rot=-180 fm=edge id=468
-H 1290 37 1 0.05 rot=-180 fm=edge id=468
-H 1291 37 rot=-180 fm=corner id=469
-H 1291.948 38 0.05 1 rot=90 fm=edge id=468
-H 1291.948 39 0.05 1 rot=90 fm=edge id=468
-H 1291.948 40 0.05 1 rot=90 fm=edge id=468
-H 1291.948 41 0.05 1 rot=90 fm=edge id=468
-H 1291.948 42 0.05 1 rot=90 fm=edge id=468
-H 1291 31 fm=corner id=469
-H 1291.002 30 0.05 1 rot=-90 fm=edge id=468
-H 1291.002 29 0.05 1 rot=-90 fm=edge id=468
-H 1291.002 28 0.05 1 rot=-90 fm=edge id=468
-H 1291.002 27 0.05 1 rot=-90 fm=edge id=468
-H 1291.002 26 0.05 1 rot=-90 fm=edge id=468
-H 1292 31.95 1 0.05 fm=edge id=468
-H 1293 37 rot=270 fm=corner id=469
-H 1293.002 39 0.05 1 rot=-90 fm=edge id=468
-H 1293.002 38 0.05 1 rot=-90 fm=edge id=468
-H 1293.002 40 0.05 1 rot=-90 fm=edge id=468
-H 1293.002 41 0.05 1 rot=-90 fm=edge id=468
-H 1293.002 42 0.05 1 rot=-90 fm=edge id=468
-H 1294 37 1 0.05 rot=-180 fm=edge id=468
-H 1295 37 1 0.05 rot=-180 fm=edge id=468
-H 1296 37 1 0.05 rot=-180 fm=edge id=468
-H 1297 37 1 0.05 rot=-180 fm=edge id=468
-H 1298 37 rot=-180 fm=corner id=469
-H 1298.948 38 0.05 1 rot=90 fm=edge id=468
-H 1298.948 39 0.05 1 rot=90 fm=edge id=468
-H 1298.948 40 0.05 1 rot=90 fm=edge id=468
-H 1298.948 41 0.05 1 rot=90 fm=edge id=468
-H 1298.948 42 0.05 1 rot=90 fm=edge id=468
-H 1298 31 fm=corner id=469
-H 1301 31 rot=90 fm=corner id=469
-H 1300 31.95 1 0.05 fm=edge id=468
-H 1299 31.95 1 0.05 fm=edge id=468
-H 1298.002 30 0.05 1 rot=-90 fm=edge id=468
-H 1298.002 29 0.05 1 rot=-90 fm=edge id=468
-H 1298.002 28 0.05 1 rot=-90 fm=edge id=468
-H 1298.002 26 0.05 1 rot=-90 fm=edge id=468
-H 1298.002 27 0.05 1 rot=-90 fm=edge id=468
-H 1301.948 30 0.05 1 rot=90 fm=edge id=468
-H 1301.948 29 0.05 1 rot=90 fm=edge id=468
-H 1301.948 28 0.05 1 rot=90 fm=edge id=468
-H 1301.948 27 0.05 1 rot=90 fm=edge id=468
-H 1301.948 26 0.05 1 rot=90 fm=edge id=468
-H 1301 37 rot=-90 fm=corner id=469
-H 1301.002 38 0.05 1 rot=-90 fm=edge id=468
-H 1301.002 39 0.05 1 rot=-90 fm=edge id=468
-H 1301.002 40 0.05 1 rot=-90 fm=edge id=468
-H 1301.002 42 0.05 1 rot=-90 fm=edge id=468
-H 1301.002 41 0.05 1 rot=-90 fm=edge id=468
-H 1302 37 1 0.05 rot=180 fm=edge id=468
-H 1303 37 1 0.05 rot=180 fm=edge id=468
-H 1304 37 1 0.05 rot=180 fm=edge id=468
-H 1305 37 1 0.05 rot=180 fm=edge id=468
-H 1306 37 rot=-180 fm=corner id=469
-H 1306.948 38 0.05 1 rot=90 fm=edge id=468
-H 1306.948 39 0.05 1 rot=90 fm=edge id=468
-H 1306.948 40 0.05 1 rot=90 fm=edge id=468
-H 1306.948 41 0.05 1 rot=90 fm=edge id=468
-H 1306.948 42 0.05 1 rot=90 fm=edge id=468
-H 1306 31 fm=corner id=469
-H 1308 31 rot=90 fm=corner id=469
-H 1307 31.95 1 0.05 fm=edge id=468
-H 1306.002 30 0.05 1 rot=-90 fm=edge id=468
-H 1306.002 29 0.05 1 rot=-90 fm=edge id=468
-H 1306.002 27 0.05 1 rot=-90 fm=edge id=468
-H 1306.002 26 0.05 1 rot=-90 fm=edge id=468
-H 1306.002 28 0.05 1 rot=-90 fm=edge id=468
-H 1308.948 30 0.05 1 rot=90 fm=edge id=468
-H 1308.948 28 0.05 1 rot=90 fm=edge id=468
-H 1308.948 27 0.05 1 rot=90 fm=edge id=468
-H 1308.948 26 0.05 1 rot=90 fm=edge id=468
-H 1308.948 29 0.05 1 rot=90 fm=edge id=468
-H 1308 37 rot=-90 fm=corner id=469
-H 1308.002 38 0.05 1 rot=-90 fm=edge id=468
-H 1308.002 39 0.05 1 rot=-90 fm=edge id=468
-H 1308.002 40 0.05 1 rot=-90 fm=edge id=468
-H 1308.002 42 0.05 1 rot=-90 fm=edge id=468
-H 1308.002 41 0.05 1 rot=-90 fm=edge id=468
-H 1311 37 rot=180 fm=corner id=469
-H 1310 37 1 0.05 rot=180 fm=edge id=468
-H 1309 37 1 0.05 rot=180 fm=edge id=468
-H 1311.948 38 0.05 1 rot=90 fm=edge id=468
-H 1311.948 39 0.05 1 rot=90 fm=edge id=468
-H 1311.948 41 0.05 1 rot=90 fm=edge id=468
-H 1311.948 42 0.05 1 rot=90 fm=edge id=468
-H 1311.948 40 0.05 1 rot=90 fm=edge id=468
-H 1311 31 fm=corner id=469
-H 1311.002 29 0.05 1 rot=-90 fm=edge id=468
-H 1311.002 30 0.05 1 rot=-90 fm=edge id=468
-H 1311.002 28 0.05 1 rot=-90 fm=edge id=468
-H 1311.002 27 0.05 1 rot=-90 fm=edge id=468
-H 1311.002 26 0.05 1 rot=-90 fm=edge id=468
-H 1312 31.95 1 0.05 fm=edge id=468
-H 1313 31.95 1 0.05 fm=edge id=468
-H 1314 31.95 1 0.05 fm=edge id=468
-H 1315 31 rot=90 fm=corner id=469
-H 1315.948 30 0.05 1 rot=90 fm=edge id=468
-H 1315.948 29 0.05 1 rot=90 fm=edge id=468
-H 1315.948 28 0.05 1 rot=90 fm=edge id=468
-H 1315.948 27 0.05 1 rot=90 fm=edge id=468
-H 1315.948 26 0.05 1 rot=90 fm=edge id=468
-H 1315 37 rot=-90 fm=corner id=469
-H 1315.002 38 0.05 1 rot=-90 fm=edge id=468
-H 1315.002 39 0.05 1 rot=-90 fm=edge id=468
-H 1315.002 40 0.05 1 rot=-90 fm=edge id=468
-H 1315.002 41 0.05 1 rot=-90 fm=edge id=468
-H 1315.002 42 0.05 1 rot=-90 fm=edge id=468
-H 1316 37 1 0.05 rot=-180 fm=edge id=468
-H 1317 37 1 0.05 rot=-180 fm=edge id=468
-H 1318 37 rot=-180 fm=corner id=469
-H 1318.948 38 0.05 1 rot=-270 fm=edge id=468
-H 1318.948 39 0.05 1 rot=-270 fm=edge id=468
-H 1318.948 40 0.05 1 rot=-270 fm=edge id=468
-H 1318.948 41 0.05 1 rot=-270 fm=edge id=468
-H 1318.948 42 0.05 1 rot=-270 fm=edge id=468
-H 1318 31 fm=corner id=469
-H 1318.002 30 0.05 1 rot=-90 fm=edge id=468
-H 1318.002 28 0.05 1 rot=-90 fm=edge id=468
-H 1318.002 27 0.05 1 rot=-90 fm=edge id=468
-H 1318.002 29 0.05 1 rot=-90 fm=edge id=468
-H 1318.002 26 0.05 1 rot=-90 fm=edge id=468
-H 1319 31.95 1 0.05 fm=edge id=468
-H 1320 31.95 1 0.05 fm=edge id=468
-H 1321 31.95 1 0.05 fm=edge id=468
 A 1252 34 ar=pink id=1751 z=2
-H 1322 31 rot=90 fm=corner id=469
-H 1322.948 30 0.05 1 rot=90 fm=edge id=468
-H 1322.948 28 0.05 1 rot=90 fm=edge id=468
-H 1322.948 29 0.05 1 rot=90 fm=edge id=468
-H 1322.948 27 0.05 1 rot=90 fm=edge id=468
-H 1322.948 26 0.05 1 rot=90 fm=edge id=468
 R 1322 33 to=cube id=12 z=2
-H 1325 30 fm=corner id=469
-H 1294 31 rot=-270 fm=corner id=469
-H 1293 31.95 1 0.05 fm=edge id=468
-H 1294.948 30 0.05 1 rot=90 fm=edge id=468
-H 1294.948 29 0.05 1 rot=90 fm=edge id=468
-H 1294.948 28 0.05 1 rot=90 fm=edge id=468
-H 1294.948 27 0.05 1 rot=90 fm=edge id=468
-H 1294.948 26 0.05 1 rot=90 fm=edge id=468
 V 1325 32 spd=0 id=200 z=2
-H 1326 30 rot=90 fm=corner id=469
-H 1325.002 29 0.05 1 rot=-90 fm=edge id=468
-H 1325.002 28 0.05 1 rot=-90 fm=edge id=468
-H 1325.002 27 0.05 1 rot=-90 fm=edge id=468
-H 1325.002 26 0.05 1 rot=-90 fm=edge id=468
-H 1325.002 25 0.05 1 rot=-90 fm=edge id=468
-H 1325.002 24 0.05 1 rot=-90 fm=edge id=468
-H 1326.948 29 0.05 1 rot=90 fm=edge id=468
-H 1326.948 28 0.05 1 rot=90 fm=edge id=468
-H 1326.948 27 0.05 1 rot=90 fm=edge id=468
-H 1326.948 26 0.05 1 rot=90 fm=edge id=468
-H 1326.948 25 0.05 1 rot=90 fm=edge id=468
-H 1326.948 24 0.05 1 rot=90 fm=edge id=468
-H 1322.948 25 0.05 1 rot=90 fm=edge id=468
-H 1322.948 24 0.05 1 rot=90 fm=edge id=468
-H 1318.002 25 0.05 1 rot=-90 fm=edge id=468
-H 1318.002 24 0.05 1 rot=-90 fm=edge id=468
 H 1335.5 29.5 1 0.5 fm=box id=662
 H 1339 29.5 1 0.5 fm=box id=662
 H 1328 30.5 0.5 0.5 fm=corner id=661
@@ -2565,10 +1312,10 @@ H 1329.5 30 0.5 0.5 fm=corner id=661
 H 1331 29.5 1 0.5 fm=box id=662
 O 1343 30 orb=yellow id=36 z=2
 R 1345 32 to=ship id=13 z=2
-V 1351 28 spd=1 id=201 z=2
-V 1359 28 spd=2 id=202 z=2
-V 1368 28 spd=3 id=203 z=2
-V 1377 28 spd=4 id=1334 z=2
+V 1351 27 spd=1 id=201 z=2
+V 1359 27 spd=2 id=202 z=2
+V 1368 27 spd=3 id=203 z=2
+V 1377 27 spd=4 id=1334 z=2
 C 1344 32 id=2063
 W 1359.481 28.531 2.039 3.938 id=1705 z=5
 W 1355.033 28.667 2.933 5.667 id=1705 z=5
@@ -2642,19 +1389,18 @@ S 1421 39 id=8
 S 1422 39 id=8
 S 1423 38 id=8
 S 1424 37 rot=90 id=8
-R 1432 35 to=ship id=13 z=2
+R 1433 36 to=ship id=13 z=2
 W 1436.767 37.083 1.467 2.833 id=1705 z=5
-T 1433 35 tpy=-4.667 id=747 z=2
-W 1439.767 29.083 1.467 2.833 id=1705 z=5
+T 1434 36 tpy=-6.667 id=747 z=2
+W 1440.767 28.083 1.467 2.833 id=1705 z=5
 W 1435.767 32.083 1.467 2.833 id=1705 z=5
 W 1437.539 33.644 1.921 3.712 id=1705 z=5
 W 1440.033 35.667 2.933 5.667 id=1705 z=5
-W 1442.349 29.276 2.303 4.448 id=1705 z=5
-W 1446.033 30.667 2.933 5.667 id=1705 z=5
-W 1449.767 35.083 1.467 2.833 id=1705 z=5
-W 1444.444 39.46 2.112 4.08 id=1705 z=5
-W 1448.075 35.678 0.851 1.643 id=1705 z=5
-B 1450 38 id=83
+W 1443.349 28.276 2.303 4.448 id=1705 z=5
+W 1447.033 29.667 2.933 5.667 id=1705 z=5
+W 1449.767 34.083 1.467 2.833 id=1705 z=5
+W 1443.745 42.041 1.511 2.918 id=1705 z=5
+W 1448.075 34.678 0.851 1.643 id=1705 z=5
 B 1451 38 id=83
 R 1450 40 to=spider id=1331 z=2
 B 1452 38 id=83
@@ -2806,7 +1552,6 @@ O 1414 35 orb=green id=1022 z=2
 B 1468 37 id=83
 B 1473 44 id=83
 W 1490.913 38.367 1.173 2.267 id=1705 z=5
-V 1481 41 spd=4 id=1334 z=2
 W 1490.767 33.083 1.467 2.833 id=1705 z=5
 W 1494.033 31.667 2.933 5.667 id=1705 z=5
 W 1492.033 39.667 2.933 5.667 id=1705 z=5
@@ -2934,96 +1679,10 @@ W 1549.686 45.928 1.628 3.145 id=1705 z=5
 W 1550.847 41.239 1.305 2.522 id=1705 z=5
 W 1547.133 39.792 0.733 1.417 id=1705 z=5
 V 198 1 spd=1 id=201 z=2
-H 472.027 5.95 1 0.05 fm=edge id=468
-H 475 9 1 0.05 rot=180 fm=edge id=468
-H 476 5 fm=corner id=469
-H 476.002 4 0.05 1 rot=-90 fm=edge id=468
-H 476.002 2 0.05 1 rot=-90 fm=edge id=468
-H 476.002 1 0.05 1 rot=-90 fm=edge id=468
-H 476.002 3 0.05 1 rot=-90 fm=edge id=468
-H 476.002 0 0.05 1 rot=-90 fm=edge id=468
-H 478 5.95 1 0.05 fm=edge id=468
-H 479 5.95 1 0.05 fm=edge id=468
-H 480 5.95 1 0.05 fm=edge id=468
-H 472.002 10 0.05 1 rot=270 fm=edge id=468
-H 476.948 10 0.05 1 rot=90 fm=edge id=468
-H 478.002 10 0.05 1 rot=270 fm=edge id=468
-H 482 9 1 0.05 rot=180 fm=edge id=468
-H 483 9 rot=180 fm=corner id=469
-H 483.948 10 0.05 1 rot=90 fm=edge id=468
-H 483.948 11 0.05 1 rot=90 fm=edge id=468
-H 483 5 fm=corner id=469
-H 484 5.95 1 0.05 fm=edge id=468
-H 485 5.95 1 0.05 fm=edge id=468
-H 486 5 rot=90 fm=corner id=469
-H 483.002 4 0.05 1 rot=-90 fm=edge id=468
-H 483.002 3 0.05 1 rot=-90 fm=edge id=468
-H 483.002 2 0.05 1 rot=-90 fm=edge id=468
-H 483.002 0 0.05 1 rot=-90 fm=edge id=468
-H 483.002 1 0.05 1 rot=-90 fm=edge id=468
-H 486.948 4 0.05 1 rot=90 fm=edge id=468
-H 486.948 3 0.05 1 rot=90 fm=edge id=468
-H 486.948 2 0.05 1 rot=90 fm=edge id=468
-H 486.948 1 0.05 1 rot=90 fm=edge id=468
-H 486.948 0 0.05 1 rot=90 fm=edge id=468
-H 486 9 rot=-90 fm=corner id=469
-H 486.002 10 0.05 1 rot=-90 fm=edge id=468
-H 486.002 11 0.05 1 rot=-90 fm=edge id=468
-H 487 9 1 0.05 rot=-180 fm=edge id=468
-R 484 7 to=spider id=1331 z=2
-H 525 5 rot=90 fm=corner id=469
-H 525 7 rot=-180 fm=corner id=469
-H 525.948 8 0.05 1 rot=90 fm=edge id=468
-H 525.948 9 0.05 1 rot=90 fm=edge id=468
-H 525.948 10 0.05 1 rot=90 fm=edge id=468
-H 525.948 11 0.05 1 rot=90 fm=edge id=468
-H 525.948 4 0.05 1 rot=90 fm=edge id=468
-H 525.948 3 0.05 1 rot=90 fm=edge id=468
-H 525.948 2 0.05 1 rot=90 fm=edge id=468
-H 525.948 1 0.05 1 rot=90 fm=edge id=468
-H 525.948 0 0.05 1 rot=90 fm=edge id=468
-H 528 4 fm=corner id=469
-H 528.002 3 0.05 1 rot=-90 fm=edge id=468
-H 528.002 2 0.05 1 rot=-90 fm=edge id=468
-H 528.002 1 0.05 1 rot=-90 fm=edge id=468
-H 528.002 0 0.05 1 rot=-90 fm=edge id=468
-H 529 4.95 1 0.05 fm=edge id=468
-H 530 4.95 1 0.05 fm=edge id=468
-H 531 4 rot=90 fm=corner id=469
-H 531.948 3 0.05 1 rot=90 fm=edge id=468
-H 531.948 2 0.05 1 rot=90 fm=edge id=468
-H 531.948 1 0.05 1 rot=90 fm=edge id=468
-H 531.948 0 0.05 1 rot=90 fm=edge id=468
 R 525 6 to=cube id=12 z=2
 O 532 7 orb=yellow id=36 z=2
-H 469 9 1 0.05 rot=180 fm=edge id=468
 S 479 6.175 1 0.25 id=103
 S 531 5 id=8
-H 536 7 fm=corner id=469
-H 536.002 6 0.05 1 rot=-90 fm=edge id=468
-H 536.002 5 0.05 1 rot=-90 fm=edge id=468
-H 536.002 4 0.05 1 rot=-90 fm=edge id=468
-H 536.002 2 0.05 1 rot=-90 fm=edge id=468
-H 536.002 1 0.05 1 rot=-90 fm=edge id=468
-H 536.002 3 0.05 1 rot=-90 fm=edge id=468
-H 536.002 0 0.05 1 rot=-90 fm=edge id=468
-H 537 7.95 1 0.05 fm=edge id=468
-H 538 7.95 1 0.05 fm=edge id=468
-H 539 7.95 1 0.05 fm=edge id=468
-H 540 7.95 1 0.05 fm=edge id=468
-H 541 7.95 1 0.05 fm=edge id=468
-H 542 7.95 1 0.05 fm=edge id=468
-H 546 7 rot=90 fm=corner id=469
-H 543 7.95 1 0.05 fm=edge id=468
-H 544 7.95 1 0.05 fm=edge id=468
-H 545 7.95 1 0.05 fm=edge id=468
-H 546.948 6 0.05 1 rot=90 fm=edge id=468
-H 546.948 5 0.05 1 rot=90 fm=edge id=468
-H 546.948 4 0.05 1 rot=90 fm=edge id=468
-H 546.948 3 0.05 1 rot=90 fm=edge id=468
-H 546.948 2 0.05 1 rot=90 fm=edge id=468
-H 546.948 1 0.05 1 rot=90 fm=edge id=468
-H 546.948 0 0.05 1 rot=90 fm=edge id=468
 D 546 8 1 0.2 pad=blue id=67 z=2
 D 550 16.8 1 0.2 pad=blue rot=180 id=67 z=2
 B 550 17 id=83
@@ -3264,38 +1923,6 @@ B 633 17 id=83
 B 632 17 id=83
 B 633 16 id=83
 B 632 16 id=83
-H 638 18 fm=corner id=469
-H 642 18.95 1 0.05 fm=edge id=468
-H 641 18.95 1 0.05 fm=edge id=468
-H 640 18.95 1 0.05 fm=edge id=468
-H 639 18.95 1 0.05 fm=edge id=468
-H 638.002 17 0.05 1 rot=-90 fm=edge id=468
-H 638.002 16 0.05 1 rot=-90 fm=edge id=468
-H 638 26 rot=-90 fm=corner id=469
-H 640 26 1 0.05 rot=-180 fm=edge id=468
-H 639 26 1 0.05 rot=-180 fm=edge id=468
-H 641 26 1 0.05 rot=-180 fm=edge id=468
-H 642 26 1 0.05 rot=-180 fm=edge id=468
-H 643 26 1 0.05 rot=-180 fm=edge id=468
-H 644 26 1 0.05 rot=-180 fm=edge id=468
-H 645 26 1 0.05 rot=-180 fm=edge id=468
-H 638.002 27 0.05 1 rot=-90 fm=edge id=468
-H 638.002 28 0.05 1 rot=-90 fm=edge id=468
-H 646 26 1 0.05 rot=-180 fm=edge id=468
-H 647 26 1 0.05 rot=-180 fm=edge id=468
-H 648 26 1 0.05 rot=-180 fm=edge id=468
-H 649 26 1 0.05 rot=-180 fm=edge id=468
-H 650 26 1 0.05 rot=-180 fm=edge id=468
-H 652 26 1 0.05 rot=-180 fm=edge id=468
-H 654 26 1 0.05 rot=-180 fm=edge id=468
-H 655 26 1 0.05 rot=-180 fm=edge id=468
-H 651 26 1 0.05 rot=-180 fm=edge id=468
-H 653 26 1 0.05 rot=-180 fm=edge id=468
-H 656 26 1 0.05 rot=-180 fm=edge id=468
-H 657 26 1 0.05 rot=-180 fm=edge id=468
-H 658 26 1 0.05 rot=-180 fm=edge id=468
-H 659 26 1 0.05 rot=-180 fm=edge id=468
-H 660 26 1 0.05 rot=-180 fm=edge id=468
 E 638 22 art=3823 id=3823 z=3
 E 639 23 art=3823 id=3823 z=3
 E 639 21 art=3823 id=3823 z=3
@@ -3309,83 +1936,7 @@ W 613.561 25.687 1.877 3.627 id=1705 z=5
 W 621.033 27.667 2.933 5.667 id=1705 z=5
 W 625.51 27.588 1.98 3.825 id=1705 z=5
 W 627.085 13.766 2.831 5.468 id=1705 z=5
-W 634.033 24.667 2.933 5.667 id=1705 z=5
-W 634.033 13.667 2.933 5.667 id=1705 z=5
 W 619.576 13.715 1.848 3.57 id=1705 z=5
-V 0 10 spd=0 id=200 z=2
-B 0 9 id=83
-B 0 14 id=83
-B 1 13 id=83
-B 0 13 id=83
-B 1 14 id=83
-B 0 8 id=83
-B 1 9 id=83
-B 1 8 id=83
-B 1 7 id=83
-B 2 8 id=83
-B 2 7 id=83
-B 3 7 id=83
-B 2 9 id=83
-B 0 6 id=83
-B 2 13 id=83
-B 2 14 id=83
-B 3 13 id=83
-B 3 14 id=83
-B 3 16 id=83
-B 2 15 id=83
-B 0 15 id=83
-B 1 15 id=83
-B 5 15 id=83
-B 4 13 id=83
-B 3 9 id=83
-B 3 8 id=83
-B 4 9 id=83
-B 5 5 id=83
-B 5 6 id=83
-B 5 9 id=83
-B 6 9 id=83
-B 7 8 id=83
-B 7 9 id=83
-B 6 8 id=83
-B 5 8 id=83
-B 7 7 id=83
-B 8 8 id=83
-B 8 7 id=83
-B 9 8 id=83
-B 8 9 id=83
-B 9 7 id=83
-B 9 9 id=83
-B 10 9 id=83
-B 11 8 id=83
-B 11 9 id=83
-B 13 9 id=83
-B 12 9 id=83
-B 13 8 id=83
-B 12 8 id=83
-B 14 8 id=83
-B 18 8 id=83
-B 19 8 id=83
-B 20 8 id=83
-B 17 9 id=83
-B 16 9 id=83
-B 15 9 id=83
-B 14 9 id=83
-B 18 9 id=83
-B 19 9 id=83
-B 20 9 id=83
-B 21 9 id=83
-B 22 9 id=83
-B 22 8 id=83
-B 21 8 id=83
-B 20 7 id=83
-B 14 7 id=83
-B 13 7 id=83
-B 12 7 id=83
-B 16 7 id=83
-B 15 6 id=83
-B 9 6 id=83
-B 11 5 id=83
-B 21 6 id=83
 B 23 9 id=83
 B 24 7 id=83
 B 26 9 id=83
@@ -3424,7 +1975,6 @@ B 43 8 id=83
 B 44 8 id=83
 B 45 8 id=83
 B 46 8 id=83
-B 47 8 id=83
 B 47 7 id=83
 B 46 7 id=83
 B 39 6 id=83
@@ -3748,18 +2298,6 @@ S 43 5 rot=180 id=8
 S 27 6 rot=180 id=8
 S 25 7 rot=90 id=8
 S 24 8 id=8
-S 19 7 rot=-90 id=8
-S 13 6 rot=-180 id=8
-S 7 6 rot=-180 id=8
-S 2 6 rot=-180 id=8
-S 3 12 rot=-180 id=8
-B 16 12 id=83
-B 17 12 id=83
-B 18 12 id=83
-B 15 14 id=83
-B 16 13 id=83
-B 20 13 id=83
-B 20 14 id=83
 B 34 12 id=83
 B 33 12 id=83
 B 32 12 id=83
@@ -3769,7 +2307,6 @@ B 36 13 id=83
 B 34 13 id=83
 B 28 13 id=83
 S 33 11 rot=180 id=8
-S 20 12 rot=180 id=8
 S 56 11 rot=180 id=8
 B 56 12 id=83
 B 57 11 id=83
@@ -3779,7 +2316,6 @@ B 59 12 id=83
 B 57 13 id=83
 B 60 11 id=83
 S 59 10 rot=180 id=8
-B 54 13 id=83
 B 63 10 id=83
 B 45 5 id=83
 S 63 9 rot=180 id=8
@@ -3931,8 +2467,8 @@ W 1574.033 38.667 2.933 5.667 id=1705 z=5
 Z 1578 45 mini=1 id=101 z=2
 W 1580.547 49.658 1.907 3.683 id=1705 z=5
 W 1585.327 50.233 2.347 4.533 id=1705 z=5
-W 1580.033 38.667 2.933 5.667 id=1705 z=5
-W 1586.033 38.667 2.933 5.667 id=1705 z=5
+W 1579.033 37.667 2.933 5.667 id=1705 z=5
+W 1586.033 37.667 2.933 5.667 id=1705 z=5
 W 1589.605 40.772 1.789 3.457 id=1705 z=5
 B 1586 42 id=83
 B 1585 42 id=83
@@ -3950,7 +2486,7 @@ B 1592 51 id=83
 B 1593 52 id=83
 B 1592 52 id=83
 W 1590.767 50.083 1.467 2.833 id=1705 z=5
-W 1583.605 41.772 1.789 3.457 id=1705 z=5
+W 1583.605 40.772 1.789 3.457 id=1705 z=5
 W 1588.987 51.508 1.027 1.983 id=1705 z=5
 W 1583.987 50.508 1.027 1.983 id=1705 z=5
 W 1594.107 38.808 2.787 5.383 id=1705 z=5
@@ -4054,8 +2590,8 @@ B 1642 43 id=83
 O 1643 47 orb=pink id=141 col=13017343 z=2
 R 1653 50 to=ship id=13 z=2
 T 1654 50 tpy=-5.667 id=747 z=2
-W 1654.9 41.021 2.2 4.25 id=1705 z=5
-W 1658.533 40.313 2.933 5.667 id=1705 z=5
+W 1654.9 40.021 2.2 4.25 id=1705 z=5
+W 1658.533 39.313 2.933 5.667 id=1705 z=5
 W 1663.003 45.219 1.995 3.853 id=1705 z=5
 W 1656.039 48.29 1.921 3.712 id=1705 z=5
 W 1654.533 51.313 2.933 5.667 id=1705 z=5
@@ -4063,11 +2599,11 @@ W 1659.533 50.313 2.933 5.667 id=1705 z=5
 W 1658.633 49.438 0.733 1.417 id=1705 z=5
 W 1663.186 53.574 1.628 3.145 id=1705 z=5
 W 1665.347 47.885 1.305 2.522 id=1705 z=5
-W 1657.633 44.438 0.733 1.417 id=1705 z=5
+W 1657.633 43.438 0.733 1.417 id=1705 z=5
 W 1663.003 42.073 1.995 3.853 id=1705 z=5
 W 1667.533 47.166 2.933 5.667 id=1705 z=5
 W 1666.533 42.166 2.933 5.667 id=1705 z=5
-W 1660.589 45.206 0.821 1.587 id=1705 z=5
+W 1661.589 44.206 0.821 1.587 id=1705 z=5
 W 1663.589 52.206 0.821 1.587 id=1705 z=5
 W 1665.362 53.767 1.276 2.465 id=1705 z=5
 R 1668 54 to=spider id=1331 z=2
@@ -4732,7 +3268,7 @@ D 1870 57.967 1 0.2 pad=pink id=140 z=2
 G 1972 55 gd=-1 id=11 z=2
 W 1978.576 52.715 1.848 3.57 id=1705 z=5
 W 1981.444 54.46 2.112 4.08 id=1705 z=5
-W 1936.767 52.083 1.467 2.833 id=1705 z=5
+W 1971.334 49.248 2.332 4.505 id=1705 z=5
 S 1946 58 id=8
 S 1947 58 id=8
 S 1950 58 id=8
@@ -5672,747 +4208,27 @@ B 2248 74 id=83
 B 2251 76 id=83
 B 2251 75 id=83
 G 2251 71 gd=1 id=10 z=2
-H 2251 69 fm=corner id=469
-H 2251.002 68 0.05 1 rot=-90 fm=edge id=468
-H 2251.002 67 0.05 1 rot=-90 fm=edge id=468
-H 2251.002 66 0.05 1 rot=-90 fm=edge id=468
-H 2251.002 65 0.05 1 rot=-90 fm=edge id=468
-H 2251.002 64 0.05 1 rot=-90 fm=edge id=468
-H 2251.002 63 0.05 1 rot=-90 fm=edge id=468
-H 2252 69.95 1 0.05 fm=edge id=468
-H 2253 69.95 1 0.05 fm=edge id=468
-H 2254 69.95 1 0.05 fm=edge id=468
-H 2255 69.95 1 0.05 fm=edge id=468
-H 2256 69.95 1 0.05 fm=edge id=468
-H 2257 69.95 1 0.05 fm=edge id=468
-H 2258 69.95 1 0.05 fm=edge id=468
-H 2260 69.95 1 0.05 fm=edge id=468
-H 2261 69.95 1 0.05 fm=edge id=468
-H 2262 69.95 1 0.05 fm=edge id=468
-H 2259 69.95 1 0.05 fm=edge id=468
-R 2258 71 to=spider id=1331 z=2
-H 2263 69 rot=90 fm=corner id=469
-H 2263.948 68 0.05 1 rot=90 fm=edge id=468
-H 2263.948 67 0.05 1 rot=90 fm=edge id=468
-H 2263.948 66 0.05 1 rot=90 fm=edge id=468
-H 2263.948 65 0.05 1 rot=90 fm=edge id=468
-H 2263.948 64 0.05 1 rot=90 fm=edge id=468
-H 2263.948 63 0.05 1 rot=90 fm=edge id=468
-H 2262 74 rot=-90 fm=corner id=469
-H 2264 74 1 0.05 rot=180 fm=edge id=468
-H 2265 74 1 0.05 rot=180 fm=edge id=468
-H 2262.002 75 0.05 1 rot=270 fm=edge id=468
-H 2262.002 76 0.05 1 rot=270 fm=edge id=468
-H 2262.002 77 0.05 1 rot=270 fm=edge id=468
-H 2262.002 78 0.05 1 rot=270 fm=edge id=468
-H 2262.002 79 0.05 1 rot=270 fm=edge id=468
 C 2056 60 id=2063
 E 2256 71 art=3848 id=3848 z=3
-H 2263 74 1 0.05 rot=180 fm=edge id=468
-H 2266 74 rot=-180 fm=corner id=469
-H 2266.948 75 0.05 1 rot=90 fm=edge id=468
-H 2266.948 76 0.05 1 rot=90 fm=edge id=468
-H 2266.948 77 0.05 1 rot=90 fm=edge id=468
-H 2266.948 79 0.05 1 rot=90 fm=edge id=468
-H 2266.948 78 0.05 1 rot=90 fm=edge id=468
-H 2265 69 fm=corner id=469
-H 2265.002 67 0.05 1 rot=-90 fm=edge id=468
-H 2265.002 68 0.05 1 rot=-90 fm=edge id=468
-H 2265.002 66 0.05 1 rot=-90 fm=edge id=468
-H 2265.002 65 0.05 1 rot=-90 fm=edge id=468
-H 2265.002 64 0.05 1 rot=-90 fm=edge id=468
-H 2265.002 63 0.05 1 rot=-90 fm=edge id=468
-H 2267 69.95 1 0.05 fm=edge id=468
-H 2268 69.95 1 0.05 fm=edge id=468
-H 2266 69.95 1 0.05 fm=edge id=468
-H 2269 74 rot=-90 fm=corner id=469
-H 2270 74 1 0.05 rot=180 fm=edge id=468
-H 2269.002 75 0.05 1 rot=-90 fm=edge id=468
-H 2269.002 76 0.05 1 rot=-90 fm=edge id=468
-H 2269.002 77 0.05 1 rot=-90 fm=edge id=468
-H 2269.002 78 0.05 1 rot=-90 fm=edge id=468
-H 2269.002 79 0.05 1 rot=-90 fm=edge id=468
-H 2271 74 1 0.05 rot=-180 fm=edge id=468
-H 2269 69 rot=90 fm=corner id=469
-H 2269.948 68 0.05 1 rot=90 fm=edge id=468
-H 2269.948 66 0.05 1 rot=90 fm=edge id=468
-H 2269.948 64 0.05 1 rot=90 fm=edge id=468
-H 2269.948 67 0.05 1 rot=90 fm=edge id=468
-H 2269.948 65 0.05 1 rot=90 fm=edge id=468
-H 2269.948 63 0.05 1 rot=90 fm=edge id=468
-H 2271 69 fm=corner id=469
-H 2271.002 68 0.05 1 rot=-90 fm=edge id=468
-H 2271.002 67 0.05 1 rot=-90 fm=edge id=468
-H 2271.002 66 0.05 1 rot=-90 fm=edge id=468
-H 2271.002 65 0.05 1 rot=-90 fm=edge id=468
-H 2271.002 64 0.05 1 rot=-90 fm=edge id=468
-H 2271.002 63 0.05 1 rot=-90 fm=edge id=468
-H 2272 69.95 1 0.05 fm=edge id=468
-H 2273 69.95 1 0.05 fm=edge id=468
-H 2274 69.95 1 0.05 fm=edge id=468
-H 2272 74 1 0.05 rot=180 fm=edge id=468
-H 2273 74 1 0.05 rot=180 fm=edge id=468
-H 2275 74 rot=-180 fm=corner id=469
-H 2275.948 75 0.05 1 rot=-270 fm=edge id=468
-H 2275.948 76 0.05 1 rot=-270 fm=edge id=468
-H 2275.948 77 0.05 1 rot=-270 fm=edge id=468
-H 2275.948 78 0.05 1 rot=-270 fm=edge id=468
-H 2275.948 79 0.05 1 rot=-270 fm=edge id=468
 S 2273.75 70.144 1 0.063 id=392
 S 2272.25 73.794 1 0.063 rot=180 id=392
-H 2274 74 1 0.05 rot=180 fm=edge id=468
-H 2275 69.95 1 0.05 fm=edge id=468
-H 2276 69.95 1 0.05 fm=edge id=468
-H 2277 69.95 1 0.05 fm=edge id=468
-H 2278 69.95 1 0.05 fm=edge id=468
-H 2279 69.95 1 0.05 fm=edge id=468
-H 2280 69.95 1 0.05 fm=edge id=468
-H 2281 69.95 1 0.05 fm=edge id=468
-H 2282 69.95 1 0.05 fm=edge id=468
-H 2283 69.95 1 0.05 fm=edge id=468
-H 2284 69.95 1 0.05 fm=edge id=468
-H 2285 69.95 1 0.05 fm=edge id=468
-H 2286 69 rot=90 fm=corner id=469
-H 2286.948 67 0.05 1 rot=90 fm=edge id=468
-H 2286.948 68 0.05 1 rot=90 fm=edge id=468
-H 2286.948 65 0.05 1 rot=90 fm=edge id=468
-H 2286.948 66 0.05 1 rot=90 fm=edge id=468
-H 2286.948 64 0.05 1 rot=90 fm=edge id=468
-H 2286.948 63 0.05 1 rot=90 fm=edge id=468
-H 2286 74 rot=-90 fm=corner id=469
-H 2286.002 75 0.05 1 rot=270 fm=edge id=468
-H 2286.002 76 0.05 1 rot=270 fm=edge id=468
-H 2286.002 78 0.05 1 rot=270 fm=edge id=468
-H 2286.002 79 0.05 1 rot=270 fm=edge id=468
-H 2286.002 77 0.05 1 rot=270 fm=edge id=468
-H 2287 74 1 0.05 rot=180 fm=edge id=468
-H 2288 74 1 0.05 rot=180 fm=edge id=468
-H 2289 74 rot=180 fm=corner id=469
-H 2289.948 75 0.05 1 rot=-270 fm=edge id=468
-H 2289.948 76 0.05 1 rot=-270 fm=edge id=468
-H 2289.948 77 0.05 1 rot=-270 fm=edge id=468
-H 2289.948 78 0.05 1 rot=-270 fm=edge id=468
-H 2289.948 79 0.05 1 rot=-270 fm=edge id=468
-H 2289 69 fm=corner id=469
-H 2289.002 68 0.05 1 rot=-90 fm=edge id=468
-H 2289.002 67 0.05 1 rot=-90 fm=edge id=468
-H 2289.002 66 0.05 1 rot=-90 fm=edge id=468
-H 2289.002 65 0.05 1 rot=-90 fm=edge id=468
-H 2289.002 64 0.05 1 rot=-90 fm=edge id=468
-H 2289.002 63 0.05 1 rot=-90 fm=edge id=468
-H 2290 69.95 1 0.05 fm=edge id=468
-H 2291 69.95 1 0.05 fm=edge id=468
-H 2292 69 rot=90 fm=corner id=469
-H 2292.948 67 0.05 1 rot=90 fm=edge id=468
-H 2292.948 68 0.05 1 rot=90 fm=edge id=468
-H 2292.948 66 0.05 1 rot=90 fm=edge id=468
-H 2292.948 65 0.05 1 rot=90 fm=edge id=468
-H 2292.948 64 0.05 1 rot=90 fm=edge id=468
-H 2292.948 63 0.05 1 rot=90 fm=edge id=468
-H 2292 74 rot=-90 fm=corner id=469
-H 2292.002 75 0.05 1 rot=-90 fm=edge id=468
-H 2292.002 76 0.05 1 rot=-90 fm=edge id=468
-H 2292.002 77 0.05 1 rot=-90 fm=edge id=468
-H 2292.002 78 0.05 1 rot=-90 fm=edge id=468
-H 2292.002 79 0.05 1 rot=-90 fm=edge id=468
-H 2293 74 1 0.05 rot=180 fm=edge id=468
-H 2294 74 1 0.05 rot=180 fm=edge id=468
-H 2295 69 fm=corner id=469
-H 2295.002 68 0.05 1 rot=-90 fm=edge id=468
-H 2295.002 67 0.05 1 rot=-90 fm=edge id=468
-H 2295.002 65 0.05 1 rot=-90 fm=edge id=468
-H 2295.002 66 0.05 1 rot=-90 fm=edge id=468
-H 2295.002 64 0.05 1 rot=-90 fm=edge id=468
-H 2295.002 63 0.05 1 rot=-90 fm=edge id=468
-H 2296 69.95 1 0.05 fm=edge id=468
-H 2297 69.95 1 0.05 fm=edge id=468
-H 2298 69.95 1 0.05 fm=edge id=468
-H 2298 74 rot=180 fm=corner id=469
-H 2297 74 1 0.05 rot=180 fm=edge id=468
-H 2295 74 1 0.05 rot=180 fm=edge id=468
-H 2296 74 1 0.05 rot=180 fm=edge id=468
-H 2298.948 75 0.05 1 rot=90 fm=edge id=468
-H 2298.948 77 0.05 1 rot=90 fm=edge id=468
-H 2298.948 79 0.05 1 rot=90 fm=edge id=468
-H 2298.948 78 0.05 1 rot=90 fm=edge id=468
-H 2298.948 76 0.05 1 rot=90 fm=edge id=468
 S 2295.75 73.794 1 0.063 rot=180 id=392
 S 2297.25 70.144 1 0.063 id=392
-H 2299 69.95 1 0.05 fm=edge id=468
-H 2300 69.95 1 0.05 fm=edge id=468
-H 2301 69.95 1 0.05 fm=edge id=468
-H 2302 69.95 1 0.05 fm=edge id=468
-H 2303 69.95 1 0.05 fm=edge id=468
-H 2304 69.95 1 0.05 fm=edge id=468
-H 2305 69.95 1 0.05 fm=edge id=468
-H 2306 69.95 1 0.05 fm=edge id=468
-H 2307 69.95 1 0.05 fm=edge id=468
-H 2308 69.95 1 0.05 fm=edge id=468
-H 2309 69.95 1 0.05 fm=edge id=468
-H 2309 73 rot=-90 fm=corner id=469
-H 2310 73 1 0.05 rot=180 fm=edge id=468
-H 2309.002 76 0.05 1 rot=-90 fm=edge id=468
-H 2309.002 75 0.05 1 rot=-90 fm=edge id=468
-H 2309.002 74 0.05 1 rot=-90 fm=edge id=468
-H 2309.002 77 0.05 1 rot=-90 fm=edge id=468
-H 2310 69.95 1 0.05 fm=edge id=468
-H 2311 69.95 1 0.05 fm=edge id=468
-H 2312 69.95 1 0.05 fm=edge id=468
 S 2309.75 70.144 1 0.063 id=392
-H 2313 69.95 1 0.05 fm=edge id=468
-H 2314 69.95 1 0.05 fm=edge id=468
-H 2315 69.95 1 0.05 fm=edge id=468
-H 2316 69.95 1 0.05 fm=edge id=468
-H 2317 69.95 1 0.05 fm=edge id=468
-H 2315 73 1 0.05 rot=180 fm=edge id=468
-H 2314 73 rot=-90 fm=corner id=469
-H 2316 73 rot=180 fm=corner id=469
-H 2316.948 74 0.05 1 rot=90 fm=edge id=468
-H 2316.948 75 0.05 1 rot=90 fm=edge id=468
-H 2316.948 76 0.05 1 rot=90 fm=edge id=468
-H 2316.948 77 0.05 1 rot=90 fm=edge id=468
-H 2314.002 77 0.05 1 rot=-90 fm=edge id=468
-H 2314.002 76 0.05 1 rot=-90 fm=edge id=468
-H 2314.002 75 0.05 1 rot=-90 fm=edge id=468
-H 2314.002 74 0.05 1 rot=-90 fm=edge id=468
 S 2314.75 70.144 1 0.063 id=392
-H 2311 73 rot=180 fm=corner id=469
-H 2311.948 74 0.05 1 rot=90 fm=edge id=468
-H 2311.948 75 0.05 1 rot=90 fm=edge id=468
-H 2311.948 76 0.05 1 rot=90 fm=edge id=468
-H 2311.948 77 0.05 1 rot=90 fm=edge id=468
-H 2318 69.95 1 0.05 fm=edge id=468
-H 2323 73 1 0.05 rot=180 fm=edge id=468
-H 2319 73 rot=-90 fm=corner id=469
-H 2322 73 1 0.05 rot=180 fm=edge id=468
-H 2321 73 1 0.05 rot=180 fm=edge id=468
-H 2320 73 1 0.05 rot=180 fm=edge id=468
-H 2319.002 74 0.05 1 rot=270 fm=edge id=468
-H 2319.002 75 0.05 1 rot=270 fm=edge id=468
-H 2319.002 76 0.05 1 rot=270 fm=edge id=468
-H 2319.002 77 0.05 1 rot=270 fm=edge id=468
-H 2319 69 rot=90 fm=corner id=469
-H 2319.948 67 0.05 1 rot=90 fm=edge id=468
-H 2319.948 68 0.05 1 rot=90 fm=edge id=468
-H 2319.948 65 0.05 1 rot=90 fm=edge id=468
-H 2319.948 66 0.05 1 rot=90 fm=edge id=468
-H 2319.948 64 0.05 1 rot=90 fm=edge id=468
-H 2319.948 63 0.05 1 rot=90 fm=edge id=468
-H 2324 73 1 0.05 rot=180 fm=edge id=468
-H 2325 73 1 0.05 rot=180 fm=edge id=468
-H 2326 73 1 0.05 rot=180 fm=edge id=468
-H 2327 73 1 0.05 rot=180 fm=edge id=468
-H 2329 73 1 0.05 rot=180 fm=edge id=468
-H 2330 73 1 0.05 rot=180 fm=edge id=468
-H 2331 73 1 0.05 rot=180 fm=edge id=468
-H 2328 73 1 0.05 rot=180 fm=edge id=468
-H 2322 69 fm=corner id=469
-H 2323 69.95 1 0.05 fm=edge id=468
-H 2324 69 rot=90 fm=corner id=469
-H 2322.002 68 0.05 1 rot=-90 fm=edge id=468
-H 2322.002 67 0.05 1 rot=-90 fm=edge id=468
-H 2322.002 65 0.05 1 rot=-90 fm=edge id=468
-H 2322.002 66 0.05 1 rot=-90 fm=edge id=468
-H 2322.002 64 0.05 1 rot=-90 fm=edge id=468
-H 2322.002 63 0.05 1 rot=-90 fm=edge id=468
-H 2324.948 68 0.05 1 rot=90 fm=edge id=468
-H 2324.948 67 0.05 1 rot=90 fm=edge id=468
-H 2324.948 66 0.05 1 rot=90 fm=edge id=468
-H 2324.948 65 0.05 1 rot=90 fm=edge id=468
-H 2324.948 64 0.05 1 rot=90 fm=edge id=468
-H 2324.948 63 0.05 1 rot=90 fm=edge id=468
 S 2322.75 72.794 1 0.063 rot=180 id=392
-H 2326 69 fm=corner id=469
-H 2327 69.95 1 0.05 fm=edge id=468
-H 2328 69 rot=90 fm=corner id=469
-H 2326.002 68 0.05 1 rot=-90 fm=edge id=468
-H 2326.002 67 0.05 1 rot=-90 fm=edge id=468
-H 2326.002 66 0.05 1 rot=-90 fm=edge id=468
-H 2326.002 64 0.05 1 rot=-90 fm=edge id=468
-H 2326.002 63 0.05 1 rot=-90 fm=edge id=468
-H 2326.002 65 0.05 1 rot=-90 fm=edge id=468
-H 2328.948 68 0.05 1 rot=90 fm=edge id=468
-H 2328.948 67 0.05 1 rot=90 fm=edge id=468
-H 2328.948 66 0.05 1 rot=90 fm=edge id=468
-H 2328.948 65 0.05 1 rot=90 fm=edge id=468
-H 2328.948 64 0.05 1 rot=90 fm=edge id=468
-H 2328.948 63 0.05 1 rot=90 fm=edge id=468
 S 2326.75 72.794 1 0.063 rot=180 id=392
-H 2333 73 rot=-180 fm=corner id=469
-H 2332 73 1 0.05 rot=180 fm=edge id=468
-H 2333.948 74 0.05 1 rot=90 fm=edge id=468
-H 2333.948 75 0.05 1 rot=90 fm=edge id=468
-H 2333.948 76 0.05 1 rot=90 fm=edge id=468
-H 2333.948 77 0.05 1 rot=90 fm=edge id=468
-H 2333 69 fm=corner id=469
-H 2333.002 67 0.05 1 rot=-90 fm=edge id=468
-H 2333.002 68 0.05 1 rot=-90 fm=edge id=468
-H 2333.002 66 0.05 1 rot=-90 fm=edge id=468
-H 2333.002 65 0.05 1 rot=-90 fm=edge id=468
-H 2333.002 64 0.05 1 rot=-90 fm=edge id=468
-H 2333.002 63 0.05 1 rot=-90 fm=edge id=468
-H 2334 69.95 1 0.05 fm=edge id=468
-H 2335 69.95 1 0.05 fm=edge id=468
-H 2337 69.95 1 0.05 fm=edge id=468
-H 2338 69.95 1 0.05 fm=edge id=468
-H 2339 69.95 1 0.05 fm=edge id=468
-H 2336 69.95 1 0.05 fm=edge id=468
-H 2340 69.95 1 0.05 fm=edge id=468
-H 2341 69.95 1 0.05 fm=edge id=468
-H 2342 69.95 1 0.05 fm=edge id=468
-H 2343 69 rot=90 fm=corner id=469
-H 2343.948 68 0.05 1 rot=90 fm=edge id=468
-H 2343.948 67 0.05 1 rot=90 fm=edge id=468
-H 2343.948 66 0.05 1 rot=90 fm=edge id=468
-H 2343.948 65 0.05 1 rot=90 fm=edge id=468
-H 2343.948 64 0.05 1 rot=90 fm=edge id=468
-H 2343.948 63 0.05 1 rot=90 fm=edge id=468
-H 2343 73 rot=-90 fm=corner id=469
-H 2343.002 74 0.05 1 rot=-90 fm=edge id=468
-H 2343.002 75 0.05 1 rot=-90 fm=edge id=468
-H 2343.002 76 0.05 1 rot=-90 fm=edge id=468
-H 2343.002 77 0.05 1 rot=-90 fm=edge id=468
-H 2344 73 1 0.05 rot=-180 fm=edge id=468
-H 2345 73 1 0.05 rot=-180 fm=edge id=468
-H 2346 73 rot=180 fm=corner id=469
-H 2345 69 fm=corner id=469
-H 2345.002 68 0.05 1 rot=-90 fm=edge id=468
-H 2345.002 67 0.05 1 rot=-90 fm=edge id=468
-H 2345.002 66 0.05 1 rot=-90 fm=edge id=468
-H 2345.002 65 0.05 1 rot=-90 fm=edge id=468
-H 2345.002 64 0.05 1 rot=-90 fm=edge id=468
-H 2345.002 63 0.05 1 rot=-90 fm=edge id=468
-H 2346 69.95 1 0.05 fm=edge id=468
-H 2347 69.95 1 0.05 fm=edge id=468
-H 2348 69.95 1 0.05 fm=edge id=468
-H 2349 69.95 1 0.05 fm=edge id=468
-H 2350 69.95 1 0.05 fm=edge id=468
-H 2351 69.95 1 0.05 fm=edge id=468
-H 2353 69.95 1 0.05 fm=edge id=468
-H 2352 69.95 1 0.05 fm=edge id=468
-H 2346.948 74 0.05 1 rot=90 fm=edge id=468
-H 2346.948 75 0.05 1 rot=90 fm=edge id=468
-H 2346.948 76 0.05 1 rot=90 fm=edge id=468
-H 2346.948 77 0.05 1 rot=90 fm=edge id=468
-H 2354 73 rot=-90 fm=corner id=469
-H 2354.002 74 0.05 1 rot=-90 fm=edge id=468
-H 2354.002 75 0.05 1 rot=-90 fm=edge id=468
-H 2354.002 76 0.05 1 rot=-90 fm=edge id=468
-H 2354.002 77 0.05 1 rot=-90 fm=edge id=468
-H 2355 73 1 0.05 rot=-180 fm=edge id=468
-H 2356 73 1 0.05 rot=-180 fm=edge id=468
-H 2357 73 rot=180 fm=corner id=469
-H 2357.948 74 0.05 1 rot=90 fm=edge id=468
-H 2357.948 75 0.05 1 rot=90 fm=edge id=468
-H 2357.948 77 0.05 1 rot=90 fm=edge id=468
-H 2357.948 76 0.05 1 rot=90 fm=edge id=468
-H 2354 69 rot=90 fm=corner id=469
-H 2354.948 68 0.05 1 rot=90 fm=edge id=468
-H 2354.948 67 0.05 1 rot=90 fm=edge id=468
-H 2354.948 66 0.05 1 rot=90 fm=edge id=468
-H 2354.948 65 0.05 1 rot=90 fm=edge id=468
-H 2354.948 64 0.05 1 rot=90 fm=edge id=468
-H 2354.948 63 0.05 1 rot=90 fm=edge id=468
-H 2357 69 fm=corner id=469
-H 2357.002 68 0.05 1 rot=-90 fm=edge id=468
-H 2357.002 67 0.05 1 rot=-90 fm=edge id=468
-H 2357.002 66 0.05 1 rot=-90 fm=edge id=468
-H 2357.002 65 0.05 1 rot=-90 fm=edge id=468
-H 2357.002 63 0.05 1 rot=-90 fm=edge id=468
-H 2357.002 64 0.05 1 rot=-90 fm=edge id=468
-H 2358 69.95 1 0.05 fm=edge id=468
-H 2359 69.95 1 0.05 fm=edge id=468
-H 2360 69 rot=90 fm=corner id=469
-H 2360.948 68 0.05 1 rot=90 fm=edge id=468
-H 2360.948 67 0.05 1 rot=90 fm=edge id=468
-H 2360.948 65 0.05 1 rot=90 fm=edge id=468
-H 2360.948 66 0.05 1 rot=90 fm=edge id=468
-H 2360.948 64 0.05 1 rot=90 fm=edge id=468
-H 2360.948 63 0.05 1 rot=90 fm=edge id=468
-H 2360 73 rot=-90 fm=corner id=469
-H 2360.002 74 0.05 1 rot=270 fm=edge id=468
-H 2360.002 75 0.05 1 rot=270 fm=edge id=468
-H 2360.002 76 0.05 1 rot=270 fm=edge id=468
-H 2360.002 77 0.05 1 rot=270 fm=edge id=468
-H 2361 73 1 0.05 rot=180 fm=edge id=468
-H 2362 73 1 0.05 rot=180 fm=edge id=468
-H 2363 73 rot=180 fm=corner id=469
-H 2363.948 74 0.05 1 rot=-270 fm=edge id=468
-H 2363.948 75 0.05 1 rot=-270 fm=edge id=468
-H 2363.948 76 0.05 1 rot=-270 fm=edge id=468
-H 2363.948 77 0.05 1 rot=-270 fm=edge id=468
-H 2363 69 fm=corner id=469
-H 2363.002 68 0.05 1 rot=-90 fm=edge id=468
-H 2363.002 67 0.05 1 rot=-90 fm=edge id=468
-H 2363.002 65 0.05 1 rot=-90 fm=edge id=468
-H 2363.002 64 0.05 1 rot=-90 fm=edge id=468
-H 2363.002 66 0.05 1 rot=-90 fm=edge id=468
-H 2363.002 63 0.05 1 rot=-90 fm=edge id=468
-H 2364 69.95 1 0.05 fm=edge id=468
-H 2365 69.95 1 0.05 fm=edge id=468
-H 2366 69.95 1 0.05 fm=edge id=468
-H 2367 69.95 1 0.05 fm=edge id=468
-H 2368 69.95 1 0.05 fm=edge id=468
-H 2369 69.95 1 0.05 fm=edge id=468
-H 2365 73 rot=-90 fm=corner id=469
-H 2369 73 rot=180 fm=corner id=469
-H 2368 73 1 0.05 rot=180 fm=edge id=468
-H 2367 73 1 0.05 rot=180 fm=edge id=468
-H 2366 73 1 0.05 rot=180 fm=edge id=468
-H 2365.002 74 0.05 1 rot=270 fm=edge id=468
-H 2365.002 75 0.05 1 rot=270 fm=edge id=468
-H 2365.002 76 0.05 1 rot=270 fm=edge id=468
-H 2365.002 77 0.05 1 rot=270 fm=edge id=468
-H 2369.948 76 0.05 1 rot=90 fm=edge id=468
-H 2369.948 77 0.05 1 rot=90 fm=edge id=468
-H 2369.948 75 0.05 1 rot=90 fm=edge id=468
-H 2369.948 74 0.05 1 rot=90 fm=edge id=468
 S 2366.25 72.794 1 0.063 rot=180 id=392
 S 2367.75 70.144 1 0.063 id=392
-H 2370 69.95 1 0.05 fm=edge id=468
-H 2371 69.95 1 0.05 fm=edge id=468
-H 2372 69.95 1 0.05 fm=edge id=468
-H 2373 69.95 1 0.05 fm=edge id=468
-H 2375 69.95 1 0.05 fm=edge id=468
-H 2377 69.95 1 0.05 fm=edge id=468
-H 2378 69.95 1 0.05 fm=edge id=468
-H 2374 69.95 1 0.05 fm=edge id=468
-H 2379 69.95 1 0.05 fm=edge id=468
-H 2376 69.95 1 0.05 fm=edge id=468
-H 2380 69.95 1 0.05 fm=edge id=468
-H 2381 69 rot=90 fm=corner id=469
-H 2381.948 68 0.05 1 rot=90 fm=edge id=468
-H 2381.948 67 0.05 1 rot=90 fm=edge id=468
-H 2381.948 66 0.05 1 rot=90 fm=edge id=468
-H 2381.948 65 0.05 1 rot=90 fm=edge id=468
-H 2381.948 64 0.05 1 rot=90 fm=edge id=468
-H 2381.948 63 0.05 1 rot=90 fm=edge id=468
-H 2381 73 rot=-90 fm=corner id=469
-H 2381.002 74 0.05 1 rot=-90 fm=edge id=468
-H 2381.002 75 0.05 1 rot=-90 fm=edge id=468
-H 2381.002 76 0.05 1 rot=-90 fm=edge id=468
-H 2381.002 77 0.05 1 rot=-90 fm=edge id=468
-H 2382 73 1 0.05 rot=-180 fm=edge id=468
-H 2383 73 1 0.05 rot=-180 fm=edge id=468
-H 2384 73 rot=180 fm=corner id=469
-H 2384.948 74 0.05 1 rot=90 fm=edge id=468
-H 2384.948 75 0.05 1 rot=90 fm=edge id=468
-H 2384.948 76 0.05 1 rot=90 fm=edge id=468
-H 2384.948 77 0.05 1 rot=90 fm=edge id=468
-H 2384 69 fm=corner id=469
-H 2384.002 68 0.05 1 rot=-90 fm=edge id=468
-H 2384.002 67 0.05 1 rot=-90 fm=edge id=468
-H 2385 69.95 1 0.05 fm=edge id=468
-H 2386 69.95 1 0.05 fm=edge id=468
-H 2387 69 rot=90 fm=corner id=469
-H 2387.948 68 0.05 1 rot=90 fm=edge id=468
-H 2387.948 66 0.05 1 rot=90 fm=edge id=468
-H 2387.948 67 0.05 1 rot=90 fm=edge id=468
-H 2387.948 65 0.05 1 rot=90 fm=edge id=468
-H 2387.948 64 0.05 1 rot=90 fm=edge id=468
-H 2387.948 63 0.05 1 rot=90 fm=edge id=468
-H 2384.002 64 0.05 1 rot=270 fm=edge id=468
-H 2384.002 65 0.05 1 rot=270 fm=edge id=468
-H 2384.002 63 0.05 1 rot=270 fm=edge id=468
-H 2384.002 66 0.05 1 rot=270 fm=edge id=468
-H 2386 73 rot=-90 fm=corner id=469
-H 2386.002 74 0.05 1 rot=-90 fm=edge id=468
-H 2386.002 75 0.05 1 rot=-90 fm=edge id=468
-H 2386.002 76 0.05 1 rot=-90 fm=edge id=468
-H 2386.002 77 0.05 1 rot=-90 fm=edge id=468
-H 2387 73 1 0.05 rot=180 fm=edge id=468
-H 2389 73 1 0.05 rot=180 fm=edge id=468
-H 2388 73 1 0.05 rot=180 fm=edge id=468
-H 2391 73 1 0.05 rot=180 fm=edge id=468
-H 2390 73 1 0.05 rot=180 fm=edge id=468
-H 2392 73 1 0.05 rot=180 fm=edge id=468
-H 2393 73 rot=180 fm=corner id=469
-H 2393.948 74 0.05 1 rot=90 fm=edge id=468
-H 2393.948 76 0.05 1 rot=90 fm=edge id=468
-H 2393.948 75 0.05 1 rot=90 fm=edge id=468
-H 2393.948 77 0.05 1 rot=90 fm=edge id=468
-H 2389 69 fm=corner id=469
-H 2389.002 68 0.05 1 rot=-90 fm=edge id=468
-H 2389.002 67 0.05 1 rot=-90 fm=edge id=468
-H 2389.002 66 0.05 1 rot=-90 fm=edge id=468
-H 2389.002 65 0.05 1 rot=-90 fm=edge id=468
-H 2389.002 64 0.05 1 rot=-90 fm=edge id=468
-H 2389.002 63 0.05 1 rot=-90 fm=edge id=468
-H 2390 69.95 1 0.05 fm=edge id=468
-H 2391 69.95 1 0.05 fm=edge id=468
-H 2392 69.95 1 0.05 fm=edge id=468
-H 2393 69.95 1 0.05 fm=edge id=468
-H 2394 69.95 1 0.05 fm=edge id=468
 S 2390.25 70.144 1 0.063 id=392
 S 2391.75 72.794 1 0.063 rot=180 id=392
-H 2395 69.95 1 0.05 fm=edge id=468
-H 2396 69.95 1 0.05 fm=edge id=468
-H 2397 69.95 1 0.05 fm=edge id=468
-H 2398 69.95 1 0.05 fm=edge id=468
-H 2399 69.95 1 0.05 fm=edge id=468
-H 2400 69.95 1 0.05 fm=edge id=468
-H 2401 69.95 1 0.05 fm=edge id=468
-H 2402 69.95 1 0.05 fm=edge id=468
-H 2403 69.95 1 0.05 fm=edge id=468
-H 2404 69.95 1 0.05 fm=edge id=468
-H 2405 69.95 1 0.05 fm=edge id=468
-H 2406 69.95 1 0.05 fm=edge id=468
-H 2407 69.95 1 0.05 fm=edge id=468
-H 2404 73 rot=-90 fm=corner id=469
-H 2405 73 1 0.05 rot=180 fm=edge id=468
-H 2406 73 rot=180 fm=corner id=469
-H 2404.002 74 0.05 1 rot=-90 fm=edge id=468
-H 2404.002 75 0.05 1 rot=-90 fm=edge id=468
-H 2404.002 76 0.05 1 rot=-90 fm=edge id=468
-H 2404.002 77 0.05 1 rot=-90 fm=edge id=468
-H 2406.948 77 0.05 1 rot=90 fm=edge id=468
-H 2406.948 76 0.05 1 rot=90 fm=edge id=468
-H 2406.948 75 0.05 1 rot=90 fm=edge id=468
-H 2406.948 74 0.05 1 rot=90 fm=edge id=468
-H 2408 69.95 1 0.05 fm=edge id=468
-H 2409 69.95 1 0.05 fm=edge id=468
-H 2410 69.95 1 0.05 fm=edge id=468
-H 2412 69.95 1 0.05 fm=edge id=468
-H 2411 69.95 1 0.05 fm=edge id=468
-H 2409 73 1 0.05 rot=180 fm=edge id=468
-H 2408 73 rot=-90 fm=corner id=469
-H 2410 73 rot=180 fm=corner id=469
-H 2408.002 74 0.05 1 rot=-90 fm=edge id=468
-H 2408.002 75 0.05 1 rot=-90 fm=edge id=468
-H 2408.002 76 0.05 1 rot=-90 fm=edge id=468
-H 2408.002 77 0.05 1 rot=-90 fm=edge id=468
-H 2410.948 77 0.05 1 rot=90 fm=edge id=468
-H 2410.948 75 0.05 1 rot=90 fm=edge id=468
-H 2410.948 76 0.05 1 rot=90 fm=edge id=468
-H 2410.948 74 0.05 1 rot=90 fm=edge id=468
 S 2404.75 70.144 1 0.063 id=392
 S 2409.25 70.144 1 0.063 id=392
-H 2413 69 rot=90 fm=corner id=469
-H 2413.948 68 0.05 1 rot=90 fm=edge id=468
-H 2413.948 67 0.05 1 rot=90 fm=edge id=468
-H 2413.948 66 0.05 1 rot=90 fm=edge id=468
-H 2413.948 65 0.05 1 rot=90 fm=edge id=468
-H 2413.948 64 0.05 1 rot=90 fm=edge id=468
-H 2413.948 63 0.05 1 rot=90 fm=edge id=468
-H 2413 73 rot=-90 fm=corner id=469
-H 2413.002 74 0.05 1 rot=-90 fm=edge id=468
-H 2413.002 75 0.05 1 rot=-90 fm=edge id=468
-H 2413.002 76 0.05 1 rot=-90 fm=edge id=468
-H 2413.002 77 0.05 1 rot=-90 fm=edge id=468
-H 2414 73 1 0.05 rot=-180 fm=edge id=468
-H 2415 73 1 0.05 rot=-180 fm=edge id=468
-H 2416 73 1 0.05 rot=-180 fm=edge id=468
-H 2417 73 1 0.05 rot=-180 fm=edge id=468
-H 2418 73 1 0.05 rot=-180 fm=edge id=468
-H 2419 73 1 0.05 rot=-180 fm=edge id=468
-H 2416 69 fm=corner id=469
-H 2418 69 rot=90 fm=corner id=469
-H 2417 69.95 1 0.05 fm=edge id=468
-H 2416.002 68 0.05 1 rot=-90 fm=edge id=468
-H 2416.002 67 0.05 1 rot=-90 fm=edge id=468
-H 2416.002 66 0.05 1 rot=-90 fm=edge id=468
-H 2416.002 65 0.05 1 rot=-90 fm=edge id=468
-H 2416.002 64 0.05 1 rot=-90 fm=edge id=468
-H 2416.002 63 0.05 1 rot=-90 fm=edge id=468
-H 2418.948 68 0.05 1 rot=90 fm=edge id=468
-H 2418.948 67 0.05 1 rot=90 fm=edge id=468
-H 2418.948 66 0.05 1 rot=90 fm=edge id=468
-H 2418.948 65 0.05 1 rot=90 fm=edge id=468
-H 2418.948 64 0.05 1 rot=90 fm=edge id=468
-H 2418.948 63 0.05 1 rot=90 fm=edge id=468
-H 2420 73 1 0.05 rot=180 fm=edge id=468
-H 2421 73 1 0.05 rot=180 fm=edge id=468
-H 2422 73 1 0.05 rot=180 fm=edge id=468
-H 2420 69 fm=corner id=469
-H 2421 69.95 1 0.05 fm=edge id=468
-H 2422 69 rot=90 fm=corner id=469
-H 2420.002 68 0.05 1 rot=-90 fm=edge id=468
-H 2420.002 67 0.05 1 rot=-90 fm=edge id=468
-H 2420.002 65 0.05 1 rot=-90 fm=edge id=468
-H 2420.002 64 0.05 1 rot=-90 fm=edge id=468
-H 2420.002 66 0.05 1 rot=-90 fm=edge id=468
-H 2420.002 63 0.05 1 rot=270 fm=edge id=468
-H 2422.948 68 0.05 1 rot=90 fm=edge id=468
-H 2422.948 67 0.05 1 rot=90 fm=edge id=468
-H 2422.948 66 0.05 1 rot=90 fm=edge id=468
-H 2422.948 65 0.05 1 rot=90 fm=edge id=468
-H 2422.948 64 0.05 1 rot=90 fm=edge id=468
-H 2422.948 63 0.05 1 rot=90 fm=edge id=468
-H 2423 73 1 0.05 rot=180 fm=edge id=468
-H 2424 73 1 0.05 rot=180 fm=edge id=468
-H 2425 73 1 0.05 rot=180 fm=edge id=468
-H 2426 73 1 0.05 rot=180 fm=edge id=468
-H 2427 73 1 0.05 rot=180 fm=edge id=468
-H 2428 73 rot=180 fm=corner id=469
-H 2428.948 74 0.05 1 rot=90 fm=edge id=468
-H 2428.948 75 0.05 1 rot=90 fm=edge id=468
-H 2428.948 76 0.05 1 rot=90 fm=edge id=468
-H 2428.948 77 0.05 1 rot=90 fm=edge id=468
-H 2425 69 fm=corner id=469
-H 2426 69.95 1 0.05 fm=edge id=468
-H 2427 69.95 1 0.05 fm=edge id=468
-H 2428 69.95 1 0.05 fm=edge id=468
-H 2429 69.95 1 0.05 fm=edge id=468
-H 2430 69.95 1 0.05 fm=edge id=468
 S 2425.75 72.794 1 0.063 rot=180 id=392
 S 2427.25 70.144 1 0.063 id=392
-H 2425.002 68 0.05 1 rot=-90 fm=edge id=468
-H 2425.002 67 0.05 1 rot=-90 fm=edge id=468
-H 2425.002 66 0.05 1 rot=-90 fm=edge id=468
-H 2425.002 65 0.05 1 rot=-90 fm=edge id=468
-H 2425.002 64 0.05 1 rot=-90 fm=edge id=468
-H 2425.002 63 0.05 1 rot=-90 fm=edge id=468
-H 2431 69.95 1 0.05 fm=edge id=468
-H 2432 69.95 1 0.05 fm=edge id=468
-H 2433 69.95 1 0.05 fm=edge id=468
-H 2434 69.95 1 0.05 fm=edge id=468
-H 2435 69.95 1 0.05 fm=edge id=468
-H 2436 69.95 1 0.05 fm=edge id=468
-H 2437 69 rot=90 fm=corner id=469
-H 2440 69 fm=corner id=469
-H 2437.948 68 0.05 1 rot=90 fm=edge id=468
-H 2437.948 67 0.05 1 rot=90 fm=edge id=468
-H 2437.948 66 0.05 1 rot=90 fm=edge id=468
-H 2437.948 65 0.05 1 rot=90 fm=edge id=468
-H 2437.948 64 0.05 1 rot=90 fm=edge id=468
-H 2437.948 63 0.05 1 rot=90 fm=edge id=468
-H 2440.002 68 0.05 1 rot=-90 fm=edge id=468
-H 2440.002 67 0.05 1 rot=-90 fm=edge id=468
-H 2440.002 66 0.05 1 rot=-90 fm=edge id=468
-H 2440.002 65 0.05 1 rot=-90 fm=edge id=468
-H 2440.002 64 0.05 1 rot=-90 fm=edge id=468
-H 2440.002 63 0.05 1 rot=-90 fm=edge id=468
-H 2437 73 rot=-90 fm=corner id=469
-H 2438 73 1 0.05 rot=180 fm=edge id=468
-H 2439 73 1 0.05 rot=180 fm=edge id=468
-H 2440 73 rot=180 fm=corner id=469
-H 2437.002 74 0.05 1 rot=-90 fm=edge id=468
-H 2437.002 75 0.05 1 rot=-90 fm=edge id=468
-H 2437.002 76 0.05 1 rot=-90 fm=edge id=468
-H 2437.002 77 0.05 1 rot=-90 fm=edge id=468
-H 2440.948 77 0.05 1 rot=90 fm=edge id=468
-H 2440.948 76 0.05 1 rot=90 fm=edge id=468
-H 2440.948 75 0.05 1 rot=90 fm=edge id=468
-H 2440.948 74 0.05 1 rot=90 fm=edge id=468
-H 2441 69.95 1 0.05 fm=edge id=468
-H 2443 69.95 1 0.05 fm=edge id=468
-H 2442 69.95 1 0.05 fm=edge id=468
-H 2444 69.95 1 0.05 fm=edge id=468
-H 2445 69.95 1 0.05 fm=edge id=468
-H 2446 69.95 1 0.05 fm=edge id=468
-H 2447 69.95 1 0.05 fm=edge id=468
-H 2448 69.95 1 0.05 fm=edge id=468
-H 2449 69.95 1 0.05 fm=edge id=468
-H 2450 69.95 1 0.05 fm=edge id=468
-H 2451 69.95 1 0.05 fm=edge id=468
-H 2452 69 rot=90 fm=corner id=469
-H 2451 73 rot=-90 fm=corner id=469
-H 2451.002 74 0.05 1 rot=-90 fm=edge id=468
-H 2451.002 76 0.05 1 rot=-90 fm=edge id=468
-H 2451.002 75 0.05 1 rot=-90 fm=edge id=468
-H 2451.002 77 0.05 1 rot=-90 fm=edge id=468
-H 2452.948 68 0.05 1 rot=90 fm=edge id=468
-H 2452.948 67 0.05 1 rot=90 fm=edge id=468
-H 2452.948 66 0.05 1 rot=90 fm=edge id=468
-H 2452.948 65 0.05 1 rot=90 fm=edge id=468
-H 2452.948 64 0.05 1 rot=90 fm=edge id=468
-H 2452.948 63 0.05 1 rot=90 fm=edge id=468
-H 2452 73 1 0.05 rot=180 fm=edge id=468
-H 2453 73 1 0.05 rot=180 fm=edge id=468
-H 2454 73 1 0.05 rot=180 fm=edge id=468
-H 2455 73 rot=180 fm=corner id=469
-H 2455.948 74 0.05 1 rot=-270 fm=edge id=468
-H 2455.948 75 0.05 1 rot=-270 fm=edge id=468
-H 2455.948 77 0.05 1 rot=-270 fm=edge id=468
-H 2455.948 76 0.05 1 rot=-270 fm=edge id=468
-H 2454 69 fm=corner id=469
-H 2454.002 68 0.05 1 rot=-90 fm=edge id=468
-H 2454.002 66 0.05 1 rot=-90 fm=edge id=468
-H 2454.002 67 0.05 1 rot=-90 fm=edge id=468
-H 2454.002 65 0.05 1 rot=-90 fm=edge id=468
-H 2454.002 64 0.05 1 rot=-90 fm=edge id=468
-H 2454.002 63 0.05 1 rot=-90 fm=edge id=468
-H 2455 69.95 1 0.05 fm=edge id=468
-H 2456 69.95 1 0.05 fm=edge id=468
-H 2457 69.95 1 0.05 fm=edge id=468
-H 2458 69 rot=90 fm=corner id=469
-H 2458.948 68 0.05 1 rot=90 fm=edge id=468
-H 2458.948 67 0.05 1 rot=90 fm=edge id=468
-H 2458.948 66 0.05 1 rot=90 fm=edge id=468
-H 2458.948 65 0.05 1 rot=90 fm=edge id=468
-H 2458.948 64 0.05 1 rot=90 fm=edge id=468
-H 2458.948 63 0.05 1 rot=90 fm=edge id=468
-H 2457 73 rot=-90 fm=corner id=469
-H 2457.002 74 0.05 1 rot=-90 fm=edge id=468
-H 2457.002 75 0.05 1 rot=-90 fm=edge id=468
-H 2457.002 76 0.05 1 rot=-90 fm=edge id=468
-H 2457.002 77 0.05 1 rot=-90 fm=edge id=468
-H 2458 73 1 0.05 rot=-180 fm=edge id=468
-H 2459 73 1 0.05 rot=-180 fm=edge id=468
-H 2460 73 1 0.05 rot=-180 fm=edge id=468
-H 2461 73 rot=180 fm=corner id=469
-H 2461.948 74 0.05 1 rot=90 fm=edge id=468
-H 2461.948 75 0.05 1 rot=90 fm=edge id=468
-H 2461.948 76 0.05 1 rot=90 fm=edge id=468
-H 2461.948 77 0.05 1 rot=90 fm=edge id=468
-H 2460 69 fm=corner id=469
-H 2460.002 68 0.05 1 rot=-90 fm=edge id=468
-H 2460.002 67 0.05 1 rot=-90 fm=edge id=468
-H 2460.002 66 0.05 1 rot=-90 fm=edge id=468
-H 2460.002 64 0.05 1 rot=-90 fm=edge id=468
-H 2460.002 63 0.05 1 rot=-90 fm=edge id=468
-H 2460.002 65 0.05 1 rot=-90 fm=edge id=468
-H 2461 69.95 1 0.05 fm=edge id=468
-H 2462 69.95 1 0.05 fm=edge id=468
-H 2464 69 rot=90 fm=corner id=469
-H 2463 69.95 1 0.05 fm=edge id=468
-H 2464.948 68 0.05 1 rot=90 fm=edge id=468
-H 2464.948 67 0.05 1 rot=90 fm=edge id=468
-H 2464.948 66 0.05 1 rot=90 fm=edge id=468
-H 2464.948 64 0.05 1 rot=90 fm=edge id=468
-H 2464.948 65 0.05 1 rot=90 fm=edge id=468
-H 2464.948 63 0.05 1 rot=90 fm=edge id=468
-H 2463 73 rot=-90 fm=corner id=469
-H 2463.002 74 0.05 1 rot=-90 fm=edge id=468
-H 2463.002 76 0.05 1 rot=-90 fm=edge id=468
-H 2463.002 75 0.05 1 rot=-90 fm=edge id=468
-H 2463.002 77 0.05 1 rot=-90 fm=edge id=468
-H 2464 73 1 0.05 rot=-180 fm=edge id=468
-H 2465 73 1 0.05 rot=-180 fm=edge id=468
-H 2466 73 1 0.05 rot=-180 fm=edge id=468
-H 2467 73 rot=180 fm=corner id=469
-H 2466 69 fm=corner id=469
-H 2467 69.95 1 0.05 fm=edge id=468
-H 2466.002 68 0.05 1 rot=-90 fm=edge id=468
-H 2466.002 67 0.05 1 rot=-90 fm=edge id=468
-H 2466.002 66 0.05 1 rot=-90 fm=edge id=468
-H 2466.002 65 0.05 1 rot=-90 fm=edge id=468
-H 2466.002 64 0.05 1 rot=-90 fm=edge id=468
-H 2466.002 63 0.05 1 rot=-90 fm=edge id=468
-H 2468 69.95 1 0.05 fm=edge id=468
-H 2467.948 74 0.05 1 rot=90 fm=edge id=468
-H 2467.948 75 0.05 1 rot=90 fm=edge id=468
-H 2467.948 76 0.05 1 rot=90 fm=edge id=468
-H 2467.948 77 0.05 1 rot=90 fm=edge id=468
-H 2469 69.95 1 0.05 fm=edge id=468
-H 2470 69.95 1 0.05 fm=edge id=468
-H 2471 69.95 1 0.05 fm=edge id=468
-H 2472 69.95 1 0.05 fm=edge id=468
-H 2473 69.95 1 0.05 fm=edge id=468
-H 2474 69.95 1 0.05 fm=edge id=468
-H 2475 69.95 1 0.05 fm=edge id=468
-H 2476 69.95 1 0.05 fm=edge id=468
-H 2477 69.95 1 0.05 fm=edge id=468
 R 2472 71 to=cube id=12 z=2
 V 2473 71 spd=2 id=202 z=2
 V 2473 71 spd=2 id=202 z=2
-H 2478 69 rot=90 fm=corner id=469
-H 2478.948 68 0.05 1 rot=90 fm=edge id=468
-H 2478.948 67 0.05 1 rot=90 fm=edge id=468
-H 2478.948 66 0.05 1 rot=90 fm=edge id=468
-H 2478.948 65 0.05 1 rot=90 fm=edge id=468
-H 2478.948 64 0.05 1 rot=90 fm=edge id=468
-H 2478.948 63 0.05 1 rot=90 fm=edge id=468
 O 2484 69 orb=yellow id=36 z=2
 B 2488 69 id=83
 B 2489 69 id=83
@@ -6581,13 +4397,13 @@ B 2548 80 id=83
 B 2547 80 id=83
 B 2551 81 id=83
 B 2543 80 id=83
-B 2555 79 id=83
-B 2554 79 id=83
-B 2556 79 id=83
-B 2559 77 id=83
-B 2560 77 id=83
-B 2563 75 id=83
-B 2564 75 id=83
+B 2555 80 id=83 g=27
+B 2554 80 id=83 g=27
+B 2556 80 id=83 g=27
+B 2559 79 id=83 g=28
+B 2560 79 id=83 g=28
+B 2563 78 id=83 g=29
+B 2564 78 id=83 g=29
 B 2563 78 id=83
 B 2563 79 id=83
 B 2562 79 id=83
@@ -6613,12 +4429,12 @@ B 2554 83 id=83
 B 2562 81 id=83
 B 2563 81 id=83
 B 2565 79 id=83
-B 2560 78 id=83
-B 2559 78 id=83
-B 2563 77 id=83
-B 2563 76 id=83
-B 2564 77 id=83
-B 2564 76 id=83
+B 2560 80 id=83 g=28
+B 2559 80 id=83 g=28
+B 2563 80 id=83 g=29
+B 2563 79 id=83 g=29
+B 2564 80 id=83 g=29
+B 2564 79 id=83 g=29
 B 2564 78 id=83
 B 2564 79 id=83
 B 2566 77 id=83
@@ -6632,23 +4448,23 @@ E 2559 76 rot=90 art=3812 id=3812 z=3
 E 2563 74 rot=90 art=3812 id=3812 z=3
 E 2555 78 rot=90 art=3812 id=3812 z=3
 E 2568 70 rot=270 art=3812 id=3812 z=3
-B 2572 71 id=83
-B 2573 71 id=83
-B 2576 73 id=83
-B 2577 73 id=83
-B 2577 72 id=83
-B 2576 72 id=83
-B 2576 71 id=83
-B 2577 71 id=83
-B 2577 70 id=83
-B 2576 70 id=83
+B 2572 69 id=83 g=30
+B 2573 69 id=83 g=30
+B 2576 69 id=83 g=31
+B 2577 69 id=83 g=31
+B 2577 68 id=83 g=31
+B 2576 68 id=83 g=31
+B 2576 67 id=83 g=31
+B 2577 67 id=83 g=31
+B 2577 66 id=83 g=31
+B 2576 66 id=83 g=31
 B 2577 69 id=83
 B 2576 69 id=83
 B 2575 69 id=83
 B 2574 69 id=83
 B 2573 69 id=83
-B 2573 70 id=83
-B 2572 70 id=83
+B 2573 68 id=83 g=30
+B 2572 68 id=83 g=30
 B 2572 69 id=83
 B 2570 69 id=83
 B 2571 69 id=83
@@ -6662,20 +4478,20 @@ B 2573 67 id=83
 B 2573 68 id=83
 B 2576 67 id=83
 B 2575 67 id=83
-B 2580 75 id=83
-B 2581 75 id=83
-B 2580 74 id=83
-B 2581 74 id=83
-B 2580 73 id=83
-B 2581 73 id=83
-B 2581 72 id=83
-B 2580 72 id=83
-B 2580 71 id=83
-B 2581 71 id=83
-B 2581 70 id=83
+B 2580 69 id=83 g=32
+B 2581 69 id=83 g=32
+B 2580 68 id=83 g=32
+B 2581 68 id=83 g=32
+B 2580 67 id=83 g=32
+B 2581 67 id=83 g=32
+B 2581 66 id=83 g=32
+B 2580 66 id=83 g=32
+B 2580 65 id=83 g=32
+B 2581 65 id=83 g=32
+B 2581 64 id=83 g=32
 B 2580 69 id=83
 B 2581 69 id=83
-B 2580 70 id=83
+B 2580 64 id=83 g=32
 B 2579 69 id=83
 B 2578 69 id=83
 B 2585 75 id=83
@@ -6749,73 +4565,42 @@ E 2599 76 art=3823 id=3823 z=3
 B 2631 76 id=83
 B 2630 76 id=83
 S 2629 76 id=8
-S 2628 76 id=8
 S 2627 76 id=8
-S 2626 76 id=8
-S 2625 76 id=8
 S 2624 76 id=8
 S 2623 75 id=8
-S 2621 75 id=8
-S 2620 75 id=8
 S 2622 75 id=8
-S 2619 75 id=8
-S 2618 75 id=8
-S 2617 75 id=8
 S 2616 75 id=8
 S 2615 74 id=8
 S 2614 74 id=8
-S 2613 74 id=8
-S 2612 74 id=8
 S 2611 74 id=8
 S 2610 74 id=8
 S 2609 74 id=8
-S 2608 74 id=8
-S 2607 74 id=8
-S 2606 74 id=8
-S 2605 74 id=8
 S 2604 74 id=8
 S 2603 74 id=8
 S 2602 74 id=8
 B 2599 73 id=83
 B 2600 73 id=83
-B 2601 73 id=83
 B 2602 73 id=83
-S 2601 74 id=8
-S 2600 74 id=8
 S 2599 74 id=8
 B 2603 73 id=83
 B 2605 73 id=83
-B 2607 73 id=83
 B 2609 73 id=83
 B 2610 73 id=83
-B 2606 73 id=83
 B 2604 73 id=83
-B 2608 73 id=83
 B 2612 73 id=83
 B 2613 73 id=83
 B 2611 73 id=83
 B 2615 73 id=83
 B 2614 73 id=83
 B 2616 74 id=83
-B 2617 74 id=83
-B 2618 74 id=83
-B 2619 74 id=83
-B 2620 74 id=83
-B 2621 74 id=83
 B 2623 74 id=83
 B 2624 75 id=83
 B 2622 74 id=83
-B 2625 75 id=83
-B 2626 75 id=83
-B 2628 75 id=83
 B 2627 75 id=83
 B 2629 75 id=83
 B 2624 74 id=83
-B 2625 74 id=83
-B 2626 74 id=83
 B 2628 74 id=83
 B 2629 74 id=83
-B 2627 74 id=83
 B 2629 73 id=83
 B 2628 73 id=83
 B 2627 73 id=83
@@ -6825,10 +4610,6 @@ B 2624 73 id=83
 B 2623 73 id=83
 B 2622 73 id=83
 B 2621 73 id=83
-B 2620 73 id=83
-B 2619 73 id=83
-B 2618 73 id=83
-B 2617 73 id=83
 B 2616 73 id=83
 B 2630 75 id=83
 B 2631 75 id=83
@@ -6836,96 +4617,77 @@ B 2631 74 id=83
 B 2630 74 id=83
 B 2630 73 id=83
 B 2631 73 id=83
-B 2631 78.5 rot=-180 fy=1 id=83
-B 2630 78.5 rot=-180 fy=1 id=83
-S 2629 78.5 rot=-180 fy=1 id=8
-S 2628 78.5 rot=-180 fy=1 id=8
-S 2627 78.5 rot=-180 fy=1 id=8
-S 2626 78.5 rot=-180 fy=1 id=8
-S 2625 78.5 rot=-180 fy=1 id=8
-S 2624 78.5 rot=-180 fy=1 id=8
-S 2623 79.5 rot=-180 fy=1 id=8
-S 2621 79.5 rot=-180 fy=1 id=8
-S 2620 79.5 rot=-180 fy=1 id=8
-S 2622 79.5 rot=-180 fy=1 id=8
-S 2619 79.5 rot=-180 fy=1 id=8
-S 2618 79.5 rot=-180 fy=1 id=8
-S 2617 79.5 rot=-180 fy=1 id=8
-S 2616 79.5 rot=-180 fy=1 id=8
-S 2615 80.5 rot=-180 fy=1 id=8
-S 2614 80.5 rot=-180 fy=1 id=8
-S 2613 80.5 rot=-180 fy=1 id=8
-S 2612 80.5 rot=-180 fy=1 id=8
-S 2611 80.5 rot=-180 fy=1 id=8
-S 2610 80.5 rot=-180 fy=1 id=8
-S 2609 80.5 rot=-180 fy=1 id=8
-S 2608 80.5 rot=-180 fy=1 id=8
-S 2607 80.5 rot=-180 fy=1 id=8
-S 2606 80.5 rot=-180 fy=1 id=8
-S 2605 80.5 rot=-180 fy=1 id=8
-S 2604 80.5 rot=-180 fy=1 id=8
-S 2603 80.5 rot=-180 fy=1 id=8
-S 2602 80.5 rot=-180 fy=1 id=8
-B 2599 81.5 rot=-180 fy=1 id=83
-B 2600 81.5 rot=-180 fy=1 id=83
-B 2601 81.5 rot=-180 fy=1 id=83
-B 2602 81.5 rot=-180 fy=1 id=83
-S 2601 80.5 rot=-180 fy=1 id=8
-S 2600 80.5 rot=-180 fy=1 id=8
-S 2599 80.5 rot=-180 fy=1 id=8
-B 2603 81.5 rot=-180 fy=1 id=83
-B 2605 81.5 rot=-180 fy=1 id=83
-B 2607 81.5 rot=-180 fy=1 id=83
-B 2609 81.5 rot=-180 fy=1 id=83
-B 2610 81.5 rot=-180 fy=1 id=83
-B 2606 81.5 rot=-180 fy=1 id=83
-B 2604 81.5 rot=-180 fy=1 id=83
-B 2608 81.5 rot=-180 fy=1 id=83
-B 2612 81.5 rot=-180 fy=1 id=83
-B 2613 81.5 rot=-180 fy=1 id=83
-B 2611 81.5 rot=-180 fy=1 id=83
-B 2615 81.5 rot=-180 fy=1 id=83
-B 2614 81.5 rot=-180 fy=1 id=83
-B 2616 80.5 rot=-180 fy=1 id=83
-B 2617 80.5 rot=-180 fy=1 id=83
-B 2618 80.5 rot=-180 fy=1 id=83
-B 2619 80.5 rot=-180 fy=1 id=83
-B 2620 80.5 rot=-180 fy=1 id=83
-B 2621 80.5 rot=-180 fy=1 id=83
-B 2623 80.5 rot=-180 fy=1 id=83
-B 2624 79.5 rot=-180 fy=1 id=83
-B 2622 80.5 rot=-180 fy=1 id=83
-B 2625 79.5 rot=-180 fy=1 id=83
-B 2626 79.5 rot=-180 fy=1 id=83
-B 2628 79.5 rot=-180 fy=1 id=83
-B 2627 79.5 rot=-180 fy=1 id=83
-B 2629 79.5 rot=-180 fy=1 id=83
-B 2624 80.5 rot=-180 fy=1 id=83
-B 2625 80.5 rot=-180 fy=1 id=83
-B 2626 80.5 rot=-180 fy=1 id=83
-B 2628 80.5 rot=-180 fy=1 id=83
-B 2629 80.5 rot=-180 fy=1 id=83
-B 2627 80.5 rot=-180 fy=1 id=83
-B 2629 81.5 rot=-180 fy=1 id=83
-B 2628 81.5 rot=-180 fy=1 id=83
-B 2627 81.5 rot=-180 fy=1 id=83
-B 2626 81.5 rot=-180 fy=1 id=83
-B 2625 81.5 rot=-180 fy=1 id=83
-B 2624 81.5 rot=-180 fy=1 id=83
-B 2623 81.5 rot=-180 fy=1 id=83
-B 2622 81.5 rot=-180 fy=1 id=83
-B 2621 81.5 rot=-180 fy=1 id=83
-B 2620 81.5 rot=-180 fy=1 id=83
-B 2619 81.5 rot=-180 fy=1 id=83
-B 2618 81.5 rot=-180 fy=1 id=83
-B 2617 81.5 rot=-180 fy=1 id=83
-B 2616 81.5 rot=-180 fy=1 id=83
-B 2630 79.5 rot=-180 fy=1 id=83
-B 2631 79.5 rot=-180 fy=1 id=83
-B 2631 80.5 rot=-180 fy=1 id=83
-B 2630 80.5 rot=-180 fy=1 id=83
-B 2630 81.5 rot=-180 fy=1 id=83
-B 2631 81.5 rot=-180 fy=1 id=83
+B 2631 78 rot=-180 fy=1 id=83
+B 2630 78 rot=-180 fy=1 id=83
+S 2629 78 rot=-180 fy=1 id=8
+S 2628 78 rot=-180 fy=1 id=8
+S 2625 78 rot=-180 fy=1 id=8
+S 2624 78 rot=-180 fy=1 id=8
+S 2623 79 rot=-180 fy=1 id=8
+S 2621 79 rot=-180 fy=1 id=8
+S 2620 79 rot=-180 fy=1 id=8
+S 2622 79 rot=-180 fy=1 id=8
+S 2617 79 rot=-180 fy=1 id=8
+S 2616 79 rot=-180 fy=1 id=8
+S 2615 80 rot=-180 fy=1 id=8
+S 2613 80 rot=-180 fy=1 id=8
+S 2612 80 rot=-180 fy=1 id=8
+S 2610 80 rot=-180 fy=1 id=8
+S 2609 80 rot=-180 fy=1 id=8
+S 2608 80 rot=-180 fy=1 id=8
+S 2606 80 rot=-180 fy=1 id=8
+S 2605 80 rot=-180 fy=1 id=8
+S 2603 80 rot=-180 fy=1 id=8
+S 2602 80 rot=-180 fy=1 id=8
+B 2599 81 rot=-180 fy=1 id=83
+B 2600 81 rot=-180 fy=1 id=83
+B 2601 81 rot=-180 fy=1 id=83
+B 2602 81 rot=-180 fy=1 id=83
+S 2601 80 rot=-180 fy=1 id=8
+S 2600 80 rot=-180 fy=1 id=8
+S 2599 80 rot=-180 fy=1 id=8
+B 2605 81 rot=-180 fy=1 id=83
+B 2607 81 rot=-180 fy=1 id=83
+B 2609 81 rot=-180 fy=1 id=83
+B 2610 81 rot=-180 fy=1 id=83
+B 2606 81 rot=-180 fy=1 id=83
+B 2608 81 rot=-180 fy=1 id=83
+B 2612 81 rot=-180 fy=1 id=83
+B 2615 81 rot=-180 fy=1 id=83
+B 2614 81 rot=-180 fy=1 id=83
+B 2616 80 rot=-180 fy=1 id=83
+B 2617 80 rot=-180 fy=1 id=83
+B 2618 80 rot=-180 fy=1 id=83
+B 2621 80 rot=-180 fy=1 id=83
+B 2623 80 rot=-180 fy=1 id=83
+B 2624 79 rot=-180 fy=1 id=83
+B 2622 80 rot=-180 fy=1 id=83
+B 2625 79 rot=-180 fy=1 id=83
+B 2628 79 rot=-180 fy=1 id=83
+B 2629 79 rot=-180 fy=1 id=83
+B 2624 80 rot=-180 fy=1 id=83
+B 2625 80 rot=-180 fy=1 id=83
+B 2626 80 rot=-180 fy=1 id=83
+B 2628 80 rot=-180 fy=1 id=83
+B 2629 80 rot=-180 fy=1 id=83
+B 2629 81 rot=-180 fy=1 id=83
+B 2628 81 rot=-180 fy=1 id=83
+B 2626 81 rot=-180 fy=1 id=83
+B 2625 81 rot=-180 fy=1 id=83
+B 2624 81 rot=-180 fy=1 id=83
+B 2623 81 rot=-180 fy=1 id=83
+B 2622 81 rot=-180 fy=1 id=83
+B 2621 81 rot=-180 fy=1 id=83
+B 2619 81 rot=-180 fy=1 id=83
+B 2618 81 rot=-180 fy=1 id=83
+B 2617 81 rot=-180 fy=1 id=83
+B 2616 81 rot=-180 fy=1 id=83
+B 2630 79 rot=-180 fy=1 id=83
+B 2631 79 rot=-180 fy=1 id=83
+B 2631 80 rot=-180 fy=1 id=83
+B 2630 80 rot=-180 fy=1 id=83
+B 2630 81 rot=-180 fy=1 id=83
+B 2631 81 rot=-180 fy=1 id=83
 O 2647 84 orb=yellow id=36 z=2
 E 2641 87 art=3818 id=3818 z=3
 O 2651 86 orb=yellow id=36 z=2
@@ -7102,13 +4864,6 @@ B 3053 99 id=83
 B 3056 100 id=83
 O 3061 103 orb=yellow id=36 z=2
 O 3067 103 orb=yellow id=36 z=2
-H 270 9.95 1 0.05 fm=edge id=468
-S 270 10 id=8
-S 269 10 id=8
-S 268 10 id=8
-H 273 5.95 1 0.05 fm=edge id=468
-H 272.95 6 0.05 1 rot=90 fm=edge id=468
-H 272.95 7 0.05 1 rot=90 fm=edge id=468
 B 3072 103 id=83
 B 3073 103 id=83
 B 3074 103 id=83
@@ -7819,333 +5574,12 @@ B 3600 107 id=83
 B 3602 107 id=83
 B 3601 107 id=83
 B 3603 107 id=83
-E 0 3 art=3638 id=3638 z=8 g=1
-E 0 4 art=3638 id=3638 z=8 g=1
-E 0 5 art=3638 id=3638 z=8 g=1
-E 0 6 art=3638 id=3638 z=8 g=1
-E 0 7 art=3638 id=3638 z=8 g=1
-E 0 8 art=3638 id=3638 z=8 g=1
-E 0 9 art=3638 id=3638 z=8 g=1
-E 0 10 art=3638 id=3638 z=8 g=1
-E 0 11 art=3638 id=3638 z=8 g=1
-E 0 12 art=3638 id=3638 z=8 g=1
-E 0 13 art=3638 id=3638 z=8 g=1
-E 0 14 art=3638 id=3638 z=8 g=1
-E 0 15 art=3638 id=3638 z=8 g=1
-E 0 16 art=3638 id=3638 z=8 g=1
-E 0 17 art=3638 id=3638 z=8 g=1
-E 0 18 art=3638 id=3638 z=8 g=1
-E 1 18 art=3638 id=3638 z=8 g=1
-E 1 17 art=3638 id=3638 z=8 g=1
-E 1 16 art=3638 id=3638 z=8 g=1
-E 1 15 art=3638 id=3638 z=8 g=1
-E 1 14 art=3638 id=3638 z=8 g=1
-E 1 13 art=3638 id=3638 z=8 g=1
-E 1 12 art=3638 id=3638 z=8 g=1
-E 1 11 art=3638 id=3638 z=8 g=1
-E 1 10 art=3638 id=3638 z=8 g=1
-E 1 9 art=3638 id=3638 z=8 g=1
-E 1 8 art=3638 id=3638 z=8 g=1
-E 1 7 art=3638 id=3638 z=8 g=1
-E 1 6 art=3638 id=3638 z=8 g=1
-E 1 5 art=3638 id=3638 z=8 g=1
-E 1 4 art=3638 id=3638 z=8 g=1
-E 1 3 art=3638 id=3638 z=8 g=1
-E 2.333 3 art=3638 id=3638 z=8 g=1
-E 2.333 4 art=3638 id=3638 z=8 g=1
-E 2.333 5 art=3638 id=3638 z=8 g=1
-E 2.333 6 art=3638 id=3638 z=8 g=1
-E 2.333 7 art=3638 id=3638 z=8 g=1
-E 2.333 8 art=3638 id=3638 z=8 g=1
-E 2.333 9 art=3638 id=3638 z=8 g=1
-E 2.333 10 art=3638 id=3638 z=8 g=1
-E 2.333 11 art=3638 id=3638 z=8 g=1
-E 2.333 12 art=3638 id=3638 z=8 g=1
-E 2.333 13 art=3638 id=3638 z=8 g=1
-E 2.333 14 art=3638 id=3638 z=8 g=1
-E 2.333 15 art=3638 id=3638 z=8 g=1
-E 2.333 16 art=3638 id=3638 z=8 g=1
-E 2.333 17 art=3638 id=3638 z=8 g=1
-E 2.333 18 art=3638 id=3638 z=8 g=1
-E 3.333 18 art=3638 id=3638 z=8 g=1
-E 3.333 17 art=3638 id=3638 z=8 g=1
-E 3.333 16 art=3638 id=3638 z=8 g=1
-E 3.333 15 art=3638 id=3638 z=8 g=1
-E 3.333 14 art=3638 id=3638 z=8 g=1
-E 3.333 13 art=3638 id=3638 z=8 g=1
-E 3.333 12 art=3638 id=3638 z=8 g=1
-E 3.333 11 art=3638 id=3638 z=8 g=1
-E 3.333 10 art=3638 id=3638 z=8 g=1
-E 3.333 9 art=3638 id=3638 z=8 g=1
-E 3.333 8 art=3638 id=3638 z=8 g=1
-E 3.333 7 art=3638 id=3638 z=8 g=1
-E 3.333 6 art=3638 id=3638 z=8 g=1
-E 3.333 5 art=3638 id=3638 z=8 g=1
-E 3.333 4 art=3638 id=3638 z=8 g=1
-E 3.333 3 art=3638 id=3638 z=8 g=1
-E 4.667 3 art=3638 id=3638 z=8 g=1
-E 4.667 4 art=3638 id=3638 z=8 g=1
-E 4.667 5 art=3638 id=3638 z=8 g=1
-E 4.667 6 art=3638 id=3638 z=8 g=1
-E 4.667 7 art=3638 id=3638 z=8 g=1
-E 4.667 8 art=3638 id=3638 z=8 g=1
-E 4.667 9 art=3638 id=3638 z=8 g=1
-E 4.667 10 art=3638 id=3638 z=8 g=1
-E 4.667 11 art=3638 id=3638 z=8 g=1
-E 4.667 12 art=3638 id=3638 z=8 g=1
-E 4.667 13 art=3638 id=3638 z=8 g=1
-E 4.667 14 art=3638 id=3638 z=8 g=1
-E 4.667 15 art=3638 id=3638 z=8 g=1
-E 4.667 16 art=3638 id=3638 z=8 g=1
-E 4.667 17 art=3638 id=3638 z=8 g=1
-E 4.667 18 art=3638 id=3638 z=8 g=1
-E 5.667 18 art=3638 id=3638 z=8 g=1
-E 5.667 17 art=3638 id=3638 z=8 g=1
-E 5.667 16 art=3638 id=3638 z=8 g=1
-E 5.667 15 art=3638 id=3638 z=8 g=1
-E 5.667 14 art=3638 id=3638 z=8 g=1
-E 5.667 13 art=3638 id=3638 z=8 g=1
-E 5.667 12 art=3638 id=3638 z=8 g=1
-E 5.667 11 art=3638 id=3638 z=8 g=1
-E 5.667 10 art=3638 id=3638 z=8 g=1
-E 5.667 9 art=3638 id=3638 z=8 g=1
-E 5.667 8 art=3638 id=3638 z=8 g=1
-E 5.667 7 art=3638 id=3638 z=8 g=1
-E 5.667 6 art=3638 id=3638 z=8 g=1
-E 5.667 5 art=3638 id=3638 z=8 g=1
-E 5.667 4 art=3638 id=3638 z=8 g=1
-E 5.667 3 art=3638 id=3638 z=8 g=1
-E 7 3 art=3638 id=3638 z=8 g=1
-E 7 4 art=3638 id=3638 z=8 g=1
-E 7 5 art=3638 id=3638 z=8 g=1
-E 7 6 art=3638 id=3638 z=8 g=1
-E 7 7 art=3638 id=3638 z=8 g=1
-E 7 8 art=3638 id=3638 z=8 g=1
-E 7 9 art=3638 id=3638 z=8 g=1
-E 7 10 art=3638 id=3638 z=8 g=1
-E 7 11 art=3638 id=3638 z=8 g=1
-E 7 12 art=3638 id=3638 z=8 g=1
-E 7 13 art=3638 id=3638 z=8 g=1
-E 7 14 art=3638 id=3638 z=8 g=1
-E 7 15 art=3638 id=3638 z=8 g=1
-E 7 16 art=3638 id=3638 z=8 g=1
-E 7 17 art=3638 id=3638 z=8 g=1
-E 7 18 art=3638 id=3638 z=8 g=1
-E 8 18 art=3638 id=3638 z=8 g=1
-E 8 17 art=3638 id=3638 z=8 g=1
-E 8 16 art=3638 id=3638 z=8 g=1
-E 8 15 art=3638 id=3638 z=8 g=1
-E 8 14 art=3638 id=3638 z=8 g=1
-E 8 13 art=3638 id=3638 z=8 g=1
-E 8 12 art=3638 id=3638 z=8 g=1
-E 8 11 art=3638 id=3638 z=8 g=1
-E 8 10 art=3638 id=3638 z=8 g=1
-E 8 9 art=3638 id=3638 z=8 g=1
-E 8 8 art=3638 id=3638 z=8 g=1
-E 8 7 art=3638 id=3638 z=8 g=1
-E 8 6 art=3638 id=3638 z=8 g=1
-E 8 5 art=3638 id=3638 z=8 g=1
-E 8 4 art=3638 id=3638 z=8 g=1
-E 8 3 art=3638 id=3638 z=8 g=1
-E 9.333 3 art=3638 id=3638 z=8 g=1
-E 9.333 4 art=3638 id=3638 z=8 g=1
-E 9.333 5 art=3638 id=3638 z=8 g=1
-E 9.333 6 art=3638 id=3638 z=8 g=1
-E 9.333 7 art=3638 id=3638 z=8 g=1
-E 9.333 8 art=3638 id=3638 z=8 g=1
-E 9.333 9 art=3638 id=3638 z=8 g=1
-E 9.333 10 art=3638 id=3638 z=8 g=1
-E 9.333 11 art=3638 id=3638 z=8 g=1
-E 9.333 12 art=3638 id=3638 z=8 g=1
-E 9.333 13 art=3638 id=3638 z=8 g=1
-E 9.333 14 art=3638 id=3638 z=8 g=1
-E 9.333 15 art=3638 id=3638 z=8 g=1
-E 9.333 16 art=3638 id=3638 z=8 g=1
-E 9.333 17 art=3638 id=3638 z=8 g=1
-E 9.333 18 art=3638 id=3638 z=8 g=1
-E 10.333 18 art=3638 id=3638 z=8 g=1
-E 10.333 17 art=3638 id=3638 z=8 g=1
-E 10.333 16 art=3638 id=3638 z=8 g=1
-E 10.333 15 art=3638 id=3638 z=8 g=1
-E 10.333 14 art=3638 id=3638 z=8 g=1
-E 10.333 13 art=3638 id=3638 z=8 g=1
-E 10.333 12 art=3638 id=3638 z=8 g=1
-E 10.333 11 art=3638 id=3638 z=8 g=1
-E 10.333 10 art=3638 id=3638 z=8 g=1
-E 10.333 9 art=3638 id=3638 z=8 g=1
-E 10.333 8 art=3638 id=3638 z=8 g=1
-E 10.333 7 art=3638 id=3638 z=8 g=1
-E 10.333 6 art=3638 id=3638 z=8 g=1
-E 10.333 5 art=3638 id=3638 z=8 g=1
-E 10.333 4 art=3638 id=3638 z=8 g=1
-E 10.333 3 art=3638 id=3638 z=8 g=1
-E 11.667 3 art=3638 id=3638 z=8 g=1
-E 11.667 4 art=3638 id=3638 z=8 g=1
-E 11.667 5 art=3638 id=3638 z=8 g=1
-E 11.667 6 art=3638 id=3638 z=8 g=1
-E 11.667 7 art=3638 id=3638 z=8 g=1
-E 11.667 8 art=3638 id=3638 z=8 g=1
-E 11.667 9 art=3638 id=3638 z=8 g=1
-E 11.667 10 art=3638 id=3638 z=8 g=1
-E 11.667 11 art=3638 id=3638 z=8 g=1
-E 11.667 12 art=3638 id=3638 z=8 g=1
-E 11.667 13 art=3638 id=3638 z=8 g=1
-E 11.667 14 art=3638 id=3638 z=8 g=1
-E 11.667 15 art=3638 id=3638 z=8 g=1
-E 11.667 16 art=3638 id=3638 z=8 g=1
-E 11.667 17 art=3638 id=3638 z=8 g=1
-E 11.667 18 art=3638 id=3638 z=8 g=1
-E 12.667 18 art=3638 id=3638 z=8 g=1
-E 12.667 17 art=3638 id=3638 z=8 g=1
-E 12.667 16 art=3638 id=3638 z=8 g=1
-E 12.667 15 art=3638 id=3638 z=8 g=1
-E 12.667 14 art=3638 id=3638 z=8 g=1
-E 12.667 13 art=3638 id=3638 z=8 g=1
-E 12.667 12 art=3638 id=3638 z=8 g=1
-E 12.667 11 art=3638 id=3638 z=8 g=1
-E 12.667 10 art=3638 id=3638 z=8 g=1
-E 12.667 9 art=3638 id=3638 z=8 g=1
-E 12.667 8 art=3638 id=3638 z=8 g=1
-E 12.667 7 art=3638 id=3638 z=8 g=1
-E 12.667 6 art=3638 id=3638 z=8 g=1
-E 12.667 5 art=3638 id=3638 z=8 g=1
-E 12.667 4 art=3638 id=3638 z=8 g=1
-E 12.667 3 art=3638 id=3638 z=8 g=1
-E 14 3 art=3638 id=3638 z=8 g=1
-E 14 4 art=3638 id=3638 z=8 g=1
-E 14 5 art=3638 id=3638 z=8 g=1
-E 14 6 art=3638 id=3638 z=8 g=1
-E 14 7 art=3638 id=3638 z=8 g=1
-E 14 8 art=3638 id=3638 z=8 g=1
-E 14 9 art=3638 id=3638 z=8 g=1
-E 14 10 art=3638 id=3638 z=8 g=1
-E 14 11 art=3638 id=3638 z=8 g=1
-E 14 12 art=3638 id=3638 z=8 g=1
-E 14 13 art=3638 id=3638 z=8 g=1
-E 14 14 art=3638 id=3638 z=8 g=1
-E 14 15 art=3638 id=3638 z=8 g=1
-E 14 16 art=3638 id=3638 z=8 g=1
-E 14 17 art=3638 id=3638 z=8 g=1
-E 14 18 art=3638 id=3638 z=8 g=1
-E 15 18 art=3638 id=3638 z=8 g=1
-E 15 17 art=3638 id=3638 z=8 g=1
-E 15 16 art=3638 id=3638 z=8 g=1
-E 15 15 art=3638 id=3638 z=8 g=1
-E 15 14 art=3638 id=3638 z=8 g=1
-E 15 13 art=3638 id=3638 z=8 g=1
-E 15 12 art=3638 id=3638 z=8 g=1
-E 15 11 art=3638 id=3638 z=8 g=1
-E 15 10 art=3638 id=3638 z=8 g=1
-E 15 9 art=3638 id=3638 z=8 g=1
-E 15 8 art=3638 id=3638 z=8 g=1
-E 15 7 art=3638 id=3638 z=8 g=1
-E 15 6 art=3638 id=3638 z=8 g=1
-E 15 5 art=3638 id=3638 z=8 g=1
-E 15 4 art=3638 id=3638 z=8 g=1
-E 15 3 art=3638 id=3638 z=8 g=1
-E 16.333 3 art=3638 id=3638 z=8 g=1
-E 16.333 4 art=3638 id=3638 z=8 g=1
-E 16.333 5 art=3638 id=3638 z=8 g=1
-E 16.333 6 art=3638 id=3638 z=8 g=1
-E 16.333 7 art=3638 id=3638 z=8 g=1
-E 16.333 8 art=3638 id=3638 z=8 g=1
-E 16.333 9 art=3638 id=3638 z=8 g=1
-E 16.333 10 art=3638 id=3638 z=8 g=1
-E 16.333 11 art=3638 id=3638 z=8 g=1
-E 16.333 12 art=3638 id=3638 z=8 g=1
-E 16.333 13 art=3638 id=3638 z=8 g=1
-E 16.333 14 art=3638 id=3638 z=8 g=1
-E 16.333 15 art=3638 id=3638 z=8 g=1
-E 16.333 16 art=3638 id=3638 z=8 g=1
-E 16.333 17 art=3638 id=3638 z=8 g=1
-E 16.333 18 art=3638 id=3638 z=8 g=1
-E 17.333 18 art=3638 id=3638 z=8 g=1
-E 17.333 17 art=3638 id=3638 z=8 g=1
-E 17.333 16 art=3638 id=3638 z=8 g=1
-E 17.333 15 art=3638 id=3638 z=8 g=1
-E 17.333 14 art=3638 id=3638 z=8 g=1
-E 17.333 13 art=3638 id=3638 z=8 g=1
-E 17.333 12 art=3638 id=3638 z=8 g=1
-E 17.333 11 art=3638 id=3638 z=8 g=1
-E 17.333 10 art=3638 id=3638 z=8 g=1
-E 17.333 9 art=3638 id=3638 z=8 g=1
-E 17.333 8 art=3638 id=3638 z=8 g=1
-E 17.333 7 art=3638 id=3638 z=8 g=1
-E 17.333 6 art=3638 id=3638 z=8 g=1
-E 17.333 5 art=3638 id=3638 z=8 g=1
-E 17.333 4 art=3638 id=3638 z=8 g=1
-E 17.333 3 art=3638 id=3638 z=8 g=1
-E 18.667 3 art=3638 id=3638 z=8 g=1
-E 18.667 4 art=3638 id=3638 z=8 g=1
-E 18.667 5 art=3638 id=3638 z=8 g=1
-E 18.667 6 art=3638 id=3638 z=8 g=1
-E 18.667 7 art=3638 id=3638 z=8 g=1
-E 18.667 8 art=3638 id=3638 z=8 g=1
-E 18.667 9 art=3638 id=3638 z=8 g=1
-E 18.667 10 art=3638 id=3638 z=8 g=1
-E 18.667 11 art=3638 id=3638 z=8 g=1
-E 18.667 12 art=3638 id=3638 z=8 g=1
-E 18.667 13 art=3638 id=3638 z=8 g=1
-E 18.667 14 art=3638 id=3638 z=8 g=1
-E 18.667 15 art=3638 id=3638 z=8 g=1
-E 18.667 16 art=3638 id=3638 z=8 g=1
-E 18.667 17 art=3638 id=3638 z=8 g=1
-E 18.667 18 art=3638 id=3638 z=8 g=1
-E 19.667 18 art=3638 id=3638 z=8 g=1
-E 19.667 17 art=3638 id=3638 z=8 g=1
-E 19.667 16 art=3638 id=3638 z=8 g=1
-E 19.667 15 art=3638 id=3638 z=8 g=1
-E 19.667 14 art=3638 id=3638 z=8 g=1
-E 19.667 13 art=3638 id=3638 z=8 g=1
-E 19.667 12 art=3638 id=3638 z=8 g=1
-E 19.667 11 art=3638 id=3638 z=8 g=1
-E 19.667 10 art=3638 id=3638 z=8 g=1
-E 19.667 9 art=3638 id=3638 z=8 g=1
-E 19.667 8 art=3638 id=3638 z=8 g=1
-E 19.667 7 art=3638 id=3638 z=8 g=1
-E 19.667 6 art=3638 id=3638 z=8 g=1
-E 19.667 5 art=3638 id=3638 z=8 g=1
-E 19.667 4 art=3638 id=3638 z=8 g=1
-E 19.667 3 art=3638 id=3638 z=8 g=1
-E 21 3 art=3638 id=3638 z=8 g=1
-E 21 4 art=3638 id=3638 z=8 g=1
-E 21 5 art=3638 id=3638 z=8 g=1
-E 21 6 art=3638 id=3638 z=8 g=1
-E 21 7 art=3638 id=3638 z=8 g=1
-E 21 8 art=3638 id=3638 z=8 g=1
-E 21 9 art=3638 id=3638 z=8 g=1
-E 21 10 art=3638 id=3638 z=8 g=1
-E 21 11 art=3638 id=3638 z=8 g=1
-E 21 12 art=3638 id=3638 z=8 g=1
-E 21 13 art=3638 id=3638 z=8 g=1
-E 21 14 art=3638 id=3638 z=8 g=1
-E 21 15 art=3638 id=3638 z=8 g=1
-E 21 16 art=3638 id=3638 z=8 g=1
-E 21 17 art=3638 id=3638 z=8 g=1
-E 21 18 art=3638 id=3638 z=8 g=1
-E 22 18 art=3638 id=3638 z=8 g=1
-E 22 17 art=3638 id=3638 z=8 g=1
-E 22 16 art=3638 id=3638 z=8 g=1
-E 22 15 art=3638 id=3638 z=8 g=1
-E 22 14 art=3638 id=3638 z=8 g=1
-E 22 13 art=3638 id=3638 z=8 g=1
-E 22 12 art=3638 id=3638 z=8 g=1
-E 22 11 art=3638 id=3638 z=8 g=1
-E 22 10 art=3638 id=3638 z=8 g=1
-E 22 9 art=3638 id=3638 z=8 g=1
-E 22 8 art=3638 id=3638 z=8 g=1
-E 22 7 art=3638 id=3638 z=8 g=1
-E 22 6 art=3638 id=3638 z=8 g=1
-E 22 5 art=3638 id=3638 z=8 g=1
-E 22 4 art=3638 id=3638 z=8 g=1
-E 22 3 art=3638 id=3638 z=8 g=1
 E 23.333 3 art=3638 id=3638 z=8 g=1
 E 23.333 4 art=3638 id=3638 z=8 g=1
 E 23.333 5 art=3638 id=3638 z=8 g=1
 E 23.333 6 art=3638 id=3638 z=8 g=1
 E 23.333 7 art=3638 id=3638 z=8 g=1
 E 23.333 8 art=3638 id=3638 z=8 g=1
-E 23.333 9 art=3638 id=3638 z=8 g=1
 E 23.333 11 art=3638 id=3638 z=8 g=1
 E 23.333 12 art=3638 id=3638 z=8 g=1
 E 23.333 13 art=3638 id=3638 z=8 g=1
@@ -8462,8 +5896,6 @@ E 46.667 3 art=3638 id=3638 z=8 g=1
 E 46.667 4 art=3638 id=3638 z=8 g=1
 E 46.667 5 art=3638 id=3638 z=8 g=1
 E 46.667 6 art=3638 id=3638 z=8 g=1
-E 46.667 7 art=3638 id=3638 z=8 g=1
-E 46.667 8 art=3638 id=3638 z=8 g=1
 E 46.667 9 art=3638 id=3638 z=8 g=1
 E 46.667 10 art=3638 id=3638 z=8 g=1
 E 46.667 11 art=3638 id=3638 z=8 g=1
@@ -8483,9 +5915,6 @@ E 47.667 13 art=3638 id=3638 z=8 g=1
 E 47.667 12 art=3638 id=3638 z=8 g=1
 E 47.667 11 art=3638 id=3638 z=8 g=1
 E 47.667 10 art=3638 id=3638 z=8 g=1
-E 47.667 9 art=3638 id=3638 z=8 g=1
-E 47.667 8 art=3638 id=3638 z=8 g=1
-E 47.667 7 art=3638 id=3638 z=8 g=1
 E 47.667 6 art=3638 id=3638 z=8 g=1
 E 47.667 5 art=3638 id=3638 z=8 g=1
 E 47.667 4 art=3638 id=3638 z=8 g=1
@@ -8564,7 +5993,6 @@ E 53.667 9 art=3638 id=3638 z=8 g=1
 E 53.667 10 art=3638 id=3638 z=8 g=1
 E 53.667 11 art=3638 id=3638 z=8 g=1
 E 53.667 12 art=3638 id=3638 z=8 g=1
-E 53.667 13 art=3638 id=3638 z=8 g=1
 E 53.667 14 art=3638 id=3638 z=8 g=1
 E 53.667 15 art=3638 id=3638 z=8 g=1
 E 53.667 16 art=3638 id=3638 z=8 g=1
@@ -8843,11 +6271,4842 @@ E 73.333 5 art=3638 id=3638 z=8 g=1
 E 73.333 4 art=3638 id=3638 z=8 g=1
 E 73.333 3 art=3638 id=3638 z=8 g=1
 Q 1 20 id=1007 g=1 trig=alpha dur=3.01
-E -9.5 18.133 art=3638 id=3638 z=8 g=1
-E -9.5 17.133 art=3638 id=3638 z=8 g=1
-E -9.5 16.133 art=3638 id=3638 z=8 g=1
-E -9.5 15.133 art=3638 id=3638 z=8 g=1
-E -9.5 14.133 art=3638 id=3638 z=8 g=1
+B 203 9 id=83 g=7
+B 203 10 id=83 g=7
+B 203 12 id=83 g=7
+B 202 12 id=83 g=7
+B 202 13 id=83 g=7
+B 203 14 id=83 g=7
+B 202 14 id=83 g=7
+B 203 13 id=83 g=7
+B 204 12 id=83 g=7
+B 206 13 id=83 g=7
+B 206 14 id=83 g=7
+B 204 9 id=83 g=7
+B 204 10 id=83 g=7
+B 204 11 id=83 g=7
+B 202 9 id=83 g=7
+B 202 11 id=83 g=7
+B 201 11 id=83 g=7
+B 201 10 id=83 g=7
+B 200 13 id=83 g=7
+B 222 9 id=83 g=3
+B 221 -1 id=83 g=2
+B 227 -3 id=83 g=4
+B 227 -2 id=83 g=4
+B 228 -2 id=83 g=4
+B 228 -3 id=83 g=4
+B 229 -2 id=83 g=4
+B 229 -3 id=83 g=4
+B 239 -2 id=83 g=5
+B 238 -2 id=83 g=5
+B 237 -2 id=83 g=5
+B 236 -2 id=83 g=5
+B 235 -2 id=83 g=5
+B 235 -3 id=83 g=5
+B 235 -4 id=83 g=5
+B 235 -5 id=83 g=5
+B 236 -3 id=83 g=5
+B 236 -5 id=83 g=5
+B 235 -6 id=83 g=5
+B 236 -4 id=83 g=5
+B 236 -6 id=83 g=5
+B 237 -4 id=83 g=5
+B 237 -3 id=83 g=5
+B 238 -3 id=83 g=5
+B 239 -3 id=83 g=5
+B 239 -4 id=83 g=5
+B 238 -4 id=83 g=5
+B 239 -5 id=83 g=5
+B 238 -5 id=83 g=5
+B 237 -5 id=83 g=5
+B 238 -6 id=83 g=5
+B 237 -6 id=83 g=5
+B 239 -6 id=83 g=5
+B 265 6 id=83
+B 265 5 id=83
+B 265 4 id=83
+B 265 3 id=83
+B 265 2 id=83
+B 265 1 id=83
+B 265 0 id=83
+B 264 0 id=83
+B 263 0 id=83
+B 262 0 id=83
+B 261 0 id=83
+B 261 1 id=83
+B 261 2 id=83
+B 261 3 id=83
+B 261 4 id=83
+B 261 5 id=83
+B 262 5 id=83
+B 261 6 id=83
+B 262 6 id=83
+B 262 7 id=83
+B 261 7 id=83
+B 264 6 id=83
+B 263 6 id=83
+B 264 5 id=83
+B 263 5 id=83
+B 264 4 id=83
+B 264 3 id=83
+B 263 4 id=83
+B 262 4 id=83
+B 262 3 id=83
+B 262 2 id=83
+B 262 1 id=83
+B 263 1 id=83
+B 263 2 id=83
+B 263 3 id=83
+B 264 1 id=83
+B 264 2 id=83
+B 263 7 id=83
+B 264 7 id=83
+B 265 7 id=83
+B 266 7 id=83
+B 266 8 id=83
+B 266 9 id=83
+B 267 9 id=83
+B 268 9 id=83
+B 269 9 id=83
+B 270 9 id=83
+B 271 9 id=83
+B 271 8 id=83
+B 271 7 id=83
+B 271 6 id=83
+B 271 5 id=83
+B 270 5 id=83
+B 270 6 id=83
+B 270 7 id=83
+B 270 8 id=83
+B 268 8 id=83
+B 268 7 id=83
+B 269 7 id=83
+B 269 8 id=83
+B 267 8 id=83
+B 267 7 id=83
+B 267 6 id=83
+B 268 6 id=83
+B 266 6 id=83
+B 266 5 id=83
+B 266 4 id=83
+B 266 3 id=83
+B 266 2 id=83
+B 266 1 id=83
+B 266 0 id=83
+B 266 -1 id=83
+B 267 -1 id=83
+B 267 0 id=83
+B 267 1 id=83
+B 267 2 id=83
+B 267 3 id=83
+B 267 4 id=83
+B 267 5 id=83
+B 269 6 id=83
+B 269 5 id=83
+B 269 4 id=83
+B 269 3 id=83
+B 269 2 id=83
+B 269 1 id=83
+B 269 0 id=83
+B 270 0 id=83
+B 270 1 id=83
+B 270 2 id=83
+B 270 3 id=83
+B 270 4 id=83
+B 271 4 id=83
+B 271 3 id=83
+B 271 2 id=83
+B 271 1 id=83
+B 271 0 id=83
+B 271 -1 id=83
+B 270 -1 id=83
+B 269 -1 id=83
+B 268 0 id=83
+B 268 1 id=83
+B 268 2 id=83
+B 268 3 id=83
+B 268 5 id=83
+B 268 4 id=83
+B 273 14 id=83
+B 272 14 id=83
+B 271 14 id=83
+B 270 14 id=83
+B 269 14 id=83
+B 268 14 id=83
+B 267 14 id=83
+B 266 14 id=83
+B 265 14 id=83
+B 264 14 id=83
+B 263 14 id=83
+B 262 14 id=83
+B 261 14 id=83
+B 261 15 id=83
+B 262 15 id=83
+B 263 15 id=83
+B 264 15 id=83
+B 265 15 id=83
+B 266 15 id=83
+B 268 15 id=83
+B 269 15 id=83
+B 270 15 id=83
+B 271 15 id=83
+B 272 15 id=83
+B 273 15 id=83
+B 274 15 id=83
+B 267 15 id=83
+B 265 16 id=83
+B 264 16 id=83
+B 263 16 id=83
+B 263 17 id=83
+B 262 17 id=83
+B 261 17 id=83
+B 261 16 id=83
+B 261 18 id=83
+B 261 19 id=83
+B 262 18 id=83
+B 262 16 id=83
+B 262 19 id=83
+B 263 19 id=83
+B 264 19 id=83
+B 265 19 id=83
+B 266 19 id=83
+B 267 19 id=83
+B 268 19 id=83
+B 269 19 id=83
+B 270 19 id=83
+B 271 19 id=83
+B 272 19 id=83
+B 273 19 id=83
+B 273 18 id=83
+B 273 17 id=83
+B 273 16 id=83
+B 272 16 id=83
+B 271 16 id=83
+B 270 17 id=83
+B 269 17 id=83
+B 268 17 id=83
+B 267 17 id=83
+B 266 17 id=83
+B 266 18 id=83
+B 265 18 id=83
+B 264 18 id=83
+B 263 18 id=83
+B 268 18 id=83
+B 269 18 id=83
+B 271 18 id=83
+B 272 18 id=83
+B 270 18 id=83
+B 267 18 id=83
+B 264 17 id=83
+B 265 17 id=83
+B 266 16 id=83
+B 267 16 id=83
+B 268 16 id=83
+B 269 16 id=83
+B 270 16 id=83
+B 271 17 id=83
+B 272 17 id=83
+B 272 8 id=83
+B 272 7 id=83
+B 272 6 id=83
+B 272 5 id=83
+B 272 4 id=83
+B 272 3 id=83
+B 272 2 id=83
+B 272 1 id=83
+B 272 0 id=83
+B 273 4 id=83
+B 273 5 id=83
+B 274 5 id=83
+B 275 5 id=83
+B 276 5 id=83
+B 277 5 id=83
+B 278 5 id=83
+B 279 5 id=83
+B 280 5 id=83
+B 281 5 id=83
+B 282 5 id=83
+B 283 5 id=83
+B 284 5 id=83
+B 285 5 id=83
+B 285 6 id=83
+B 286 6 id=83
+B 286 7 id=83
+B 287 7 id=83
+B 287 8 id=83
+B 288 8 id=83
+B 289 8 id=83
+B 290 8 id=83
+B 291 8 id=83
+B 291 7 id=83
+B 290 7 id=83
+B 289 7 id=83
+B 288 7 id=83
+B 290 6 id=83
+B 289 6 id=83
+B 288 6 id=83
+B 291 6 id=83
+B 289 5 id=83
+B 288 5 id=83
+B 287 5 id=83
+B 287 6 id=83
+B 286 5 id=83
+B 285 4 id=83
+B 284 4 id=83
+B 283 4 id=83
+B 282 4 id=83
+B 280 4 id=83
+B 279 4 id=83
+B 278 4 id=83
+B 277 4 id=83
+B 276 4 id=83
+B 275 4 id=83
+B 274 4 id=83
+B 281 4 id=83
+B 286 4 id=83
+B 287 4 id=83
+B 288 4 id=83
+B 289 4 id=83
+B 290 5 id=83
+B 291 5 id=83
+B 291 4 id=83
+B 290 4 id=83
+B 290 3 id=83
+B 291 3 id=83
+B 289 3 id=83
+B 288 3 id=83
+B 287 3 id=83
+B 286 3 id=83
+B 285 3 id=83
+B 284 3 id=83
+B 283 3 id=83
+B 282 3 id=83
+B 281 3 id=83
+B 280 3 id=83
+B 279 3 id=83
+B 278 3 id=83
+B 277 3 id=83
+B 276 3 id=83
+B 275 3 id=83
+B 274 3 id=83
+B 273 3 id=83
+B 273 2 id=83
+B 274 2 id=83
+B 275 2 id=83
+B 276 2 id=83
+B 277 2 id=83
+B 278 2 id=83
+B 279 2 id=83
+B 280 2 id=83
+B 281 2 id=83
+B 282 2 id=83
+B 283 2 id=83
+B 284 2 id=83
+B 285 2 id=83
+B 286 2 id=83
+B 287 2 id=83
+B 288 2 id=83
+B 289 2 id=83
+B 290 2 id=83
+B 291 2 id=83
+B 291 1 id=83
+B 290 1 id=83
+B 289 1 id=83
+B 288 1 id=83
+B 286 1 id=83
+B 284 1 id=83
+B 282 1 id=83
+B 281 1 id=83
+B 279 1 id=83
+B 278 1 id=83
+B 277 1 id=83
+B 276 1 id=83
+B 275 1 id=83
+B 274 1 id=83
+B 273 1 id=83
+B 283 1 id=83
+B 280 1 id=83
+B 285 1 id=83
+B 288 0 id=83
+B 287 1 id=83
+B 287 0 id=83
+B 289 0 id=83
+B 290 0 id=83
+B 291 0 id=83
+B 292 0 id=83
+B 286 0 id=83
+B 285 0 id=83
+B 284 0 id=83
+B 283 0 id=83
+B 282 0 id=83
+B 281 0 id=83
+B 280 0 id=83
+B 279 0 id=83
+B 278 0 id=83
+B 277 0 id=83
+B 276 0 id=83
+B 275 0 id=83
+B 274 0 id=83
+B 273 0 id=83
+B 274 14 id=83
+B 275 14 id=83
+B 275 13 id=83
+B 274 13 id=83
+B 275 12 id=83
+B 276 12 id=83
+B 276 11 id=83
+B 277 11 id=83
+B 278 11 id=83
+B 279 11 id=83
+B 280 11 id=83
+B 281 11 id=83
+B 282 11 id=83
+B 282 12 id=83
+B 282 13 id=83
+B 283 13 id=83
+B 283 12 id=83
+B 284 13 id=83
+B 284 14 id=83
+B 285 14 id=83
+B 286 14 id=83
+B 286 13 id=83
+B 283 14 id=83
+B 282 14 id=83
+B 281 14 id=83
+B 280 14 id=83
+B 279 14 id=83
+B 278 14 id=83
+B 278 13 id=83
+B 279 13 id=83
+B 280 13 id=83
+B 281 13 id=83
+B 280 12 id=83
+B 279 12 id=83
+B 278 12 id=83
+B 281 12 id=83
+B 277 12 id=83
+B 276 13 id=83
+B 276 14 id=83
+B 276 15 id=83
+B 277 13 id=83
+B 277 14 id=83
+B 277 15 id=83
+B 277 16 id=83
+B 276 16 id=83
+B 275 16 id=83
+B 275 15 id=83
+B 274 17 id=83
+B 274 18 id=83
+B 274 19 id=83
+B 275 19 id=83
+B 276 19 id=83
+B 277 19 id=83
+B 278 19 id=83
+B 279 19 id=83
+B 280 19 id=83
+B 281 19 id=83
+B 282 19 id=83
+B 283 19 id=83
+B 284 19 id=83
+B 285 19 id=83
+B 286 19 id=83
+B 286 18 id=83
+B 286 17 id=83
+B 286 16 id=83
+B 286 15 id=83
+B 285 18 id=83
+B 284 18 id=83
+B 283 18 id=83
+B 282 18 id=83
+B 281 18 id=83
+B 280 18 id=83
+B 279 18 id=83
+B 278 18 id=83
+B 277 18 id=83
+B 276 18 id=83
+B 275 18 id=83
+B 275 17 id=83
+B 276 17 id=83
+B 277 17 id=83
+B 278 17 id=83
+B 279 17 id=83
+B 280 17 id=83
+B 281 17 id=83
+B 282 17 id=83
+B 283 17 id=83
+B 284 17 id=83
+B 285 17 id=83
+B 285 16 id=83
+B 285 15 id=83
+B 284 15 id=83
+B 283 15 id=83
+B 282 16 id=83
+B 281 16 id=83
+B 280 16 id=83
+B 278 16 id=83
+B 278 15 id=83
+B 279 15 id=83
+B 280 15 id=83
+B 281 15 id=83
+B 282 15 id=83
+B 283 16 id=83
+B 284 16 id=83
+B 279 16 id=83
+B 274 16 id=83
+B 287 14 id=83
+B 288 14 id=83
+B 289 14 id=83
+B 290 14 id=83
+B 291 14 id=83
+B 292 14 id=83
+B 293 14 id=83
+B 293 15 id=83
+B 293 16 id=83
+B 293 17 id=83
+B 293 18 id=83
+B 292 19 id=83
+B 291 19 id=83
+B 290 19 id=83
+B 289 19 id=83
+B 288 19 id=83
+B 293 19 id=83
+B 287 19 id=83
+B 287 18 id=83
+B 288 18 id=83
+B 289 18 id=83
+B 290 18 id=83
+B 291 18 id=83
+B 292 18 id=83
+B 292 17 id=83
+B 291 17 id=83
+B 290 17 id=83
+B 289 17 id=83
+B 288 17 id=83
+B 287 17 id=83
+B 291 16 id=83
+B 292 16 id=83
+B 290 16 id=83
+B 289 16 id=83
+B 288 16 id=83
+B 287 16 id=83
+B 287 15 id=83
+B 288 15 id=83
+B 289 15 id=83
+B 290 15 id=83
+B 291 15 id=83
+B 292 15 id=83
+B 293 5 id=83
+B 292 5 id=83
+B 294 5 id=83
+B 295 5 id=83
+B 296 5 id=83
+B 297 5 id=83
+B 298 5 id=83
+B 299 5 id=83
+B 300 5 id=83
+B 301 5 id=83
+B 302 5 id=83
+B 303 5 id=83
+B 304 5 id=83
+B 305 5 id=83
+B 306 5 id=83
+B 306 4 id=83
+B 305 4 id=83
+B 304 4 id=83
+B 303 4 id=83
+B 302 4 id=83
+B 301 4 id=83
+B 300 4 id=83
+B 299 4 id=83
+B 298 4 id=83
+B 297 4 id=83
+B 296 4 id=83
+B 295 4 id=83
+B 294 4 id=83
+B 293 4 id=83
+B 292 4 id=83
+B 292 3 id=83
+B 293 3 id=83
+B 294 3 id=83
+B 295 3 id=83
+B 296 3 id=83
+B 297 3 id=83
+B 298 3 id=83
+B 299 3 id=83
+B 300 3 id=83
+B 301 3 id=83
+B 302 3 id=83
+B 303 3 id=83
+B 304 3 id=83
+B 305 3 id=83
+B 306 3 id=83
+B 306 2 id=83
+B 305 2 id=83
+B 304 2 id=83
+B 303 2 id=83
+B 302 2 id=83
+B 301 2 id=83
+B 300 2 id=83
+B 299 2 id=83
+B 298 2 id=83
+B 297 2 id=83
+B 296 2 id=83
+B 295 2 id=83
+B 294 2 id=83
+B 293 2 id=83
+B 292 2 id=83
+B 292 1 id=83
+B 293 1 id=83
+B 294 1 id=83
+B 295 1 id=83
+B 296 1 id=83
+B 297 1 id=83
+B 298 1 id=83
+B 299 1 id=83
+B 300 1 id=83
+B 301 1 id=83
+B 302 1 id=83
+B 303 1 id=83
+B 304 1 id=83
+B 305 1 id=83
+B 306 1 id=83
+B 306 0 id=83
+B 305 0 id=83
+B 304 0 id=83
+B 303 0 id=83
+B 302 0 id=83
+B 301 0 id=83
+B 300 0 id=83
+B 299 0 id=83
+B 298 0 id=83
+B 297 0 id=83
+B 296 0 id=83
+B 295 0 id=83
+B 294 0 id=83
+B 293 0 id=83
+B 294 19 id=83
+B 294 18 id=83
+B 294 17 id=83
+B 294 16 id=83
+B 294 15 id=83
+B 294 14 id=83
+B 294 13 id=83
+B 295 13 id=83
+B 295 14 id=83
+B 295 15 id=83
+B 295 16 id=83
+B 295 17 id=83
+B 295 18 id=83
+B 295 19 id=83
+B 296 19 id=83
+B 297 19 id=83
+B 297 18 id=83
+B 297 17 id=83
+B 297 16 id=83
+B 297 15 id=83
+B 297 14 id=83
+B 297 13 id=83
+B 296 14 id=83
+B 296 16 id=83
+B 296 17 id=83
+B 296 18 id=83
+B 296 15 id=83
+B 296 13 id=83
+B 296 12 id=83
+B 296 11 id=83
+B 295 12 id=83
+B 297 10 id=83
+B 297 11 id=83
+B 297 12 id=83
+B 298 19 id=83
+B 298 18 id=83
+B 298 17 id=83
+B 298 16 id=83
+B 298 15 id=83
+B 298 14 id=83
+B 298 13 id=83
+B 298 12 id=83
+B 298 11 id=83
+B 299 11 id=83
+B 299 10 id=83
+B 298 10 id=83
+B 300 10 id=83
+B 300 11 id=83
+B 300 12 id=83
+B 300 13 id=83
+B 300 14 id=83
+B 299 12 id=83
+B 299 13 id=83
+B 299 14 id=83
+B 299 15 id=83
+B 299 16 id=83
+B 299 17 id=83
+B 299 18 id=83
+B 299 19 id=83
+B 300 19 id=83
+B 300 18 id=83
+B 300 17 id=83
+B 300 16 id=83
+B 300 15 id=83
+B 301 19 id=83
+B 302 19 id=83
+B 303 19 id=83
+B 304 19 id=83
+B 305 19 id=83
+B 306 19 id=83
+B 307 19 id=83
+B 302 18 id=83
+B 301 18 id=83
+B 303 18 id=83
+B 304 18 id=83
+B 305 18 id=83
+B 306 18 id=83
+B 307 18 id=83
+B 301 17 id=83
+B 302 17 id=83
+B 303 17 id=83
+B 304 17 id=83
+B 305 17 id=83
+B 306 17 id=83
+B 307 17 id=83
+B 302 16 id=83
+B 303 16 id=83
+B 306 16 id=83
+B 307 16 id=83
+B 305 16 id=83
+B 304 16 id=83
+B 301 16 id=83
+B 301 15 id=83
+B 302 15 id=83
+B 303 15 id=83
+B 304 15 id=83
+B 305 15 id=83
+B 306 15 id=83
+B 307 15 id=83
+B 302 14 id=83
+B 301 14 id=83
+B 303 14 id=83
+B 304 14 id=83
+B 305 14 id=83
+B 301 10 id=83
+B 302 10 id=83
+B 303 10 id=83
+B 304 10 id=83
+B 304 11 id=83
+B 303 11 id=83
+B 302 11 id=83
+B 301 11 id=83
+B 301 12 id=83
+B 301 13 id=83
+B 302 13 id=83
+B 303 12 id=83
+B 302 12 id=83
+B 303 13 id=83
+B 304 12 id=83
+B 304 13 id=83
+B 305 13 id=83
+B 305 12 id=83
+B 305 11 id=83
+B 306 12 id=83
+B 306 13 id=83
+B 306 14 id=83
+B 307 14 id=83
+B 307 13 id=83
+B 308 14 id=83
+B 309 14 id=83
+B 312 14 id=83
+B 313 14 id=83
+B 313 15 id=83
+B 312 15 id=83
+B 311 15 id=83
+B 310 15 id=83
+B 309 15 id=83
+B 308 15 id=83
+B 308 16 id=83
+B 309 16 id=83
+B 310 16 id=83
+B 311 16 id=83
+B 312 16 id=83
+B 313 16 id=83
+B 313 17 id=83
+B 312 17 id=83
+B 311 17 id=83
+B 310 17 id=83
+B 309 17 id=83
+B 308 17 id=83
+B 308 18 id=83
+B 309 18 id=83
+B 310 18 id=83
+B 311 18 id=83
+B 312 18 id=83
+B 313 18 id=83
+B 313 19 id=83
+B 312 19 id=83
+B 311 19 id=83
+B 310 19 id=83
+B 309 19 id=83
+B 308 19 id=83
+B 310 14 id=83
+B 311 14 id=83
+B 314 12 id=83
+B 314 13 id=83
+B 314 14 id=83
+B 314 15 id=83
+B 314 16 id=83
+B 314 17 id=83
+B 314 18 id=83
+B 314 19 id=83
+B 315 19 id=83
+B 315 18 id=83
+B 315 17 id=83
+B 315 16 id=83
+B 315 15 id=83
+B 315 14 id=83
+B 315 13 id=83
+B 315 12 id=83
+B 316 12 id=83
+B 317 12 id=83
+B 318 12 id=83
+B 319 12 id=83
+B 320 12 id=83
+B 321 12 id=83
+B 322 12 id=83
+B 323 12 id=83
+B 324 12 id=83
+B 324 19 id=83
+B 323 19 id=83
+B 322 19 id=83
+B 321 19 id=83
+B 319 19 id=83
+B 318 19 id=83
+B 316 19 id=83
+B 316 18 id=83
+B 317 18 id=83
+B 319 18 id=83
+B 320 18 id=83
+B 321 18 id=83
+B 322 18 id=83
+B 323 18 id=83
+B 320 19 id=83
+B 317 19 id=83
+B 318 18 id=83
+B 318 17 id=83
+B 317 17 id=83
+B 316 17 id=83
+B 316 16 id=83
+B 316 15 id=83
+B 317 15 id=83
+B 317 16 id=83
+B 319 17 id=83
+B 320 17 id=83
+B 321 17 id=83
+B 322 17 id=83
+B 324 16 id=83
+B 324 18 id=83
+B 323 17 id=83
+B 324 17 id=83
+B 318 16 id=83
+B 319 16 id=83
+B 320 16 id=83
+B 321 16 id=83
+B 322 16 id=83
+B 323 16 id=83
+B 324 14 id=83
+B 324 15 id=83
+B 323 15 id=83
+B 322 15 id=83
+B 321 15 id=83
+B 320 15 id=83
+B 319 15 id=83
+B 318 15 id=83
+B 317 14 id=83
+B 316 14 id=83
+B 318 14 id=83
+B 319 14 id=83
+B 320 14 id=83
+B 321 14 id=83
+B 322 14 id=83
+B 323 14 id=83
+B 324 13 id=83
+B 323 13 id=83
+B 322 13 id=83
+B 321 13 id=83
+B 320 13 id=83
+B 319 13 id=83
+B 318 13 id=83
+B 317 13 id=83
+B 316 13 id=83
+S 308 13 rot=180 id=8
+S 309 13 rot=180 id=8
+S 310 13 rot=180 id=8
+S 311 13 rot=180 id=8
+S 312 13 rot=180 id=8
+S 313 13 rot=180 id=8
+S 315 11 rot=180 id=8
+S 316 11 rot=180 id=8
+S 317 11 rot=180 id=8
+S 318 11 rot=180 id=8
+S 319 11 rot=180 id=8
+S 320 11 rot=180 id=8
+S 321 11 rot=180 id=8
+S 322 11 rot=180 id=8
+S 323 11 rot=180 id=8
+S 324 11 rot=180 id=8
+S 306 11 rot=180 id=8
+S 302 9 rot=180 id=8
+S 301 9 rot=180 id=8
+S 281 10 rot=180 id=8
+S 280 10 rot=180 id=8
+S 279 10 rot=180 id=8
+S 274 12 rot=180 id=8
+S 270 10 id=8
+S 269 10 id=8
+D 286 12.833 1 0.2 pad=pink rot=180 id=140 z=2
+S 288 9 id=8
+S 289 9 id=8
+S 290 9 id=8
+S 291 9 id=8
+S 287 9 id=8
+S 286 8 id=8
+S 285 7 id=8
+S 284 6 id=8
+S 278 6 id=8
+S 281 7 rot=180 id=8
+S 306 6 id=8
+R 323 7 to=ufo id=111 z=2
+B 308 6 id=83
+B 307 5 id=83
+B 308 5 id=83
+B 309 5 id=83
+B 310 5 id=83
+B 311 5 id=83
+B 312 5 id=83
+S 309 6 id=8
+S 310 6 id=8
+S 311 6 id=8
+S 313 6 id=8
+B 313 5 id=83
+B 313 4 id=83
+B 313 3 id=83
+B 312 3 id=83
+B 311 3 id=83
+B 310 3 id=83
+B 309 3 id=83
+B 308 3 id=83
+B 307 3 id=83
+B 312 4 id=83
+B 311 4 id=83
+B 310 4 id=83
+B 309 4 id=83
+B 308 4 id=83
+B 307 4 id=83
+B 307 2 id=83
+B 307 1 id=83
+B 308 1 id=83
+B 309 2 id=83
+B 310 2 id=83
+B 311 2 id=83
+B 312 2 id=83
+B 313 2 id=83
+B 314 2 id=83
+B 315 2 id=83
+B 316 2 id=83
+B 317 2 id=83
+B 317 1 id=83
+B 316 1 id=83
+B 315 1 id=83
+B 314 1 id=83
+B 313 1 id=83
+B 308 2 id=83
+B 307 0 id=83
+B 309 1 id=83
+B 310 1 id=83
+B 311 1 id=83
+B 312 1 id=83
+B 314 0 id=83
+B 313 0 id=83
+B 312 0 id=83
+B 311 0 id=83
+B 310 0 id=83
+B 309 0 id=83
+B 308 0 id=83
+B 315 0 id=83
+B 316 0 id=83
+B 317 0 id=83
+B 318 0 id=83
+B 319 0 id=83
+B 320 0 id=83
+B 321 0 id=83
+B 322 1 id=83
+B 321 2 id=83
+B 321 3 id=83
+B 320 3 id=83
+B 320 4 id=83
+B 319 4 id=83
+B 319 5 id=83
+B 318 5 id=83
+B 317 5 id=83
+B 316 5 id=83
+B 315 5 id=83
+B 314 5 id=83
+B 314 4 id=83
+B 315 4 id=83
+B 316 4 id=83
+B 317 4 id=83
+B 318 4 id=83
+B 316 3 id=83
+B 315 3 id=83
+B 314 3 id=83
+B 317 3 id=83
+B 319 3 id=83
+B 320 2 id=83
+B 319 2 id=83
+B 318 2 id=83
+B 318 3 id=83
+B 318 1 id=83
+B 319 1 id=83
+B 320 1 id=83
+B 321 1 id=83
+B 323 1 id=83
+B 322 0 id=83
+B 323 0 id=83
+B 320 5 id=83
+B 321 5 id=83
+B 322 5 id=83
+B 323 5 id=83
+B 324 5 id=83
+B 324 4 id=83
+B 324 3 id=83
+B 323 3 id=83
+B 323 4 id=83
+B 322 4 id=83
+B 321 4 id=83
+B 322 3 id=83
+B 323 2 id=83
+B 322 2 id=83
+B 324 1 id=83
+B 324 0 id=83
+B 324 2 id=83
+W 324.033 -0.333 2.933 5.667 id=1705 z=5
+W 326.033 8.667 2.933 5.667 id=1705 z=5
+W 330.525 11.616 1.951 3.768 id=1705 z=5
+W 328.407 1.389 2.185 4.222 id=1705 z=5
+W 336.811 5.168 1.379 2.663 id=1705 z=5
+W 330.767 9.083 1.467 2.833 id=1705 z=5
+W 338.033 0.667 2.933 5.667 id=1705 z=5
+W 341.033 9.667 2.933 5.667 id=1705 z=5
+W 343.767 7.083 1.467 2.833 id=1705 z=5
+W 344.033 -1.333 2.933 5.667 id=1705 z=5
+W 345.459 9.488 2.083 4.023 id=1705 z=5
+W 347.767 2.083 1.467 2.833 id=1705 z=5
+W 351.033 1.667 2.933 5.667 id=1705 z=5
+W 353.767 11.083 1.467 2.833 id=1705 z=5
+W 354.767 1.083 1.467 2.833 id=1705 z=5
+W 359.29 1.163 2.42 4.675 id=1705 z=5
+W 357.033 8.667 2.933 5.667 id=1705 z=5
+W 362.715 3.984 1.569 3.032 id=1705 z=5
+W 368.363 10.304 2.273 4.392 id=1705 z=5
+W 371.62 8.8 1.76 3.4 id=1705 z=5
+W 369.767 2.083 1.467 2.833 id=1705 z=5
+W 376.033 -1.333 2.933 5.667 id=1705 z=5
+W 378.767 8.083 1.467 2.833 id=1705 z=5
+W 380.51 9.588 1.98 3.825 id=1705 z=5
+W 389.033 6.667 2.933 5.667 id=1705 z=5
+W 393.767 8.083 1.467 2.833 id=1705 z=5
+W 390.195 -1.022 2.611 5.043 id=1705 z=5
+W 396.422 0.418 2.156 4.165 id=1705 z=5
+W 400.767 12.083 1.467 2.833 id=1705 z=5
+W 406.767 2.083 1.467 2.833 id=1705 z=5
+W 411.033 5.667 2.933 5.667 id=1705 z=5
+W 408.253 -1.908 2.493 4.817 id=1705 z=5
+W 416.033 6.667 2.933 5.667 id=1705 z=5
+W 415.195 -2.022 2.611 5.043 id=1705 z=5
+B 333 4 id=83
+B 333 5 id=83
+B 334 6 id=83
+B 334 4 id=83
+B 334 5 id=83
+B 335 6 id=83
+B 335 5 id=83
+B 335 4 id=83
+B 334 3 id=83
+B 336 3 id=83
+B 335 3 id=83
+B 335 2 id=83
+B 334 2 id=83
+B 335 1 id=83
+B 334 1 id=83
+B 335 0 id=83
+B 333 0 id=83
+B 334 0 id=83
+B 336 1 id=83
+B 337 1 id=83
+B 337 0 id=83
+B 331 3 id=83
+B 331 2 id=83
+B 330 1 id=83
+W 331.767 3.083 1.467 2.833 id=1705 z=5
+B 334 11 id=83
+B 336 11 id=83
+B 335 11 id=83
+B 336 12 id=83
+B 335 12 id=83
+B 335 13 id=83
+B 335 14 id=83
+B 335 15 id=83
+B 333 15 id=83
+B 334 13 id=83
+B 334 15 id=83
+B 337 15 id=83
+B 337 13 id=83
+B 338 14 id=83
+W 336.767 11.083 1.467 2.833 id=1705 z=5
+S 333 11 rot=-90 id=8
+W 339.053 10.636 0.895 1.728 id=1705 z=5
+B 352 12 id=83
+B 351 12 id=83
+B 350 12 id=83
+B 350 13 id=83
+B 351 13 id=83
+B 351 15 id=83
+B 350 15 id=83
+B 351 14 id=83
+B 350 14 id=83
+B 353 14 id=83
+B 353 13 id=83
+B 354 15 id=83
+S 352 11 rot=180 id=8
+S 351 11 rot=180 id=8
+S 350 11 rot=180 id=8
+W 348.767 11.083 1.467 2.833 id=1705 z=5
+B 347 2 id=83
+B 346 2 id=83
+B 347 3 id=83
+S 346 3 id=8
+B 346 1 id=83
+B 347 1 id=83
+B 347 0 id=83
+B 346 0 id=83
+B 348 2 id=83
+B 348 1 id=83
+W 341.935 2.409 1.129 2.182 id=1705 z=5
+W 355.067 9.664 0.865 1.672 id=1705 z=5
+B 366 11 id=83
+B 367 12 id=83
+B 367 11 id=83
+B 365 12 id=83
+B 366 12 id=83
+B 365 11 id=83
+B 368 13 id=83
+B 368 12 id=83
+B 366 13 id=83
+B 365 14 id=83
+B 366 14 id=83
+B 363 12 id=83
+B 367 14 id=83
+B 367 13 id=83
+B 368 14 id=83
+B 370 14 id=83
+B 369 15 id=83
+B 369 10 id=83
+W 362.246 10.078 2.508 4.845 id=1705 z=5
+W 365.033 -0.333 2.933 5.667 id=1705 z=5
+W 356.994 2.523 1.012 1.955 id=1705 z=5
+B 373 3 id=83
+B 372 4 id=83
+B 373 4 id=83
+B 372 3 id=83
+B 373 2 id=83
+B 372 2 id=83
+B 375 3 id=83
+B 375 2 id=83
+B 376 4 id=83
+B 374 3 id=83
+B 371 1 id=83
+B 372 1 id=83
+B 373 1 id=83
+B 373 0 id=83
+B 374 1 id=83
+B 374 0 id=83
+B 375 0 id=83
+B 370 0 id=83
+B 369 0 id=83
+S 374 4 id=8
+S 375 4 id=8
+W 375.033 8.667 2.933 5.667 id=1705 z=5
+W 382.033 4.667 2.933 5.667 id=1705 z=5
+B 387 8 id=83
+B 386 7 id=83
+B 387 7 id=83
+B 388 8 id=83
+B 388 7 id=83
+B 386 8 id=83
+B 389 7 id=83
+B 388 6 id=83
+B 387 6 id=83
+B 385 5 id=83
+B 385 7 id=83
+B 385 8 id=83
+B 388 10 id=83
+B 387 10 id=83
+S 386 5 rot=90 id=8
+W 393.723 1.998 1.555 3.003 id=1705 z=5
+W 396.033 9.667 2.933 5.667 id=1705 z=5
+W 399.847 10.239 1.305 2.522 id=1705 z=5
+B 404 12 id=83
+B 402 12 id=83
+B 405 12 id=83
+B 403 13 id=83
+B 402 14 id=83
+B 404 14 id=83
+B 405 14 id=83
+B 405 13 id=83
+B 404 13 id=83
+B 404 15 id=83
+B 406 15 id=83
+S 402 11 rot=180 id=8
+S 403 12 rot=180 id=8
+S 404 11 rot=180 id=8
+S 405 11 rot=180 id=8
+B 404 5 id=83
+B 403 5 id=83
+B 404 4 id=83
+B 403 4 id=83
+B 404 3 id=83
+B 403 3 id=83
+B 405 4 id=83
+B 406 5 id=83
+B 406 4 id=83
+B 406 3 id=83
+B 406 1 id=83
+B 401 4 id=83
+B 402 4 id=83
+B 402 5 id=83
+B 401 2 id=83
+B 400 2 id=83
+W 399.642 2.843 1.716 3.315 id=1705 z=5
+S 405 5 id=8
+W 407.393 9.361 2.215 4.278 id=1705 z=5
+W 414.884 5.31 1.232 2.38 id=1705 z=5
+W 419.275 -0.866 2.449 4.732 id=1705 z=5
+B 421 3 id=83
+B 421 2 id=83
+B 421 1 id=83
+B 421 0 id=83
+B 422 3 id=83
+B 424 3 id=83
+B 425 3 id=83
+B 423 3 id=83
+B 426 3 id=83
+B 427 2 id=83
+B 427 3 id=83
+B 427 1 id=83
+B 427 0 id=83
+B 426 0 id=83
+B 426 2 id=83
+B 425 2 id=83
+B 424 2 id=83
+B 423 2 id=83
+B 422 2 id=83
+B 422 1 id=83
+B 422 0 id=83
+B 423 0 id=83
+B 424 0 id=83
+B 425 0 id=83
+B 426 1 id=83
+B 425 1 id=83
+B 424 1 id=83
+B 423 1 id=83
+B 421 8 id=83
+B 421 9 id=83
+B 420 9 id=83
+B 419 7 id=83
+B 422 8 id=83
+B 423 8 id=83
+B 424 8 id=83
+B 425 8 id=83
+B 426 8 id=83
+B 427 8 id=83
+B 427 9 id=83
+B 426 9 id=83
+B 424 9 id=83
+B 423 9 id=83
+B 422 9 id=83
+B 426 10 id=83
+B 425 9 id=83
+B 425 10 id=83
+B 424 10 id=83
+B 423 10 id=83
+B 422 10 id=83
+B 421 10 id=83
+B 420 11 id=83
+B 420 10 id=83
+B 421 11 id=83
+B 422 11 id=83
+B 423 11 id=83
+B 424 11 id=83
+B 425 11 id=83
+B 426 11 id=83
+B 428 11 id=83
+B 428 10 id=83
+B 445 5 id=83
+B 444 5 id=83
+B 443 5 id=83
+B 442 5 id=83
+B 441 5 id=83
+B 440 5 id=83
+B 439 5 id=83
+B 439 4 id=83
+B 438 5 id=83
+B 438 1 id=83
+B 438 0 id=83
+B 439 0 id=83
+B 440 0 id=83
+B 441 0 id=83
+B 442 0 id=83
+B 443 0 id=83
+B 444 0 id=83
+B 445 0 id=83
+B 445 1 id=83
+B 445 3 id=83
+B 445 4 id=83
+B 444 4 id=83
+B 443 4 id=83
+B 442 4 id=83
+B 441 4 id=83
+B 440 4 id=83
+B 442 3 id=83
+B 444 3 id=83
+B 441 1 id=83
+B 441 2 id=83
+B 442 2 id=83
+B 443 1 id=83
+B 442 1 id=83
+B 444 1 id=83
+B 430 2 id=83
+B 437 3 id=83
+B 436 3 id=83
+B 437 2 id=83
+S 436 4 id=8
+S 437 4 id=8
+B 446 1 id=83
+B 447 1 id=83
+B 448 5 id=83
+B 448 1 id=83
+B 448 0 id=83
+B 449 0 id=83
+B 450 0 id=83
+B 451 0 id=83
+B 451 1 id=83
+B 451 2 id=83
+B 451 4 id=83
+B 451 5 id=83
+B 450 5 id=83
+B 449 5 id=83
+B 449 4 id=83
+B 449 3 id=83
+B 450 2 id=83
+B 450 1 id=83
+B 449 1 id=83
+B 447 3 id=83
+S 447 4 id=8
+S 446 2 id=8
+B 445 9 id=83
+B 446 9 id=83
+B 447 9 id=83
+B 448 11 id=83
+B 447 11 id=83
+B 446 12 id=83
+B 445 12 id=83
+B 448 12 id=83
+B 446 10 id=83
+B 443 11 id=83
+B 443 10 id=83
+B 448 9 id=83
+B 447 12 id=83
+B 447 13 id=83
+B 446 13 id=83
+B 445 13 id=83
+B 449 14 id=83
+B 451 11 id=83
+B 451 10 id=83
+B 451 9 id=83
+B 452 11 id=83
+B 452 10 id=83
+B 452 9 id=83
+B 450 10 id=83
+B 453 9 id=83
+B 454 9 id=83
+B 453 11 id=83
+B 453 10 id=83
+B 453 12 id=83
+B 451 13 id=83
+B 452 13 id=83
+B 454 14 id=83
+B 454 12 id=83
+S 449 13 rot=180 id=8
+S 450 9 rot=180 id=8
+S 443 9 rot=180 id=8
+B 456 5 id=83
+B 454 5 id=83
+B 455 5 id=83
+B 456 4 id=83
+B 455 3 id=83
+B 454 3 id=83
+B 454 2 id=83
+B 455 2 id=83
+B 456 2 id=83
+B 456 1 id=83
+B 456 0 id=83
+B 453 0 id=83
+B 455 1 id=83
+B 452 3 id=83
+S 452 4 id=8
+S 453 1 id=8
+B 456 9 id=83
+B 457 9 id=83
+B 458 9 id=83
+B 458 10 id=83
+B 456 10 id=83
+B 455 10 id=83
+B 456 11 id=83
+B 457 11 id=83
+B 457 10 id=83
+B 458 11 id=83
+B 456 12 id=83
+B 457 12 id=83
+B 459 13 id=83
+B 457 13 id=83
+B 456 13 id=83
+B 459 12 id=83
+S 459 11 rot=180 id=8
+S 455 9 rot=180 id=8
+B 458 5 id=83
+B 459 5 id=83
+B 460 5 id=83
+B 461 5 id=83
+B 461 4 id=83
+B 459 4 id=83
+B 460 4 id=83
+B 458 4 id=83
+B 458 3 id=83
+B 457 1 id=83
+B 457 2 id=83
+B 458 0 id=83
+B 459 1 id=83
+B 459 3 id=83
+B 460 1 id=83
+B 460 0 id=83
+B 459 0 id=83
+B 462 2 id=83
+B 462 1 id=83
+B 461 2 id=83
+B 462 0 id=83
+S 462 3 id=8
+S 457 3 id=8
+B 461 9 id=83
+B 460 11 id=83
+B 461 10 id=83
+B 460 12 id=83
+B 461 12 id=83
+B 461 14 id=83
+B 462 14 id=83
+B 462 13 id=83
+B 461 13 id=83
+B 463 13 id=83
+B 463 12 id=83
+B 463 11 id=83
+B 462 12 id=83
+B 464 10 id=83
+B 463 10 id=83
+B 462 9 id=83
+B 463 9 id=83
+B 464 14 id=83
+S 460 10 rot=180 id=8
+B 464 9 id=83
+B 465 12 id=83
+B 465 13 id=83
+B 463 4 id=83
+B 464 4 id=83
+B 464 5 id=83
+B 465 5 id=83
+B 466 5 id=83
+B 467 4 id=83
+B 466 3 id=83
+B 465 3 id=83
+B 465 2 id=83
+B 464 2 id=83
+B 464 1 id=83
+B 465 1 id=83
+B 463 0 id=83
+B 466 2 id=83
+B 466 1 id=83
+B 467 2 id=83
+B 468 2 id=83
+B 467 1 id=83
+B 466 0 id=83
+B 465 0 id=83
+B 464 0 id=83
+B 467 5 id=83
+S 463 5 id=8
+S 465 11 rot=180 id=8
+B 467 9 id=83
+B 467 10 id=83
+B 466 11 id=83
+B 467 12 id=83
+B 467 13 id=83
+B 468 12 id=83
+B 468 13 id=83
+B 469 13 id=83
+B 467 15 id=83
+B 466 14 id=83
+B 467 14 id=83
+B 468 14 id=83
+B 469 14 id=83
+B 470 14 id=83
+B 470 15 id=83
+B 471 13 id=83
+B 470 11 id=83
+B 469 11 id=83
+B 468 9 id=83
+B 469 10 id=83
+B 469 9 id=83
+B 470 9 id=83
+S 466 10 rot=180 id=8
+S 471 12 rot=180 id=8
+B 469 5 id=83
+B 469 2 id=83
+B 470 1 id=83
+B 470 2 id=83
+B 470 3 id=83
+B 470 4 id=83
+B 470 5 id=83
+B 471 5 id=83
+B 472 5 id=83
+B 472 4 id=83
+B 471 3 id=83
+B 471 2 id=83
+B 471 1 id=83
+B 471 0 id=83
+B 473 1 id=83
+B 473 2 id=83
+B 473 5 id=83
+B 471 4 id=83
+B 472 1 id=83
+B 474 4 id=83
+B 474 3 id=83
+B 474 0 id=83
+B 468 0 id=83
+S 468 3 id=8
+S 474 5 id=8
+B 472 9 id=83
+B 473 9 id=83
+B 474 9 id=83
+B 475 9 id=83
+B 476 9 id=83
+B 476 10 id=83
+B 476 11 id=83
+B 475 10 id=83
+B 474 10 id=83
+B 473 10 id=83
+B 473 11 id=83
+B 473 13 id=83
+B 474 13 id=83
+B 474 12 id=83
+B 475 13 id=83
+B 474 14 id=83
+B 474 15 id=83
+B 473 15 id=83
+B 472 15 id=83
+B 476 15 id=83
+B 475 15 id=83
+B 475 14 id=83
+B 476 14 id=83
+B 477 13 id=83
+S 472 8 rot=180 id=8
+S 477 12 rot=180 id=8
+B 476 5 id=83
+B 476 4 id=83
+B 476 0 id=83
+B 477 3 id=83
+B 477 4 id=83
+B 477 5 id=83
+B 478 5 id=83
+B 479 5 id=83
+B 480 5 id=83
+B 480 4 id=83
+B 479 4 id=83
+B 478 4 id=83
+B 478 3 id=83
+B 478 2 id=83
+B 479 2 id=83
+B 479 3 id=83
+B 480 1 id=83
+B 480 0 id=83
+B 479 0 id=83
+B 479 1 id=83
+B 478 1 id=83
+B 477 0 id=83
+B 475 2 id=83
+B 481 3 id=83
+S 475 3 id=8
+S 481 4 id=8
+B 478 11 id=83
+B 478 10 id=83
+B 478 9 id=83
+B 479 9 id=83
+B 480 9 id=83
+B 480 10 id=83
+B 481 10 id=83
+B 481 11 id=83
+B 482 10 id=83
+B 482 9 id=83
+B 481 9 id=83
+B 480 11 id=83
+B 480 12 id=83
+B 481 12 id=83
+B 479 12 id=83
+B 479 11 id=83
+B 479 10 id=83
+B 479 13 id=83
+B 479 14 id=83
+B 480 14 id=83
+B 481 13 id=83
+B 478 14 id=83
+B 478 13 id=83
+B 480 13 id=83
+B 483 15 id=83
+B 482 15 id=83
+B 483 9 id=83
+B 484 11 id=83
+B 484 12 id=83
+B 483 14 id=83
+B 484 10 id=83
+S 484 9 rot=180 id=8
+B 483 5 id=83
+B 483 1 id=83
+B 484 2 id=83
+B 484 3 id=83
+B 484 5 id=83
+B 485 5 id=83
+B 486 5 id=83
+B 486 4 id=83
+B 486 3 id=83
+B 485 4 id=83
+B 485 3 id=83
+B 485 2 id=83
+B 487 2 id=83
+B 487 1 id=83
+B 487 0 id=83
+B 486 0 id=83
+B 484 0 id=83
+B 483 0 id=83
+B 482 1 id=83
+B 481 0 id=83
+B 480 -2 id=83
+S 482 2 id=8
+S 487 3 id=8
+B 489 9 id=83
+B 489 10 id=83
+B 487 11 id=83
+B 487 10 id=83
+B 486 10 id=83
+B 486 9 id=83
+B 487 9 id=83
+B 488 9 id=83
+B 485 12 id=83
+B 485 13 id=83
+B 487 12 id=83
+B 487 13 id=83
+B 488 13 id=83
+B 488 12 id=83
+B 490 13 id=83
+B 490 12 id=83
+B 490 14 id=83
+B 488 14 id=83
+B 487 14 id=83
+B 487 15 id=83
+B 487 16 id=83
+B 488 15 id=83
+B 486 15 id=83
+B 486 14 id=83
+B 485 14 id=83
+B 485 15 id=83
+B 489 15 id=83
+B 490 15 id=83
+S 485 11 rot=180 id=8
+S 490 11 rot=180 id=8
+D 498 6 1 0.2 pad=blue id=67 z=2
+B 489 5 id=83
+B 489 4 id=83
+B 489 3 id=83
+B 489 2 id=83
+B 490 5 id=83
+B 491 5 id=83
+B 492 5 id=83
+B 493 5 id=83
+B 494 5 id=83
+B 495 5 id=83
+B 496 5 id=83
+B 497 5 id=83
+B 498 5 id=83
+B 498 4 id=83
+B 497 4 id=83
+B 496 4 id=83
+B 494 4 id=83
+B 493 4 id=83
+B 492 4 id=83
+B 492 3 id=83
+B 493 3 id=83
+B 495 4 id=83
+B 491 3 id=83
+B 490 3 id=83
+B 491 4 id=83
+B 490 4 id=83
+B 496 3 id=83
+B 497 3 id=83
+B 498 3 id=83
+B 499 3 id=83
+B 495 3 id=83
+B 494 3 id=83
+B 493 2 id=83
+B 494 2 id=83
+B 498 2 id=83
+B 497 2 id=83
+B 496 2 id=83
+B 495 2 id=83
+B 499 2 id=83
+B 499 1 id=83
+B 498 1 id=83
+B 497 1 id=83
+B 492 2 id=83
+B 491 2 id=83
+B 490 2 id=83
+B 492 1 id=83
+B 491 1 id=83
+B 490 1 id=83
+B 489 1 id=83
+B 488 1 id=83
+B 489 0 id=83
+B 489 -1 id=83
+B 493 1 id=83
+B 494 1 id=83
+B 495 1 id=83
+B 496 1 id=83
+B 494 0 id=83
+B 493 0 id=83
+B 491 0 id=83
+B 490 0 id=83
+B 492 0 id=83
+B 495 0 id=83
+B 496 0 id=83
+B 497 0 id=83
+B 498 0 id=83
+B 499 0 id=83
+B 497 -1 id=83
+S 488 2 id=8
+X 498 11 id=143
+K 516 7 inert=1 id=287 z=2
+B 514 10 id=83
+B 515 10 id=83
+B 515 9 id=83
+B 514 9 id=83
+B 513 9 id=83
+B 512 9 id=83
+B 511 9 id=83
+B 510 9 id=83
+B 509 9 id=83
+B 508 9 id=83
+B 507 9 id=83
+B 506 9 id=83
+B 505 9 id=83
+B 504 9 id=83
+B 503 9 id=83
+B 502 9 id=83
+B 501 9 id=83
+B 500 9 id=83
+B 499 9 id=83
+B 499 10 id=83
+B 500 10 id=83
+B 501 10 id=83
+B 502 10 id=83
+B 503 10 id=83
+B 504 10 id=83
+B 505 10 id=83
+B 506 10 id=83
+B 507 10 id=83
+B 508 10 id=83
+B 509 10 id=83
+B 510 10 id=83
+B 511 10 id=83
+B 512 10 id=83
+B 513 10 id=83
+B 515 12 id=83
+B 514 12 id=83
+B 513 12 id=83
+B 512 12 id=83
+B 511 12 id=83
+B 510 12 id=83
+B 509 12 id=83
+B 508 12 id=83
+B 507 12 id=83
+B 506 12 id=83
+B 505 12 id=83
+B 504 12 id=83
+B 503 12 id=83
+B 502 12 id=83
+B 501 12 id=83
+B 500 12 id=83
+B 499 12 id=83
+B 516 10 id=83
+B 516 9 id=83
+B 517 9 id=83
+B 517 10 id=83
+B 517 11 id=83
+B 517 12 id=83
+B 516 12 id=83
+B 498 12 id=83
+B 497 12 id=83
+B 496 12 id=83
+B 495 12 id=83
+B 494 12 id=83
+B 498 9 id=83
+B 498 10 id=83
+B 497 10 id=83
+B 496 10 id=83
+B 495 10 id=83
+B 494 10 id=83
+B 494 9 id=83
+B 495 9 id=83
+B 496 9 id=83
+B 497 9 id=83
+B 493 12 id=83
+B 492 12 id=83
+B 491 12 id=83
+B 499 5 id=83
+B 500 5 id=83
+B 501 5 id=83
+B 502 5 id=83
+B 503 5 id=83
+B 504 5 id=83
+B 505 5 id=83
+B 506 5 id=83
+B 507 5 id=83
+B 508 5 id=83
+B 509 5 id=83
+B 510 5 id=83
+B 511 5 id=83
+B 512 5 id=83
+B 513 5 id=83
+B 514 5 id=83
+B 514 4 id=83
+B 513 4 id=83
+B 512 4 id=83
+B 511 4 id=83
+B 510 4 id=83
+B 509 4 id=83
+B 508 4 id=83
+B 506 4 id=83
+B 505 4 id=83
+B 504 4 id=83
+B 503 4 id=83
+B 502 4 id=83
+B 501 4 id=83
+B 500 4 id=83
+B 499 4 id=83
+B 500 3 id=83
+B 501 3 id=83
+B 502 3 id=83
+B 504 3 id=83
+B 507 4 id=83
+B 513 3 id=83
+B 512 3 id=83
+B 511 3 id=83
+B 509 3 id=83
+B 508 3 id=83
+B 507 3 id=83
+B 506 3 id=83
+B 505 3 id=83
+B 503 3 id=83
+B 501 2 id=83
+B 500 2 id=83
+B 501 1 id=83
+B 500 1 id=83
+B 500 0 id=83
+B 501 0 id=83
+B 502 2 id=83
+B 502 1 id=83
+B 502 0 id=83
+B 502 -1 id=83
+B 503 -1 id=83
+B 503 0 id=83
+B 503 1 id=83
+B 503 2 id=83
+B 504 2 id=83
+B 504 1 id=83
+B 504 0 id=83
+B 505 2 id=83
+B 506 1 id=83
+B 506 0 id=83
+B 506 -1 id=83
+B 505 0 id=83
+B 505 1 id=83
+B 506 2 id=83
+B 507 2 id=83
+B 510 3 id=83
+B 510 2 id=83
+B 510 1 id=83
+B 510 0 id=83
+B 509 0 id=83
+B 509 -1 id=83
+B 508 -1 id=83
+B 508 0 id=83
+B 508 1 id=83
+B 508 2 id=83
+B 509 2 id=83
+B 509 1 id=83
+B 507 0 id=83
+B 507 1 id=83
+B 511 0 id=83
+B 511 1 id=83
+B 512 1 id=83
+B 512 2 id=83
+B 513 2 id=83
+B 513 1 id=83
+B 514 0 id=83
+B 513 0 id=83
+B 512 0 id=83
+B 511 2 id=83
+B 514 1 id=83
+B 514 2 id=83
+B 514 3 id=83
+X 521 6 id=143
+X 520 6 id=143
+B 525 4 id=83
+B 525 -1 id=83
+B 524 2 id=83
+B 524 3 id=83
+B 524 4 id=83
+B 524 5 id=83
+B 525 5 id=83
+B 523 5 id=83
+B 522 5 id=83
+B 521 5 id=83
+B 520 5 id=83
+B 519 5 id=83
+B 518 5 id=83
+B 517 5 id=83
+B 516 5 id=83
+B 515 5 id=83
+B 515 4 id=83
+B 516 4 id=83
+B 517 4 id=83
+B 518 4 id=83
+B 519 4 id=83
+B 520 4 id=83
+B 521 4 id=83
+B 522 4 id=83
+B 522 3 id=83
+B 523 3 id=83
+B 523 4 id=83
+B 521 3 id=83
+B 520 3 id=83
+B 519 3 id=83
+B 518 3 id=83
+B 517 3 id=83
+B 516 3 id=83
+B 515 3 id=83
+B 515 2 id=83
+B 516 2 id=83
+B 517 2 id=83
+B 518 2 id=83
+B 519 2 id=83
+B 520 2 id=83
+B 521 2 id=83
+B 522 2 id=83
+B 523 2 id=83
+B 523 1 id=83
+B 522 1 id=83
+B 521 1 id=83
+B 520 1 id=83
+B 519 1 id=83
+B 518 1 id=83
+B 517 1 id=83
+B 516 1 id=83
+B 515 1 id=83
+B 515 0 id=83
+B 516 -1 id=83
+B 517 0 id=83
+B 518 0 id=83
+B 519 0 id=83
+B 520 0 id=83
+B 521 0 id=83
+B 522 0 id=83
+B 523 0 id=83
+B 516 0 id=83
+B 518 8 id=83
+B 518 9 id=83
+B 518 10 id=83
+B 518 11 id=83
+B 518 12 id=83
+B 518 7 id=83
+B 519 7 id=83
+B 520 7 id=83
+B 521 7 id=83
+B 522 7 id=83
+B 523 7 id=83
+B 524 7 id=83
+B 524 8 id=83
+B 523 8 id=83
+B 522 8 id=83
+B 521 8 id=83
+B 520 8 id=83
+B 519 8 id=83
+B 519 9 id=83
+B 520 9 id=83
+B 521 9 id=83
+B 522 9 id=83
+B 523 9 id=83
+B 524 9 id=83
+B 524 10 id=83
+B 523 10 id=83
+B 522 10 id=83
+B 521 10 id=83
+B 520 10 id=83
+B 519 10 id=83
+B 519 11 id=83
+B 520 11 id=83
+B 521 11 id=83
+B 522 11 id=83
+B 523 11 id=83
+B 524 11 id=83
+B 524 12 id=83
+B 523 12 id=83
+B 522 12 id=83
+B 521 12 id=83
+B 520 12 id=83
+B 519 12 id=83
+B 531 4 id=83
+B 530 4 id=83
+B 529 4 id=83
+B 528 4 id=83
+B 528 0 id=83
+B 529 2 id=83
+B 529 3 id=83
+B 529 1 id=83
+B 529 0 id=83
+B 530 1 id=83
+B 530 0 id=83
+B 531 1 id=83
+B 531 0 id=83
+B 530 3 id=83
+B 526 2 id=83
+B 527 2 id=83
+B 526 3 id=83
+B 526 1 id=83
+B 525 1 id=83
+B 532 2 id=83
+B 533 3 id=83
+B 533 2 id=83
+S 526 4 id=8
+S 527 3 id=8
+S 533 4 id=8
+S 532 3 id=8
+B 537 0 id=83
+B 537 5 id=83
+B 537 6 id=83
+B 537 7 id=83
+B 538 7 id=83
+B 539 7 id=83
+B 540 7 id=83
+B 541 7 id=83
+B 542 7 id=83
+B 543 7 id=83
+B 544 7 id=83
+B 545 7 id=83
+B 546 7 id=83
+B 546 6 id=83
+B 546 5 id=83
+B 546 2 id=83
+B 546 0 id=83
+B 546 -1 id=83
+B 545 6 id=83
+B 544 6 id=83
+B 541 6 id=83
+B 540 6 id=83
+B 539 6 id=83
+B 538 5 id=83
+B 538 4 id=83
+B 539 5 id=83
+B 538 6 id=83
+B 539 4 id=83
+B 539 3 id=83
+B 539 2 id=83
+B 539 1 id=83
+B 538 2 id=83
+B 538 3 id=83
+B 538 0 id=83
+B 540 2 id=83
+B 540 1 id=83
+B 541 2 id=83
+B 542 4 id=83
+B 542 5 id=83
+B 543 3 id=83
+B 543 4 id=83
+B 543 1 id=83
+B 545 5 id=83
+B 545 2 id=83
+B 544 1 id=83
+B 545 1 id=83
+B 535 3 id=83
+B 535 4 id=83
+B 535 2 id=83
+B 536 2 id=83
+B 540 4 id=83
+B 544 3 id=83
+B 545 3 id=83
+B 546 3 id=83
+B 547 4 id=83
+B 549 5 id=83
+B 549 3 id=83
+B 549 2 id=83
+B 548 2 id=83
+S 547 5 id=8
+S 549 6 id=8
+S 535 5 id=8
+S 534 0 id=8
+S 548 3 id=8
+W 564.576 0.715 1.848 3.57 id=1705 z=5
+W 568.576 1.715 1.848 3.57 id=1705 z=5
+W 572.033 4.667 2.933 5.667 id=1705 z=5
+W 566.803 13.154 1.393 2.692 id=1705 z=5
+W 584.803 13.154 1.393 2.692 id=1705 z=5
+W 634.033 13.667 2.933 5.667 id=1705 z=5
+W 634.033 24.667 2.933 5.667 id=1705 z=5
+B 638 28 id=83
+B 638 27 id=83
+B 638 26 id=83
+B 638 29 id=83
+B 638 25 id=83
+B 639 25 id=83
+B 640 25 id=83
+B 641 25 id=83
+B 642 25 id=83
+B 643 25 id=83
+B 644 25 id=83
+B 645 25 id=83
+B 646 25 id=83
+B 647 25 id=83
+B 648 25 id=83
+B 649 25 id=83
+B 650 25 id=83
+B 651 25 id=83
+B 652 25 id=83
+B 653 25 id=83
+B 654 25 id=83
+B 655 25 id=83
+B 656 25 id=83
+B 657 25 id=83
+B 658 25 id=83
+B 659 25 id=83
+B 660 25 id=83
+B 660 18 id=83
+B 659 18 id=83
+B 658 18 id=83
+B 657 18 id=83
+B 655 18 id=83
+B 653 18 id=83
+B 652 18 id=83
+B 651 18 id=83
+B 649 18 id=83
+B 648 18 id=83
+B 647 18 id=83
+B 646 18 id=83
+B 645 18 id=83
+B 644 18 id=83
+B 643 18 id=83
+B 642 18 id=83
+B 641 18 id=83
+B 640 18 id=83
+B 639 18 id=83
+B 638 18 id=83
+B 638 17 id=83
+B 638 16 id=83
+B 638 15 id=83
+B 638 14 id=83
+B 650 18 id=83
+B 654 18 id=83
+B 656 18 id=83
+B 656 17 id=83
+B 657 17 id=83
+B 659 17 id=83
+B 660 17 id=83
+W 662.033 12.667 2.933 5.667 id=1705 z=5
+B 640 15 id=83
+B 640 16 id=83
+B 640 17 id=83
+B 639 17 id=83
+B 641 17 id=83
+B 641 16 id=83
+B 642 16 id=83
+B 648 17 id=83
+B 649 17 id=83
+B 650 17 id=83
+B 651 17 id=83
+B 652 17 id=83
+B 653 17 id=83
+B 651 16 id=83
+B 648 16 id=83
+B 646 16 id=83
+B 645 16 id=83
+B 645 17 id=83
+B 642 17 id=83
+B 644 17 id=83
+B 654 15 id=83
+B 655 15 id=83
+B 659 16 id=83
+B 659 14 id=83
+B 657 15 id=83
+B 644 14 id=83
+B 643 15 id=83
+B 647 15 id=83
+B 641 26 id=83
+B 642 26 id=83
+B 643 27 id=83
+B 645 27 id=83
+B 645 26 id=83
+B 646 26 id=83
+B 650 26 id=83
+B 651 26 id=83
+B 652 26 id=83
+B 651 27 id=83
+B 650 27 id=83
+B 648 27 id=83
+B 648 28 id=83
+B 647 28 id=83
+B 653 27 id=83
+B 654 27 id=83
+B 655 26 id=83
+B 656 26 id=83
+B 657 28 id=83
+B 658 27 id=83
+B 658 26 id=83
+B 640 27 id=83
+B 640 28 id=83
+B 645 29 id=83
+B 652 29 id=83
+B 653 29 id=83
+B 660 28 id=83
+B 660 26 id=83
+B 661 27 id=83
+B 662 27 id=83
+B 661 15 id=83
+B 661 16 id=83
+B 481 5 id=83
+C 513 6 id=2063
+S 1138 31 rot=180 id=8
+B 1133 26 id=83
+B 1132 26 id=83
+B 1131 26 id=83
+B 1130 26 id=83
+B 1129 26 id=83
+B 1128 26 id=83
+B 1127 26 id=83
+B 1126 26 id=83
+B 1125 26 id=83
+B 1124 26 id=83
+B 1123 26 id=83
+B 1128 30 id=83
+B 1127 30 id=83
+B 1126 30 id=83
+B 1125 30 id=83
+B 1124 30 id=83
+B 1124 31 id=83
+B 1123 32 id=83
+B 1123 33 id=83
+B 1125 31 id=83
+B 1125 32 id=83
+B 1126 32 id=83
+B 1126 31 id=83
+B 1127 31 id=83
+B 1128 32 id=83
+B 1129 32 id=83
+B 1127 32 id=83
+B 1128 31 id=83
+B 1129 31 id=83
+B 1130 32 id=83
+B 1130 33 id=83
+B 1129 33 id=83
+B 1128 33 id=83
+B 1127 33 id=83
+B 1126 33 id=83
+B 1125 33 id=83
+B 1124 33 id=83
+B 1124 32 id=83
+B 1122 33 id=83
+S 1122 32 rot=180 id=8
+S 1121 33 rot=270 id=8
+B 1123 25 id=83
+B 1122 25 id=83
+B 1122 26 id=83
+B 1122 24 id=83
+B 1122 23 id=83
+B 1123 24 id=83
+B 1126 25 id=83
+B 1127 25 id=83
+B 1129 25 id=83
+B 1130 25 id=83
+B 1132 25 id=83
+B 1133 25 id=83
+B 1134 25 id=83
+B 1134 24 id=83
+B 1135 24 id=83
+B 1135 23 id=83
+B 1133 23 id=83
+B 1130 23 id=83
+B 1129 23 id=83
+B 1127 23 id=83
+B 1126 23 id=83
+B 1125 23 id=83
+B 1123 23 id=83
+B 1132 24 id=83
+B 1133 24 id=83
+B 1131 33 id=83
+B 1132 33 id=83
+B 1133 33 id=83
+B 1134 33 id=83
+B 1135 33 id=83
+B 1136 33 id=83
+B 1137 33 id=83
+B 1138 33 id=83
+B 1138 32 id=83
+B 1139 32 id=83
+B 1139 31 id=83
+B 1139 33 id=83
+B 1140 33 id=83
+B 1140 32 id=83
+B 1141 33 id=83
+B 1142 33 id=83
+B 1143 33 id=83
+B 1144 33 id=83
+B 1145 33 id=83
+B 1146 33 id=83
+B 1147 33 id=83
+B 1148 33 id=83
+B 1136 24 id=83
+B 1136 23 id=83
+B 1137 23 id=83
+B 1137 24 id=83
+B 1138 24 id=83
+B 1139 24 id=83
+S 1141 25 id=8
+S 1142 26 id=8
+B 1140 24 id=83
+B 1141 24 id=83
+B 1142 24 id=83
+B 1143 24 id=83
+B 1143 25 id=83
+B 1142 25 id=83
+B 1143 26 id=83
+B 1144 26 id=83
+B 1145 26 id=83
+B 1146 26 id=83
+B 1147 26 id=83
+B 1148 26 id=83
+B 1149 26 id=83
+B 1150 26 id=83
+B 1151 26 id=83
+B 1152 26 id=83
+B 1153 26 id=83
+B 1154 26 id=83
+B 1155 26 id=83
+B 1156 26 id=83
+B 1157 26 id=83
+B 1157 25 id=83
+B 1158 25 id=83
+B 1156 25 id=83
+B 1154 25 id=83
+B 1153 25 id=83
+B 1152 25 id=83
+B 1149 24 id=83
+B 1148 24 id=83
+B 1147 24 id=83
+B 1144 24 id=83
+B 1144 25 id=83
+B 1144 23 id=83
+B 1143 23 id=83
+B 1145 23 id=83
+B 1150 24 id=83
+B 1148 25 id=83
+B 1147 25 id=83
+B 1152 23 id=83
+B 1153 23 id=83
+B 1155 23 id=83
+B 1156 23 id=83
+B 1156 24 id=83
+B 1157 24 id=83
+B 1158 24 id=83
+B 1159 23 id=83
+B 1160 23 id=83
+B 1165 24 id=83
+B 1166 24 id=83
+B 1166 23 id=83
+B 1167 23 id=83
+B 1165 23 id=83
+S 1159 25 id=8
+B 1167 24 id=83
+B 1163 24 id=83
+B 1162 24 id=83
+B 1161 24 id=83
+B 1160 24 id=83
+B 1159 24 id=83
+B 1164 24 id=83
+B 1164 23 id=83
+B 1138 22 id=83
+B 1139 22 id=83
+B 1140 22 id=83
+B 1149 22 id=83
+B 1148 22 id=83
+B 1145 25 id=83
+B 1150 25 id=83
+B 1158 22 id=83
+B 1163 22 id=83
+B 1164 22 id=83
+B 1166 22 id=83
+B 1125 24 id=83
+B 1124 25 id=83
+B 1129 22 id=83
+B 1128 24 id=83
+B 1132 23 id=83
+B 1132 22 id=83
+B 1124 23 id=83
+B 1124 22 id=83
+B 1121 24 id=83
+B 1120 24 id=83
+B 1120 22 id=83
+S 1121 25 id=8
+S 1120 25 id=8
+B 1149 33 id=83
+B 1150 33 id=83
+B 1151 33 id=83
+B 1152 33 id=83
+B 1153 33 id=83
+B 1154 33 id=83
+B 1155 33 id=83
+B 1156 33 id=83
+B 1157 33 id=83
+B 1158 33 id=83
+B 1145 30 id=83
+H 1189 33 1 0.5 fm=box id=662
+H 1193 33 1 0.5 fm=box id=662
+B 1211 41 id=83
+B 1211 40 id=83
+B 1211 39 id=83
+B 1212 39 id=83
+B 1212 40 id=83
+B 1213 40 id=83
+B 1214 40 id=83
+B 1215 40 id=83
+B 1216 40 id=83
+B 1217 40 id=83
+B 1216 39 id=83
+B 1215 39 id=83
+B 1214 39 id=83
+B 1213 39 id=83
+B 1216 41 id=83
+B 1215 41 id=83
+B 1214 41 id=83
+B 1213 41 id=83
+B 1212 41 id=83
+B 1217 41 id=83
+B 1218 41 id=83
+B 1219 41 id=83
+B 1220 41 id=83
+B 1221 41 id=83
+B 1222 41 id=83
+B 1223 41 id=83
+B 1224 41 id=83
+B 1225 41 id=83
+B 1226 41 id=83
+B 1227 41 id=83
+B 1227 40 id=83
+B 1226 40 id=83
+B 1225 40 id=83
+B 1225 39 id=83
+B 1224 39 id=83
+B 1223 40 id=83
+B 1222 40 id=83
+B 1221 40 id=83
+B 1220 40 id=83
+B 1219 40 id=83
+B 1218 40 id=83
+B 1217 39 id=83
+B 1218 39 id=83
+B 1219 39 id=83
+B 1220 39 id=83
+B 1221 39 id=83
+B 1222 39 id=83
+B 1223 39 id=83
+B 1226 39 id=83
+B 1224 40 id=83
+B 1227 39 id=83
+B 1217 29 id=83
+B 1216 29 id=83
+B 1215 29 id=83
+B 1214 29 id=83
+B 1213 29 id=83
+B 1212 29 id=83
+B 1212 28 id=83
+B 1211 28 id=83
+B 1211 27 id=83
+B 1211 29 id=83
+B 1212 27 id=83
+B 1213 28 id=83
+B 1214 28 id=83
+B 1215 28 id=83
+B 1216 28 id=83
+B 1217 28 id=83
+B 1218 28 id=83
+B 1219 28 id=83
+B 1220 28 id=83
+B 1221 28 id=83
+B 1222 28 id=83
+B 1223 28 id=83
+B 1224 28 id=83
+B 1225 28 id=83
+B 1226 28 id=83
+B 1226 29 id=83
+B 1225 29 id=83
+B 1224 29 id=83
+B 1223 29 id=83
+B 1222 29 id=83
+B 1221 29 id=83
+B 1220 29 id=83
+B 1219 29 id=83
+B 1218 29 id=83
+B 1227 29 id=83
+B 1227 28 id=83
+B 1227 27 id=83
+B 1226 27 id=83
+B 1225 27 id=83
+B 1224 27 id=83
+B 1223 27 id=83
+B 1222 27 id=83
+B 1221 27 id=83
+B 1220 27 id=83
+B 1219 27 id=83
+B 1218 27 id=83
+B 1217 27 id=83
+B 1216 27 id=83
+B 1215 27 id=83
+B 1214 27 id=83
+B 1213 27 id=83
+B 1216 29 id=83 g=11
+B 1215 29 id=83 g=11
+B 1216 28 id=83 g=11
+B 1215 28 id=83 g=11
+B 1217 29 id=83 g=11
+B 1217 28 id=83 g=11
+B 1217 39 id=83 g=10
+B 1216 39 id=83 g=10
+B 1215 39 id=83 g=10
+B 1215 40 id=83 g=10
+B 1216 40 id=83 g=10
+B 1217 40 id=83 g=10
+B 1227 40 id=83 g=12
+B 1226 40 id=83 g=12
+B 1225 40 id=83 g=12
+B 1225 39 id=83 g=12
+B 1226 39 id=83 g=12
+B 1227 39 id=83 g=12
+B 1227 29 id=83 g=13
+B 1226 29 id=83 g=13
+B 1225 29 id=83 g=13
+B 1225 28 id=83 g=13
+B 1226 28 id=83 g=13
+B 1227 28 id=83 g=13
+B 1228 40 id=83
+B 1228 39 id=83
+B 1229 39 id=83
+B 1229 40 id=83
+B 1230 40 id=83
+B 1231 40 id=83
+B 1232 40 id=83
+B 1233 40 id=83
+B 1233 39 id=83
+B 1234 39 id=83
+B 1235 39 id=83
+B 1232 39 id=83
+B 1231 39 id=83
+B 1230 39 id=83
+B 1228 41 id=83
+B 1229 41 id=83
+B 1230 41 id=83
+B 1231 41 id=83
+B 1232 41 id=83
+B 1233 41 id=83
+B 1234 41 id=83
+B 1235 41 id=83
+B 1235 40 id=83
+B 1234 40 id=83
+B 1235 29 id=83
+B 1234 29 id=83
+B 1233 29 id=83
+B 1232 29 id=83
+B 1231 29 id=83
+B 1230 29 id=83
+B 1229 29 id=83
+B 1228 29 id=83
+B 1228 28 id=83
+B 1229 28 id=83
+B 1230 28 id=83
+B 1231 28 id=83
+B 1232 28 id=83
+B 1233 28 id=83
+B 1234 28 id=83
+B 1235 28 id=83
+B 1235 27 id=83
+B 1234 27 id=83
+B 1233 27 id=83
+B 1232 27 id=83
+B 1231 27 id=83
+B 1230 27 id=83
+B 1229 27 id=83
+B 1228 27 id=83
+B 1236 39 id=83
+B 1237 39 id=83
+B 1238 39 id=83
+B 1239 39 id=83
+B 1240 39 id=83
+B 1241 39 id=83
+B 1242 39 id=83
+B 1243 39 id=83
+B 1244 39 id=83
+B 1245 39 id=83
+B 1245 40 id=83
+B 1244 40 id=83
+B 1243 40 id=83
+B 1242 40 id=83
+B 1241 40 id=83
+B 1240 40 id=83
+B 1239 40 id=83
+B 1238 40 id=83
+B 1237 40 id=83
+B 1236 40 id=83
+B 1236 41 id=83
+B 1237 41 id=83
+B 1238 41 id=83
+B 1239 41 id=83
+B 1240 41 id=83
+B 1241 41 id=83
+B 1242 41 id=83
+B 1243 41 id=83
+B 1244 41 id=83
+B 1245 41 id=83
+B 1236 29 id=83
+B 1237 29 id=83
+B 1238 29 id=83
+B 1239 29 id=83
+B 1240 29 id=83
+B 1241 29 id=83
+B 1242 29 id=83
+B 1243 29 id=83
+B 1244 29 id=83
+B 1245 29 id=83
+B 1245 28 id=83
+B 1245 27 id=83
+B 1244 27 id=83
+B 1243 27 id=83
+B 1242 27 id=83
+B 1242 28 id=83
+B 1241 28 id=83
+B 1240 28 id=83
+B 1239 28 id=83
+B 1238 28 id=83
+B 1237 28 id=83
+B 1236 28 id=83
+B 1236 27 id=83
+B 1237 27 id=83
+B 1238 27 id=83
+B 1239 27 id=83
+B 1240 27 id=83
+B 1241 27 id=83
+B 1243 28 id=83
+B 1244 28 id=83
+B 1246 40 id=83
+B 1246 39 id=83
+B 1247 39 id=83
+B 1248 39 id=83
+B 1249 39 id=83
+B 1250 39 id=83
+B 1251 39 id=83
+B 1252 39 id=83
+B 1253 39 id=83
+B 1254 39 id=83
+B 1255 39 id=83
+B 1256 39 id=83
+B 1257 39 id=83
+B 1246 41 id=83
+B 1247 41 id=83
+B 1248 41 id=83
+B 1249 41 id=83
+B 1250 41 id=83
+B 1251 41 id=83
+B 1252 41 id=83
+B 1253 41 id=83
+B 1254 41 id=83
+B 1255 41 id=83
+B 1256 41 id=83
+B 1257 41 id=83
+B 1257 40 id=83
+B 1256 40 id=83
+B 1255 40 id=83
+B 1254 40 id=83
+B 1253 40 id=83
+B 1252 40 id=83
+B 1251 40 id=83
+B 1250 40 id=83
+B 1249 40 id=83
+B 1248 40 id=83
+B 1247 40 id=83
+B 1246 29 id=83
+B 1247 29 id=83
+B 1248 29 id=83
+B 1249 29 id=83
+B 1250 29 id=83
+B 1251 29 id=83
+B 1252 29 id=83
+B 1253 29 id=83
+B 1254 29 id=83
+B 1255 29 id=83
+B 1256 29 id=83
+B 1257 29 id=83
+B 1257 28 id=83
+B 1256 28 id=83
+B 1255 28 id=83
+B 1254 28 id=83
+B 1253 28 id=83
+B 1252 28 id=83
+B 1251 28 id=83
+B 1250 28 id=83
+B 1249 28 id=83
+B 1248 28 id=83
+B 1247 28 id=83
+B 1247 27 id=83
+B 1246 27 id=83
+B 1246 28 id=83
+B 1249 27 id=83
+B 1248 27 id=83
+B 1250 27 id=83
+B 1251 27 id=83
+B 1252 27 id=83
+B 1253 27 id=83
+B 1254 27 id=83
+B 1255 27 id=83
+B 1256 27 id=83
+B 1257 27 id=83
+B 1259 31 id=83
+B 1259 30 id=83
+B 1263 28 id=83
+B 1264 31 id=83
+B 1263 31 id=83
+B 1262 31 id=83
+B 1261 31 id=83
+B 1260 31 id=83
+B 1261 30 id=83
+B 1261 29 id=83
+B 1262 29 id=83
+B 1262 30 id=83
+B 1261 28 id=83
+B 1262 28 id=83
+B 1266 37 id=83
+B 1266 38 id=83
+B 1266 42 id=83
+B 1265 42 id=83
+B 1264 42 id=83
+B 1263 42 id=83
+B 1262 42 id=83
+B 1261 42 id=83
+B 1261 39 id=83
+B 1261 37 id=83
+B 1262 37 id=83
+B 1263 37 id=83
+B 1264 38 id=83
+B 1264 37 id=83
+B 1265 37 id=83
+B 1263 38 id=83
+B 1263 39 id=83
+B 1267 31 id=83
+B 1267 27 id=83
+B 1270 27 id=83
+B 1271 27 id=83
+B 1272 27 id=83
+B 1274 28 id=83
+B 1274 30 id=83
+B 1273 30 id=83
+B 1273 31 id=83
+B 1272 31 id=83
+B 1271 31 id=83
+B 1270 31 id=83
+B 1270 30 id=83
+B 1269 30 id=83
+B 1268 30 id=83
+B 1269 29 id=83
+B 1268 31 id=83
+B 1269 31 id=83
+B 1274 31 id=83
+B 1272 30 id=83
+B 1271 30 id=83
+B 1270 29 id=83
+B 1271 29 id=83
+B 1272 28 id=83
+B 1268 28 id=83
+B 1273 28 id=83
+B 1277 40 id=83
+B 1277 39 id=83
+B 1277 38 id=83
+B 1277 37 id=83
+B 1276 37 id=83
+B 1275 37 id=83
+B 1274 37 id=83
+B 1274 38 id=83
+B 1274 42 id=83
+B 1275 42 id=83
+B 1276 42 id=83
+B 1276 41 id=83
+B 1276 40 id=83
+B 1275 38 id=83
+B 1276 38 id=83
+B 1275 40 id=83
+B 1275 41 id=83
+B 1277 29 id=83
+B 1277 31 id=83
+B 1278 31 id=83
+B 1279 31 id=83
+B 1280 31 id=83
+B 1281 31 id=83
+B 1281 30 id=83
+B 1281 29 id=83
+B 1281 28 id=83
+B 1279 27 id=83
+B 1279 28 id=83
+B 1280 28 id=83
+B 1278 29 id=83
+B 1278 28 id=83
+B 1279 30 id=83
+B 1280 30 id=83
+B 1284 37 id=83
+B 1283 37 id=83
+B 1282 37 id=83
+B 1281 37 id=83
+B 1281 38 id=83
+B 1283 42 id=83
+B 1283 41 id=83
+B 1282 41 id=83
+B 1284 40 id=83
+B 1283 40 id=83
+B 1282 39 id=83
+B 1283 38 id=83
+B 1284 39 id=83
+B 1284 38 id=83
+B 1282 38 id=83
+B 1284 29 id=83
+B 1284 30 id=83
+B 1284 31 id=83
+B 1285 31 id=83
+B 1286 31 id=83
+B 1286 30 id=83
+B 1285 30 id=83
+B 1286 28 id=83
+B 1285 27 id=83
+B 1286 27 id=83
+B 1286 37 id=83
+B 1286 38 id=83
+B 1286 39 id=83
+B 1286 41 id=83
+B 1286 42 id=83
+B 1287 42 id=83
+B 1291 41 id=83
+B 1291 39 id=83
+B 1291 38 id=83
+B 1291 37 id=83
+B 1290 37 id=83
+B 1289 37 id=83
+B 1288 37 id=83
+B 1287 37 id=83
+B 1290 38 id=83
+B 1289 41 id=83
+B 1290 41 id=83
+B 1290 39 id=83
+B 1289 39 id=83
+B 1294 31 id=83
+B 1293 31 id=83
+B 1292 31 id=83
+B 1291 31 id=83
+B 1291 30 id=83
+B 1293 30 id=83
+B 1294 30 id=83
+B 1292 30 id=83
+B 1291 28 id=83
+B 1291 27 id=83
+B 1292 27 id=83
+B 1294 27 id=83
+B 1294 28 id=83
+B 1292 28 id=83
+B 1293 28 id=83
+B 1293 41 id=83
+B 1293 39 id=83
+B 1293 38 id=83
+B 1293 37 id=83
+B 1294 37 id=83
+B 1295 37 id=83
+B 1296 37 id=83
+B 1297 37 id=83
+B 1298 37 id=83
+B 1298 38 id=83
+B 1298 39 id=83
+B 1298 40 id=83
+B 1295 42 id=83
+B 1294 42 id=83
+B 1296 41 id=83
+B 1296 39 id=83
+B 1294 38 id=83
+B 1295 38 id=83
+B 1296 38 id=83
+B 1297 38 id=83
+B 1297 41 id=83
+B 1298 31 id=83
+B 1299 31 id=83
+B 1300 31 id=83
+B 1301 31 id=83
+B 1301 30 id=83
+B 1301 28 id=83
+B 1301 27 id=83
+B 1300 27 id=83
+B 1299 27 id=83
+B 1299 29 id=83
+B 1299 30 id=83
+B 1300 30 id=83
+B 1300 29 id=83
+B 1300 28 id=83
+B 1306 41 id=83
+B 1306 39 id=83
+B 1306 38 id=83
+B 1306 37 id=83
+B 1305 37 id=83
+B 1304 37 id=83
+B 1303 37 id=83
+B 1302 37 id=83
+B 1301 37 id=83
+B 1301 40 id=83
+B 1301 42 id=83
+B 1304 42 id=83
+B 1305 42 id=83
+B 1302 40 id=83
+B 1303 40 id=83
+B 1304 41 id=83
+B 1304 39 id=83
+B 1302 38 id=83
+B 1303 38 id=83
+B 1304 38 id=83
+B 1305 39 id=83
+B 1305 38 id=83
+B 1306 31 id=83
+B 1306 27 id=83
+B 1307 27 id=83
+B 1308 27 id=83
+B 1308 31 id=83
+B 1307 31 id=83
+B 1307 30 id=83
+B 1308 28 id=83
+B 1308 42 id=83
+B 1308 39 id=83
+B 1308 37 id=83
+B 1309 37 id=83
+B 1310 37 id=83
+B 1310 38 id=83
+B 1310 39 id=83
+B 1310 42 id=83
+B 1309 42 id=83
+B 1311 37 id=83
+B 1311 38 id=83
+B 1311 41 id=83
+B 1311 28 id=83
+B 1311 29 id=83
+B 1311 31 id=83
+B 1312 31 id=83
+B 1313 31 id=83
+B 1314 31 id=83
+B 1315 31 id=83
+B 1315 30 id=83
+B 1313 30 id=83
+B 1312 29 id=83
+B 1313 29 id=83
+B 1313 28 id=83
+B 1312 28 id=83
+B 1314 27 id=83
+B 1315 28 id=83
+B 1315 27 id=83
+B 1316 42 id=83
+B 1317 42 id=83
+B 1318 42 id=83
+B 1318 41 id=83
+B 1315 41 id=83
+B 1315 40 id=83
+B 1315 38 id=83
+B 1315 37 id=83
+B 1316 37 id=83
+B 1317 37 id=83
+B 1318 37 id=83
+B 1318 40 id=83
+B 1316 38 id=83
+B 1317 38 id=83
+B 1318 31 id=83
+B 1318 29 id=83
+B 1318 27 id=83
+B 1319 27 id=83
+B 1320 27 id=83
+B 1321 27 id=83
+B 1322 28 id=83
+B 1322 29 id=83
+B 1322 30 id=83
+B 1322 31 id=83
+B 1321 31 id=83
+B 1320 31 id=83
+B 1319 31 id=83
+B 1319 30 id=83
+B 1320 29 id=83
+B 1321 29 id=83
+B 1321 30 id=83
+B 1320 30 id=83
+B 1326 30 id=83
+B 1325 30 id=83
+B 1325 27 id=83
+B 1326 28 id=83
+B 1326 27 id=83
+B 1310 28 id=83
+B 1309 29 id=83
+B 1305 30 id=83
+B 1304 30 id=83
+B 1304 29 id=83
+B 1304 28 id=83
+B 1311 26 id=83
+B 1312 26 id=83
+B 1317 29 id=83
+B 1316 30 id=83
+B 1323 27 id=83
+B 1323 29 id=83
+B 1324 29 id=83
+B 1324 28 id=83
+B 1314 39 id=83
+B 1314 40 id=83
+B 1313 40 id=83
+B 1312 40 id=83
+B 1312 41 id=83
+B 1312 39 id=83
+B 1307 40 id=83
+B 1299 40 id=83
+B 1299 39 id=83
+B 1299 38 id=83
+B 1300 41 id=83
+B 1292 40 id=83
+B 1281 42 id=83
+B 1280 42 id=83
+B 1279 41 id=83
+B 1279 40 id=83
+B 1278 41 id=83
+B 1278 40 id=83
+B 1284 42 id=83
+B 1285 41 id=83
+B 1279 38 id=83
+B 1278 37 id=83
+B 1279 37 id=83
+B 1272 39 id=83
+B 1272 41 id=83
+B 1271 41 id=83
+B 1276 30 id=83
+B 1275 30 id=83
+B 1275 29 id=83
+B 1282 29 id=83
+B 1284 28 id=83
+B 1288 30 id=83
+B 1288 29 id=83
+B 1288 28 id=83
+B 1289 30 id=83
+B 1290 30 id=83
+B 1287 31 id=83
+B 1296 30 id=83
+B 1295 30 id=83
+B 1295 29 id=83
+B 1297 31 id=83
+B 1297 29 id=83
+B 1302 30 id=83
+B 1303 31 id=83
+S 1302 31 id=8
+S 1296 31 id=8
+S 1295 31 id=8
+S 1288 31 id=8
+S 1289 31 id=8
+S 1290 31 id=8
+S 1282 30 id=8
+S 1283 27 id=8
+S 1282 27 id=8
+B 1283 26 id=83
+B 1282 26 id=83
+S 1276 31 id=8
+S 1275 31 id=8
+S 1304 31 id=8
+S 1305 31 id=8
+S 1309 30 id=8
+S 1310 29 id=8
+S 1317 30 id=8
+S 1316 31 id=8
+S 1314 38 rot=180 id=8
+S 1313 39 rot=180 id=8
+S 1312 38 rot=180 id=8
+S 1308 38 rot=180 id=8
+S 1307 39 rot=180 id=8
+S 1301 39 rot=180 id=8
+S 1300 40 rot=180 id=8
+S 1299 37 rot=180 id=8
+S 1292 39 rot=180 id=8
+S 1285 40 rot=180 id=8
+S 1272 40 rot=180 id=8
+S 1271 40 rot=180 id=8
+S 1272 38 rot=180 id=8
+S 1280 41 rot=180 id=8
+B 1259 41 id=83
+B 1259 40 id=83
+B 1263 40 id=83
+B 1262 40 id=83
+B 1262 41 id=83
+B 1266 41 id=83
+B 1265 40 id=83
+B 1264 40 id=83
+B 1268 39 id=83
+B 1267 40 id=83
+S 1268 38 rot=180 id=8
+S 1267 39 rot=180 id=8
+S 1259 39 rot=180 id=8
+B 1265 29 id=83
+B 1266 30 id=83
+S 1265 30 id=8
+S 1266 31 id=8
+S 1323 30 id=8
+S 1324 30 id=8
+B 1320 39 id=83
+B 1319 39 id=83
+B 1319 38 id=83
+R 2258 71 to=spider id=1331 z=2
+B 2251 69 id=83
+B 2251 68 id=83
+B 2251 67 id=83
+B 2251 64 id=83
+B 2252 64 id=83
+B 2253 64 id=83
+B 2255 64 id=83
+B 2256 64 id=83
+B 2257 64 id=83
+B 2260 64 id=83
+B 2262 64 id=83
+B 2263 64 id=83
+B 2263 65 id=83
+B 2263 66 id=83
+B 2263 67 id=83
+B 2263 68 id=83
+B 2263 69 id=83
+B 2262 69 id=83
+B 2261 69 id=83
+B 2260 69 id=83
+B 2259 69 id=83
+B 2258 69 id=83
+B 2257 69 id=83
+B 2256 69 id=83
+B 2255 69 id=83
+B 2254 69 id=83
+B 2253 69 id=83
+B 2252 69 id=83
+B 2252 68 id=83
+B 2255 68 id=83
+B 2256 68 id=83
+B 2257 68 id=83
+B 2258 68 id=83
+B 2262 68 id=83
+B 2259 67 id=83
+B 2253 67 id=83
+B 2253 66 id=83
+B 2254 66 id=83
+B 2255 66 id=83
+B 2260 67 id=83
+B 2262 67 id=83
+B 2262 66 id=83
+B 2258 66 id=83
+B 2261 65 id=83
+B 2254 65 id=83
+B 2252 66 id=83
+B 2257 66 id=83
+B 2266 75 id=83
+B 2266 77 id=83
+B 2265 78 id=83
+B 2262 78 id=83
+B 2264 76 id=83
+B 2264 74 id=83
+B 2265 75 id=83
+B 2265 76 id=83
+B 2263 74 id=83
+B 2262 74 id=83
+B 2269 64 id=83
+B 2268 64 id=83
+B 2267 64 id=83
+B 2266 64 id=83
+B 2265 67 id=83
+B 2265 68 id=83
+B 2265 69 id=83
+B 2266 69 id=83
+B 2267 69 id=83
+B 2268 69 id=83
+B 2269 69 id=83
+B 2269 68 id=83
+B 2269 67 id=83
+B 2269 65 id=83
+B 2268 65 id=83
+B 2266 68 id=83
+B 2267 68 id=83
+B 2268 68 id=83
+B 2266 65 id=83
+B 2275 74 id=83
+B 2274 74 id=83
+B 2273 74 id=83
+B 2272 74 id=83
+B 2271 74 id=83
+B 2269 75 id=83
+B 2269 77 id=83
+B 2269 78 id=83
+B 2270 78 id=83
+B 2271 78 id=83
+B 2272 78 id=83
+B 2273 78 id=83
+B 2274 78 id=83
+B 2274 77 id=83
+B 2274 76 id=83
+B 2275 78 id=83
+B 2275 77 id=83
+B 2275 75 id=83
+B 2274 75 id=83
+B 2270 76 id=83
+B 2272 75 id=83
+B 2271 75 id=83
+B 2273 75 id=83
+B 2271 69 id=83
+B 2271 68 id=83
+B 2273 64 id=83
+B 2274 64 id=83
+B 2277 65 id=83
+B 2280 65 id=83
+B 2280 64 id=83
+B 2281 64 id=83
+B 2282 64 id=83
+B 2283 64 id=83
+B 2276 64 id=83
+B 2275 65 id=83
+B 2274 65 id=83
+B 2272 69 id=83
+B 2273 69 id=83
+B 2274 68 id=83
+B 2274 69 id=83
+B 2275 66 id=83
+B 2275 67 id=83
+B 2275 68 id=83
+B 2275 69 id=83
+B 2276 69 id=83
+B 2276 67 id=83
+B 2277 66 id=83
+B 2278 66 id=83
+B 2278 68 id=83
+B 2277 69 id=83
+B 2278 69 id=83
+B 2277 67 id=83
+B 2279 69 id=83
+B 2279 68 id=83
+B 2281 65 id=83
+B 2285 66 id=83
+B 2285 67 id=83
+B 2285 68 id=83
+B 2285 69 id=83
+B 2284 69 id=83
+B 2283 69 id=83
+B 2280 69 id=83
+B 2280 68 id=83
+B 2282 67 id=83
+B 2281 67 id=83
+B 2282 66 id=83
+B 2283 67 id=83
+B 2283 68 id=83
+B 2284 68 id=83
+B 2283 66 id=83
+B 2286 74 id=83
+B 2287 74 id=83
+B 2288 74 id=83
+B 2289 74 id=83
+B 2289 76 id=83
+B 2289 77 id=83
+B 2289 78 id=83
+B 2288 79 id=83
+B 2286 78 id=83
+B 2286 77 id=83
+B 2287 76 id=83
+B 2287 75 id=83
+B 2287 77 id=83
+B 2287 78 id=83
+B 2288 77 id=83
+B 2286 75 id=83
+B 2289 66 id=83
+B 2289 65 id=83
+B 2290 64 id=83
+B 2292 67 id=83
+B 2292 69 id=83
+B 2290 68 id=83
+B 2290 67 id=83
+B 2291 65 id=83
+B 2291 67 id=83
+B 2292 74 id=83
+B 2292 75 id=83
+B 2292 77 id=83
+B 2292 78 id=83
+B 2296 79 id=83
+B 2297 79 id=83
+B 2298 79 id=83
+B 2298 77 id=83
+B 2298 75 id=83
+B 2298 74 id=83
+B 2297 74 id=83
+B 2296 74 id=83
+B 2295 74 id=83
+B 2294 74 id=83
+B 2293 74 id=83
+B 2293 75 id=83
+B 2295 75 id=83
+B 2296 75 id=83
+B 2294 76 id=83
+B 2293 77 id=83
+B 2293 78 id=83
+B 2294 78 id=83
+B 2297 78 id=83
+B 2296 77 id=83
+B 2295 77 id=83
+B 2294 77 id=83
+B 2297 77 id=83
+B 2294 69 id=83
+B 2294 68 id=83
+B 2295 68 id=83
+B 2295 69 id=83
+B 2296 69 id=83
+B 2297 69 id=83
+B 2298 69 id=83
+B 2299 69 id=83
+B 2300 69 id=83
+B 2301 69 id=83
+B 2302 69 id=83
+B 2303 69 id=83
+B 2304 69 id=83
+B 2305 69 id=83
+B 2306 69 id=83
+B 2307 69 id=83
+B 2308 69 id=83
+B 2309 69 id=83
+B 2310 69 id=83
+B 2311 69 id=83
+B 2312 69 id=83
+B 2313 69 id=83
+B 2314 69 id=83
+B 2315 69 id=83
+B 2316 69 id=83
+B 2317 69 id=83
+B 2318 69 id=83
+B 2319 69 id=83
+B 2319 66 id=83
+B 2319 64 id=83
+B 2318 64 id=83
+B 2316 64 id=83
+B 2315 64 id=83
+B 2314 64 id=83
+B 2312 64 id=83
+B 2310 64 id=83
+B 2306 64 id=83
+B 2305 64 id=83
+B 2304 64 id=83
+B 2302 64 id=83
+B 2301 64 id=83
+B 2300 64 id=83
+B 2299 64 id=83
+B 2298 64 id=83
+B 2297 64 id=83
+B 2295 64 id=83
+B 2294 66 id=83
+B 2294 67 id=83
+B 2296 68 id=83
+B 2299 68 id=83
+B 2300 68 id=83
+B 2301 68 id=83
+B 2302 68 id=83
+B 2307 68 id=83
+B 2309 68 id=83
+B 2318 68 id=83
+B 2318 67 id=83
+B 2317 66 id=83
+B 2316 66 id=83
+B 2314 67 id=83
+B 2313 67 id=83
+B 2312 67 id=83
+B 2311 67 id=83
+B 2310 67 id=83
+B 2309 67 id=83
+B 2307 67 id=83
+B 2301 67 id=83
+B 2298 67 id=83
+B 2295 66 id=83
+B 2298 66 id=83
+B 2303 66 id=83
+B 2305 66 id=83
+B 2306 66 id=83
+B 2307 66 id=83
+B 2308 66 id=83
+B 2309 66 id=83
+B 2316 65 id=83
+B 2311 65 id=83
+B 2305 65 id=83
+B 2299 65 id=83
+B 2298 65 id=83
+B 2297 65 id=83
+B 2295 65 id=83
+B 2299 66 id=83
+B 2303 68 id=83
+B 2304 68 id=83
+B 2305 68 id=83
+B 2306 68 id=83
+B 2316 67 id=83
+B 2315 67 id=83
+B 2316 73 id=83
+B 2316 76 id=83
+B 2316 77 id=83
+B 2315 77 id=83
+B 2314 77 id=83
+B 2314 76 id=83
+B 2315 76 id=83
+B 2315 74 id=83
+B 2315 73 id=83
+B 2314 73 id=83
+B 2314 74 id=83
+B 2311 73 id=83
+B 2311 74 id=83
+B 2311 76 id=83
+B 2309 77 id=83
+B 2309 76 id=83
+B 2309 74 id=83
+B 2309 73 id=83
+B 2310 73 id=83
+B 2310 74 id=83
+B 2322 69 id=83
+B 2322 68 id=83
+B 2322 65 id=83
+B 2322 64 id=83
+B 2323 64 id=83
+B 2324 64 id=83
+B 2324 68 id=83
+B 2324 69 id=83
+B 2323 69 id=83
+B 2323 65 id=83
+B 2326 69 id=83
+B 2326 68 id=83
+B 2327 64 id=83
+B 2326 64 id=83
+B 2328 64 id=83
+B 2328 65 id=83
+B 2328 69 id=83
+B 2327 69 id=83
+B 2327 68 id=83
+B 2319 73 id=83
+B 2319 75 id=83
+B 2319 76 id=83
+B 2319 77 id=83
+B 2320 77 id=83
+B 2321 77 id=83
+B 2324 77 id=83
+B 2326 77 id=83
+B 2327 77 id=83
+B 2328 77 id=83
+B 2329 77 id=83
+B 2330 77 id=83
+B 2331 77 id=83
+B 2332 77 id=83
+B 2333 77 id=83
+B 2334 75 id=83
+B 2333 73 id=83
+B 2332 73 id=83
+B 2331 73 id=83
+B 2330 73 id=83
+B 2329 73 id=83
+B 2328 73 id=83
+B 2327 73 id=83
+B 2326 73 id=83
+B 2324 73 id=83
+B 2323 73 id=83
+B 2322 73 id=83
+B 2321 73 id=83
+B 2320 73 id=83
+B 2320 75 id=83
+B 2321 75 id=83
+B 2322 75 id=83
+B 2323 75 id=83
+B 2325 75 id=83
+B 2333 75 id=83
+B 2334 73 id=83
+B 2334 76 id=83
+B 2334 77 id=83
+B 2333 74 id=83
+B 2331 74 id=83
+B 2330 74 id=83
+B 2329 74 id=83
+B 2328 74 id=83
+B 2327 74 id=83
+B 2326 74 id=83
+B 2325 74 id=83
+B 2323 74 id=83
+B 2322 74 id=83
+B 2320 76 id=83
+B 2326 76 id=83
+B 2328 76 id=83
+B 2329 76 id=83
+B 2330 76 id=83
+B 2331 76 id=83
+B 2332 76 id=83
+B 2332 75 id=83
+B 2333 69 id=83
+B 2333 65 id=83
+B 2333 64 id=83
+B 2337 64 id=83
+B 2338 64 id=83
+B 2340 64 id=83
+B 2341 64 id=83
+B 2342 64 id=83
+B 2342 66 id=83
+B 2342 67 id=83
+B 2342 69 id=83
+B 2341 69 id=83
+B 2340 69 id=83
+B 2339 69 id=83
+B 2338 69 id=83
+B 2337 69 id=83
+B 2336 69 id=83
+B 2335 69 id=83
+B 2335 68 id=83
+B 2334 68 id=83
+B 2334 69 id=83
+B 2334 66 id=83
+B 2336 65 id=83
+B 2338 65 id=83
+B 2339 65 id=83
+B 2343 66 id=83
+B 2343 67 id=83
+B 2343 65 id=83
+B 2341 65 id=83
+B 2336 66 id=83
+B 2335 66 id=83
+B 2338 66 id=83
+B 2341 67 id=83
+B 2340 67 id=83
+B 2339 67 id=83
+B 2338 67 id=83
+B 2335 67 id=83
+B 2336 68 id=83
+B 2337 68 id=83
+B 2338 68 id=83
+B 2339 68 id=83
+B 2340 68 id=83
+B 2343 73 id=83
+B 2344 73 id=83
+B 2345 73 id=83
+B 2346 73 id=83
+B 2346 75 id=83
+B 2346 77 id=83
+B 2345 77 id=83
+B 2344 77 id=83
+B 2343 77 id=83
+B 2343 75 id=83
+B 2344 74 id=83
+B 2345 74 id=83
+B 2344 76 id=83
+B 2345 69 id=83
+B 2345 67 id=83
+B 2345 65 id=83
+B 2345 64 id=83
+B 2347 64 id=83
+B 2348 64 id=83
+B 2349 64 id=83
+B 2354 64 id=83
+B 2354 65 id=83
+B 2354 67 id=83
+B 2354 68 id=83
+B 2354 69 id=83
+B 2353 69 id=83
+B 2352 69 id=83
+B 2351 69 id=83
+B 2350 69 id=83
+B 2349 69 id=83
+B 2348 69 id=83
+B 2347 69 id=83
+B 2346 69 id=83
+B 2347 68 id=83
+B 2348 68 id=83
+B 2349 68 id=83
+B 2350 68 id=83
+B 2351 68 id=83
+B 2352 68 id=83
+B 2353 68 id=83
+B 2346 67 id=83
+B 2347 66 id=83
+B 2348 66 id=83
+B 2349 67 id=83
+B 2350 67 id=83
+B 2351 67 id=83
+B 2352 67 id=83
+B 2353 67 id=83
+B 2353 66 id=83
+B 2347 67 id=83
+B 2346 65 id=83
+B 2350 65 id=83
+B 2351 65 id=83
+B 2353 65 id=83
+B 2350 66 id=83
+B 2357 73 id=83
+B 2356 73 id=83
+B 2355 73 id=83
+B 2354 73 id=83
+B 2354 74 id=83
+B 2354 76 id=83
+B 2355 76 id=83
+B 2356 76 id=83
+B 2357 75 id=83
+B 2356 75 id=83
+B 2356 74 id=83
+B 2356 77 id=83
+B 2357 69 id=83
+B 2357 68 id=83
+B 2357 67 id=83
+B 2360 66 id=83
+B 2360 68 id=83
+B 2360 69 id=83
+B 2359 69 id=83
+B 2358 69 id=83
+B 2358 68 id=83
+B 2359 68 id=83
+B 2358 65 id=83
+B 2360 73 id=83
+B 2361 73 id=83
+B 2362 73 id=83
+B 2363 73 id=83
+B 2363 75 id=83
+B 2363 77 id=83
+B 2362 77 id=83
+B 2361 77 id=83
+B 2360 77 id=83
+B 2360 75 id=83
+B 2361 74 id=83
+B 2362 74 id=83
+B 2362 75 id=83
+B 2362 76 id=83
+B 2361 75 id=83
+B 2357 77 id=83
+B 2365 73 id=83
+B 2366 73 id=83
+B 2367 73 id=83
+B 2368 73 id=83
+B 2369 73 id=83
+B 2368 74 id=83
+B 2367 74 id=83
+B 2365 74 id=83
+B 2365 76 id=83
+B 2366 76 id=83
+B 2368 77 id=83
+B 2369 77 id=83
+B 2367 76 id=83
+B 2363 69 id=83
+B 2364 69 id=83
+B 2365 69 id=83
+B 2366 69 id=83
+B 2367 69 id=83
+B 2368 69 id=83
+B 2369 69 id=83
+B 2370 69 id=83
+B 2371 69 id=83
+B 2372 69 id=83
+B 2373 69 id=83
+B 2375 69 id=83
+B 2377 69 id=83
+B 2378 69 id=83
+B 2379 69 id=83
+B 2380 69 id=83
+B 2381 69 id=83
+B 2381 68 id=83
+B 2381 66 id=83
+B 2381 65 id=83
+B 2381 64 id=83
+B 2377 64 id=83
+B 2376 64 id=83
+B 2375 64 id=83
+B 2371 64 id=83
+B 2367 64 id=83
+B 2366 64 id=83
+B 2365 64 id=83
+B 2364 64 id=83
+B 2363 68 id=83
+B 2364 68 id=83
+B 2365 68 id=83
+B 2366 68 id=83
+B 2367 68 id=83
+B 2368 68 id=83
+B 2369 68 id=83
+B 2370 68 id=83
+B 2373 68 id=83
+B 2374 68 id=83
+B 2375 68 id=83
+B 2376 68 id=83
+B 2377 68 id=83
+B 2380 68 id=83
+B 2380 67 id=83
+B 2380 66 id=83
+B 2379 66 id=83
+B 2377 66 id=83
+B 2376 66 id=83
+B 2375 66 id=83
+B 2374 66 id=83
+B 2373 66 id=83
+B 2371 66 id=83
+B 2367 67 id=83
+B 2366 67 id=83
+B 2365 67 id=83
+B 2363 67 id=83
+B 2363 65 id=83
+B 2364 65 id=83
+B 2365 65 id=83
+B 2366 65 id=83
+B 2370 65 id=83
+B 2372 65 id=83
+B 2373 65 id=83
+B 2379 67 id=83
+B 2377 67 id=83
+B 2376 67 id=83
+B 2375 67 id=83
+B 2374 67 id=83
+B 2373 67 id=83
+B 2368 66 id=83
+B 2381 73 id=83
+B 2382 73 id=83
+B 2383 73 id=83
+B 2384 73 id=83
+B 2384 74 id=83
+B 2384 76 id=83
+B 2383 77 id=83
+B 2382 77 id=83
+B 2382 74 id=83
+B 2383 74 id=83
+B 2383 75 id=83
+B 2381 77 id=83
+B 2384 68 id=83
+B 2384 67 id=83
+B 2384 66 id=83
+B 2385 64 id=83
+B 2387 64 id=83
+B 2387 66 id=83
+B 2387 67 id=83
+B 2387 68 id=83
+B 2387 69 id=83
+B 2386 69 id=83
+B 2385 68 id=83
+B 2385 66 id=83
+B 2385 65 id=83
+B 2386 67 id=83
+B 2386 66 id=83
+B 2387 73 id=83
+B 2387 74 id=83
+B 2387 75 id=83
+B 2388 77 id=83
+B 2389 77 id=83
+B 2393 76 id=83
+B 2393 75 id=83
+B 2393 73 id=83
+B 2392 73 id=83
+B 2391 73 id=83
+B 2390 73 id=83
+B 2389 73 id=83
+B 2388 73 id=83
+B 2389 76 id=83
+B 2390 76 id=83
+B 2391 76 id=83
+B 2392 76 id=83
+B 2392 75 id=83
+B 2391 75 id=83
+B 2388 74 id=83
+B 2389 74 id=83
+B 2386 74 id=83
+B 2386 73 id=83
+B 2386 75 id=83
+B 2389 69 id=83
+B 2390 69 id=83
+B 2391 69 id=83
+B 2392 69 id=83
+B 2393 69 id=83
+B 2394 69 id=83
+B 2395 69 id=83
+B 2396 69 id=83
+B 2397 69 id=83
+B 2398 69 id=83
+B 2399 69 id=83
+B 2400 69 id=83
+B 2401 69 id=83
+B 2402 69 id=83
+B 2403 69 id=83
+B 2404 69 id=83
+B 2405 69 id=83
+B 2406 69 id=83
+B 2407 69 id=83
+B 2408 69 id=83
+B 2409 69 id=83
+B 2410 69 id=83
+B 2411 69 id=83
+B 2412 69 id=83
+B 2412 68 id=83
+B 2413 69 id=83
+B 2413 68 id=83
+B 2412 64 id=83
+B 2411 64 id=83
+B 2410 64 id=83
+B 2409 64 id=83
+B 2407 64 id=83
+B 2405 64 id=83
+B 2403 64 id=83
+B 2402 64 id=83
+B 2401 64 id=83
+B 2400 64 id=83
+B 2399 64 id=83
+B 2397 64 id=83
+B 2396 64 id=83
+B 2395 64 id=83
+B 2393 64 id=83
+B 2390 64 id=83
+B 2389 65 id=83
+B 2389 66 id=83
+B 2389 67 id=83
+B 2389 68 id=83
+B 2390 68 id=83
+B 2391 68 id=83
+B 2392 68 id=83
+B 2393 68 id=83
+B 2394 68 id=83
+B 2397 68 id=83
+B 2399 68 id=83
+B 2400 68 id=83
+B 2401 68 id=83
+B 2402 68 id=83
+B 2403 68 id=83
+B 2404 68 id=83
+B 2405 68 id=83
+B 2408 68 id=83
+B 2410 68 id=83
+B 2411 68 id=83
+B 2411 67 id=83
+B 2409 66 id=83
+B 2408 66 id=83
+B 2407 66 id=83
+B 2406 66 id=83
+B 2405 66 id=83
+B 2399 66 id=83
+B 2397 66 id=83
+B 2394 66 id=83
+B 2393 66 id=83
+B 2392 66 id=83
+B 2391 66 id=83
+B 2391 67 id=83
+B 2395 67 id=83
+B 2390 67 id=83
+B 2396 67 id=83
+B 2397 67 id=83
+B 2398 67 id=83
+B 2400 67 id=83
+B 2401 67 id=83
+B 2399 67 id=83
+B 2406 67 id=83
+B 2408 67 id=83
+B 2409 67 id=83
+B 2410 67 id=83
+B 2404 67 id=83
+B 2408 65 id=83
+B 2410 65 id=83
+B 2411 65 id=83
+B 2412 65 id=83
+B 2407 65 id=83
+B 2406 65 id=83
+B 2405 65 id=83
+B 2404 65 id=83
+B 2402 65 id=83
+B 2400 65 id=83
+B 2399 65 id=83
+B 2398 65 id=83
+B 2396 65 id=83
+B 2395 65 id=83
+B 2394 65 id=83
+B 2393 65 id=83
+B 2392 65 id=83
+B 2391 65 id=83
+B 2406 73 id=83
+B 2405 73 id=83
+B 2404 73 id=83
+B 2404 74 id=83
+B 2404 75 id=83
+B 2404 76 id=83
+B 2406 77 id=83
+B 2406 76 id=83
+B 2406 75 id=83
+B 2406 74 id=83
+B 2405 74 id=83
+B 2405 75 id=83
+B 2408 73 id=83
+B 2409 73 id=83
+B 2410 73 id=83
+B 2410 74 id=83
+B 2410 76 id=83
+B 2410 77 id=83
+B 2409 77 id=83
+B 2408 77 id=83
+B 2408 74 id=83
+B 2409 74 id=83
+B 2413 74 id=83
+B 2413 75 id=83
+B 2413 76 id=83
+B 2413 77 id=83
+B 2414 77 id=83
+B 2415 77 id=83
+B 2425 77 id=83
+B 2428 77 id=83
+B 2428 76 id=83
+B 2428 75 id=83
+B 2428 74 id=83
+B 2428 73 id=83
+B 2427 73 id=83
+B 2426 73 id=83
+B 2425 73 id=83
+B 2424 73 id=83
+B 2423 73 id=83
+B 2422 73 id=83
+B 2421 73 id=83
+B 2420 73 id=83
+B 2419 73 id=83
+B 2418 73 id=83
+B 2417 73 id=83
+B 2414 74 id=83
+B 2414 75 id=83
+B 2415 75 id=83
+B 2416 75 id=83
+B 2418 75 id=83
+B 2419 75 id=83
+B 2420 75 id=83
+B 2422 75 id=83
+B 2424 75 id=83
+B 2426 75 id=83
+B 2427 76 id=83
+B 2423 76 id=83
+B 2420 76 id=83
+B 2417 76 id=83
+B 2416 76 id=83
+B 2414 76 id=83
+B 2415 74 id=83
+B 2417 74 id=83
+B 2419 74 id=83
+B 2420 74 id=83
+B 2421 74 id=83
+B 2422 74 id=83
+B 2423 74 id=83
+B 2424 74 id=83
+B 2425 74 id=83
+B 2426 74 id=83
+B 2416 69 id=83
+B 2416 68 id=83
+B 2416 67 id=83
+B 2417 64 id=83
+B 2418 64 id=83
+B 2418 65 id=83
+B 2418 67 id=83
+B 2418 68 id=83
+B 2418 69 id=83
+B 2417 69 id=83
+B 2417 67 id=83
+B 2417 68 id=83
+B 2420 69 id=83
+B 2420 65 id=83
+B 2420 64 id=83
+B 2421 64 id=83
+B 2422 64 id=83
+B 2422 65 id=83
+B 2422 66 id=83
+B 2422 68 id=83
+B 2422 69 id=83
+B 2421 69 id=83
+B 2421 68 id=83
+B 2421 66 id=83
+B 2425 69 id=83
+B 2425 68 id=83
+B 2425 64 id=83
+B 2426 64 id=83
+B 2433 65 id=83
+B 2434 65 id=83
+B 2435 65 id=83
+B 2436 65 id=83
+B 2436 66 id=83
+B 2436 67 id=83
+B 2436 68 id=83
+B 2436 69 id=83
+B 2437 69 id=83
+B 2437 68 id=83
+B 2437 67 id=83
+B 2437 66 id=83
+B 2437 65 id=83
+B 2436 64 id=83
+B 2434 64 id=83
+B 2431 64 id=83
+B 2430 64 id=83
+B 2428 64 id=83
+B 2427 64 id=83
+B 2434 66 id=83
+B 2433 66 id=83
+B 2432 66 id=83
+B 2431 66 id=83
+B 2430 66 id=83
+B 2429 66 id=83
+B 2428 66 id=83
+B 2427 66 id=83
+B 2426 67 id=83
+B 2426 68 id=83
+B 2426 69 id=83
+B 2427 69 id=83
+B 2428 69 id=83
+B 2429 69 id=83
+B 2430 69 id=83
+B 2431 69 id=83
+B 2432 69 id=83
+B 2433 69 id=83
+B 2434 69 id=83
+B 2435 69 id=83
+B 2435 68 id=83
+B 2434 68 id=83
+B 2433 68 id=83
+B 2432 68 id=83
+B 2431 68 id=83
+B 2430 68 id=83
+B 2429 68 id=83
+B 2428 68 id=83
+B 2427 68 id=83
+B 2437 73 id=83
+B 2437 74 id=83
+B 2437 77 id=83
+B 2438 77 id=83
+B 2439 77 id=83
+B 2440 77 id=83
+B 2440 75 id=83
+B 2440 74 id=83
+B 2440 73 id=83
+B 2439 73 id=83
+B 2438 73 id=83
+B 2438 74 id=83
+B 2438 76 id=83
+B 2439 75 id=83
+B 2439 74 id=83
+B 2441 69 id=83
+B 2441 68 id=83
+B 2441 67 id=83
+B 2441 66 id=83
+B 2441 65 id=83
+B 2446 64 id=83
+B 2447 64 id=83
+B 2448 64 id=83
+B 2449 64 id=83
+B 2450 64 id=83
+B 2451 64 id=83
+B 2452 66 id=83
+B 2452 68 id=83
+B 2451 68 id=83
+B 2450 68 id=83
+B 2449 68 id=83
+B 2448 68 id=83
+B 2447 68 id=83
+B 2446 68 id=83
+B 2445 69 id=83
+B 2444 69 id=83
+B 2443 69 id=83
+B 2442 69 id=83
+B 2440 69 id=83
+B 2440 68 id=83
+B 2440 67 id=83
+B 2440 66 id=83
+B 2440 65 id=83
+B 2440 64 id=83
+B 2442 65 id=83
+B 2443 65 id=83
+B 2444 65 id=83
+B 2445 65 id=83
+B 2446 65 id=83
+B 2447 65 id=83
+B 2449 65 id=83
+B 2451 66 id=83
+B 2448 67 id=83
+B 2446 67 id=83
+B 2445 67 id=83
+B 2444 67 id=83
+B 2443 67 id=83
+B 2442 67 id=83
+B 2442 68 id=83
+B 2443 68 id=83
+B 2444 68 id=83
+B 2445 68 id=83
+B 2446 69 id=83
+B 2447 69 id=83
+B 2448 69 id=83
+B 2449 69 id=83
+B 2450 69 id=83
+B 2451 69 id=83
+B 2452 69 id=83
+B 2450 66 id=83
+B 2449 66 id=83
+B 2448 66 id=83
+B 2447 66 id=83
+B 2444 66 id=83
+B 2443 66 id=83
+B 2467 73 id=83
+B 2467 74 id=83
+B 2467 75 id=83
+B 2463 75 id=83
+B 2463 74 id=83
+B 2464 75 id=83
+B 2466 75 id=83
+B 2466 74 id=83
+B 2465 74 id=83
+B 2465 73 id=83
+B 2466 73 id=83
+B 2464 73 id=83
+B 2463 73 id=83
+B 2461 73 id=83
+B 2460 73 id=83
+B 2459 73 id=83
+B 2458 73 id=83
+B 2457 73 id=83
+B 2457 74 id=83
+B 2459 76 id=83
+B 2460 76 id=83
+B 2461 75 id=83
+B 2461 74 id=83
+B 2459 74 id=83
+B 2458 74 id=83
+B 2455 73 id=83
+B 2454 73 id=83
+B 2453 73 id=83
+B 2452 73 id=83
+B 2451 73 id=83
+B 2451 74 id=83
+B 2452 74 id=83
+B 2455 74 id=83
+B 2455 75 id=83
+B 2454 75 id=83
+B 2453 75 id=83
+B 2452 75 id=83
+B 2451 75 id=83
+B 2454 69 id=83
+B 2454 68 id=83
+B 2454 65 id=83
+B 2458 65 id=83
+B 2459 65 id=83
+B 2464 69 id=83
+B 2464 68 id=83
+B 2464 67 id=83
+B 2464 65 id=83
+B 2463 65 id=83
+B 2461 65 id=83
+B 2462 65 id=83
+B 2462 66 id=83
+B 2463 66 id=83
+B 2463 67 id=83
+B 2463 68 id=83
+B 2463 69 id=83
+B 2462 69 id=83
+B 2461 69 id=83
+B 2460 69 id=83
+B 2460 67 id=83
+B 2460 66 id=83
+B 2460 65 id=83
+B 2461 67 id=83
+B 2461 68 id=83
+B 2462 67 id=83
+B 2458 66 id=83
+B 2458 67 id=83
+B 2458 69 id=83
+B 2457 69 id=83
+B 2456 69 id=83
+B 2455 69 id=83
+B 2455 68 id=83
+B 2456 68 id=83
+B 2457 67 id=83
+B 2457 65 id=83
+B 2456 65 id=83
+B 2456 67 id=83
+B 2466 69 id=83
+B 2466 68 id=83
+B 2466 66 id=83
+B 2466 65 id=83
+B 2466 64 id=83
+B 2469 64 id=83
+B 2472 64 id=83
+B 2477 64 id=83
+B 2478 64 id=83
+B 2478 65 id=83
+B 2478 66 id=83
+B 2478 67 id=83
+B 2478 68 id=83
+B 2477 69 id=83
+B 2476 69 id=83
+B 2475 69 id=83
+B 2474 69 id=83
+B 2473 69 id=83
+B 2472 69 id=83
+B 2471 69 id=83
+B 2470 69 id=83
+B 2469 69 id=83
+B 2468 69 id=83
+B 2467 69 id=83
+B 2467 68 id=83
+B 2468 68 id=83
+B 2469 68 id=83
+B 2470 68 id=83
+B 2471 68 id=83
+B 2472 68 id=83
+B 2473 68 id=83
+B 2475 68 id=83
+B 2476 68 id=83
+B 2477 67 id=83
+B 2477 66 id=83
+B 2476 66 id=83
+B 2475 67 id=83
+B 2473 67 id=83
+B 2471 67 id=83
+B 2470 67 id=83
+B 2468 66 id=83
+B 2476 67 id=83
+B 2474 66 id=83
+B 2473 66 id=83
+B 2471 66 id=83
+B 2468 67 id=83
+B 2467 67 id=83
+B 2469 67 id=83
+B 2468 65 id=83
+B 2467 65 id=83
+B 2472 66 id=83
+B 2476 65 id=83
+B 2477 65 id=83
+B 2474 65 id=83
+B 2473 65 id=83
+B 2472 65 id=83
+B 2470 65 id=83
+B 2457 64 id=83
+B 2458 64 id=83
+B 2459 64 id=83
+B 2465 65 id=83
+B 2451 76 id=83
+B 2453 76 id=83
+B 2456 75 id=83
+B 2468 74 id=83
+B 2478 69 id=83
+B 2453 67 id=83
+B 2462 63 id=83
+B 2461 63 id=83
+B 2459 68 id=83
+B 2456 76 id=83
+B 2457 76 id=83
+B 2458 76 id=83
+B 2470 75 id=83
+B 2470 74 id=83
+B 2467 76 id=83
+B 2466 76 id=83
+B 2465 76 id=83
+B 2463 76 id=83
+B 2468 77 id=83
+B 2469 77 id=83
+B 2427 67 id=83
+B 2427 65 id=83
+B 2427 63 id=83
+B 2427 62 id=83
+B 2424 67 id=83
+B 2425 66 id=83
+B 2426 65 id=83
+B 2430 65 id=83
+B 2431 65 id=83
+B 2439 66 id=83
+B 2439 65 id=83
+B 2438 64 id=83
+B 2424 65 id=83
+B 2423 65 id=83
+B 2442 77 id=83
+B 2441 76 id=83
+B 2435 76 id=83
+B 2430 76 id=83
+B 2430 75 id=83
+B 2430 74 id=83
+B 2416 73 id=83
+B 2415 73 id=83
+B 2412 75 id=83
+B 2411 77 id=83
+B 2420 77 id=83
+B 2419 78 id=83
+B 2413 73 id=83
+B 2414 73 id=83
+B 2407 76 id=83
+B 2407 77 id=83
+B 2409 75 id=83
+B 2403 77 id=83
+B 2402 77 id=83
+B 2402 76 id=83
+B 2414 63 id=83
+B 2415 68 id=83
+B 2415 67 id=83
+B 2414 66 id=83
+B 2413 66 id=83
+B 2416 63 id=83
+B 2417 62 id=83
+B 2418 62 id=83
+B 2417 65 id=83
+B 2419 66 id=83
+B 2374 69 id=83
+B 2376 69 id=83
+B 2384 69 id=83
+B 2385 69 id=83
+B 2379 64 id=83
+B 2379 63 id=83
+B 2378 64 id=83
+B 2382 66 id=83
+B 2382 67 id=83
+B 2384 65 id=83
+B 2383 65 id=83
+B 2382 65 id=83
+B 2382 64 id=83
+B 2384 64 id=83
+B 2388 65 id=83
+B 2389 64 id=83
+B 2390 65 id=83
+B 2390 74 id=83
+B 2390 75 id=83
+B 2394 76 id=83
+B 2393 74 id=83
+B 2397 76 id=83
+B 2392 78 id=83
+B 2386 78 id=83
+B 2385 78 id=83
+B 2386 77 id=83
+B 2380 77 id=83
+B 2379 77 id=83
+B 2378 77 id=83
+B 2379 74 id=83
+B 2380 74 id=83
+B 2379 75 id=83
+B 2361 63 id=83
+B 2361 67 id=83
+B 2357 66 id=83
+B 2357 63 id=83
+B 2357 64 id=83
+B 2355 67 id=83
+B 2355 68 id=83
+B 2355 65 id=83
+B 2356 65 id=83
+B 2356 64 id=83
+B 2362 63 id=83
+B 2363 63 id=83
+B 2364 63 id=83
+B 2367 63 id=83
+B 2368 63 id=83
+B 2366 63 id=83
+B 2372 68 id=83
+B 2372 67 id=83
+B 2372 66 id=83
+B 2372 63 id=83
+B 2372 61 id=83
+B 2361 64 id=83
+B 2352 78 id=83
+B 2350 74 id=83
+B 2355 79 id=83
+B 2352 76 id=83
+B 2352 75 id=83
+B 2352 74 id=83
+B 2358 77 id=83
+B 2358 78 id=83
+B 2360 79 id=83
+B 2364 78 id=83
+B 2365 78 id=83
+B 2365 77 id=83
+B 2367 77 id=83
+B 2366 77 id=83
+B 2373 75 id=83
+B 2370 77 id=83
+B 2372 77 id=83
+B 2372 76 id=83
+B 2370 75 id=83
+B 2355 69 id=83
+B 2344 65 id=83
+B 2343 69 id=83
+B 2343 62 id=83
+B 2351 62 id=83
+B 2351 63 id=83
+B 2353 63 id=83
+B 2332 67 id=83
+B 2331 66 id=83
+B 2332 65 id=83
+B 2335 75 id=83
+B 2336 75 id=83
+B 2336 74 id=83
+B 2324 67 id=83
+B 2328 66 id=83
+B 2327 66 id=83
+B 2329 75 id=83
+B 2336 77 id=83
+B 2325 73 id=83
+B 2320 65 id=83
+B 2320 68 id=83
+B 2321 67 id=83
+B 2329 68 id=83
+B 2330 66 id=83
+B 2317 76 id=83
+B 2312 77 id=83
+B 2313 76 id=83
+B 2317 75 id=83
+B 2318 74 id=83
+B 2307 76 id=83
+B 2308 74 id=83
+B 2308 78 id=83
+B 2300 76 id=83
+B 2291 77 id=83
+B 2290 75 id=83
+B 2291 76 id=83
+B 2282 77 id=83
+B 2282 76 id=83
+B 2284 77 id=83
+B 2284 76 id=83
+B 2283 78 id=83
+B 2302 76 id=83
+B 2300 77 id=83
+B 2301 79 id=83
+B 2303 79 id=83
+B 2290 80 id=83
+B 2291 69 id=83
+B 2290 69 id=83
+B 2289 69 id=83
+B 2281 69 id=83
+B 2282 69 id=83
+B 2293 64 id=83
+B 2287 67 id=83
+B 2286 65 id=83
+B 2285 63 id=83
+B 2288 64 id=83
+B 2266 74 id=83
+B 2265 74 id=83
+B 2270 74 id=83
+B 2269 74 id=83
+B 2267 76 id=83
+B 2268 78 id=83
+B 2276 76 id=83
+B 2277 78 id=83
+B 2260 76 id=83
+B 2259 78 id=83
+B 2261 76 id=83
+B 2264 66 id=83
+B 2270 64 id=83
+B 2277 62 id=83
+B 2270 62 id=83
+B 2266 62 id=83
+B 2265 62 id=83
+B 2264 63 id=83
+B 2265 63 id=83
+B 2271 63 id=83
+B 2278 63 id=83
+B 2279 62 id=83
+B 2278 61 id=83
+B 2278 62 id=83
+B 2259 62 id=83
+B 2257 63 id=83
+B 2258 63 id=83
+B 2257 75 id=83
+B 2258 75 id=83
+B 2257 77 id=83
+B 2257 76 id=83
+B 2249 65 id=83
+B 2250 66 id=83
+S 2250 67 id=8
+S 2257 74 rot=180 id=8
+S 2258 74 rot=180 id=8
+S 2260 75 rot=180 id=8
+S 2259 77 rot=180 id=8
+S 2267 75 rot=180 id=8
+S 2268 77 rot=180 id=8
+S 2270 65 id=8
+S 2264 67 id=8
+S 2277 77 rot=180 id=8
+S 2276 75 rot=180 id=8
+S 2282 75 rot=180 id=8
+S 2284 75 rot=180 id=8
+S 2283 77 rot=180 id=8
+S 2287 68 id=8
+S 2286 66 id=8
+S 2290 74 rot=180 id=8
+S 2291 75 rot=180 id=8
+S 2300 75 rot=180 id=8
+S 2302 75 rot=180 id=8
+S 2301 78 rot=180 id=8
+S 2303 78 rot=180 id=8
+S 2307 75 rot=180 id=8
+S 2308 73 rot=180 id=8
+S 2312 76 rot=180 id=8
+S 2313 75 rot=180 id=8
+S 2316 75 rot=180 id=8
+S 2317 74 rot=180 id=8
+S 2318 73 rot=180 id=8
+S 2320 69 id=8
+S 2321 68 id=8
+B 2325 66 id=83
+S 2325 67 id=8
+S 2335 74 rot=180 id=8
+S 2336 73 rot=180 id=8
+S 2329 69 id=8
+S 2330 67 id=8
+S 2331 67 id=8
+S 2332 68 id=8
+S 2350 73 rot=180 id=8
+S 2352 73 rot=180 id=8
+S 2356 66 id=8
+S 2361 68 id=8
+S 2362 64 id=8
+S 2358 76 rot=180 id=8
+B 2359 75 id=83
+S 2359 74 rot=180 id=8
+S 2364 77 rot=180 id=8
+S 2370 74 rot=180 id=8
+S 2372 75 rot=180 id=8
+S 2373 74 rot=180 id=8
+S 2378 76 rot=180 id=8
+S 2379 73 rot=180 id=8
+S 2380 73 rot=180 id=8
+S 2382 68 id=8
+S 2383 66 id=8
+S 2385 77 rot=180 id=8
+S 2397 75 rot=180 id=8
+S 2394 75 rot=180 id=8
+S 2388 66 id=8
+S 2402 75 rot=180 id=8
+S 2403 76 rot=180 id=8
+S 2411 76 rot=180 id=8
+S 2412 74 rot=180 id=8
+S 2414 67 id=8
+S 2415 69 id=8
+S 2419 67 id=8
+S 2423 66 id=8
+S 2424 68 id=8
+S 2430 73 rot=180 id=8
+S 2435 75 rot=180 id=8
+S 2438 65 id=8
+S 2439 67 id=8
+S 2456 74 rot=180 id=8
+S 2453 68 id=8
+S 2459 69 id=8
+S 2465 66 id=8
+S 2468 73 rot=180 id=8
+S 2470 73 rot=180 id=8
+S 2469 76 rot=180 id=8
+B 2462 76 id=83
+S 2462 75 rot=180 id=8
+W 2633.033 71.667 2.933 5.667 id=1705 z=5
+W 2639.033 74.667 2.933 5.667 id=1705 z=5
+W 2632.033 83.667 2.933 5.667 id=1705 z=5
+W 2637.033 88.667 2.933 5.667 id=1705 z=5
+W 2642.033 89.667 2.933 5.667 id=1705 z=5
+W 2655.033 90.667 2.933 5.667 id=1705 z=5
+W 2646.033 75.667 2.933 5.667 id=1705 z=5
+W 2666.033 88.667 2.933 5.667 id=1705 z=5
+W 2654.767 82.083 1.467 2.833 id=1705 z=5
+W 2664.033 74.667 2.933 5.667 id=1705 z=5
+W 2674.033 90.667 2.933 5.667 id=1705 z=5
+W 2672.033 75.667 2.933 5.667 id=1705 z=5
+W 2685.033 88.667 2.933 5.667 id=1705 z=5
+W 2707.033 79.667 2.933 5.667 id=1705 z=5
+W 2703.437 79.446 2.127 4.108 id=1705 z=5
+W 2712.033 81.667 2.933 5.667 id=1705 z=5
+W 2717.033 79.667 2.933 5.667 id=1705 z=5
+W 2720.767 91.083 1.467 2.833 id=1705 z=5
+W 2701.033 90.667 2.933 5.667 id=1705 z=5
+W 2734.033 93.667 2.933 5.667 id=1705 z=5
+W 2732.033 79.667 2.933 5.667 id=1705 z=5
+W 2743.767 90.083 1.467 2.833 id=1705 z=5
+W 2743.033 78.667 2.933 5.667 id=1705 z=5
+W 2763.033 80.667 2.933 5.667 id=1705 z=5
+W 2758.033 91.667 2.933 5.667 id=1705 z=5
+W 2763.033 95.667 2.933 5.667 id=1705 z=5
+W 2768.033 82.667 2.933 5.667 id=1705 z=5
+W 2772.767 95.083 1.467 2.833 id=1705 z=5
+W 2781.767 78.083 1.467 2.833 id=1705 z=5
+W 2795.767 83.083 1.467 2.833 id=1705 z=5
+W 2789.767 95.083 1.467 2.833 id=1705 z=5
+W 2805.033 80.667 2.933 5.667 id=1705 z=5
+W 2816.767 101.083 1.467 2.833 id=1705 z=5
+W 2833.033 84.667 2.933 5.667 id=1705 z=5
+W 2801.033 97.667 2.933 5.667 id=1705 z=5
+W 2840.033 99.667 2.933 5.667 id=1705 z=5
+W 2839.033 85.667 2.933 5.667 id=1705 z=5
+W 2849.033 89.667 2.933 5.667 id=1705 z=5
+W 2853.033 84.667 2.933 5.667 id=1705 z=5
+W 2869.033 79.667 2.933 5.667 id=1705 z=5
+W 2865.033 92.667 2.933 5.667 id=1705 z=5
+W 2871.033 91.667 2.933 5.667 id=1705 z=5
+W 2859.033 93.667 2.933 5.667 id=1705 z=5
+W 2875.033 77.667 2.933 5.667 id=1705 z=5
+W 2885.033 81.667 2.933 5.667 id=1705 z=5
+W 2895.033 77.667 2.933 5.667 id=1705 z=5
+W 2892.033 93.667 2.933 5.667 id=1705 z=5
+W 2886.033 96.667 2.933 5.667 id=1705 z=5
+W 2902.033 91.667 2.933 5.667 id=1705 z=5
+W 2900.033 77.667 2.933 5.667 id=1705 z=5
+W 2915.033 80.667 2.933 5.667 id=1705 z=5
+W 2913.033 93.667 2.933 5.667 id=1705 z=5
+W 2923.767 86.083 1.467 2.833 id=1705 z=5
+W 2937.033 97.667 2.933 5.667 id=1705 z=5
+W 2940.767 83.083 1.467 2.833 id=1705 z=5
+W 2949.033 82.667 2.933 5.667 id=1705 z=5
+W 2953.033 99.667 2.933 5.667 id=1705 z=5
+W 2958.033 98.667 2.933 5.667 id=1705 z=5
+W 2961.033 103.667 2.933 5.667 id=1705 z=5
+W 2965.033 107.667 2.933 5.667 id=1705 z=5
+W 2968.033 88.667 2.933 5.667 id=1705 z=5
+W 2963.033 86.667 2.933 5.667 id=1705 z=5
+W 2977.033 93.667 2.933 5.667 id=1705 z=5
+W 2980.033 107.667 2.933 5.667 id=1705 z=5
+W 2992.033 90.667 2.933 5.667 id=1705 z=5
+W 2990.033 105.667 2.933 5.667 id=1705 z=5
+W 2995.033 103.667 2.933 5.667 id=1705 z=5
+W 2997.033 91.667 2.933 5.667 id=1705 z=5
+W 2636.598 85.758 1.804 3.485 id=1705 z=5
+W 2642.033 78.667 2.933 5.667 id=1705 z=5
+W 2635.635 75.828 1.731 3.343 id=1705 z=5
+W 2651.635 90.828 1.731 3.343 id=1705 z=5
+W 2647.033 87.667 2.933 5.667 id=1705 z=5
+W 2660.033 88.667 2.933 5.667 id=1705 z=5
+W 2651.033 78.667 2.933 5.667 id=1705 z=5
+W 2657.033 77.667 2.933 5.667 id=1705 z=5
+W 2663.642 86.843 1.716 3.315 id=1705 z=5
+W 2661.693 78.942 1.613 3.117 id=1705 z=5
+W 2668.473 77.517 2.053 3.967 id=1705 z=5
+W 2670.437 89.446 2.127 4.108 id=1705 z=5
+W 2676.033 78.667 2.933 5.667 id=1705 z=5
+W 2680.033 90.667 2.933 5.667 id=1705 z=5
+W 2681.033 77.667 2.933 5.667 id=1705 z=5
+W 2687.033 76.667 2.933 5.667 id=1705 z=5
+W 2690.033 88.667 2.933 5.667 id=1705 z=5
+W 2696.033 88.667 2.933 5.667 id=1705 z=5
+W 2693.033 76.667 2.933 5.667 id=1705 z=5
+W 2699.033 76.667 2.933 5.667 id=1705 z=5
+W 2706.033 92.667 2.933 5.667 id=1705 z=5
+W 2712.033 93.667 2.933 5.667 id=1705 z=5
+W 2717.033 91.667 2.933 5.667 id=1705 z=5
+W 2724.033 89.667 2.933 5.667 id=1705 z=5
+W 2729.033 91.667 2.933 5.667 id=1705 z=5
+W 2722.033 76.667 2.933 5.667 id=1705 z=5
+W 2727.033 77.667 2.933 5.667 id=1705 z=5
+W 2739.033 91.667 2.933 5.667 id=1705 z=5
+W 2737.033 78.667 2.933 5.667 id=1705 z=5
+W 2747.033 88.667 2.933 5.667 id=1705 z=5
+W 2753.033 88.667 2.933 5.667 id=1705 z=5
+W 2748.033 78.667 2.933 5.667 id=1705 z=5
+W 2753.033 78.667 2.933 5.667 id=1705 z=5
+W 2758.033 78.667 2.933 5.667 id=1705 z=5
+W 2769.033 95.667 2.933 5.667 id=1705 z=5
+W 2773.033 80.667 2.933 5.667 id=1705 z=5
+W 2776.033 92.667 2.933 5.667 id=1705 z=5
+W 2781.033 91.667 2.933 5.667 id=1705 z=5
+W 2778.033 78.667 2.933 5.667 id=1705 z=5
+W 2785.033 78.667 2.933 5.667 id=1705 z=5
+W 2790.033 81.667 2.933 5.667 id=1705 z=5
+W 2786.033 93.667 2.933 5.667 id=1705 z=5
+W 2792.033 95.667 2.933 5.667 id=1705 z=5
+W 2799.033 79.667 2.933 5.667 id=1705 z=5
+W 2797.033 93.667 2.933 5.667 id=1705 z=5
+W 2806.033 100.667 2.933 5.667 id=1705 z=5
+W 2812.033 100.667 2.933 5.667 id=1705 z=5
+W 2809.033 83.667 2.933 5.667 id=1705 z=5
+W 2813.033 86.667 2.933 5.667 id=1705 z=5
+W 2818.033 87.667 2.933 5.667 id=1705 z=5
+W 2823.033 89.667 2.933 5.667 id=1705 z=5
+W 2820.033 101.667 2.933 5.667 id=1705 z=5
+W 2825.033 102.667 2.933 5.667 id=1705 z=5
+W 2830.033 99.667 2.933 5.667 id=1705 z=5
+W 2835.033 96.667 2.933 5.667 id=1705 z=5
+W 2828.033 86.667 2.933 5.667 id=1705 z=5
+W 2844.033 87.667 2.933 5.667 id=1705 z=5
+W 2844.033 102.667 2.933 5.667 id=1705 z=5
+W 2850.033 101.667 2.933 5.667 id=1705 z=5
+W 2855.033 97.667 2.933 5.667 id=1705 z=5
+W 2857.033 80.667 2.933 5.667 id=1705 z=5
+W 2863.033 79.667 2.933 5.667 id=1705 z=5
+W 2876.033 90.667 2.933 5.667 id=1705 z=5
+W 2881.033 93.667 2.933 5.667 id=1705 z=5
+W 2880.033 79.667 2.933 5.667 id=1705 z=5
+W 2890.033 80.667 2.933 5.667 id=1705 z=5
+W 2905.033 79.667 2.933 5.667 id=1705 z=5
+W 2910.033 82.667 2.933 5.667 id=1705 z=5
+W 2897.033 90.667 2.933 5.667 id=1705 z=5
+W 2908.033 92.667 2.933 5.667 id=1705 z=5
+W 2918.033 92.667 2.933 5.667 id=1705 z=5
+W 2921.033 81.667 2.933 5.667 id=1705 z=5
+W 2922.033 95.667 2.933 5.667 id=1705 z=5
+W 2927.033 98.667 2.933 5.667 id=1705 z=5
+W 2932.033 98.667 2.933 5.667 id=1705 z=5
+W 2927.033 83.667 2.933 5.667 id=1705 z=5
+W 2932.033 85.667 2.933 5.667 id=1705 z=5
+W 2943.033 93.667 2.933 5.667 id=1705 z=5
+W 2937.033 83.667 2.933 5.667 id=1705 z=5
+W 2939.789 96.126 1.423 2.748 id=1705 z=5
+W 2944.033 81.667 2.933 5.667 id=1705 z=5
+W 2948.033 96.667 2.933 5.667 id=1705 z=5
+W 2953.033 85.667 2.933 5.667 id=1705 z=5
+W 2958.033 86.667 2.933 5.667 id=1705 z=5
+W 2972.033 91.667 2.933 5.667 id=1705 z=5
+W 2970.033 106.667 2.933 5.667 id=1705 z=5
+W 2975.033 104.667 2.933 5.667 id=1705 z=5
+W 2982.033 95.667 2.933 5.667 id=1705 z=5
+W 2987.033 93.667 2.933 5.667 id=1705 z=5
+W 2985.033 108.667 2.933 5.667 id=1705 z=5
+W 3002.033 93.667 2.933 5.667 id=1705 z=5
+W 3000.033 105.667 2.933 5.667 id=1705 z=5
+W 3004.033 109.667 2.933 5.667 id=1705 z=5
+W 3007.033 92.667 2.933 5.667 id=1705 z=5
+E 0 3 art=3638 id=3638 z=8 g=1
+E 1 3 art=3638 id=3638 z=8 g=1
+E 2.333 3 art=3638 id=3638 z=8 g=1
+E -9.5 2.833 art=3638 id=3638 z=8 g=1
+E -9.5 1.833 art=3638 id=3638 z=8 g=1
+E -9.5 0.833 art=3638 id=3638 z=8 g=1
+E -8.167 0.833 art=3638 id=3638 z=8 g=1
+E -8.167 1.833 art=3638 id=3638 z=8 g=1
+E -8.167 2.833 art=3638 id=3638 z=8 g=1
+E -7.167 2.833 art=3638 id=3638 z=8 g=1
+E -7.167 1.833 art=3638 id=3638 z=8 g=1
+E -7.167 0.833 art=3638 id=3638 z=8 g=1
+E -5.833 0.833 art=3638 id=3638 z=8 g=1
+E -5.833 1.833 art=3638 id=3638 z=8 g=1
+E -5.833 2.833 art=3638 id=3638 z=8 g=1
+E -4.833 2.833 art=3638 id=3638 z=8 g=1
+E -4.833 1.833 art=3638 id=3638 z=8 g=1
+E -4.833 0.833 art=3638 id=3638 z=8 g=1
+E -3.5 0.833 art=3638 id=3638 z=8 g=1
+E -3.5 1.833 art=3638 id=3638 z=8 g=1
+E -3.5 2.833 art=3638 id=3638 z=8 g=1
+E -2.5 2.833 art=3638 id=3638 z=8 g=1
+E -2.5 1.833 art=3638 id=3638 z=8 g=1
+E -2.5 0.833 art=3638 id=3638 z=8 g=1
+E -1.167 0.833 art=3638 id=3638 z=8 g=1
+E -1.167 1.833 art=3638 id=3638 z=8 g=1
+E -1.167 2.833 art=3638 id=3638 z=8 g=1
+B 0 6 id=83
+S 2 6 rot=-180 id=8
+E 0 4 art=3638 id=3638 z=8 g=1
+E 0 5 art=3638 id=3638 z=8 g=1
+E 0 6 art=3638 id=3638 z=8 g=1
+E 1 6 art=3638 id=3638 z=8 g=1
+E 1 5 art=3638 id=3638 z=8 g=1
+E 1 4 art=3638 id=3638 z=8 g=1
+E 2.333 4 art=3638 id=3638 z=8 g=1
+E 2.333 5 art=3638 id=3638 z=8 g=1
+E 2.333 6 art=3638 id=3638 z=8 g=1
+E -9.5 5.833 art=3638 id=3638 z=8 g=1
+E -9.5 4.833 art=3638 id=3638 z=8 g=1
+E -9.5 3.833 art=3638 id=3638 z=8 g=1
+E -8.167 3.833 art=3638 id=3638 z=8 g=1
+E -8.167 4.833 art=3638 id=3638 z=8 g=1
+E -8.167 5.833 art=3638 id=3638 z=8 g=1
+E -7.167 5.833 art=3638 id=3638 z=8 g=1
+E -7.167 4.833 art=3638 id=3638 z=8 g=1
+E -7.167 3.833 art=3638 id=3638 z=8 g=1
+E -5.833 3.833 art=3638 id=3638 z=8 g=1
+E -5.833 4.833 art=3638 id=3638 z=8 g=1
+E -5.833 5.833 art=3638 id=3638 z=8 g=1
+E -4.833 5.833 art=3638 id=3638 z=8 g=1
+E -4.833 4.833 art=3638 id=3638 z=8 g=1
+E -4.833 3.833 art=3638 id=3638 z=8 g=1
+E -3.5 3.833 art=3638 id=3638 z=8 g=1
+E -3.5 4.833 art=3638 id=3638 z=8 g=1
+E -3.5 5.833 art=3638 id=3638 z=8 g=1
+E -2.5 5.833 art=3638 id=3638 z=8 g=1
+E -2.5 4.833 art=3638 id=3638 z=8 g=1
+E -2.5 3.833 art=3638 id=3638 z=8 g=1
+E -1.167 3.833 art=3638 id=3638 z=8 g=1
+E -1.167 4.833 art=3638 id=3638 z=8 g=1
+E -1.167 5.833 art=3638 id=3638 z=8 g=1
+B 0 9 id=83
+B 0 8 id=83
+B 1 9 id=83
+B 1 8 id=83
+B 1 7 id=83
+B 2 8 id=83
+B 2 7 id=83
+B 2 9 id=83
+E 0 7 art=3638 id=3638 z=8 g=1
+E 0 8 art=3638 id=3638 z=8 g=1
+E 0 9 art=3638 id=3638 z=8 g=1
+E 1 9 art=3638 id=3638 z=8 g=1
+E 1 8 art=3638 id=3638 z=8 g=1
+E 1 7 art=3638 id=3638 z=8 g=1
+E 2.333 7 art=3638 id=3638 z=8 g=1
+E 2.333 8 art=3638 id=3638 z=8 g=1
+E 2.333 9 art=3638 id=3638 z=8 g=1
+E -9.5 8.833 art=3638 id=3638 z=8 g=1
+E -9.5 7.833 art=3638 id=3638 z=8 g=1
+E -9.5 6.833 art=3638 id=3638 z=8 g=1
+E -8.167 6.833 art=3638 id=3638 z=8 g=1
+E -8.167 7.833 art=3638 id=3638 z=8 g=1
+E -8.167 8.833 art=3638 id=3638 z=8 g=1
+E -7.167 8.833 art=3638 id=3638 z=8 g=1
+E -7.167 7.833 art=3638 id=3638 z=8 g=1
+E -7.167 6.833 art=3638 id=3638 z=8 g=1
+E -5.833 6.833 art=3638 id=3638 z=8 g=1
+E -5.833 7.833 art=3638 id=3638 z=8 g=1
+E -5.833 8.833 art=3638 id=3638 z=8 g=1
+E -4.833 8.833 art=3638 id=3638 z=8 g=1
+E -4.833 7.833 art=3638 id=3638 z=8 g=1
+E -4.833 6.833 art=3638 id=3638 z=8 g=1
+E -3.5 6.833 art=3638 id=3638 z=8 g=1
+E -3.5 7.833 art=3638 id=3638 z=8 g=1
+E -3.5 8.833 art=3638 id=3638 z=8 g=1
+E -2.5 8.833 art=3638 id=3638 z=8 g=1
+E -2.5 7.833 art=3638 id=3638 z=8 g=1
+E -2.5 6.833 art=3638 id=3638 z=8 g=1
+E -1.167 6.833 art=3638 id=3638 z=8 g=1
+E -1.167 7.833 art=3638 id=3638 z=8 g=1
+E -1.167 8.833 art=3638 id=3638 z=8 g=1
+V 0 11 spd=0 id=200 z=2
+B 1 13 id=83
+B 0 13 id=83
+B 2 13 id=83
+E 0 10 art=3638 id=3638 z=8 g=1
+E 0 11 art=3638 id=3638 z=8 g=1
+E 0 12 art=3638 id=3638 z=8 g=1
+E 0 13 art=3638 id=3638 z=8 g=1
+E 1 13 art=3638 id=3638 z=8 g=1
+E 1 12 art=3638 id=3638 z=8 g=1
+E 1 11 art=3638 id=3638 z=8 g=1
+E 1 10 art=3638 id=3638 z=8 g=1
+E 2.333 10 art=3638 id=3638 z=8 g=1
+E 2.333 11 art=3638 id=3638 z=8 g=1
+E 2.333 12 art=3638 id=3638 z=8 g=1
+E 2.333 13 art=3638 id=3638 z=8 g=1
 E -9.5 13.133 art=3638 id=3638 z=8 g=1
 E -9.5 12.133 art=3638 id=3638 z=8 g=1
 E -9.5 11.133 art=3638 id=3638 z=8 g=1
@@ -8856,16 +11115,6 @@ E -8.167 10.133 art=3638 id=3638 z=8 g=1
 E -8.167 11.133 art=3638 id=3638 z=8 g=1
 E -8.167 12.133 art=3638 id=3638 z=8 g=1
 E -8.167 13.133 art=3638 id=3638 z=8 g=1
-E -8.167 14.133 art=3638 id=3638 z=8 g=1
-E -8.167 15.133 art=3638 id=3638 z=8 g=1
-E -8.167 16.133 art=3638 id=3638 z=8 g=1
-E -8.167 17.133 art=3638 id=3638 z=8 g=1
-E -8.167 18.133 art=3638 id=3638 z=8 g=1
-E -7.167 18.133 art=3638 id=3638 z=8 g=1
-E -7.167 17.133 art=3638 id=3638 z=8 g=1
-E -7.167 16.133 art=3638 id=3638 z=8 g=1
-E -7.167 15.133 art=3638 id=3638 z=8 g=1
-E -7.167 14.133 art=3638 id=3638 z=8 g=1
 E -7.167 13.133 art=3638 id=3638 z=8 g=1
 E -7.167 12.133 art=3638 id=3638 z=8 g=1
 E -7.167 11.133 art=3638 id=3638 z=8 g=1
@@ -8874,16 +11123,6 @@ E -5.833 10.133 art=3638 id=3638 z=8 g=1
 E -5.833 11.133 art=3638 id=3638 z=8 g=1
 E -5.833 12.133 art=3638 id=3638 z=8 g=1
 E -5.833 13.133 art=3638 id=3638 z=8 g=1
-E -5.833 14.133 art=3638 id=3638 z=8 g=1
-E -5.833 15.133 art=3638 id=3638 z=8 g=1
-E -5.833 16.133 art=3638 id=3638 z=8 g=1
-E -5.833 17.133 art=3638 id=3638 z=8 g=1
-E -5.833 18.133 art=3638 id=3638 z=8 g=1
-E -4.833 18.133 art=3638 id=3638 z=8 g=1
-E -4.833 17.133 art=3638 id=3638 z=8 g=1
-E -4.833 16.133 art=3638 id=3638 z=8 g=1
-E -4.833 15.133 art=3638 id=3638 z=8 g=1
-E -4.833 14.133 art=3638 id=3638 z=8 g=1
 E -4.833 13.133 art=3638 id=3638 z=8 g=1
 E -4.833 12.133 art=3638 id=3638 z=8 g=1
 E -4.833 11.133 art=3638 id=3638 z=8 g=1
@@ -8892,16 +11131,6 @@ E -3.5 10.133 art=3638 id=3638 z=8 g=1
 E -3.5 11.133 art=3638 id=3638 z=8 g=1
 E -3.5 12.133 art=3638 id=3638 z=8 g=1
 E -3.5 13.133 art=3638 id=3638 z=8 g=1
-E -3.5 14.133 art=3638 id=3638 z=8 g=1
-E -3.5 15.133 art=3638 id=3638 z=8 g=1
-E -3.5 16.133 art=3638 id=3638 z=8 g=1
-E -3.5 17.133 art=3638 id=3638 z=8 g=1
-E -3.5 18.133 art=3638 id=3638 z=8 g=1
-E -2.5 18.133 art=3638 id=3638 z=8 g=1
-E -2.5 17.133 art=3638 id=3638 z=8 g=1
-E -2.5 16.133 art=3638 id=3638 z=8 g=1
-E -2.5 15.133 art=3638 id=3638 z=8 g=1
-E -2.5 14.133 art=3638 id=3638 z=8 g=1
 E -2.5 13.133 art=3638 id=3638 z=8 g=1
 E -2.5 12.133 art=3638 id=3638 z=8 g=1
 E -2.5 11.133 art=3638 id=3638 z=8 g=1
@@ -8910,83 +11139,1016 @@ E -1.167 10.133 art=3638 id=3638 z=8 g=1
 E -1.167 11.133 art=3638 id=3638 z=8 g=1
 E -1.167 12.133 art=3638 id=3638 z=8 g=1
 E -1.167 13.133 art=3638 id=3638 z=8 g=1
+B 0 14 id=83
+B 1 14 id=83
+B 2 14 id=83
+B 2 15 id=83
+B 0 15 id=83
+B 1 15 id=83
+E 0 14 art=3638 id=3638 z=8 g=1
+E 0 15 art=3638 id=3638 z=8 g=1
+E 0 16 art=3638 id=3638 z=8 g=1
+E 1 16 art=3638 id=3638 z=8 g=1
+E 1 15 art=3638 id=3638 z=8 g=1
+E 1 14 art=3638 id=3638 z=8 g=1
+E 2.333 14 art=3638 id=3638 z=8 g=1
+E 2.333 15 art=3638 id=3638 z=8 g=1
+E 2.333 16 art=3638 id=3638 z=8 g=1
+E -9.5 16.133 art=3638 id=3638 z=8 g=1
+E -9.5 15.133 art=3638 id=3638 z=8 g=1
+E -9.5 14.133 art=3638 id=3638 z=8 g=1
+E -8.167 14.133 art=3638 id=3638 z=8 g=1
+E -8.167 15.133 art=3638 id=3638 z=8 g=1
+E -8.167 16.133 art=3638 id=3638 z=8 g=1
+E -7.167 16.133 art=3638 id=3638 z=8 g=1
+E -7.167 15.133 art=3638 id=3638 z=8 g=1
+E -7.167 14.133 art=3638 id=3638 z=8 g=1
+E -5.833 14.133 art=3638 id=3638 z=8 g=1
+E -5.833 15.133 art=3638 id=3638 z=8 g=1
+E -5.833 16.133 art=3638 id=3638 z=8 g=1
+E -4.833 16.133 art=3638 id=3638 z=8 g=1
+E -4.833 15.133 art=3638 id=3638 z=8 g=1
+E -4.833 14.133 art=3638 id=3638 z=8 g=1
+E -3.5 14.133 art=3638 id=3638 z=8 g=1
+E -3.5 15.133 art=3638 id=3638 z=8 g=1
+E -3.5 16.133 art=3638 id=3638 z=8 g=1
+E -2.5 16.133 art=3638 id=3638 z=8 g=1
+E -2.5 15.133 art=3638 id=3638 z=8 g=1
+E -2.5 14.133 art=3638 id=3638 z=8 g=1
 E -1.167 14.133 art=3638 id=3638 z=8 g=1
 E -1.167 15.133 art=3638 id=3638 z=8 g=1
 E -1.167 16.133 art=3638 id=3638 z=8 g=1
+E 0 17 art=3638 id=3638 z=8 g=1
+E 0 18 art=3638 id=3638 z=8 g=1
+E 1 18 art=3638 id=3638 z=8 g=1
+E 1 17 art=3638 id=3638 z=8 g=1
+E 2.333 17 art=3638 id=3638 z=8 g=1
+E 2.333 18 art=3638 id=3638 z=8 g=1
+E -9.5 18.133 art=3638 id=3638 z=8 g=1
+E -9.5 17.133 art=3638 id=3638 z=8 g=1
+E -8.167 17.133 art=3638 id=3638 z=8 g=1
+E -8.167 18.133 art=3638 id=3638 z=8 g=1
+E -7.167 18.133 art=3638 id=3638 z=8 g=1
+E -7.167 17.133 art=3638 id=3638 z=8 g=1
+E -5.833 17.133 art=3638 id=3638 z=8 g=1
+E -5.833 18.133 art=3638 id=3638 z=8 g=1
+E -4.833 18.133 art=3638 id=3638 z=8 g=1
+E -4.833 17.133 art=3638 id=3638 z=8 g=1
+E -3.5 17.133 art=3638 id=3638 z=8 g=1
+E -3.5 18.133 art=3638 id=3638 z=8 g=1
+E -2.5 18.133 art=3638 id=3638 z=8 g=1
+E -2.5 17.133 art=3638 id=3638 z=8 g=1
 E -1.167 17.133 art=3638 id=3638 z=8 g=1
 E -1.167 18.133 art=3638 id=3638 z=8 g=1
-E -9.5 8.833 art=3638 id=3638 z=8 g=1
-E -9.5 7.833 art=3638 id=3638 z=8 g=1
-E -9.5 6.833 art=3638 id=3638 z=8 g=1
-E -9.5 5.833 art=3638 id=3638 z=8 g=1
-E -9.5 4.833 art=3638 id=3638 z=8 g=1
-E -9.5 3.833 art=3638 id=3638 z=8 g=1
-E -9.5 2.833 art=3638 id=3638 z=8 g=1
-E -9.5 1.833 art=3638 id=3638 z=8 g=1
-E -9.5 0.833 art=3638 id=3638 z=8 g=1
-E -8.167 0.833 art=3638 id=3638 z=8 g=1
-E -8.167 1.833 art=3638 id=3638 z=8 g=1
-E -8.167 2.833 art=3638 id=3638 z=8 g=1
-E -8.167 3.833 art=3638 id=3638 z=8 g=1
-E -8.167 4.833 art=3638 id=3638 z=8 g=1
-E -8.167 5.833 art=3638 id=3638 z=8 g=1
-E -8.167 6.833 art=3638 id=3638 z=8 g=1
-E -8.167 7.833 art=3638 id=3638 z=8 g=1
-E -8.167 8.833 art=3638 id=3638 z=8 g=1
-E -7.167 8.833 art=3638 id=3638 z=8 g=1
-E -7.167 7.833 art=3638 id=3638 z=8 g=1
-E -7.167 6.833 art=3638 id=3638 z=8 g=1
-E -7.167 5.833 art=3638 id=3638 z=8 g=1
-E -7.167 4.833 art=3638 id=3638 z=8 g=1
-E -7.167 3.833 art=3638 id=3638 z=8 g=1
-E -7.167 2.833 art=3638 id=3638 z=8 g=1
-E -7.167 1.833 art=3638 id=3638 z=8 g=1
-E -7.167 0.833 art=3638 id=3638 z=8 g=1
-E -5.833 0.833 art=3638 id=3638 z=8 g=1
-E -5.833 1.833 art=3638 id=3638 z=8 g=1
-E -5.833 2.833 art=3638 id=3638 z=8 g=1
-E -5.833 3.833 art=3638 id=3638 z=8 g=1
-E -5.833 4.833 art=3638 id=3638 z=8 g=1
-E -5.833 5.833 art=3638 id=3638 z=8 g=1
-E -5.833 6.833 art=3638 id=3638 z=8 g=1
-E -5.833 7.833 art=3638 id=3638 z=8 g=1
-E -5.833 8.833 art=3638 id=3638 z=8 g=1
-E -4.833 8.833 art=3638 id=3638 z=8 g=1
-E -4.833 7.833 art=3638 id=3638 z=8 g=1
-E -4.833 6.833 art=3638 id=3638 z=8 g=1
-E -4.833 5.833 art=3638 id=3638 z=8 g=1
-E -4.833 4.833 art=3638 id=3638 z=8 g=1
-E -4.833 3.833 art=3638 id=3638 z=8 g=1
-E -4.833 2.833 art=3638 id=3638 z=8 g=1
-E -4.833 1.833 art=3638 id=3638 z=8 g=1
-E -4.833 0.833 art=3638 id=3638 z=8 g=1
-E -3.5 0.833 art=3638 id=3638 z=8 g=1
-E -3.5 1.833 art=3638 id=3638 z=8 g=1
-E -3.5 2.833 art=3638 id=3638 z=8 g=1
-E -3.5 3.833 art=3638 id=3638 z=8 g=1
-E -3.5 4.833 art=3638 id=3638 z=8 g=1
-E -3.5 5.833 art=3638 id=3638 z=8 g=1
-E -3.5 6.833 art=3638 id=3638 z=8 g=1
-E -3.5 7.833 art=3638 id=3638 z=8 g=1
-E -3.5 8.833 art=3638 id=3638 z=8 g=1
-E -2.5 8.833 art=3638 id=3638 z=8 g=1
-E -2.5 7.833 art=3638 id=3638 z=8 g=1
-E -2.5 6.833 art=3638 id=3638 z=8 g=1
-E -2.5 5.833 art=3638 id=3638 z=8 g=1
-E -2.5 4.833 art=3638 id=3638 z=8 g=1
-E -2.5 3.833 art=3638 id=3638 z=8 g=1
-E -2.5 2.833 art=3638 id=3638 z=8 g=1
-E -2.5 1.833 art=3638 id=3638 z=8 g=1
-E -2.5 0.833 art=3638 id=3638 z=8 g=1
-E -1.167 0.833 art=3638 id=3638 z=8 g=1
-E -1.167 1.833 art=3638 id=3638 z=8 g=1
-E -1.167 2.833 art=3638 id=3638 z=8 g=1
-E -1.167 3.833 art=3638 id=3638 z=8 g=1
-E -1.167 4.833 art=3638 id=3638 z=8 g=1
-E -1.167 5.833 art=3638 id=3638 z=8 g=1
-E -1.167 6.833 art=3638 id=3638 z=8 g=1
-E -1.167 7.833 art=3638 id=3638 z=8 g=1
-E -1.167 8.833 art=3638 id=3638 z=8 g=1
+E 3.333 3 art=3638 id=3638 z=8 g=1
+E 4.667 3 art=3638 id=3638 z=8 g=1
+E 5.667 3 art=3638 id=3638 z=8 g=1
+B 5 5 id=83
+B 5 6 id=83
+E 3.333 6 art=3638 id=3638 z=8 g=1
+E 3.333 5 art=3638 id=3638 z=8 g=1
+E 3.333 4 art=3638 id=3638 z=8 g=1
+E 4.667 4 art=3638 id=3638 z=8 g=1
+E 4.667 5 art=3638 id=3638 z=8 g=1
+E 4.667 6 art=3638 id=3638 z=8 g=1
+E 5.667 6 art=3638 id=3638 z=8 g=1
+E 5.667 5 art=3638 id=3638 z=8 g=1
+E 5.667 4 art=3638 id=3638 z=8 g=1
+B 3 7 id=83
+B 3 9 id=83
+B 3 8 id=83
+B 4 9 id=83
+B 5 9 id=83
+B 6 9 id=83
+B 6 8 id=83
+B 5 8 id=83
+E 3.333 9 art=3638 id=3638 z=8 g=1
+E 3.333 8 art=3638 id=3638 z=8 g=1
+E 3.333 7 art=3638 id=3638 z=8 g=1
+E 4.667 7 art=3638 id=3638 z=8 g=1
+E 4.667 8 art=3638 id=3638 z=8 g=1
+E 4.667 9 art=3638 id=3638 z=8 g=1
+E 5.667 9 art=3638 id=3638 z=8 g=1
+E 5.667 8 art=3638 id=3638 z=8 g=1
+E 5.667 7 art=3638 id=3638 z=8 g=1
+B 3 13 id=83
+B 4 13 id=83
+S 3 12 rot=-180 id=8
+E 3.333 13 art=3638 id=3638 z=8 g=1
+E 3.333 12 art=3638 id=3638 z=8 g=1
+E 3.333 11 art=3638 id=3638 z=8 g=1
+E 3.333 10 art=3638 id=3638 z=8 g=1
+E 4.667 10 art=3638 id=3638 z=8 g=1
+E 4.667 11 art=3638 id=3638 z=8 g=1
+E 4.667 12 art=3638 id=3638 z=8 g=1
+E 4.667 13 art=3638 id=3638 z=8 g=1
+E 5.667 13 art=3638 id=3638 z=8 g=1
+E 5.667 12 art=3638 id=3638 z=8 g=1
+E 5.667 11 art=3638 id=3638 z=8 g=1
+E 5.667 10 art=3638 id=3638 z=8 g=1
+B 3 14 id=83
+B 3 16 id=83
+B 5 15 id=83
+E 3.333 16 art=3638 id=3638 z=8 g=1
+E 3.333 15 art=3638 id=3638 z=8 g=1
+E 3.333 14 art=3638 id=3638 z=8 g=1
+E 4.667 14 art=3638 id=3638 z=8 g=1
+E 4.667 15 art=3638 id=3638 z=8 g=1
+E 4.667 16 art=3638 id=3638 z=8 g=1
+E 5.667 16 art=3638 id=3638 z=8 g=1
+E 5.667 15 art=3638 id=3638 z=8 g=1
+E 5.667 14 art=3638 id=3638 z=8 g=1
+E 3.333 18 art=3638 id=3638 z=8 g=1
+E 3.333 17 art=3638 id=3638 z=8 g=1
+E 4.667 17 art=3638 id=3638 z=8 g=1
+E 4.667 18 art=3638 id=3638 z=8 g=1
+E 5.667 18 art=3638 id=3638 z=8 g=1
+E 5.667 17 art=3638 id=3638 z=8 g=1
+E 7 3 art=3638 id=3638 z=8 g=1
+E 8 3 art=3638 id=3638 z=8 g=1
+E 9.333 3 art=3638 id=3638 z=8 g=1
+B 9 6 id=83
+S 7 6 rot=-180 id=8
+E 7 4 art=3638 id=3638 z=8 g=1
+E 7 5 art=3638 id=3638 z=8 g=1
+E 7 6 art=3638 id=3638 z=8 g=1
+E 8 6 art=3638 id=3638 z=8 g=1
+E 8 5 art=3638 id=3638 z=8 g=1
+E 8 4 art=3638 id=3638 z=8 g=1
+E 9.333 4 art=3638 id=3638 z=8 g=1
+E 9.333 6 art=3638 id=3638 z=8 g=1
+B 7 8 id=83
+B 7 9 id=83
+B 7 7 id=83
+B 8 8 id=83
+B 8 7 id=83
+B 9 8 id=83
+B 8 9 id=83
+B 9 7 id=83
+B 9 9 id=83
+E 7 7 art=3638 id=3638 z=8 g=1
+E 7 8 art=3638 id=3638 z=8 g=1
+E 7 9 art=3638 id=3638 z=8 g=1
+E 8 9 art=3638 id=3638 z=8 g=1
+E 8 8 art=3638 id=3638 z=8 g=1
+E 8 7 art=3638 id=3638 z=8 g=1
+E 9.333 7 art=3638 id=3638 z=8 g=1
+E 9.333 8 art=3638 id=3638 z=8 g=1
+E 9.333 9 art=3638 id=3638 z=8 g=1
+E 7 10 art=3638 id=3638 z=8 g=1
+E 7 11 art=3638 id=3638 z=8 g=1
+E 7 12 art=3638 id=3638 z=8 g=1
+E 7 13 art=3638 id=3638 z=8 g=1
+E 8 13 art=3638 id=3638 z=8 g=1
+E 8 12 art=3638 id=3638 z=8 g=1
+E 8 11 art=3638 id=3638 z=8 g=1
+E 8 10 art=3638 id=3638 z=8 g=1
+E 9.333 10 art=3638 id=3638 z=8 g=1
+E 9.333 12 art=3638 id=3638 z=8 g=1
+E 9.333 13 art=3638 id=3638 z=8 g=1
+E 7 14 art=3638 id=3638 z=8 g=1
+E 7 15 art=3638 id=3638 z=8 g=1
+E 7 16 art=3638 id=3638 z=8 g=1
+E 8 16 art=3638 id=3638 z=8 g=1
+E 8 15 art=3638 id=3638 z=8 g=1
+E 8 14 art=3638 id=3638 z=8 g=1
+E 9.333 14 art=3638 id=3638 z=8 g=1
+E 9.333 15 art=3638 id=3638 z=8 g=1
+E 9.333 16 art=3638 id=3638 z=8 g=1
+E 7 17 art=3638 id=3638 z=8 g=1
+E 7 18 art=3638 id=3638 z=8 g=1
+E 8 18 art=3638 id=3638 z=8 g=1
+E 8 17 art=3638 id=3638 z=8 g=1
+E 9.333 17 art=3638 id=3638 z=8 g=1
+E 9.333 18 art=3638 id=3638 z=8 g=1
+E 10.333 3 art=3638 id=3638 z=8 g=1
+E 11.667 3 art=3638 id=3638 z=8 g=1
+E 12.667 3 art=3638 id=3638 z=8 g=1
+B 11 5 id=83
+E 10.333 6 art=3638 id=3638 z=8 g=1
+E 10.333 4 art=3638 id=3638 z=8 g=1
+E 11.667 4 art=3638 id=3638 z=8 g=1
+E 11.667 5 art=3638 id=3638 z=8 g=1
+E 11.667 6 art=3638 id=3638 z=8 g=1
+E 12.667 6 art=3638 id=3638 z=8 g=1
+E 12.667 5 art=3638 id=3638 z=8 g=1
+E 12.667 4 art=3638 id=3638 z=8 g=1
+B 10 9 id=83
+B 11 8 id=83
+B 11 9 id=83
+B 12 9 id=83
+B 12 8 id=83
+B 12 7 id=83
+E 10.333 9 art=3638 id=3638 z=8 g=1
+E 10.333 8 art=3638 id=3638 z=8 g=1
+E 10.333 7 art=3638 id=3638 z=8 g=1
+E 11.667 7 art=3638 id=3638 z=8 g=1
+E 11.667 8 art=3638 id=3638 z=8 g=1
+E 11.667 9 art=3638 id=3638 z=8 g=1
+E 12.667 9 art=3638 id=3638 z=8 g=1
+E 12.667 8 art=3638 id=3638 z=8 g=1
+E 12.667 7 art=3638 id=3638 z=8 g=1
+E 10.333 13 art=3638 id=3638 z=8 g=1
+E 10.333 12 art=3638 id=3638 z=8 g=1
+E 10.333 11 art=3638 id=3638 z=8 g=1
+E 10.333 10 art=3638 id=3638 z=8 g=1
+E 11.667 10 art=3638 id=3638 z=8 g=1
+E 11.667 11 art=3638 id=3638 z=8 g=1
+E 11.667 12 art=3638 id=3638 z=8 g=1
+E 11.667 13 art=3638 id=3638 z=8 g=1
+E 12.667 13 art=3638 id=3638 z=8 g=1
+E 12.667 12 art=3638 id=3638 z=8 g=1
+E 12.667 11 art=3638 id=3638 z=8 g=1
+E 12.667 10 art=3638 id=3638 z=8 g=1
+E 10.333 16 art=3638 id=3638 z=8 g=1
+E 10.333 15 art=3638 id=3638 z=8 g=1
+E 10.333 14 art=3638 id=3638 z=8 g=1
+E 11.667 14 art=3638 id=3638 z=8 g=1
+E 11.667 15 art=3638 id=3638 z=8 g=1
+E 11.667 16 art=3638 id=3638 z=8 g=1
+E 12.667 16 art=3638 id=3638 z=8 g=1
+E 12.667 15 art=3638 id=3638 z=8 g=1
+E 12.667 14 art=3638 id=3638 z=8 g=1
+E 10.333 18 art=3638 id=3638 z=8 g=1
+E 10.333 17 art=3638 id=3638 z=8 g=1
+E 11.667 17 art=3638 id=3638 z=8 g=1
+E 11.667 18 art=3638 id=3638 z=8 g=1
+E 12.667 18 art=3638 id=3638 z=8 g=1
+E 12.667 17 art=3638 id=3638 z=8 g=1
+E 14 3 art=3638 id=3638 z=8 g=1
+E 15 3 art=3638 id=3638 z=8 g=1
+B 15 6 id=83
+S 13 6 rot=-180 id=8
+E 14 4 art=3638 id=3638 z=8 g=1
+E 14 5 art=3638 id=3638 z=8 g=1
+E 14 6 art=3638 id=3638 z=8 g=1
+E 15 6 art=3638 id=3638 z=8 g=1
+E 15 5 art=3638 id=3638 z=8 g=1
+E 15 4 art=3638 id=3638 z=8 g=1
+B 13 9 id=83
+B 13 8 id=83
+B 14 8 id=83
+B 16 9 id=83
+B 15 9 id=83
+B 14 9 id=83
+B 14 7 id=83
+B 13 7 id=83
+B 16 7 id=83
+E 14 7 art=3638 id=3638 z=8 g=1
+E 14 8 art=3638 id=3638 z=8 g=1
+E 14 9 art=3638 id=3638 z=8 g=1
+E 15 9 art=3638 id=3638 z=8 g=1
+E 15 8 art=3638 id=3638 z=8 g=1
+E 15 7 art=3638 id=3638 z=8 g=1
+B 16 12 id=83
+B 16 13 id=83
+E 14 10 art=3638 id=3638 z=8 g=1
+E 14 11 art=3638 id=3638 z=8 g=1
+E 14 12 art=3638 id=3638 z=8 g=1
+E 14 13 art=3638 id=3638 z=8 g=1
+E 15 13 art=3638 id=3638 z=8 g=1
+E 15 12 art=3638 id=3638 z=8 g=1
+E 15 11 art=3638 id=3638 z=8 g=1
+E 15 10 art=3638 id=3638 z=8 g=1
+B 15 14 id=83
+E 14 14 art=3638 id=3638 z=8 g=1
+E 14 15 art=3638 id=3638 z=8 g=1
+E 14 16 art=3638 id=3638 z=8 g=1
+E 15 16 art=3638 id=3638 z=8 g=1
+E 15 15 art=3638 id=3638 z=8 g=1
+E 15 14 art=3638 id=3638 z=8 g=1
+E 14 17 art=3638 id=3638 z=8 g=1
+E 14 18 art=3638 id=3638 z=8 g=1
+E 15 18 art=3638 id=3638 z=8 g=1
+E 15 17 art=3638 id=3638 z=8 g=1
+E 16.333 3 art=3638 id=3638 z=8 g=1
+E 17.333 3 art=3638 id=3638 z=8 g=1
+E 18.667 3 art=3638 id=3638 z=8 g=1
+E 16.333 4 art=3638 id=3638 z=8 g=1
+E 16.333 5 art=3638 id=3638 z=8 g=1
+E 16.333 6 art=3638 id=3638 z=8 g=1
+E 17.333 6 art=3638 id=3638 z=8 g=1
+E 17.333 5 art=3638 id=3638 z=8 g=1
+E 17.333 4 art=3638 id=3638 z=8 g=1
+E 18.667 4 art=3638 id=3638 z=8 g=1
+E 18.667 5 art=3638 id=3638 z=8 g=1
+E 18.667 6 art=3638 id=3638 z=8 g=1
+B 18 8 id=83
+B 19 8 id=83
+B 17 9 id=83
+B 18 9 id=83
+B 19 9 id=83
+S 19 7 rot=-90 id=8
+E 16.333 7 art=3638 id=3638 z=8 g=1
+E 16.333 8 art=3638 id=3638 z=8 g=1
+E 16.333 9 art=3638 id=3638 z=8 g=1
+E 17.333 9 art=3638 id=3638 z=8 g=1
+E 17.333 8 art=3638 id=3638 z=8 g=1
+E 17.333 7 art=3638 id=3638 z=8 g=1
+E 18.667 7 art=3638 id=3638 z=8 g=1
+E 18.667 8 art=3638 id=3638 z=8 g=1
+E 18.667 9 art=3638 id=3638 z=8 g=1
+B 17 12 id=83
+B 18 12 id=83
+E 16.333 10 art=3638 id=3638 z=8 g=1
+E 16.333 11 art=3638 id=3638 z=8 g=1
+E 16.333 12 art=3638 id=3638 z=8 g=1
+E 16.333 13 art=3638 id=3638 z=8 g=1
+E 17.333 13 art=3638 id=3638 z=8 g=1
+E 17.333 12 art=3638 id=3638 z=8 g=1
+E 17.333 11 art=3638 id=3638 z=8 g=1
+E 17.333 10 art=3638 id=3638 z=8 g=1
+E 18.667 10 art=3638 id=3638 z=8 g=1
+E 18.667 11 art=3638 id=3638 z=8 g=1
+E 18.667 12 art=3638 id=3638 z=8 g=1
+E 18.667 13 art=3638 id=3638 z=8 g=1
+E 16.333 14 art=3638 id=3638 z=8 g=1
+E 16.333 15 art=3638 id=3638 z=8 g=1
+E 16.333 16 art=3638 id=3638 z=8 g=1
+E 17.333 16 art=3638 id=3638 z=8 g=1
+E 17.333 15 art=3638 id=3638 z=8 g=1
+E 17.333 14 art=3638 id=3638 z=8 g=1
+E 18.667 14 art=3638 id=3638 z=8 g=1
+E 18.667 15 art=3638 id=3638 z=8 g=1
+E 18.667 16 art=3638 id=3638 z=8 g=1
+E 16.333 17 art=3638 id=3638 z=8 g=1
+E 16.333 18 art=3638 id=3638 z=8 g=1
+E 17.333 18 art=3638 id=3638 z=8 g=1
+E 17.333 17 art=3638 id=3638 z=8 g=1
+E 18.667 17 art=3638 id=3638 z=8 g=1
+E 18.667 18 art=3638 id=3638 z=8 g=1
+E 19.667 3 art=3638 id=3638 z=8 g=1
+E 21 3 art=3638 id=3638 z=8 g=1
+E 22 3 art=3638 id=3638 z=8 g=1
+B 21 6 id=83
+E 19.667 6 art=3638 id=3638 z=8 g=1
+E 19.667 5 art=3638 id=3638 z=8 g=1
+E 19.667 4 art=3638 id=3638 z=8 g=1
+E 21 4 art=3638 id=3638 z=8 g=1
+E 21 5 art=3638 id=3638 z=8 g=1
+E 21 6 art=3638 id=3638 z=8 g=1
+E 22 6 art=3638 id=3638 z=8 g=1
+E 22 5 art=3638 id=3638 z=8 g=1
+E 22 4 art=3638 id=3638 z=8 g=1
+B 20 8 id=83
+B 20 9 id=83
+B 21 9 id=83
+B 22 9 id=83
+B 22 8 id=83
+B 21 8 id=83
+B 20 7 id=83
+E 19.667 9 art=3638 id=3638 z=8 g=1
+E 19.667 8 art=3638 id=3638 z=8 g=1
+E 19.667 7 art=3638 id=3638 z=8 g=1
+E 21 7 art=3638 id=3638 z=8 g=1
+E 21 8 art=3638 id=3638 z=8 g=1
+E 21 9 art=3638 id=3638 z=8 g=1
+E 22 9 art=3638 id=3638 z=8 g=1
+E 22 8 art=3638 id=3638 z=8 g=1
+E 22 7 art=3638 id=3638 z=8 g=1
+B 20 13 id=83
+S 20 12 rot=180 id=8
+E 19.667 13 art=3638 id=3638 z=8 g=1
+E 19.667 12 art=3638 id=3638 z=8 g=1
+E 19.667 11 art=3638 id=3638 z=8 g=1
+E 19.667 10 art=3638 id=3638 z=8 g=1
+E 21 10 art=3638 id=3638 z=8 g=1
+E 21 11 art=3638 id=3638 z=8 g=1
+E 21 12 art=3638 id=3638 z=8 g=1
+E 21 13 art=3638 id=3638 z=8 g=1
+E 22 13 art=3638 id=3638 z=8 g=1
+E 22 12 art=3638 id=3638 z=8 g=1
+E 22 11 art=3638 id=3638 z=8 g=1
+E 22 10 art=3638 id=3638 z=8 g=1
+B 20 14 id=83
+E 19.667 16 art=3638 id=3638 z=8 g=1
+E 19.667 15 art=3638 id=3638 z=8 g=1
+E 19.667 14 art=3638 id=3638 z=8 g=1
+E 21 14 art=3638 id=3638 z=8 g=1
+E 21 15 art=3638 id=3638 z=8 g=1
+E 21 16 art=3638 id=3638 z=8 g=1
+E 22 16 art=3638 id=3638 z=8 g=1
+E 22 15 art=3638 id=3638 z=8 g=1
+E 22 14 art=3638 id=3638 z=8 g=1
+E 19.667 18 art=3638 id=3638 z=8 g=1
+E 19.667 17 art=3638 id=3638 z=8 g=1
+E 21 17 art=3638 id=3638 z=8 g=1
+E 21 18 art=3638 id=3638 z=8 g=1
+E 22 18 art=3638 id=3638 z=8 g=1
+E 22 17 art=3638 id=3638 z=8 g=1
+Q 23 10 id=1595 trig=touch
+Q 71 7 id=1595 trig=touch
+Q 95 6 id=1595 trig=touch
+Q 118 5 id=1595 trig=touch
+Q 130 5 id=1595 trig=touch
+Q 135 4 id=1595 trig=touch
+Q 142 4 id=1595 trig=touch
+Q 153 4 id=1595 trig=touch
+Q 161 5 id=1595 trig=touch
+Q 166 5 id=1595 trig=touch
+B 222 10 id=83 g=3
+B 223 10 id=83 g=3
+B 224 10 id=83 g=3
+B 225 10 id=83 g=3
+B 226 10 id=83 g=3
+B 227 11 id=83 g=3
+B 227 10 id=83 g=3
+B 227 12 id=83 g=3
+B 226 11 id=83 g=3
+B 226 13 id=83 g=3
+B 225 12 id=83 g=3
+B 226 12 id=83 g=3
+B 227 13 id=83 g=3
+B 225 13 id=83 g=3
+B 225 11 id=83 g=3
+B 224 12 id=83 g=3
+B 224 13 id=83 g=3
+B 223 11 id=83 g=3
+B 223 12 id=83 g=3
+B 224 11 id=83 g=3
+B 223 13 id=83 g=3
+B 222 13 id=83 g=3
+B 222 12 id=83 g=3
+B 222 11 id=83 g=3
+Q 212 11 id=901 g=2 trig=move dx=0 dy=1 dur=0.5 ease=linear
+Q 219 11 id=901 g=4 trig=move dx=0 dy=3 dur=0.5 ease=linear
+Q 213 11 id=901 g=3 trig=move dx=0 dy=-5 dur=0.5 ease=linear
+Q 228 11 id=901 g=5 trig=move dx=0 dy=6 dur=0.5 ease=linear
+Q 201 -2 id=901 trig=move dur=0.5 ease=linear
+Q 194 3 id=901 g=6 trig=move dx=0 dy=1 dur=0.5 ease=linear
+Q 194 4 id=901 g=7 trig=move dx=0 dy=-5 dur=0.5 ease=linear
+S 200 -1 id=8
+S 201 -2 id=8 g=6
+Q 201 2 id=901 g=8 trig=move dx=0 dy=1 dur=0.5 ease=linear
+Q 210 2 id=901 g=9 trig=move dx=0 dy=2 dur=0.5 ease=linear
+Q 286 12 id=1595 trig=touch
+Q 367 9 id=1595 trig=touch
+Q 404 9 id=1595 trig=touch
+Q 283 6 id=1595 trig=touch
+B 47 8 id=83
+Q 47 9 id=1595 trig=touch
+Q 445 6 id=1595 trig=touch
+Q 448 8 id=1595 trig=touch
+Q 451 6 id=1595 trig=touch
+Q 454 8 id=1595 trig=touch
+Q 456 6 id=1595 trig=touch
+Q 458 8 id=1595 trig=touch
+Q 461 6 id=1595 trig=touch
+Q 464 8 id=1595 trig=touch
+Q 467 6 id=1595 trig=touch
+Q 470 8 id=1595 trig=touch
+Q 473 6 id=1595 trig=touch
+Q 476 8 id=1595 trig=touch
+Q 478 6 id=1595 trig=touch
+Q 483 8 id=1595 trig=touch
+Q 486 6 id=1595 trig=touch
+Q 516 15 id=1913 trig=zoom dur=0.5 zoom=0.725
+B 536 7 id=83
+B 536 6 id=83
+B 672 31 id=83
+B 671 30 id=83
+B 670 31 id=83
+B 671 32 id=83
+B 671 31 id=83
+B 672 33 id=83
+B 672 32 id=83
+B 673 32 id=83
+B 674 31 id=83
+B 674 32 id=83
+B 675 32 id=83
+B 675 31 id=83
+B 676 32 id=83
+B 676 31 id=83
+B 677 32 id=83
+B 677 31 id=83
+B 673 33 id=83
+B 674 33 id=83
+B 675 33 id=83
+B 673 31 id=83
+B 671 33 id=83
+B 670 33 id=83
+B 669 33 id=83
+B 669 34 id=83
+B 670 34 id=83
+B 668 31 id=83
+B 669 29 id=83
+B 675 30 id=83
+B 677 30 id=83
+B 676 30 id=83
+S 672 30 rot=180 id=8
+S 673 30 rot=180 id=8
+S 674 30 rot=180 id=8
+B 673 16 id=83
+B 672 16 id=83
+B 672 15 id=83
+B 673 15 id=83
+B 674 15 id=83
+B 675 15 id=83
+B 676 15 id=83
+B 677 14 id=83
+B 677 15 id=83
+B 676 14 id=83
+B 675 14 id=83
+B 674 14 id=83
+B 673 14 id=83
+S 674 16 id=8
+S 675 16 id=8
+S 676 16 id=8
+W 681.481 12.531 2.039 3.938 id=1705 z=5
+W 703.767 16.083 1.467 2.833 id=1705 z=5
+W 728.422 28.418 2.156 4.165 id=1705 z=5
+W 733.033 27.667 2.933 5.667 id=1705 z=5
+W 737.554 27.673 1.892 3.655 id=1705 z=5
+W 730.796 27.14 1.408 2.72 id=1705 z=5
+W 740.576 28.715 1.848 3.57 id=1705 z=5
+W 742.111 27.749 0.777 1.502 id=1705 z=5
+Q 767 28 id=1913 trig=zoom dur=0.1 zoom=1
+Q 1207 37 id=901 g=10 trig=move dx=0 dy=-2 dur=0.5 ease=linear
+Q 1207 31 id=901 g=11 trig=move dx=0 dy=2 dur=0.5 ease=linear
+Q 1219 37 id=901 g=12 trig=move dx=0 dy=-2 dur=0.5 ease=linear
+Q 1219 31 id=901 g=13 trig=move dx=0 dy=2 dur=0.5 ease=linear
+Q 1243 36 id=901 g=14 trig=move dx=0 dy=-3 dur=0.5 ease=linear
+Q 1243 32 id=901 g=17 trig=move dx=0 dy=3 dur=0.5 ease=linear
+Q 1246 32 id=901 g=18 trig=move dx=0 dy=3 dur=0.5 ease=linear
+Q 1246 36 id=901 g=15 trig=move dx=0 dy=-3 dur=0.5 ease=linear
+Q 1249 36 id=901 g=16 trig=move dx=0 dy=-3 dur=0.5 ease=linear
+Q 1249 32 id=901 g=19 trig=move dx=0 dy=3 dur=0.5 ease=linear
+Q 1345 29 id=1913 trig=zoom dur=0.5 zoom=0.8
+W 1333.033 23.667 2.933 5.667 id=1705 z=5
+W 1337.767 26.083 1.467 2.833 id=1705 z=5
+W 1337.033 20.667 2.933 5.667 rot=90 id=1705 z=5
+W 1340.459 24.488 2.083 4.023 id=1705 z=5
+W 1344.033 22.667 2.933 5.667 id=1705 z=5
+W 1329.686 25.928 1.628 3.145 id=1705 z=5
+W 1325.041 24.681 2.919 5.638 id=1705 z=5
+W 1447.033 41.667 2.933 5.667 id=1705 z=5
+W 1451.767 43.083 1.467 2.833 id=1705 z=5
+W 1444.422 38.418 2.156 4.165 id=1705 z=5
+W 1402.033 26.667 2.933 5.667 id=1705 z=5
+W 1417.033 26.667 2.933 5.667 id=1705 z=5
+B 1412 31 id=83
+B 1410 31 id=83
+B 1411 31 id=83
+B 1410 30 id=83
+B 1409 30 id=83
+B 1412 29 id=83
+B 1413 29 id=83
+B 1414 30 id=83
+B 1414 29 id=83
+B 1415 29 id=83
+S 1411 32 id=8
+S 1410 32 id=8
+S 1412 32 id=8
+S 1414 31 id=8
+S 1409 31 id=8
+S 1415 30 id=8
+S 1409 29 rot=180 id=8
+S 1408 30 rot=270 id=8
+S 1410 29 rot=180 id=8
+S 1412 28 rot=180 id=8
+S 1414 28 rot=180 id=8
+S 1413 28 rot=180 id=8
+S 1415 28 rot=180 id=8
+W 1405.767 31.083 1.467 2.833 id=1705 z=5
+Q 1382 28 id=1520 trig=shake dur=0.996 str=5
+B 1381 25 id=83
+B 1380 25 id=83
+B 1379 25 id=83
+B 1378 25 id=83
+B 1377 25 id=83
+B 1376 25 id=83
+B 1375 25 id=83
+B 1374 25 id=83
+B 1373 25 id=83
+B 1371 25 id=83
+B 1370 25 id=83
+B 1372 25 id=83
+B 1369 25 id=83
+B 1367 25 id=83
+B 1368 25 id=83
+B 1366 25 id=83
+B 1365 25 id=83
+B 1363 25 id=83
+B 1362 25 id=83
+B 1364 25 id=83
+B 1361 25 id=83
+B 1359 25 id=83
+B 1360 25 id=83
+B 1358 25 id=83
+B 1357 25 id=83
+B 1356 25 id=83
+B 1355 25 id=83
+B 1354 25 id=83
+B 1353 25 id=83
+B 1352 25 id=83
+B 1351 25 id=83
+B 1350 25 id=83
+B 1349 25 id=83
+B 1348 25 id=83
+W 1379.031 21.593 0.939 1.813 id=1705 z=5 g=20
+W 1380.767 21.083 1.467 2.833 id=1705 z=5 g=20
+W 1379.899 23.338 1.203 2.323 id=1705 z=5 g=20
+W 1379.133 22.792 0.733 1.417 id=1705 z=5 g=20
+Q 1383 20 id=901 g=20 trig=move dx=0 dy=4 ease=linear
+Q 1383 21 id=901 g=20 trig=move dx=10 dy=7 dur=0.45 ease=linear
+W 1377.561 18.687 1.877 3.627 id=1705 z=5 g=20
+W 1376.965 21.466 1.071 2.068 id=1705 z=5 g=20
+W 1376.075 19.678 0.851 1.643 id=1705 z=5 g=20
+W 1375.767 17.083 1.467 2.833 id=1705 z=5 g=20
+W 1373.767 18.083 1.467 2.833 id=1705 z=5 g=20
+W 1373.393 14.361 2.215 4.278 id=1705 z=5 g=20
+W 1434.834 25.082 0.939 1.813 id=1705 z=5 g=21
+W 1436.57 24.572 1.467 2.833 id=1705 z=5 g=21
+W 1435.702 26.827 1.203 2.323 id=1705 z=5 g=21
+W 1434.937 26.28 0.733 1.417 id=1705 z=5 g=21
+Q 1438.803 23.489 id=901 g=21 trig=move dx=0 dy=4 ease=linear
+Q 1438.803 24.489 id=901 g=21 trig=move dx=10 dy=7 dur=0.5 ease=linear
+W 1433.365 22.175 1.877 3.627 id=1705 z=5 g=21
+W 1432.768 24.955 1.071 2.068 id=1705 z=5 g=21
+W 1431.878 23.167 0.851 1.643 id=1705 z=5 g=21
+W 1431.57 20.572 1.467 2.833 id=1705 z=5 g=21
+W 1429.57 21.572 1.467 2.833 id=1705 z=5 g=21
+W 1429.196 17.85 2.215 4.278 id=1705 z=5 g=21
+W 1490.034 31.082 0.939 1.813 id=1705 z=5 g=22
+W 1491.77 30.572 1.467 2.833 id=1705 z=5 g=22
+W 1490.902 32.827 1.203 2.323 id=1705 z=5 g=22
+W 1490.137 32.28 0.733 1.417 id=1705 z=5 g=22
+Q 1493.003 29.489 id=901 g=22 trig=move dx=0 dy=4 ease=linear
+Q 1493.003 30.489 id=901 g=22 trig=move dx=10 dy=7 dur=0.5 ease=linear
+W 1488.565 28.175 1.877 3.627 id=1705 z=5 g=22
+W 1487.968 30.955 1.071 2.068 id=1705 z=5 g=22
+W 1487.078 29.167 0.851 1.643 id=1705 z=5 g=22
+W 1486.77 26.572 1.467 2.833 id=1705 z=5 g=22
+W 1484.77 27.572 1.467 2.833 id=1705 z=5 g=22
+W 1484.396 23.85 2.215 4.278 id=1705 z=5 g=22
+W 1544.017 37.082 0.939 1.813 id=1705 z=5 g=23
+W 1544.12 38.28 0.733 1.417 id=1705 z=5 g=23
+Q 1545.987 35.489 id=901 g=23 trig=move dx=0 dy=4 ease=linear
+Q 1545.987 36.489 id=901 g=23 trig=move dx=10 dy=7 dur=0.5 ease=linear
+W 1542.548 34.175 1.877 3.627 id=1705 z=5 g=23
+W 1541.951 36.955 1.071 2.068 id=1705 z=5 g=23
+W 1541.061 35.167 0.851 1.643 id=1705 z=5 g=23
+W 1540.753 32.572 1.467 2.833 id=1705 z=5 g=23
+W 1538.753 33.572 1.467 2.833 id=1705 z=5 g=23
+W 1538.379 29.85 2.215 4.278 id=1705 z=5 g=23
+W 1567.767 54.083 1.467 2.833 id=1705 z=5
+W 1570.488 53.545 2.024 3.91 id=1705 z=5
+Q 1439 30 id=1520 trig=shake dur=1 str=1
+W 1600.017 37.082 0.939 1.813 id=1705 z=5 g=24
+W 1601.753 36.572 1.467 2.833 id=1705 z=5 g=24
+W 1600.885 38.827 1.203 2.323 id=1705 z=5 g=24
+W 1600.12 38.28 0.733 1.417 id=1705 z=5 g=24
+Q 1602.987 35.489 id=901 g=24 trig=move dx=0 dy=4 ease=linear
+Q 1602.987 36.489 id=901 g=24 trig=move dx=10 dy=7 dur=0.55 ease=linear
+W 1598.548 34.175 1.877 3.627 id=1705 z=5 g=24
+W 1597.951 36.955 1.071 2.068 id=1705 z=5 g=24
+W 1597.061 35.167 0.851 1.643 id=1705 z=5 g=24
+W 1596.753 32.572 1.467 2.833 id=1705 z=5 g=24
+W 1594.753 33.572 1.467 2.833 id=1705 z=5 g=24
+W 1594.379 29.85 2.215 4.278 id=1705 z=5 g=24
+Q 1546 41 id=1520 trig=shake dur=1 str=1
+Q 1493 37 id=1520 trig=shake dur=1 str=1
+Q 1603 43 id=1520 trig=shake dur=1 str=1
+W 1654.034 40.082 0.939 1.813 id=1705 z=5 g=25
+W 1655.77 39.572 1.467 2.833 id=1705 z=5 g=25
+W 1654.902 41.827 1.203 2.323 id=1705 z=5 g=25
+W 1654.137 41.28 0.733 1.417 id=1705 z=5 g=25
+Q 1658.003 38.489 id=901 g=25 trig=move dx=0 dy=4 ease=linear
+Q 1658.003 39.489 id=901 g=25 trig=move dx=10 dy=7 dur=0.5 ease=linear
+W 1652.565 37.175 1.877 3.627 id=1705 z=5 g=25
+W 1651.968 39.955 1.071 2.068 id=1705 z=5 g=25
+W 1651.078 38.167 0.851 1.643 id=1705 z=5 g=25
+W 1650.77 35.572 1.467 2.833 id=1705 z=5 g=25
+W 1648.77 36.572 1.467 2.833 id=1705 z=5 g=25
+W 1648.396 32.85 2.215 4.278 id=1705 z=5 g=25
+Q 1658 46 id=1520 trig=shake dur=1 str=1
+W 1708.034 42.082 0.939 1.813 id=1705 z=5 g=26
+W 1709.77 41.572 1.467 2.833 id=1705 z=5 g=26
+W 1708.902 43.827 1.203 2.323 id=1705 z=5 g=26
+W 1708.137 43.28 0.733 1.417 id=1705 z=5 g=26
+Q 1712.003 40.489 id=901 g=26 trig=move dx=0 dy=4 ease=linear
+Q 1712.003 41.489 id=901 g=26 trig=move dx=10 dy=7 dur=0.5 ease=linear
+W 1706.565 39.175 1.877 3.627 id=1705 z=5 g=26
+W 1705.968 41.955 1.071 2.068 id=1705 z=5 g=26
+W 1705.078 40.167 0.851 1.643 id=1705 z=5 g=26
+W 1704.77 37.572 1.467 2.833 id=1705 z=5 g=26
+W 1702.77 38.572 1.467 2.833 id=1705 z=5 g=26
+W 1702.396 34.85 2.215 4.278 id=1705 z=5 g=26
+Q 1712 49 id=1520 trig=shake dur=1 str=1
+W 1642.033 50.667 2.933 5.667 id=1705 z=5
+W 1643.481 42.531 2.039 3.938 id=1705 z=5
+W 1631.033 39.667 2.933 5.667 id=1705 z=5
+B 1671 52 id=83
+B 1672 51 id=83
+B 1671 50 id=83
+Q 1796 54 id=1595 trig=touch
+Q 1805 56 id=1595 trig=touch
+Q 1813 56 id=1595 trig=touch
+W 1795.033 47.667 2.933 5.667 id=1705 z=5
+W 1803.151 49.893 2.699 5.213 id=1705 z=5
+W 1807.679 50.913 1.643 3.173 id=1705 z=5
+B 1802 51 id=83
+B 1800 51 id=83
+B 1801 50 id=83
+B 1801 51 id=83
+B 1800 50 id=83
+B 1803 49 id=83
+B 1799 52 id=83
+B 1800 52 id=83
+S 1799 53 id=8
+S 1800 53 id=8
+S 1801 52 id=8
+S 1802 52 id=8
+Q 1783 55 id=1913 trig=zoom dur=0.5 zoom=1
+Q 1831 63 id=1595 trig=touch
+Q 1841 59 id=1595 trig=touch
+Q 1860 60 id=1595 trig=touch
+Q 1870 58 id=1595 trig=touch
+Q 1878 60 id=1595 trig=touch
+Q 1898 58 id=1595 trig=touch
+Q 1901 60 id=1595 trig=touch
+Q 1920 59 id=1595 trig=touch
+Q 1915 58 id=1595 trig=touch
+Q 2085 56 id=1595 trig=touch
+Q 2110 54 id=1595 trig=touch
+Q 2132 55 id=1595 trig=touch
+Q 2179 69 id=1595 trig=touch
+Q 2204 68 id=1595 trig=touch
+Q 2227 68 id=1595 trig=touch
+W 1872.767 54.083 1.467 2.833 id=1705 z=5
+W 1876.033 52.667 2.933 5.667 id=1705 z=5
+W 1875.033 64.667 2.933 5.667 id=1705 z=5
+W 1859.033 52.667 2.933 5.667 id=1705 z=5
+W 1845.033 53.667 2.933 5.667 id=1705 z=5
+W 1850.363 56.304 2.273 4.392 id=1705 z=5
+W 1855.664 55.885 1.672 3.23 id=1705 z=5
+W 1820.664 50.885 1.672 3.23 id=1705 z=5
+W 1816.143 49.879 2.713 5.242 id=1705 z=5
+W 1840.664 65.885 1.672 3.23 id=1705 z=5
+W 1836.143 65.879 2.713 5.242 id=1705 z=5
+W 1833.679 63.913 1.643 3.173 id=1705 z=5
+W 1852.224 66.035 2.552 4.93 id=1705 z=5
+W 1897.569 52.701 1.863 3.598 id=1705 z=5
+W 1900.569 51.701 1.863 3.598 id=1705 z=5
+W 1916.385 53.347 2.229 4.307 id=1705 z=5
+W 1975.334 49.248 2.332 4.505 id=1705 z=5
+Q 2552 77 id=901 g=27 trig=move dx=0 dy=-1 dur=0.25 ease=linear
+Q 2555 77 id=901 g=28 trig=move dx=0 dy=-2 dur=0.25 ease=linear
+Q 2558 77 id=901 g=29 trig=move dx=0 dy=-3 dur=0.25 ease=linear
+Q 2569 72 id=901 g=30 trig=move dx=0 dy=2 dur=0.25 ease=linear
+Q 2572 72 id=901 g=31 trig=move dx=0 dy=4 dur=0.25 ease=linear
+Q 2575 72 id=901 g=32 trig=move dx=0 dy=6 dur=0.25 ease=linear
+B 2602 82 id=83
+B 2601 82 id=83
+B 2600 83 id=83
+B 2599 82 id=83
+B 2598 83 id=83
+B 2597 83 id=83
+B 2605 82 id=83
+B 2608 82 id=83
+B 2610 82 id=83
+B 2607 82 id=83
+B 2607 84 id=83
+B 2613 83 id=83
+B 2616 82 id=83
+B 2617 82 id=83
+B 2619 83 id=83
+B 2613 82 id=83
+B 2611 84 id=83
+B 2624 82 id=83
+B 2625 82 id=83
+B 2626 83 id=83
+B 2627 83 id=83
+B 2622 82 id=83
+B 2620 83 id=83
+B 2620 84 id=83
+B 2619 82 id=83
+B 2618 84 id=83
+B 2626 82 id=83
+B 2629 84 id=83
+B 2630 83 id=83
+B 2633 82 id=83
+B 2632 83 id=83
+B 2626 84 id=83
+B 2625 85 id=83
+B 2624 84 id=83
+B 2625 84 id=83
+B 2609 82 id=83
+B 2606 82 id=83
+B 2606 84 id=83
+B 2606 85 id=83
+B 2609 85 id=83
+B 2611 85 id=83
+B 2603 72 id=83
+B 2601 72 id=83
+B 2601 71 id=83
+B 2600 71 id=83
+B 2600 70 id=83
+B 2601 70 id=83
+B 2612 71 id=83
+B 2613 71 id=83
+B 2620 70 id=83
+B 2621 70 id=83
+B 2621 71 id=83
+B 2620 71 id=83
+B 2616 71 id=83
+B 2616 70 id=83
+B 2615 70 id=83
+B 2613 70 id=83
+B 2614 72 id=83
+B 2613 72 id=83
+B 2625 72 id=83
+B 2624 72 id=83
+B 2624 71 id=83
+B 2624 70 id=83
+B 2625 70 id=83
+B 2626 69 id=83
+B 2627 69 id=83
+B 2628 72 id=83
+B 2629 72 id=83
+B 2629 71 id=83
+B 2630 71 id=83
+B 2628 70 id=83
+B 2627 71 id=83
+B 2626 71 id=83
+B 2625 71 id=83
+B 2627 70 id=83
+B 2626 72 id=83
+B 2623 72 id=83
+B 2623 71 id=83
+B 2622 72 id=83
+B 2621 72 id=83
+B 2620 72 id=83
+B 2617 70 id=83
+B 2616 72 id=83
+B 2614 71 id=83
+B 2615 72 id=83
+B 2615 71 id=83
+B 2610 72 id=83
+B 2608 71 id=83
+B 2607 71 id=83
+B 2607 70 id=83
+B 2606 71 id=83
+B 2605 71 id=83
+B 2604 71 id=83
+B 2604 72 id=83
+B 2605 72 id=83
+B 2606 72 id=83
+B 2607 72 id=83
+B 2610 71 id=83
+B 2609 69 id=83
+B 2617 71 id=83
+B 2618 71 id=83
+B 2620 69 id=83
+B 2619 69 id=83
+W 2494.136 63.865 2.728 5.27 id=1705 z=5
+W 2498.547 64.658 1.907 3.683 id=1705 z=5
+S 2617 72 id=8
+S 2618 72 id=8
+Q 2600 77 id=1913 trig=zoom dur=1.5 zoom=0.5
+W 3058.246 97.078 2.508 4.845 id=1705 z=5
+W 3067.466 97.503 2.068 3.995 id=1705 z=5
+W 3056.033 106.667 2.933 5.667 id=1705 z=5
+W 3069.187 107.964 2.625 5.072 id=1705 z=5
+B 3063 109 id=83
+B 3064 109 id=83
+B 3063 110 id=83
+B 3062 110 id=83
+B 3062 109 id=83
+B 3066 110 id=83
+B 3064 111 id=83
+B 3065 111 id=83
+B 3066 112 id=83
+B 3067 111 id=83
+B 3068 110 id=83
+B 3060 110 id=83
+B 3061 111 id=83
+B 3061 110 id=83
+S 3062 108 rot=180 id=8
+S 3063 108 rot=180 id=8
+S 3064 108 rot=180 id=8
+S 3066 109 rot=180 id=8
+S 3065 110 rot=180 id=8
+S 3061 109 rot=180 id=8
+B 3064 100 id=83
+B 3062 100 id=83
+B 3062 99 id=83
+B 3063 100 id=83
+B 3063 99 id=83
+B 3064 99 id=83
+B 3065 100 id=83
+B 3066 99 id=83
+B 3064 102 id=83
+B 3063 101 id=83
+S 3062 101 id=8
+S 3065 101 id=8
+B 3061 100 id=83
+W 3076.033 97.667 2.933 5.667 id=1705 z=5
+W 3080.422 96.418 2.156 4.165 id=1705 z=5
+W 3075.033 109.667 2.933 5.667 id=1705 z=5
+W 3086.033 110.667 2.933 5.667 id=1705 z=5
+B 3082 111 id=83
+B 3079 112 id=83
+B 3080 113 id=83
+B 3080 111 id=83
+B 3081 112 id=83
+B 3080 112 id=83
+B 3081 113 id=83
+B 3082 113 id=83
+B 3083 112 id=83
+B 3084 113 id=83
+B 3084 112 id=83
+B 3083 113 id=83
+B 3078 114 id=83
+B 3085 114 id=83
+B 3086 113 id=83
+S 3080 110 rot=180 id=8
+S 3082 110 rot=180 id=8
+S 3081 111 rot=180 id=8
+S 3079 111 rot=180 id=8
+S 3083 111 rot=180 id=8
+W 3083.422 99.418 2.156 4.165 id=1705 z=5
+W 3096.085 92.766 2.831 5.468 id=1705 z=5
+W 3087.085 95.766 2.831 5.468 id=1705 z=5
+B 3092 96 id=83
+B 3091 95 id=83
+B 3093 95 id=83
+B 3091 97 id=83
+B 3090 95 id=83
+B 3090 96 id=83
+B 3091 96 id=83
+B 3094 94 id=83
+B 3094 95 id=83
+B 3093 94 id=83
+S 3092 97 id=8
+S 3093 96 id=8
+S 3094 96 id=8
+W 3101.767 97.083 1.467 2.833 id=1705 z=5
+W 3106.363 97.304 2.273 4.392 id=1705 z=5
+W 3111.033 96.667 2.933 5.667 id=1705 z=5
+W 3152.363 100.304 2.273 4.392 id=1705 z=5
+W 3162.569 102.701 1.863 3.598 id=1705 z=5
+B 3158 102 id=83
+B 3156 103 id=83
+B 3157 104 id=83
+B 3157 102 id=83
+B 3157 103 id=83
+B 3156 101 id=83
+B 3159 102 id=83
+B 3159 103 id=83
+B 3160 102 id=83
+B 3160 101 id=83
+B 3161 101 id=83
+B 3159 100 id=83
+B 3157 99 id=83
+B 3156 99 id=83
+B 3158 99 id=83
+S 3156 104 id=8
+S 3157 105 id=8
+S 3159 104 id=8
+S 3158 103 id=8
+S 3160 103 id=8
+W 3169.569 104.701 1.863 3.598 id=1705 z=5
+W 3176.224 104.035 2.552 4.93 id=1705 z=5
+W 3186.033 100.667 2.933 5.667 id=1705 z=5
+B 3182 104 id=83
+B 3182 103 id=83
+B 3183 103 id=83
+B 3182 105 id=83
+B 3180 104 id=83
+B 3179 103 id=83
+B 3180 102 id=83
+B 3181 103 id=83
+B 3182 101 id=83
+B 3183 101 id=83
+B 3183 104 id=83
+B 3184 105 id=83
+B 3185 104 id=83
+B 3185 103 id=83
+B 3183 105 id=83
+B 3187 106 id=83
+B 3180 105 id=83
+S 3182 106 id=8
+S 3183 106 id=8
+S 3184 106 id=8
+S 3181 104 id=8
+W 3191.224 114.035 2.552 4.93 id=1705 z=5
+B 3195 115 id=83
+B 3196 114 id=83
+B 3197 115 id=83
+B 3197 114 id=83
+B 3197 113 id=83
+B 3196 115 id=83
+B 3198 114 id=83
+B 3199 113 id=83
+B 3199 115 id=83
+B 3200 115 id=83
+B 3196 117 id=83
+S 3195 114 rot=180 id=8
+S 3196 113 rot=180 id=8
+S 3197 112 rot=180 id=8
+S 3199 112 rot=180 id=8
+Q 3005 108 id=1913 trig=zoom dur=0.5 zoom=1
 P -16 -1 3652 1
 `;
 
@@ -8995,7 +12157,7 @@ export const WATER_CHART = makeChart({
   rows: 127,
   length: 3620,
   song: "/levels/WATER.mp3",
-  start: { b: 0, r: 10 },
+  start: { b: 1784, r: 54 },
   segments: [
   { from: 0, to: 198, mode: 'cube', speed: 0, label: 'cube' },
   { from: 198, to: 263, mode: 'cube', speed: 1, label: 'cube' },
@@ -9003,8 +12165,7 @@ export const WATER_CHART = makeChart({
   { from: 323, to: 421, mode: 'ufo', speed: 1, label: 'ufo' },
   { from: 421, to: 423, mode: 'cube', speed: 1, label: 'cube' },
   { from: 423, to: 439, mode: 'cube', speed: 0, label: 'cube' },
-  { from: 439, to: 484, mode: 'spider', speed: 0, label: 'spider' },
-  { from: 484, to: 489, mode: 'spider', speed: 0, label: 'spider' },
+  { from: 439, to: 489, mode: 'spider', speed: 0, label: 'spider' },
   { from: 489, to: 492, mode: 'ball', speed: 0, label: 'ball' },
   { from: 492, to: 512, mode: 'ball', speed: 0, label: 'ball' },
   { from: 512, to: 525, mode: 'ball', speed: 1, label: 'ball' },
@@ -9034,10 +12195,9 @@ export const WATER_CHART = makeChart({
   { from: 1359, to: 1368, mode: 'ship', speed: 2, label: 'ship' },
   { from: 1368, to: 1377, mode: 'ship', speed: 3, label: 'ship' },
   { from: 1377, to: 1393, mode: 'ship', speed: 4, label: 'ship' },
-  { from: 1393, to: 1432, mode: 'cube', speed: 4, label: 'cube' },
-  { from: 1432, to: 1450, mode: 'ship', speed: 4, label: 'ship' },
-  { from: 1450, to: 1481, mode: 'spider', speed: 4, label: 'spider' },
-  { from: 1481, to: 1483, mode: 'spider', speed: 4, label: 'spider' },
+  { from: 1393, to: 1433, mode: 'cube', speed: 4, label: 'cube' },
+  { from: 1433, to: 1450, mode: 'ship', speed: 4, label: 'ship' },
+  { from: 1450, to: 1483, mode: 'spider', speed: 4, label: 'spider' },
   { from: 1483, to: 1488, mode: 'cube', speed: 4, label: 'cube' },
   { from: 1488, to: 1504, mode: 'ship', speed: 4, label: 'ship' },
   { from: 1504, to: 1542, mode: 'ball', speed: 4, label: 'ball' },

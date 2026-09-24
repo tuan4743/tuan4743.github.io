@@ -1001,3 +1001,32 @@ test('touch 触发器:只当标记,不生效(不进开火循环、不挡人、�
   assert.ok(w.x > x0, '人要照样往前走(标记不挡路)');
   assert.ok(!w.dead, '标记不该致死');
 });
+
+test('touch 过线:发一个光圈事件(位置 = 标记中心,单位制;21 帧后自己消失)', () => {
+  const w = new World(solo([
+    floor60,
+    { kind: 'trigger', b: 4, r: 0, w: 1, h: 1, trigger: 'touch' },
+  ]));
+  assert.equal(w.rings.length, 0, '还没走到就不该有光圈');
+  let seen = 0;
+  for (let i = 0; i < 180 && !seen; i++) { w.frame(false); if (w.rings.length) seen = w.rings.length; }
+  assert.equal(seen, 1, '走过去要正好发一个(48 个标记 = 48 个光圈,不是一个标记发一堆)');
+  assert.equal(w.rings[0].x, 4.5 * U);     // b + w/2 = 4.5 格 ⇒ 换算成单位(w.y 是单位制)
+  assert.equal(w.rings[0].y, 0.5 * U);
+  for (let i = 0; i < 25; i++) w.frame(false);
+  assert.equal(w.rings.length, 0, '活够 21 帧要自己消失');
+});
+
+test('BPM 背景闪:带 loop 的 pulse 每 dur 秒闪一次(用户口径:只放一个在开头)', () => {
+  const w = new World(solo([
+    floor60,
+    { kind: 'trigger', b: 2, r: 0, w: 1, h: 1, trigger: 'pulse', dur: 0.5, loop: true },
+  ]));
+  let fired = false;
+  for (let i = 0; i < 180 && !fired; i++) { w.frame(false); if (w.flash > 0) fired = true; }
+  assert.ok(fired, '过线要闪第一次');
+  /* ★ 关键:之后没人再碰触发器,也要按周期自己闪(这才是"背景跟 BPM 闪")*/
+  let n = 0, was = w.flash;
+  for (let i = 0; i < 180; i++) { w.frame(false); if (w.flash > was) n++; was = w.flash; }
+  assert.ok(n >= 4 && n <= 8, '0.5 秒一拍、3 秒里应闪 5~6 次,实测 ' + n);
+});

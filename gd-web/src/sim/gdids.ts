@@ -355,11 +355,13 @@ export const TRIGGER_IDS: Record<number, TriggerSpec> = {
   1006: { trigger: 'pulse', conf: 'high', note: '脉冲触发器(闪一下)' },
   899: { trigger: 'color', conf: 'mid', note: '颜色触发器' },
   1007: { trigger: 'alpha', conf: 'mid', note: '透明度触发器(★ 本关 WATER 里有 1 个,以前被当装饰忽略)' },
-  1520: { trigger: 'shake', conf: 'mid', note: '屏幕抖动(强度/间隔/时长)—— 效果还没做,先认出来' },
-  1595: { trigger: 'touch', conf: 'mid', note: '触碰触发器 —— 用户口径:【只当标记,不生效】' },
-  /* 下面这几个 ID 我【故意不写】—— 它们属于 2.2 的相机触发器,我没有把握:
-     zoom(相机缩放)/ static(把相机钉在某个组的点上)。
-     等用户铺面里放一个真样本,tools/trigger-report.ts 会把它的 ID 和键原样打出来,再补 ✓ */
+  1520: { trigger: 'shake', conf: 'high', note: '屏幕抖动。真实样本:10=时长 75=强度(键位已按样本确认)' },
+  1595: { trigger: 'touch', conf: 'high', note: '触碰触发器 —— 用户口径:【只当标记】,48 个标记统一做"扩散光圈"✓' },
+  /* ★ 1913 = Zoom(相机缩放):以前"没把握所以不写",现在用户真实样本里出现了 6 个
+     (1=1913 2=15495 3=465 10=0.5 30=0 36=1 85=2 155=2 371=0.725)⇒ 照样本写进来 ✓ */
+  1913: { trigger: 'zoom', conf: 'high', note: '相机缩放:371=缩放值(1 = 还原,<1 = 拉远)、10=时长、30/85=缓动' },
+  /* static(相机钉在某个组的点上)用户明确说【不需要】⇒ 不做 ✓ */
+  /* static(相机钉在某个组上)用户明确说不需要;其余的等真实样本出现再补 ✓ */
 };
 
 export function triggerSpec(id: number): TriggerSpec | null {
@@ -395,9 +397,30 @@ const ints = (s: string | undefined): number[] =>
        坐标才和你在编辑器里看到的一致(差半格就会提前/延后半格触发,也会打成 1.5+0.5)✓ */
     const t: Obj = { kind: 'trigger', b: x - 0.5, r: y - 0.5, w: 1, h: 1, id, trigger: trig.trigger };
     const tg = ints(f['51']);
-    if (tg.length) t.groups = tg;
+    if (tg.length && tg[0] !== 0) t.groups = tg;      // 51=0 = 编辑器里的默认值(没设组),别当成"组 0"✓
     const dur = num(f['10'], 0);
     if (dur) t.dur = dur;
+    /* ★★ 下面这些键【全部来自用户真实存档的样本】(2026-09-24 的 WATER,12144 物件),
+       不是我凭记忆写的 —— 原文长这样:
+         move  901:  1=901 2=6375 3=345 10=0.5 28=0 29=30 30=0 36=1 51=2 85=2 155=2
+         shake 1520: 1=1520 2=41475 3=855 10=0.996296 36=1 75=5 155=2
+         zoom  1913: 1=1913 2=15495 3=465 10=0.5 30=0 36=1 85=2 155=2 371=0.725
+         touch 1595: 1=1595 2=705 3=315 36=1 51=0 155=2   (51=0 ⇒ 没设组,只有位置有用 ✓)
+       结论:28/29 = 位移(单位 1/30 格:29=30 就是 1 格 ✓)、75 = 抖动强度、371 = 缩放值、
+             30 = 缓动种类(0 = 没有缓动 = 匀速)、85 = 缓动速率、51 = 目标组 ✓ */
+    if (trig.trigger === 'move') {
+      const mx = num(f['28'], 0), my = num(f['29'], 0);
+      if (mx || my) { t.dx = mx / 30; t.dy = my / 30; }
+      if (num(f['30'], 0) === 0) t.ease = 'linear';     // 0 = 原版"没有缓动"⇒ 匀速;其余按正弦缓动走
+    }
+    if (trig.trigger === 'shake') {
+      const st = num(f['75'], 0);
+      if (st) t.str = st;
+    }
+    if (trig.trigger === 'zoom') {
+      const zz = num(f['371'], 0);
+      if (zz) t.zoom = zz;
+    }
     return t;
   }
   /* 走到这里一定是几何物件(触发器上面已经带着返回值走了)——
@@ -522,6 +545,8 @@ export function encodeObjects(objs: Obj[]): string {
     if (o.dy != null) ex.push('dy=' + n(o.dy));
     if (o.deg != null) ex.push('deg=' + n(o.deg));
     if (o.dur != null) ex.push('dur=' + n(o.dur));
+    if (o.str != null) ex.push('str=' + n(o.str));
+    if (o.zoom != null) ex.push('zoom=' + n(o.zoom));
     if (o.ease) ex.push('ease=' + o.ease);
     if (o.loop) ex.push('loop=1');
     if (o.color != null) ex.push('color=' + o.color);
@@ -585,6 +610,8 @@ export function decodeObjects(text: string): Obj[] {
         case 'dy': o.dy = Number(v); break;
         case 'deg': o.deg = Number(v); break;
         case 'dur': o.dur = Number(v); break;
+        case 'str': o.str = Number(v); break;
+        case 'zoom': o.zoom = Number(v); break;
         case 'ease': o.ease = v as 'linear' | 'sine'; break;
         case 'loop': o.loop = true; break;
         case 'color': o.color = Number(v); break;
