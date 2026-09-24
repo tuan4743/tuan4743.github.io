@@ -1091,6 +1091,12 @@ class Scene extends Phaser.Scene {
          真因:我上一版把它放到 depth 15(载具本体 16 / 第二色层 15.5 之下)✗ ⇒ 被飞碟整个盖住 ✓
          ⇒ 改成画在载具【之上】(16.5):UFO / 飞船里那颗 cube 就看得见了 ✓
          (ship 本来就在 PILOT_MODES 里 ✓,同一段代码 ⇒ 一起生效 ✓) */
+    if (this.textures.exists('icon-cube-body')) {
+      /* ★★★ 用户:"完全看不见"(UFO/飞船驾驶位那颗 cube)、"ship 驾驶位也该有" ✓
+         真因:上一版放在 depth 15(载具本体 16 / 第二色层 15.5 之下)✗ ⇒ 被飞碟整个盖住 ✓
+         ⇒ 画在载具【之上】(16.5)✓(ship 同在 PILOT_MODES ⇒ 一起生效 ✓)
+         ★ 这里的 `if` 我上一轮编辑时误删过 ⇒ esbuild 语法错 ⇒ 构建连失败、页面一直是旧包 ✗,
+           现已恢复 ✓ —— 教训:构建必须看 exit code,不能只看管道尾部 ✗ */
       this.pilot = this.add.image(0, 0, 'icon-cube-body').setVisible(false).setDepth(16.5);
     }
     this.iconsReady = this.iconLayers.length > 0;
@@ -2280,7 +2286,10 @@ class Scene extends Phaser.Scene {
        有这一行就能定性,不用再来回猜 ✓ */
     {
       const dbg = this.pilot as unknown as { _dbg?: boolean } | null;
-      const state = this.pilot ? ('已建 · 贴图=' + this.pilot.texture.key + ' · visible=' + this.pilot.visible)
+      const state = this.pilot
+        ? ('已建 · 贴图=' + this.pilot.texture.key + ' · visible=' + this.pilot.visible +
+           ' · depth=' + this.pilot.depth + ' · ' + Math.round(this.pilot.displayWidth) + '×' + Math.round(this.pilot.displayHeight) +
+           ' · 载具本体depth=' + (this.iconLayers.find((l) => l.mode === w.mode)?.body.depth ?? '无'))
         : ('【没建出来】· icon-cube-body 存在吗=' + this.textures.exists('icon-cube-body') + ' · 图集就绪=' + this.iconsReady);
       if (!dbg?._dbg) {
         if (dbg) dbg._dbg = true;
