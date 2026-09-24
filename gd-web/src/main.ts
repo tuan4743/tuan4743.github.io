@@ -2293,7 +2293,10 @@ class Scene extends Phaser.Scene {
         console.info('[gd] 驾驶位 cube:' + state + ' · 形态=' + w.mode);
       }
     }
-    const PILOT_MODES = new Set(['ship', 'ufo', 'wave', 'ball']);
+    /* ★★★ 用户:"cube 的贴图黏到 ball 上了"(同时也确认了"确实出来了" ✓)
+       ⇒ 球形态【不该有】这颗驾驶位 cube(球本身就是玩家本体 ✓),波浪(飞镖)同理没有 ✓
+       ⇒ 表收成 UFO + 飞船两项 ✓(用户口径:"UFO 驾驶位的 cube" + "ship 驾驶位也该有" ✓) */
+    const PILOT_MODES = new Set(['ship', 'ufo']);
     /* ★★★ 2026-09 单变量复测:上一次卡死(g114)那一版里,除了这个 pilot 【限高也是开着的】✗
        ⇒ 我一直没做过"只开 pilot、限高关着"的干净测试。现在就是这样:
            限高 AIR_LIMIT_ON = false(关着) · pilot 开 · 其余都保持基线 ✓
