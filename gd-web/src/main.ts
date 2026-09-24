@@ -2312,7 +2312,13 @@ class Scene extends Phaser.Scene {
          ★ 教训:构建(vite/esbuild)【不做类型检查】✗ ⇒ 这种作用域错误能一路进包 ⇒
            以后交付前必须跑一次 npx tsc --noEmit ✓
          这里用本作用域内的等价条件 ✓ */
-      this.pilot.setVisible(!w.done).setPosition(cxw, cyw).setRotation(0).setFlipY(w.gdir < 0)
+      /* ★★★ 看不见的真凶(探针逐项对比抓到的 ✓):
+         这一行原来是 `.setPosition(cxw, cyw)` ✗ —— 而上面调用图标层时用的是【换算过的】坐标
+         `this.drawIconPlayer(w, cxw, Y(cyw), B)` ✓
+         ⇒ 驾驶位少了那一次 Y() 换算 ⇒ 被画到屏幕上方约 3500 单位处 ⇒ depth 再高也看不见 ✓✓✓
+         (实测:UFO 段 pilotY=128 vs 玩家 playerY=3682 ⇒ dy=-3554;x 完全相同 ⇒ 只差 y 的换算 ✓)
+         ⇒ 这里改成同一套坐标:Y(cyw) ✓(Y 在本作用域可用 ✓;当年那次卡死是 `on` 未定义,不是 Y ✓) */
+      this.pilot.setVisible(!w.done).setPosition(cxw, Y(cyw)).setRotation(0).setFlipY(w.gdir < 0)
         .setTint(w.dead ? 0xff7a5a : PLAYER_C1).setDisplaySize(B, B);
     } else this.pilot?.setVisible(false);
     /* ★★★ 2026-09 双人:玩家 2 也画一遍(状态换进换出,所以画法和玩家 1 完全一样 ✓)
