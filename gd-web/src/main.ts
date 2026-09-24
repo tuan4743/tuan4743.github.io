@@ -1093,7 +1093,8 @@ class Scene extends Phaser.Scene {
        ★★ 注意:这个 `if` 必须留着 —— 前面两次构建失败就是因为我在改这段时把它删了 ✗
           (esbuild 语法错、exit code 1、页面跑旧包 ✓)改完必须看 build 的 exit code ✗ */
     if (this.textures.exists('icon-cube-body')) {
-      this.pilot = this.add.image(0, 0, 'icon-cube-body').setVisible(false).setDepth(18);
+      // 驾驶位 cube 层:【载具第二色层 15.5 < 15.8 < 载具本体 16】⇒ 碟身盖住它 ✓("沉到碟身之下")
+      this.pilot = this.add.image(0, 0, 'icon-cube-body').setVisible(false).setDepth(15.8);
     }
     this.iconsReady = this.iconLayers.length > 0;
     console.log('[gd] 形态图集就绪:' + this.iconLayers.map((l) => l.mode + '(' + l.bw + '×' + l.bh + ')').join(' '));
@@ -2321,14 +2322,20 @@ class Scene extends Phaser.Scene {
          ⇒ 驾驶位少了那一次 Y() 换算 ⇒ 被画到屏幕上方约 3500 单位处 ⇒ depth 再高也看不见 ✓✓✓
          (实测:UFO 段 pilotY=128 vs 玩家 playerY=3682 ⇒ dy=-3554;x 完全相同 ⇒ 只差 y 的换算 ✓)
          ⇒ 这里改成同一套坐标:Y(cyw) ✓(Y 在本作用域可用 ✓;当年那次卡死是 `on` 未定义,不是 Y ✓) */
-      /* ★★★ 用户:"位置大小都不对,现在不是坐在驾驶舱的,是直接覆盖到了贴图上方" ✓
-         ⇒ 驾驶位那颗 cube 必须【比载具小、并且落在座舱里】:
-            · 尺寸:0.7 × 玩家盒(30 → 21 单位)✓(和载具 34×28 比,留出碟身 ✓)
-            · 位置:往下挪 DOWN_PILOT(画布坐标 y 向下 ⇒ +)让它坐在碟身里,而不是压在顶上 ✓
-         这两个数是看的(不是源码常数 ✗)—— 你说"再小一点/再低一点"我改这两个数 ✓ */
+      /* ★★★ 用户三条:"贴图太下了" / "需要沉到碟身之下" / "重力反向时贴图反转,驾驶舱的 cube 也要反转"
+         · 层:沉到载具本体之下(15.8 < 本体 16)✓ —— 这是用户要的"坐在碟里、碟身在前面" ✓
+         · 位置:沉下去以后还看得见吗?【全看载具贴图哪里是空的】——
+           把两张贴图的 alpha 量出来(tools/verify/gd-pilot-fit.mjs 会打 #/. 图):
+             UFO(134×108 贴图 / 34×28 单位):镂空在【中上】(座舱罩)⇒ 往上 oy = −7 才透得出来 ✓
+             飞船(186×96 贴图 / 47×25 单位):镂空在【下三分之一】(船底)⇒ 往下 oy = +5 ✓
+           放到别处就是被碟身整块盖死 ⇒ 用户看到的就是"没有" ✗(实测差出 0 像素)
+         · 重力反转:以前只翻了贴图(setFlipY)✗ —— 【偏移也得跟着翻】✓
+           (翻转后人朝下,座舱的"下方"变成屏幕上方 ⇒ 偏移取反 ✓)
+         下面这两个数是【看的、不是源码常数】—— 依据是贴图 alpha,不是我瞎猜 ✓ */
       const PILOT_SCALE = 0.7;
-      const DOWN_PILOT = 5;
-      this.pilot.setVisible(!w.done).setPosition(cxw, Y(cyw) + DOWN_PILOT).setRotation(0).setFlipY(w.gdir < 0)
+      const PILOT_DY = w.mode === 'ufo' ? -7 : 5;
+      const pd = w.gdir < 0 ? -PILOT_DY : PILOT_DY;
+      this.pilot.setVisible(!w.done).setPosition(cxw, Y(cyw) + pd).setRotation(0).setFlipY(w.gdir < 0)
         .setTint(w.dead ? 0xff7a5a : PLAYER_C1).setDisplaySize(B * PILOT_SCALE, B * PILOT_SCALE);
     } else this.pilot?.setVisible(false);
     /* ★★★ 2026-09 双人:玩家 2 也画一遍(状态换进换出,所以画法和玩家 1 完全一样 ✓)
