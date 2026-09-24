@@ -431,6 +431,24 @@ class Scene extends Phaser.Scene {
     img.setFlipY(!!o.flipY);
     img.setDisplaySize(dispW, dispH);
     img.setTint(tintCol);
+    /* ★★★ 2026-09-24 用户:"锯片只显示一半" —— 铁证(GJ_GameSheet.plist):
+         sawblade_01: spriteSize {42,82} · spriteSourceSize {84,82} · spriteOffset {-21,0}
+       ⇒ 官方图集里【只存了左半张】刀片(42 = 84/2,offset −21 = 左移半宽),
+         原版是【镜像拼成整圆刀】的 ⇒ 我们只画一片,就永远是半张 ✗(不是压扁、也不是判定盒)
+       修法:这一片当左半(origin 放【右中】),再从池子里取一片 flipX 当右半(origin 放【左中】),
+         两片都定位在【物件中心】⇒ 两片绕同一个点旋转,转起来不会散架 ✓
+       没有重烘图集:帧矩形本来就是官方 sheet 里的,改渲染层就够 ✓(爆炸半径只有锯片) */
+    if (o.kind === 'saw') {
+      let img2 = this.artPool[this.artUsed];
+      if (!img2) { img2 = this.add.image(0, 0, 'gd-art').setDepth(depth); this.artPool.push(img2); }
+      this.artUsed++;
+      img.setOrigin(1, 0.5).setPosition(dx, drawY).setFlipX(!o.flipX);
+      img2.setVisible(true).setTexture('gd-art', key)
+        .setOrigin(0, 0.5).setPosition(dx, drawY).setDepth(depth)
+        .setRotation(((o.rot ?? 0) * Math.PI) / 180 + spin)
+        .setFlipX(!o.flipX).setFlipY(!!o.flipY)
+        .setDisplaySize(dispW, dispH).setTint(tintCol);
+    }
     return true;
   }
   /** 验收用:update 被调了几次、Phaser 喂进来的 delta 是多少 */
