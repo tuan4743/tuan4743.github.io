@@ -1087,17 +1087,13 @@ class Scene extends Phaser.Scene {
     /* ★★★ 2026-09 修"还是卡死,问题是 UFO 里面的 cube"(用户定位)—— 我上一轮是【在渲染途中】
        this.add.image 建 pilot ✗:那是在 display list 被遍历的时候往里塞对象 ⇒ 卡死 ✓✓
        ⇒ 改成在这里(图集构建完、渲染还没开始)就把它建好,绘制时只改位置/尺寸/颜色 ✓ */
-      /* ★★★ 用户:"完全看不见"(UFO/飞船驾驶位的那颗 cube),而且"ship 驾驶位也该有" ✓
-         真因:我上一版把它放到 depth 15(载具本体 16 / 第二色层 15.5 之下)✗ ⇒ 被飞碟整个盖住 ✓
-         ⇒ 改成画在载具【之上】(16.5):UFO / 飞船里那颗 cube 就看得见了 ✓
-         (ship 本来就在 PILOT_MODES 里 ✓,同一段代码 ⇒ 一起生效 ✓) */
+    /* ★★★ 用户:"给一个一定能看见的版本" ⇒ 驾驶位 cube 画在【全场最上层】(depth 18)✓
+       游戏里所有东西都在 16 及以下(物件贴图 6~8、载具两层 15.5/16)⇒ 18 必定盖住一切 ✓
+       (先确认"它到底在不在";确认了再谈正确层级 ✓)
+       ★★ 注意:这个 `if` 必须留着 —— 前面两次构建失败就是因为我在改这段时把它删了 ✗
+          (esbuild 语法错、exit code 1、页面跑旧包 ✓)改完必须看 build 的 exit code ✗ */
     if (this.textures.exists('icon-cube-body')) {
-      /* ★★★ 用户:"完全看不见"(UFO/飞船驾驶位那颗 cube)、"ship 驾驶位也该有" ✓
-         真因:上一版放在 depth 15(载具本体 16 / 第二色层 15.5 之下)✗ ⇒ 被飞碟整个盖住 ✓
-         ⇒ 画在载具【之上】(16.5)✓(ship 同在 PILOT_MODES ⇒ 一起生效 ✓)
-         ★ 这里的 `if` 我上一轮编辑时误删过 ⇒ esbuild 语法错 ⇒ 构建连失败、页面一直是旧包 ✗,
-           现已恢复 ✓ —— 教训:构建必须看 exit code,不能只看管道尾部 ✗ */
-      this.pilot = this.add.image(0, 0, 'icon-cube-body').setVisible(false).setDepth(16.5);
+      this.pilot = this.add.image(0, 0, 'icon-cube-body').setVisible(false).setDepth(18);
     }
     this.iconsReady = this.iconLayers.length > 0;
     console.log('[gd] 形态图集就绪:' + this.iconLayers.map((l) => l.mode + '(' + l.bw + '×' + l.bh + ')').join(' '));
