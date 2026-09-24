@@ -195,6 +195,9 @@ export class World {
   readonly forces: Box[] = [];      // 力场:人在里面就被推
   readonly pits: Box[] = [];        // 坑(纯标记,给机器人判"脚下有没有地板"用)
   readonly triggers: Box[] = [];    // 触发器:越过它的 x 就开火
+  /* ★ touch 标记(用户口径:只标记不生效):他在铺面里标一个位置,再告诉我那里要挂什么特效 ✓
+     这里只负责【收着 + 打清单】,不参与判定、不参与开火 —— 清单见 tools/trigger-report.ts 与控制台 */
+  readonly markers: Box[] = [];
   readonly sizes: Box[] = [];       // 尺寸门:迷你 / 放大
   readonly teleports: Box[] = [];   // 传送门:蓝(入口) → 橙(出口),单向
   /* ★ 会动的东西:带 groups 的物件都在这里,触发器改的是它们的【运行时偏移】,
@@ -287,8 +290,8 @@ export class World {
   private armedOrbs = new Set<Box>();
   private armedPads = new Set<Box>();
   private armedArrows = new Set<Box>();
+  private markersLogged = false;    // 触摸标记清单只打一次(见 substep 里的 [gd] 触摸标记)
   private armedTriggers = new Set<Box>();
-
   constructor(level: Level, startX?: number, startY?: number, opts?: { sawUnscaled?: boolean; hazOuter?: boolean; flySolid?: boolean }) {
     this.level = level;
     /* ★ 定点实验开关必须在【建判定盒之前】生效 —— 锯片的盒子是构造时算好的,
@@ -410,7 +413,12 @@ export class World {
         }
         case 'force': this.forces.push(b); break;
         case 'pit': this.pits.push(b); break;
-        case 'trigger': this.triggers.push(b); break;
+        case 'trigger':
+          /* ★ 用户口径:touch 触发器【不生效,只当标记】—— 他在铺面里标一个位置,再告诉我那里要挂什么特效。
+             所以 touch 不进 triggers(不进每帧开火循环),只进 markers(清单),我照清单挂效果 ✓
+             (顺带:就算混进 triggers 也不会出事 —— fire() 里没有 touch 这个分支 ⇒ 什么都不做 ✓) */
+          if (b.o.trigger === 'touch') this.markers.push(b); else this.triggers.push(b);
+          break;
         case 'size': this.sizes.push(hbBox(o) ?? b); break;
         case 'teleport': this.teleports.push(hbBox(o) ?? b); break;
         case 'deco': this.decos.push(o); break;
@@ -1584,6 +1592,14 @@ export class World {
         this.vy *= this.flipMul;
         this.onGround = false;
       }
+    }
+    /* ★ 触摸标记清单:打一次,用户按位置点名要什么特效 ✓(不打的话他标了我也看不见) */
+    if (!this.markersLogged && this.markers.length) {
+      this.markersLogged = true;
+      const rd = (v: number) => Math.round(v * 10) / 10;
+      console.log('[gd] 触摸标记(touch · 只标记不生效)' + this.markers.length + ' 个:' +
+        this.markers.map((b) => ' (' + rd(b.o.b + b.o.w / 2) + ',' + rd(b.o.r + b.o.h / 2) + ')格' +
+          (b.o.groups?.length ? ' 目标组=' + b.o.groups.join('.') : '')).join(''));
     }
     for (const b of this.triggers) {
       if (this.armedTriggers.has(b)) continue;

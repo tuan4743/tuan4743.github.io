@@ -45,7 +45,14 @@ export type ObjKind =
   | 'pit'        // 坑:地板断口(纯标记,地板在生成时跳过这一段)
   | 'deco';      // 装饰(文字/光源/背景贴片,纯视觉)
 
-export type TriggerKind = 'move' | 'rotate' | 'color' | 'pulse';
+/* 触发器种类。★ 用户 2026-09 的口径(铺面特效清单):
+ *   move / pulse / shake / zoom / static —— 要做效果;
+ *   touch —— 【不生效,只当标记】:他在铺面里标一个位置,再告诉我那里要挂什么特效 ✓
+ * 现在的实现状态(照实写,别当成"都做好了"):
+ *   move / color / pulse —— world.fire() 有执行分支(移动平台、整体染色、闪一下);
+ *   rotate —— 只影响画法,没做几何;
+ *   alpha / shake / zoom / static / touch —— 只【认出来 + 进清单】,还没做效果 ✓ */
+export type TriggerKind = 'move' | 'rotate' | 'color' | 'pulse' | 'alpha' | 'shake' | 'zoom' | 'static' | 'touch';
 
 export interface Obj {
   kind: ObjKind;

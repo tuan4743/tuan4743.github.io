@@ -44,6 +44,7 @@ if (!lv) {
 /* ---------- 逐行映射 ---------- */
 const objs: Obj[] = [];
 const unknownIds = new Map<number, number>();
+const rawSample = new Map<number, string>();     // 未映射 ID 的原始行(≥1000 的大概率是触发器,要照抄)
 const byId = new Map<number, number>();
 let start: { b: number; r: number } | undefined;
 for (const line of lv.lines) {
@@ -58,13 +59,40 @@ for (const line of lv.lines) {
     continue;
   }
   const o = mapRecord(f);
-  if (!o) { unknownIds.set(id, (unknownIds.get(id) ?? 0) + 1); continue; }
+  if (!o) {
+    unknownIds.set(id, (unknownIds.get(id) ?? 0) + 1);
+    /* ★ 未映射的 ID≥1000:把【原始整行】留一份 —— 触发器 ID 表不凭记忆写死,
+       用户放一个真样本(zoom / static 之类),这里就能直接照抄它的真实键 ✓ */
+    if (id >= 1000 && !rawSample.has(id)) {
+      rawSample.set(id, Object.entries(f).sort((a, b) => (Number(a[0]) || 0) - (Number(b[0]) || 0))
+        .map(([k, v]) => k + '=' + v).join(' '));
+    }
+    continue;
+  }
   objs.push(o);
 }
 if (start) console.log('\n起点标记(31):出生点 = (' + start.b.toFixed(2) + ', ' + start.r.toFixed(2) + ') 块');
 if (unknownIds.size) {
   console.log('\n⚠ 有 ' + unknownIds.size + ' 种 ID 没有映射(已跳过,请补 sim/gdids.ts):');
-  for (const [id, n] of [...unknownIds.entries()].sort((a, b) => b[1] - a[1])) console.log('   id ' + id + ' × ' + n);
+  for (const [id, n] of [...unknownIds.entries()].sort((a, b) => b[1] - a[1])) {
+    console.log('   id ' + id + ' × ' + n + (rawSample.has(id) ? '\n       原始: ' + rawSample.get(id) + '   ← 照这一行补表,不用猜 ✓' : ''));
+  }
+}
+
+/* ★ 触发器 / 触摸标记清单:转换时就打出来,别等进游戏才发现"加了没用" ✓
+   用户口径:touch【只当标记,不生效】—— 他标位置,再告诉我那里要挂什么特效 */
+const trigs = objs.filter((o) => o.kind === 'trigger');
+console.log('\n触发器 ' + trigs.length + ' 个' + (trigs.length ? '(按 x 排):' : ' —— 这一版铺面里还没有'));
+for (const t of trigs.slice().sort((a, b) => a.b - b.b)) {
+  console.log('   x=' + (t.b + t.w / 2).toFixed(1) + ' y=' + (t.r + t.h / 2).toFixed(1) +
+    '  ' + String(t.trigger).padEnd(7) + ' id=' + t.id +
+    (t.groups?.length ? '  目标组=' + t.groups.join('.') : '  目标组=【没设 —— 触发器要靠组点名物件】') +
+    (t.dur != null ? '  时长=' + t.dur + 's' : ''));
+}
+const marks = trigs.filter((t) => t.trigger === 'touch');
+if (marks.length) {
+  console.log('  其中触摸标记(touch · 只标记不生效)' + marks.length + ' 个 —— 按位置点名要什么特效:');
+  marks.sort((a, b) => a.b - b.b).forEach((t, i) => console.log('    #' + (i + 1) + '  x=' + (t.b + t.w / 2).toFixed(1) + ' 格  y=' + (t.r + t.h / 2).toFixed(1) + ' 格'));
 }
 
 /* ---------- 边界:高度、长度 ---------- */

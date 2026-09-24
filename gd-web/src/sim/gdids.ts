@@ -19,7 +19,7 @@
  *   21  = 颜色通道:只是配色,不参与判定(先丢)
  */
 
-import type { Level, Mode, Obj, ObjKind, Segment } from './level.ts';
+import type { Level, Mode, Obj, ObjKind, Segment, TriggerKind } from './level.ts';
 import type { OrbKind, PadKind } from './constants.ts';
 import { U } from './constants.ts';
 
@@ -302,8 +302,8 @@ export const GD_SPEC: Record<number, Spec> = {
   /* ---- 传送 / 克隆 / 存档 / 硬币 ---- */
   747: { kind: 'teleport', note: '传送门入口(蓝)。原版要配 748 出口;这关只有入口 → 不生效(见文档)' },
   748: { kind: 'teleport', exit: true, note: '传送门出口(橙)' },
-  286: { kind: 'clone', dualOn: true, note: '克隆门:开双人(在门口生成玩家 2)' },
-  287: { kind: 'clone', dualOff: true, note: '克隆回收门:收双人(回到单人)' },
+  286: { kind: 'clone', dualOn: true, inert: true, note: '克隆门:开双人(在门口生成玩家 2)。★ inert 是补回来的:老铺面里这 4 个门带 inert=1,不加回来再生成就会漂移' },
+  287: { kind: 'clone', dualOff: true, inert: true, note: '克隆回收门:收双人(回到单人)。★ 同上,inert 补回来免得再生成漂移' },
   2063: { kind: 'check', note: '存档点' },
   1329: { kind: 'coin', note: '硬币(收集)' },
 
@@ -321,7 +321,7 @@ export const GD_SPEC: Record<number, Spec> = {
   /* ★ 31 = 起点标记(Start Pos)。用户确认:出生点就摆在这个物件的位置(那关是 x=0.5 y=10.5 →
      左边缘 0、脚底 10 格,站在第一段铺面的【上一层】上面)。它不是游戏物件,不进 objects,
      由 dat-to-chart.ts 提出来写进 Level.start。 */
-  1007: { kind: 'deco', art: 1007, inert: true, note: '不明占位(1 个)' },
+  /* ★ 1007 不在这张表里 —— 它是 Alpha 触发器,已进上面的 TRIGGER_IDS(触发器分支先命中)✓ */
 };
 
 /** 起点标记(Start Pos)的 ID —— 只用来定出生点,不生成物件 */
@@ -335,6 +335,37 @@ export function fieldsOf(line: string): Record<string, string> {
   return out;
 }
 
+/* ---------------- 触发器(2.1 / 2.2)----------------
+ * 用户 2026-09 要用的:move / shake / touch / pulse / static / zoom(前五个 + alpha 顺手认了)。
+ *
+ * ★★ 为什么这张表只有几条、而且标着"待校准":
+ *   触发器 ID 表上千项,凭记忆写死的代价是【把触发器当成方块吞掉】(比"不认识"糟得多 ——
+ *   不认识的会进"未映射 ID"被打印出来,认错的会静默变成别的东西 ✗)。
+ *   所以规矩是:有把握的先写进来,没把握的【不写】,等用户铺面里放了真实样本,
+ *   跑 `node tools/trigger-report.ts` 把真实 ID + 全部键打出来,照着补 ✓
+ *
+ * 键(现在只解有把握的两个,其余等样本):
+ *   51 = 目标分组(触发器作用的组)★ 和 world.fire() 的 o.groups 是同一个口径 ✓
+ *   10 = 时长(秒)
+ *   28/29 = move 的 X/Y 位移 —— 先不写(等样本确认单位是格还是 1/30)
+ */
+export interface TriggerSpec { trigger: TriggerKind; conf: 'high' | 'mid' | 'low'; note: string }
+export const TRIGGER_IDS: Record<number, TriggerSpec> = {
+  901: { trigger: 'move', conf: 'high', note: '移动触发器(最常用;作用在键 51 那个组上)' },
+  1006: { trigger: 'pulse', conf: 'high', note: '脉冲触发器(闪一下)' },
+  899: { trigger: 'color', conf: 'mid', note: '颜色触发器' },
+  1007: { trigger: 'alpha', conf: 'mid', note: '透明度触发器(★ 本关 WATER 里有 1 个,以前被当装饰忽略)' },
+  1520: { trigger: 'shake', conf: 'mid', note: '屏幕抖动(强度/间隔/时长)—— 效果还没做,先认出来' },
+  1595: { trigger: 'touch', conf: 'mid', note: '触碰触发器 —— 用户口径:【只当标记,不生效】' },
+  /* 下面这几个 ID 我【故意不写】—— 它们属于 2.2 的相机触发器,我没有把握:
+     zoom(相机缩放)/ static(把相机钉在某个组的点上)。
+     等用户铺面里放一个真样本,tools/trigger-report.ts 会把它的 ID 和键原样打出来,再补 ✓ */
+};
+
+export function triggerSpec(id: number): TriggerSpec | null {
+  return TRIGGER_IDS[id] ?? null;
+}
+
 const num = (s: string | undefined, dflt = 0) => (s == null || s === '' ? dflt : Number(s));
 const ints = (s: string | undefined): number[] =>
   s == null || s === '' ? [] : s.split('.').map((v) => Number(v)).filter((v) => isFinite(v));
@@ -342,13 +373,36 @@ const ints = (s: string | undefined): number[] =>
 /** 一行物件 → 我们的 Obj(不认识的 ID 返回 null,调用方负责统计) */export function mapRecord(f: Record<string, string>): Obj | null {
   const id = Math.round(num(f['1'], -1));
   const spec = GD_SPEC[id];
-  if (!spec) return null;
+  const trig = TRIGGER_IDS[id];
+  /* ★ 两条路都不认 ⇒ 返回 null,由调用方统计并打印(绝不静默丢)✓
+     ★★ 顺序很重要:触发器必须先于"没有几何就返回 null"这一句 ——
+        1007(Alpha 触发器)以前在 GD_SPEC 里当装饰,现在挪进 TRIGGER_IDS,
+        如果这里先因 spec 为空返回,整个物件就被吞掉了(实测物件数 8980 → 8979)✗ */
+  if (!spec && !trig) return null;
 
   const x = num(f['2']) / 30, y = num(f['3']) / 30;
   const rot = num(f['6'], 0);
   const flipX = f['5'] === '1';
   const flipY = f['4'] === '1';
   const z = num(f['155'], 1);
+
+  /* ★ 触发器(2.1/2.2)走单独一条路:它们没有几何、不参与判定,只被 fire() 用来推目标组 ✓
+     (必须放在 x/y 算完之后 —— 插到前面会 Cannot access 'x' before initialization,踩过)
+     ★ 目标组取【键 51】(GD 触发器的"目标组"),不是 57(物件自己的组)——
+       world.fire() 里就是拿 o.groups 当目标组用的,两条路必须一致 ✓ */
+  if (trig) {
+    /* ★ 触发器的 x/y 是它的【中心】,和方块一样折算成左下角 ⇒ 过线判据和 marker 清单打出来的
+       坐标才和你在编辑器里看到的一致(差半格就会提前/延后半格触发,也会打成 1.5+0.5)✓ */
+    const t: Obj = { kind: 'trigger', b: x - 0.5, r: y - 0.5, w: 1, h: 1, id, trigger: trig.trigger };
+    const tg = ints(f['51']);
+    if (tg.length) t.groups = tg;
+    const dur = num(f['10'], 0);
+    if (dur) t.dur = dur;
+    return t;
+  }
+  /* 走到这里一定是几何物件(触发器上面已经带着返回值走了)——
+     这一句是给 TS 收窄类型用的,同时也兜住"只有触发器表里才有、GD_SPEC 里没有"的 ID ✓ */
+  if (!spec) return null;
 
   /* 尺寸:默认包围盒 × 缩放;468 单边线框按旋转决定是"横杆"还是"竖杆" */
   let w = (spec.w ?? 1) * (spec.scaled ? num(f['128'], 1) : 1);
@@ -415,12 +469,12 @@ const ints = (s: string | undefined): number[] =>
 const CODE: Record<string, ObjKind> = {
   B: 'block', S: 'spike', W: 'saw', P: 'platform', C: 'check', R: 'portal', V: 'speed',
   G: 'gravity', O: 'orb', D: 'pad', Y: 'force', T: 'teleport', Z: 'size', X: 'breakable',
-  N: 'coin', A: 'arrow', E: 'deco', K: 'clone', H: 'frame',
+  N: 'coin', A: 'arrow', E: 'deco', K: 'clone', H: 'frame', Q: 'trigger',
 };
 const CODE_BACK: Record<string, string> = {
   block: 'B', spike: 'S', saw: 'W', platform: 'P', check: 'C', portal: 'R', speed: 'V',
   gravity: 'G', orb: 'O', pad: 'D', force: 'Y', teleport: 'T', size: 'Z', breakable: 'X',
-  coin: 'N', arrow: 'A', deco: 'E', clone: 'K', frame: 'H',
+  coin: 'N', arrow: 'A', deco: 'E', clone: 'K', frame: 'H', trigger: 'Q',
 };
 
 /** 数字最短写法:686.500 → 686.5、0.050 → 0.05、2.000 → 2 */
@@ -461,6 +515,17 @@ export function encodeObjects(objs: Obj[]): string {
     if (o.col != null) ex.push('col=' + o.col);
     if (o.z != null) ex.push('z=' + o.z);
     if (o.groups?.length) ex.push('g=' + o.groups.join('.'));
+    /* ★ 触发器:种类 + 参数。少写一个字段,就是"铺面里明明有、引擎里没有"(这个坑前面踩过:
+       冲刺环的 dash 漏了编码 ⇒ 引擎永远走不到 dash 分支)✓ */
+    if (o.trigger) ex.push('trig=' + o.trigger);
+    if (o.dx != null) ex.push('dx=' + n(o.dx));
+    if (o.dy != null) ex.push('dy=' + n(o.dy));
+    if (o.deg != null) ex.push('deg=' + n(o.deg));
+    if (o.dur != null) ex.push('dur=' + n(o.dur));
+    if (o.ease) ex.push('ease=' + o.ease);
+    if (o.loop) ex.push('loop=1');
+    if (o.color != null) ex.push('color=' + o.color);
+    if (o.hold) ex.push('hold=1');
     f.push(...ex);
     lines.push(f.join(' '));
   }
@@ -514,6 +579,16 @@ export function decodeObjects(text: string): Obj[] {
         case 'col': o.col = Number(v); break;
         case 'z': o.z = Number(v); break;
         case 'g': o.groups = v.split('.').map(Number); break;
+        /* ★ 触发器(和编码一一对应,漏一个就是"字段丢了") */
+        case 'trig': o.trigger = v as TriggerKind; break;
+        case 'dx': o.dx = Number(v); break;
+        case 'dy': o.dy = Number(v); break;
+        case 'deg': o.deg = Number(v); break;
+        case 'dur': o.dur = Number(v); break;
+        case 'ease': o.ease = v as 'linear' | 'sine'; break;
+        case 'loop': o.loop = true; break;
+        case 'color': o.color = Number(v); break;
+        case 'hold': o.hold = true; break;
       }
     }
     out.push(o);

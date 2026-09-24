@@ -12,7 +12,8 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 import { P, U, ROWS, JUMP_SPAN_BLOCKS, JUMP_AIRTIME_S, arcSpan, PAD, ORB } from '../src/sim/constants.ts';
-import { generateLevel, tightestGap, tOfX, countKinds, type Level, type Segment } from '../src/sim/level.ts';
+import { generateLevel, tightestGap, tOfX, countKinds, type Level, type Segment, type Obj } from '../src/sim/level.ts';
+import { mapRecord, encodeObjects, decodeObjects } from '../src/sim/gdids.ts';
 import { World, botThink, frameOf, groundHeightOf, FLY_BAND } from '../src/sim/world.ts';
 import { recordBot, replay, fingerprint } from '../src/sim/replay.ts';
 import { decodeGmd, encodeGmdText, parseGmdText } from '../src/sim/gmd.ts';
@@ -954,4 +955,49 @@ test('模拟核心零依赖:src/sim 里不许出现 phaser / window / document',
     assert.ok(!/from\s+['"]phaser['"]/.test(src), name + ' 不该 import phaser');
     assert.ok(!/\bwindow\.|\bdocument\./.test(src), name + ' 不该用浏览器 API');
   }
+});
+
+/* ---------------- 触发器 / 触摸标记(用户 2026-09 口径) ----------------
+ * 用户要的:move / shake / touch / pulse / static / zoom;其中 touch【只当标记,不生效】。
+ * 这里只钉死"链路"(认得出来 → 进得了表 → 编解码不丢 → touch 不生效),
+ * 具体效果等真实样本到了再一件件做 —— 免得把"认错 ID 当方块吞掉"这种事放过去 ✓ */
+test('触发器:用户存档里那个 Alpha 触发器能认出来(以前被当装饰忽略)', () => {
+  /* ★ 这一行是从 CCLocalLevels.dat 原样抄的(WATER 里唯一一个触发器):
+       1=1007 2=45 3=615 10=3.01 35=0 36=1 51=1 155=2
+     45/30 = 1.5 格、615/30 = 20.5 格 —— 和编辑器里看到的位置一致 ✓ */
+  const o = mapRecord({ '1': '1007', '2': '45', '3': '615', '10': '3.01', '35': '0', '36': '1', '51': '1', '155': '2' });
+  assert.ok(o, '1007 必须认出来:返回 null 就是整个物件被吞掉(实测物件数 8980 → 8979)✗');
+  assert.equal(o!.kind, 'trigger');
+  assert.equal(o!.trigger, 'alpha');
+  assert.equal(o!.id, 1007);
+  assert.equal(o!.b, 1);      // 中心 1.5 − w/2
+  assert.equal(o!.r, 20);     // 中心 20.5 − h/2
+  assert.equal(o!.dur, 3.01);        // 键 10 = 时长
+  assert.deepEqual(o!.groups, [1]);  // 键 51 = 目标组(不是 57)
+});
+
+test('触发器:编码 → 解码 一个字段都不丢(trig/dur/目标组/时长)', () => {
+  const src: Obj[] = [{ kind: 'trigger', b: 1, r: 20, w: 1, h: 1, id: 1007, trigger: 'alpha', dur: 3.01, groups: [1] }];
+  const back = decodeObjects(encodeObjects(src));
+  assert.equal(back.length, 1);
+  assert.equal(back[0].kind, 'trigger');
+  assert.equal(back[0].trigger, 'alpha');
+  assert.equal(back[0].dur, 3.01);
+  assert.deepEqual(back[0].groups, [1]);
+  assert.equal(back[0].id, 1007);
+});
+
+test('touch 触发器:只当标记,不生效(不进开火循环、不挡人、不致死)', () => {
+  const w = new World(solo([
+    floor60,
+    { kind: 'trigger', b: 4, r: 1, w: 1, h: 1, trigger: 'touch', groups: [9] },
+    { kind: 'block', b: 6, r: 1, w: 1, h: 1, groups: [9] },     // 目标组里的方块(不该被推动/改变)
+  ]));
+  assert.equal(w.markers.length, 1, 'touch 要进标记清单(我照清单挂效果)');
+  assert.equal(w.triggers.length, 0, 'touch 不许进每帧开火循环');
+  const x0 = w.x;
+  for (let i = 0; i < 120; i++) w.frame(false);
+  assert.equal(w.markers.length, 1);
+  assert.ok(w.x > x0, '人要照样往前走(标记不挡路)');
+  assert.ok(!w.dead, '标记不该致死');
 });
