@@ -1013,8 +1013,8 @@ test('touch 过线:发一个光圈事件(位置 = 标记中心,单位制;21 帧�
   assert.equal(seen, 1, '走过去要正好发一个(48 个标记 = 48 个光圈,不是一个标记发一堆)');
   assert.equal(w.rings[0].x, 4.5 * U);     // b + w/2 = 4.5 格 ⇒ 换算成单位(w.y 是单位制)
   assert.equal(w.rings[0].y, 0.5 * U);
-  for (let i = 0; i < 25; i++) w.frame(false);
-  assert.equal(w.rings.length, 0, '活够 21 帧要自己消失');
+  for (let i = 0; i < 40; i++) w.frame(false);
+  assert.equal(w.rings.length, 0, '活够 34 帧(0.57 秒)要自己消失');
 });
 
 test('BPM 背景闪:带 loop 的 pulse 每 dur 秒闪一次(用户口径:只放一个在开头)', () => {

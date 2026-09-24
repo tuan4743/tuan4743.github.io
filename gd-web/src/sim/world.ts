@@ -609,8 +609,16 @@ export class World {
       this.flash = 1;
       if (o.color != null) this.tint = o.color;
       /* ★ 带 loop 的 pulse = "背景跟 BPM 闪"那个总开关(用户口径:只放一个在开头)——
-         dur = 一拍的长度(秒)⇒ 之后每 dur 秒自动闪一次,不用铺一堆 pulse 触发器 ✓ */
-      if (o.loop && o.dur) { this.pulsePeriod = o.dur; this.pulseT = 0; }
+         dur = 一拍的长度(秒)⇒ 之后每 dur 秒自动闪一次,不用铺一堆 pulse 触发器 ✓
+         ★★ 相位:光有周期不够 —— 玩家过线是在关卡开始后约 0.19 秒,而音乐第一拍在 0.3335 秒,
+            差 0.14 秒(约 40% 拍长)就会"闪在鼓点前面"✗
+            ⇒ 用 phase(第一拍绝对时间)+ 当前关卡时钟,算出"离下一拍还有多久",下一次闪正好落在拍上 ✓ */
+      if (o.loop && o.dur) {
+        this.pulsePeriod = o.dur;
+        const t = this.tick / 60;
+        const since = (((t - (o.phase ?? 0)) % o.dur) + o.dur) % o.dur;
+        this.pulseT = o.dur - since;
+      }
     }
     /* rotate 只影响画法(判定是轴对齐盒),这里不做几何;颜色/闪烁见上 */
   }
@@ -623,8 +631,9 @@ export class World {
       this.pulseT += 1 / 60;
       while (this.pulseT >= this.pulsePeriod) { this.pulseT -= this.pulsePeriod; this.flash = 1; }
     }
-    /* ★ 光圈:活够 21 帧(0.35 秒)就删掉 —— 由 sim 推进 ⇒ 回放一致 ✓ */
-    for (let i = this.rings.length - 1; i >= 0; i--) if (++this.rings[i].t > 21) this.rings.splice(i, 1);
+    /* ★ 光圈:活够 34 帧(0.57 秒)就删掉 —— 用户口径:"速度太快了" ⇒ 0.35 → 0.57 秒 ✓
+       由 sim 推进 ⇒ 回放一致 ✓ */
+    for (let i = this.rings.length - 1; i >= 0; i--) if (++this.rings[i].t > 34) this.rings.splice(i, 1);
     if (!this.anims.length) return;
     const keep: Anim[] = [];
     let moved = false;

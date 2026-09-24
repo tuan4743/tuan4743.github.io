@@ -91,6 +91,7 @@ export interface Obj {
   dur?: number;              // move/rotate/pulse:时长(秒);0 = 瞬移(原版的"立即到位")
   str?: number;              // shake:抖动强度(GD 键 75;滑杆 1~5,可手输到 100)
   zoom?: number;             // zoom:相机缩放值(GD 键 371;1 = 还原,<1 = 拉远)
+  phase?: number;            // pulse(loop):第一拍的绝对时间(秒)—— 用来把闪光对齐到音乐拍点 ✓
   ease?: 'linear' | 'sine';
   loop?: boolean;            // 到位之后再走回去(往复)—— 移动平台最常见的形态
   color?: number;            // color/pulse:颜色

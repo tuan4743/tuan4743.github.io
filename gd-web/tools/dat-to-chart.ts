@@ -35,6 +35,9 @@ const OUT = arg('out', path.resolve(HERE, '..', 'src', 'sim', 'charts', 'water.t
    所以这里按 --bpm= 注入【唯一一个】pulse 触发器在开头,它带 loop ⇒ sim 每 dur 秒把背景闪一次 ✓
    dur = 60 / BPM(一拍的长度,秒)。BPM 由 tools/../.tmp/bpm.json 的分析结果给,不猜 ✓ */
 const BPM = Number(arg('bpm', '0')) || 0;
+/* ★ 第一拍的绝对时间(秒),由 BPM 分析给出(见 .tmp/bpm.json)—— 光有周期不够:
+   玩家过线在开局约 0.19 秒处,音乐第一拍在 0.3335 秒 ⇒ 不补这个相位,闪光会整体早 0.14 秒 ✗ */
+const PHASE = Number(arg('phase', '0')) || 0;
 
 const levels = loadSave(FILE);
 console.log('存档 ' + FILE);
@@ -51,15 +54,20 @@ const unknownIds = new Map<number, number>();
 const rawSample = new Map<number, string>();     // 未映射 ID 的原始行(≥1000 的大概率是触发器,要照抄)
 const byId = new Map<number, number>();
 let start: { b: number; r: number } | undefined;
+const startMarkers: Array<{ b: number; r: number }> = [];
 for (const line of lv.lines) {
   const f = fieldsOf(line);
   const id = Number(f['1']);
   byId.set(id, (byId.get(id) ?? 0) + 1);
   /* ★ 起点标记(31):只用来定出生点。用户那关的起点在 (0.5, 10.5) —— 左边缘 0、脚底 10 格,
      也就是"铺面第一段的上一层"。不认它的话,人会出生在关卡底下被压死。 */
+  /* ★★ 用户 2026-09-24:"我忘记删掉中间的 start point 了" ——
+     编辑器里放了多个起点标记时,以前是【后一个覆盖前一个】⇒ 出生点跑到关卡中间去 ✗
+     现在改成取【最左边】那个(= 真正的关卡起点),并把有几个打出来提醒他删 ✓ */
   if (id === START_ID) {
-    const w = 1, h = 1;
-    start = { b: Number(f['2']) / 30 - w / 2, r: Number(f['3']) / 30 - h / 2 };
+    const cand = { b: Number(f['2']) / 30 - 0.5, r: Number(f['3']) / 30 - 0.5 };
+    startMarkers.push(cand);
+    if (!start || cand.b < start.b) start = cand;
     continue;
   }
   const o = mapRecord(f);
@@ -76,6 +84,11 @@ for (const line of lv.lines) {
   objs.push(o);
 }
 if (start) console.log('\n起点标记(31):出生点 = (' + start.b.toFixed(2) + ', ' + start.r.toFixed(2) + ') 块');
+if (startMarkers.length > 1) {
+  console.log('⚠ 关卡里有 ' + startMarkers.length + ' 个起点标记,分别在 x = ' +
+    startMarkers.map((m) => m.b.toFixed(1)).join(' / ') + ' 格 —— 按【最左边】那个当出生点 ✓' +
+    '\n   (这是编辑器里多放的,中间那些建议删掉;不删也不会再顶掉出生点了 ✓)');
+}
 if (unknownIds.size) {
   console.log('\n⚠ 有 ' + unknownIds.size + ' 种 ID 没有映射(已跳过,请补 sim/gdids.ts):');
   for (const [id, n] of [...unknownIds.entries()].sort((a, b) => b[1] - a[1])) {
@@ -116,9 +129,10 @@ if (BPM > 0) {
   const sb = start ? start.b : 0.5, sr = start ? Math.floor(start.r) : 10;
   objs.push({
     kind: 'trigger', trigger: 'pulse', id: 1006,
-    b: sb + 2, r: sr, w: 1, h: 1, dur: beat, loop: true,
+    b: sb + 2, r: sr, w: 1, h: 1, dur: beat, loop: true, phase: PHASE,
   });
-  console.log('\n★ 注入 1 个 pulse 触发器(BPM=' + BPM + ' ⇒ 每拍 ' + beat.toFixed(4) + ' 秒,带 loop=背景跟 BPM 闪)');
+  console.log('\n★ 注入 1 个 pulse 触发器(BPM=' + BPM + ' ⇒ 每拍 ' + beat.toFixed(4) + ' 秒,loop=背景跟 BPM 闪)');
+  console.log('   相位=' + PHASE + ' 秒(第一拍)⇒ 闪光落在拍点上,不是"过线就闪"✓');
   console.log('   位置 x=' + (sb + 2).toFixed(2) + ' 格(出生点右边 2 格)、y=' + sr + ' 格 —— 和出生点同一行才碰得到 ✓');
 }
 

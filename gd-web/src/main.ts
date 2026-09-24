@@ -2473,16 +2473,18 @@ class Scene extends Phaser.Scene {
     if (w.flash > 0) g.fillStyle(w.tint ?? 0xffffff, 0.34 * w.flash).fillRect(x0, dy0, vw, dy1 - dy0);
     /* ★★ touch 光圈(用户口径:48 个标记统一一个特效 —— 在标记位置炸开、半径扩散到【2 格】然后消失)✓
        位置和年龄都来自 sim(w.rings,单位制)⇒ 回放/倍速下不会和玩家错位 ✓
-       下面这几个数是我调的(看的、不是源码常数):起始半径 6 单位、终了 60 单位(2 格)、
-       线宽 3.5→1.2、生命周期 21 帧(0.35 秒,写在 world 里)· 一外一内两道圈 = "光"的感觉 ✓ */
+       ★ 2026-09-24 按用户反馈改过一轮:"圈太细了、速度太快了" ⇒ 线宽 3.5/1.2 → 11/5,
+         生命周期 21 帧 → 34 帧(0.57 秒,写在 world 里)· 再加一层柔光弧,才有"光"的感觉 ✓ */
     for (const r of w.rings) {
-      const p = r.t / 21;
-      const rad = 6 + 54 * p;
-      const a = Math.max(0, 1 - p * p);
-      g.lineStyle(3.5 - 2.3 * p, 0xffffff, 0.85 * a);
+      const p = r.t / 34;
+      const rad = 8 + 52 * p;                       // 8 → 60 单位(2 格)
+      const a = Math.max(0, 1 - p * p * 0.9);
+      g.lineStyle(11 - 7 * p, 0xffffff, 0.9 * a);
       g.strokeCircle(r.x, Y(r.y), rad);
-      g.lineStyle(1.2, HLD, 0.55 * a);
-      g.strokeCircle(r.x, Y(r.y), rad * 0.72);
+      g.lineStyle(5 - 3 * p, HLD, 0.7 * a);
+      g.strokeCircle(r.x, Y(r.y), rad * 0.82);
+      g.lineStyle(2, 0xffffff, 0.35 * a * (1 - p));
+      g.strokeCircle(r.x, Y(r.y), rad * 1.08);
     }
     /* 开场 / 死亡 / 通关界面:半透明面板(文字是 Text 对象,这里只画底板) */
     if (this.phase !== 'running') {

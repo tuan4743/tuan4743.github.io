@@ -547,6 +547,7 @@ export function encodeObjects(objs: Obj[]): string {
     if (o.dur != null) ex.push('dur=' + n(o.dur));
     if (o.str != null) ex.push('str=' + n(o.str));
     if (o.zoom != null) ex.push('zoom=' + n(o.zoom));
+    if (o.phase != null) ex.push('ph=' + n(o.phase));
     if (o.ease) ex.push('ease=' + o.ease);
     if (o.loop) ex.push('loop=1');
     if (o.color != null) ex.push('color=' + o.color);
@@ -612,6 +613,7 @@ export function decodeObjects(text: string): Obj[] {
         case 'dur': o.dur = Number(v); break;
         case 'str': o.str = Number(v); break;
         case 'zoom': o.zoom = Number(v); break;
+        case 'ph': o.phase = Number(v); break;
         case 'ease': o.ease = v as 'linear' | 'sine'; break;
         case 'loop': o.loop = true; break;
         case 'color': o.color = Number(v); break;
