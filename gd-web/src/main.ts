@@ -302,6 +302,11 @@ class Scene extends Phaser.Scene {
   /** 动画中的两条面(判定与画面共用 ✓):首次进场从框外 3 格收到面上;相邻切换从当前位置移过去 ✓ */
   animLo = 0;
   animHi = 0;
+  /** ★★★ 退出动画(源码 animateOutGroundNew:把进度 tween 回 0)✓:离开飞行形态时两条带往外滑出,
+   *  0.4 秒后隐藏 ✓;exitLo/exitHi = 开始退出那一刻的两条面 ✓ */
+  exitT: number | null = null;
+  exitLo = 0;
+  exitHi = 0;
   /** 两条框的贴图色:原版地面贴图是白的,由【关卡地面色(通道 1001)】染色
    *  (GJGroundLayer::updateGround01Color / OpenGD `_colorChannels.at(1001)._color`)✓
    *  ★ 本关 chart 里还没有通道数据(只硬编了玩家色 1005/1006)⇒ 先用【页面地面线已经在用的那个色】,
@@ -1588,7 +1593,23 @@ class Scene extends Phaser.Scene {
       if (Math.abs(this.frameHi - this.animHi) < 0.5) this.animHi = this.frameHi;
       bottom = this.camPinY - vh / 2;
     } else {
-      this.camPinY = null; this.camPinned = false; this.frameLo = null;
+      /* ★★★ 用户:"没有结束的退出动画" ⇒ 源码 `animateOutGroundNew`(asm 448965-448987):
+             tweenValue(this[218], 0.0, 0x19, 0.3984, 1, 1.5)   ← 把进度 tween 回 0
+             if (this[576]) resetStaticCamera(this, 0, 1);      ← 相机恢复跟随 ✓
+         ⇒ 退出 = 同一套进度的【反向】:两条带往外滑出去(各 3 格),0.4 秒后隐藏 ✓
+           (不是"啪"一下就消失 ✗;相机这边直接回到普通跟随 ✓) */
+      if (this.frameLo != null && this.exitT == null) {
+        this.exitT = 0; this.exitLo = this.animLo; this.exitHi = this.animHi;
+      }
+      if (this.exitT != null) {
+        const dt = Math.min(0.05, this.game.loop.delta / 1000);
+        this.exitT = Math.min(1, this.exitT + dt / 0.4);
+        const out = 3 * U * this.exitT;
+        this.animLo = this.exitLo - out;
+        this.animHi = this.exitHi + out;
+        if (this.exitT >= 1) { this.exitT = null; this.frameLo = null; }   // 滑完 ⇒ 隐藏 ✓
+      }
+      this.camPinY = null; this.camPinned = false;
       const flip = w.gdir < 0;
       const unk2 = flip ? CAM_MID : CAM_LOW;             // 上沿余量
       const unk3 = flip ? CAM_LOW : CAM_MID;             // 下沿余量
@@ -1609,7 +1630,7 @@ class Scene extends Phaser.Scene {
     this.camBottom = bottom;
     this.camCenter = bottom + vh / 2;
     /* ★★★ 把【框的两条面】发给 sim —— 唯一来源:页面推框、sim 夹取都用它 ✓(画面=判定 ✓) */
-    const bandOn = CAM_FIXED_MODES.has(w.mode) && this.frameLo != null;
+    const bandOn = this.frameLo != null;      // ← 退出动画期间也继续画(frameLo 由退出流程自己清 ✓)
     if (bandOn) { w.airLo = this.animLo; w.airHi = this.animHi; }
     else { w.airLo = bottom; w.airHi = bottom + vh; }
     {
@@ -1631,7 +1652,10 @@ class Scene extends Phaser.Scene {
          显隐由 `toggleVisible01(层, 层.y 在窗口内)` 决定 ✓ —— "落位"的感觉来自【相机】进门后 0.1/帧靠拢 ✓,
          不是框自己从画外滑进来 ✗(那套 bandHiY/bandLoY 是我编的 ✗,撤掉) */
       const fr = { lo: w.airLo as number, hi: w.airHi as number };   // ← 就是刚才发给 sim 的那两条面 ✓
-      const bandH = Scene.GROUND_TILE * Scene.BAND_SCALE;      // 带宽 = 贴图高 × 缩放 ✓(32 单位)
+      /* ★★★ 用户:"地面的贴图太短,导致球形态会露出上下两边" ✓ —— 原来带宽 = 128×0.25 = 32 单位 ✗,
+         而屏幕边到框面还有几十单位 ⇒ 那一段没有贴图 ⇒ 露白 ✓
+         ⇒ 带宽改成【盖住整个屏幕】(vh + 200),贴图纵向平铺 ✓(肉眼只看到靠框面的那几十单位 ✓) */
+      const bandH = vh + 200;
       /* ★★★ 2026-09 用户:"上边框你写的是从下面出来的,这才是顶飞的原因" ✓✓ —— 完全正确:
          我给两条带加了"从框外收回来"的位移(`hiY = fr.hi + OUT×(1-e)`)✗ ⇒ 带子先出现在别处、
          而 sim 的夹取按【最终面】算 ⇒ 人和带子互相错位 ⇒ 一碰就被推飞 ✓
