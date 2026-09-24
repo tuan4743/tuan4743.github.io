@@ -456,19 +456,30 @@ class Scene extends Phaser.Scene {
            锚点在左边的片(origin x = 0)往左挪 ⇒ 同理 ✓
          ⇒ 中间那一带被两片叠着画(线被盖住),而【刀片总外宽一个像素都没变】✓
          (另一条路是给图集设 NEAREST 过滤,但那会把整关美术都变成硬边,改动面太大 ✗) */
+      /* ★★★ 2026-09-25 用户:"锯片的两个贴图中间有条线" ⇒ 上一版用【挪位置】做重叠,
+         结果两片各自绕【不同的点】旋转(Phaser 的旋转轴就是 (x,y);origin 只决定贴图相对 (x,y) 怎么摆)
+         ⇒ 转起来两半发散 —— 用户接着报的"锯片旋转更诡异了"就是这个 ✗
+         正确做法:两片【位置都放在物件中心】(dx, drawY) ⇒ 旋转轴同一个 ✓;重叠靠 origin + 显示宽度做:
+           显示宽 W2 = dispW + ov,两片都按 W2 画:
+             存的那半:origin.x = dispW / W2 ⇒ 外边缘正好落在 dx ∓ dispW(外侧一个像素不动)
+             镜像那半:origin.x = ov / W2   ⇒ 内边缘越过中心 ov
+           ⇒ 中间 2×ov 被两片叠着画(裁断那一列被盖住),而旋转仍然刚性 ✓ */
       const ov = 1.0;                                  // 看的、不是源码常数:1 单位 ≈ 4 px @uhd
+      const W2 = dispW + ov;
+      const oxStore = dispW / W2, oxMirror = ov / W2;
+      const sawRot = ((o.rot ?? 0) * Math.PI) / 180 + spin;
       let img2 = this.artPool[this.artUsed];
       if (!img2) { img2 = this.add.image(0, 0, 'gd-art').setDepth(depth); this.artPool.push(img2); }
       this.artUsed++;
-      img.setOrigin(o.flipX ? 0 : 1, 0.5)
-        .setPosition(dx + (o.flipX ? -ov : ov), drawY)
-        .setFlipX(!!o.flipX)
-        .setDisplaySize(dispW + ov, dispH);
+      img.setOrigin(o.flipX ? oxMirror : oxStore, 0.5)
+        .setPosition(dx, drawY).setRotation(sawRot)
+        .setFlipX(!!o.flipX).setFlipY(!!o.flipY)
+        .setDisplaySize(W2, dispH);
       img2.setVisible(true).setTexture('gd-art', key)
-        .setOrigin(o.flipX ? 1 : 0, 0.5).setPosition(dx + (o.flipX ? ov : -ov), drawY).setDepth(depth)
-        .setRotation(((o.rot ?? 0) * Math.PI) / 180 + spin)
+        .setOrigin(o.flipX ? oxStore : oxMirror, 0.5).setPosition(dx, drawY).setDepth(depth)
+        .setRotation(sawRot)
         .setFlipX(!o.flipX).setFlipY(!!o.flipY)
-        .setDisplaySize(dispW + ov, dispH).setTint(tintCol);
+        .setDisplaySize(W2, dispH).setTint(tintCol);
     }
     return true;
   }

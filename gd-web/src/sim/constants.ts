@@ -97,13 +97,23 @@ export function vxOf(speedIdx: number): number {
  */
 export type OrbKind = 'yellow' | 'pink' | 'red' | 'blue' | 'green' | 'black';
 export type PadKind = 'yellow' | 'pink' | 'red' | 'blue' | 'purple';
-export type FlipWhen = 'none' | 'before' | 'after' | 'dash';
+export type FlipWhen = 'none' | 'before' | 'after' | 'dash' | 'pure' | 'beforeKeep';
 
 export const ORB: Record<OrbKind, { v: number; flip: FlipWhen; note: string }> = {
   yellow: { v: 11.1800318, flip: 'none', note: '[GDOpenGD] = jumpPower,原版黄环就是"空中再来一跳"(×1.0)' },
   pink: { v: 8.0496, flip: 'none', note: '[GDOpenGD] ×0.72,小跳' },
   red: { v: 15.428, flip: 'none', note: '[GDOpenGD] ×1.38,大跳' },
-  blue: { v: 8.9442, flip: 'before', note: '[GDOpenGD] ×0.8,按旧重力方向给速度后再翻重力' },
+  /* ★★★ 2026-09-25 用户:"蓝环实现不对,第二个存档点之后的那段,我都算好了能过,现在过不了,
+     说明没按源码数值处理" —— 查反编译(GD 2.2 本体,`.tmp/GDsrc/asm/gd-ida-decomp.cpp`):
+       · `PlayerObject::ringJump` 里按 `RingObject::getObjectType()` 分派,【type 38 = 重力环(蓝)】
+         那个分支(160103-160139)**只调 `flipGravity`,从头到尾没有 setYVelocity** ✗
+         ⇒ 蓝环在原版是【纯翻重力】,不给任何跳 ✗(我们以前给的是 ×0.8 = 8.9442,凭空多一跳)
+       · `PlayerObject::setYVelocity` 写的就是 `*(double*)(this+1936)`(142006),
+         `getYVelocity` 也读 1936(142026);而 `flipGravity` 里 `*(double*)(v3+1936) *= 0.5`(151158)
+         ⇒ 翻转那一下减半的是【当前纵向速度】✓(不是 ×1.75 —— 那个数来自 gdp 的复刻,口径作废)
+       · 所以蓝环的正确效果 = 翻重力 + 把当前 vy 减半,【不加任何速度】= 新档 'pure' ✓
+       旧值 8.9442(×0.8)保留在注释里备查。 */
+  blue: { v: 0, flip: 'pure', note: '源码 ringJump type-38:只 flipGravity,不设速度;flipGravity 把 m_yVelocity(+1936) ×0.5' },
   green: { v: 11.1800318, flip: 'after', note: '[GDOpenGD] ×1.0,先翻重力再按新重力方向给速度' },
   black: { v: 15, flip: 'dash', note: '[GDOpenGD] 冲刺环:把速度设成 15 并【朝重力方向】砸下去(常重力下是 -15),不看 jumpPower' },
 };
@@ -113,14 +123,17 @@ export const PAD: Record<PadKind, { v: number; flip: FlipWhen; note: string }> =
   pink: { v: 10.4, flip: 'none', note: '[OpenGD PlayLayer:1420] propellPlayer(0.65) → 0.65×16 = 10.4。★物件 140 = 粉色小跳板(GameObject.cpp:199「case 140: // pink pad」,粒子色 255,0,255),峰值约 1.88 块 —— 原版就是拿它过【低走廊】的' },
   red: { v: 20.0, flip: 'none', note: '[OpenGD PlayLayer:1428] propellPlayer(1.25) → 1.25×16 = 20(峰值约 7 块)' },
   blue: {
-    v: 12.8, flip: 'before',
-    /* ★ 口径来自 gdp@2.11 的 propellPlayer(2.11 里它设的是纵向速度 = 16×force×size,球/蜘蛛再 ×0.6)
-       加上 PlayLayer 里的调用顺序"先 propellPlayer、再 changeGravity" —— 也就是【先按旧重力方向
-       给速度,再翻重力】= 'before'。
-       ★ 我试过改成 'after'(先翻重力再给速度):拿球门(x=263)前面那两个蓝跳点的实测看,那样会
-       先把人往下压、等落台容错把人捞回台阶顶,再一路加速升到天花板(实测 y=13 贴顶),
-       反而【越过】了 x≈259 那块天花板小板、也错过了球门的入口 —— 比 'before' 差。 */
-    note: '[gdp@2.11 propellPlayer] 12.8 + 先按旧重力方向给速度再翻重力;力度可用 [ / ] 微调',
+    v: 12.8, flip: 'beforeKeep',
+    /* ★★★ 2026-09-25 用户:"第二个存档点之后的那段过不了" —— 那段是【球形态 + 一串蓝色跳点】,
+       查反编译发现我们给蓝板多减了一次半 ✗:
+         · `PlayerObject::propellPlayer`(147666-147693):速度 = 力度 × 16 × flipMod × (迷你?0.8:1.0),
+           然后 `if (球 || 蜘蛛 || 秋千) m_yVelocity *= 0.6`(0.6 在赋值【之后】)⇒ 蓝板 0.8 → 12.8,球再 ×0.6
+         · `PlayerObject::flipGravity` 里那句 `m_yVelocity *= 0.5`(151158)被 `if (!*(this+1601))` 守着,
+           而【重力板那一支】在翻之前先把 +1601 置 1(153307 =1 → 153316 flipGravity → 153328 setYVelocity(…,48),
+           48 = GameEvent 里的 "Gravity Pad")⇒ **板翻重力不减半** ✓
+         ⇒ 蓝板 = 12.8(球形态 ×0.6 = 7.68),不是 6.4/3.84
+       旧的 'before'(赋值 → 翻 → 减半)只适用于【减半那条路】,板不走它。 */
+    note: '源码:propellPlayer(0.8)=12.8,球/蜘蛛 ×0.6;翻重力时 +1601 已置 1 ⇒【不减半】',
   },
   purple: {
     v: 16.0, flip: 'none',

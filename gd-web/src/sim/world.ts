@@ -1243,7 +1243,7 @@ export class World {
       const size = this.mini ? 0.8 : 1;
       if (hold && this.pressFresh && this.onGround) {
         this.pressFresh = false;
-        this.vy = P.jump * size * this.gdir;    // 旧重力方向的起跳初速
+        this.vy = jumpOf(this.speedIdx) * size * this.gdir;   // ★ 同"绿环"那个病:起跳初速要按【当前速度档】查表(m_yStart),不是固定一档值 ✗→✓
         this.gdir = -this.gdir;                 // 翻重力
         this.vy *= this.flipMul;                // ★ 原版 flipGravity:m_yAccel *= 1.75
         this.vy *= P.ballFlipVelMul;            // ★ 再按球那一档 ×0.6(原版 updateJump)
@@ -1763,13 +1763,23 @@ export class World {
     }
     for (const b of this.checks) {
       if (this.armedChecks.has(b)) continue;
-      if (!this.hitEvent(b, prevX)) continue;
+      /* ★★★ 2026-09-25:存档点改成【判定盒真的重叠】才记(原版是 playerTouchesObject 的相交语义)——
+         以前走 `hitEvent` 的过线判据,人在【前缘刚碰到】那一帧就记了 ⇒ 记下的 this.x 比存档点
+         还早整整一个玩家宽(实测:存档点在 10 格,记成 9 格)⇒ 看起来就是"复活在存档点前面" ✗
+         改成相交之后,记下的位置是"人的前缘刚进入判定盒" ⇒ 落在存档点这一格上 ✓ */
+      const inn = this.outer();
+      if (inn.x1 <= b.x0 || inn.x0 >= b.x1 || inn.y1 <= b.y0 || inn.y0 >= b.y1) continue;
       this.armedChecks.add(b);
-      /* ★★★ 2026-09-25 修(用户:"复活位置不是存档点而是存档点前面,导致复活在可破坏砖块内部直接死"):
-         以前记 b.x0 = 存档点判定盒的【左边缘】⇒ 复活时人的【左边缘】落在那里,
-         整体比存档点靠前半格以上 ✗;现在 x 也记【存档点自己那个点】= 判定盒中心
-         (和下面 y 的口径一致,人正好站在存档点那一格上)✓ */
-      this.checkX = (b.x0 + b.x1) / 2 - this.box / 2;
+      /* ★★★ 2026-09-25(第二轮)按反编译改回【玩家自己的位置】——
+         `PlayLayer::createCheckpoint`(105040)最后调的是 `PlayerObject::saveToCheckpoint`(161518),
+         里面存的是 `getPosition()`(161537-161542;翻转时取 +2128 那一份)、`m_yVelocity`(+242)、
+         重力方向(+1967)和一堆形态标志 ⇒ 原版存档点 = 【玩家碰到它那一刻的状态】,
+         既不是判定盒中心、也不是存档点格子中心 ✗
+         (上一轮把 x 改成盒中心、y 改成格子中心 —— 对 1 格宽的存档点 x 其实等价(差值 0),
+          但 y 是实打实挪了;现在两条都回到"玩家自己的位置" ✓)
+         复活点若与实心重叠,仍由 safeSpawnY 兜住 ✓ */
+      this.checkX = this.x;
+      this.checkY = this.y;
       /* ★★ 2026-09 用户:"复活点是从那个点开始,不是它的上面开始"。
          以前记的是【人跨过它时的 y】(this.y)⇒ 复活落在存档点上方一截 ✗。
          现在记【存档点自己那个点】:x 用它的 x0,y 用它的格子中心(y = r+0.5 格)再减去半个玩家高
@@ -1924,7 +1934,19 @@ export class World {
        以前我们把 0.6 写在 applyTrigger 里 —— 于是球吃一次环要连挨 0.7 和 0.6 两刀(0.42),
        比原版小 40%。现在 0.6 只留在弹簧那条调用上(`isPad`)。 */
     if (isPad && (this.mode === 'ball' || this.mode === 'spider')) v *= 0.6;
-    if (spec.flip === 'before') {
+    if (spec.flip === 'beforeKeep') {
+      /* ★★★ 2026-09-25 重力板(蓝板):赋值【之后】翻重力,但【不减半】——
+         源码依据(见 constants.PAD.blue):重力板那一支在 flipGravity 之前先把 +1601 置 1,
+         而 flipGravity 里的 `m_yVelocity *= 0.5` 是被 `if (!*(this+1601))` 守着的 ⇒ 板不走减半 ✓
+         (用户:"第二个存档点之后的那段过不了" —— 那段是球形态 + 一串蓝板,我们以前多减了一半) */
+      this.vy = v * this.gdir;
+      this.gdir = -this.gdir;
+    } else if (spec.flip === 'pure') {
+      /* ★★★ 2026-09-25 蓝环(反编译 ringJump 的 type-38 分支):【只翻重力】,不给任何速度;
+         翻重力那一下把当前 vy 减半(flipGravity 对 m_yVelocity(+1936) 做 ×0.5)✓ */
+      this.gdir = -this.gdir;
+      this.vy *= this.flipMul;
+    } else if (spec.flip === 'before') {
       this.vy = v * this.gdir;                    // 按【旧】重力方向给速度
       this.gdir = -this.gdir;                     // 然后才翻重力
       /* ★ 翻重力那一下把纵向速度【除以 2】(默认 0.5,理由见文件头 FLIP_VEL_MUL 的三条)。
@@ -1937,6 +1959,8 @@ export class World {
          (OpenGD 的 playerobject.cpp:540 写的是 m_dYVel /= 2.f —— 两版源码在这一条上冲突,
           我们改取 OpenGD 的减半口径(关卡 A/B 实测:22.4 让 714~727 那段无解)。) */
       this.vy *= this.flipMul;
+      /* ★ 注:上面这段"减半后 6.4"现在【只适用于蓝板】—— 蓝环已改走 'pure'(不给速度)✓
+         旧注释里"蓝板/蓝环一起 6.4""×1.75"那两句作废(×1.75 出自 gdp 复刻,本体证据是 ×0.5)✓ */
     } else if (spec.flip === 'after') {
       this.gdir = -this.gdir;                     // 先翻重力
       this.vy = v * this.gdir;                    // 再按【新】重力方向给速度
@@ -1966,7 +1990,18 @@ export class World {
    *     ★ 本条只影响"船段里的粉环";本关(WATER)的 127 个环**没有一个在飞行形态段里**
    *       (统计:cube 121 / 机器人 5 / 球 1),所以这个取值对本关的通关卷没有任何影响。 */
   private orbVel(kind: OrbKind): number {
-    const J = P.jump;
+    /* ★★★ 2026-09-25 用户点破:"绿环的实现是错的" —— 病根在这一行 ✗
+       以前是 `const J = P.jump`(固定 11.1800318 = **一档速度**的初速),
+       而源码 `PlayerObject::ringJump` 的普通环支用的是
+         `v23 = *(double *)(v4 + 1568)`(160153)—— +1568 就是 **`m_yStart`**,
+         它由 `PlayerObject::updateTimeMod`(150522)按速度档逐档写入:
+           0.7 → 10.620032 · 0.9 → 11.1800318 · 1.1 → 11.420032 · 1.3/1.6 → 11.230032
+         ★ 这几个数我在本体二进制里核过:updateTimeMod 直接按 a2==0.7/0.9/1.1/1.3/1.6 分支,
+           0.9 档写 0x40265C2D20000000(=11.1800318)、0.7 档写 10.620032,
+           而且 1.3 与 1.6 **共用同一组常量** ⇒ 和 constants.SPEED_YSTART 逐位吻合 ✓
+       ⇒ 环的初速必须【跟当前速度档】,不是固定一档值 ✓(黄/粉/红环同病,一起修)
+       其余倍率同样照源码:mini ×0.8(`v22`,160149-160152)、绿环船 ×0.7(160159-160164)✓ */
+    const J = jumpOf(this.speedIdx);
     const mini = this.mini;
     /* ★ 球 / 蜘蛛的跳环再打 7 折 —— 出处 gdp@2.11 ringJump.cpp:127-130
        `if (isBall || isSpider) { yAccel *= 0.7; isHolding = false; }`
@@ -1989,7 +2024,10 @@ export class World {
       case 'green':
         return J * (this.mode === 'ship' ? 0.7 : 1.0) * bs;
       case 'blue':
-        return J * 0.8 * bs;                              // 重力环:固定 ×0.8,不随形态(球/蜘蛛再 ×0.7)
+        /* ★★★ 2026-09-25 按反编译改成【纯翻重力】:ringJump 的 type-38(蓝环)分支只 flipGravity,
+           不 setYVelocity ⇒ 这里永远返回 0(applyTrigger 的 'pure' 分支也不会去用它)✓
+           (旧值 J*0.8 = 8.9442 是照 gdp 复刻写的,已经把该段路线改坏 —— 用户报"能过的过不去") */
+        return 0;
       case 'black':                                       // 冲刺(黑)环:按形态给绝对值,不吃那 7 折
         return this.mode === 'ufo' ? 11.2
           : (this.mode === 'ship' || this.mode === 'wave') ? 14

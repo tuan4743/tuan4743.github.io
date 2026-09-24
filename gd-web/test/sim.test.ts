@@ -11,7 +11,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-import { P, U, ROWS, JUMP_SPAN_BLOCKS, JUMP_AIRTIME_S, arcSpan, PAD, ORB } from '../src/sim/constants.ts';
+import { P, U, ROWS, JUMP_SPAN_BLOCKS, JUMP_AIRTIME_S, arcSpan, PAD, ORB, SPEED_YSTART } from '../src/sim/constants.ts';
 import { generateLevel, tightestGap, tOfX, countKinds, type Level, type Segment, type Obj } from '../src/sim/level.ts';
 import { mapRecord, encodeObjects, decodeObjects } from '../src/sim/gdids.ts';
 import { blocksPerSec, xAtTime, parseBpmSections, injectBpmSections } from '../src/sim/bpmsections.ts';
@@ -173,8 +173,12 @@ test('存档点:跨过之后死亡从存档点重来,而且会记住形态', () 
   for (let i = 0; i < 400 && !w.dead; i++) w.frame(false);
   assert.equal(w.dead, true);
   w.respawn();
-  assert.ok(Math.abs(w.checkX - 10 * U) < 0.001, '重来位置应在第 10 块,实际 ' + (w.checkX / U).toFixed(1));
-  assert.ok(Math.abs(w.x - 10 * U) < 0.001, '复活后就站在存档点');
+  /* ★ 2026-09-25 改判据:复活点现在是"碰到存档点那一帧玩家自己的位置"(反编译口径)⇒
+     不变量是【玩家前缘正好贴到存档点判定盒的左缘】(差一帧的行进量),不是等于格子坐标 ✓ */
+  assert.ok(Math.abs(w.checkX + w.box - 10 * U) < U / 3,
+    '重来位置:玩家前缘应贴住存档点左缘(实测 checkX=' + (w.checkX / U).toFixed(2) + ' 格)');
+  assert.ok(Math.abs(w.x - w.checkX) < 0.001, '复活后就站在记下的那个点上');
+  assert.ok(w.x < 11 * U && w.x + w.box > 10 * U, '复活点要和存档点判定盒相交(不是站在它前面)✓');
   assert.equal(w.checkMode, 'cube');
 });
 
@@ -958,6 +962,66 @@ test('模拟核心零依赖:src/sim 里不许出现 phaser / window / document',
   }
 });
 
+test('绿环/黄环:初速跟【当前速度档】的 m_yStart 走(以前写死一档值 11.1800318 ✗)', () => {
+  /* 源码:ringJump 普通环支 `v23 = *(double*)(v4 + 1568)`(160153)= m_yStart,
+     由 updateTimeMod(150522)按速度档写入;绿环顺序 = 先 flipGravity(160225-160260)
+     再 setYVelocity(v23 × flipMod × mini)(160262)⇒ 翻重力后按【新】方向给一整跳 ✓
+     测试办法:扫"哪一帧起跳"能吃到环(环固定放在 20,2),再断言激活当帧的 vy ✓ */
+  /* ★ 不去扫"第几帧按":每两帧交替按一次(偶数帧按下 ⇒ 每 2 帧就有一次【新按键】),
+     人跑到环上必然吃到 ⇒ 一次模拟就够,几何怎么变都不会 miss ✓(扫帧那版太脆,已弃) */
+  const orbVy = (kind: 'green' | 'yellow', speedIdx: number, mini = false): number => {
+    const objs: Obj[] = [floor60];
+    if (mini) objs.push({ kind: 'size', b: 5, r: 0, w: 1, h: 1, mini: true });   // mini 只能靠缩小门进(w.mini 是只读的 ✗)
+    objs.push({ kind: 'orb', b: 20, r: 0, w: 1, h: 1, orb: kind });
+    const w = new World(solo(objs));
+    w.speedIdx = speedIdx;
+    const g0 = w.gdir, vy0 = w.vy;
+    for (let i = 0; i < 400; i++) {
+      w.frame(i % 2 === 0);                          // 交替按 ⇒ 不断产生"新的一次按键"✓
+      if (kind === 'green' ? w.gdir !== g0 : Math.abs(w.vy - vy0) > 1) return w.vy;
+    }
+    return NaN;
+  };
+  /* ★ 直接量 orbVel:扫几何那套在 sim 里太脆(一帧重力、命中帧都会漂),
+     而这里要钉的正是"初速从哪来" ⇒ 直接断言函数返回值最稳 ✓(测试里用 as any 取私有方法) */
+  const orbVelOf = (kind: 'green' | 'yellow' | 'pink' | 'red', tier: number) => {
+    const w = new World(solo([floor60]));
+    w.speedIdx = tier;
+    return (w as unknown as { orbVel(k: string): number }).orbVel(kind);
+  };
+  assert.equal(orbVelOf('green', 1), SPEED_YSTART[1], '一档绿环 = m_yStart[1]');
+  assert.equal(orbVelOf('green', 3), SPEED_YSTART[3], '三档绿环 = m_yStart[3]');
+  assert.equal(orbVelOf('yellow', 4), SPEED_YSTART[4], '四档黄环 = m_yStart[4]');
+  assert.notEqual(orbVelOf('green', 1), orbVelOf('green', 3),
+    '★ 这条是关键:初速必须随速度档变 —— 又写死成一档值 11.1800318 的话这里就会相等 ✗');
+  /* 绿环船 ×0.7、粉/红环的形态倍率依旧(源码 ringJump 160159-160164 / 160166-160217)✓ */
+  assert.ok(Math.abs(orbVelOf('green', 1) * 0.7 - SPEED_YSTART[1] * 0.7) < 1e-9);
+  /* mini 的 ×0.8 走 triggerScale(源码 v22,160149-160152),在 applyTrigger 里乘 ⇒ 这里不重复算 ✓ */
+  assert.ok(SPEED_YSTART[3] > SPEED_YSTART[1], '三档的 m_yStart 必须大于一档');
+});
+
+/* ---------------- 重力板/重力环(用户 2026-09-25:"蓝环实现不对…那段过不了")----------------
+ * 反编译依据:
+ *   · `PlayerObject::propellPlayer`(147666-147693):速度 = 力度×16×flipMod×(迷你?0.8:1.0),
+ *     之后 `if (球||蜘蛛||秋千) m_yVelocity *= 0.6`
+ *   · `PlayerObject::flipGravity` 里的 `m_yVelocity *= 0.5`(151158)被 `if (!*(this+1601))` 守着;
+ *     【重力板那一支】翻之前先把 +1601 置 1(153307 → 153316 flipGravity → 153328 setYVelocity(…,48))
+ *     ⇒ 板翻重力【不减半】;环不走这条(ringJump 里没有置 +1601)⇒ 环走减半 ✓ */
+test('重力板(蓝板):赋值后翻重力但【不减半】—— 球形态 ×0.6 后是 7.68,不是 3.84', () => {
+  const w = new World(solo([floor60, { kind: 'pad', b: 6, r: 0, w: 1, h: 0.2, pad: 'blue' }]));
+  w.mode = 'ball';                       // ★ 那一段正是球形态(球有 propellPlayer 的 ×0.6)
+  w.vy = 0;
+  let flippedAt = -1, vyAt = 0;
+  for (let i = 0; i < 240; i++) {
+    w.frame(false);
+    if (w.gdir === -1) { flippedAt = i; vyAt = w.vy; break; }
+  }
+  assert.ok(flippedAt >= 0, '要吃到蓝板并翻重力');
+  /* 12.8(propellPlayer 0.8×16)×0.6(球)= 7.68,朝【翻之前】的重力反方向(= 世界向上)✓
+     以前多减了一半 ⇒ 3.84,球形态那串蓝板就过不去了 ✗ */
+  assert.ok(Math.abs(vyAt - 7.68) < 0.6, '蓝板给的速度应为 7.68(球 ×0.6,不减半),实测 ' + vyAt.toFixed(3));
+});
+
 /* ---------------- 触发器 / 触摸标记(用户 2026-09 口径) ----------------
  * 用户要的:move / shake / touch / pulse / static / zoom;其中 touch【只当标记,不生效】。
  * 这里只钉死"链路"(认得出来 → 进得了表 → 编解码不丢 → touch 不生效),
@@ -1140,15 +1204,26 @@ test('pulse 停闪:带 loop 但 dur=0 ⇒ 周期归零、之后不再闪(用户�
 
 /* ---------------- 存档点复活(用户 2026-09-25 报的 bug)----------------
  * 原话:"复活位置不是存档点而是存档点前面,导致复活在可破坏砖块内部直接死" */
-test('存档点复活:对准存档点那一格(不是它的左边缘)', () => {
-  /* 要用【两格宽】的存档点才验得出来:老代码记 b.x0(左边缘)⇒ 人会复活在存档点【前面】半格 ✗ */
+test('存档点复活:记的是【玩家碰到它那一刻自己的位置】(反编译 saveToCheckpoint 口径)', () => {
+  /* ★★★ 2026-09-25:上一版按"判定盒中心"记(11.5 格)—— 那是自定的 ✗
+     反编译 `PlayLayer::createCheckpoint`(105040)→ `PlayerObject::saveToCheckpoint`(161518)里,
+     存的是 `getPosition()`(161537-161542)+ m_yVelocity(+242)+ 重力方向(+1967)+ 形态标志
+     ⇒ 复活点 = 碰到那一帧【玩家自己的位置】,不是存档点格子的中心 ✗
+     所以判据不是"等于某个坐标",而是【必须与存档点判定盒相交】(人是碰到它才记的)✓ */
   const w = new World(solo([floor60, { kind: 'check', b: 11, r: 0, w: 2, h: 1 }]));
   for (let i = 0; i < 240 && w.checkX === 0; i++) w.frame(false);
   assert.ok(w.checkX > 0, '要碰到存档点(没碰到说明触发就没生效)');
-  assert.equal(w.checkX, 12 * U - U / 2, '复活点要对准存档点中心:实测 ' + (w.checkX / U) + ' 格,应为 11.5 格');
+  const bx0 = 11 * U, bx1 = 13 * U, by0 = 0, by1 = U;
+  /* 不变量:记下的位置【与存档点判定盒相交】(触发那一帧的真实接触状态)。
+     不去断言"等于某个格子坐标" —— 接触发生在哪一帧取决于帧步进,强求坐标就是自造口径 ✗ */
+  assert.ok(w.checkX < bx1 && w.checkX + w.box > bx0,
+    '复活点 x 必须与存档点判定盒相交:实测前缘 ' + ((w.checkX + w.box) / U).toFixed(2) + ' 格,盒 ' + (bx0 / U) + '~' + (bx1 / U) + ' 格');
+  assert.ok(w.checkY < by1 && w.checkY + w.box > by0,
+    '复活点 y 必须与判定盒相交:实测 ' + (w.checkY / U).toFixed(2) + ' 格');
+  const cx = w.checkX, cy = w.checkY;
   w.respawn();
-  assert.equal(w.x, 12 * U - U / 2);
-  assert.equal(w.y, 0, '脚下就是存档点那一行,不该被顶起来');
+  assert.equal(w.x, cx, '复活位置 = 存档时记下的那个点');
+  assert.equal(w.y, cy);
 });
 
 test('存档点正好压在可破坏砖上:复活必须被顶出实心,不能一出来就死', () => {
