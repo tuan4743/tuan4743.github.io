@@ -171,15 +171,19 @@ segments.push({ from: cur.from, to: LENGTH, mode: cur.mode, speed: cur.speed, di
 if (SECTIONS.length) {
   const sr = start ? Math.floor(start.r) : 10;
   const injected = injectBpmSections(objs, SECTIONS, segments, sr);
-  console.log('\n★ 按分段 BPM 注入 ' + injected.length + ' 个 pulse(每段一个,带 loop=背景跟 BPM 闪):');
+  const onN = injected.filter((e) => e.injected).length;
+  console.log('\n★ 按【速度档】注入 pulse(用户口径:只有三档/四档速度才闪,不然太奇怪)——');
+  console.log('   共 ' + injected.length + ' 个速度切换点:开闪 ' + onN + ' 个 · 停闪 ' + (injected.length - onN) + ' 个');
   for (const e of injected) {
-    console.log('   t=' + e.t0.toFixed(2) + 's  BPM=' + (Math.round(e.bpm * 100) / 100) +
-      '  每拍 ' + e.period.toFixed(4) + 's  相位=' + e.firstBeat.toFixed(3) + 's  ⇒ x=' + e.x.toFixed(2) + ' 格');
+    console.log('   速度' + String(e.speed).padEnd(2) + (e.injected ? '★开闪' : '·停闪') +
+      '  x=' + e.x.toFixed(2).padStart(9) + ' 格  t=' + e.t.toFixed(2).padStart(7) + 's' +
+      (e.injected ? '  BPM=' + (Math.round(e.bpm * 100) / 100) + '  每拍 ' + e.period.toFixed(4) + 's  相位=' + e.firstBeat.toFixed(3) + 's' : '  (dur=0 ⇒ pulsePeriod 归零)'));
   }
+  if (!onN) console.log('   ⚠⚠ 【一个开闪的都没有】—— 说明"三/四档才闪"的前提不成立,别硬上,先回来对口径 ✗');
   const notInc = injected.filter((e, i) => i > 0 && e.x <= injected[i - 1].x);
   console.log(notInc.length
-    ? '   ⚠ 有 ' + notInc.length + ' 段的 x 没有递增(段太短 / 速度换算有误差)⇒ 接力顺序会乱,先查分段表 ✗'
-    : '   x 严格递增 ⇒ 段与段会按顺序依次接力 ✓');
+    ? '   ⚠ 有 ' + notInc.length + ' 个注入点的 x 没有递增(段太短 / 速度换算有误差)⇒ 接力顺序会乱,先查表 ✗'
+    : '   x 严格递增 ⇒ 开/停闪会按顺序依次接力 ✓');
 }
 
 /* ---------- 统计 ---------- */

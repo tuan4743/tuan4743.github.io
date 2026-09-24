@@ -67,20 +67,47 @@ export function parseBpmSections(raw: unknown): BpmSection[] {
   return out.sort((a, b) => a.t0 - b.t0);
 }
 
-/** 注入结果(给日志/自检用:每段落在哪一块上)✓ */
-export interface BpmInjection { t0: number; bpm: number; x: number; period: number; firstBeat: number }
+/** 块 → 秒(和 xAtTime 互逆:同一套"按速度分段累加" ✓) */
+export function tAtX(x: number, segments: Segment[]): number {
+  let acc = 0;
+  for (const s of segments) {
+    const bps = blocksPerSec(s.speed);
+    if (x < s.to) return acc + (bps > 0 ? (x - s.from) / bps : 0);
+    acc += bps > 0 ? (s.to - s.from) / bps : 0;
+  }
+  return acc;
+}
 
-/** 按分段表注入 pulse 触发器(每段一个;回到 Obj 数组末尾追加)✓ */
-export function injectBpmSections(objs: Obj[], sections: BpmSection[], segments: Segment[], spawnRow: number): BpmInjection[] {
+/** 只有这些速度档才闪 —— 用户 2026-09-25:"pulse 改成只有三档速度和四档速度触发,不然太奇怪" ✓ */
+export const PULSE_SPEEDS = [3, 4];
+
+/** 注入结果(给日志/自检用:落在哪一块、那一段的速度档、注没注、用的什么周期)✓ */
+export interface BpmInjection { x: number; t: number; speed: number; injected: boolean; bpm: number; period: number; firstBeat: number }
+
+/** 按【速度档】注入 pulse(不再是"每个 BPM 段一个")✓
+ *  ★★ 开关时刻必须落在【速度门的 x】上,不是歌曲分段边界上 ——
+ *     用户要的是"只有三/四档才闪",而速度变更是【关卡结构】⇒ 跟它对齐才不奇怪 ✓
+ *  每个速度段的起点放一个 loop pulse:
+ *    速度 ∈ PULSE_SPEEDS ⇒ 开闪,周期/相位取【覆盖该时刻的 BPM 段】(音乐网格还是按歌走 ✓)
+ *    否则             ⇒ dur=0 的 loop pulse = 【停闪】(sim 里 dur=0 ⇒ pulsePeriod 归零)✓
+ *  连续同速的段只放第一个(否则会塞一堆重复触发器)✓ */
+export function injectBpmSections(objs: Obj[], sections: BpmSection[], segments: Segment[], spawnRow: number, speeds: number[] = PULSE_SPEEDS): BpmInjection[] {
   const log: BpmInjection[] = [];
-  for (const s of sections) {
-    const x = xAtTime(s.t0, segments);
+  let prevSpeed: number | null = null;
+  for (const seg of segments) {
+    if (prevSpeed === seg.speed) continue;              // 速度没变 ⇒ 不重复注入 ✓
+    prevSpeed = seg.speed;
+    const x = seg.from;
+    const t = tAtX(x, segments);
+    const bs = sections.find((s) => t >= s.t0 && t < s.t1) ?? sections[sections.length - 1];
+    const on = speeds.includes(seg.speed) && !!bs;
+    const period = on && bs ? bs.period : 0;
+    const phase = on && bs ? bs.firstBeat : 0;
     objs.push({
       kind: 'trigger', trigger: 'pulse', id: 1006,
-      b: x, r: spawnRow, w: 1, h: 1,
-      dur: s.period, phase: s.firstBeat, loop: true,
+      b: x, r: spawnRow, w: 1, h: 1, dur: period, phase, loop: true,
     });
-    log.push({ t0: s.t0, bpm: s.bpm, x, period: s.period, firstBeat: s.firstBeat });
+    log.push({ x, t, speed: seg.speed, injected: on, bpm: bs ? bs.bpm : 0, period, firstBeat: phase });
   }
   return log;
 }

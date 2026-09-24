@@ -1,5 +1,5 @@
 /* 生成物 —— 由 tools/dat-to-chart.ts 从 CCLocalLevels.dat 生成,别手改。
- * 关卡:WATER · 物件 12148 个(含 1 条补的地面)· 长 3620 块 · 高 127 格
+ * 关卡:WATER · 物件 12166 个(含 1 条补的地面)· 长 3620 块 · 高 127 格
  * 段:按形态门/速度门切,共 70 段
  * 重新生成:cd gd-web && node tools/dat-to-chart.ts --level=WATER
  *
@@ -12150,12 +12150,30 @@ S 3197 112 rot=180 id=8
 S 3199 112 rot=180 id=8
 Q 3005 108 id=1913 trig=zoom dur=0.5 zoom=1
 P -16 -1 3652 1
-Q 0 10 id=1006 trig=pulse dur=0.706 ph=0.334 loop=1
-Q 117.208 10 id=1006 trig=pulse dur=0.706 ph=14.451 loop=1
-Q 758.121 10 id=1006 trig=pulse dur=0.353 ph=75.51 loop=1
-Q 1134.688 10 id=1006 trig=pulse dur=0.706 ph=99.157 loop=1
-Q 1897.045 10 id=1006 trig=pulse dur=0.706 ph=149.981 loop=1
-Q 2078.883 10 id=1006 trig=pulse dur=0.706 ph=164.804 loop=1
+Q 0 10 id=1006 trig=pulse dur=0 ph=0 loop=1
+Q 198 10 id=1006 trig=pulse dur=0 ph=0 loop=1
+Q 423 10 id=1006 trig=pulse dur=0 ph=0 loop=1
+Q 512 10 id=1006 trig=pulse dur=0 ph=0 loop=1
+Q 650 10 id=1006 trig=pulse dur=0.706 ph=14.451 loop=1
+Q 733 10 id=1006 trig=pulse dur=0 ph=0 loop=1
+Q 767 10 id=1006 trig=pulse dur=0.353 ph=75.51 loop=1
+Q 873 10 id=1006 trig=pulse dur=0.353 ph=75.51 loop=1
+Q 968 10 id=1006 trig=pulse dur=0.353 ph=75.51 loop=1
+Q 1055 10 id=1006 trig=pulse dur=0 ph=0 loop=1
+Q 1325 10 id=1006 trig=pulse dur=0 ph=0 loop=1
+Q 1351 10 id=1006 trig=pulse dur=0 ph=0 loop=1
+Q 1359 10 id=1006 trig=pulse dur=0 ph=0 loop=1
+Q 1368 10 id=1006 trig=pulse dur=0.706 ph=99.157 loop=1
+Q 1377 10 id=1006 trig=pulse dur=0.706 ph=99.157 loop=1
+Q 1768 10 id=1006 trig=pulse dur=0 ph=0 loop=1
+Q 1786 10 id=1006 trig=pulse dur=0 ph=0 loop=1
+Q 2057 10 id=1006 trig=pulse dur=0 ph=0 loop=1
+Q 2473 10 id=1006 trig=pulse dur=0 ph=0 loop=1
+Q 2603 10 id=1006 trig=pulse dur=0.706 ph=164.804 loop=1
+Q 3006 10 id=1006 trig=pulse dur=0 ph=0 loop=1
+Q 3052 10 id=1006 trig=pulse dur=0.706 ph=164.804 loop=1
+Q 3234 10 id=1006 trig=pulse dur=0.706 ph=164.804 loop=1
+Q 3404 10 id=1006 trig=pulse dur=0 ph=0 loop=1
 `;
 
 export const WATER_CHART = makeChart({

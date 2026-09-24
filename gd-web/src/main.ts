@@ -425,7 +425,11 @@ class Scene extends Phaser.Scene {
        上一轮 `dy + chU/2 + dispH/2` 把 3 格高的门整体抬了 (86+85)/2 = 85.5 单位 ≈ 2.85 格 ✗
        —— 这正是"整体偏高";也解释了更早那次"速度门往下偏移两格":同一个锚点来回错 ✓ */
     const drawY = dy;                                 // 居中 ✓(isDoor 只留给注释/后续层判断用)
-    img.setVisible(true).setTexture('gd-art', key).setPosition(dx, drawY).setDepth(depth);
+    /* ★★★ 2026-09-25 修(用户:"锯片贴图你贴了片相同方向的,旋转时貌似有bug,导致全屏的贴图乱动"):
+       img 是从【共享池 artPool】里取的 ⇒ 这里【无条件】把 origin 复位成中心 ✓
+       —— 上一轮给锯片设了 origin(1,0.5) 却没复位,被复用的图片带着它去画别的物件,
+          于是【全屏贴图整体错位】,和旋转混在一起看就是"乱动" ✗✗(池子复用必须每次写全) */
+    img.setVisible(true).setTexture('gd-art', key).setOrigin(0.5, 0.5).setPosition(dx, drawY).setDepth(depth);
     img.setRotation(((o.rot ?? 0) * Math.PI) / 180 + spin);
     /* ★★★ 2026-09 用户:"速度箭头有几个箭头的方向不对,各种门贴图也是方向不对"
        —— GD 里门/箭头的朝向来自【flipX / flipY】(不是 rot ✗),我们以前没做 ⇒ 该翻的都没翻 ✓ */
@@ -435,18 +439,21 @@ class Scene extends Phaser.Scene {
     img.setTint(tintCol);
     /* ★★★ 2026-09-24 用户:"锯片只显示一半" —— 铁证(GJ_GameSheet.plist):
          sawblade_01: spriteSize {42,82} · spriteSourceSize {84,82} · spriteOffset {-21,0}
-       ⇒ 官方图集里【只存了左半张】刀片(42 = 84/2,offset −21 = 左移半宽),
-         原版是【镜像拼成整圆刀】的 ⇒ 我们只画一片,就永远是半张 ✗(不是压扁、也不是判定盒)
-       修法:这一片当左半(origin 放【右中】),再从池子里取一片 flipX 当右半(origin 放【左中】),
-         两片都定位在【物件中心】⇒ 两片绕同一个点旋转,转起来不会散架 ✓
-       没有重烘图集:帧矩形本来就是官方 sheet 里的,改渲染层就够 ✓(爆炸半径只有锯片) */
+       ⇒ 官方图集里【只存了左半张】刀片(42 = 84/2,offset −21 = 左移半宽)⇒ 原版靠镜像拼成整圆刀 ✓
+       ★★★ 2026-09-25 修(用户:"你贴了片相同方向的 …… 导致全屏的贴图乱动")—— 上一版两个真 bug:
+         ① 两片都写了 setFlipX(!o.flipX) ⇒ 【同向】✗ 拼出来是两片同向的半个,不是整圆刀
+            正确模型:整片刀 = 左半(原图) + 右半(原图镜像),【整体】再按 o.flipX 反转:
+              片 A(存的那半):origin = o.flipX ? 左中 : 右中 ,flipX = !!o.flipX
+              片 B(镜像那半):origin = o.flipX ? 右中 : 左中 ,flipX = !o.flipX
+         ② 池子复用的 origin 没复位 ⇒ 已在上面的常规设置里无条件复位了 ✓
+       两片都定位在【物件中心】(dx, drawY)⇒ 绕同一个点旋转,转起来不会散架 ✓ */
     if (o.kind === 'saw') {
       let img2 = this.artPool[this.artUsed];
       if (!img2) { img2 = this.add.image(0, 0, 'gd-art').setDepth(depth); this.artPool.push(img2); }
       this.artUsed++;
-      img.setOrigin(1, 0.5).setPosition(dx, drawY).setFlipX(!o.flipX);
+      img.setOrigin(o.flipX ? 0 : 1, 0.5).setPosition(dx, drawY).setFlipX(!!o.flipX);
       img2.setVisible(true).setTexture('gd-art', key)
-        .setOrigin(0, 0.5).setPosition(dx, drawY).setDepth(depth)
+        .setOrigin(o.flipX ? 1 : 0, 0.5).setPosition(dx, drawY).setDepth(depth)
         .setRotation(((o.rot ?? 0) * Math.PI) / 180 + spin)
         .setFlipX(!o.flipX).setFlipY(!!o.flipY)
         .setDisplaySize(dispW, dispH).setTint(tintCol);
@@ -1747,17 +1754,24 @@ class Scene extends Phaser.Scene {
         const gl = this.groundLine as Phaser.GameObjects.Rectangle;
         /* ★ 只在【相机钉死的形态】显示:原版这两条是进门那一刻 tween 进来的,
            方块/机器人/蜘蛛进门不拉 ⇒ 它们留在画外(看不见)✓ 我们直接不显示 ✓ */
+        /* ★★★ 2026-09-25 用户:"我们的地面不会遮挡物件" ——
+           原版方块/机器人/蜘蛛段【地面一直在】,y<0 的物件(例如放在 y=−0.1 的蓝色跳点)被地面挡住 ✓
+           我们以前【只在飞行形态】显示这两条带(那是限高框)⇒ 地面段压根没有地面 ⇒ 地面以下的物件全露 ✗
+           (早前用户就把 y=−0.1 的跳点当成"多出来的跳点",同一个病根)
+           修法:非飞行段也画【地面带】,上沿钉在关卡地面线(世界 y=0 = 我们补的那条地面 platform 的顶面)✓
+           层不动:带 7 > 物件贴图 6、< 玩家/载具 15.5+ ⇒ 正好"盖住物件、不盖玩家" ✓
+           天花板【不画】:原版方块段没有上带(上带是飞行形态限高框才有的)✓ */
         c.setVisible(bandOn); cl.setVisible(bandOn);
-        gb.setVisible(bandOn); gl.setVisible(bandOn);
-        if (bandOn) {
-          /* ★ 贴图【不动】(用户:"为什么地面贴图会动")⇒ 不设 tilePositionX ✓
-             ★ 上色:白贴图 × 地面色(GD 就是这么染的 ✓) */
-          c.setTint(this.bandTint); gb.setTint(this.bandTint);
-          c.setPosition(this.camX, drawY(hiY)).setSize(wide, bandH);
-          cl.setPosition(this.camX, drawY(hiY) + 1).setSize(wide, 2);
-          gb.setPosition(this.camX, drawY(loY)).setSize(wide, bandH);
-          gl.setPosition(this.camX, drawY(loY) - 1).setSize(wide, 2);
-        }
+        gb.setVisible(true); gl.setVisible(true);              // 地面【一直都在】(以前只跟 bandOn 走 ✗)
+        /* ★ 贴图【不动】(用户:"为什么地面贴图会动")⇒ 不设 tilePositionX ✓
+           ★ 上色:白贴图 × 地面色(GD 就是这么染的 ✓) */
+        c.setTint(this.bandTint); gb.setTint(this.bandTint);
+        c.setPosition(this.camX, drawY(hiY)).setSize(wide, bandH);
+        cl.setPosition(this.camX, drawY(hiY) + 1).setSize(wide, 2);
+        /* 方块段:上沿 = 世界 y=0(地面线);飞行段:上沿 = 框的下沿 ✓ */
+        const gTop = bandOn ? loY : 0;
+        gb.setPosition(this.camX, drawY(gTop)).setSize(wide, bandH);
+        gl.setPosition(this.camX, drawY(gTop) - 1).setSize(wide, 2);
       }
     }
     /* ★★ shake 触发器(用户:MOVE/ZOOM/SHAKE 都要生效)—— 屏幕抖动,【纯视觉】:

@@ -624,11 +624,18 @@ export class World {
          ★★ 相位:光有周期不够 —— 玩家过线是在关卡开始后约 0.19 秒,而音乐第一拍在 0.3335 秒,
             差 0.14 秒(约 40% 拍长)就会"闪在鼓点前面"✗
             ⇒ 用 phase(第一拍绝对时间)+ 当前关卡时钟,算出"离下一拍还有多久",下一次闪正好落在拍上 ✓ */
-      if (o.loop && o.dur) {
-        this.pulsePeriod = o.dur;
-        const t = this.tick / 60;
-        const since = (((t - (o.phase ?? 0)) % o.dur) + o.dur) % o.dur;
-        this.pulseT = o.dur - since;
+      if (o.loop) {
+        if (o.dur && o.dur > 0) {
+          this.pulsePeriod = o.dur;
+          const t = this.tick / 60;
+          const since = (((t - (o.phase ?? 0)) % o.dur) + o.dur) % o.dur;
+          this.pulseT = o.dur - since;
+        } else {
+          /* ★★ 2026-09-25 用户:"pulse 改成只有三档速度和四档速度触发,不然太奇怪"
+             ⇒ 速度不在 3/4 档的段,铺面放一个 dur=0 的 loop pulse = 【停闪】✓
+             (只把 pulsePeriod 归零不够:当前这帧的 flash 余量也得清掉,否则还会闪一下 ✗) */
+          this.pulsePeriod = 0; this.pulseT = 0; this.flash = 0;
+        }
       }
     } else if (o.trigger === 'zoom') {
       /* ★ 键 371 = 缩放值(1 = 还原、<1 = 拉远)—— 样本:1=1913 … 10=0.5 30=0 85=2 371=0.725 ✓

@@ -1091,8 +1091,14 @@ test('分段 BPM:秒 → 块 按关卡【真实速度】换算(速度门改档�
   assert.ok(Math.abs(xAtTime(tEnd1 + 5, segs) - (100 + 5 * bps4)) < 1e-6, '跨过速度门后要用新速度 ✓');
 });
 
-test('分段 BPM:每段注入一个带 loop 的 pulse,x 严格递增、周期/相位照表', () => {
-  const segs = [{ from: 0, to: 400, mode: 'cube', speed: 1, difficulty: 0 }] as Segment[];
+test('pulse 只跟三/四档速度走:其余速度段注入 dur=0 的【停闪】脉冲 ✓', () => {
+  /* 四段速度 1 → 3 → 2 → 4(速度门在 x=100 / 200 / 300)✓ */
+  const segs = [
+    { from: 0, to: 100, mode: 'cube', speed: 1, difficulty: 0 },
+    { from: 100, to: 200, mode: 'cube', speed: 3, difficulty: 0 },
+    { from: 200, to: 300, mode: 'cube', speed: 2, difficulty: 0 },
+    { from: 300, to: 400, mode: 'cube', speed: 4, difficulty: 0 },
+  ] as Segment[];
   const sections = parseBpmSections({
     sections: [
       { t0: 0, t1: 30, bpm: 170, firstBeat: 0.3335 },
@@ -1104,10 +1110,30 @@ test('分段 BPM:每段注入一个带 loop 的 pulse,x 严格递增、周期/�
   assert.ok(Math.abs(sections[1].period - 60 / 85) < 1e-9);
   const objs: Obj[] = [];
   const log = injectBpmSections(objs, sections, segs, 10);
-  assert.equal(objs.length, 2, '每段一个,不多不少');
-  assert.equal(objs[0].trigger, 'pulse');
-  assert.equal(objs[0].loop, true, '必须带 loop(sim 靠它做"每拍闪一次")');
-  assert.ok(Math.abs((objs[0].dur ?? 0) - 60 / 170) < 1e-9);
-  assert.equal(objs[0].phase, 0.3335, '相位 = 该段第一拍 ✓');
-  assert.ok(log[1].x > log[0].x, 'x 必须递增,否则接力顺序会乱 ✗');
+  assert.equal(objs.length, 4, '每个速度切换点一个(连续同速不重复)');
+  assert.deepEqual(log.map((e) => e.speed), [1, 3, 2, 4]);
+  assert.deepEqual(log.map((e) => e.injected), [false, true, false, true], '只有三/四档开闪 ✓');
+  assert.equal(objs[0].dur, 0, '停闪 = dur 0');
+  assert.equal(objs[2].dur, 0, '停闪 = dur 0');
+  assert.equal(objs[0].loop, true, '停闪也要是 loop pulse,sim 靠 loop + dur=0 分辨"停" ✓');
+  assert.ok(Math.abs((objs[1].dur ?? 0) - 60 / 170) < 1e-9, '开闪段的周期照 BPM 表 ✓');
+  assert.equal(objs[1].phase, 0.3335, '相位 = 覆盖该时刻的 BPM 段第一拍 ✓');
+  assert.ok(log[1].x > log[0].x && log[2].x > log[1].x && log[3].x > log[2].x, 'x 必须递增,否则接力顺序会乱 ✗');
+  for (const e of log) assert.ok(Math.abs(xAtTime(e.t, segs) - e.x) < 1e-6, 'x/t 换算必须互逆 ✓');
+});
+
+test('pulse 停闪:带 loop 但 dur=0 ⇒ 周期归零、之后不再闪(用户口径:三/四档之外不闪)✓', () => {
+  const w = new World(solo([
+    floor60,
+    { kind: 'trigger', b: 2, r: 0, w: 1, h: 1, trigger: 'pulse', dur: 0.5, loop: true },
+    { kind: 'trigger', b: 6, r: 0, w: 1, h: 1, trigger: 'pulse', dur: 0, loop: true },
+  ]));
+  /* 跑到停闪那一个(过线之后) */
+  let guard = 0;
+  while (w.x < 7 * U && guard++ < 600) w.frame(false);
+  assert.ok(guard < 600, '人得能走到停闪点');
+  /* 停闪之后 2 秒内不许再出现新的上升沿 ✓ */
+  let after = 0, was = w.flash;
+  for (let i = 0; i < 120; i++) { w.frame(false); if (w.flash > was) after++; was = w.flash; }
+  assert.equal(after, 0, '停闪之后不该再闪,实测 ' + after);
 });
