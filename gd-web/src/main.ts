@@ -391,7 +391,7 @@ class Scene extends Phaser.Scene {
   }
 
   /** 把一个池子里的 Image 摆好;返回 false 表示这帧没画(调用方走矢量兜底) */
-  private drawArtObject(o: Obj, key: string, dx: number, dy: number, tintCol = 0xffffff, depth = 6): boolean {
+  private drawArtObject(o: Obj, key: string, dx: number, dy: number, tintCol = 0xffffff, depth = 6, spin = 0): boolean {
     const tex = this.textures.get('gd-art');
     const fr = tex && tex.has(key) ? tex.get(key) : null;
     if (!fr) return false;
@@ -405,7 +405,11 @@ class Scene extends Phaser.Scene {
        ⇒ k = 1/4(我们用的是 uhd 图集 ✓)⇒ 3 格高的门自然就是 90 单位高 ✓
        锚点:门/速度门/迷你门 = 贴图【底边贴物件底边】(否则 3 格美术会往上冒 1 格 ✓);其余居中 ✓ */
     const k = 0.25;                                   // uhd:4 px = 1 世界单位
-    const dispW = fr.width * k, dispH = fr.height * k;
+    /* ★★ 2026-09-24 用户:"锯片没有大小区别" —— 病根:显示尺寸【只按帧算】,物件自己的缩放没进去 ✗
+       现在乘一道 物件实际大小 ÷ 帧的官方大小(键 128/129 的缩放这才真的体现在画面上)✓
+       非缩放物件这个比值 ≈ 1(实测门 34×86/贴图 34×85、锯片 44×85/帧 42×82)⇒ 不会带歪别的东西 ✓ */
+    const sx = (o.w * U) / (fr.width * k), sy = (o.h * U) / (fr.height * k);
+    const dispW = fr.width * k * sx, dispH = fr.height * k * sy;
     /* ★★★ 2026-09 用户:"竖了,但整体偏高/偏低" —— 病根是我上一轮给门加的【底边对齐】✗
        硬证据(GD 自己的判定表 _pHitboxes,见 gdids.ts,单位 1 块 = 30):
          形态门 34×86 == 贴图 34×85 ✓  速度门 0 档 35×44 == 贴图 35×44 ✓
@@ -416,7 +420,7 @@ class Scene extends Phaser.Scene {
        —— 这正是"整体偏高";也解释了更早那次"速度门往下偏移两格":同一个锚点来回错 ✓ */
     const drawY = dy;                                 // 居中 ✓(isDoor 只留给注释/后续层判断用)
     img.setVisible(true).setTexture('gd-art', key).setPosition(dx, drawY).setDepth(depth);
-    img.setRotation(((o.rot ?? 0) * Math.PI) / 180);
+    img.setRotation(((o.rot ?? 0) * Math.PI) / 180 + spin);
     /* ★★★ 2026-09 用户:"速度箭头有几个箭头的方向不对,各种门贴图也是方向不对"
        —— GD 里门/箭头的朝向来自【flipX / flipY】(不是 rot ✗),我们以前没做 ⇒ 该翻的都没翻 ✓ */
     img.setFlipX(!!o.flipX);
@@ -1885,7 +1889,10 @@ class Scene extends Phaser.Scene {
              z = 前层 z − 100 + v37 ⇒ 在前层【后面 100 档】(90133–90177 行)
            ⇒ 位置相同这事本身没错,但【把两张半透明美术叠在一起】会让门明显发闷/发糊 ✗
            ⇒ 在能拿到原版门的逐帧对照之前,先只画 front 一层(回到 g102 用户没说"混"的状态 ✓) */
-        if (this.drawArtObject(o, artKey, obx + obw / 2, oBot - obh / 2, this.artTintOf(o, tint))) continue;
+        /* ★★ 2026-09-24 用户:"锯片不会旋转" —— 这条路只把物件的静态 rot 转了一次,
+           而锯片在原版是【持续自转】的 ✗ ⇒ 给锯片补上逐帧自转(方向按 flipX 反过来)✓ */
+        const artSpin = o.kind === 'saw' ? (o.flipX ? -1 : 1) * tick * 0.12 : 0;
+        if (this.drawArtObject(o, artKey, obx + obw / 2, oBot - obh / 2, this.artTintOf(o, tint), 6, artSpin)) continue;
       }
       switch (o.kind) {
         case 'platform':
