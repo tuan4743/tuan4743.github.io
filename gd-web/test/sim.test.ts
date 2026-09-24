@@ -14,6 +14,7 @@ import { dirname, join } from 'node:path';
 import { P, U, ROWS, JUMP_SPAN_BLOCKS, JUMP_AIRTIME_S, arcSpan, PAD, ORB } from '../src/sim/constants.ts';
 import { generateLevel, tightestGap, tOfX, countKinds, type Level, type Segment, type Obj } from '../src/sim/level.ts';
 import { mapRecord, encodeObjects, decodeObjects } from '../src/sim/gdids.ts';
+import { blocksPerSec, xAtTime, parseBpmSections, injectBpmSections } from '../src/sim/bpmsections.ts';
 import { World, botThink, frameOf, groundHeightOf, FLY_BAND } from '../src/sim/world.ts';
 import { recordBot, replay, fingerprint } from '../src/sim/replay.ts';
 import { decodeGmd, encodeGmdText, parseGmdText } from '../src/sim/gmd.ts';
@@ -1029,4 +1030,84 @@ test('BPM 背景闪:带 loop 的 pulse 每 dur 秒闪一次(用户口径:只放�
   let n = 0, was = w.flash;
   for (let i = 0; i < 180; i++) { w.frame(false); if (w.flash > was) n++; was = w.flash; }
   assert.ok(n >= 4 && n <= 8, '0.5 秒一拍、3 秒里应闪 5~6 次,实测 ' + n);
+});
+
+/* -------- 触发器真的生效(用户 2026-09-24:"触发器(MOVE,ZOOM,SHAKE等)现在还都没生效") -------- */
+test('触发器按【越过 x】判:挂在玩家头顶 12 格的 move 照样开火', () => {
+  /* ★ 真实铺面(fromGD ⇒ strict=true,走原版口径)。触发器在 y=12 格、玩家贴地跑 ⇒
+     以前"判定盒必须相交(含高度)"⇒ 一次都不开火 ✗(用户报的就是这个);
+     原版触发器是"玩家在 x 上越过它就发动",不看高度 ✓ */
+  const target: Obj = { kind: 'block', b: 20, r: 1, w: 1, h: 1, groups: [7] };
+  const w = new World(solo([
+    floor60,
+    target,
+    { kind: 'trigger', b: 8, r: 12, w: 1, h: 1, trigger: 'move', groups: [7], dy: 2, dur: 0.5, ease: 'linear' },
+  ], { fromGD: true }));
+  for (let i = 0; i < 120; i++) w.frame(false);        // 跑过触发器,并让 0.5 秒的位移走完
+  const off = w.offsetOf(target);
+  assert.ok(Math.abs(off.dy - 2) < 1e-6, '头顶 12 格的 move 要把目标组推满 2 格,实测 dy=' + off.dy);
+  assert.ok(!w.dead, '不该死');
+});
+
+test('zoom 触发器:按键 371 的值缓动到目标(用户:"ZOOM 没生效")', () => {
+  const w = new World(solo([
+    floor60,
+    { kind: 'trigger', b: 4, r: 12, w: 1, h: 1, trigger: 'zoom', zoom: 0.725, dur: 0.5 },
+  ]));
+  assert.equal(w.zoom, 1, '没触发前是 1(还原)✓');
+  let started = false;
+  for (let i = 0; i < 120 && !started; i++) { w.frame(false); if (w.zoom !== 1) started = true; }
+  assert.ok(started, '越过它的 x 就要开始缩放');
+  for (let i = 0; i < 60; i++) w.frame(false);
+  assert.ok(Math.abs(w.zoom - 0.725) < 1e-9, '缓动结束要精确落在 0.725,实测 ' + w.zoom);
+});
+
+test('shake 触发器:记下强度(键 75)与时长(键 10),判定不受影响', () => {
+  const w = new World(solo([
+    floor60,
+    { kind: 'trigger', b: 4, r: 12, w: 1, h: 1, trigger: 'shake', str: 5, dur: 1 },
+  ]));
+  let on = false;
+  for (let i = 0; i < 90 && !on; i++) { w.frame(false); if (w.shakeT > 0) on = true; }
+  assert.ok(on, '越过它的 x 要开始抖');
+  assert.equal(w.shakeStr, 5, '强度要按键 75 记下来(渲染侧用它算幅度)');
+  for (let i = 0; i < 70; i++) w.frame(false);
+  assert.equal(w.shakeT, 0, '1 秒(60 帧)之后要停');
+  assert.ok(!w.dead, '抖动是纯视觉,不许影响判定');
+});
+
+/* ---------------- 分段 BPM(用户:"闪烁也做成分段的") ---------------- */
+test('分段 BPM:秒 → 块 按关卡【真实速度】换算(速度门改档后速度不同)', () => {
+  const segs = [
+    { from: 0, to: 100, mode: 'cube', speed: 1, difficulty: 0 },
+    { from: 100, to: 200, mode: 'cube', speed: 4, difficulty: 0 },
+  ] as Segment[];
+  const bps1 = blocksPerSec(1), bps4 = blocksPerSec(4);
+  assert.ok(bps4 > bps1 * 1.5, '四档要比一档快得多:' + bps1.toFixed(2) + ' vs ' + bps4.toFixed(2));
+  assert.equal(xAtTime(0, segs), 0);
+  assert.ok(Math.abs(xAtTime(5, segs) - 5 * bps1) < 1e-9, '第一段内线性 ✓');
+  const tEnd1 = 100 / bps1;
+  assert.ok(Math.abs(xAtTime(tEnd1, segs) - 100) < 1e-6, '第一段末尾正好 100 块 ✓');
+  assert.ok(Math.abs(xAtTime(tEnd1 + 5, segs) - (100 + 5 * bps4)) < 1e-6, '跨过速度门后要用新速度 ✓');
+});
+
+test('分段 BPM:每段注入一个带 loop 的 pulse,x 严格递增、周期/相位照表', () => {
+  const segs = [{ from: 0, to: 400, mode: 'cube', speed: 1, difficulty: 0 }] as Segment[];
+  const sections = parseBpmSections({
+    sections: [
+      { t0: 0, t1: 30, bpm: 170, firstBeat: 0.3335 },
+      { t0: 30, t1: 60, bpm: 85 },                     // 没给 period ⇒ 由 bpm 算出来 ✓
+    ],
+  });
+  assert.equal(sections.length, 2);
+  assert.ok(Math.abs(sections[0].period - 60 / 170) < 1e-9);
+  assert.ok(Math.abs(sections[1].period - 60 / 85) < 1e-9);
+  const objs: Obj[] = [];
+  const log = injectBpmSections(objs, sections, segs, 10);
+  assert.equal(objs.length, 2, '每段一个,不多不少');
+  assert.equal(objs[0].trigger, 'pulse');
+  assert.equal(objs[0].loop, true, '必须带 loop(sim 靠它做"每拍闪一次")');
+  assert.ok(Math.abs((objs[0].dur ?? 0) - 60 / 170) < 1e-9);
+  assert.equal(objs[0].phase, 0.3335, '相位 = 该段第一拍 ✓');
+  assert.ok(log[1].x > log[0].x, 'x 必须递增,否则接力顺序会乱 ✗');
 });

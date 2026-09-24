@@ -312,6 +312,8 @@ class Scene extends Phaser.Scene {
    *  ★ 本关 chart 里还没有通道数据(只硬编了玩家色 1005/1006)⇒ 先用【页面地面线已经在用的那个色】,
    *    拿到关卡的 kS38 就换成 1001 的真值 ✓ */
   bandTint = 0xffffff;
+  /* ★★ 闪烁(用户:"闪烁太离谱了,改成上下两边的渐变…颜色跟当前环境色相同"):见 ensureFlashImg */
+  private flashImg?: Phaser.GameObjects.Image;
   private iconLayers: Array<{
     mode: Mode;
     body: Phaser.GameObjects.Image;
@@ -921,7 +923,35 @@ class Scene extends Phaser.Scene {
 
   /** 可见宽度 = 由 VIEW_H_BLOCKS 与画幅比例决定;取景框只覆盖"露出来的那一条" */
   zoomOf() {
-    return this.viewH / (VIEW_H_BLOCKS * U);
+    /* ★★ zoom 触发器(用户:"触发器(MOVE,ZOOM,SHAKE等)现在还都没生效"):
+       基准缩放 × 世界里的当前缩放倍率(键 371,sim 负责按 10=时长 缓动)✓
+       ★ 口径:限高框 / 上下两条带 / 视口高 vh 全都是按 cam.zoom 现算的 ⇒ 缩放时它们【一起跟着缩】✓
+         框本身是【世界空间】里的那 300 单位高,缩远时它在屏幕上占的比例自然变小 —— 不是框被压扁 ✓ */
+    return (this.viewH / (VIEW_H_BLOCKS * U)) * (this.world?.zoom ?? 1);
+  }
+
+  /** 闪烁用的垂直渐变贴图(上下不透明 → 中间透明):懒生成一次,之后靠 tint + alpha 复用 ✓
+   *  为什么用贴图:Graphics 没有渐变填充,拿几十条 fillRect 硬凑每帧都要铺满视口 ⇒ 白烧性能 ✗ */
+  private ensureFlashImg(): Phaser.GameObjects.Image | null {
+    if (!this.flashImg) {
+      const key = 'gd-flash-grad';
+      if (!this.textures.exists(key)) {
+        const cv = document.createElement('canvas');
+        cv.width = 4; cv.height = 256;
+        const cx = cv.getContext('2d');
+        if (!cx) return null;
+        const gr = cx.createLinearGradient(0, 0, 0, 256);
+        /* ★ 用户口径:"透明度从两边到中间为 0->1->0" —— 上下边缘 1、正中间 0 ✓ */
+        gr.addColorStop(0, 'rgba(255,255,255,1)');
+        gr.addColorStop(0.5, 'rgba(255,255,255,0)');
+        gr.addColorStop(1, 'rgba(255,255,255,1)');
+        cx.fillStyle = gr; cx.fillRect(0, 0, 4, 256);
+        this.textures.addCanvas(key, cv);
+      }
+      /* 深度 5.5:压在矢量层之上、物件贴图(depth 6)之下 —— 和原来那条全屏 fillRect 的层叠关系一致 ✓ */
+      this.flashImg = this.add.image(0, 0, key).setDepth(5.5).setVisible(false);
+    }
+    return this.flashImg;
   }
 
   /** 图集加载完:每个形态挑出【第 1 组主图 + 同组发光层】,把 plist 里"躺着的"帧转正后
@@ -1730,8 +1760,24 @@ class Scene extends Phaser.Scene {
         }
       }
     }
+    /* ★★ shake 触发器(用户:MOVE/ZOOM/SHAKE 都要生效)—— 屏幕抖动,【纯视觉】:
+       偏移只加在相机上 ⇒ 判定盒 / 限高框 / 过线判据全都不受影响 ✓
+       强度 = 键 75(原版滑杆 1~5,可手输到 100);时长 = 键 10(sim 里倒数 ✓);
+       ★ 间隔键我【没有样本】(本关 7 个 shake 只有 10 和 75)⇒ 按原版默认 0.05 秒 = 3 帧抖一次,
+         标注【待校准】:等有真实样本再照抄 ✓
+       幅度 12 单位(强度 5 时,≈0.4 格)是看的、不是源码常数;
+       用取模伪随机而不是 Math.random ⇒ 同一帧号给同一个偏移,录屏/回放不会乱闪 ✓ */
+    let shx = 0, shy = 0;
+    if (this.world.shakeT > 0 && this.world.shakeStr > 0) {
+      const ivF = 3;                                        // 0.05 秒 @60fps
+      if (this.world.shakeT % ivF === 0) {
+        const amp = (Math.min(this.world.shakeStr, 100) / 5) * 12;
+        shx = (((this.updates * 7919) % 200) / 100 - 1) * amp;
+        shy = (((this.updates * 104729) % 200) / 100 - 1) * amp;
+      }
+    }
     this.camWorldY = rowsU - this.camCenter;             // 换算成 Phaser 相机的绘图空间 y
-    cam.centerOn(this.camX, this.camWorldY);
+    cam.centerOn(this.camX + shx, this.camWorldY + shy);
   }
 
   /** 三个界面(开场 / 死亡 / 通关)+ 终末之诗 + 彩蛋窗口:位置跟着相机取景走 */
@@ -2498,8 +2544,22 @@ class Scene extends Phaser.Scene {
     }
     // 死了就压一层暗红
     if (w.dead) g.fillStyle(0xff6b5a, 0.10).fillRect(x0, dy0, vw, dy1 - dy0);
-    /* pulse 触发器:全屏闪一下 */
-    if (w.flash > 0) g.fillStyle(w.tint ?? 0xffffff, 0.34 * w.flash).fillRect(x0, dy0, vw, dy1 - dy0);
+    /* ★★ 闪烁(用户 2026-09-24:"闪烁太离谱了,改成上下两边的渐变,意思就是闪烁的透明度从两边到中间
+       为 0->1->0;闪烁也做成跟当前环境颜色相同的"):
+       原来是【整屏一片白 × 0.34】✗ ⇒ 现在:垂直渐变(上下边缘不透明、正中间透明)
+       + 颜色取【当前环境色】bandTint(它每帧按当前段落配色 / color 触发器色更新 ✓)
+       + 强度压低。下面这个 0.5 是【看的、不是源码常数】—— 嫌亮嫌暗改这一个数 ✓ */
+    if (w.flash > 0) {
+      const fim = this.ensureFlashImg();
+      if (fim) {
+        const fh = dy1 - dy0;
+        fim.setVisible(true)
+          .setPosition(x0 + vw / 2, dy0 + fh / 2)
+          .setDisplaySize(vw, fh)
+          .setTint(this.bandTint)
+          .setAlpha(0.5 * w.flash);
+      }
+    } else if (this.flashImg && this.flashImg.visible) this.flashImg.setVisible(false);
     /* ★★ touch 光圈(用户口径:48 个标记统一一个特效 —— 在标记位置炸开、半径扩散到【2 格】然后消失)✓
        位置和年龄都来自 sim(w.rings,单位制)⇒ 回放/倍速下不会和玩家错位 ✓
        ★ 2026-09-24 按用户反馈改过一轮:"圈太细了、速度太快了" ⇒ 线宽 3.5/1.2 → 11/5,

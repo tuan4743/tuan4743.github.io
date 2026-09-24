@@ -18,6 +18,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadSave, fieldsOf } from './lib/dat.ts';
 import { mapRecord, START_ID } from '../src/sim/gdids.ts';
+import { injectBpmSections, parseBpmSections, type BpmSection } from '../src/sim/bpmsections.ts';
 import type { Obj, Segment, Mode } from '../src/sim/level.ts';
 import { U } from '../src/sim/constants.ts';
 
@@ -38,6 +39,14 @@ const BPM = Number(arg('bpm', '0')) || 0;
 /* ★ 第一拍的绝对时间(秒),由 BPM 分析给出(见 .tmp/bpm.json)—— 光有周期不够:
    玩家过线在开局约 0.19 秒处,音乐第一拍在 0.3335 秒 ⇒ 不补这个相位,闪光会整体早 0.14 秒 ✗ */
 const PHASE = Number(arg('phase', '0')) || 0;
+/* ★★ 分段 BPM 表(用户:"闪烁也做成分段的,因为歌曲每段 BPM 的差别挺大的")——
+   由 BPM 分析产出(.tmp/bpm-sections.json):每段 { t0, t1, bpm, period, firstBeat }
+   ⇒ 每段注入一个带 loop 的 pulse,段与段靠过线接力(新 pulse 覆盖周期 + 重算相位)✓ */
+const SECTIONS_FILE = arg('bpmsections', '');
+const SECTIONS: BpmSection[] = SECTIONS_FILE
+  ? parseBpmSections(JSON.parse(fs.readFileSync(SECTIONS_FILE, 'utf8')))
+  : [];
+if (SECTIONS_FILE) console.log('分段 BPM 表 ' + SECTIONS_FILE + ' ⇒ ' + SECTIONS.length + ' 段 ✓');
 
 const levels = loadSave(FILE);
 console.log('存档 ' + FILE);
@@ -121,10 +130,8 @@ const ROWS = Math.ceil(maxY + 4);
 /* 地面:原版的地面是隐含的(不占物件),我们得自己补一条 —— 顺便往外各铺 16 块 */
 objs.push({ kind: 'platform', b: -16, r: -1, w: LENGTH + 32, h: 1 });
 
-/* ★ 按 BPM 注入唯一那个 pulse(见文件头 --bpm 说明)——
-   放在出生点往右 2 格、和出生点同一行:触发器是【外框相交】判过线的,
-   放到别的高度(比如 r=1)玩家一辈子碰不到 ⇒ 一次都不闪 ✗(别照抄编辑器里"随手放开头"的位置) */
-if (BPM > 0) {
+/* ★ pulse 的注入移到【切段之后】—— 秒 → 块 要用关卡真实速度分段换算,不能用固定常数硬套 ✓ */
+if (BPM > 0 && !SECTIONS.length) {
   const beat = 60 / BPM;
   const sb = start ? start.b : 0.5, sr = start ? Math.floor(start.r) : 10;
   objs.push({
@@ -133,7 +140,6 @@ if (BPM > 0) {
   });
   console.log('\n★ 注入 1 个 pulse 触发器(BPM=' + BPM + ' ⇒ 每拍 ' + beat.toFixed(4) + ' 秒,loop=背景跟 BPM 闪)');
   console.log('   相位=' + PHASE + ' 秒(第一拍)⇒ 闪光落在拍点上,不是"过线就闪"✓');
-  console.log('   位置 x=' + (sb + 2).toFixed(2) + ' 格(出生点右边 2 格)、y=' + sr + ' 格 —— 和出生点同一行才碰得到 ✓');
 }
 
 /* ---------- 切段:形态门 / 速度门 ---------- */
@@ -153,6 +159,28 @@ for (const e of events) {
   cur = { from: e.b, mode: e.kind === 'portal' ? (e.to ?? cur.mode) : cur.mode, speed: e.kind === 'speed' ? (e.speed ?? cur.speed) : cur.speed };
 }
 segments.push({ from: cur.from, to: LENGTH, mode: cur.mode, speed: cur.speed, difficulty: 0, label: cur.mode });
+
+/* ---------- BPM 背景闪:注入 pulse(每段一个,段间靠过线接力)----------
+   ★ 用户口径:"闪烁也做成分段的,因为歌曲每段 BPM 的差别挺大的" +
+     "pulse 不一个个放 ⇒ 背景跟 BPM 闪,只放一个在开头" ⇒ 合成一条:每段一个带 loop 的 pulse ✓
+   ★ 秒 → 块 用【关卡真实速度】:本关有速度门、各段速度不同 ⇒ 拿刚切好的 segments 逐段累加时间反查 x ✓
+     误差来源(如实写在 sim/bpmsections.ts 文件头):出生点在 start.b(≈0.5 格)不是 0、
+     速度门自身宽度、段首速度取"第一个速度门的档"(dat-to-chart 既有口径)✓
+   ★ 触发器的 y 现在无所谓了 —— 触发器按"越过 x"判(user 报"触发器都没生效"的 bug 已修),
+     但仍旧放在出生行上,和编辑器里的观感一致 ✓ */
+if (SECTIONS.length) {
+  const sr = start ? Math.floor(start.r) : 10;
+  const injected = injectBpmSections(objs, SECTIONS, segments, sr);
+  console.log('\n★ 按分段 BPM 注入 ' + injected.length + ' 个 pulse(每段一个,带 loop=背景跟 BPM 闪):');
+  for (const e of injected) {
+    console.log('   t=' + e.t0.toFixed(2) + 's  BPM=' + (Math.round(e.bpm * 100) / 100) +
+      '  每拍 ' + e.period.toFixed(4) + 's  相位=' + e.firstBeat.toFixed(3) + 's  ⇒ x=' + e.x.toFixed(2) + ' 格');
+  }
+  const notInc = injected.filter((e, i) => i > 0 && e.x <= injected[i - 1].x);
+  console.log(notInc.length
+    ? '   ⚠ 有 ' + notInc.length + ' 段的 x 没有递增(段太短 / 速度换算有误差)⇒ 接力顺序会乱,先查分段表 ✗'
+    : '   x 严格递增 ⇒ 段与段会按顺序依次接力 ✓');
+}
 
 /* ---------- 统计 ---------- */
 const kinds = new Map<string, number>();

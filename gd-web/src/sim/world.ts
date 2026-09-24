@@ -301,6 +301,17 @@ export class World {
      那个 pulse 触发器带 loop ⇒ 这里记住周期,每 dur 秒把 flash 拉满一次 ⇒ 走现成的整屏闪光渲染 ✓ */
   private pulsePeriod = 0;
   private pulseT = 0;
+  /* ★ zoom 触发器(键 371 = 缩放值、10 = 时长):相机缩放【缓动】到目标值 —— 渲染侧 zoomOf() 乘它 ✓
+     口径:限高框是【世界空间】里的那 300 单位 ⇒ 缩小时它在屏幕上占的比例跟着变小(不是框本身变形)✓ */
+  zoom = 1;                 // 当前缩放倍率(渲染侧读)
+  private zoomFrom = 1;
+  private zoomTo = 1;
+  private zoomT = 0;
+  private zoomDurF = 0;
+  /* ★ shake 触发器(键 75 = 强度、10 = 时长):纯视觉的相机抖动 —— sim 只掌管时长/强度,抖动在渲染侧做 ✓
+     ★ 间隔键我没有样本(本关 7 个 shake 只有 10 和 75)⇒ 渲染侧按原版默认 0.05 秒,标注【待校准】✗→✓ */
+  shakeT = 0;               // 还剩几帧
+  shakeStr = 0;             // 强度(原版滑杆 1~5,可手输到 100)
   private armedTriggers = new Set<Box>();
   constructor(level: Level, startX?: number, startY?: number, opts?: { sawUnscaled?: boolean; hazOuter?: boolean; flySolid?: boolean }) {
     this.level = level;
@@ -619,6 +630,18 @@ export class World {
         const since = (((t - (o.phase ?? 0)) % o.dur) + o.dur) % o.dur;
         this.pulseT = o.dur - since;
       }
+    } else if (o.trigger === 'zoom') {
+      /* ★ 键 371 = 缩放值(1 = 还原、<1 = 拉远)—— 样本:1=1913 … 10=0.5 30=0 85=2 371=0.725 ✓
+         缓动到目标值(时长 = 键 10)⇒ 渲染侧 zoomOf() 每帧读 this.zoom ✓ */
+      this.zoomFrom = this.zoom;
+      this.zoomTo = o.zoom ?? 1;
+      this.zoomT = 0;
+      this.zoomDurF = Math.max(1, Math.round((o.dur ?? 0) * 60));
+    } else if (o.trigger === 'shake') {
+      /* ★ 键 75 = 强度、10 = 时长(秒)—— 样本:1=1520 … 10=0.996296 75=5 ✓
+         纯视觉:sim 只记"还剩几帧 + 多大强度",抖动偏移由渲染侧算 ⇒ 【不会影响判定】✓ */
+      this.shakeStr = o.str ?? 1;
+      this.shakeT = Math.max(1, Math.round((o.dur ?? 0.5) * 60));
     }
     /* rotate 只影响画法(判定是轴对齐盒),这里不做几何;颜色/闪烁见上 */
   }
@@ -634,6 +657,14 @@ export class World {
     /* ★ 光圈:活够 34 帧(0.57 秒)就删掉 —— 用户口径:"速度太快了" ⇒ 0.35 → 0.57 秒 ✓
        由 sim 推进 ⇒ 回放一致 ✓ */
     for (let i = this.rings.length - 1; i >= 0; i--) if (++this.rings[i].t > 34) this.rings.splice(i, 1);
+    /* ★ zoom 缓动:走完 zoomDurF 帧(用正弦缓动,和 move 一致;原版的 30/85 缓动键以后照样本细化)✓ */
+    if (this.zoomT < this.zoomDurF) {
+      this.zoomT++;
+      const zp = Math.min(1, this.zoomT / this.zoomDurF);
+      this.zoom = zp >= 1 ? this.zoomTo : this.zoomFrom + (this.zoomTo - this.zoomFrom) * (1 - Math.cos(Math.PI * zp)) / 2;
+    }
+    /* ★ shake 倒计时(抖动偏移在渲染侧算 ⇒ 这里只是"还剩多久")✓ */
+    if (this.shakeT > 0) this.shakeT--;
     if (!this.anims.length) return;
     const keep: Anim[] = [];
     let moved = false;
@@ -722,6 +753,8 @@ export class World {
     this.anims = [];
     this.flash = 0;
     this.pulsePeriod = 0; this.pulseT = 0; this.rings.length = 0;
+    this.zoom = 1; this.zoomFrom = 1; this.zoomTo = 1; this.zoomT = 0; this.zoomDurF = 0;
+    this.shakeT = 0; this.shakeStr = 0;
     this.armedMarkers.clear();
     this.tint = null;
     this.tintGround = false;
@@ -1776,6 +1809,12 @@ export class World {
        其它事件物件(存档点/传送门/触发器)保持"必须碰到" —— 用户没提,而且它们本来就带位置语义。
        `doorByX` 是开关(构造函数 opts 可关,留着做 A/B)。 */
     if (this.doorByX && DOOR_KINDS.has(b.o.kind)) return !(prevX + this.box <= b.x0 || this.x >= b.x1);
+    /* ★★ 2026-09-24 用户:"触发器(MOVE,ZOOM,SHAKE等)现在还都没生效" —— 根本原因就在这里:
+       触发器一直被当成"必须盒子相交"(含高度 ✗),而原版触发器是【玩家在 x 上越过它就发动】,不看高度。
+       本关 39 个 move 触发器很多挂在玩家头顶几格(y 比玩家高 5~20 格)⇒ 一次都不开火 ✗
+       touch 标记例外:它是"玩家碰到才炸光圈",保持相交语义 ✓(用户口径就是"在 touch 那个位置产生")
+       —— 这条只影响真实铺面(strict=true);自铺面那套本来就按跨 x 判 ✓ */
+    if (b.o.kind === 'trigger' && b.o.trigger !== 'touch') return !(prevX + this.box <= b.x0 || this.x >= b.x1);
     if (!this.strict) return !(prevX + this.box <= b.x0 || this.x >= b.x1);
     const u = this.outer();
     return u.x1 > b.x0 && u.x0 < b.x1 && u.y1 > b.y0 && u.y0 < b.y1;
