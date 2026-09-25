@@ -1282,3 +1282,29 @@ test('克隆门的判定盒 = 官方门洞 34×86(以前是 1×1 格 ⇒ 触发�
   assert.ok(Math.abs(bx.x0 - (8.5 * U - 17)) < 0.01 && Math.abs(bx.y0 - (0.5 * U - 43)) < 0.01,
     '锚点应为物件中心,实测 x0=' + bx.x0 + ' y0=' + bx.y0);
 });
+
+/* ---------------- 两个恶性 bug 的回归防线(2026-09-25) ---------------- */
+test('存档点:复活后不许往前漂移(用户:"存档点出现每次复活往前偏移")', () => {
+  const w = new World(solo([floor60, { kind: 'check', b: 10, r: 0, w: 1, h: 1 }]));
+  let touched = false;
+  for (let i = 0; i < 600 && !touched; i++) { w.frame(false); if (w.checkX > 1) touched = true; }
+  assert.ok(touched, '要能碰到存档点');
+  const first = w.checkX;
+  assert.ok(first > 9 * U && first < 12 * U, '存档位置该落在存档点那格附近,实测 ' + (first / U).toFixed(2) + ' 格');
+  /* ★ 连死三次:复活点本身落在存档点里 ⇒ 以前复位清空 armed 后出来第一个子步又重叠,
+     把"已经往前走 ε"的位置再存一遍,越死越靠前 ✗ */
+  for (let k = 0; k < 3; k++) { w.respawn(); for (let i = 0; i < 12; i++) w.frame(false); }
+  assert.equal(w.checkX, first, '复活三次后存档位置不许挪动(实测漂到 ' + (w.checkX / U).toFixed(2) + ' 格)');
+});
+
+test('瞬移箭头:重试锁定期间不许把这次按键喂给别的箭头(用户:"空格多次判定生效")', () => {
+  const w = new World(solo([floor60, { kind: 'arrow', arrow: 'purple', tp: true, b: 2, r: 0, w: 1, h: 1 }]));
+  w.mode = 'spider';
+  for (let i = 0; i < 60; i++) w.frame(false);
+  /* 假装"上一次按键正在重试【另一个】箭头":这一次按下就不该去喂这一支 ✓
+     (没有 tpRetry 守卫时它会被喂到 ⇒ armedArrows 变大 ✗) */
+  w.tpRetry = { o: {}, x0: 0, x1: 0, y0: 0, y1: 0 } as never;
+  const before = w.armedArrows.size;
+  for (let i = 0; i < 5; i++) w.frame(true);
+  assert.equal(w.armedArrows.size, before, '重试锁定期间不许触发别的箭头');
+});

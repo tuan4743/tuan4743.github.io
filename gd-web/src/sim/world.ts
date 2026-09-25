@@ -272,6 +272,11 @@ export class World {
   /** ★ 跳环要"一次新的按键"才生效(原作口径:按一下消耗一次,按住不放串不起环)。
    *  按下的那一瞬间 pressFresh 置位,被一次起跳或一个环用掉;松手再按才会有新的一次。 */
   pressFresh = false;
+  /* ★★★ 2026-09-25 修用户报的恶性 bug「瞬移蜘蛛:空格多次判定生效」:
+     紫色瞬移箭头(3004)够不到面时以前会把这次按键【原样还回去】(pressFresh = true + break),
+     于是同一次按下会继续去喂【后面别的】紫箭头/环 ⇒ 一次空格连着瞬移好几次 ✗
+     ⇒ 记住"正在重试的那个箭头",这次按键只认它一个;换目标就是新的一次按键 ✓ */
+  tpRetry: Box | null = null;
   /** ★★ 同一次按键还要留给跳环/冲刺箭头用(2026-09 修)。
    *  原作里"按下"会同时喂给两条路:形态自己的动作(飞机/UFO 的扇一下、蜘蛛的瞬移、地面起跳)
    *  和 `ringJump` 里的 `hasQueuedHold`(环/箭头)。我们以前只用一个 pressFresh,
@@ -774,7 +779,7 @@ export class World {
        现在跟形态/体积一样,从存档点恢复 ✓(出生点的存档值就是这一关的初始档 ✓)。 */
     this.sizeMul = this.checkSize;      // 复活要恢复存档点时的体积(迷你/普通)
     this.dead = false; this.done = false; this.deadT = 0;
-    this.pressFresh = false; this.prevHold = false; this.pressAux = false; this.tpFailed = false;
+    this.pressFresh = false; this.prevHold = false; this.pressAux = false; this.tpFailed = false; this.tpRetry = null;
     this.boostDir = 0;
     this.armedChecks.clear(); this.armedPortals.clear(); this.armedSpeeds.clear(); this.armedGravs.clear();
     this.armedOrbs.clear(); this.armedPads.clear();
@@ -796,6 +801,16 @@ export class World {
     this.tintGround = false;
     for (const m of this.movables) { m.dx = 0; m.dy = 0; }
     this.syncBoxes();
+    /* ★★★ 2026-09-25 修用户报的恶性 bug「存档点每次复活都往前偏移」:
+       复位时上面把 armedChecks 全清了,而【复活点就落在刚碰过的那个存档点里】⇒ 出来的第一个子步
+       又重叠一次,这时候人已经往前走了 ε(档位越高 ε 越大)⇒ 把它当成新的存档位置再存一遍,
+       连死几次就越漂越前 ✗✗
+       ⇒ 复位时把【复活点已经重叠着的】存档点直接标成已触发:这一次它不该再记 ✓
+          (前面的存档点不受影响 —— 它们不和人重叠,照常能触发 ✓) */
+    for (const b of this.checks) {
+      const inn = this.outer();
+      if (inn.x1 > b.x0 && inn.x0 < b.x1 && inn.y1 > b.y0 && inn.y0 < b.y1) this.armedChecks.add(b);
+    }
   }
 
   /** 死后重来:回到最近跨过的存档点(没有就用关卡起点)。
@@ -867,7 +882,7 @@ export class World {
 
   frame(hold: boolean) {
     /* 按键的"上升沿":原作 pushButton 就是在这个时刻清掉环的可用标记 */
-    if (hold && !this.prevHold) { this.pressFresh = true; this.pressAux = false; }
+    if (hold && !this.prevHold) { this.pressFresh = true; this.pressAux = false; this.tpRetry = null; }
     this.prevHold = hold;
     this.tpFailed = false;
     if (this.dead || this.done) { this.deadT += FRAME; return; }
@@ -1591,12 +1606,15 @@ export class World {
         if (this.armedArrows.has(b)) continue;
         if (inn.x1 <= b.x0 || inn.x0 >= b.x1 || inn.y1 <= b.y0 || inn.y0 >= b.y1) continue;
         this.pressFresh = false; this.pressAux = false;
+        /* ★ 重试只认那一个箭头(见 tpRetry 的说明):别的箭头这时候不该被这次按键喂到 ✓ */
+        if (this.tpRetry && b !== this.tpRetry) continue;
         if (b.o.tp) {
           /* 紫色(3004):瞬移到头顶那个方块 + 翻重力。★ 用 tpReach 而不是蜘蛛那套速度表 ——
              见 constants.ts 里 tpReach 的说明(用户实测"按了没反应"就是被那张表卡住的)。
              ★ 够不到面时【不消耗】这个箭头:这一次按键留在身上,人再飘几帧还会再试。 */
           this.spiderJump(P.tpReach, true);
-          if (this.tpFailed) { this.pressFresh = true; this.pressAux = false; break; }
+          if (this.tpFailed) { this.pressFresh = true; this.pressAux = false; this.tpRetry = b; break; }
+          this.tpRetry = null;
           /* ★★ 2026-09 用户:"紫冲刺环不会反转重力" —— 3004 的语义是【瞬移到头顶 + 翻重力】,
              我们以前只做了瞬移 ✗。这里补上翻重力,并把纵向速度清零(避免翻完立刻往回飞)。 */
           this.gdir = this.gdir === 1 ? -1 : 1;
