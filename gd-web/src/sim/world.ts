@@ -2024,10 +2024,12 @@ export class World {
       case 'green':
         return J * (this.mode === 'ship' ? 0.7 : 1.0) * bs;
       case 'blue':
-        /* ★★★ 2026-09-25 按反编译改成【纯翻重力】:ringJump 的 type-38(蓝环)分支只 flipGravity,
-           不 setYVelocity ⇒ 这里永远返回 0(applyTrigger 的 'pure' 分支也不会去用它)✓
-           (旧值 J*0.8 = 8.9442 是照 gdp 复刻写的,已经把该段路线改坏 —— 用户报"能过的过不去") */
-        return 0;
+        /* ★★★ 2026-09-25 紧急回归回退:cd52e6f 把蓝环改成了"纯翻重力不给速度"('pure'),
+           依据是反编译里 type-38 那条分支 —— 但那一轮自己就标了"类型号与 GameEvent 枚举不一致,没有硬认"✗
+           结果用户报「蓝环跟错了」+「第一个球门前面的几个蓝跳点直接撞死」⇒ 先退回改动前的行为,
+           让关卡能玩;要不要再改,等 GameEvent 的【数值表】钉死之后再说(见提交信息)。
+           旧口径:v = 8.9442 = 一档初速 11.1800318 × 0.8,先按旧重力方向给速度、再翻重力并减半 ✓ */
+        return 8.9442;
       case 'black':                                       // 冲刺(黑)环:按形态给绝对值,不吃那 7 折
         return this.mode === 'ufo' ? 11.2
           : (this.mode === 'ship' || this.mode === 'wave') ? 14
