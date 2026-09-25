@@ -410,7 +410,9 @@ test('蜘蛛:点一下传到对面(够得着的天花板),并翻重力;够不到
   const g0 = far.gdir;
   far.frame(true);
   assert.equal(far.gdir, g0, '天花板够不到时不该翻重力(原版就是"没得贴就继续掉")');
-  w.frame(false);
+  /* ★ 2026-09-27 松开要留够间隔:真人两次按键之间至少几帧,而"同一按键边沿在 2 帧内造成第二次瞬移"
+     正是用户报的"空格多次判定生效" ⇒ world 里加了同类保护(见蜘蛛分支),测试也必须按真人节奏点 ✓ */
+  for (let i = 0; i < 6; i++) w.frame(false);
   w.frame(true);
   assert.equal(w.gdir, 1, '再点一下应该翻回来');
   assert.ok(w.y / U < 1, '应该回到地面上(y=' + (w.y / U).toFixed(2) + ' 块)');
@@ -1069,6 +1071,52 @@ test('touch 触发器:只当标记,不生效(不进开火循环、不挡人、�
   assert.equal(w.markers.length, 1);
   assert.ok(w.x > x0, '人要照样往前走(标记不挡路)');
   assert.ok(!w.dead, '标记不该致死');
+});
+
+/* ---------------- 蜘蛛:一次按键只能瞬移一次(用户报「空格多次判定生效」的回归防线) ----------------
+ * 用户两次报这个 bug,但取证量下来:Node 合成场景(纯上跳 / 叠紫箭头 / 叠绿环 / 叠紫跳点 /
+ * 低帧率一批 4 步)与浏览器真键(逐次点击 / 长按 300ms 触发系统自动重复 / 限速 ×6)都是
+ * 【一次按键 = 一次瞬移】,查不到复现路径 ⇒ 先把这条不变量用测试锁住,
+ * 再把每次瞬移的【来源 + 本帧有没有新按下】打进控制台,用用户自己的日志定位 ✗→✓ */
+test('蜘蛛:一次按键(含长按)只瞬移一次,两次按键两次', () => {
+  const mkSpider = () => {
+    const w = new World(solo([
+      { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },        // 地板
+      { kind: 'block', b: 8, r: 4, w: 6, h: 1 },             // 头顶 3 格:可达面(一档 reach = 90 单位)
+    ]));
+    w.mode = 'spider';
+    return w;
+  };
+  const walkUnder = (w: World) => {                          // 走到那块砖下面(期间不按)
+    for (let i = 0; i < 600; i++) {
+      if (w.x / U >= 9 && w.x / U <= 12) return true;
+      if (w.dead) return false;
+      w.frame(false);
+    }
+    return false;
+  };
+
+  const w1 = mkSpider();
+  assert.ok(walkUnder(w1), '要先走到可瞬移的位置');
+  const b1 = w1.spiderJumps;
+  w1.frame(true); w1.frame(false);
+  assert.equal(w1.spiderJumps - b1, 1, '按一下就松开 = 1 次瞬移');
+
+  const w2 = mkSpider();
+  assert.ok(walkUnder(w2), '要先走到可瞬移的位置');
+  const b2 = w2.spiderJumps;
+  for (let i = 0; i < 10; i++) w2.frame(true);                // 长按 10 步 ≈ 166ms(系统还会自动重复 keydown)
+  for (let i = 0; i < 6; i++) w2.frame(false);
+  assert.equal(w2.spiderJumps - b2, 1, '长按不许连跳(原版蜘蛛要重新按一次)');
+
+  const w3 = mkSpider();
+  assert.ok(walkUnder(w3), '要先走到可瞬移的位置');
+  const b3 = w3.spiderJumps;
+  w3.frame(true); w3.frame(false);
+  for (let i = 0; i < 4; i++) w3.frame(false);
+  w3.frame(true); w3.frame(false);
+  for (let i = 0; i < 4; i++) w3.frame(false);
+  assert.ok(w3.spiderJumps - b3 >= 2, '按两次至少要瞬移两次(别修成"按了没用"),实测 ' + (w3.spiderJumps - b3));
 });
 
 test('touch 过线:发一个光圈事件(位置 = 标记中心,单位制;21 帧后自己消失)', () => {

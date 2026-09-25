@@ -277,6 +277,12 @@ export class World {
      于是同一次按下会继续去喂【后面别的】紫箭头/环 ⇒ 一次空格连着瞬移好几次 ✗
      ⇒ 记住"正在重试的那个箭头",这次按键只认它一个;换目标就是新的一次按键 ✓ */
   tpRetry: Box | null = null;
+  /** ★ 取证:成功瞬移(蜘蛛上跳/紫箭头/紫跳点)的累计次数。只数不做逻辑 ✓ 见 spiderJump() */
+  spiderJumps = 0;
+  /** ★ 取证:本帧是否有"新的按下"边沿(用户报"空格多次判定生效"时,用它对照瞬移次数) */
+  edgeTick = -1;
+  /** ★ 上次"由按键造成的"蜘蛛瞬移发生在哪一帧(防重复判定用,见蜘蛛分支) */
+  private lastSpiderPressTick = -999;
   /** ★★ 同一次按键还要留给跳环/冲刺箭头用(2026-09 修)。
    *  原作里"按下"会同时喂给两条路:形态自己的动作(飞机/UFO 的扇一下、蜘蛛的瞬移、地面起跳)
    *  和 `ringJump` 里的 `hasQueuedHold`(环/箭头)。我们以前只用一个 pressFresh,
@@ -780,6 +786,7 @@ export class World {
     this.sizeMul = this.checkSize;      // 复活要恢复存档点时的体积(迷你/普通)
     this.dead = false; this.done = false; this.deadT = 0;
     this.pressFresh = false; this.prevHold = false; this.pressAux = false; this.tpFailed = false; this.tpRetry = null;
+    this.lastSpiderPressTick = -999;
     this.boostDir = 0;
     this.armedChecks.clear(); this.armedPortals.clear(); this.armedSpeeds.clear(); this.armedGravs.clear();
     this.armedOrbs.clear(); this.armedPads.clear();
@@ -882,7 +889,7 @@ export class World {
 
   frame(hold: boolean) {
     /* 按键的"上升沿":原作 pushButton 就是在这个时刻清掉环的可用标记 */
-    if (hold && !this.prevHold) { this.pressFresh = true; this.pressAux = false; this.tpRetry = null; }
+    if (hold && !this.prevHold) { this.pressFresh = true; this.pressAux = false; this.tpRetry = null; this.edgeTick = this.tick; }
     this.prevHold = hold;
     this.tpFailed = false;
     if (this.dead || this.done) { this.deadT += FRAME; return; }
@@ -1273,7 +1280,21 @@ export class World {
       this.y += this.vy * sY;
     } else if (this.mode === 'spider') {
       /* 蜘蛛:点一下【传送到对面】再翻重力(反编译:搜索带厚度 = 体积 ×8) */
-      if (hold && this.pressFresh) { this.spiderJump(); this.pressFresh = false; }
+      /* ★★ 2026-09-27 用户两次报"空格多次判定生效"(蜘蛛),但 Node 合成场景 + 浏览器真键都量到
+         【一次按键 = 一次瞬移】,查不到复现路径 ⇒ 这里加一道**同类保护**:
+         同一个按键边沿不可能在 2 帧内造成第二次瞬移(真人点不了这么快,33ms),
+         真发生了就拦下来并打日志 —— 那条日志本身就是"复现证据",能把它摊给用户看 ✓
+         (只拦【按键】来源;紫跳点/紫箭头是碰到就触发,不受这条影响 ✓) */
+      if (hold && this.pressFresh) {
+        const gap = this.tick - this.lastSpiderPressTick;
+        if (gap <= 2) {
+          console.log('[gd] 蜘蛛重复判定被拦下 tick=' + this.tick + ' · 距上次按键瞬移只有 ' + gap + ' 帧');
+        } else {
+          this.spiderJump(undefined, false, '空格');
+          this.lastSpiderPressTick = this.tick;
+        }
+        this.pressFresh = false;
+      }
       /* ★ 蜘蛛的重力也是 ×0.6(原版 updateJump:float_b 对 ball/spider/swing 一律 0.6)——
          以前这里漏了乘,蜘蛛掉得跟方块一样快。 */
       this.vy -= P.gravity * P.ballGravityMul * this.gdir * sY;
@@ -1581,7 +1602,7 @@ export class World {
         if (b.o.tp) {
           /* 紫色地面跳点(3005):瞬移到头顶方块 + 翻重力 —— 射程同 tpReach(见 constants.ts)
              ★★ 2026-09 用户:"紫冲刺环不会反转重力" ⇒ 3005 同理,补上翻重力 + vy 归零 ✓ */
-          this.spiderJump(P.tpReach, true);
+          this.spiderJump(P.tpReach, true, '紫跳点(3005)');
           this.gdir = this.gdir === 1 ? -1 : 1;
           this.vy = 0;
         }
@@ -1612,7 +1633,7 @@ export class World {
           /* 紫色(3004):瞬移到头顶那个方块 + 翻重力。★ 用 tpReach 而不是蜘蛛那套速度表 ——
              见 constants.ts 里 tpReach 的说明(用户实测"按了没反应"就是被那张表卡住的)。
              ★ 够不到面时【不消耗】这个箭头:这一次按键留在身上,人再飘几帧还会再试。 */
-          this.spiderJump(P.tpReach, true);
+          this.spiderJump(P.tpReach, true, '紫箭头(3004)');
           if (this.tpFailed) { this.pressFresh = true; this.pressAux = false; this.tpRetry = b; break; }
           this.tpRetry = null;
           /* ★★ 2026-09 用户:"紫冲刺环不会反转重力" —— 3004 的语义是【瞬移到头顶 + 翻重力】,
@@ -1824,7 +1845,7 @@ export class World {
     return [60, 90, 120, 135, 120][Math.max(0, Math.min(4, this.speedIdx))] ?? 90;
   }
 
-  private spiderJump(reachArg?: number, consumeOnFail = false) {
+  private spiderJump(reachArg?: number, consumeOnFail = false, why = 'press') {
     const reach = reachArg ?? this.spiderReach();
     const top = () => this.y + this.box;
     /* ★ 横向用【整 1 格的外框】判 —— 上上版我按"碰撞箱太大、跨过一格"那句收窄成内框(7.5 单位),
@@ -1863,6 +1884,18 @@ export class World {
       }
       if (best === null) { if (!consumeOnFail) this.tpFailed = true; return; }
       this.y = best;
+    }
+    /* ★ 取证计数:一次按键到底瞬移了几次(用户:"瞬移蜘蛛空格多次判定生效")——
+       只用来数,不参与任何逻辑 ✓ 回归测试与 tools/diag-spider.ts 都读它
+       ★ 2026-09-27 用户说"蜘蛛多判定问题还存在":Node 合成场景与浏览器真键都量到【一次按键=一次瞬移】,
+         查不到复现路径 ⇒ 改成把每次瞬移连【触发来源】和【本帧有没有新按下】一起打进控制台,
+         用户玩那一段时把日志给我,就能定位到底哪一步多算了 ✓ */
+    this.spiderJumps++;
+    {
+      const fresh = this.edgeTick === this.tick;
+      const rd = (v: number) => Math.round(v * 100) / 100;
+      console.log('[gd] 蜘蛛瞬移 tick=' + this.tick + ' x=' + rd(this.x / U) + '格 y=' + rd(this.y / U) + '格' +
+        ' 来源=' + why + ' 本帧新按下=' + (fresh ? '是' : '否') + ' gdir=' + this.gdir + '→' + -this.gdir);
     }
     this.gdir = -this.gdir;
     this.vy = -P.spiderVel * this.gdir;      // 极小的一点速度,方向朝"新的上方"
