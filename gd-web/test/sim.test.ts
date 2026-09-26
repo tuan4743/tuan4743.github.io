@@ -1419,3 +1419,32 @@ test('绿环(1022)在真实铺面里生效:翻重力 + 按【新】方向给一�
   assert.ok(w.vy * w.gdir > 0, '绿环必须按【新】重力方向给速度(vy 与 gdir 同号),实测 vy=' + w.vy.toFixed(2) + ' g=' + w.gdir);
   assert.ok(Math.abs(w.vy) > 5, '力度应当是一整跳量级,实测 ' + w.vy.toFixed(2));
 });
+
+/* ---------------- 发射速度必须落在【帧边界】(2026-09-25) ----------------
+ * 用户报的那段是"四联蓝板 + 反转重力门、抛物线刚好够到平台";我们一帧切 n 个子步,
+ * 触发落在帧内 ⇒ 同一块蓝板在帧末量到的发射速度随相位在 6.39~7.08 之间飘(≈3 个子步的重力)✗
+ * 修法:给速度的触发排进 pendingVel,由 advance() 在帧末统一结算(见 world.ts 注释)。
+ * 这条测试就是钉子:四个速度档 × 多个亚格相位,发射速度必须**恒等于** 6.400 ✓ */
+test('蓝板发射速度与【帧相位/子步数】无关:四个速度档 × 12 个亚格偏移 全部 = 6.400', () => {
+  const launch = (padX: number, speed: number) => {
+    const lv = solo([
+      { kind: 'platform', b: -16, r: -1, w: 220, h: 1 },
+      { kind: 'pad', pad: 'blue', b: padX, r: 0, w: 1, h: 0.2, id: 67 },
+    ], { length: 200, segments: [{ from: 0, to: 200, mode: 'cube', speed, difficulty: 0 }] as Segment[] });
+    const w = new World(lv);
+    const g0 = w.gdir;
+    for (let i = 0; i < 400; i++) {
+      w.frame(false);
+      if (w.gdir !== g0) return w.vy;          // 触发那一帧的帧末 vy = 发射速度
+    }
+    return NaN;
+  };
+  for (const speed of [0, 1, 2, 3]) {
+    const vals: number[] = [];
+    for (let k = 0; k < 12; k++) vals.push(launch(20 + k * 0.07, speed));
+    const bad = vals.filter((v) => !(Math.abs(v - 6.4) < 1e-9));
+    assert.equal(bad.length, 0,
+      '速度档 ' + (speed + 1) + ' 有 ' + bad.length + ' 个相位没给出 6.400:' + bad.map((v) => v.toFixed(3)).join(',') +
+      '(修前这里会出现 6.39~7.08 的一串值)');
+  }
+});

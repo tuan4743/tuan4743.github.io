@@ -223,6 +223,17 @@ export class World {
    *  理由见文件头 FLIP_VEL_MUL 那段(关卡 A/B 实测 + 版本 + 手感三条)。
    *  只给【定点实验】用:想知道某一段按另一边才过得去,就设成 1.75 再搜一遍。 */
   flipMul = FLIP_VEL_MUL;
+
+  /** ★★★ 2026-09-25"发射速度随帧相位乱飘"的修法:给速度的触发【不在子步里直接生效】,
+   *  而是排进这里、由 `advance()` 在【帧末】统一结算。
+   *  为什么必须这样:原版 60 Hz 单步执行,触发就发生在帧边界上;我们为了防穿模
+   *  一帧切 n 个子步(n = 4~32),触发的那个子步之后还剩 (n-i) 步会继续积分 ——
+   *  实测同一块蓝板(蓝板给 12.8、翻重力减半 = 6.4)在帧末量到的发射速度是
+   *    6.39 / 6.57 / 6.75 / 6.93 / 7.08(按触发落在第几个子步而定)✗
+   *  多出来的就是那 (n-i) 步重力(≤3 步 ≈ 0.68)⇒ 速度档越高、余量越小的路线越致命
+   *  (用户那段"四联蓝板 + 反转重力门"正是速度档 4 的"抛物线刚好够到平台"✗)
+   *  结算顺序 = 触发顺序(同一帧吃多个触发时口径不变)✓ */
+  private pendingVel: Array<() => void> = [];
   /** ★ 定点实验:圆判定的半径【不乘缩放】(默认 false = 跟着缩放走,和贴图一致)。
    *  证据:OpenGD 的 `_radius` 从表里取来之后没有再乘缩放(playlayer.cpp:380、1494);
    *  但整个引擎的判定盒(矩形那套)是乘缩放的(gameobject.cpp:766 的 tr.scale),
@@ -797,6 +808,7 @@ export class World {
     this.handledPortals.clear();
     this.dash = null;
     this.snapObj = null; this.snapDist = 0;      // 重开一局:落块吸附的记忆也清空
+    this.pendingVel.length = 0;                  // 重开一局:没结算的触发效果一并丢掉 ✓
     /* 重来 = 会动的东西回到原位、颜色与闪烁清空(和原作"重开一局"一致) */
     this.anims = [];
     this.flash = 0;
@@ -948,7 +960,14 @@ export class World {
     const d = FRAME / n;
     /* ★ 帧初位置:落台容错要用它(原版 m_lastPosition 就是每帧记一次,见 substep 里的说明) */
     this.frameY0 = this.y;
+    this.pendingVel.length = 0;                      // 上一帧没结算完的(死亡等)丢掉
     for (let i = 0; i < n; i++) this.substep(d, hold);
+    /* ★★★ 2026-09-25 帧末统一结算"给速度的触发"(见 pendingVel 的说明)——
+       必须排在子步循环【之后】、且只在活着时结算:
+       原版 60 Hz 单步 ⇒ 触发等价于发生在帧边界;我们一帧切 n 刀,触发点在帧内就会多算
+       (n-i) 个子步的重力 ⇒ 同一块蓝板量到的发射速度随相位 6.39~7.08 乱飘 ✗ */
+    if (!this.dead) for (const f of this.pendingVel) f();
+    this.pendingVel.length = 0;
   }
 
   /** ★ 弹簧/跳环力度的运行时微调(页面上按 [ / ] 改,HUD 会显示)。
@@ -1606,7 +1625,7 @@ export class World {
           this.gdir = this.gdir === 1 ? -1 : 1;
           this.vy = 0;
         }
-        else if (b.o.pad) this.applyTrigger({ ...PAD[b.o.pad], isPad: true });
+        else if (b.o.pad) this.pendingVel.push(() => this.applyTrigger({ ...PAD[b.o.pad], isPad: true }));
       }
     }
 
@@ -1677,7 +1696,8 @@ export class World {
             if (b.o.dash === 'pink') this.gdir = (this.gdir === 1 ? -1 : 1);
             this.dash = { ang: b.o.rot ?? 0, kind: b.o.dash, t: 0 };
           } else {
-            this.applyTrigger({ v: this.orbVel(b.o.orb), flip: spec.flip }, true);
+            /* ★ 同样排到帧末结算(见 pendingVel):环给的也是"发射速度",不能落在帧内 ✗ */
+            this.pendingVel.push(() => this.applyTrigger({ v: this.orbVel(b.o.orb), flip: spec.flip }, true));
           }
         }
         break;
@@ -1726,11 +1746,18 @@ export class World {
          以前我们写的是 `vy = 0`:进门那一刻纵向动量被抹掉,过门后的抛物线整个不对
          (进门时正在下落的话,原版会带着减半后的动量继续往下走,我们却从静止开始)。 */
       const want = b.o.gdir ?? -this.gdir;
-      if (want !== this.gdir) {
-        this.gdir = want;
-        this.vy *= this.flipMul;
-        this.onGround = false;
-      }
+      /* ★ 重力门也是"给速度的触发"(flipGravity 会把 vy 减半)⇒ 同样排到帧末结算,
+         否则进门落在帧内时,剩余子步会按【旧重力方向】继续积分 ⇒ 相位相关 ✗
+         方向判定留到结算那一刻再做(同一帧连吃两个门时口径不变)✓ */
+      this.pendingVel.push(() => {
+        const w2 = b.o.gdir ?? -this.gdir;
+        if (w2 !== this.gdir) {
+          this.gdir = w2;
+          this.vy *= this.flipMul;
+          this.onGround = false;
+        }
+      });
+      void want;
     }
     /* ★ 触摸标记清单:打一次,用户按位置点名要什么特效 ✓(不打的话他标了我也看不见) */
     if (!this.markersLogged && this.markers.length) {
