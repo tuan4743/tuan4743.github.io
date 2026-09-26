@@ -197,7 +197,7 @@ E 454 8 rot=90 art=3812 id=3812 z=3
 E 456 6 rot=-90 art=3812 id=3812 z=3
 E 458 8 rot=90 art=3812 id=3812 z=3
 E 461 6 rot=-90 art=3812 id=3812 z=3
-K 490 7 inert=1 id=286 z=2
+K 490 7 inert=1 dualOn=1 id=286 z=2
 R 492 10 to=ball id=47 z=2
 S 493.3 9.25 1 0.5 rot=270 id=39
 R 489 7 to=ball id=47 z=2
@@ -1257,7 +1257,7 @@ G 1199 37 gd=1 id=10 z=2
 D 1204 31.967 1 0.2 pad=yellow id=35 z=2
 H 1204 31.5 1 0.5 fm=box id=662
 O 1209 36 orb=green id=1022 z=2
-K 1211 34 inert=1 id=286 z=2
+K 1211 34 inert=1 dualOn=1 id=286 z=2
 O 1219 34 orb=black id=1330 z=2
 S 1218 39 rot=90 id=8 g=10
 S 1218 40 rot=90 id=8 g=10
@@ -1296,7 +1296,7 @@ W 1251.473 39.517 2.053 3.967 id=1705 z=5 g=15
 W 1247.466 25.503 2.068 3.995 id=1705 z=5 g=17
 W 1251.437 25.446 2.127 4.108 id=1705 z=5 g=18
 W 1255.422 25.418 2.156 4.165 id=1705 z=5 g=19
-K 1258 34 inert=1 id=287 z=2
+K 1258 34 inert=1 dualOff=1 id=287 z=2
 D 1260 32 1 0.2 pad=blue id=67 z=2
 D 1262 36.8 1 0.2 pad=blue rot=180 id=67 z=2
 D 1263 32 1 0.2 pad=blue id=67 z=2
@@ -8007,7 +8007,7 @@ B 499 0 id=83
 B 497 -1 id=83
 S 488 2 id=8
 X 498 11 id=143
-K 516 7 inert=1 id=287 z=2
+K 516 7 inert=1 dualOff=1 id=287 z=2
 B 514 10 id=83
 B 515 10 id=83
 B 515 9 id=83

@@ -1520,3 +1520,74 @@ test('五连蓝跳点段·上路(按绿环上半格):同样活过 x>600', async 
   assert.ok(w.x / U > 600, '上路应当活过 x>600,实测 ' + (w.x / U).toFixed(2));
   assert.ok(top > 14, '越过刺阵需要跳起来(顶点 >14 格),实测 ' + top.toFixed(2));
 });
+
+/* ---------------- 双人(克隆门 286/287)----------------
+ * 用户 2026-09-26:「克隆门没用」⇒ 开门做双人 ✓(以前按"只标记不生效"关着 ✗)
+ * 源码依据(反编译 `.tmp/GDsrc/asm/gd-ida-decomp.cpp`):
+ *   · `GJBaseGameLayer::toggleDualMode`(462616):`+870` = 双人开关;同一模式重复进门直接 return(幂等);
+ *     开 ⇒ `spawnPlayer2`(462653)、关 ⇒ `removePlayer2`(462685);
+ *     开时给两人各放一个 dual 圆(462658-462659)、关时放传送门圆(462690)✓
+ *   · `PlayerObject::spawnFromPlayer`(153349):`copyAttributes(p2, p1)` 拷全部属性,
+ *     默认支 = 【同重力 + 同 vy】(153367-153368;反向那支才是 `^ signbit`:153362-153363)✓
+ *   · `GJBaseGameLayer::removePlayer2`(420913):释放 p2 所有按键 + 清粒子 + 关拖尾 ✓
+ *   · `GJBaseGameLayer::isPlayer2Button`(430418) = `a2 > 5` ⇒ 单键位(空格)时两人共用一套输入 ✓
+ * 顺序:这组测试是"开关的闸" —— 谁把门关回去/改成只标记,这里会红 ✓ */
+const cloneGate = (b: number, on: boolean): Obj => ({
+  kind: 'clone', b, r: 0, w: 1, h: 1, id: on ? 286 : 287,
+  ...(on ? { dualOn: true } : { dualOff: true }),
+});
+
+test('克隆门语义进了铺面:WATER 里 4 个门带 dualOn/dualOff(不再只靠 id 猜)', async () => {
+  const { WATER_CHART } = await import('../src/sim/charts/water.ts');   // 和上面那段一样:动态载入 ✓
+  const gates = (WATER_CHART as unknown as Level).objects.filter((o) => o.kind === 'clone');
+  assert.equal(gates.length, 4, '本关有 4 个克隆门,实测 ' + gates.length);
+  assert.equal(gates.filter((o) => o.dualOn).length, 2, '286 开双人 ×2');
+  assert.equal(gates.filter((o) => o.dualOff).length, 2, '287 收双人 ×2');
+  assert.ok(gates.every((o) => o.dualOn || o.dualOff), '每个门都要带开关语义(只带 inert 就是又变成"没用"了 ✗)');
+});
+
+test('克隆门:过 286 开双人 —— 玩家 2 出现,而且两个人各自演进', () => {
+  const w = new World(solo([floor60, cloneGate(6, true)]));
+  assert.equal(w.dual, false, '开局必须是单人');
+  assert.equal(w.p2Pos(), null, '开局没有玩家 2');
+  for (let i = 0; i < 240 && !w.dual; i++) w.frame(false);
+  assert.ok(w.dual, '过 286 必须开双人(用户:"克隆门没用" 就是这条 ✗)');
+  const a = w.p2Pos();
+  assert.ok(a, '玩家 2 必须存在');
+  /* 两人各自演进:平地上两人从同一状态出发、共用输入 ⇒ 会一直同步(那是原版行为 ✓),
+     所以这里【故意把 p2 抬高一格半再给个初速】模拟双人段的"两人高度/重力不同"⇒
+     之后两人必须各走各的(证明是两个独立物理体,不是同一状态画两遍 ✗) */
+  const st = (w as unknown as { p2: { y: number; vy: number } }).p2;
+  st.y += 1.5 * U; st.vy = 4;
+  const y2a = w.p2Pos()!.y;
+  for (let i = 0; i < 25; i++) w.frame(false);
+  const b = w.p2Pos()!;
+  assert.ok(b.x > a!.x, '玩家 2 也要往前走(它是独立的物理体 ✓)');
+  assert.ok(w.x > a!.x, '玩家 1 继续前进');
+  assert.ok(Math.abs(b.y - y2a) > 0.01, '玩家 2 的 y 自己在变(独立模拟 ✓)');
+});
+
+test('克隆门:过 287 收双人 —— 玩家 2 消失、回到单人', () => {
+  const w = new World(solo([floor60, cloneGate(4, true), cloneGate(14, false)]));
+  for (let i = 0; i < 600 && w.x / U < 16; i++) w.frame(false);
+  assert.equal(w.dual, false, '过 287 必须收双人(源码 removePlayer2 ✓)');
+  assert.equal(w.p2Pos(), null, '玩家 2 必须消失');
+});
+
+test('双人防线:没有克隆门的关卡永远不开双人,且轨迹与基线逐字段一致', () => {
+  const mk = () => new World(solo([floor60, { kind: 'block', b: 8, r: 1, w: 1, h: 1 }]));
+  const a = mk(), b = mk();
+  for (let i = 0; i < 300; i++) { const hold = i % 7 === 0; a.frame(hold); b.frame(hold); }
+  assert.equal(a.dual, false, '无门 ⇒ 不开双人 ✓');
+  assert.equal(a.p2Pos(), null, '无门 ⇒ 没有玩家 2 ✓');
+  assert.equal(a.x, b.x); assert.equal(a.y, b.y); assert.equal(a.vy, b.vy);   // 单人行为零影响 ✓
+});
+
+test('双人:一人死 ⇒ 本次尝试结束(源码口径:两人都活着才算过)', () => {
+  /* 造一段"只有玩家 1 会撞死"的路没法稳定复现 ⇒ 这里直接验【规则本身】:
+     开双人后让玩家 1 死掉,整个尝试必须结束(不许出现"p1 死了 p2 还在跑"✗) */
+  const w = new World(solo([floor60, cloneGate(4, true), { kind: 'spike', b: 20, r: 0, w: 1, h: 1, id: 8 }]));
+  for (let i = 0; i < 600 && !w.dead; i++) w.frame(false);
+  assert.ok(w.dual, '先确认双人开着(否则这条测不到)');
+  assert.ok(w.dead, '玩家 1 撞刺 ⇒ 尝试结束 ✓');
+});

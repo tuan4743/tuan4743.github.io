@@ -75,6 +75,11 @@ export interface Obj {
   arrow?: 'green' | 'pink' | 'purple'; // arrow:是哪种冲刺箭头
   tp?: boolean;     // pad/arrow:瞬移到头顶的方块 + 翻重力(紫的那两种)
   inert?: boolean;  // 只标记、不生效(clone 门、占位物件)
+  /* ★★★ 2026-09-26 克隆门(286/287):spec 里有这两个字段、但【Obj 上没有】⇒ 铺面里带不出来,
+     world 只能靠 id 猜 ✗。用户这次明确要"克隆门有用" ⇒ 补齐 ✓
+     源码:`GJBaseGameLayer::toggleDualMode`(反编译 462616)按开关调 spawnPlayer2 / removePlayer2 ✓ */
+  dualOn?: boolean;   // 286:开双人(在门口生成玩家 2)
+  dualOff?: boolean;  // 287:收双人(回到单人)
   art?: number;     // deco:GD 物件号(按它挑画法)
   id?: number;      // ★ 原始 GD 物件号(1 键)。判定表按 ID 查,所以必须留着
   rad?: number;     // ★ 圆形判定半径(单位,已乘缩放)—— 锯片族走圆,不走矩形(见 gdids.GD_HITBOX_RADIUS)

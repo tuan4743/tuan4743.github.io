@@ -1811,9 +1811,22 @@ export class World {
             但真要做双人,得连【两人都活着才算过】、【相机取两人中点】、【双人专用判死/存档】、
             p2 的绘制与部件动画一起做 —— 现在只有半套,半套跑在关卡里就是"说不清的怪现象" ✓
          ── 所以按口径关掉:过门只记一个 armed(不再触发任何效果),顺便把可能残留的
-            dual/p2 状态清干净(旧存档快照/tag 里可能带着 dual=true)✓ */
-      this.dual = false;
-      this.p2 = null;
+            dual/p2 状态清干净(旧存档快照/tag 里可能带着 dual=true)✓
+         ★★★★ 2026-09-26 更新(推翻上面这条口径):用户明确说"克隆门没用" ⇒ 已按源码开门 ✓
+         这次是【整套】开的:sim 双人(下面)+ 相机取两人中点(main.ts 1715)+ p2 整段绘制(main.ts 双人两遍)✓
+         源码依据见下面那段注释 ✓ */
+      if (b.o.dualOn) {
+        /* 开双人:源码 `toggleDualMode`(462616)→ `spawnPlayer2`(420882)→
+           `PlayerObject::spawnFromPlayer`(153349):`copyAttributes(p2, p1)` 整体拷属性,
+           默认支 = 【同重力 + 同 vy】(153367-153368)⇒ 等价于 takeState() ✓
+           (同一模式重复进门时源码直接 return ⇒ 我们靠 armedClones 也只会触发一次 ✓) */
+        this.dual = true;
+        this.p2 = this.takeState();
+      } else if (b.o.dualOff) {
+        /* 收双人:源码 `removePlayer2`(420913)= 释放 p2 按键 + 清粒子 + 关拖尾 ⇒ 我们清状态 ✓ */
+        this.dual = false;
+        this.p2 = null;
+      }
     }
     for (const b of this.sizes) {
       if (this.armedSizes.has(b)) continue;

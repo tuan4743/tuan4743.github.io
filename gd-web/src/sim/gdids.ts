@@ -471,6 +471,9 @@ const ints = (s: string | undefined): number[] =>
   if (spec.art != null) o.art = spec.art;
   if (spec.tp) o.tp = true;
   if (spec.inert) o.inert = true;
+  /* ★ 克隆门的开关语义要真的带进 Obj(以前只有 spec 有、Obj 没有 ⇒ 铺面里丢了 ✗) */
+  if (spec.dualOn) o.dualOn = true;
+  if (spec.dualOff) o.dualOff = true;
   if (spec.col != null) o.col = spec.col;
   if (spec.mini != null) o.mini = spec.mini;
   /* ★ 传送门(747)自带的纵向偏移:键 54。用户口径:"出口就在传送门纵向方向上的某个位置,
@@ -532,6 +535,8 @@ export function encodeObjects(objs: Obj[]): string {
     if (o.art != null) ex.push('art=' + o.art);
     if (o.tp) ex.push('tp=1');
     if (o.inert) ex.push('inert=1');
+    if (o.dualOn) ex.push('dualOn=1');      // ★ 克隆门 286:开双人(不带出来 world 就没法按语义分支 ✗)
+    if (o.dualOff) ex.push('dualOff=1');    // ★ 克隆回收门 287:收双人
     if (o.exit) ex.push('exit=1');
     if (o.tpy != null) ex.push('tpy=' + n(o.tpy));
     if (o.mini != null) ex.push('mini=' + (o.mini ? 1 : 0));
@@ -593,6 +598,8 @@ export function decodeObjects(text: string): Obj[] {
         case 'art': o.art = Number(v); break;
         case 'tp': o.tp = true; break;
         case 'inert': o.inert = true; break;
+        case 'dualOn': o.dualOn = true; break;
+        case 'dualOff': o.dualOff = true; break;
         case 'exit': o.exit = true; break;
         case 'tpy': o.tpy = Number(v); break;
         case 'mini': o.mini = v === '1'; break;

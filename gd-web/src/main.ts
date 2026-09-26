@@ -2417,6 +2417,19 @@ class Scene extends Phaser.Scene {
     for (let i = this.artUsed; i < this.artPool.length; i++) this.artPool[i].setVisible(false);
 
     // 玩家:方块 = 描边正方形(空中自转 90°),飞机 = 三角(按 vy 倾斜)
+    /* ★★★★ 2026-09-26 双人(克隆门 286/287):同一套绘制跑两遍 —— 先画玩家 2、再画玩家 1 ✓
+       为什么必须"两遍同一套代码":p2 的坐标/形态/部件/驾驶位 cube 的算法与 p1 完全一样,
+       分开写两套必然漂移 ✗ ⇒ 用现成的 dualInto()/dualBack()(把 p2 换进主字段)包住整段 ✓
+       源码依据(反编译):
+         · `GJBaseGameLayer::toggleDualMode`(462616):`+870` 是双人开关;开 ⇒ spawnPlayer2(462653),
+           关 ⇒ removePlayer2(462685);开时给两人各放一个 dual 圆(462658-462659)、关时放传送门圆(462690)✓
+         · `PlayerObject::spawnFromPlayer`(153349):`copyAttributes(p2,p1)`,默认【同重力 + 同 vy】✓
+         · `isPlayer2Button`(430418)= `a2 > 5` ⇒ 单键位时两人共用同一套输入 ✓
+       ⚠ 只包【玩家】这一段(2420 起、到形态矢量链结束为止)——
+         下面的终点线/闪光/判定内框不是逐玩家的,重复画会出重影 ✗ */
+    const dualPass = w.dualInto();                    // 有 p2 时:把 p2 换进主字段(画完必须换回 ✓)
+    for (let pass = 0; pass < (dualPass ? 2 : 1); pass++) {
+      if (pass === 1) w.dualBack();                   // 第二遍换回玩家 1 ✓
     const B = P.box * w.sizeMul;   // ★ 迷你门:人也要画小
     const py = this.prevY + (w.y - this.prevY) * Math.min(1, this.acc * 60);   // 渲染插值
     const cxw = w.x + B / 2, cyw = py + B / 2;
@@ -2556,16 +2569,11 @@ class Scene extends Phaser.Scene {
       this.pilot.setVisible(!w.done).setPosition(cxw, Y(cyw) + pd).setRotation(0).setFlipY(w.gdir < 0)
         .setTint(w.dead ? 0xff7a5a : PLAYER_C1).setDisplaySize(B * PILOT_SCALE, B * PILOT_SCALE);
     } else this.pilot?.setVisible(false);
-    /* ★★★ 2026-09 双人:玩家 2 也画一遍(状态换进换出,所以画法和玩家 1 完全一样 ✓)
-       ★★ 2026-09-26 现状:【这条现在是死路】—— 按用户口径"克隆门只标记、不做双人",
-          sim 里不会再置 dual(见 world.ts 的 clones 循环)⇒ dualInto() 永远返回 false ✓
-          保留代码是为了"哪天真要做双人"时有底子;真要开,必须连相机取两人中点、
-          两人都活着才算过、p2 的部件动画一起做完,别只开一半 ✗ */
-    if (w.dualInto()) {
-      const B2 = P.box * w.sizeMul;
-      this.drawIconPlayer(w, w.x + B2 / 2, Y(w.y + B2 / 2), B2);
-      w.dualBack();
-    }
+    /* ★★★★ 2026-09-26 双人的绘制:【已被上面的两遍循环取代】✓
+       以前这里单独给 p2 画一次 `drawIconPlayer` —— 那只覆盖"用图标的形态",
+       矢量兜底(robot/spider/cube 无图层时)和驾驶位 cube 都画不到 p2 ✗
+       现在整段玩家绘制都在 for(pass) 里跑两遍 ⇒ 两边画法逐像素一致 ✓
+       (这段留作记录:当年"只开一半"就是这个坑 —— 用户看到的"说不清的怪现象"之一 ✗) */
     /* ★★ 2026-09 修"cube 根本没有贴图"(我上一轮引入的 ✗):
        drawIconPlayer 在没有该形态图层时会直接 return ⇒ 而这里只要 iconsReady 就跳过矢量 ✗
        ⇒ cube(图集尺寸不符被跳过)两边都不画 = 【什么都看不见】✓✓
@@ -2680,6 +2688,8 @@ class Scene extends Phaser.Scene {
       g.lineStyle(2, w.dead ? 0xff9a6b : HLD, 0.9);
       g.strokePath();
     }
+    }                                                 // ← 双人两遍循环结束(玩家 2 → 玩家 1)
+    if (dualPass) w.dualBack();                       // 兜底:主字段必须是玩家 1 ✓(dualBack 幂等 ✓)
     // 判定内框(自己看得见,方便调手感)
     g.lineStyle(1, 0xffffff, 0.28).strokeRect(w.x + w.innerOff, Y(py + w.innerOff + w.innerSize), w.innerSize, w.innerSize);
 
