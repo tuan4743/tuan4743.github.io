@@ -40,6 +40,76 @@ const SUBSTEP_MAX = 1.2;
  *  ★ 想再做定点实验就设 `w.flipMul`(或 autoplay 的 `--flipmul=`),默认已经是 0.5。 */
 const FLIP_VEL_MUL = 0.5;
 
+/* ==================== 冲刺(冲刺环 / 冲刺箭头)方向 —— 照抄源码 ====================
+ * 出处:GD 2.2081 `PlayerObject::startDashing` @ 0x140395910(反汇编 dump:
+ *       .tmp/ghidra-out/dashreal.txt A 段;每帧位移见 dashmove.txt)。
+ *       ★ 上一轮我据以写代码的 `FUN_14038f810` 其实是 `collidedWithSlopeInternal`(斜坡),
+ *         和冲刺无关 —— 那份推导(45°/矩形宽高比/查表符号)整份作废 ✗,这里以 0x140395910 为准。
+ *
+ * 角度(两种模式共用):
+ *   140395a88  环 isFlipX ⇒ A += 180                  （虚表 +0x580;常量 0x1406233a4 = 180.0f）
+ *   140395abd  |rot1−rot2| > 179 ⇒ A += 180           （常量 0x1406233a0 = 179.0f）
+ *   140395acb  A = −A                                 （XORPS 符号掩码 0x1406243f0）
+ *   140395ae2  θ = fmod(A, 360)                       （常量 0x14062346c = 360.0f）
+ *   140395ae7  θ = wrap180(θ)                         （±180/±360 三个常量来回加）
+ * ── 下面这一支只有【非平台模式】([player+0xb70] == 0,本关就是)才走 ──
+ *   140395b2f  [player+0x9c3](横躺着)⇒ off = −90       （常量 0x1406239c0 = −90.0f）
+ *   140395b40  [player+0x9c2](朝左)  ⇒ off += 180
+ *   140395b4b  off ≠ 0 ⇒ θ = wrap180(θ + off)
+ *   140395b70  |θ| > 90 ⇒ θ = wrap180(±180 − θ)        （常量 0x140623294 = 90.0f ⇒ 把"朝后"折成朝前）
+ *   140395bb8  θ 夹进 [−70, +70]                       （0x140623978 = −70.0f、0x140623244 = +70.0f
+ *                                                       ⇒ 斜率最大 tan70° = 2.7475,不会除零 ✓）
+ *   140395c1e  速度 = 1.0f                             （常量 0x140622c24 = 1.0f）
+ * ── 平台模式(0x140395c28):速度 = 环.m_dashSpeed(+0x748)× 5.7700019(0x140623024)──
+ *   140395c45  dir = ccpForAngle(θ × 0.017453292) × 速度   （0x1406229bc = π/180）
+ *   140395c6e  横躺着 ⇒ 交换 dir.x / dir.y
+ *   140395cab  m_dashX(+0x570) = dir.x、m_dashY(+0x578) = dir.y
+ *   140395cee  ★ 非平台模式【再改写一次】:
+ *                m_dashY(+0x578) = dir.y / |dir.x|      （DIVSS + 绝对值掩码 0x1406243d0）
+ *                m_dashX(+0x570) = |m_dashY|
+ *              ⇒ 经典模式下这两个字段是【斜率对】,不是速度分量 ✓
+ *                (所以"把横向速度覆盖成 m_dashX / 5.77"是错的 ✗ —— 我上一轮试过,红了两条测试 ✓)
+ *   140395d18  m_dashAngle(+0x580) = θ,再 updateDashArt()
+ *
+ * 每帧位移(`PlayerObject::update` @ 0x140389480;dashmove.txt A 段):
+ *   140389491  冲刺中 ⇒ m_yVelocity(+0x9a0) = 0        （重力关掉 ✓）
+ *   140389507  [player+0x9bc] == 0(非平台)⇒ 跳到 14038959f:
+ *   140389570  XMM6 = m_dashY;14038959f  XMM6 *= XMM1
+ *   1403895c5  XMM1 = 本帧【水平位移】(getCurrentXVelocity × dt,再加吸附余量 +0x9d8)
+ *   1403895e0  ccp(XMM1, XMM1 × m_dashY) ⇒ 写回位置
+ *   ⇒ **纵向位移 = 水平位移 × m_dashY**,横向照原速走(冲刺不改横向)✓
+ *     结束:m_maxDuration(+0x750) > 0 且超时才 stopDashing;环没配时长 ⇒ 0 ⇒ 永不自动结束;
+ *     `stopDashing` 的调用者里有 releaseButton ⇒ **按住就冲、松手就停** ✓
+ *
+ * 本关(WATER)4 个黑环(1330)都没有 rot(键 6)⇒ A = 0 ⇒ θ = 0 ⇒ dir = (1,0)
+ *   ⇒ m_dashY = 0/1 = 0、m_dashX = |0| = 0 ⇒ 纵向位移恒 0 ⇒ **纯水平冲刺、不吃重力** ✓
+ *   ⇒ 原版路线 = 水平冲过蓝环正上方 → 松手 → 自由落体 10 格砸进底下那个蓝环 ✓
+ *   (参考图里那段 55.7° 的直线是【松手后的下坠段】,不是冲刺方向 —— 冲刺这一段是水平的 ✓)
+ *
+ * 返回【世界 y 向上】的斜率(与源码 +0x578 同符号:负 = 往下)。 */
+export function dashSlopeOf(rotDeg: number): number {
+  /** GJGameState/CCPoint 那套角度工具:Pomelo 的 fmod + 折进 (−180, 180] */
+  const wrap180 = (a: number) => {
+    let v = a % 360;
+    if (v > 180) v -= 360;
+    if (v < -180) v += 360;
+    return v;
+  };
+  let th = wrap180(-(rotDeg || 0));                      // A = −rot ⇒ fmod ⇒ wrap180
+  /* off:横躺 −90 / 朝左 +180 —— 我们这两条状态【永远是 false】
+     (自由模式往左走 ≠ 原版的 goingLeft 标志,这一关更用不到)⇒ 与源码逐字段一致 ✓ */
+  const off = 0;
+  if (off !== 0) th = wrap180(th + off);
+  if (Math.abs(th) > 90) th = wrap180(th > 0 ? 180 - th : -180 - th);   // 朝后 ⇒ 折成朝前
+  th = Math.max(-70, Math.min(70, th));                                 // 夹 ±70
+  const dirX = Math.cos((th * Math.PI) / 180);                          // 速度 1.0f ⇒ 单位向量
+  const dirY = Math.sin((th * Math.PI) / 180);
+  const slope = dirY / Math.abs(dirX);                   // m_dashY = dir.y / |dir.x|
+  /* θ=0 时上式会得到 −0(Math.sin(−0)),源码写进去的是一个普通 0.0 ⇒ 这里归一化,
+     免得 −0 混进快照指纹/日志(数值上完全一样,不是改行为 ✓) */
+  return slope === 0 ? 0 : slope;
+}
+
 export interface RunState {
   tick: number; x: number; y: number; vy: number; onGround: boolean;
   mode: Mode; gdir: number; speed: number; dead: boolean; done: boolean;
@@ -63,7 +133,7 @@ export interface WorldSnap {
   pressFresh: boolean; prevHold: boolean; floatT: number; sizeMul: number;
   boostDir: 1 | -1 | 0;
   tint: number | null; tintGround: boolean; flash: number;
-  dash: { ang: number; kind: 'green' | 'pink' | 'purple' | 'black'; t: number } | null;
+  dash: { ang: number; slope: number; kind: 'green' | 'pink' | 'purple' | 'black'; t: number } | null;
   /** 落块横向吸附用:上一次落在哪块上、当时的相对位置 */
   snapObj: Obj | null; snapDist: number;
   sets: Array<Array<Box>>;
@@ -783,8 +853,9 @@ export class World {
    *  而视口永远只有 10 行 —— 上下边界必须跟着【这一关】走。 */
   get rows() { return this.level.rows; }
 
-  /** 冲刺箭头生效期间的状态(重力关掉,速度按箭头方向给) */
-  dash: { ang: number; kind: 'green' | 'pink' | 'purple' | 'black'; t: number } | null = null;
+  /** 冲刺中(冲刺环 / 冲刺箭头):重力关掉、纵向按 m_dashY 斜率走 —— 见 dashSlopeOf 的出处说明。
+   *  `slope` = 源码的 m_dashY(+0x578),进冲刺那一刻【算一次】(startDashing 也是只写一次 ✓); */
+  dash: { ang: number; slope: number; kind: 'green' | 'pink' | 'purple' | 'black'; t: number } | null = null;
 
   /** 体积倍率(迷你门 = 0.6):★ 碰撞盒、内框、内框偏移全都跟着它走,
    *  所以"能不能钻过一条缝"是真的由它决定,而不是画小一点而已。 */
@@ -1189,74 +1260,32 @@ export class World {
 
     this.x += this.vx * s;
 
-    /* --- 冲刺箭头生效期间:重力关掉,纵向按箭头方向走 ---
-     * ★★ 2026-09 按 PlayerObject::update 的 dash 分支修(用户:"绿色/粉色冲刺环,垂直方向的冲刺明显不对"):
-     *       v31 = getCurrentXVelocity(a1) * a2;      // 本帧【水平位移】,不乘 0.9
-     *       v34 = v31 * m_dashY;                     // 纵向位移 = 水平位移 × 箭头斜率
-     *   两处差异:
-     *     ① 位移不该过 y 轴那个 ×0.9 —— 我们原来走 sY ⇒ 冲刺距离少 10% ✗(和波浪那条同一个坑 ✓);
-     *     ② m_dashY 是【斜率】(由 startDashing 按箭头角度算)⇒ 垂直冲刺时 vx 不变、纵向位移 = |水平位移|;
-     *        我们这儿 `vy = |vx| × dir.y` 形状对,但仍要按①去掉 0.9。
-     *   (d.t > 0.5 这个"0.5 秒上限"也待核:原版是 stopDashing / m_maxDuration 决定的。) */
+    /* --- 冲刺中(环/箭头):重力关掉,纵向位移 = 水平位移 × m_dashY ---
+     * 规则、地址、常量全部见文件上方 dashSlopeOf 的出处说明(0x140395910 + 0x140389480)。
+     * 这里只强调两条最容易写错的:
+     *   ① 纵向位移【不过】y 轴那个 ×0.9(dash 走的是 `v31 = 水平位移` / `v34 = v31 × m_dashY`)✓;
+     *   ② 横向由公共路径的 `this.x += this.vx * s` 推,本支【只算纵向】——
+     *      再推一次就是"铺面流速翻倍"(用户报过)✗;
+     *      m_dashX(+0x570) 在经典模式下是 |m_dashY|(斜率),不是横向速度 ⇒ 不能拿它覆盖 vx ✗ */
     if (this.dash) {
       const d = this.dash;
       d.t += FRAME / 4;
-      /* ★★★ 2026-09 dash 方向按源码原文(用户:"那个算式需要你自己去源码里找"):
-         .tmp/GDsrc/asm/gd-ida-decomp.cpp:148608-148609
-             v75 = ccpForAngle(v6 * 0.017453);                              // 单位向量 (cos,sin)
-             CCPoint::operator*(&v73, v75, *((float*)a2 + 410) * 5.77);     // × (环字段 × 5.77)
-         ⇒ dash 向量 = 单位向量 × (环字段 × 5.77);环字段默认 1.0 ⇒ 纵向基准 = 5.77
-           (正是 1 档速度 5.7700018 这个常数 ✓)
-         用户铁律:冲刺的【水平分量 = 当前移动速度】⇒ 横向永不改动 ✓(公共路径已按 this.vx 走) */
-      /* ★★★ 诊断开关(只给 tools 里的探针用 —— 正常玩法永不设置它 ⇒ 行为逐字段不变 ✓):
+      /* 诊断开关(只给 tools 里的探针用 —— 正常玩法永不设置它 ⇒ 行为逐字段不变 ✓):
            globalThis.__dashOverride = { ang?, vxAbs? }
-             ang   = 覆盖冲刺角度(度,负 = 下斜)⇒ 扫描"方向"那一维
+             ang   = 覆盖【环/箭头的旋转角】(度,与 b.o.rot 同口径)⇒ 扫描"方向"那一维
              vxAbs = 覆盖冲刺期间的横向速度(World.vx 是只读 getter,探针改不了 ⇒ 只能在这里替)
-                     ⇒ 扫描"横向速度口径"那一维(9.6 当前速 / 5.77 平台支 / 7.8 三档)✓
-           未设置时 dAng === d.ang、横向修正也不执行 ⇒ 与改动前逐字段一致 ✓ */
+       未设置时 slope === d.slope、横向修正也不执行 ⇒ 与改动前逐字段一致 ✓ */
       const ov = (globalThis as { __dashOverride?: { ang?: number; vxAbs?: number } }).__dashOverride;
-      const dAng = ov?.ang ?? d.ang;
-      const aRad = (dAng * Math.PI) / 180;
-      const cosA = Math.cos(aRad), sinA = -Math.sin(aRad);   // 世界坐标 y 向上
-      if (ov?.vxAbs != null) this.x += (ov.vxAbs - this.vx) * s;   // 把公共路径已经推过的横向补成 vxAbs ✓
-      /* ★★ 2026-09 实测验出来的大 bug(按住不放逐帧打印):冲刺期间 dx=0.000 / dy=0.000
-         ⇒ 人【原地冻住】✗ —— 因为这一支只写了纵向,把【横向位移】整个吃掉了 ✗。
-         原版(PlayerObject::update 的 dash 分支):横向照常走(v38 = v31),
-         纵向 = 水平位移 × m_dashY ⇒ 冲刺期间必须【同时】推 x 和 y ✓。 */
-      /* ★★ 2026-09 撤回"竖直冲刺横向停住"(那是我按用户描述猜的 ✗)。
-         查了真源码(CallocGD/GD-2.206-Decompiled,asm/gd-ida-decomp.cpp:148504
-         `PlayerObject::startDashing`):它只做两件事 ——
-           ① 把环/箭头的【旋转角】换算成 m_dashX / m_dashY(旋转角 + 翻面时 +180°,再归一化 %360)
-           ② 置 dash 标志 + 记下 dash 起始时间
-         而 `PlayerObject::update`(用户贴过的那段)里,dash 期间的位移是:
-               v38 = v31;                 // 横向 = 原速,【不变】✓
-               v34 = v31 * m_dashY;       // 纵向 = 水平位移 × 斜率
-         ⇒ 冲刺期间【横向永远照原速走】✓(竖直箭头也是 —— 所以竖直箭头是"斜着扎下去" ✓,
-           不是横向停住 ✗)。我上一条把它改成"横向停住"是错的,这里改回来 ✓。 */
-      /* ★★ 2026-09 找到"冲刺像是加速铺面速度"的真凶:横向被推进了【两次】✗
-         公共路径 line 768 已经有 `this.x += this.vx * s;` ✓,我上一轮又在 dash 分支里加了
-         `this.x += this.vx * sY;` ⇒ 冲刺期间横向速度翻倍 ⇒ 观感就是"铺面流速变快" ✓✓。
-         源码依据(PlayerObject::update 的 dash 分支):它【只】算纵向位移 v34 = v31 × m_dashY,
-         横向那步 v38 = v31 是在公共路径统一做的 ⇒ 这里不能再推一次 ✗。 */
-      /* ★★★ 2026-09 回退(用户:"紫箭头又变成瞬移了,绿箭头一起被修坏"):
-         我上一轮把【所有 dash】的方向都改成了 tan(环角)✗ —— 但这一关的 dash 通路里【只有箭头】
-         (冲刺环 141/1022 早已还原成跳环 ✗)⇒ 我等于把本来正确的箭头方向改坏了 ✓✓
-         ⇒ 恢复用 arrowDir(箭头语义:不许往后指,横向分量 ≥0.7)✓
-         环的 tan 口径等真要做环时再单独走一条分支 ✗,不混用 */
-      /* 水平:纵向 0 ✓ · 斜向 45°:纵向 = vx ✓ · 垂直:|cos|≈0 ⇒ 纵向 = 【固定 5.77】(源码常数)✓ */
-      this.vy = (Math.abs(cosA) < 0.05)
-        ? (sinA >= 0 ? 1 : -1) * 5.7700018
-        : Math.abs(ov?.vxAbs ?? this.vx) * (sinA / cosA);
-      this.y += this.vy * (sY / Y_TIME_SCALE);
-      /* ★★ 2026-09 恢复时长上限(上一轮我删掉它是错的 ✗):用户实测"纵向冲刺像是把铺面流速加快了"
-         ⇒ 就是【冲刺永不结束】的表现:按住不放就一直冲 ✗。
-         依据仍是用户贴的 PlayerObject::update:
-             if (m_maxDuration > 0.0 && m_totalTime - m_dashStartTime > m_maxDuration) stopDashing;
-         环/箭头没有自带 m_maxDuration 时,原版的默认就是约 0.5 秒 ✓(这也是我最初写 0.5 的来源)。
-         ⇒ 规则:松手即停,或到 0.5 秒上限即停 ✓。 */
-      /* ★★ 2026-09 用户:"冲刺箭头逻辑还是错的,没有最大持续时间,按多久就冲刺多久" ⇒
-         去掉 0.5 秒上限 ✓ —— 冲刺【只由按住/松开决定】:按住一直冲,松手立刻停 ✓
-         (源码那行 `m_maxDuration > 0` 只在环自带时长时生效;本关的环/箭头没有 ⇒ 不限时 ✓)*/
+      const slope = ov?.ang != null ? dashSlopeOf(ov.ang) : d.slope;   // m_dashY(+0x578)
+      if (ov?.vxAbs != null) this.x += (ov.vxAbs - this.vx) * s;       // 把公共路径已经推过的横向补成 vxAbs ✓
+      /* 纵向速度 = 斜率 × 横向速度 ⇒ 本帧纵向位移 = m_dashY × 本帧横向位移 ✓(源码 0x14038959f)
+         ★ vx 用【带符号】的:自由模式往左走时斜率跟着翻(源码用的是位移本身,不是它的绝对值)✓ */
+      this.vy = slope * this.vx;
+      this.y += this.vy * s;
+      /* 结束条件:源码里只有 `m_maxDuration > 0 && 超时` 这一条会自动停,而环自带时长是键 590
+         (→ m_maxDuration +0x750),本关的环/箭头全都没配 ⇒ 0 ⇒ **永不自动结束** ✓;
+         唯一的结束路径是松手(releaseButton ⇒ stopDashing)⇒ 按住就一直冲、松手立刻恢复重力 ✓
+         (d.t 就是 m_totalTime − m_dashStartTime,留着等哪天有环真配了 590 再判。) */
       if (!hold) this.dash = null;
       /* ★★ 2026-09 修(用户:"bird 都没碰到就死了"):飞行类掉到地面线 y<0 时,
          原版是【有地面就落上去滑行】,只有真的掉进坑里才死 —— 我们以前一律 die() ✗。
@@ -1729,7 +1758,7 @@ export class World {
           this.gdir = this.gdir === 1 ? -1 : 1;
           this.vy = 0;
         } else {
-          this.dash = { ang: b.o.rot ?? 0, kind: b.o.arrow ?? 'green', t: 0 };
+          this.dash = { ang: b.o.rot ?? 0, slope: dashSlopeOf(b.o.rot ?? 0), kind: b.o.arrow ?? 'green', t: 0 };
           /* ★★ 2026-09 冲刺箭头:粉色翻重力(用户口径"紫/粉色冲刺环不会反转重力")
              —— 以前限定了 mode==='cube' 才翻 ✗,现在【无条件翻】✓;
              紫色(3004)是【瞬移箭头】✓,走上面的 tp 分支,跟这条无关 ✓ */
@@ -1765,29 +1794,17 @@ export class World {
           const spec = ORB[b.o.orb];
           if (b.o.dash) {
             if (b.o.dash === 'pink') this.gdir = (this.gdir === 1 ? -1 : 1);
-            this.dash = { ang: b.o.rot ?? 0, kind: b.o.dash, t: 0 };
+            this.dash = { ang: b.o.rot ?? 0, slope: dashSlopeOf(b.o.rot ?? 0), kind: b.o.dash, t: 0 };
           } else if (spec.flip === 'dash') {
-            /* ★★★ 2026-09 黑环(冲刺环)= 同一个 startDashing 机制(源码 ringJump 类型码 37,
-               `.tmp/GDsrc/asm/gd-ida-decomp.cpp:160089-160095`)⇒ 进 dash 状态,**不给纵向速度** ✓
-               方向取环的旋转角;本关 4 个黑环 rot 全是 0 ⇒ m_dashY = 0 ⇒ 水平冲刺(不吃重力),
-               松手或到时长上限结束 ✓
+            /* ★★★ 2026-09 黑环(冲刺环)= 同一个 startDashing 机制(0x140395910)⇒ 进 dash 状态,
+               **不给纵向速度** ✓。方向取环的旋转角经 dashSlopeOf 换算:本关 4 个黑环
+               (674,27 / 682,18 / 701,21 / 1219,34)rot 全是 0 ⇒ m_dashY = 0 ⇒ 水平冲刺
+               (不吃重力)、按住就一直冲、松手才停 ✓
                以前这里落到 applyTrigger 的 'dash' 支 ⇒ vy = −15 往下砸 ✗
-               —— 用户:「黑环力度太大了,第三个存档点后面那段,黑环应该刚好能送到底下的蓝环的」✓ */
-            this.dash = { ang: b.o.rot ?? 0, kind: 'black', t: 0 };
-            /* ★★★ 2026-09 用户:「你这个黑环是什么玩意. 空气一样」——诊断如下(本轮**未改代码**,原因见下):
-               ① 现状:进 dash 只置了状态(world.ts:1718),dash 运动在 1154-1204:
-                  **横向保持原速、只按 m_dashY 决定纵向**,而本关 4 个黑环(674,27 / 682,18 /
-                  701,21 / 1219,34)rot 全是 0 ⇒ m_dashY = 0 ⇒ **横向纵向都不变** ⇒ 手感"空气一样" ✓
-               ② 源码 `PlayerObject::startDashing`(反编译 148609 + 148619):
-                    v73 = ccpForAngle(−角°) × (环[+410] × 5.77)
-                    *(double *)(this + 1184) = v73.x        // ⇒ 横向速度是【被设成】冲刺向量的 x
-                  ⇒ 正确语义应当是【覆盖横向速度】,不是"保持原速" ✗
-               ③ 我按 ② 试改成 `this.vx = 5.77`(rot=0 ⇒ +5.77 单位/帧):
-                  **打红 2 条测试** ✗ —— 其中一条正是用户口径的几何判据
-                  「黑环→蓝环:冲刺 + 适时松手刚好够到」⇒ 说明 5.77 这个值/覆盖时机不对,
-                  必须先查清两件事再改:**环[+410] 这个字段的实际值**(是不是 1.0),
-                  以及 dash 运动块(1154-1204)里横向到底是怎么推的(会不会每帧重算 vx)✗
-               ④ 因此本轮**保持原状**(测试 80/80 全绿),把上面三条交给下一轮 ✓ */
+               —— 用户:「黑环力度太大了,第三个存档点后面那段,黑环应该刚好能送到底下的蓝环的」✓
+               (更早那版"横向被覆盖成 5.77"也是错的:m_dashX(+0x570) 在经典模式下是 |m_dashY| 这个
+                斜率,不是横向速度 —— 出处见 dashSlopeOf 的 140395cee 那几行 ✓) */
+            this.dash = { ang: b.o.rot ?? 0, slope: dashSlopeOf(b.o.rot ?? 0), kind: 'black', t: 0 };
           } else {
             /* ★ 同蓝板:环给的也是"发射速度",按上面的口径【即时生效】✓ */
             this.applyTrigger({ v: this.orbVel(b.o.orb), flip: spec.flip }, true);

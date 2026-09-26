@@ -701,6 +701,138 @@ test('黑环→蓝环:冲刺 + 适时松手,刚好够到【底下那个蓝环】
   assert.ok(best < 0.6, '而且应当"刚好"——最近点离蓝环中心 ' + best.toFixed(2) + ' 格(按住 ' + bestHold + ' 帧)');
 });
 
+/* ---------------- 冲刺:按 startDashing(0x140395910) 的真规则逐条钉住 ----------------
+ * 出处:GD 2.2081 `PlayerObject::startDashing` @ 0x140395910(反汇编 .tmp/ghidra-out/dashreal.txt A 段;
+ *       每帧位移 @ 0x140389480,dashmove.txt A 段),另与 ARM 2.206 反编译
+ *       `.tmp/GDsrc/asm/gd-ida-decomp.cpp:148504` 逐行对上(两份独立来源一致 ✓)。
+ * 常量(我从二进制 .rdata 直接读出来的):180/±360/179/90/−70/+70/1.0/5.7700019/π÷180。
+ * ★ 上一轮那份「45°、按矩形宽高比、查表定符号」的推导建立在 `FUN_14038f810` 上,
+ *   而它其实是 `collidedWithSlopeInternal`(斜坡)——整份作废 ✗,这里以 0x140395910 为准。 */
+test('冲刺斜率 = 照抄 startDashing 的【经典支】:斜率 = tan(−旋转角),|角|>90 折、>70 夹', async () => {
+  const { dashSlopeOf } = await import('../src/sim/world.ts');
+  const r2 = (v: number) => Math.round(v * 1e4) / 1e4;
+  /* rot=0(本关 4 个黑环都是它)⇒ m_dashY = 0 ⇒ 纯水平、不吃重力 —— 用户口径"刚好送到蓝环"就靠它 */
+  assert.equal(r2(dashSlopeOf(0)), 0, 'rot=0 ⇒ m_dashY = dir.y/|dir.x| = 0/1 = 0(源码 140395cee)');
+  assert.equal(r2(dashSlopeOf(180)), 0, 'rot=180 ⇒ θ=wrap180(−180) ⇒ |θ|>90 折成 0(源码 140395b70)');
+  assert.equal(r2(dashSlopeOf(45)), -1, 'rot=+45(屏幕顺时针 = 朝下)⇒ 斜率 −1(世界 y 向上)');
+  assert.equal(r2(dashSlopeOf(-45)), 1, 'rot=−45 ⇒ 斜率 +1(朝上)');
+  assert.equal(r2(dashSlopeOf(315)), 1, 'rot=315 ≡ −45 ⇒ 同一个方向');
+  assert.equal(r2(dashSlopeOf(135)), -1, 'rot=135 ⇒ θ=−135 ⇒ 镜像成 −45 ⇒ 斜率 −1(不许朝后指)');
+  /* 竖直箭头:夹到 ±70 ⇒ 斜率 ±tan70° = ±2.7475(旧代码那个 ±5.77 是【平台模式速度常数 0x140623024】✗) */
+  const tan70 = Math.tan(70 * Math.PI / 180);
+  assert.ok(Math.abs(dashSlopeOf(90) + tan70) < 1e-9,
+    'rot=90 ⇒ 夹到 −70 ⇒ −tan70 = ' + (-tan70).toFixed(4) + ',实测 ' + dashSlopeOf(90).toFixed(4));
+  assert.ok(Math.abs(dashSlopeOf(-90) - tan70) < 1e-9, 'rot=−90 ⇒ +tan70');
+  assert.ok(Math.abs(dashSlopeOf(20) + Math.tan(20 * Math.PI / 180)) < 1e-9, 'rot=20 ⇒ −tan20');
+});
+
+test('黑环:按住 ⇒ 逐帧 y 一点不动、vy 恒 0、横向照原速;松手 ⇒ 当场恢复重力', () => {
+  /* 源码(0x140389491/0x14038959f):冲刺中 m_yVelocity = 0、纵向位移 = 水平位移 × m_dashY;
+     rot=0 ⇒ m_dashY = 0 ⇒ 纵向位移【恒等于 0】(不是"小一点"),横向由公共路径照走 ✓
+     结束(0x140396650 的调用者里有 releaseButton)⇒ 松手即停、立刻恢复重力 ✓ */
+  const lv = solo([
+    { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
+    { kind: 'orb', b: 20, r: 2, w: 1, h: 1, orb: 'black' },
+  ]);
+  const w = new World(lv);
+  w.x = 20 * U - 12; w.y = 2 * U; w.vy = 6; w.onGround = false;   // 本来在往上飞
+  w.frame(true);
+  assert.ok(w.dash, '黑环必须进 dash 状态');
+  assert.equal(w.dash!.slope, 0, 'rot=0 ⇒ 存下来的斜率(源码 +0x578)必须是 0');
+  const vx = w.vx;
+  let maxDy = 0, maxVy = 0, dx0 = w.x;
+  for (let i = 0; i < 20; i++) {
+    const y0 = w.y;
+    w.frame(true);
+    maxDy = Math.max(maxDy, Math.abs(w.y - y0));
+    maxVy = Math.max(maxVy, Math.abs(w.vy));
+  }
+  assert.equal(maxDy, 0, '按住期间单帧纵向位移必须【严格为 0】,实测最大 ' + maxDy);
+  assert.equal(maxVy, 0, '按住期间 vy 必须恒 0(重力关掉),实测最大 ' + maxVy);
+  assert.ok(Math.abs((w.x - dx0) / 20 - vx) < 1e-9, '横向必须【逐帧恰好 vx】,不许被冲刺改口径');
+  w.frame(false);
+  assert.equal(w.dash, null, '松手即结束冲刺');
+  w.frame(false);
+  assert.ok(w.vy < 0, '结束之后立刻恢复重力(往下加速),实测 vy=' + w.vy.toFixed(3));
+});
+
+test('冲刺箭头:竖直方向按真规则夹到 ±70(tan70≈2.7475),竖向速度不再走旧的固定 5.77', async () => {
+  /* 这一条钉的是【改动的可见后果】:本关两枚 rot=90 的粉箭头(x=367.5 / 404.5)以前是
+     "纵向固定 ±5.7700018"(那个数其实是平台模式的 环.m_dashSpeed × 5.77 里的 5.77),
+     现在按经典支 = tan70° × 横向速度 ⇒ 明显更陡 ✓(源码 140395bb8 的 ±70 夹取) */
+  const lv = solo([
+    { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
+    { kind: 'arrow', b: 20, r: 3, w: 1, h: 1, arrow: 'pink', rot: 90 },
+  ]);
+  const w = new World(lv);
+  w.mode = 'cube'; w.speedIdx = 1; w.gdir = 1; w.god = true;
+  w.x = 20 * U - 12; w.y = 3 * U; w.vy = 0; w.onGround = false; w.dead = false;
+  w.frame(true);
+  assert.ok(w.dash && w.dash!.kind === 'pink', 'rot=90 的粉箭头必须进 dash');
+  const slope = w.dash!.slope;
+  assert.ok(Math.abs(slope + Math.tan(70 * Math.PI / 180)) < 1e-9,
+    '斜率应当是 −tan70 = ' + (-Math.tan(70 * Math.PI / 180)).toFixed(4) + ',实测 ' + slope.toFixed(4));
+  const y0 = w.y;
+  w.frame(true);
+  const dy = (w.y - y0) / U;
+  const expect = Math.abs(w.vx) * Math.tan(70 * Math.PI / 180);
+  assert.ok(dy < 0, 'rot=+90 = 朝下 ⇒ 纵向位移必须向下,实测 Δy=' + dy.toFixed(3) + ' 格');
+  assert.ok(Math.abs(Math.abs(dy) * U - expect) < 0.05 * U,
+    '单帧纵向位移应当 = 横向位移 × tan70 ≈ ' + expect.toFixed(2) + ' 单位,实测 ' + (Math.abs(dy) * U).toFixed(2));
+  assert.ok(Math.abs(dy) * U > 8, '而且必须明显比旧的固定 5.77 陡(用户口径:竖直冲刺要够陡)');
+});
+
+/* ---------------- 黑环那段在【真实速度】下的实际结果(含一条待裁决的冲突记录) ---------------- */
+async function blackOrbRun(holdFrames: number) {
+  const { WATER_CHART } = await import('../src/sim/charts/water.ts');
+  const objs = (WATER_CHART as unknown as Level).objects;
+  const black = objs.filter((o) => o.id === 1330 && o.b > 670 && o.b < 680)[0];
+  const blue = objs.filter((o) => o.id === 84 && o.b > 678 && o.b < 685)[0];
+  /* 速度取【这一段自己的 speed】,不写死:段 = {from:657,to:733,speed:4}(速度门 1334 在 x=650) */
+  const seg = (WATER_CHART as unknown as Level).segments.find((s) => s.from <= black.b && s.to >= black.b);
+  const w = new World(WATER_CHART as unknown as Level);
+  w.mode = 'cube'; w.speedIdx = seg ? seg.speed : 1; w.gdir = 1; w.god = false;
+  w.x = (black.b + black.w / 2) * U; w.y = (black.r + black.h / 2) * U;
+  w.vy = 0; w.onGround = false; w.dead = false;
+  let died = false, at = { x: w.x / U, y: w.y / U }, entered = false;
+  for (let f = 0; f < 120; f++) {
+    w.frame(f < holdFrames);
+    if (w.dash) entered = true;
+    if (w.dead) { died = true; at = { x: w.x / U, y: w.y / U }; break; }
+  }
+  return { died, at, entered, segSpeed: seg ? seg.speed : -1, blue };
+}
+
+test('黑环段·反向防线:在真实速度下【按住不放】= 水平滑行 ⇒ 必然撞上水平线上那把锯片(危险物不许被冲刺放过)', async () => {
+  /* 冲刺不改横向、也不关碰撞(源码只在 m_dashY 上做文章)⇒ 水平滑过去一定撞上
+     (678.5,26.5) 那把锯片(半径 1.0 格)⇒ 必须死 ✓ —— 这条防止"把冲刺做成穿墙/无敌" */
+  const r = await blackOrbRun(60);
+  assert.ok(r.entered, '按住必须在黑环上进入 dash');
+  assert.ok(r.died, '按住滑过去必须被锯片杀掉(实测活到了 x=' + r.at.x.toFixed(2) + ')✗');
+  assert.ok(r.at.x > 675 && r.at.x < 678.5,
+    '死亡点应当在锯片左缘附近(实测 x=' + r.at.x.toFixed(2) + ',锯片在 678.5)');
+});
+
+test('黑环段·【冲突记录·待用户裁决】不按(纯下落)在真实速度下也过不去 —— 落点太浅,撞的同一把锯片', async () => {
+  /* ★ 这一条不是"通过标准",是**把现状钉住**:按源码规则(rot=0 ⇒ 纯水平)与当前的下落参数,
+     这一段无论按不按都活不过 x≈677 —— 但用户给的【原版参考图】里,那一段是一条
+     ~56° 的斜线,一路从黑环下到蓝环 (681.5,17.5) 并把两把锯片甩在身后 ✓
+     我实测过的数(可复现):
+       · 参考图那条绿线不是关卡物件(带内只有 83/1705/8/36/1330/84),是截图上的路径叠加;
+       · 它的下降段局部斜率稳定在 1.44~1.50(=55~56°)= 终端速度的斜率(15 / 9.6 = 1.5625 同量级),
+         但只掉了约 1.1 格就到终端 —— 我们的重力(0.865 单位/帧²)要 3.9 格才到 ⇒ 形状对不上;
+       · 本段真实速度是 4(vx = 9.6 单位/帧 = 0.32 格/帧):站着不动也会在 x≈676.9 撞上
+         (678.5,26.5) r=1.0 的锯片 ⇒ 原版要过这一段,下降必须【一离开黑环就足够陡】。
+     结论:要么原版 1330 的冲刺方向不是我们读到的"取旋转角"(参考图更像 ~56° 直冲),
+     要么我们这条下落(终端速度 15,出处是 [GDOpenGD] 而非源码)本身就不对。
+     两条都改完之后这条测试【必须翻红】—— 那时把它改成"刚好吃到蓝环"。 */
+  const r = await blackOrbRun(0);
+  assert.equal(r.segSpeed, 4, '这一段的速度应当来自段本身(实测 ' + r.segSpeed + ')');
+  assert.ok(r.died, '现状:不按也会在 x≈677 撞锯片(实测 x=' + r.at.x.toFixed(2) + ')');
+  assert.ok(r.at.x > 675 && r.at.x < 679, '现状死亡点 x=' + r.at.x.toFixed(2) + '(锯片左缘 677.5)');
+});
+
+
 test('力场:人进到里面会被推 —— 往上推得比重力狠就能托住人', () => {
   /* fy = +2.0 单位/帧² 大于重力 0.958 → 在力场里应该被托着往上走 */
   const lift = new World(solo([
