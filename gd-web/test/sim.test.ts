@@ -1655,3 +1655,24 @@ test('存档点保存当前的 zoom:过 zoom 门后存档、复活 ⇒ zoom 保�
   assert.ok(Math.abs(w.zoom - 1) > 0.1, '复活后不该退回默认的 1(reset 会把它清成 1,所以这条正好证明 respawn 做了恢复)');
   assert.ok(Math.abs(w.zoom - 0.725) < 1e-6, '复活后 zoom 必须是存档时那个值,实为 ' + w.zoom.toFixed(4));
 });
+
+test('锯片半径口径:基础半径 × max(缩放X, 缩放Y) —— 源码 getObjectRadius 一锤定音', () => {
+  /* 反编译 `GameObject::getObjectRadius`(174182-174198):
+       v1 = 缩放X(+250) · v2 = 缩放Y(+251) · v3 = 半径(+189)
+       if (v1 != 1.0 || v2 != 1.0) { if (v1 >= v2) v2 = 缩放X; v3 *= v2; }   ⇒ 乘 max ✓
+     碰撞走它:`GJBaseGameLayer::playerCircleCollision`(419752,内部 420031 调 getObjectRadius)✓
+     锯片基础半径:`customSetup` case 1705(182589-182593)字面量 1107374899 = 32.299999237 ✓ */
+  const nu = mapRecord({ '1': '1705', '2': '300', '3': '300', '128': '2.93', '129': '5.67' });
+  assert.ok(nu, '1705 必须认得出来');
+  assert.equal(nu!.rad0, 32.3, '基础半径 = customSetup 里的字面值 32.3');
+  assert.ok(Math.abs(nu!.rad! - 32.3 * 5.67) < 0.05, '非等比缩放要乘 max(2.93,5.67)=5.67,实为 ' + nu!.rad!.toFixed(3));
+  assert.ok(Math.abs(nu!.rad! - 32.3 * (2.93 + 5.67) / 2) > 1, '★ 反向断言:不能是两轴平均(老实现就是这个 ✗)');
+  const eq = mapRecord({ '1': '1705', '2': '300', '3': '300', '128': '2', '129': '2' });
+  assert.ok(Math.abs(eq!.rad! - 64.6) < 0.05, '等比 2/2 ⇒ 32.3×2 = 64.6(max 与平均在等比时相同)');
+});
+
+test('锯片反向防线:直接撞上去仍然死(半径改口径不许把危险物放过)', () => {
+  const w = new World(solo([floor60, { kind: 'saw', b: 6, r: 0, w: 2, h: 2, id: 1706 }]));
+  for (let i = 0; i < 400 && !w.dead; i++) w.frame(false);
+  assert.ok(w.dead, '玩家直冲锯片必须判死(否则就是把危险物放过了 ✗)');
+});

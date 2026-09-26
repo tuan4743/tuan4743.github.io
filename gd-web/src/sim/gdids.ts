@@ -451,11 +451,22 @@ const ints = (s: string | undefined): number[] =>
   /* ★ 圆表物件(锯片族):判定是圆,半径查 `_pHitboxRadius`,圆心 = 物件中心。
      缩放这一层原版没有直接证据(OpenGD 的 `_radius` 不乘缩放),所以两个值都留着:
      默认按缩放(和贴图一致),`--sawbase=1` 走不缩放(OpenGD 原样)。 */
+  /* ★★★ 2026-09-25 一锤定音(用户要求把这条彻底定死):反编译 `GameObject::getObjectRadius`
+     (**174182-174198**)写得很清楚 ——
+       v1 = 缩放X(ptr+250) · v2 = 缩放Y(ptr+251) · v3 = 该物件存的半径(ptr+189)
+       if (v1 != 1.0 || v2 != 1.0) { if (v1 >= v2) v2 = 缩放X; v3 *= v2; }
+     ⇒ **要乘缩放,乘的是 max(sx, sy)**,不是两轴平均 ✗(等比时两者相同;**非等比时平均偏小**,
+       也就是我们以前比原版【更宽松】,不是更严 —— 所以"我们半径偏大导致多吃"这个假设不成立 ✗)
+     碰撞确实走这个取值器:`GJBaseGameLayer::playerCircleCollision`(**419752**,内部 **420031**
+     调 `getObjectRadius`),而 **463454** 用 `*(float*)(obj+189) > 0` 决定是否走圆判定 ✓
+     锯片的基础半径出处:`GameObject::customSetup` 的 `case 1705:`(约 **182589-182593**)
+     `*((_DWORD*)this+189) = 1107374899` = float 32.29999923706055 ⇒ 与表里的 32.3 逐位一致 ✓
+     ⇒ `--sawbase=1`(完全不乘缩放)那条路是错的,只留作调试;默认必须乘 max ✓ */
   const rr = GD_HITBOX_RADIUS[id];
   if (rr != null) {
-    const sx = num(f['128'], 1), sy = num(f['129'], 1);
+    const sx = Math.abs(num(f['128'], 1)), sy = Math.abs(num(f['129'], 1));
     o.rad0 = rr;
-    o.rad = rr * (Math.abs(sx) + Math.abs(sy)) / 2;
+    o.rad = rr * Math.max(sx, sy);           // ★ max,不是 (|sx|+|sy|)/2(见上,行号都在)
   }
   if (spec.orb) o.orb = spec.orb;
   if (spec.dash) o.dash = spec.dash;        // ★ 冲刺环(141/1022):以前这一行漏了
@@ -609,9 +620,9 @@ export function decodeObjects(text: string): Obj[] {
           const rr = GD_HITBOX_RADIUS[o.id];
           if (rr != null) {
             const spec = GD_SPEC[o.id];
-            const sx = spec?.w ? o.w / spec.w : 1, sy = spec?.h ? o.h / spec.h : 1;
+            const sx = spec?.w ? Math.abs(o.w / spec.w) : 1, sy = spec?.h ? Math.abs(o.h / spec.h) : 1;
             o.rad0 = rr;
-            o.rad = rr * (Math.abs(sx) + Math.abs(sy)) / 2;
+            o.rad = rr * Math.max(sx, sy);      // ★ 与 mapRecord 同一口径:max(见那里的源码引注)
           }
           break;
         }
