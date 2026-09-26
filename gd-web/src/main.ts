@@ -270,6 +270,8 @@ class Scene extends Phaser.Scene {
   /** 形态图集(static/icons)建好的图层。见 buildIcons() */
   /** 载具里的"驾驶位 cube"(UFO/飞船/球/波浪箭里坐着的那颗)✓ 见 drawIconPlayer */
   pilot: Phaser.GameObjects.Image | null = null;
+  /** 玩家 2 的驾驶位 cube(双人不能共用同一个 Image,否则第二遍覆盖第一遍 ⇒ p2 没驾驶位 ✗) */
+  pilot2: Phaser.GameObjects.Image | null = null;
   /** 驾驶位诊断只打一次 ✓ */
   pilotDbgLogged = false;
   /** ★★★ 2026-09 限高框(限制框)的【外观】= 原版天花板本体(用户:"没有贴图,我都看不到限高框在哪,
@@ -1211,6 +1213,14 @@ class Scene extends Phaser.Scene {
         bw: body.w, bh: body.h,
         pxPerUnit: REF_PX / (WATER_CHART.start ? 30 : 30),          // 见 REF_PX:120 px = 1 块 = 30 单位
       });
+      /* ★★★★ 玩家 2 的一套同款图层(见 p2Layers 的说明:双人不共用 Image,否则第二遍覆盖第一遍 ✗) */
+      this.p2Layers.push({
+        mode: a.mode,
+        body: this.add.image(0, 0, body.tex).setVisible(false).setDepth(16),
+        glow: glow ? this.add.image(0, 0, glow.tex).setVisible(false).setDepth(15.5) : null,
+        bw: body.w, bh: body.h,
+        pxPerUnit: REF_PX / 30,
+      });
     }
     /* ★★★ 2026-09 修"还是卡死,问题是 UFO 里面的 cube"(用户定位)—— 我上一轮是【在渲染途中】
        this.add.image 建 pilot ✗:那是在 display list 被遍历的时候往里塞对象 ⇒ 卡死 ✓✓
@@ -1223,6 +1233,8 @@ class Scene extends Phaser.Scene {
     if (this.textures.exists('icon-cube-body')) {
       // 驾驶位 cube 层:【载具第二色层 15.5 < 15.8 < 载具本体 16】⇒ 碟身盖住它 ✓("沉到碟身之下")
       this.pilot = this.add.image(0, 0, 'icon-cube-body').setVisible(false).setDepth(15.8);
+      /* ★★ 玩家 2 的驾驶位 cube(见 p2Layers 的说明:双人不能共用同一个 Image,否则被覆盖 ✗) */
+      this.pilot2 = this.add.image(0, 0, 'icon-cube-body').setVisible(false).setDepth(15.8);
     }
     this.iconsReady = this.iconLayers.length > 0;
     console.log('[gd] 形态图集就绪:' + this.iconLayers.map((l) => l.mode + '(' + l.bw + '×' + l.bh + ')').join(' '));
@@ -1230,14 +1242,22 @@ class Scene extends Phaser.Scene {
 
   /** 用图集摆玩家:位置/尺寸/旋转/上色。
    *  ★ 尺寸用统一密度(120 px = 1 块),不是"每层各自撑满 1 格" —— 后者会把小腿/描边放大到和身体一样大。 */
-  private drawIconPlayer(w: World, cxw: number, cyw: number, B: number) {
+  /* ★★★★ 2026-09-26 用户:"克隆门还是没用,要么是因为克隆出来的没有贴图" —— **就是这个** ✗
+     病根:形态图层是【单一一组 Image】(iconLayers),而双人绘制是"同一套代码跑两遍"
+     ⇒ 第二遍(玩家 1)把第一遍(玩家 2)写进同一组 Image 的位置/旋转**覆盖掉** ✗✗
+     于是 p2 一个像素都留不下(属性看着全对,屏幕上没有 —— 这类"属性对但看不见"我们踩过多次)。
+     修法:p2 用**自己的一套图层**(同样的贴图、独立的 Image 对象)⇒ 两遍互不覆盖 ✓
+     层级与 p1 相同(16 / 15.5):绘制顺序是"先 p2 后 p1" ⇒ p1 压在上面,与原版一致 ✓ */
+  private p2Layers: Array<{ mode: string; body: Phaser.GameObjects.Image; glow: Phaser.GameObjects.Image | null; bw: number; bh: number; pxPerUnit: number }> = [];
+
+  private drawIconPlayer(w: World, cxw: number, cyw: number, B: number, layers: Array<{ mode: string; body: Phaser.GameObjects.Image; glow: Phaser.GameObjects.Image | null; bw: number; bh: number; pxPerUnit: number }> = this.iconLayers) {
     /* ★★ 2026-09 用户:"cube 的贴图变成 ship 的贴图了" —— 就是这一行的 ?? 兜底 ✗
        cube 的图集因为尺寸不符被跳过 ⇒ find() 拿不到 ⇒ 于是【借用了第 0 层】(别的形态)✗✓
        改成:拿不到就【没有图层】⇒ 上层会走矢量画法 ✓(绝不借用别的形态 ✗) */
-    const L = this.iconLayers.find((l) => l.mode === w.mode);
+    const L = layers.find((l) => l.mode === w.mode);
     if (!L) return;
     const on = !w.done;
-    for (const l of this.iconLayers) {
+    for (const l of layers) {
       const vis = on && l === L;
       l.body.setVisible(vis);
       l.glow?.setVisible(vis);
@@ -2434,6 +2454,9 @@ class Scene extends Phaser.Scene {
     const dualPass = w.dualInto();                    // 有 p2 时:把 p2 换进主字段(画完必须换回 ✓)
     for (let pass = 0; pass < (dualPass ? 2 : 1); pass++) {
       if (pass === 1) w.dualBack();                   // 第二遍换回玩家 1 ✓
+      /* ★★★★ 这一遍用【哪一套图层】:pass 0 = 玩家 2 ⇒ p2Layers;pass 1 = 玩家 1 ⇒ iconLayers ✓
+         (两套是各自独立的 Image ⇒ 两遍不会互相覆盖;以前共用一套 ⇒ p2 被覆盖成一个像素不剩 ✗) */
+      const passLayers = dualPass && pass === 0 ? this.p2Layers : this.iconLayers;
     const B = P.box * w.sizeMul;   // ★ 迷你门:人也要画小
     const py = this.prevY + (w.y - this.prevY) * Math.min(1, this.acc * 60);   // 渲染插值
     const cxw = w.x + B / 2, cyw = py + B / 2;
@@ -2503,7 +2526,7 @@ class Scene extends Phaser.Scene {
        (1986 行那段注释早就写明要改成"按形态判断",代码没改 ✗)
        现在:这个形态【真有图层】才走图集并跳过矢量;没有就走矢量兜底 ⇒ 无论图层成不成都有东西 ✓ */
     const hasLayer = this.iconLayers.some((l) => l.mode === w.mode);
-    if (hasLayer && w.mode !== 'robot' && w.mode !== 'spider') this.drawIconPlayer(w, cxw, Y(cyw), B);
+    if (hasLayer && w.mode !== 'robot' && w.mode !== 'spider') this.drawIconPlayer(w, cxw, Y(cyw), B, passLayers);
     /* ★ 这里【绝不能】每帧 console.warn:devtools 开着时一帧一条会把页面拖死(用户已经踩过一次卡死 ✗)
        ⇒ 只在"形态图层表"变化时打一次(buildIcons 结束时那条 [gd] 日志已经够定位 ✓) */
     /* ★★★ 2026-09 用户:"bird 外观是一个 UFO,但驾驶位在原版是独立的一个 cube,所以现在驾驶位是空的"
@@ -2570,9 +2593,11 @@ class Scene extends Phaser.Scene {
       const PILOT_SCALE = 0.7;
       const PILOT_DY = w.mode === 'ufo' ? -7 : 5;
       const pd = w.gdir < 0 ? -PILOT_DY : PILOT_DY;
-      this.pilot.setVisible(!w.done).setPosition(cxw, Y(cyw) + pd).setRotation(0).setFlipY(w.gdir < 0)
+      /* ★ 驾驶位 cube 也要按【这一遍是谁】选图:两遍共用 this.pilot 会被第二遍覆盖 ⇒ p2 没驾驶位 ✗ */
+      const pilotImg = dualPass && pass === 0 ? this.pilot2 : this.pilot;
+      pilotImg?.setVisible(!w.done).setPosition(cxw, Y(cyw) + pd).setRotation(0).setFlipY(w.gdir < 0)
         .setTint(w.dead ? 0xff7a5a : PLAYER_C1).setDisplaySize(B * PILOT_SCALE, B * PILOT_SCALE);
-    } else this.pilot?.setVisible(false);
+    } else (dualPass && pass === 0 ? this.pilot2 : this.pilot)?.setVisible(false);
     /* ★★★★ 2026-09-26 双人的绘制:【已被上面的两遍循环取代】✓
        以前这里单独给 p2 画一次 `drawIconPlayer` —— 那只覆盖"用图标的形态",
        矢量兜底(robot/spider/cube 无图层时)和驾驶位 cube 都画不到 p2 ✗
@@ -2695,7 +2720,15 @@ class Scene extends Phaser.Scene {
     }                                                 // ← 双人两遍循环结束(玩家 2 → 玩家 1)
     if (dualPass) w.dualBack();                       // 兜底:主字段必须是玩家 1 ✓(dualBack 幂等 ✓)
     // 判定内框(自己看得见,方便调手感)
-    g.lineStyle(1, 0xffffff, 0.28).strokeRect(w.x + w.innerOff, Y(py + w.innerOff + w.innerSize), w.innerSize, w.innerSize);
+    /* ★★★★ 2026-09-26 用户:"克隆门还是没用" —— 这条是**真凶之一,而且是个活的运行时错误** ✗✗
+       这一行原来用 `py`,但 `py` 是在【上面那个双人两遍循环体里】声明的(2461 行)⇒
+       循环在 2720 行结束 ⇒ `py` 出作用域 ⇒ **每帧抛 `py is not defined`**,
+       而它抛在"玩家已经画完、终点线/闪光/面板还没画"的位置 ⇒ 整帧渲染后半段被跳过 ✗
+       (探针里能看到 pageerror = ["py is not defined"] ✓ —— 属性读数一切正常、屏幕上却不对,
+        又是这类"属性对但看不见"的坑)
+       ⇒ 这里自己算一次插值 y(和循环里那条同一个式子),不再借循环内的变量 ✓ */
+    const pyDbg = this.prevY + (w.y - this.prevY) * Math.min(1, this.acc * 60);
+    g.lineStyle(1, 0xffffff, 0.28).strokeRect(w.x + w.innerOff, Y(pyDbg + w.innerOff + w.innerSize), w.innerSize, w.innerSize);
 
     // 终点
     const endX = LEVEL.length * U;
