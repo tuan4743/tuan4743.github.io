@@ -2376,7 +2376,17 @@ class Scene extends Phaser.Scene {
           /* ★ 屏幕上的角度 = 数据里的 rot(0 = 指向右,正角度顺时针 = 屏幕上往下)——
              和 sim 里的 arrowDir 是同一套口径,画的和冲的方向才会一致。 */
           const a = ((o.rot ?? 0) * Math.PI) / 180;
-          const dx = Math.cos(a), dy = Math.sin(a) * amir;
+          /* ★★★★ 2026-09-26 用户:"贴图反转没生效" —— 真凶是**画的方向和 sim 的方向不是同一条式子** ✗
+             sim 的 `arrowDir`(world.ts:2198-2206)有一道夹取:`sx = max(cos a, 0.7)`(横向分量永不小于 0.7,
+             "永远不许往后指"✓,那是核对过原版截图的口径);而这里原来直接 `dx = cos(a)` ⇒
+             同一支 `rot=180` 的箭头,sim 往右前冲、画面却指向【左】✗✗
+             (铺面里正好有 3 支 rot=180:A 2179 69 / A 2527 81 / A 3192 111 ✓)
+             ⇒ 冲刺箭头按 sim 同一条式子画(横向 1、斜率 sin/sx)✓ —— 画的和冲的必须一致 */
+          const tpArrow = !!o.tp;                          // 传送箭头(3004):方向是"贴着哪条边就往哪送"
+          const up = ((o.rot ?? 0) % 360 + 360) % 360 !== 180;
+          const sxa = Math.max(Math.cos(a), 0.7);
+          const dx = tpArrow ? 0 : 1;
+          const dy = tpArrow ? (up ? -1 : 1) * amir : (Math.sin(a) / sxa) * amir;
           const L = U * 0.5;
           const tx = acx + dx * L * 0.62, ty = acy + dy * L * 0.62;     // 箭尖
           g.lineStyle(3, acol, 0.95);
