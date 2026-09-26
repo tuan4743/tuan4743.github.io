@@ -644,36 +644,52 @@ test('限高框的下框面就是这个形态的"地面":站在上面能跳(用�
   assert.equal(w.gdir, -g0, '站在框面上点一下必须能跳(翻重力)—— 这条就是用户报的"吸住无法跳起" ✓');
 });
 
-test('黑环(冲刺环)= 进 dash 状态(不是"把 vy 设成 −15 往下砸") — 源码类型码 37 ⇒ startDashing', () => {
-  /* ★★★ 2026-09 用户:「黑环力度太大了,第三个存档点后面那段,黑环应该刚好能送到底下的蓝环的」
-     病根:我们原来按 [GDOpenGD] 把黑环做成 `v:15 + flip:'dash'` ⇒ vy = −15 直接往下砸 ✗
-     源码(`.tmp/GDsrc/asm/gd-ida-decomp.cpp:160089-160095`)里环的类型码 37 走的是
-     `PlayerObject::startDashing` —— 进 dash 状态:横向 = 当前速度、纵向 = 横向 × m_dashY,
-     松手/到时长结束;`m_dashY` 由【环的旋转角】算(148639-148654:角 0 ⇒ 0;|角|>70 夹到 ±70;45° 取 1/tan)
-     本关 4 个黑环 rot 都是 0 ⇒ **水平冲刺** ✓ */
+test('黑环 = dropRing(掉落环):vy := ∓15(源码 0x140623880 = −15.0f),横向不动、不翻重力、不进 dash', () => {
+  /* ★★★ 2026-09-26 纠错:黑环 1330 **不是冲刺环** —— 三处本体证据见 constants.ORB.black 的注释:
+      ① 物件表 0x140348d70:1330 → "dropRing_01_001.png"(1704/1751 才是 dashRing_01/02)
+      ② customSetup case 0x532:类型 +0x3a0 := 0x20
+      ③ 环判定分派 FUN_140398c00 的 `type == 0x20` 支:
+           iVar7 = (player+0x9bf = 重力是否翻转 ? 1 : −1);
+           setYVelocity(player, iVar7 * −15.0f);        // DAT_140623880 = −15.0f
+        ⇒ vy := ∓15(沿自己的重力方向"往下砸"),横向速度一点不动、不翻重力、不进 dash ✓
+     所以旧的那两条("进 dash 状态""水平冲刺")整条作废 ✗ */
+  const lv = solo([
+    { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
+    { kind: 'orb', b: 20, r: 12, w: 1, h: 1, orb: 'black' },        // 放高一点:下面留出 12 格落差
+  ]);
+  const w = new World(lv);
+  w.x = 20 * U - 12; w.y = 12 * U; w.vy = 6; w.onGround = false;   // 本来在往上飞
+  const vx0 = w.vx, g0 = w.gdir;
+  w.frame(true);
+  assert.equal(w.dash, null, 'drop 不是 dash 状态(旧行为 ✗)');
+  assert.equal(w.gdir, g0, 'drop 不翻重力(源码那一支只 setYVelocity)');
+  assert.ok(Math.abs(w.vy + 15) < 1e-9, '常重力下 vy 必须被写成 −15(源码 DAT_140623880 = −15.0f),实测 ' + w.vy.toFixed(3));
+  assert.ok(Math.abs(w.vx - vx0) < 1e-9, '横向速度一点都不动(源码没碰 x 速度)');
+  const y0 = w.y;
+  for (let i = 0; i < 10; i++) w.frame(true);
+  assert.ok(Math.abs(w.vy + 15) < 1e-9,
+    '掉落 10 帧里 vy 恒为 −15(15 正好是终端速度 vyMax ⇒ 被夹住 ⇒ 恒定斜率的直线),实测 ' + w.vy.toFixed(3));
+  assert.ok(w.y < y0 - 4 * U, '十帧必须真的往下掉了(实测 ' + ((y0 - w.y) / U).toFixed(2) + ' 格)');
+});
+
+test('黑环 = dropRing:反重力下"往下" = 世界 +y ⇒ vy = +15(沿玩家自己的重力方向)', () => {
   const lv = solo([
     { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
     { kind: 'orb', b: 20, r: 2, w: 1, h: 1, orb: 'black' },
   ]);
   const w = new World(lv);
-  w.x = 20 * U - 12; w.y = 2 * U; w.vy = 6; w.onGround = false;   // 本来在往上飞
-  const y0 = w.y;
+  w.gdir = -1;                                   // 反重力
+  w.x = 20 * U - 12; w.y = 2 * U; w.vy = -6; w.onGround = false;
   w.frame(true);
-  assert.ok(w.dash, '黑环必须让人进入 dash 状态(旧行为"直接给 −15"是错的 ✗)');
-  assert.ok(Math.abs(w.vy) < 1.5, 'rot=0 ⇒ m_dashY=0 ⇒ 不额外给纵向速度,实测 vy=' + w.vy.toFixed(2));
-  for (let i = 0; i < 10; i++) w.frame(true);
-  assert.ok(Math.abs(w.y - y0) < 0.2 * U,
-    'dash 期间不吃重力 ⇒ y 基本不变(水平冲刺),实测 Δy=' + ((w.y - y0) / U).toFixed(3) + ' 格');
-  assert.ok(w.x > 20 * U, '横向照常前进(冲刺不改横向)');
-  w.frame(false);
-  assert.equal(w.dash, null, '松手即结束冲刺');
+  assert.ok(Math.abs(w.vy - 15) < 1e-9,
+    '反重力时 iVar7 = −1 ⇒ vy = +15(源码 0x140623880 = −15.0f 乘 −1),实测 ' + w.vy.toFixed(3));
 });
 
-test('黑环→蓝环:冲刺 + 适时松手,刚好够到【底下那个蓝环】(用户口径的几何判据)', async () => {
+test('黑环→蓝环:dropRing 的 ∓15 刚好够到【底下那个蓝环】(用户口径的几何判据)', async () => {
   /* 现场:第三个存档点(x=643.5)之后,黄环链升到黑环 (674.5,27.5),底下蓝环在 (681.5,17.5)
      ⇒ Δ = (+7, −10) 格。用户口径:「黑环应该刚好能送到底下的蓝环的」✓
-     ★ 这里用 god 只看**几何**:纯水平冲刺 + 松手后下落,判定盒能不能与蓝环相交 ✓
-       (真实路线还要躲开水平线上那把锯片 —— 那是另一条线,已单独记录,不在本测试范围 ✗) */
+     ★ 这里用 god 只看**几何**:drop(恒定 −15)+ 的斜直线能不能与蓝环判定盒相交 ✓
+       真实路线(含两把锯片、不 god)在下面那两条测试里 ✓ */
   const { WATER_CHART } = await import('../src/sim/charts/water.ts');
   const objs = (WATER_CHART as unknown as Level).objects;
   const black = objs.filter((o) => o.id === 1330 && o.b > 670 && o.b < 680)[0];
@@ -683,22 +699,20 @@ test('黑环→蓝环:冲刺 + 适时松手,刚好够到【底下那个蓝环】
   const lx = blue!.b + blue!.w / 2, ly = blue!.r + blue!.h / 2;
   assert.ok(Math.abs(ly - by) > 8, '蓝环应当在黑环【底下】足够远(实测 Δy=' + (ly - by).toFixed(1) + ' 格)');
 
-  let best = 1e9, bestHold = -1, hit = false;
-  for (let hold = 0; hold <= 20; hold += 2) {          // 步长 2:够用且别把测试拖慢(原版手感本来就是"差几帧")
-    const w = new World(WATER_CHART as unknown as Level);
-    w.mode = 'cube'; w.speedIdx = 1; w.gdir = 1; w.god = true;
-    w.x = bx * U; w.y = by * U; w.vy = 0; w.onGround = false; w.dead = false;
-    for (let f = 0; f < 140; f++) {
-      w.frame(f < hold);
-      const px = w.x / U, py = w.y / U;
-      const d = Math.hypot(px - lx, py - ly);
-      if (d < best) { best = d; bestHold = hold; }
-      if (Math.abs(px - lx) < 1 && Math.abs(py - ly) < 1) hit = true;   // 判定盒相交(环盒 1×1)
-      if (w.dead) break;
-    }
+  let best = 1e9, hit = false;
+  const w = new World(WATER_CHART as unknown as Level);
+  w.mode = 'cube'; w.speedIdx = 4; w.gdir = 1; w.god = true;
+  w.x = bx * U; w.y = by * U; w.vy = 0; w.onGround = false; w.dead = false;
+  for (let f = 0; f < 140; f++) {
+    w.frame(f < 30);
+    const px = w.x / U, py = w.y / U;
+    const d = Math.hypot(px - lx, py - ly);
+    if (d < best) best = d;
+    if (Math.abs(px - lx) < 1 && Math.abs(py - ly) < 1) hit = true;   // 判定盒相交(环盒 1×1)
+    if (w.dead) break;
   }
-  assert.ok(hit, '黑环 + 适时松手必须能吃到下面那个蓝环(用户口径"刚好送到");最近只到 ' + best.toFixed(2) + ' 格 ✗');
-  assert.ok(best < 0.6, '而且应当"刚好"——最近点离蓝环中心 ' + best.toFixed(2) + ' 格(按住 ' + bestHold + ' 帧)');
+  assert.ok(hit, '按住黑环必须能吃到下面那个蓝环(用户口径"刚好送到");最近只到 ' + best.toFixed(2) + ' 格 ✗');
+  assert.ok(best < 0.8, '而且应当"刚好"——最近点离蓝环中心 ' + best.toFixed(2) + ' 格(15 单位/帧 ÷ 4 档 = 斜率 1.5625 的直线)');
 });
 
 /* ---------------- 冲刺:按 startDashing(0x140395910) 的真规则逐条钉住 ----------------
@@ -711,7 +725,8 @@ test('黑环→蓝环:冲刺 + 适时松手,刚好够到【底下那个蓝环】
 test('冲刺斜率 = 照抄 startDashing 的【经典支】:斜率 = tan(−旋转角),|角|>90 折、>70 夹', async () => {
   const { dashSlopeOf } = await import('../src/sim/world.ts');
   const r2 = (v: number) => Math.round(v * 1e4) / 1e4;
-  /* rot=0(本关 4 个黑环都是它)⇒ m_dashY = 0 ⇒ 纯水平、不吃重力 —— 用户口径"刚好送到蓝环"就靠它 */
+  /* rot=0(本关 1704 绿冲刺环没带 rot ⇒ 水平)⇒ m_dashY = 0 ⇒ 纯水平、不吃重力 ✓
+     ★ 注意:黑环 1330 不是冲刺环(dropRing),它跟 dashSlopeOf 无关 ✓ */
   assert.equal(r2(dashSlopeOf(0)), 0, 'rot=0 ⇒ m_dashY = dir.y/|dir.x| = 0/1 = 0(源码 140395cee)');
   assert.equal(r2(dashSlopeOf(180)), 0, 'rot=180 ⇒ θ=wrap180(−180) ⇒ |θ|>90 折成 0(源码 140395b70)');
   assert.equal(r2(dashSlopeOf(45)), -1, 'rot=+45(屏幕顺时针 = 朝下)⇒ 斜率 −1(世界 y 向上)');
@@ -726,18 +741,19 @@ test('冲刺斜率 = 照抄 startDashing 的【经典支】:斜率 = tan(−旋�
   assert.ok(Math.abs(dashSlopeOf(20) + Math.tan(20 * Math.PI / 180)) < 1e-9, 'rot=20 ⇒ −tan20');
 });
 
-test('黑环:按住 ⇒ 逐帧 y 一点不动、vy 恒 0、横向照原速;松手 ⇒ 当场恢复重力', () => {
+test('冲刺环(1704 = dashRing_01):按住 ⇒ 逐帧 y 一点不动、vy 恒 0、横向照原速;松手 ⇒ 当场恢复重力', () => {
   /* 源码(0x140389491/0x14038959f):冲刺中 m_yVelocity = 0、纵向位移 = 水平位移 × m_dashY;
      rot=0 ⇒ m_dashY = 0 ⇒ 纵向位移【恒等于 0】(不是"小一点"),横向由公共路径照走 ✓
-     结束(0x140396650 的调用者里有 releaseButton)⇒ 松手即停、立刻恢复重力 ✓ */
+     结束(0x140396650 的调用者里有 releaseButton)⇒ 松手即停、立刻恢复重力 ✓
+     ★ 冲刺环是 1704/1751 那两个 DashRingObject(铺面 kind='arrow'),**不是**黑环 ✓ */
   const lv = solo([
     { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
-    { kind: 'orb', b: 20, r: 2, w: 1, h: 1, orb: 'black' },
+    { kind: 'arrow', b: 20, r: 2, w: 1, h: 1, arrow: 'green', rot: 0 },
   ]);
   const w = new World(lv);
   w.x = 20 * U - 12; w.y = 2 * U; w.vy = 6; w.onGround = false;   // 本来在往上飞
   w.frame(true);
-  assert.ok(w.dash, '黑环必须进 dash 状态');
+  assert.ok(w.dash, '绿冲刺环必须进 dash 状态');
   assert.equal(w.dash!.slope, 0, 'rot=0 ⇒ 存下来的斜率(源码 +0x578)必须是 0');
   const vx = w.vx;
   let maxDy = 0, maxVy = 0, dx0 = w.x;
@@ -782,54 +798,64 @@ test('冲刺箭头:竖直方向按真规则夹到 ±70(tan70≈2.7475),竖向速
   assert.ok(Math.abs(dy) * U > 8, '而且必须明显比旧的固定 5.77 陡(用户口径:竖直冲刺要够陡)');
 });
 
-/* ---------------- 黑环那段在【真实速度】下的实际结果(含一条待裁决的冲突记录) ---------------- */
-async function blackOrbRun(holdFrames: number) {
+/* ---------------- 黑环那段:从【真实入口】(三连黄环之前)按真人按键跑一遍 ----------------
+ * 入口状态沿用 tools/probe-dash-sweep.ts 定的那一份:(665,21) 上升中 vy=+5、4 档速度、
+ * 按键策略 = 靠近环就按下(黄环链要靠它爬升)。pressBlack=false 时【绕开黑环那一枚】,
+ * 用来验证"黑环是必需品"。 */
+async function blackOrbRun(pressBlack: boolean) {
   const { WATER_CHART } = await import('../src/sim/charts/water.ts');
-  const objs = (WATER_CHART as unknown as Level).objects;
-  const black = objs.filter((o) => o.id === 1330 && o.b > 670 && o.b < 680)[0];
-  const blue = objs.filter((o) => o.id === 84 && o.b > 678 && o.b < 685)[0];
-  /* 速度取【这一段自己的 speed】,不写死:段 = {from:657,to:733,speed:4}(速度门 1334 在 x=650) */
-  const seg = (WATER_CHART as unknown as Level).segments.find((s) => s.from <= black.b && s.to >= black.b);
-  const w = new World(WATER_CHART as unknown as Level);
-  w.mode = 'cube'; w.speedIdx = seg ? seg.speed : 1; w.gdir = 1; w.god = false;
-  w.x = (black.b + black.w / 2) * U; w.y = (black.r + black.h / 2) * U;
-  w.vy = 0; w.onGround = false; w.dead = false;
-  let died = false, at = { x: w.x / U, y: w.y / U }, entered = false;
-  for (let f = 0; f < 120; f++) {
-    w.frame(f < holdFrames);
-    if (w.dash) entered = true;
-    if (w.dead) { died = true; at = { x: w.x / U, y: w.y / U }; break; }
+  const level = WATER_CHART as unknown as Level;
+  const orbs = level.objects.filter((o) => o.kind === 'orb');
+  const black = level.objects.filter((o) => o.id === 1330 && o.b > 670 && o.b < 680)[0];
+  const blue = level.objects.filter((o) => o.id === 84 && o.b > 678 && o.b < 685)[0];
+  assert.ok(black && blue, '这一段应当同时有黑环(1330)与蓝环(84)');
+  const BCX = blue!.b + blue!.w / 2, BCY = blue!.r + blue!.h / 2;
+  const near = (w: World) => orbs.some((o) =>
+    (pressBlack || o !== black) &&
+    Math.abs((o.b + o.w / 2) - w.x / U) < 1.1 && Math.abs((o.r + o.h / 2) - w.y / U) < 1.3);
+  const log = console.log; console.log = () => {};     // 建 World 会打 48 行触摸标记
+  const w = new World(level);
+  console.log = log;
+  w.mode = 'cube'; w.speedIdx = 4; w.gdir = 1; w.dead = false; w.god = false;
+  w.x = 665.0 * U; w.y = 21.0 * U; w.vy = 5.0; w.onGround = false;
+  let hitBlue = false, dropped = false, best = 1e9;
+  const droppedAt = { x: 0, y: 0 }, at = { x: w.x / U, y: w.y / U };
+  for (let f = 0; f < 400; f++) {
+    w.frame(near(w));
+    const px = w.x / U, py = w.y / U;
+    if (!dropped && Math.abs(w.vy + 15) < 1e-9) { dropped = true; droppedAt.x = px; droppedAt.y = py; }
+    best = Math.min(best, Math.hypot(px - BCX, py - BCY));
+    if (Math.abs(px - BCX) <= 0.6 && Math.abs(py - BCY) <= 0.6) hitBlue = true;
+    if (w.dead) { at.x = px; at.y = py; break; }
+    if (hitBlue || px > 700) break;
   }
-  return { died, at, entered, segSpeed: seg ? seg.speed : -1, blue };
+  return { hitBlue, dropped, droppedAt, best, died: w.dead, at, blue: { x: BCX, y: BCY } };
 }
 
-test('黑环段·反向防线:在真实速度下【按住不放】= 水平滑行 ⇒ 必然撞上水平线上那把锯片(危险物不许被冲刺放过)', async () => {
-  /* 冲刺不改横向、也不关碰撞(源码只在 m_dashY 上做文章)⇒ 水平滑过去一定撞上
-     (678.5,26.5) 那把锯片(半径 1.0 格)⇒ 必须死 ✓ —— 这条防止"把冲刺做成穿墙/无敌" */
-  const r = await blackOrbRun(60);
-  assert.ok(r.entered, '按住必须在黑环上进入 dash');
-  assert.ok(r.died, '按住滑过去必须被锯片杀掉(实测活到了 x=' + r.at.x.toFixed(2) + ')✗');
-  assert.ok(r.at.x > 675 && r.at.x < 678.5,
-    '死亡点应当在锯片左缘附近(实测 x=' + r.at.x.toFixed(2) + ',锯片在 678.5)');
+test('黑环段·真速 4 档走真路:黑环 drop(vy := −15)把人【刚好送进】底下那枚蓝环,而且活着', async () => {
+  /* 实测轨迹(恒定 −15 / 横向 9.6 ⇒ 斜率 15/9.6 = 1.5625 = 57.4°):
+       入口 (665,21) 上升 → 三连黄环爬到 (673.96,26.48) → 黑环生效 vy := −15
+       → 直线下落:x=678.5(小锯片圆心)时已掉 6.2 格 ⇒ 从锯片圆下方让过 ✓
+       → x=681.0,y=17.13 吃到蓝环(中心 681.5,17.5 ⇒ 差 0.56 格)✓ 全程不死 ✓
+     这正是用户那句「黑环应该刚好能送到底下的蓝环」的字面结果 ✓
+     (旧实现是水平冲刺:在 x≈676.5 就撞上 (678.5,26.5) 那把锯片 ⇒ 那段永远过不去 ✗) */
+  const r = await blackOrbRun(true);
+  assert.ok(r.dropped, '黑环必须触发 drop');
+  assert.ok(Math.abs(r.droppedAt.x - 673.96) < 0.7,
+    '黑环应当在贴近环时生效(x≈673.96,实测 ' + r.droppedAt.x.toFixed(2) + ')');
+  assert.ok(r.hitBlue, '必须吃到 (681.5,17.5) 那个蓝环;最近只到 ' + r.best.toFixed(2) + ' 格 ✗');
+  assert.ok(!r.died, '这一段不许死(实测死在 x=' + r.at.x.toFixed(2) + ',y=' + r.at.y.toFixed(2) + ')✗');
+  assert.ok(r.best < 0.8, '而且应当"刚好送到"——最近点离蓝环中心 ' + r.best.toFixed(2) + ' 格');
 });
 
-test('黑环段·【冲突记录·待用户裁决】不按(纯下落)在真实速度下也过不去 —— 落点太浅,撞的同一把锯片', async () => {
-  /* ★ 这一条不是"通过标准",是**把现状钉住**:按源码规则(rot=0 ⇒ 纯水平)与当前的下落参数,
-     这一段无论按不按都活不过 x≈677 —— 但用户给的【原版参考图】里,那一段是一条
-     ~56° 的斜线,一路从黑环下到蓝环 (681.5,17.5) 并把两把锯片甩在身后 ✓
-     我实测过的数(可复现):
-       · 参考图那条绿线不是关卡物件(带内只有 83/1705/8/36/1330/84),是截图上的路径叠加;
-       · 它的下降段局部斜率稳定在 1.44~1.50(=55~56°)= 终端速度的斜率(15 / 9.6 = 1.5625 同量级),
-         但只掉了约 1.1 格就到终端 —— 我们的重力(0.865 单位/帧²)要 3.9 格才到 ⇒ 形状对不上;
-       · 本段真实速度是 4(vx = 9.6 单位/帧 = 0.32 格/帧):站着不动也会在 x≈676.9 撞上
-         (678.5,26.5) r=1.0 的锯片 ⇒ 原版要过这一段,下降必须【一离开黑环就足够陡】。
-     结论:要么原版 1330 的冲刺方向不是我们读到的"取旋转角"(参考图更像 ~56° 直冲),
-     要么我们这条下落(终端速度 15,出处是 [GDOpenGD] 而非源码)本身就不对。
-     两条都改完之后这条测试【必须翻红】—— 那时把它改成"刚好吃到蓝环"。 */
-  const r = await blackOrbRun(0);
-  assert.equal(r.segSpeed, 4, '这一段的速度应当来自段本身(实测 ' + r.segSpeed + ')');
-  assert.ok(r.died, '现状:不按也会在 x≈677 撞锯片(实测 x=' + r.at.x.toFixed(2) + ')');
-  assert.ok(r.at.x > 675 && r.at.x < 679, '现状死亡点 x=' + r.at.x.toFixed(2) + '(锯片左缘 677.5)');
+test('黑环段·反向防线:绕开黑环(只按黄环)= 普通下落 ⇒ 必然撞上 (678.5,26.5) 那把锯片', async () => {
+  /* 这条钉住"黑环是必需品":不用它,原速下落只掉 2.5 格就进锯片圆 ⇒ 必死 ✓
+     (也防止有人把 drop 做成"顺手自动触发" —— 那样这条会翻红 ✗) */
+  const r = await blackOrbRun(false);
+  assert.ok(!r.dropped, '不按黑环就不该触发 drop');
+  assert.ok(r.died, '绕开黑环必须死在锯片上(实测活到了 x=' + r.at.x.toFixed(2) + ')✗');
+  assert.ok(r.at.x > 675 && r.at.x < 679,
+    '死亡点应当在 (678.5,26.5) 锯片左缘附近(实测 x=' + r.at.x.toFixed(2) + ')');
 });
 
 

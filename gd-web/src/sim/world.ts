@@ -81,10 +81,10 @@ const FLIP_VEL_MUL = 0.5;
  *     结束:m_maxDuration(+0x750) > 0 且超时才 stopDashing;环没配时长 ⇒ 0 ⇒ 永不自动结束;
  *     `stopDashing` 的调用者里有 releaseButton ⇒ **按住就冲、松手就停** ✓
  *
- * 本关(WATER)4 个黑环(1330)都没有 rot(键 6)⇒ A = 0 ⇒ θ = 0 ⇒ dir = (1,0)
- *   ⇒ m_dashY = 0/1 = 0、m_dashX = |0| = 0 ⇒ 纵向位移恒 0 ⇒ **纯水平冲刺、不吃重力** ✓
- *   ⇒ 原版路线 = 水平冲过蓝环正上方 → 松手 → 自由落体 10 格砸进底下那个蓝环 ✓
- *   (参考图里那段 55.7° 的直线是【松手后的下坠段】,不是冲刺方向 —— 冲刺这一段是水平的 ✓)
+ * 本关(WATER)的冲刺只来自 **1704/1751 那两个 DashRingObject**(铺面 kind='arrow')✓
+ *   —— 1330 不是冲刺环,它是 dropRing(vy := ∓15),见 constants.ORB.black 的三处出处 ✓
+ *   本关 1751(粉箭头,dashRing_02)在 x=367.5/404.5 上带 rot=90 ⇒ θ 夹到 −70 ⇒ 陡下冲 ✓
+ *   1751 在 x=751.5 带 rot=−45 ⇒ θ=+45 ⇒ 斜率 +1(朝上冲)✓;1704(绿箭头)没带 rot ⇒ 水平 ✓
  *
  * 返回【世界 y 向上】的斜率(与源码 +0x578 同符号:负 = 往下)。 */
 export function dashSlopeOf(rotDeg: number): number {
@@ -1786,25 +1786,27 @@ export class World {
         this.pressFresh = false; this.pressAux = false;
         if (b.o.orb) {
           /* ★ 用分形态的力度(原版 ringJump 的倍率表),别再用"方块那一档"套所有形态 */
-          /* ★★ 2026-09:冲刺环(141/1022)走原版的 startDashing —— 进入 dash 状态,
-             不是"给一个纵向速度" ✗(用户:"绿色/粉色冲刺环,垂直方向的冲刺明显不对")。
-             粉色按原版 kPinkDashRing:先翻重力 ✓。方向:有 rot 用 rot ✓;
-             无 rot(这一关五个环都没有 ✓)时按【行进方向】—— 平地上就是水平 ✓,
-             所以这里取 0°(arrowDir 的水平方向)✓。 */
           const spec = ORB[b.o.orb];
           if (b.o.dash) {
             if (b.o.dash === 'pink') this.gdir = (this.gdir === 1 ? -1 : 1);
             this.dash = { ang: b.o.rot ?? 0, slope: dashSlopeOf(b.o.rot ?? 0), kind: b.o.dash, t: 0 };
-          } else if (spec.flip === 'dash') {
-            /* ★★★ 2026-09 黑环(冲刺环)= 同一个 startDashing 机制(0x140395910)⇒ 进 dash 状态,
-               **不给纵向速度** ✓。方向取环的旋转角经 dashSlopeOf 换算:本关 4 个黑环
-               (674,27 / 682,18 / 701,21 / 1219,34)rot 全是 0 ⇒ m_dashY = 0 ⇒ 水平冲刺
-               (不吃重力)、按住就一直冲、松手才停 ✓
-               以前这里落到 applyTrigger 的 'dash' 支 ⇒ vy = −15 往下砸 ✗
-               —— 用户:「黑环力度太大了,第三个存档点后面那段,黑环应该刚好能送到底下的蓝环的」✓
-               (更早那版"横向被覆盖成 5.77"也是错的:m_dashX(+0x570) 在经典模式下是 |m_dashY| 这个
-                斜率,不是横向速度 —— 出处见 dashSlopeOf 的 140395cee 那几行 ✓) */
-            this.dash = { ang: b.o.rot ?? 0, slope: dashSlopeOf(b.o.rot ?? 0), kind: 'black', t: 0 };
+          } else if (spec.flip === 'drop') {
+            /* ★★★ 2026-09-26 黑环 1330 = **dropRing(掉落环)**,不是冲刺环 ✗✗
+               源码(2.2081 本体,三处证据见 constants.ts ORB.black 的注释):
+                 环判定分派 FUN_140398c00 里 `getObjectType() == 0x20`(黑环的类型号)那一支:
+                   iVar7 = (player+0x9bf = 重力是否已翻转 ? 1 : −1);
+                   setYVelocity(player, iVar7 * −15.0f);       // 0x140623880 = −15.0f
+               ⇒ **vy := ∓15(沿玩家自己的重力方向"往下"),横向速度不动、不翻重力、不进 dash 状态** ✓
+               非方块形态那一支是 −14.0f(0x140623864,另乘 0.8),按形态取:
+                 这里用 spec.v 表示方块档的 15;方块以外按源码拿 14 ✓ */
+            const v = this.mode === 'cube' ? spec.v : 14;
+            this.vy = -v * this.gdir;
+            this.dash = null;
+            /* ★ 15 正好等于终端速度 vyMax ⇒ 掉落段必须【被夹在 −15】才是一条斜率恒定的斜直线
+               (用户那张参考图:15/9.6 = 1.5625 ≈ 57° 的直线)⇒ 清掉"推力飞行"标记,
+               让 applyFallClamp 正常生效 ✓(drop 那一支源码只 setYVelocity,没置 boosted) */
+            this.boostDir = 0;
+            this.onGround = false;
           } else {
             /* ★ 同蓝板:环给的也是"发射速度",按上面的口径【即时生效】✓ */
             this.applyTrigger({ v: this.orbVel(b.o.orb), flip: spec.flip }, true);
@@ -2185,9 +2187,10 @@ export class World {
       this.gdir = -this.gdir;                     // 先翻重力
       this.vy = v * this.gdir;                    // 再按【新】重力方向给速度
     } else if (spec.flip === 'dash') {
-      /* ★ 2026-09:'dash' 这个标记现在只给【黑环(冲刺环)】用,而黑环已经在环分支里
-         **进入 dash 状态**(源码 ringJump 类型码 37 ⇒ startDashing)⇒ 这条已经不该被走到 ✓
-         留一行日志而不是静默:万一以后有谁再拿 'dash' 标记去做别的事,这里能立刻看出来 ✗ */
+      /* ★ 2026-09-26:'dash' 这个标记现在【没有任何环在用】了 ——
+         1330 是 dropRing(走环分支里的 'drop' ✓),冲刺只由 1704/1751 那两个
+         DashRingObject(铺面里 kind='arrow')触发 ✓。留一行日志而不是静默:
+         万一以后有谁再拿 'dash' 标记去做别的事,这里能立刻看出来 ✗ */
       if (!this.warnDashFallback) {
         this.warnDashFallback = true;
         console.log('[gd] ⚠ 触发器拿到 flip=dash(应该只有黑环用,而黑环走的是 dash 状态)—— 说明有路径没接对');
@@ -2261,9 +2264,10 @@ export class World {
            让关卡能玩;要不要再改,等 GameEvent 的【数值表】钉死之后再说(见提交信息)。
            旧口径:v = 8.9442 = 一档初速 11.1800318 × 0.8,先按旧重力方向给速度、再翻重力并减半 ✓ */
         return 8.9442;
-      /* ★ 2026-09:'black' 这一支【已废弃】✗ —— 黑环现在走 dash 状态(源码 ringJump 类型码 37),
-         不再由 orbVel 给"纵向绝对速度"。原来这里按形态返回 11.2/14/16.5/15([GDOpenGD] 口径),
-         那正是用户说的"黑环力度太大"的来源 ⇒ 删掉,免得哪天又被接回去 ✓ */
+      /* ★ 2026-09-26:'black' 这一支【已废弃】✗ —— 黑环(1330)是 dropRing,
+         vy 由环分支直接写成 ∓15(源码 0x140623880 = −15.0f,见 constants.ORB.black),
+         **不经过速度档倍率**(以前这里按形态返回 11.2/14/16.5/15 = [GDOpenGD] 口径,
+         把"15"放大成十几~二十几,那才是用户说的"黑环力度太大" ✗)⇒ 不要再接回去 ✓ */
       default:
         return J * bs;
     }

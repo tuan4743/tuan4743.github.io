@@ -97,7 +97,7 @@ export function vxOf(speedIdx: number): number {
  */
 export type OrbKind = 'yellow' | 'pink' | 'red' | 'blue' | 'green' | 'black';
 export type PadKind = 'yellow' | 'pink' | 'red' | 'blue' | 'purple';
-export type FlipWhen = 'none' | 'before' | 'after' | 'dash' | 'pure' | 'beforeKeep';
+export type FlipWhen = 'none' | 'before' | 'after' | 'dash' | 'drop' | 'pure' | 'beforeKeep';
 
 export const ORB: Record<OrbKind, { v: number; flip: FlipWhen; note: string }> = {
   yellow: { v: 11.1800318, flip: 'none', note: '[GDOpenGD] = jumpPower,原版黄环就是"空中再来一跳"(×1.0)' },
@@ -120,15 +120,29 @@ export const ORB: Record<OrbKind, { v: number; flip: FlipWhen; note: string }> =
        要不要再改,等把 GameEvent 的【数值表/事件号映射】从本体数据段钉死之后再动 ✗ */
   blue: { v: 8.9442, flip: 'before', note: '[回归回退] ×0.8 = 8.9442:按旧重力方向给速度后再翻重力并减半(与 cd52e6f 之前一致)' },
   green: { v: 11.1800318, flip: 'after', note: '[GDOpenGD] ×1.0,先翻重力再按新重力方向给速度(⇐ 与源码 flipMod 读法一致:翻完再取 −1)' },
-  /* ★★★ 2026-09 黑环(冲刺环)= 源码 `ringJump` 的【类型码 37 ⇒ PlayerObject::startDashing】
-     (`.tmp/GDsrc/asm/gd-ida-decomp.cpp:160089-160095`)—— 它**不是"给一个纵向速度"** ✗,
-     而是进入 **dash 状态**:方向由环的旋转角换算(dash 期间横向 = 当前速度、纵向 = 横向 × m_dashY),
-     松手或到时长上限结束 ✓。我们以前按 [GDOpenGD] 抄成 `v:15 + flip:'dash'` ⇒ 常重力下 vy = −15 直接往下砸 ✗
-     ⇒ 用户实测「黑环力度太大了,第三个存档点后面那段,黑环应该刚好能送到底下的蓝环的」✓
-     本关 4 个黑环(1330)rot 全是 0 ⇒ m_dashY = 0 ⇒ **水平冲刺**
-     (源码 148639-148654:角为 0 ⇒ m_dashY = 0;|角| > 70° 夹到 ±70;45° 取 1/tan)✓
-     ⇒ `v` 不再使用;`flip:'dash'` 现在只是"进 dash 状态"的标记(见 world.ts 的环分支)✓ */
-  black: { v: 0, flip: 'dash', note: '冲刺环(黑):进 dash 状态、不给纵向速度。源码 ringJump 类型码 37 ⇒ startDashing;本关 rot=0 ⇒ 水平冲刺' },
+  /* ★★★ 2026-09-26 【纠错】黑环 1330 **不是冲刺环,是 dropRing(掉落环)** ——
+     本轮从本体(GeometryDash.exe 2.2081)把三处独立证据一起钉死了:
+       ① 物件表 `0x140348d70`(ObjectToolbox 初始化,反汇编 .tmp/ghidra-out/ringframes.txt):
+            1330 → "dropRing_01_001.png" · 1704 → "dashRing_01_001.png" · 1751 → "dashRing_02_001.png"
+          (同一张表里 84 → "gravring_01_001.png" 与常识吻合 ⇒ 对齐方式经校验 ✓)
+          贴图也对得上(.tmp/rings-peek.png):dropRing = 黑环 + 一圈刻度;dashRing_01/02 = 环里绿/品红箭头
+       ② `GameObject::customSetup` 的 `case 0x532`(=1330)分支把【类型 +0x3a0 置 0x20】,
+          并建 ringEffect.plist 粒子、+0x584 = 270.0f、+0x588 = ±(rot ? rot : 270.0)(rot=0 时随机取号)
+       ③ 环判定分派 `FUN_140398c00`(玩家碰到环且按着键时进;反编译 .tmp/ghidra-out/ringeeffect.txt:219-264)
+          按 `getObjectType()` 分派,`type == 0x20` 那一支就是黑环:
+              iVar7 = (player+0x9bf = 重力是否已翻转 ? 1 : −1);
+              fVar22 = iVar7 * DAT_140623880;        // 0x140623880 = −15.0f
+              FUN_140388d10(player, fVar22);         // = setYVelocity,写 player+0x9a0(双精度)
+              ⇒ **vy := ∓15(沿玩家自己的重力方向"往下砸")、横向速度一点不动、不翻重力** ✓
+          非方块形态那一支用 DAT_140623864 = −14.0f(再有 ×0.8 的形态倍率)
+     同时:1704/1751 才是 DashRingObject(关卡里它们带 586/588 两个 DashRing 专属键 ✓),
+     所以"startDashing 那套"现在只挂在 1704/1751 上,和我们这条 drop 规则互不干扰 ✓
+     ⇒ 用户「黑环力度太大了」的病根不是 15 这个数:是旧实现把 15 当成【跳】用,
+       经 orbVel 的速度档倍率放大后砸得更狠 ✗;原版就是恒定 ∓15 ✓
+       而且 15 恰好 = 我们的终端速度 vyMax ⇒ 掉落段是【恒定 −15 的斜直线】
+       (用户那张参考图里 15/9.6 = 1.5625 ≈ 57° 的直线,量出来 1.44~1.50,同一量级 ✓)
+     `rot` 对 drop 毫无影响(只影响贴图朝向/自转)✓ */
+  black: { v: 15, flip: 'drop', note: '黑环 = dropRing:vy := ∓15(沿重力方向往下)、横向不动、不翻重力(源码 0x140623880 = −15.0f / 形态支 −14.0f)' },
 };
 
 export const PAD: Record<PadKind, { v: number; flip: FlipWhen; note: string }> = {
