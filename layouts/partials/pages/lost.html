@@ -86,6 +86,10 @@
         z-index: 6;
     }
     .lost-ending.is-on { opacity: 1; pointer-events: auto; }
+    /* ★ 触发改成"走进结尾那排砖上方的空白"之后:还没通关时把卡片**整体上移并压低高度**,
+       给下方跑动的玩家让位(用 x 触发时不能挡住人 ✗);通关(phase=done)时才居中大图 ✓ */
+    .lost-ending.is-walk { align-items: flex-start; }
+    .lost-ending.is-walk .lost-ending__card { margin-top: 2vh; max-height: 58%; opacity: .94; }
     .lost-ending__card {
         max-width: min(82%, 640px);
         /* ★ 第 3 块(制作说明)是最长的:与其猜字号,直接给一个"结构上一定放得下"的约束 ——
@@ -113,19 +117,30 @@
     .lost-ending__thanks { margin: 0; font-size: 1.05rem; letter-spacing: .12em; opacity: .95; text-align: center; }
 </style>
 <script>
-    /* 轮询 phase(main.ts 在 update 里维护它)⇒ 通关出现、重开收起 ✓
-       注意:不用 requestAnimationFrame(标签页在后台会被暂停),250ms 定时最稳 ✓ */
+    /* 轮询 phase + 玩家 x ⇒ 通关时出现;或者**走进结尾那段预留展示页**就出现;重开/回放自动收起 ✓
+       注意:不用 requestAnimationFrame(标签页在后台会被暂停),250ms 定时最稳 ✓
+       ★ 展示页区间来自【关卡数据】,不是猜的:结尾前那一段"只有一排横向砖块"=
+         id=83 连续 194 块、r=107、x 3410~3604(关卡总长 3620)⇒ 走进 3410 就淡入 ✓
+         (这两个数就是铺面坐标;要改区间只动下面两行) */
     (function () {
         var el = document.getElementById('gd-ending');
         if (!el) return;
+        var SHOW_FROM_X = 3410;   // 块:预留展示页左端(那排横向砖块 x=3410.0)
+        var SHOW_TO_X = 3604;     // 块:右端(= 砖块排末尾;过了这一段就是终点线 3620)
+        var U = 30;               // 1 块 = 30 世界单位(gd-web/src/sim/constants.ts)
         var shown = false;
         setInterval(function () {
-            var sc = window.__gd && window.__gd.scene;
+            var g = window.__gd, sc = g && g.scene, w = g && g.world;
             var done = !!(sc && sc.phase === 'done');
-            if (done === shown) return;
-            shown = done;
-            el.classList.toggle('is-on', done);
-            el.setAttribute('aria-hidden', done ? 'false' : 'true');
+            var xb = (w && typeof w.x === 'number') ? w.x / U : -Infinity;
+            /* 通关 ⇒ 显示;走进展示页区间 ⇒ 也显示(两条触发取其一) */
+            var on = done || (xb >= SHOW_FROM_X && xb <= SHOW_TO_X + 40);
+            if (on === shown) return;
+            shown = on;
+            el.classList.toggle('is-on', on);
+            /* 只有"走进展示页、还没通关"时才加上移样式(通关仍居中)✓ */
+            el.classList.toggle('is-walk', on && !done);
+            el.setAttribute('aria-hidden', on ? 'false' : 'true');
         }, 250);
     })();
 </script>
