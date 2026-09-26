@@ -269,6 +269,14 @@ export class World {
   dead = false; done = false; deadT = 0;
   attempts = 1;
   checkX = 0; checkY = 0; checkMode: Mode = 'cube'; checkSize = 1;
+  /* ★★★ 2026-09-25 用户:"存档点不会保存当前的 zoom" ✓
+     源码依据:反编译 `CheckpointObject`(析构 98486-98536)里存着三块状态 ——
+     `GJGameState`(+264)、`FMODAudioState`(+2112)、`EffectManagerState`(+2640),
+     而 `PlayLayer::loadFromCheckpoint`(105490)会把它们逐个恢复 ⇒
+     **相机缩放属于 GJGameState(相机状态那一块)⇒ 原版存档点是存的** ✓
+     (EffectManagerState 还含"触发器造成的效果状态",所以严格说 zoom/tint/flash 都该存;
+      本轮按用户要求先落 zoom,其余记在报告里当后续 ✓) */
+  checkZoom = 1;
   /** ★★ 存档点还要记【速度档】和【重力方向】:以前只记了形态和体积,
    *  reset() 里又把 gdir/speedIdx 硬写成 1 ⇒ 在"快速档"或"反重力段"摔死后,
    *  复活出来的是常速+正常重力 —— 同一段路完全对不上 ✗(用户:"存档点机制绝对是错的")。 */
@@ -467,7 +475,7 @@ export class World {
     this.reset(startX, 'cube', startY);
     /* ★ 存档点初值 = 出生点。以前这里留着 (0,0):第一次摔死之后 respawn() 会把人放回
        y=0 —— 而这关的出生点在 y=10 的上一层,于是"复活在平台下面"(用户实测)。 */
-    this.checkX = startX; this.checkY = startY; this.checkMode = 'cube'; this.checkSize = 1;
+    this.checkX = startX; this.checkY = startY; this.checkMode = 'cube'; this.checkSize = 1; this.checkZoom = 1;
   this.checkSpeed = this.speedIdx; this.checkGdir = this.gdir;   // ★ 出生档也一起记(reset 会用它)
     /* ---- 分组:给每个带 groups 的物件记一份"可动"记录,并把它的判定盒挂上去 ----
        ★ 一个物件挂几个盒子,这里就记几份(线框以前会展开成好几根杆)。
@@ -833,6 +841,11 @@ export class World {
   respawn() {
     this.attempts++;
     this.reset(this.checkX, this.checkMode, this.checkY);
+    /* ★★★ 用户:"存档点不会保存当前的 zoom" —— reset() 会把 zoom 归 1,
+       而原版存档点存了相机状态(GJGameState,见 checkZoom 的源码依据)⇒ 复活时恢复存档时那个缩放,
+       【即时】设好、不走缓动(缓动是触发器的事,复活不该再演一遍)✓ */
+    this.zoom = this.checkZoom; this.zoomFrom = this.checkZoom; this.zoomTo = this.checkZoom;
+    this.zoomT = 0; this.zoomDurF = 0;
   }
 
   /** 从头来(不碰存档点):回到铺面的出生点(Level.start,没有就是 (0,0)) */
@@ -842,6 +855,7 @@ export class World {
     this.checkY = (s?.r ?? 0) * U;
     this.checkMode = 'cube';
     this.checkSize = 1;
+    this.checkZoom = 1;                       // ★ 从头来 ⇒ 相机缩放也回默认(见 checkZoom 的源码依据)
     this.reset(this.checkX, 'cube', this.checkY);
   }
 
@@ -1863,6 +1877,7 @@ export class World {
       this.checkY = ((b.o.r ?? 0) + 0.5) * U - this.box / 2;
       this.checkMode = this.mode; this.checkSize = this.sizeMul;
       this.checkSpeed = this.speedIdx; this.checkGdir = this.gdir;   // ★ 速度档 + 重力方向一起存档
+      this.checkZoom = this.zoom;                                    // ★ 相机缩放也存档(见 checkZoom 的源码依据)
     }
 
     if (this.x >= this.level.length * U) { this.done = true; }

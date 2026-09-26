@@ -1591,3 +1591,21 @@ test('双人:一人死 ⇒ 本次尝试结束(源码口径:两人都活着才算
   assert.ok(w.dual, '先确认双人开着(否则这条测不到)');
   assert.ok(w.dead, '玩家 1 撞刺 ⇒ 尝试结束 ✓');
 });
+
+test('存档点保存当前的 zoom:过 zoom 门后存档、复活 ⇒ zoom 保持不变(用户反馈 ⑤)', () => {
+  /* 源码依据:CheckpointObject 的析构(反编译 98486-98536)里存着三块状态 ——
+     GJGameState(+264)、FMODAudioState(+2112)、EffectManagerState(+2640),
+     而 PlayLayer::loadFromCheckpoint(105490)会把它们逐个恢复 ⇒
+     相机缩放属于 GJGameState ⇒ 原版存档点是存的 ✓(以前我们只存 x/y/形态/尺寸/速度/重力 ✗) */
+  const w = new World(solo([
+    floor60,
+    { kind: 'trigger', trigger: 'zoom', id: 1913, b: 2, r: 0, w: 1, h: 1, zoom: 0.725, dur: 0.1 },
+    { kind: 'check', b: 10, r: 0, w: 1, h: 1 },
+  ]));
+  for (let i = 0; i < 600 && w.x < 360; i++) w.frame(false);
+  assert.ok(Math.abs(w.zoom - 0.725) < 0.02, '跑过 zoom 门后应缓动到 0.725,实为 ' + w.zoom.toFixed(4));
+  assert.ok(w.x > 300, '必须真的跑过存档点(否则测的是别的东西),实为 x=' + (w.x / 30).toFixed(1) + ' 格');
+  w.respawn();                                   // 死一次再复活
+  assert.ok(Math.abs(w.zoom - 1) > 0.1, '复活后不该退回默认的 1(reset 会把它清成 1,所以这条正好证明 respawn 做了恢复)');
+  assert.ok(Math.abs(w.zoom - 0.725) < 1e-6, '复活后 zoom 必须是存档时那个值,实为 ' + w.zoom.toFixed(4));
+});
