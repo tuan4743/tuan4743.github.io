@@ -1356,3 +1356,66 @@ test('瞬移箭头:重试锁定期间不许把这次按键喂给别的箭头(用
   for (let i = 0; i < 5; i++) w.frame(true);
   assert.equal(w.armedArrows.size, before, '重试锁定期间不许触发别的箭头');
 });
+
+/* ---------------- 蓝板模型判定 + 绿环现场(2026-09-25 第二轮) ----------------
+ * 用户在原版里实测的描述:「cube 的中心从【门下那一格的左上角】接触门,然后抛物线刚好飞到平台上」
+ * ⇒ 这是"读注释"替代不了的判据:两种候选模型各跑一遍,哪个"刚好够到"哪个才是原版口径 ✓
+ *    甲 减半(12.8→6.4)   乙 不减半(12.8)
+ * 实测:甲 过门后经四个蓝板 ping-pong(5 次翻转)落到 x≈745.7 活着 ✓
+ *       乙 t11 那次 vy=−12.80 ⇒ x≈720.2 撞死 ✗ —— 正是用户报的"撞死在砖上" ✓
+ * 所以"减半"是对的;下面第二条就是钉子:谁再改成不减半,它会红 ✓ */
+async function runPortalSection(flip: 'before' | 'beforeKeep') {
+  const { WATER_CHART } = await import('../src/sim/charts/water.ts');
+  const { PAD } = await import('../src/sim/constants.ts');
+  const portal = WATER_CHART.objects.filter((o) => o.kind === 'gravity' && o.gdir === -1)
+    .sort((a, b) => a.b - b.b).find((g) => g.b > 710 && g.b < 720)!;
+  const old = PAD.blue.flip;
+  PAD.blue.flip = flip as typeof old;
+  try {
+    const w = new World(WATER_CHART as unknown as Level);
+    w.mode = 'cube'; w.speedIdx = 4; w.gdir = 1;
+    /* 门的判定盒 34×86 单位、物件 1×1 格 ⇒ "门下那一格" = (b, r−1)~(b+1, r),
+       其【左上角】世界坐标 = (b×30, r×30) 单位 ⇒ 玩家中心对准它 ✓ */
+    w.x = portal.b * U - w.box / 2;
+    w.y = portal.r * U - w.box / 2;
+    w.vy = 0; w.onGround = false; w.dead = false; w.god = false;
+    let flips = 0, lastG = w.gdir, landX = -1;
+    for (let i = 0; i < 400; i++) {
+      w.frame(false);
+      if (w.gdir !== lastG) { flips++; lastG = w.gdir; }
+      if (landX < 0 && i > 2 && w.onGround) landX = w.x / U;
+      if (w.dead || (landX > 0 && i > 40)) break;
+    }
+    return { dead: w.dead, flips, landX, x: w.x / U, portal };
+  } finally { PAD.blue.flip = old; }
+}
+
+test('蓝板【减半】模型:门下那一格左上角接触门 ⇒ 抛物线够到平台(用户原版实测描述)', async () => {
+  const r = await runPortalSection('before');
+  assert.equal(r.portal.b * U * 0 + r.portal.b, 714, '用的应该是 x=714 那个反转重力门');
+  assert.ok(!r.dead, '减半模型必须活着过去(实测落点 x≈745.7)');
+  assert.ok(r.flips >= 5, '过门 + 四个蓝板 ⇒ 至少 5 次重力翻转,实测 ' + r.flips);
+  assert.ok(r.landX > 740, '应当落到 x>740 的平台上,实测 ' + r.landX.toFixed(2));
+});
+
+test('蓝板【不减半】(12.8)必须复现"撞死在砖上" —— 钉住口径,防止再改回去', async () => {
+  const r = await runPortalSection('beforeKeep');
+  assert.ok(r.dead, '不减半必须死(实测 x≈720.2 撞砖)');
+  assert.ok(r.x < 725, '死点应在 x≈720 附近,实测 ' + r.x.toFixed(2));
+});
+
+test('绿环(1022)在真实铺面里生效:翻重力 + 按【新】方向给一整跳', async () => {
+  const { WATER_CHART } = await import('../src/sim/charts/water.ts');
+  const orb = WATER_CHART.objects.find((o) => o.orb === 'green');
+  assert.ok(orb, '这一关有绿环');
+  const w = new World(WATER_CHART as unknown as Level);
+  w.mode = 'cube'; w.speedIdx = 1; w.gdir = 1;
+  w.x = (orb!.b + orb!.w / 2) * U - w.box / 2;
+  w.y = (orb!.r + orb!.h / 2) * U - w.box / 2;
+  w.vy = 0; w.onGround = false; w.dead = false; w.god = true;
+  const g0 = w.gdir;
+  w.frame(true);
+  assert.notEqual(w.gdir, g0, '绿环必须翻重力');
+  assert.ok(w.vy * w.gdir > 0, '绿环必须按【新】重力方向给速度(vy 与 gdir 同号),实测 vy=' + w.vy.toFixed(2) + ' g=' + w.gdir);
+  assert.ok(Math.abs(w.vy) > 5, '力度应当是一整跳量级,实测 ' + w.vy.toFixed(2));
+});
