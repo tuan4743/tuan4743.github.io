@@ -63,7 +63,7 @@ export interface WorldSnap {
   pressFresh: boolean; prevHold: boolean; floatT: number; sizeMul: number;
   boostDir: 1 | -1 | 0;
   tint: number | null; tintGround: boolean; flash: number;
-  dash: { ang: number; kind: 'green' | 'pink' | 'purple'; t: number } | null;
+  dash: { ang: number; kind: 'green' | 'pink' | 'purple' | 'black'; t: number } | null;
   /** 落块横向吸附用:上一次落在哪块上、当时的相对位置 */
   snapObj: Obj | null; snapDist: number;
   sets: Array<Array<Box>>;
@@ -323,6 +323,7 @@ export class World {
   private armedPads = new Set<Box>();
   private armedArrows = new Set<Box>();
   private markersLogged = false;    // 触摸标记清单只打一次(见 substep 里的 [gd] 触摸标记)
+  private warnDashFallback = false; // flip='dash' 兜底只警告一次(黑环已改走 dash 状态,见环分支)
   private armedMarkers = new Set<Box>();
   /* ★ BPM 背景闪(用户口径:pulse 不一个个放,改成背景跟 BPM 闪,只放一个在开头):
      那个 pulse 触发器带 loop ⇒ 这里记住周期,每 dur 秒把 flash 拉满一次 ⇒ 走现成的整屏闪光渲染 ✓ */
@@ -736,7 +737,7 @@ export class World {
   get rows() { return this.level.rows; }
 
   /** 冲刺箭头生效期间的状态(重力关掉,速度按箭头方向给) */
-  dash: { ang: number; kind: 'green' | 'pink' | 'purple'; t: number } | null = null;
+  dash: { ang: number; kind: 'green' | 'pink' | 'purple' | 'black'; t: number } | null = null;
 
   /** 体积倍率(迷你门 = 0.6):★ 碰撞盒、内框、内框偏移全都跟着它走,
    *  所以"能不能钻过一条缝"是真的由它决定,而不是画小一点而已。 */
@@ -1707,6 +1708,14 @@ export class World {
           if (b.o.dash) {
             if (b.o.dash === 'pink') this.gdir = (this.gdir === 1 ? -1 : 1);
             this.dash = { ang: b.o.rot ?? 0, kind: b.o.dash, t: 0 };
+          } else if (spec.flip === 'dash') {
+            /* ★★★ 2026-09 黑环(冲刺环)= 同一个 startDashing 机制(源码 ringJump 类型码 37,
+               `.tmp/GDsrc/asm/gd-ida-decomp.cpp:160089-160095`)⇒ 进 dash 状态,**不给纵向速度** ✓
+               方向取环的旋转角;本关 4 个黑环 rot 全是 0 ⇒ m_dashY = 0 ⇒ 水平冲刺(不吃重力),
+               松手或到时长上限结束 ✓
+               以前这里落到 applyTrigger 的 'dash' 支 ⇒ vy = −15 往下砸 ✗
+               —— 用户:「黑环力度太大了,第三个存档点后面那段,黑环应该刚好能送到底下的蓝环的」✓ */
+            this.dash = { ang: b.o.rot ?? 0, kind: 'black', t: 0 };
           } else {
             /* ★ 同蓝板:环给的也是"发射速度",按上面的口径【即时生效】✓ */
             this.applyTrigger({ v: this.orbVel(b.o.orb), flip: spec.flip }, true);
@@ -2078,7 +2087,13 @@ export class World {
       this.gdir = -this.gdir;                     // 先翻重力
       this.vy = v * this.gdir;                    // 再按【新】重力方向给速度
     } else if (spec.flip === 'dash') {
-      this.vy = -v * this.gdir;                         // 冲刺环:朝重力方向砸下去(常重力下 -15)
+      /* ★ 2026-09:'dash' 这个标记现在只给【黑环(冲刺环)】用,而黑环已经在环分支里
+         **进入 dash 状态**(源码 ringJump 类型码 37 ⇒ startDashing)⇒ 这条已经不该被走到 ✓
+         留一行日志而不是静默:万一以后有谁再拿 'dash' 标记去做别的事,这里能立刻看出来 ✗ */
+      if (!this.warnDashFallback) {
+        this.warnDashFallback = true;
+        console.log('[gd] ⚠ 触发器拿到 flip=dash(应该只有黑环用,而黑环走的是 dash 状态)—— 说明有路径没接对');
+      }
     } else {
       this.vy = v * this.gdir;
     }
@@ -2148,10 +2163,9 @@ export class World {
            让关卡能玩;要不要再改,等 GameEvent 的【数值表】钉死之后再说(见提交信息)。
            旧口径:v = 8.9442 = 一档初速 11.1800318 × 0.8,先按旧重力方向给速度、再翻重力并减半 ✓ */
         return 8.9442;
-      case 'black':                                       // 冲刺(黑)环:按形态给绝对值,不吃那 7 折
-        return this.mode === 'ufo' ? 11.2
-          : (this.mode === 'ship' || this.mode === 'wave') ? 14
-            : this.mode === 'spider' ? 16.5 : 15;
+      /* ★ 2026-09:'black' 这一支【已废弃】✗ —— 黑环现在走 dash 状态(源码 ringJump 类型码 37),
+         不再由 orbVel 给"纵向绝对速度"。原来这里按形态返回 11.2/14/16.5/15([GDOpenGD] 口径),
+         那正是用户说的"黑环力度太大"的来源 ⇒ 删掉,免得哪天又被接回去 ✓ */
       default:
         return J * bs;
     }

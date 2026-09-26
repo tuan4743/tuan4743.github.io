@@ -644,15 +644,61 @@ test('限高框的下框面就是这个形态的"地面":站在上面能跳(用�
   assert.equal(w.gdir, -g0, '站在框面上点一下必须能跳(翻重力)—— 这条就是用户报的"吸住无法跳起" ✓');
 });
 
-test('黑环(冲刺):不管当前速度,直接把垂直速度设成 15 并朝重力方向', () => {
+test('黑环(冲刺环)= 进 dash 状态(不是"把 vy 设成 −15 往下砸") — 源码类型码 37 ⇒ startDashing', () => {
+  /* ★★★ 2026-09 用户:「黑环力度太大了,第三个存档点后面那段,黑环应该刚好能送到底下的蓝环的」
+     病根:我们原来按 [GDOpenGD] 把黑环做成 `v:15 + flip:'dash'` ⇒ vy = −15 直接往下砸 ✗
+     源码(`.tmp/GDsrc/asm/gd-ida-decomp.cpp:160089-160095`)里环的类型码 37 走的是
+     `PlayerObject::startDashing` —— 进 dash 状态:横向 = 当前速度、纵向 = 横向 × m_dashY,
+     松手/到时长结束;`m_dashY` 由【环的旋转角】算(148639-148654:角 0 ⇒ 0;|角|>70 夹到 ±70;45° 取 1/tan)
+     本关 4 个黑环 rot 都是 0 ⇒ **水平冲刺** ✓ */
   const lv = solo([
     { kind: 'platform', b: 0, r: -1, w: 60, h: 1 },
     { kind: 'orb', b: 20, r: 2, w: 1, h: 1, orb: 'black' },
   ]);
   const w = new World(lv);
   w.x = 20 * U - 12; w.y = 2 * U; w.vy = 6; w.onGround = false;   // 本来在往上飞
+  const y0 = w.y;
   w.frame(true);
-  assert.ok(Math.abs(w.vy + ORB.black.v) < 1.2, '黑环应该把速度设成朝下的 15,实测 vy=' + w.vy.toFixed(2));
+  assert.ok(w.dash, '黑环必须让人进入 dash 状态(旧行为"直接给 −15"是错的 ✗)');
+  assert.ok(Math.abs(w.vy) < 1.5, 'rot=0 ⇒ m_dashY=0 ⇒ 不额外给纵向速度,实测 vy=' + w.vy.toFixed(2));
+  for (let i = 0; i < 10; i++) w.frame(true);
+  assert.ok(Math.abs(w.y - y0) < 0.2 * U,
+    'dash 期间不吃重力 ⇒ y 基本不变(水平冲刺),实测 Δy=' + ((w.y - y0) / U).toFixed(3) + ' 格');
+  assert.ok(w.x > 20 * U, '横向照常前进(冲刺不改横向)');
+  w.frame(false);
+  assert.equal(w.dash, null, '松手即结束冲刺');
+});
+
+test('黑环→蓝环:冲刺 + 适时松手,刚好够到【底下那个蓝环】(用户口径的几何判据)', async () => {
+  /* 现场:第三个存档点(x=643.5)之后,黄环链升到黑环 (674.5,27.5),底下蓝环在 (681.5,17.5)
+     ⇒ Δ = (+7, −10) 格。用户口径:「黑环应该刚好能送到底下的蓝环的」✓
+     ★ 这里用 god 只看**几何**:纯水平冲刺 + 松手后下落,判定盒能不能与蓝环相交 ✓
+       (真实路线还要躲开水平线上那把锯片 —— 那是另一条线,已单独记录,不在本测试范围 ✗) */
+  const { WATER_CHART } = await import('../src/sim/charts/water.ts');
+  const objs = (WATER_CHART as unknown as Level).objects;
+  const black = objs.filter((o) => o.id === 1330 && o.b > 670 && o.b < 680)[0];
+  const blue = objs.filter((o) => o.id === 84 && o.b > 678 && o.b < 685)[0];
+  assert.ok(black && blue, '这一段应当同时有黑环(1330)与蓝环(84)');
+  const bx = black!.b + black!.w / 2, by = black!.r + black!.h / 2;
+  const lx = blue!.b + blue!.w / 2, ly = blue!.r + blue!.h / 2;
+  assert.ok(Math.abs(ly - by) > 8, '蓝环应当在黑环【底下】足够远(实测 Δy=' + (ly - by).toFixed(1) + ' 格)');
+
+  let best = 1e9, bestHold = -1, hit = false;
+  for (let hold = 0; hold <= 20; hold += 2) {          // 步长 2:够用且别把测试拖慢(原版手感本来就是"差几帧")
+    const w = new World(WATER_CHART as unknown as Level);
+    w.mode = 'cube'; w.speedIdx = 1; w.gdir = 1; w.god = true;
+    w.x = bx * U; w.y = by * U; w.vy = 0; w.onGround = false; w.dead = false;
+    for (let f = 0; f < 140; f++) {
+      w.frame(f < hold);
+      const px = w.x / U, py = w.y / U;
+      const d = Math.hypot(px - lx, py - ly);
+      if (d < best) { best = d; bestHold = hold; }
+      if (Math.abs(px - lx) < 1 && Math.abs(py - ly) < 1) hit = true;   // 判定盒相交(环盒 1×1)
+      if (w.dead) break;
+    }
+  }
+  assert.ok(hit, '黑环 + 适时松手必须能吃到下面那个蓝环(用户口径"刚好送到");最近只到 ' + best.toFixed(2) + ' 格 ✗');
+  assert.ok(best < 0.6, '而且应当"刚好"——最近点离蓝环中心 ' + best.toFixed(2) + ' 格(按住 ' + bestHold + ' 帧)');
 });
 
 test('力场:人进到里面会被推 —— 往上推得比重力狠就能托住人', () => {

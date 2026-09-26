@@ -120,7 +120,15 @@ export const ORB: Record<OrbKind, { v: number; flip: FlipWhen; note: string }> =
        要不要再改,等把 GameEvent 的【数值表/事件号映射】从本体数据段钉死之后再动 ✗ */
   blue: { v: 8.9442, flip: 'before', note: '[回归回退] ×0.8 = 8.9442:按旧重力方向给速度后再翻重力并减半(与 cd52e6f 之前一致)' },
   green: { v: 11.1800318, flip: 'after', note: '[GDOpenGD] ×1.0,先翻重力再按新重力方向给速度(⇐ 与源码 flipMod 读法一致:翻完再取 −1)' },
-  black: { v: 15, flip: 'dash', note: '[GDOpenGD] 冲刺环:把速度设成 15 并【朝重力方向】砸下去(常重力下是 -15),不看 jumpPower' },
+  /* ★★★ 2026-09 黑环(冲刺环)= 源码 `ringJump` 的【类型码 37 ⇒ PlayerObject::startDashing】
+     (`.tmp/GDsrc/asm/gd-ida-decomp.cpp:160089-160095`)—— 它**不是"给一个纵向速度"** ✗,
+     而是进入 **dash 状态**:方向由环的旋转角换算(dash 期间横向 = 当前速度、纵向 = 横向 × m_dashY),
+     松手或到时长上限结束 ✓。我们以前按 [GDOpenGD] 抄成 `v:15 + flip:'dash'` ⇒ 常重力下 vy = −15 直接往下砸 ✗
+     ⇒ 用户实测「黑环力度太大了,第三个存档点后面那段,黑环应该刚好能送到底下的蓝环的」✓
+     本关 4 个黑环(1330)rot 全是 0 ⇒ m_dashY = 0 ⇒ **水平冲刺**
+     (源码 148639-148654:角为 0 ⇒ m_dashY = 0;|角| > 70° 夹到 ±70;45° 取 1/tan)✓
+     ⇒ `v` 不再使用;`flip:'dash'` 现在只是"进 dash 状态"的标记(见 world.ts 的环分支)✓ */
+  black: { v: 0, flip: 'dash', note: '冲刺环(黑):进 dash 状态、不给纵向速度。源码 ringJump 类型码 37 ⇒ startDashing;本关 rot=0 ⇒ 水平冲刺' },
 };
 
 export const PAD: Record<PadKind, { v: number; flip: FlipWhen; note: string }> = {
