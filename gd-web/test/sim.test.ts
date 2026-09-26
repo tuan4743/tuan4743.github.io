@@ -1478,3 +1478,45 @@ test('四联蓝跳点 + 反转重力门:从用户给的进入状态出发必须�
   assert.ok(top > 23.5, '应当飞过砖块高度(顶点 >23.5 格),实测顶点 ' + top.toFixed(2));
   assert.ok(w.x / U > 760, '应当一路过去(x>760),实测 ' + (w.x / U).toFixed(2));
 });
+
+/* ---------------- 绿跳环 + 五连蓝跳点 + 两个重力门(x≈557~575)----------------
+ * ★ 现场按【用户口径】定位(上一轮那份"x=714 四联板"是另一段,已作废 ✗):
+ *     绿跳环 1022 (557.5, 8.5) → 重力门1 id=10 (559.5, 5.5) → 五连蓝跳点 67
+ *     (561 墙顶 / 565 贴顶 rot180 / 566 贴地 / 569 贴顶 rot180 / 570 贴地)
+ *     + 粉板 140 (561, 11.93, rot180) → 重力门2 id=10 (572.5, 14.5)
+ *   靶心:过门2 之后 x≈578~582 的贴地/侧挂刺阵,以及 x=573~577 y=13 的屋顶。
+ * ★ 用户口径:**上路(按环上半格)与下路(不按环)两条都必须能过** ✓
+ * ★ 两条都必须在【屋顶边缘 x≈576.4~578.6 起跳】—— 那段贴地刺阵(580.4/581.3/582.4)
+ *   在原版几何下就是要跳过去的正常障碍,不是必死点(跑过去撞刺当然死 ✗)。
+ * 判据:活过 x > 600。
+ * 诊断脚本(保留在 tools/probe-green16.ts,未提交):两条路的逐帧轨迹与 gdir 翻转表。 */
+async function runGreenSection(pressOrbUpperHalf: boolean) {
+  const { WATER_CHART } = await import('../src/sim/charts/water.ts');
+  const w = new World(WATER_CHART as unknown as Level);
+  const orbs = (w as unknown as { orbs: Array<{ x0: number; x1: number; y0: number; y1: number }> }).orbs;
+  const orb = orbs.find((b) => Math.abs((b.x0 + b.x1) / 2 / U - 557.5) < 2.5)!;
+  w.mode = 'cube'; w.speedIdx = 1; w.gdir = 1;
+  w.x = 555.2 * U; w.y = 9.4 * U; w.vy = 0; w.onGround = false; w.dead = false;
+  let top = -1e9;
+  for (let i = 0; i < 340 && !w.dead; i++) {
+    const cy = w.y + w.box / 2, orbCy = (orb.y0 + orb.y1) / 2;
+    const onOrb = !(w.x + w.box <= orb.x0 || w.x >= orb.x1 || w.y + w.box <= orb.y0 || w.y >= orb.y1);
+    const pressOrb = pressOrbUpperHalf && onOrb && cy >= orbCy;      // 上半格:中心不低于环心
+    const jumpRoof = w.onGround && w.x / U >= 576.4 && w.x / U <= 578.6;
+    w.frame(pressOrb || jumpRoof);
+    if (w.y / U > top) top = w.y / U;
+  }
+  return { w, top };
+}
+test('五连蓝跳点段·下路(不按绿环):屋顶边缘起跳 ⇒ 活过 x>600(没有必死点)', async () => {
+  const { w, top } = await runGreenSection(false);
+  assert.ok(!w.dead, '下路不许有必死点,实测死在 x=' + (w.x / U).toFixed(2) + ' ✗');
+  assert.ok(w.x / U > 600, '下路应当活过 x>600,实测 ' + (w.x / U).toFixed(2));
+  assert.ok(top > 14, '越过刺阵需要跳起来(顶点 >14 格),实测 ' + top.toFixed(2));
+});
+test('五连蓝跳点段·上路(按绿环上半格):同样活过 x>600', async () => {
+  const { w, top } = await runGreenSection(true);
+  assert.ok(!w.dead, '上路不许有必死点,实测死在 x=' + (w.x / U).toFixed(2) + ' ✗');
+  assert.ok(w.x / U > 600, '上路应当活过 x>600,实测 ' + (w.x / U).toFixed(2));
+  assert.ok(top > 14, '越过刺阵需要跳起来(顶点 >14 格),实测 ' + top.toFixed(2));
+});
