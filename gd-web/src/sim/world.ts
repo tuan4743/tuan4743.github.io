@@ -169,6 +169,25 @@ interface Anim {
 const SUB = 4;                 // 每帧 4 个子步
 const FRAME = 1 / 60;
 
+/* ---------------- 激光击落光束(用户新需求,2026-09)----------------
+   用户口径:「后面有一段连续的 8 跳环 + 一个冲刺箭头. 那段每一个跳环都在碰到后延迟一点点
+   时间播放一个光束穿过的特效,模拟激光击落. 注意光束宽度要大于跳环,光束做成两边雾化,
+   随机颜色,竖直方向随机 −15°~15° 夹角.」
+   ★ 那一段在哪(tools/probe-beam-run.ts 扫出来的环链:间隔 4 格、黄/绿交替):
+     x 2647→3003,每 9~11 环跟一个冲刺箭头(绿 1704 / 粉 1751),最后一组正好 8 环(2975~3003)✓
+   ★★ 下面四个数【都是看的、不是源码常数】—— 嫌太亮/太密/范围不对就改这几个 ✓ */
+const BEAM_X0 = 2640;              // 生效范围(格):整条环链那一段;要只挂在某一组就改这两个数
+const BEAM_X1 = 3010;
+const BEAM_DELAY_FRAMES = 9;       // 碰环后延迟 ≈0.15 秒才出现("延迟一点点")✓
+const BEAM_LIFE_FRAMES = 22;       // 光束存活 ≈0.37 秒(含淡出)✓
+
+/** 确定性"随机":同一个环每次颜色/倾角都一样 ⇒ 回放与截图可复现 ✓ 但看着是随机的 */
+function beamSeed(x: number, y: number): number {
+  let h = Math.imul((x * 4) | 0, 0x9e3779b1) ^ Math.imul((y * 4) | 0, 0x85ebca6b);
+  h ^= h >>> 15; h = Math.imul(h, 0xc2b2ae35); h ^= h >>> 13;
+  return h >>> 0;
+}
+
 export class World {
   level: Level;
   readonly solids: Box[] = [];      // 实心:踩上面能站,撞侧面死
@@ -203,6 +222,13 @@ export class World {
      回放/倍速下光圈就会和玩家错位 ✗
      用户口径:48 个 touch 标记都是同一种特效 —— 在标记位置炸开一个扩散到【2 格】的光圈然后消失 ✓ */
   readonly rings: Array<{ x: number; y: number; t: number }> = [];
+  /* ★★ 激光击落光束(用户新需求):跳环被吃后【延迟一点点】放一道"光束穿过"的特效。
+     和 rings 同一套做法 —— 位置/年龄/随机种子都由 sim 给、生命周期也由 sim 推进
+     ⇒ 回放与倍速下不会和玩家错位 ✓
+     · x/y 单位制;t = 已活帧数;delay = 还要等几帧才出现
+     · seed = 由坐标算出的确定性种子(颜色/倾角"随机"但可复现)✓
+     · w = 该环的宽度(单位)⇒ 渲染层据此把光束画得【比环宽】✓ */
+  readonly beams: Array<{ x: number; y: number; t: number; delay: number; seed: number; w: number }> = [];
   readonly sizes: Box[] = [];       // 尺寸门:迷你 / 放大
   readonly teleports: Box[] = [];   // 传送门:蓝(入口) → 橙(出口),单向
   /* ★ 会动的东西:带 groups 的物件都在这里,触发器改的是它们的【运行时偏移】,
@@ -681,6 +707,19 @@ export class World {
     /* rotate 只影响画法(判定是轴对齐盒),这里不做几何;颜色/闪烁见上 */
   }
 
+  /** 排一道"激光击落"光束(用户口径:碰环后【延迟一点点】、光束比环宽、两端雾化、随机色、竖直 ±15°)✓
+   *  ★ 只对用户指的那一段生效(见 BEAM_X0/BEAM_X1);其余地方的环照旧不发光束 ✓ */
+  private spawnBeam(b: Box) {
+    const cxBlk = b.o.b + b.o.w / 2, cyBlk = b.o.r + b.o.h / 2;
+    if (cxBlk < BEAM_X0 || cxBlk > BEAM_X1) return;
+    this.beams.push({
+      x: cxBlk * U, y: cyBlk * U, t: 0,
+      delay: BEAM_DELAY_FRAMES,
+      seed: beamSeed(cxBlk, cyBlk),
+      w: Math.max(1, b.o.w) * U,        // 环的宽度(单位):渲染层乘一个 >1 的倍数 ⇒ 光束比环宽 ✓
+    });
+  }
+
   /** 每帧推进动画(定点:按帧走,所以回放仍然逐帧一致) */
   private stepAnims() {
     if (this.flash > 0) this.flash = Math.max(0, this.flash - 0.08);
@@ -692,6 +731,11 @@ export class World {
     /* ★ 光圈:活够 34 帧(0.57 秒)就删掉 —— 用户口径:"速度太快了" ⇒ 0.35 → 0.57 秒 ✓
        由 sim 推进 ⇒ 回放一致 ✓ */
     for (let i = this.rings.length - 1; i >= 0; i--) if (++this.rings[i].t > 34) this.rings.splice(i, 1);
+    /* ★ 激光光束:先等 delay 帧("延迟一点点"),出现后再活 BEAM_LIFE_FRAMES 帧 ⇒ 由 sim 推进 ✓ */
+    for (let i = this.beams.length - 1; i >= 0; i--) {
+      const bm = this.beams[i];
+      if (++bm.t > bm.delay + BEAM_LIFE_FRAMES) this.beams.splice(i, 1);
+    }
     /* ★ zoom 缓动:走完 zoomDurF 帧(用正弦缓动,和 move 一致;原版的 30/85 缓动键以后照样本细化)✓ */
     if (this.zoomT < this.zoomDurF) {
       this.zoomT++;
@@ -817,7 +861,7 @@ export class World {
     /* 重来 = 会动的东西回到原位、颜色与闪烁清空(和原作"重开一局"一致) */
     this.anims = [];
     this.flash = 0;
-    this.pulsePeriod = 0; this.pulseT = 0; this.rings.length = 0;
+    this.pulsePeriod = 0; this.pulseT = 0; this.rings.length = 0; this.beams.length = 0;
     this.zoom = 1; this.zoomFrom = 1; this.zoomTo = 1; this.zoomT = 0; this.zoomDurF = 0;
     this.shakeT = 0; this.shakeStr = 0;
     this.armedMarkers.clear();
@@ -1696,6 +1740,8 @@ export class World {
         if (this.armedOrbs.has(b)) continue;
         if (inn.x1 <= b.x0 || inn.x0 >= b.x1 || inn.y1 <= b.y0 || inn.y0 >= b.y1) continue;
         this.armedOrbs.add(b);
+        /* ★ 激光击落(用户新需求):吃到环就排一道光束 —— 延迟 BEAM_DELAY_FRAMES 帧后出现 ✓ */
+        this.spawnBeam(b);
         this.pressFresh = false; this.pressAux = false;
         if (b.o.orb) {
           /* ★ 用分形态的力度(原版 ringJump 的倍率表),别再用"方块那一档"套所有形态 */

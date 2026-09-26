@@ -338,6 +338,14 @@ class Scene extends Phaser.Scene {
   /** ★ 物件贴图池:每帧按可见物件取用,用完把多余的藏起来(避免几千个 Image 常驻) */
   private artPool: Phaser.GameObjects.Image[] = [];
   private artUsed = 0;
+  /* ★★ 激光击落光束(用户新需求,2026-09):池子 + 两个【看的、不是源码常数】的尺寸参数
+     · BEAM_LEN_BLOCKS:光束长度(横穿方向)= 12 格
+     · BEAM_THICK_MUL :光束粗细 = 环宽 × 1.8 ⇒ ★【比跳环宽】✓(用户口径)
+     嫌长/嫌粗/嫌密就改这两个数 ✓;池子的 origin/翻转在复用时必须复位(踩过 origin 泄漏 ✗) */
+  private beamPool: Phaser.GameObjects.Image[] = [];
+  private beamUsed = 0;
+  private readonly BEAM_LEN_BLOCKS = 12;
+  private readonly BEAM_THICK_MUL = 1.8;
   artReady = false;
 
   /** 物件 → 图集帧名(没有就返回 null,走矢量画法)。
@@ -1026,6 +1034,48 @@ class Scene extends Phaser.Scene {
       this.flashImg = this.add.image(0, 0, key).setDepth(5.5).setVisible(false);
     }
     return this.flashImg;
+  }
+
+  /** 激光光束贴图:横向一条,**两端雾化**(中间实、两头渐隐)+ 上下边缘也削薄一点 ✓
+   *  用户口径「光束做成两边雾化」;靠 displayWidth 拉伸 ⇒ 一张贴图够用,不用每帧铺矢量 ✓ */
+  private ensureBeamTex(): string | null {
+    const key = 'gd-beam';
+    if (!this.textures.exists(key)) {
+      const W = 256, H = 32;
+      const cv = document.createElement('canvas');
+      cv.width = W; cv.height = H;
+      const cx = cv.getContext('2d');
+      if (!cx) return null;
+      const gh = cx.createLinearGradient(0, 0, W, 0);         // 横向:两端 → 0、中间 → 1(雾化)✓
+      gh.addColorStop(0, 'rgba(255,255,255,0)');
+      gh.addColorStop(0.16, 'rgba(255,255,255,0.75)');
+      gh.addColorStop(0.5, 'rgba(255,255,255,1)');
+      gh.addColorStop(0.84, 'rgba(255,255,255,0.75)');
+      gh.addColorStop(1, 'rgba(255,255,255,0)');
+      cx.fillStyle = gh; cx.fillRect(0, 0, W, H);
+      const gv = cx.createLinearGradient(0, 0, 0, H);         // 纵向:上下边缘削薄,避免硬边 ✓
+      gv.addColorStop(0, 'rgba(0,0,0,1)');
+      gv.addColorStop(0.35, 'rgba(0,0,0,0)');
+      gv.addColorStop(0.65, 'rgba(0,0,0,0)');
+      gv.addColorStop(1, 'rgba(0,0,0,1)');
+      cx.globalCompositeOperation = 'destination-out';
+      cx.fillStyle = gv; cx.fillRect(0, 0, W, H);
+      cx.globalCompositeOperation = 'source-over';
+      this.textures.addCanvas(key, cv);
+    }
+    return key;
+  }
+
+  /** 光束的"随机"取值:全部由 sim 给的种子算 ⇒ 同一个环每次颜色/倾角都一样、可复现 ✓
+   *  调色板挑的是亮而干净的颜色,免得和背景/关卡配色糊在一起 ✓ */
+  private beamVals(seed: number): { col: number; deg: number; lenMul: number } {
+    let s = seed >>> 0;
+    const nx = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
+    const PALETTE = [0xff5a5a, 0x5aff8c, 0x5ad2ff, 0xffd75a, 0xd98cff, 0xffffff];
+    const col = PALETTE[Math.min(PALETTE.length - 1, Math.floor(nx() * PALETTE.length))];
+    const deg = -15 + 30 * nx();      // ★ 用户口径:竖直方向随机 −15°~+15° ✓
+    const lenMul = 0.9 + 0.4 * nx();  // 长度也随一点,看着更自然 ✓
+    return { col, deg, lenMul };
   }
 
   /** 图集加载完:每个形态挑出【第 1 组主图 + 同组发光层】,把 plist 里"躺着的"帧转正后
@@ -2095,6 +2145,7 @@ class Scene extends Phaser.Scene {
     }
     for (let pass = 0; pass < 2; pass++) {
     this.artUsed = 0;                              // ★ 贴图池:这一帧从 0 开始分配,画完把剩下的藏掉
+    this.beamUsed = 0;                             // ★ 光束池同理(用完的在同一处藏掉)
     for (const o of LEVEL.objects) {
       if ((o.kind === 'deco') !== (pass === 0)) continue;
       if (o.kind === 'trigger') continue;         // 触发器是个逻辑物件,不画
@@ -2793,6 +2844,39 @@ class Scene extends Phaser.Scene {
       g.strokeCircle(r.x, Y(r.y), rad * 0.82);
       g.lineStyle(2, 0xffffff, 0.35 * a * (1 - p));
       g.strokeCircle(r.x, Y(r.y), rad * 1.08);
+    }
+    /* ★★ 激光击落光束(用户新需求)——
+       「那段每一个跳环都在碰到后【延迟一点点】播放一个光束穿过的特效,模拟激光击落.
+         光束宽度要大于跳环,光束做成【两边雾化】,【随机颜色】,竖直方向随机 −15°~15° 夹角」
+       四要素逐条落实:延迟 = sim 的 delay(delay 帧内不出现)✓;粗细 = 环宽 × BEAM_THICK_MUL > 环宽 ✓;
+       两端雾化 = 贴图两端 alpha 渐隐 ✓;颜色/倾角 = 由 sim 的坐标种子算(随机但可复现)✓
+       位置与年龄全部来自 sim(w.beams)⇒ 回放/倍速下不会和玩家错位 ✓ */
+    const beamTex = this.ensureBeamTex();
+    if (beamTex && w.beams.length) {
+      for (const bm of w.beams) {
+        if (bm.t < bm.delay) continue;                     // ★ "延迟一点点":还没到点就不画 ✓
+        const age = (bm.t - bm.delay) / 22;                // 0 → 1(22 = world.ts 的 BEAM_LIFE_FRAMES)
+        const a = age < 0.15 ? age / 0.15 : 1 - (age - 0.15) / 0.85;   // 快进慢出
+        const v = this.beamVals(bm.seed);
+        const len = this.BEAM_LEN_BLOCKS * U * v.lenMul;   // 横穿长度
+        const thick = bm.w * this.BEAM_THICK_MUL;          // ★ 比环宽 ✓
+        let img = this.beamPool[this.beamUsed];
+        if (!img) { img = this.add.image(0, 0, beamTex).setDepth(6.5); this.beamPool.push(img); }
+        this.beamUsed++;
+        img.setVisible(true)
+          .setOrigin(0.5, 0.5).setFlipX(false).setFlipY(false)        // ★ 池子复用必须复位(origin 泄漏踩过 ✗)
+          .setPosition(bm.x, Y(bm.y))
+          .setRotation((v.deg * Math.PI) / 180)
+          .setDisplaySize(len, thick)
+          .setTint(v.col)
+          .setAlpha(0.92 * Math.max(0, Math.min(1, a)))
+          .setBlendMode(Phaser.BlendModes.ADD);                       // 加色 ⇒ 才有"光"的感觉 ✓
+      }
+      for (let i = this.beamUsed; i < this.beamPool.length; i++) {
+        if (this.beamPool[i].visible) this.beamPool[i].setVisible(false);
+      }
+    } else if (this.beamPool.length) {
+      for (const im of this.beamPool) if (im.visible) im.setVisible(false);
     }
     /* ★★ 可破坏砖块的破坏反馈(用户:"可破坏砖块没有破坏反馈,跟空气一样" ✗)
        源码口径:撞碎走 `GJBaseGameLayer::destroyObject`(反编译 463124)/ `GameObject::destroyObject`(167782)

@@ -1678,3 +1678,40 @@ test('锯片反向防线:直接撞上去仍然死(半径改口径不许把危险
   for (let i = 0; i < 400 && !w.dead; i++) w.frame(false);
   assert.ok(w.dead, '玩家直冲锯片必须判死(否则就是把危险物放过了 ✗)');
 });
+
+/* ---------------- 激光击落光束(用户新需求,2026-09) ----------------
+ * 用户口径:「后面有一段连续的 8 跳环 + 一个冲刺箭头. 那段每一个跳环都在碰到后延迟一点点时间
+ * 播放一个光束穿过的特效,模拟激光击落. 注意光束宽度要大于跳环,光束做成两边雾化,随机颜色,
+ * 竖直方向随机 −15°~15° 夹角.」
+ * 那一段 = 铺面里那条环链 x 2647→3003(tools/probe-beam-run.ts 扫出来的：10/11/11/9/10/10/8 环
+ * 各跟一个冲刺箭头,最后一组正好 8 环)✓
+ * 这里钉三件事:①吃到环就排一道 ②延迟到点才"出现"、活够就自己删 ③范围外的环不排 ✓ */
+test('激光击落光束:那一段的环被吃后排一道、延迟后才出现、范围外不排', () => {
+  const mk = (bx: number) => new World(solo([
+    /* 生效范围只看 x ⇒ 测试里把环放在低处即可(测试关卡的 rows 默认不高,y=84 会出界 ✗) */
+    { kind: 'orb', b: bx, r: 10, w: 1, h: 1, orb: 'yellow', id: 36 },
+    /* ★ 段表要覆盖到 x=2647 —— solo() 默认段只到 60 格,环落在段外就吃不到(踩过一次 ✗) */
+  ], { length: 3200, segments: [{ from: 0, to: 3200, mode: 'cube', speed: 1, difficulty: 0 }] as Segment[] }));
+  /* ① 生效范围内(2647 = 环链那一段的第一个环)⇒ 吃到就排一道 ✓ */
+  const w = mk(2647);
+  w.x = 2647 * U; w.y = 10 * U; w.vy = 0; w.onGround = false; w.god = true;
+  w.frame(true);
+  assert.equal(w.armedOrbs.size, 1, '这一帧该吃到环');
+  assert.equal(w.beams.length, 1, '吃到环要排一道光束');
+  assert.equal(w.beams[0].delay, 9, '延迟 9 帧(≈0.15 秒)后才出现 —— "延迟一点点" ✓');
+  assert.ok(Math.abs(w.beams[0].x - 2647.5 * U) < 1e-6, '光束位置 = 环中心(单位制)');
+  assert.ok(Math.abs(w.beams[0].y - 10.5 * U) < 1e-6, '光束高度 = 环中心(单位制)');
+  assert.ok(w.beams[0].w >= U - 1e-6, '光束宽度取【环的宽度】(渲染层再乘 >1 的倍数 ⇒ 比环宽)✓');
+  /* ② 延迟内还在(渲染层据 t < delay 不画),delay+LIFE 帧后自己删掉 ✓ */
+  for (let i = 0; i < 8; i++) w.frame(true);
+  assert.equal(w.beams.length, 1, '还没到 delay 不该消失');
+  assert.ok(w.beams[0].t >= 8, 't 在逐帧推进');
+  for (let i = 0; i < 25; i++) w.frame(true);
+  assert.equal(w.beams.length, 0, 'delay+LIFE(9+22)帧后要删掉,不留垃圾 ✓');
+  /* ③ 范围外的环(x=1000)照样吃,但【不排光束】(只做用户指的那一段)✓ */
+  const w2 = mk(1000);
+  w2.x = 1000 * U; w2.y = 84 * U; w2.vy = 0; w2.onGround = false; w2.god = true;
+  w2.frame(true);
+  assert.equal(w2.armedOrbs.size, 1, '范围外的环照样吃');
+  assert.equal(w2.beams.length, 0, '范围外不排光束 ✓');
+});
