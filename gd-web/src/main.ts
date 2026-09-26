@@ -171,7 +171,10 @@ const ORB_COL: Record<string, number> = {
 const PLAYER_C1 = 0x7dff00;
 const PLAYER_C2 = 0x00ffff;
 const PAD_COL: Record<string, number> = {
-  yellow: 0xffe17a, pink: 0xff9fd0, red: 0xff8a8a, blue: 0x9fd8ff, purple: 0xc6a0ff,
+  /* ★ 紫(传送跳点 3005,官方美术 spiderBump)以前是淡紫 0xc6a0ff ✗ ——
+     用户报"传送蜘蛛上色有问题"。颜色直接从本体美术取:`GJ_GameSheet.png` 里
+     `spiderBump_001.png`(29×11 帧 / 原始 29×15)非透明像素主色 = **#C437FF** ✓ 不是自创值。 */
+  yellow: 0xffe17a, pink: 0xff9fd0, red: 0xff8a8a, blue: 0x9fd8ff, purple: 0xc437ff,
 };
 /* 形态门的颜色(和原版各形态的口径对齐:方块绿、飞机粉、球橙、UFO 黄、波浪青、机器人紫、蜘蛛灰蓝)
    —— 用户报"形态门都是一个样式,我怎么知道这个门是什么",所以颜色 + 门上的名字牌子一起上。 */
@@ -2184,13 +2187,17 @@ class Scene extends Phaser.Scene {
              当成了"多出来的蓝色跳点"。 */
           const col = PAD_COL[o.pad ?? 'yellow'] ?? 0xffe17a;
           const th = Math.max(6, obh);                       // 贴图厚度 = 物件盒(0.2 格 = 6 单位)
-          g.fillStyle(col, 0.85).fillRect(obx + 1, oBot - th, obw - 2, th);
-          g.lineStyle(1, col, 0.9).strokeRect(obx + 1.5, oBot - th + 0.5, obw - 3, th - 1);
-          /* 一道朝上的箭头(倒挂的朝下),压在底座上,不出物件盒 */
+          /* ★★ 用户:"传送蜘蛛的贴图不会在反转重力时反转" ——
+             以前底座【永远画在格子下沿】✗ ⇒ 贴顶(rot=180,反重力用)的传送跳点也贴在下面,方向就错了。
+             现在按朝向决定贴哪条边:朝上 ⇒ 贴下沿;朝下(贴顶) ⇒ 贴上沿 ✓ */
           const up = ((o.rot ?? 0) % 360 + 360) % 360 !== 180;
+          const padEdge = up ? oBot - th : oTop;
+          g.fillStyle(col, 0.85).fillRect(obx + 1, padEdge, obw - 2, th);
+          g.lineStyle(1, col, 0.9).strokeRect(obx + 1.5, padEdge + 0.5, obw - 3, th - 1);
+          /* 一道朝上的箭头(倒挂的朝下),压在底座上,不出物件盒 */
           g.lineStyle(2, col, 0.95);
           g.beginPath();
-          const cy0 = oBot - th / 2;
+          const cy0 = padEdge + th / 2;
           if (up) { g.moveTo(obx + 5, cy0 + 2); g.lineTo(obx + obw / 2, cy0 - 3); g.lineTo(obx + obw - 5, cy0 + 2); }
           else { g.moveTo(obx + 5, cy0 - 2); g.lineTo(obx + obw / 2, cy0 + 3); g.lineTo(obx + obw - 5, cy0 - 2); }
           g.strokePath();
@@ -2338,13 +2345,14 @@ class Scene extends Phaser.Scene {
         case 'arrow': {
           /* 冲刺箭头(绿/粉)/ 紫色上跳箭头:一个环 + 一支按旋转角指的箭头 */
           const acx = obx + obw / 2, acy = Y((o.r + o.h / 2) * U);
-          const acol = o.tp ? 0xc6a0ff : (o.arrow === 'pink' ? 0xff9fd0 : 0xa0ffd0);
+          const acol = o.tp ? 0xc437ff : (o.arrow === 'pink' ? 0xff9fd0 : 0xa0ffd0);   // 紫 = 官方 spiderBump 主色 ✓(见 PAD_COL 注释)
+          const amir = o.flipY ? -1 : 1;                 // ★ 对象自己翻过 ⇒ 箭头方向跟着翻(贴顶的传送箭头不再指错)✓
           g.fillStyle(acol, 0.12).fillCircle(acx, acy, U * 0.55);
           g.lineStyle(3, acol, 0.95).strokeCircle(acx, acy, U * 0.42);
           /* ★ 屏幕上的角度 = 数据里的 rot(0 = 指向右,正角度顺时针 = 屏幕上往下)——
              和 sim 里的 arrowDir 是同一套口径,画的和冲的方向才会一致。 */
           const a = ((o.rot ?? 0) * Math.PI) / 180;
-          const dx = Math.cos(a), dy = Math.sin(a);
+          const dx = Math.cos(a), dy = Math.sin(a) * amir;
           const L = U * 0.5;
           const tx = acx + dx * L * 0.62, ty = acy + dy * L * 0.62;     // 箭尖
           g.lineStyle(3, acol, 0.95);
