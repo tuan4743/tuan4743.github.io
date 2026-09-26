@@ -199,6 +199,11 @@ const EASTER_KEY = 'tuagfey-gd-easter';
 const POEM_SPEED = 26;      // 滚动速度(世界单位/秒,约每秒 0.7 行)
 const POEM_LINE_H = 36;     // 一行占多高(用来判断滚完了没有)
 
+/** ★★ 音乐音量(0~1)。用户 2026-09:「顺手调低音乐音量大小」——
+ *  这是【听的、不是源码常数】:嫌大/嫌小就改这一个数 ✓
+ *  (只管音乐;音效各自 setVolume,不经过这里。改前是写死的 0.85) */
+const MUSIC_VOLUME = 0.42;
+
 /** 调试用:按 1~7 现场换形态,方便一个个试手感(1 方块 2 飞机 3 球 4 UFO 5 波浪 6 机器人 7 蜘蛛) */
 const MODE_ORDER: Mode[] = ['cube', 'ship', 'ball', 'ufo', 'wave', 'robot', 'spider'];
 /** HUD 里的形态名 */
@@ -567,7 +572,7 @@ class Scene extends Phaser.Scene {
       const a = document.createElement('audio');
       a.src = LEVEL.song;
       a.preload = 'auto';
-      a.volume = 0.85;
+      a.volume = MUSIC_VOLUME;      // ★ 见文件上方的 MUSIC_VOLUME(用户要求调低)
       this.audio = a;
     }
     this.playMusicAt(0);
@@ -1973,6 +1978,37 @@ class Scene extends Phaser.Scene {
     cam.setZoom(this.zoomOf());
   }
 
+  /** ★★ 歌词字幕走 DOM(#gd-lyric):按【音乐时间】逐句切换 + 淡入淡出。
+   *  来历:这套字做过两版 —— Phaser 版(ea1d75a)、后来的 DOM 版(6445f14);
+   *  DOM 版被 5eec7fc「整套水下特效层全部回退」时一起撤掉了 ⇒ 用户 2026-09
+   *  「把之前的字幕加回来」= 恢复这一版(最近的一版,且自制自证过)✓
+   *  数据:/assets/water/lyrics.json = [[秒, 文本], …](49 句);拿不到就不显示,不影响玩 ✓
+   *  节奏:淡入 0.35s、淡出 0.6s、最后一句按 +6s 收尾 —— 与恢复前那一版一致 ✓ */
+  private lyricEl: HTMLElement | null = null;
+  private lyricRows: Array<[number, string]> = [];
+  private lyricCur = '';
+  private paintLyric() {
+    if (!this.lyricEl) this.lyricEl = document.getElementById('gd-lyric');
+    const el = this.lyricEl;
+    if (!el) return;
+    if (!this.lyricRows.length) {
+      fetch('/assets/water/lyrics.json').then((r) => r.json())
+        .then((j: Array<[number, string]>) => { this.lyricRows = j; }).catch(() => { /* 没有歌词不影响玩 */ });
+      return;
+    }
+    /* 时间基准 = 音乐时间(audio.currentTime);音乐没在播时退回【关卡时钟】——
+       原实现用的是 runClock,那个字段现在已经不存在了,改用 world.tick/60(同一局内的秒数,等价)✓ */
+    const t = this.audio && !this.audio.paused ? this.audio.currentTime : this.world.tick / 60;
+    let i = -1;
+    for (let k = 0; k < this.lyricRows.length; k++) if (t >= this.lyricRows[k][0]) i = k;
+    if (i < 0) { el.style.opacity = '0'; return; }
+    const cur = this.lyricRows[i], next = this.lyricRows[i + 1];
+    const end = next ? next[0] : cur[0] + 6;
+    const a = Math.min(1, (t - cur[0]) / 0.35, Math.max(0, (end - t) / 0.6));
+    if (cur[1] !== this.lyricCur) { this.lyricCur = cur[1]; el.textContent = cur[1]; }
+    el.style.opacity = String(Math.max(0, Math.min(1, a)));
+  }
+
   draw() {
     const g = this.g, w = this.world, cam = this.cameras.main;
     this.drawn = 0;
@@ -1984,6 +2020,7 @@ class Scene extends Phaser.Scene {
       this.applyViewport(cam);
       window.addEventListener('resize', () => { this.measureFrac(); this.applyViewport(cam); });
     }
+    this.paintLyric();          // ★ 歌词字幕(DOM 层,见 paintLyric)
     /* 每 20 帧(或刚开局)重新量一次:露出来的那一条/缓冲比例变了就跟着改取景框 */
     if (this.fixed && (this.fracT++ % 20 === 0)) {
       const before = [this.viewTop, this.viewH, this.bufW];

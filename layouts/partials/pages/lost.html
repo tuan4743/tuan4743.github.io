@@ -9,6 +9,10 @@
 <div class="lost is-game" data-lost="{{ .key }}">
     <div class="lost-stage">
         <canvas id="gd-canvas" class="lost-cv" width="1280" height="720" aria-label="几何冲刺式关卡"></canvas>
+        {{/* ★★ 歌词字幕:跟着音乐时间逐句淡入淡出(用户 2026-09:「把之前的字幕加回来」)。
+             走 DOM 而不是画进 Phaser:能截图自证,最坏情况也只是没效果,不会把游戏画面搞坏 ✓
+             数据 /assets/water/lyrics.json,由 main.ts 的 paintLyric() 驱动 ✓ */}}
+        <div class="lost-lyric" id="gd-lyric" aria-live="off"></div>
         <div class="lost-veil" aria-hidden="true"></div>
         <div id="gd-hud" class="lost-hud">方块 · 0%</div>
         <div class="lost-tip">按一下开始 · 空格 / ↑ = 跳(飞机按住上升)· R = 重来 · G = 无敌(已限制在预定轨道内,飞不出关卡走廊) · B = 看 bot 通关 · [ / ] 或 −/+ = 弹簧力度微调(测试用)</div>
@@ -36,4 +40,4 @@
         <a href="https://geometrydash.com/game" target="_blank" rel="noopener noreferrer">geometrydash.com/game</a>
     </p>
 </div>
-<script defer src="/assets/gd/gd.js?v=g187"></script>
+<script defer src="/assets/gd/gd.js?v=g188"></script>

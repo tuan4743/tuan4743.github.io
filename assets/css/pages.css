@@ -1325,6 +1325,24 @@
     opacity: 1;
 }
 
+/* ★★ 歌词字幕:屏幕正下方贴边,JS 只改 opacity 与文字(按音乐时间逐句淡入淡出)——
+   参数按 6445f14 那一版原样恢复(位置/字号/字距/颜色/阴影/淡入淡出)✓ */
+.lost-lyric {
+    position: absolute;
+    left: 6%;
+    right: 6%;
+    bottom: 10px;
+    z-index: 5;
+    pointer-events: none;
+    text-align: center;
+    font-size: 0.95rem;
+    letter-spacing: 0.06em;
+    color: #e6f7ff;
+    text-shadow: 0 0 10px rgba(0, 20, 30, 0.95), 0 0 3px rgba(0, 20, 30, 1);
+    opacity: 0;
+    transition: opacity 0.35s linear;
+}
+
 /* ---------- 顶部:关卡编号 + 尝试次数 + 进度 ---------- */
 .lost-top {
     position: absolute;
