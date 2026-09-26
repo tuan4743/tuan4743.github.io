@@ -456,7 +456,10 @@ export class World {
             if (base != null) {
               const spec = GD_SPEC[o.id];
               const sx = spec?.w ? o.w / spec.w : 1, sy = spec?.h ? o.h / spec.h : 1;
-              scaled = base * (Math.abs(sx) + Math.abs(sy)) / 2;
+              /* ★ 2026-09 对齐源码:GameObject::getObjectRadius(174182-174198)= `存的半径 × max(|sx|,|sy|)`
+                 ⇒ 兜底路径也要用 max,不能再用两轴平均 ✗(本关铺面自带 rad、908 把全等比 ⇒ 对关卡无影响;
+                 但手搭的合成关卡/测试会用这条兜底,平均会算偏小)✓ */
+              scaled = base * Math.max(Math.abs(sx), Math.abs(sy));
             }
           }
           if (base != null || scaled != null) {
@@ -1205,8 +1208,17 @@ export class World {
          ⇒ dash 向量 = 单位向量 × (环字段 × 5.77);环字段默认 1.0 ⇒ 纵向基准 = 5.77
            (正是 1 档速度 5.7700018 这个常数 ✓)
          用户铁律:冲刺的【水平分量 = 当前移动速度】⇒ 横向永不改动 ✓(公共路径已按 this.vx 走) */
-      const aRad = (d.ang * Math.PI) / 180;
+      /* ★★★ 诊断开关(只给 tools 里的探针用 —— 正常玩法永不设置它 ⇒ 行为逐字段不变 ✓):
+           globalThis.__dashOverride = { ang?, vxAbs? }
+             ang   = 覆盖冲刺角度(度,负 = 下斜)⇒ 扫描"方向"那一维
+             vxAbs = 覆盖冲刺期间的横向速度(World.vx 是只读 getter,探针改不了 ⇒ 只能在这里替)
+                     ⇒ 扫描"横向速度口径"那一维(9.6 当前速 / 5.77 平台支 / 7.8 三档)✓
+           未设置时 dAng === d.ang、横向修正也不执行 ⇒ 与改动前逐字段一致 ✓ */
+      const ov = (globalThis as { __dashOverride?: { ang?: number; vxAbs?: number } }).__dashOverride;
+      const dAng = ov?.ang ?? d.ang;
+      const aRad = (dAng * Math.PI) / 180;
       const cosA = Math.cos(aRad), sinA = -Math.sin(aRad);   // 世界坐标 y 向上
+      if (ov?.vxAbs != null) this.x += (ov.vxAbs - this.vx) * s;   // 把公共路径已经推过的横向补成 vxAbs ✓
       /* ★★ 2026-09 实测验出来的大 bug(按住不放逐帧打印):冲刺期间 dx=0.000 / dy=0.000
          ⇒ 人【原地冻住】✗ —— 因为这一支只写了纵向,把【横向位移】整个吃掉了 ✗。
          原版(PlayerObject::update 的 dash 分支):横向照常走(v38 = v31),
@@ -1234,7 +1246,7 @@ export class World {
       /* 水平:纵向 0 ✓ · 斜向 45°:纵向 = vx ✓ · 垂直:|cos|≈0 ⇒ 纵向 = 【固定 5.77】(源码常数)✓ */
       this.vy = (Math.abs(cosA) < 0.05)
         ? (sinA >= 0 ? 1 : -1) * 5.7700018
-        : Math.abs(this.vx) * (sinA / cosA);
+        : Math.abs(ov?.vxAbs ?? this.vx) * (sinA / cosA);
       this.y += this.vy * (sY / Y_TIME_SCALE);
       /* ★★ 2026-09 恢复时长上限(上一轮我删掉它是错的 ✗):用户实测"纵向冲刺像是把铺面流速加快了"
          ⇒ 就是【冲刺永不结束】的表现:按住不放就一直冲 ✗。
