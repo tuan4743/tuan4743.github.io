@@ -11,7 +11,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-import { P, U, ROWS, JUMP_SPAN_BLOCKS, JUMP_AIRTIME_S, arcSpan, PAD, ORB, SPEED_YSTART } from '../src/sim/constants.ts';
+import { P, U, ROWS, JUMP_SPAN_BLOCKS, JUMP_AIRTIME_S, arcSpan, PAD, ORB, SPEED_YSTART, cubeGravityOf } from '../src/sim/constants.ts';
 import { generateLevel, tightestGap, tOfX, countKinds, type Level, type Segment, type Obj } from '../src/sim/level.ts';
 import { mapRecord, encodeObjects, decodeObjects } from '../src/sim/gdids.ts';
 import { blocksPerSec, xAtTime, parseBpmSections, injectBpmSections } from '../src/sim/bpmsections.ts';
@@ -1009,7 +1009,7 @@ test('绿环/黄环:初速跟【当前速度档】的 m_yStart 走(以前写死�
  *   · `PlayerObject::flipGravity` 里的 `m_yVelocity *= 0.5`(151158)被 `if (!*(this+1601))` 守着;
  *     【重力板那一支】翻之前先把 +1601 置 1(153307 → 153316 flipGravity → 153328 setYVelocity(…,48))
  *     ⇒ 板翻重力【不减半】;环不走这条(ringJump 里没有置 +1601)⇒ 环走减半 ✓ */
-test('重力板(蓝板):赋值后翻重力【并减半】—— 球形态 ×0.6 后约 3.84(回归回退后)', () => {
+test('重力板(蓝板):赋值后翻重力【并减半】—— 球形态 ×0.6 后约 3.84(源码口径)', () => {
   const w = new World(solo([floor60, { kind: 'pad', b: 6, r: 0, w: 1, h: 0.2, pad: 'blue' }]));
   w.mode = 'ball';                       // ★ 那一段正是球形态(球有 propellPlayer 的 ×0.6)
   w.vy = 0;
@@ -1019,12 +1019,16 @@ test('重力板(蓝板):赋值后翻重力【并减半】—— 球形态 ×0.6 
     if (w.gdir === -1) { flippedAt = i; vyAt = w.vy; break; }
   }
   assert.ok(flippedAt >= 0, '要吃到蓝板并翻重力');
-  /* ★★★ 2026-09-25 回归回退:cd52e6f 曾按"+1601 已置 1 ⇒ 不减半"改成 7.68,
-     结果用户报「第一个球门前面的几个蓝跳点都会直接撞死」✗ ⇒ 退回原来的口径:
-       12.8(propellPlayer 0.8×16)×0.6(球)= 7.68,翻重力那一下再 ×0.5 ⇒ 3.84
-     (读数会带上触发当帧的一口重力 ⇒ 3.84 往上偏一点,所以容差 0.6)✓
-     那个 +1601 标志位到底管哪些事件,等本体【数据段】证据到手再决定要不要改回去。
-     实测量到的 3.84 附近值:见断言消息。 */
+  /* ★★★ 2026-09-26 依据链(把上一轮那条"板不减半"的推断纠正掉):
+       `+1601` 在反编译里只有三处置 1(每处配一个置 0):
+         153307 **PlayerObject::copyAttributes**(拷贝玩家属性:置 1 → 153316 flipGravity → 153328 setYVelocity(getYVelocity(a2)) → 153329 清 0)
+         153567 PlayerObject::resetObject(出生/复位)
+         161637 检查点恢复(函数里直接调 flipGravity)
+       ⇒ 三处全是"玩家状态初始化"路径,**没有一处是重力板** ✗
+       而 flipGravity 本体(151156/151158):
+         `if (!*(this + 1601)) m_yVelocity(=+1936) *= 0.5;`
+       ⇒ 板/flipGravity 的正常调用【要减半】✓(公式:12.8 × 0.6(球) × 0.5 = 3.84 ✓)
+      实测量到的值会带上"触发当帧剩余子步的那口重力"(≈+0.15~0.3)⇒ 容差 0.6 ✓ */
   assert.ok(Math.abs(vyAt - 3.84) < 0.6, '蓝板给的速度应为 3.84(球 ×0.6 后翻重力减半),实测 ' + vyAt.toFixed(3));
 });
 
@@ -1420,12 +1424,18 @@ test('绿环(1022)在真实铺面里生效:翻重力 + 按【新】方向给一�
   assert.ok(Math.abs(w.vy) > 5, '力度应当是一整跳量级,实测 ' + w.vy.toFixed(2));
 });
 
-/* ---------------- 发射速度必须落在【帧边界】(2026-09-25) ----------------
- * 用户报的那段是"四联蓝板 + 反转重力门、抛物线刚好够到平台";我们一帧切 n 个子步,
- * 触发落在帧内 ⇒ 同一块蓝板在帧末量到的发射速度随相位在 6.39~7.08 之间飘(≈3 个子步的重力)✗
- * 修法:给速度的触发排进 pendingVel,由 advance() 在帧末统一结算(见 world.ts 注释)。
- * 这条测试就是钉子:四个速度档 × 多个亚格相位,发射速度必须**恒等于** 6.400 ✓ */
-test('蓝板发射速度与【帧相位/子步数】无关:四个速度档 × 12 个亚格偏移 全部 = 6.400', () => {
+/* ---------------- 发射时机:触发所在子步【即时生效】(2026-09-26) ----------------
+ * 上一版把"给速度的触发"排到帧末统一结算(为了消"帧末读到的发射速度随相位乱飘")✗
+ * —— 代价是**起跳晚了一帧**。用户三段对照把它判死了:
+ *     原版:从重力门出发能飞到砖块【上方】(那段没有必死点)
+ *     修前(子步内即时):撞在砖块【上】
+ *     修后(帧末结算):撞在砖块【下面一格】⇒ 更低 ✗✗
+ * 原版 60 Hz 单步里,触发发生在【这一步之内】,新速度作用于该步的**剩余部分**
+ * ⇒ 正确语义 = "在触发的那一刀就换速度、用新速度积分本帧剩余子步" ✓(现在就是这样)
+ * ★ 因此"帧末读到的 vy"本来就该随相位有小差异(那是子步离散化的固有量,原版 60 Hz 单步同样有)——
+ *   可断言的是【带】:发射值精确 = 12.8×0.5 = 6.4,帧末读数落在 [6.4, 6.4 + 一帧重力] 之内
+ *   (触发可能落在帧内任何一刀,剩下的子步会补上一口重力;差值上限 = 一帧重力)✓ */
+test('蓝板发射:发射值精确 6.4,帧末读数落在"6.4 ~ 6.4+一帧重力"带内(四档 × 12 相位)', () => {
   const launch = (padX: number, speed: number) => {
     const lv = solo([
       { kind: 'platform', b: -16, r: -1, w: 220, h: 1 },
@@ -1435,16 +1445,36 @@ test('蓝板发射速度与【帧相位/子步数】无关:四个速度档 × 12
     const g0 = w.gdir;
     for (let i = 0; i < 400; i++) {
       w.frame(false);
-      if (w.gdir !== g0) return w.vy;          // 触发那一帧的帧末 vy = 发射速度
+      if (w.gdir !== g0) return w.vy;               // 触发那一帧的帧末 vy(单位/帧:发射值 6.4 = 0.213 格/帧 ×30)
     }
     return NaN;
   };
   for (const speed of [0, 1, 2, 3]) {
     const vals: number[] = [];
     for (let k = 0; k < 12; k++) vals.push(launch(20 + k * 0.07, speed));
-    const bad = vals.filter((v) => !(Math.abs(v - 6.4) < 1e-9));
-    assert.equal(bad.length, 0,
-      '速度档 ' + (speed + 1) + ' 有 ' + bad.length + ' 个相位没给出 6.400:' + bad.map((v) => v.toFixed(3)).join(',') +
-      '(修前这里会出现 6.39~7.08 的一串值)');
+    const lo = Math.min(...vals), hi = Math.max(...vals);
+    const oneFrameGravity = cubeGravityOf(speed);             // 一帧的重力(单位/帧)
+    assert.ok(lo > 6.4 - 0.05, '最小的帧末读数不该低于发射值,实测 ' + lo.toFixed(3));
+    assert.ok(hi < 6.4 + oneFrameGravity + 0.05,
+      '帧末读数不该超过"发射值 + 一帧重力"(' + (6.4 + oneFrameGravity).toFixed(3) + '),实测 ' + hi.toFixed(3));
+    assert.ok(hi - lo < oneFrameGravity + 0.05,
+      '相位造成的散布应当 ≤ 一帧重力(' + oneFrameGravity.toFixed(3) + '),实测 ' + (hi - lo).toFixed(3));
   }
+});
+
+/* ★★ 用户给的验收判据(2026-09-26):"原版能从重力门飞到砖块上方"——
+   进入状态:cube 中心对准【门下那一格的左上角】=(714, 22.5) 格、vy=0、gdir=1、速度档 4
+   ⇒ 这一段必须【越过去并活着】,不许出现必死点 ✓ */
+test('四联蓝跳点 + 反转重力门:从用户给的进入状态出发必须能过(没有必死点)', async () => {
+  const { WATER_CHART } = await import('../src/sim/charts/water.ts');
+  const w = new World(WATER_CHART as unknown as Level);
+  w.mode = 'cube'; w.speedIdx = 4; w.gdir = 1;
+  w.x = 714 * U - w.box / 2;                          // 中心 x = 714 格
+  w.y = 22.5 * U - w.box / 2;                         // 中心 y = 22.5 格(门下那格左上角)
+  w.vy = 0; w.onGround = false; w.dead = false;
+  let top = -1e9;
+  for (let i = 0; i < 300 && !w.dead; i++) { w.frame(false); top = Math.max(top, w.y / U); }
+  assert.ok(!w.dead, '这一段不能有必死点,但实测第 ' + 'x=' + (w.x / U).toFixed(2) + ' 处死了 ✗');
+  assert.ok(top > 23.5, '应当飞过砖块高度(顶点 >23.5 格),实测顶点 ' + top.toFixed(2));
+  assert.ok(w.x / U > 760, '应当一路过去(x>760),实测 ' + (w.x / U).toFixed(2));
 });
