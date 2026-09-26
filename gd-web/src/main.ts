@@ -320,6 +320,10 @@ class Scene extends Phaser.Scene {
    *  ★ 本关 chart 里还没有通道数据(只硬编了玩家色 1005/1006)⇒ 先用【页面地面线已经在用的那个色】,
    *    拿到关卡的 kS38 就换成 1001 的真值 ✓ */
   bandTint = 0xffffff;
+  /* ★ 可破坏砖块(143)的破坏反馈:只读 world.broken 的【新增】,生命周期渲染侧自己管 ✓
+     (本轮文件所有权:只改 main.ts,不碰 world.ts ✓) */
+  private brkSeen = new Set<unknown>();
+  private brkDebris: Array<{ x: number; y: number; vx: number; vy: number; t: number }> = [];
   /* ★★ 闪烁(用户:"闪烁太离谱了,改成上下两边的渐变…颜色跟当前环境色相同"):见 ensureFlashImg */
   private flashImg?: Phaser.GameObjects.Image;
   private iconLayers: Array<{
@@ -2730,6 +2734,34 @@ class Scene extends Phaser.Scene {
       g.strokeCircle(r.x, Y(r.y), rad * 0.82);
       g.lineStyle(2, 0xffffff, 0.35 * a * (1 - p));
       g.strokeCircle(r.x, Y(r.y), rad * 1.08);
+    }
+    /* ★★ 可破坏砖块的破坏反馈(用户:"可破坏砖块没有破坏反馈,跟空气一样" ✗)
+       源码口径:撞碎走 `GJBaseGameLayer::destroyObject`(反编译 463124)/ `GameObject::destroyObject`(167782)
+       —— 物件被销毁并伴随碎裂表现;我们这边砖确实会碎(world.broken),但【碎得没有任何反馈】✗
+       ⇒ 渲染侧监听 `w.broken` 的【新增】(只读,不碰 world.ts),在那一格炸出碎块 ✓
+       碎块初速由坐标哈希算(确定性,不用 Math.random)⇒ 同一次尝试重开的表现一致 ✓ */
+    for (const b of w.broken as Set<{ x0: number; x1: number; y0: number; y1: number }>) {
+      if (this.brkSeen.has(b)) continue;
+      this.brkSeen.add(b);
+      const bx = (b.x0 + b.x1) / 2, by = (b.y0 + b.y1) / 2;
+      for (let i = 0; i < 10; i++) {
+        const h = Math.sin(bx * 12.9898 + by * 78.233 + i * 37.719) * 43758.5453;
+        const r1 = h - Math.floor(h), r2 = h * 7.13 - Math.floor(h * 7.13);
+        const ang = r1 * Math.PI * 2, spd = 70 + r2 * 160;          // 单位/秒
+        this.brkDebris.push({ x: bx, y: by, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd + 90, t: 0 });
+      }
+    }
+    if (w.broken.size === 0 && this.brkSeen.size) this.brkSeen.clear();   // 重来时砖全部恢复 ⇒ 清"已见"
+    if (this.brkDebris.length) {
+      const keep: Array<{ x: number; y: number; vx: number; vy: number; t: number }> = [];
+      for (const p of this.brkDebris) {
+        p.t += 1 / 60; p.x += p.vx / 60; p.y += p.vy / 60; p.vy -= 900 / 60;
+        if (p.t < 0.55) {
+          keep.push(p);
+          g.fillStyle(this.bandTint, 0.95 * (1 - p.t / 0.55)).fillRect(p.x - 3, Y(p.y) - 3, 6, 6);
+        }
+      }
+      this.brkDebris = keep;
     }
     /* 开场 / 死亡 / 通关界面:半透明面板(文字是 Text 对象,这里只画底板) */
     if (this.phase !== 'running') {
