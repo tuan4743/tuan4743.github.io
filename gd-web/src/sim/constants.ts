@@ -119,7 +119,7 @@ export const ORB: Record<OrbKind, { v: number; flip: FlipWhen; note: string }> =
      ⇒ 先退回改动前的口径(先按旧重力方向给速度、再翻重力并减半),让关卡立刻能玩;
        要不要再改,等把 GameEvent 的【数值表/事件号映射】从本体数据段钉死之后再动 ✗ */
   blue: { v: 8.9442, flip: 'before', note: '[回归回退] ×0.8 = 8.9442:按旧重力方向给速度后再翻重力并减半(与 cd52e6f 之前一致)' },
-  green: { v: 11.1800318, flip: 'after', note: '[GDOpenGD] ×1.0,先翻重力再按新重力方向给速度' },
+  green: { v: 11.1800318, flip: 'after', note: '[GDOpenGD] ×1.0,先翻重力再按新重力方向给速度(⇐ 与源码 flipMod 读法一致:翻完再取 −1)' },
   black: { v: 15, flip: 'dash', note: '[GDOpenGD] 冲刺环:把速度设成 15 并【朝重力方向】砸下去(常重力下是 -15),不看 jumpPower' },
 };
 
