@@ -40,4 +40,93 @@
         <a href="https://geometrydash.com/game" target="_blank" rel="noopener noreferrer">geometrydash.com/game</a>
     </p>
 </div>
+
+{{/* ★★ 结束页 / 致谢(用户 2026-09:「关卡结尾那一大片空白做成结束文字/致谢页」)。
+     为什么走 DOM 而不是画进画布:**链接必须可点** —— 画布里做不到 ✗,DOM 层可以 ✓
+     什么时候出现:通关时 main.ts 把 phase 置成 'done'(main.ts:1491)⇒ 这里轮询它;
+     重开 / 回放(phase 回到 running/idle)会自动收起 ✓
+     文案来源:曲名与作者是拿用户给的 B 站链接去查、并和 osu! 谱面页交叉核对过的
+       (A-39 - WATER (feat. MIKU)),与仓库里 47 句日文歌词一致 ✓ —— 不是我编的 ✓
+     ★「制作相关介绍」那一段是**我们这个还原工程本身的说明**(不是关卡/歌曲介绍),
+       文案由作者提供草稿、我逐条对着实现核过:**六条里只有最后一条改了口径** ——
+       原文写"保证手感与帧率无关",而我们实测极端限速下仍有 ~13.7% 离散度 ✗
+       ⇒ 改成"低帧率下按墙上时间补步(极端限速下仍偶有掉帧,还在修)" ✓ 其余五条都有行号/读数支撑 ✓ */}}
+<div class="lost-ending" id="gd-ending" aria-hidden="true">
+    <div class="lost-ending__card">
+        <h3 class="lost-ending__title">WATER</h3>
+        <p class="lost-ending__song">曲:A-39 feat. 初音ミク(Hatsune Miku)</p>
+        <p class="lost-ending__link">
+            <a href="https://www.bilibili.com/video/BV1tJ411m7Az" target="_blank" rel="noopener noreferrer">bilibili · BV1tJ411m7Az</a>
+        </p>
+        <div class="lost-ending__credits">
+            <p class="lost-ending__h">制作说明 · 还原实现方式</p>
+            <ul>
+                <li>物理:以 Geometry Dash 2.0.11 本体反编译为口径,常数逐项核对(跳跃初速按速度档取 <code>m_yStart</code>、翻重力 y 速度减半、重力板与重力门同为减半、环的力度与冲刺机制按 <code>ringJump</code>/<code>startDashing</code> 的实现照搬)</li>
+                <li>判定:物件判定盒取自本体 <code>_pHitboxes</code> 数据段(重力门 25×75、形态门 34×86、跳环 36×36、蓝板 25×6…),线框与蜘蛛等按本体几何</li>
+                <li>铺面:直接读游戏存档 <code>CCLocalLevels.dat</code> 生成关卡(1.2 万+ 物件),触发器(move / pulse / zoom / shake / alpha,以及当标记用的 touch)逐条搬运</li>
+                <li>美术:从本体图集 <code>GJ_GameSheet*.plist/png</code> 抽帧(uhd 密度 4px = 1 世界单位),官方"只存半张"的素材(如锯片)按镜像拼合成整张</li>
+                <li>音乐与节拍:实测 BPM 170.00、第一拍 0.3335s;背景闪光按段落重音与速度档驱动,歌词按音乐时间轴逐句显示</li>
+                <li>工程:纯 TypeScript 定点 60Hz 模拟与渲染分离,支持回放指纹校验;低帧率下按墙上时间补步(极端限速下仍偶有掉帧,还在修)</li>
+            </ul>
+        </div>
+        <p class="lost-ending__thanks">Thank playing</p>
+    </div>
+</div>
+<style>
+    /* 结束页:盖在显示器上、居中一张卡片;淡入淡出由 .is-on 控制 ✓ */
+    .lost-ending {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .6s ease;
+        z-index: 6;
+    }
+    .lost-ending.is-on { opacity: 1; pointer-events: auto; }
+    .lost-ending__card {
+        max-width: min(82%, 640px);
+        /* ★ 第 3 块(制作说明)是最长的:与其猜字号,直接给一个"结构上一定放得下"的约束 ——
+           卡片最高 84% 视口高、超出就内部滚动(而不是把字缩到看不清)✓
+           这样无论显示器/窗口多大,内容都不会顶出那片空白 ✗ */
+        max-height: 84%;
+        overflow-y: auto;
+        padding: 22px 26px;
+        text-align: left;
+        border: 1px solid rgba(150, 230, 255, .35);
+        border-radius: 14px;
+        background: rgba(3, 8, 16, .82);
+        box-shadow: 0 0 40px rgba(90, 200, 255, .18);
+        color: #e6f7ff;
+    }
+    .lost-ending__title { margin: 0 0 6px; font-size: 1.45rem; letter-spacing: .18em; text-align: center; }
+    .lost-ending__song { margin: 0 0 4px; font-size: .92rem; opacity: .9; text-align: center; }
+    .lost-ending__link { margin: 0 0 12px; font-size: .92rem; text-align: center; }
+    .lost-ending__link a { color: #8fe6ff; text-decoration: underline; }
+    .lost-ending__credits { margin: 0 0 14px; font-size: .8rem; line-height: 1.65; opacity: .86; }
+    .lost-ending__credits ul { margin: 6px 0 0; padding-left: 1.1em; }
+    .lost-ending__credits li { margin: 0 0 6px; }
+    .lost-ending__credits code { font-size: .92em; color: #a9f0ff; }
+    .lost-ending__h { margin: 0; font-size: .9rem; letter-spacing: .08em; opacity: .95; }
+    .lost-ending__thanks { margin: 0; font-size: 1.05rem; letter-spacing: .12em; opacity: .95; text-align: center; }
+</style>
+<script>
+    /* 轮询 phase(main.ts 在 update 里维护它)⇒ 通关出现、重开收起 ✓
+       注意:不用 requestAnimationFrame(标签页在后台会被暂停),250ms 定时最稳 ✓ */
+    (function () {
+        var el = document.getElementById('gd-ending');
+        if (!el) return;
+        var shown = false;
+        setInterval(function () {
+            var sc = window.__gd && window.__gd.scene;
+            var done = !!(sc && sc.phase === 'done');
+            if (done === shown) return;
+            shown = done;
+            el.classList.toggle('is-on', done);
+            el.setAttribute('aria-hidden', done ? 'false' : 'true');
+        }, 250);
+    })();
+</script>
 <script defer src="/assets/gd/gd.js?v=g200"></script>
