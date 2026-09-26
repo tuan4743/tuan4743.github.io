@@ -2213,8 +2213,11 @@ class Scene extends Phaser.Scene {
           const th = Math.max(6, obh);                       // 贴图厚度 = 物件盒(0.2 格 = 6 单位)
           /* ★★ 用户:"传送蜘蛛的贴图不会在反转重力时反转" ——
              以前底座【永远画在格子下沿】✗ ⇒ 贴顶(rot=180,反重力用)的传送跳点也贴在下面,方向就错了。
-             现在按朝向决定贴哪条边:朝上 ⇒ 贴下沿;朝下(贴顶) ⇒ 贴上沿 ✓ */
-          const up = ((o.rot ?? 0) % 360 + 360) % 360 !== 180;
+             现在按朝向决定贴哪条边:朝上 ⇒ 贴下沿;朝下(贴顶) ⇒ 贴上沿 ✓
+             ★★★★ 2026-09-26 追加(用户:"蜘蛛的贴图还是没有反向"):把【当前重力】再 XOR 一道 ⇒
+               反重力段里贴图整体反向 ✓(与上面箭头分支同一条口径;若与作者 rot 冲突,用户一眼能看出) */
+          const rotUp = ((o.rot ?? 0) % 360 + 360) % 360 !== 180;
+          const up = rotUp !== (w.gdir < 0);
           const padEdge = up ? oBot - th : oTop;
           g.fillStyle(col, 0.85).fillRect(obx + 1, padEdge, obw - 2, th);
           g.lineStyle(1, col, 0.9).strokeRect(obx + 1.5, padEdge + 0.5, obw - 3, th - 1);
@@ -2383,7 +2386,13 @@ class Scene extends Phaser.Scene {
              (铺面里正好有 3 支 rot=180:A 2179 69 / A 2527 81 / A 3192 111 ✓)
              ⇒ 冲刺箭头按 sim 同一条式子画(横向 1、斜率 sin/sx)✓ —— 画的和冲的必须一致 */
           const tpArrow = !!o.tp;                          // 传送箭头(3004):方向是"贴着哪条边就往哪送"
-          const up = ((o.rot ?? 0) % 360 + 360) % 360 !== 180;
+          /* ★★★★ 2026-09-26 用户:"蜘蛛的贴图还是没有反向" —— 他要的是【反转重力时贴图跟着反向】 ✓
+             (上一轮只按作者摆的 rot 画 ⇒ 重力反转时画面完全不变 ✗;GD 自身只按 rot,
+              但用户要的是"跟重力反",所以把当前重力再 XOR 一道 ✓ —— 若与作者已用 rot=180
+              编码的朝向冲突,页面上一眼能看出来,我立刻改回去 ✓)
+             ⚠ 冲刺箭头(!tpArrow)不叠这一道:它的方向由 sim 的 arrowDir 算(已经含重力)✓ */
+          const rotUp = ((o.rot ?? 0) % 360 + 360) % 360 !== 180;
+          const up = rotUp !== (w.gdir < 0);
           const sxa = Math.max(Math.cos(a), 0.7);
           const dx = tpArrow ? 0 : 1;
           const dy = tpArrow ? (up ? -1 : 1) * amir : (Math.sin(a) / sxa) * amir;
@@ -2401,10 +2410,12 @@ class Scene extends Phaser.Scene {
           break;
         }
         case 'clone': {
-          /* 克隆门:只标记、不生效 —— 画成灰色虚线环,一眼知道"这里我们没做" */
+          /* 克隆门(286 开双人 / 287 收双人):★ 已经【真生效】了(用户:"克隆门没用" ⇒ 按源码开了双人 ✓)
+             —— 这条矢量画法只是图集没有官方帧时的兜底,画成一对紫色的环,别再写"我们没做" ✗ */
           const kcx = obx + obw / 2, kcy = Y((o.r + o.h / 2) * U);
-          g.lineStyle(2, 0x8b93a7, 0.75).strokeCircle(kcx, kcy, U * 0.5);
-          g.lineStyle(2, 0x8b93a7, 0.45).strokeCircle(kcx, kcy, U * 0.34);
+          const kcol = o.dualOff ? 0x8b93a7 : 0xc437ff;
+          g.lineStyle(2, kcol, 0.75).strokeCircle(kcx, kcy, U * 0.5);
+          g.lineStyle(2, kcol, 0.45).strokeCircle(kcx, kcy, U * 0.34);
           break;
         }
         case 'teleport': {
@@ -2457,7 +2468,8 @@ class Scene extends Phaser.Scene {
        源码依据(反编译):
          · `GJBaseGameLayer::toggleDualMode`(462616):`+870` 是双人开关;开 ⇒ spawnPlayer2(462653),
            关 ⇒ removePlayer2(462685);开时给两人各放一个 dual 圆(462658-462659)、关时放传送门圆(462690)✓
-         · `PlayerObject::spawnFromPlayer`(153349):`copyAttributes(p2,p1)`,默认【同重力 + 同 vy】✓
+         · `PlayerObject::spawnFromPlayer`(153349):`copyAttributes(p2,p1)`,第三参 a3 = `*(this+1512)^1`(420896),
+           `+1512` 默认 0 ⇒ **镜像支**:153362 重力取反、153363 vy 取反 ✓(用户:"两个实体的重力方向应该是反的" ✓)
          · `isPlayer2Button`(430418)= `a2 > 5` ⇒ 单键位时两人共用同一套输入 ✓
        ⚠ 只包【玩家】这一段(2420 起、到形态矢量链结束为止)——
          下面的终点线/闪光/判定内框不是逐玩家的,重复画会出重影 ✗ */
@@ -2481,7 +2493,11 @@ class Scene extends Phaser.Scene {
     if (w.mode === 'robot' || w.mode === 'spider') {
       const self = this as unknown as { partSprites?: Record<string, Phaser.GameObjects.Image[]> };
       self.partSprites = self.partSprites ?? {};
-      let arr = self.partSprites[w.mode];
+      /* ★★★★ 2026-09-26 双人补缺口:部件 sprite 原来【每个形态只有一组】⇒ 双人两遍绘制时,
+         玩家 1 那一遍会把玩家 2 摆好的部件位置/显隐全覆盖掉(只有这一次 pass 的数据)✗
+         ⇒ 按 pass 分开存:玩家 2 用 "mode#p2" 这一组 ✓(和 p2Layers 同一个思路) */
+      const partKey = dualPass && pass === 0 ? w.mode + '#p2' : w.mode;
+      let arr = self.partSprites[partKey];
       const all = this.cache.json.get('gd-parts-anim') as Record<string, {
         scale: number;
         frames: Record<string, { ox: number; oy: number }>;
@@ -2500,7 +2516,7 @@ class Scene extends Phaser.Scene {
       if (!arr) {
         const maxN = Math.max(...(pick ?? [[]]).map((f) => f.length), 0);
         arr = Array.from({ length: maxN }, () => this.add.image(cxw, Y(cyw), '__DEFAULT').setDepth(16).setVisible(false));
-        self.partSprites[w.mode] = arr;
+        self.partSprites[partKey] = arr;
       }
       const frames = pick ?? [];
       const fi = frames.length ? Math.floor((w.tick / 60) * 12) % frames.length : 0;

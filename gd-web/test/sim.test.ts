@@ -1347,27 +1347,23 @@ test('存档点正好压在可破坏砖上:复活必须被顶出实心,不能一
   assert.ok(!w.dead, '复活后要能活下来(不被压死)');
 });
 
-/* ---------------- 克隆门(286/287):只标记、不做双人(用户口径) ----------------
- * 用户报「克隆出了严重的 bug,无法描述」⇒ 复现到了:过 286 门会【凭空多出一个玩家 2】。
- * 那套双人是半套实现(代码里引过反编译 PortalDualOn/Off = 57/58),按口径关掉 ✓ */
-test('克隆门只标记:过门不开双人、也不凭空多出玩家 2', () => {
-  const gate: Obj = { kind: 'clone', b: 8, r: 0, w: 1, h: 1, id: 286 };
-  const a = new World(solo([floor60, gate]));
-  const b = new World(solo([floor60]));                 // 对照组:没有门
-  let passedAt = -1;
-  for (let i = 0; i < 240; i++) {
-    a.frame(botThink(a)); b.frame(botThink(b));
-    assert.equal(a.dual, false, '克隆门不许开双人(第 ' + i + ' 帧)');
-    assert.equal(a.p2, null, '不许凭空多出玩家 2(第 ' + i + ' 帧)');
-    if (passedAt < 0 && a.x > 9 * U) passedAt = i;
-  }
-  assert.ok(passedAt >= 0, '要真的跑过门(x 只到 ' + (a.x / U).toFixed(2) + ' 格)');
-  /* ★★ 关键断言:门不产生任何影响 ⇒ 有门 / 没门 两条轨迹必须逐字段一致 */
-  assert.equal(a.x, b.x, 'x 必须一致');
-  assert.equal(a.y, b.y, 'y 必须一致');
-  assert.equal(a.vy, b.vy, 'vy 必须一致');
-  assert.equal(a.dead, b.dead, '生死必须一致');
-  assert.equal(a.mode, b.mode, '形态必须一致');
+/* ---------------- 克隆门(286/287):真双人,而且是【镜像支】 ----------------
+ * 历史:先按"只标记、不生效"关掉(用户当时报"克隆出了严重的 bug,无法描述"= 多出一个玩家 2);
+ * 后来用户说"克隆门没用" ⇒ 开门;再后来用户指出「**两个实体的重力方向应该是反的**」✓
+ * 源码:`spawnPlayer2`(420882)给 `PlayerObject::spawnFromPlayer`(153349)传的第三参
+ *   = `*(this+1512) ^ 1`(420896),而 `+1512` 默认 0(玩家状态初始化 305268/305858 都写 0)
+ *   ⇒ 传 1 ⇒ **镜像支**:153362 `flipGravity(p2, p1.gravity ^ 1)`、153363 `vy` 取符号 ✓
+ *   (153367-153368 那一支才是"同重力 + 同 vy" ✗ —— 我们上一轮错用了它) */
+test('克隆门 286:镜像支 —— 玩家 2 的重力方向与玩家 1 相反(用户口径)', () => {
+  const w = new World(solo([floor60, cloneGate(6, true)]));
+  const g1 = w.gdir;
+  for (let i = 0; i < 240 && !w.dual; i++) w.frame(false);
+  assert.ok(w.dual, '过 286 必须开双人(用户:"克隆门没用" 就是这条 ✗)');
+  const st = (w as unknown as { p2: { gdir: number; vy: number; onGround: boolean } }).p2;
+  assert.equal(st.gdir, -g1, '玩家 2 的重力方向必须与玩家 1 相反(镜像支 ✓)');
+  /* 行为验证:镜像重力下的 p2 会【往上走】,而 p1 还在地面上 ⇒ 两人分离 */
+  for (let i = 0; i < 20; i++) w.frame(false);
+  assert.ok(w.p2Pos()!.y > w.y + 0.5 * U, '玩家 2 应当朝反方向走(p2 y=' + w.p2Pos()!.y.toFixed(1) + ' vs p1 y=' + w.y.toFixed(1) + ')');
 });
 
 test('克隆门的判定盒 = 官方门洞 34×86(以前是 1×1 格 ⇒ 触发时有时无)', () => {
@@ -1614,8 +1610,14 @@ test('克隆门:过 286 开双人 —— 玩家 2 出现,而且两个人各自�
 });
 
 test('克隆门:过 287 收双人 —— 玩家 2 消失、回到单人', () => {
-  const w = new World(solo([floor60, cloneGate(4, true), cloneGate(14, false)]));
-  for (let i = 0; i < 600 && w.x / U < 16; i++) w.frame(false);
+  /* ★ 镜像支下 p2 的重力与 p1 相反 ⇒ 它会【往上走】⇒ 合成关卡必须给它一个天花板,
+     否则它飞出关卡边界就被判死、整关结束(那是"一人死算全死"的正常结果,但这条要测的是 287)✓ */
+  const w = new World(solo([
+    floor60,
+    { kind: 'block', b: 0, r: 8, w: 60, h: 1 },            // 天花板(镜像的 p2 落在它下沿)
+    cloneGate(4, true), cloneGate(14, false),
+  ]));
+  for (let i = 0; i < 900 && w.x / U < 16; i++) w.frame(false);
   assert.equal(w.dual, false, '过 287 必须收双人(源码 removePlayer2 ✓)');
   assert.equal(w.p2Pos(), null, '玩家 2 必须消失');
 });

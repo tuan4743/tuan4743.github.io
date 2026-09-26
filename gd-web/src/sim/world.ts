@@ -1839,12 +1839,21 @@ export class World {
          这次是【整套】开的:sim 双人(下面)+ 相机取两人中点(main.ts 1715)+ p2 整段绘制(main.ts 双人两遍)✓
          源码依据见下面那段注释 ✓ */
       if (b.o.dualOn) {
-        /* 开双人:源码 `toggleDualMode`(462616)→ `spawnPlayer2`(420882)→
-           `PlayerObject::spawnFromPlayer`(153349):`copyAttributes(p2, p1)` 整体拷属性,
-           默认支 = 【同重力 + 同 vy】(153367-153368)⇒ 等价于 takeState() ✓
-           (同一模式重复进门时源码直接 return ⇒ 我们靠 armedClones 也只会触发一次 ✓) */
+        /* 源码链 `toggleDualMode`(462616)→ `spawnPlayer2`(420882)→ `PlayerObject::spawnFromPlayer`(153349):
+             `copyAttributes(p2, p1)` 整体拷属性;第三个参数 a3 = `*(this+1512) ^ 1`(420896),
+             `+1512` 默认 0(玩家状态初始化 305268 / 305858 都写 0)⇒ **a3 = 1 ⇒ 走镜像支** ✓
+               153362 `flipGravity(p2, p1.gravity ^ 1)` ⇒ **重力取反**
+               153363 `getYVelocity(p1) ^ 0x8000000000000000` ⇒ **vy 取反**
+               153367-153368(另一支,a3=0)才是"同重力 + 同 vy" ✗ —— 我们上一轮错用了这一支,
+               用户原话:"两个实体的重力方向应该是反的" ✓ 与源码镜像支一致
+           ⇒ takeState() 之后把 gdir 取反、vy 取反;位置不动(copyAttributes 带过来的)✓
+           `onGround` 清掉:镜像后原本脚下的面已经不在脚下,源码此处也只清状态不对齐地面 ✓ */
         this.dual = true;
-        this.p2 = this.takeState();
+        const s = this.takeState();
+        s.gdir = this.gdir === 1 ? -1 : 1;
+        s.vy = -this.vy;
+        s.onGround = false;
+        this.p2 = s;
       } else if (b.o.dualOff) {
         /* 收双人:源码 `removePlayer2`(420913)= 释放 p2 按键 + 清粒子 + 关拖尾 ⇒ 我们清状态 ✓ */
         this.dual = false;
