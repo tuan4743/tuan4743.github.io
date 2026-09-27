@@ -798,6 +798,65 @@ test('冲刺箭头:竖直方向按真规则夹到 ±70(tan70≈2.7475),竖向速
   assert.ok(Math.abs(dy) * U > 8, '而且必须明显比旧的固定 5.77 陡(用户口径:竖直冲刺要够陡)');
 });
 
+/* ---------------- 冲刺【两条支】:飞行形态走速度支,其余走斜率支 ----------------
+ * 出处:PlayerObject::update @ 0x140389480(.tmp/ghidra-out/dashmove.txt)
+ *   1403894ac  CMP [player+0xb70],0 ⇒ 非 0:Δx = dt×m_dashX、Δy = dt×m_dashY(速度分量)
+ *                               = 0:14038959f Δy = m_dashY × Δx(斜率)
+ *   startDashing 在非 0 那一支写 ccpForAngle(θ) × (m_dashSpeed × 5.7700019) ⇒ 恒速 5.77 块/秒 */
+test('飞行形态(UFO)的冲刺 = 沿方向【恒速 5.77 块/秒】;同一枚箭头的方块支仍是 tan70 斜率', async () => {
+  const { DASH_SPEED_PER_FRAME } = await import('../src/sim/world.ts');
+  const mk = () => solo([
+    { kind: 'platform', b: 0, r: -1, w: 90, h: 1 },
+    { kind: 'arrow', b: 20, r: 2, w: 1, h: 1, arrow: 'pink', rot: 90 },
+  ]);
+  const run = (mode: 'cube' | 'ufo') => {
+    const w = new World(mk());
+    w.mode = mode; w.speedIdx = 1; w.gdir = 1;
+    w.x = 20 * U - 12; w.y = 2 * U; w.vy = 0; w.onGround = false;
+    w.frame(true);
+    assert.ok(w.dash, mode + ' 形态按 rot=90 箭头必须进 dash');
+    const x0 = w.x, y0 = w.y;
+    w.frame(true);                                  // ★ 只取【第一帧】:方块支一帧就能撞地,取平均会失真
+    const first = { dx: w.x - x0, dy: w.y - y0 };
+    const xa = w.x, ya = w.y;
+    for (let i = 0; i < 8; i++) w.frame(true);
+    return { dx: (w.x - xa) / 8, dy: (w.y - ya) / 8, dx1: first.dx, dy1: first.dy };
+  };
+  const fly = run('ufo');
+  const spd = Math.hypot(fly.dx, fly.dy);
+  assert.ok(Math.abs(spd - DASH_SPEED_PER_FRAME) < 0.02 * DASH_SPEED_PER_FRAME,
+    'UFO 支每帧合速度必须 = 5.7700019 块/秒 = ' + DASH_SPEED_PER_FRAME.toFixed(4) + ' 单位/帧,实测 ' + spd.toFixed(4));
+  const tan70 = Math.tan(70 * Math.PI / 180);
+  assert.ok(Math.abs(Math.abs(fly.dy / fly.dx) - tan70) < 0.02,
+    '方向仍是夹好的 ±70°(斜率 ' + tan70.toFixed(4) + '),实测 ' + Math.abs(fly.dy / fly.dx).toFixed(4));
+  assert.ok(fly.dy < 0, 'rot=90 朝下 ⇒ 纵向位移必须为负(实测 Δy=' + fly.dy.toFixed(3) + ')');
+  const cube = run('cube');
+  assert.ok(Math.abs(cube.dy1 / cube.dx1) - tan70 < 0.05, '方块支还是斜率支(Δy/Δx = tan70)');
+  assert.ok(Math.abs(cube.dy1) > Math.abs(fly.dy) * 3,
+    '两条支必须真的不同:方块支的纵向位移随【当前横向速度】放大(第一帧 ' + cube.dy1.toFixed(2) + ' vs UFO 平均 ' + fly.dy.toFixed(2) + ')');
+});
+
+test('本关 UFO 段那两枚 rot=90 粉箭头:按下不再"立马砸下去" —— 每帧位移落回 5.77 块/秒', async () => {
+  /* 用户 2026-09-27:「按下之后立马往下扎,速度跟之前不一样」/「一开始 UFO 段的粉箭头 x≈367/404」
+     ⇒ 拿真铺面、真形态量一遍(这一段是 UFO:111 门 x=323.5 → 方块门 x=421.5)✓ */
+  const { WATER_CHART } = await import('../src/sim/charts/water.ts');
+  const { DASH_SPEED_PER_FRAME } = await import('../src/sim/world.ts');
+  const level = WATER_CHART as unknown as Level;
+  const arrow = level.objects.filter((o) => o.id === 1751 && o.b > 366 && o.b < 369)[0];
+  assert.ok(arrow, '这一段应当有一枚 1751(rot=90 粉箭头)');
+  const w = new World(level);
+  w.mode = 'ufo'; w.speedIdx = 1; w.gdir = 1; w.dead = false;
+  w.x = (arrow!.b - 2) * U; w.y = (arrow!.r + 0.1) * U; w.vy = 0; w.onGround = false;
+  let entered = false;
+  const x0 = w.x, y0 = w.y;
+  for (let f = 0; f < 12; f++) { w.frame(true); if (w.dash) entered = true; }
+  assert.ok(entered, '按住必须吃到这枚粉箭头');
+  const dx = (w.x - x0) / 12, dy = (w.y - y0) / 12;
+  assert.ok(Math.hypot(dx, dy) < DASH_SPEED_PER_FRAME * 1.2,
+    '冲刺期间每帧合位移必须 ~5.77 块/秒(实测 ' + Math.hypot(dx, dy).toFixed(3) + ' 单位/帧,上限 ' + (DASH_SPEED_PER_FRAME * 1.2).toFixed(3) + ')—— 斜率支会明显超 ✗');
+  assert.ok(!w.dead, '12 帧内不该被这两枚箭头打死(实测 x=' + (w.x / U).toFixed(1) + ' y=' + (w.y / U).toFixed(1) + ')');
+});
+
 /* ---------------- 黑环那段:从【真实入口】(三连黄环之前)按真人按键跑一遍 ----------------
  * 入口状态沿用 tools/probe-dash-sweep.ts 定的那一份:(665,21) 上升中 vy=+5、4 档速度、
  * 按键策略 = 靠近环就按下(黄环链要靠它爬升)。pressBlack=false 时【绕开黑环那一枚】,

@@ -110,6 +110,41 @@ export function dashSlopeOf(rotDeg: number): number {
   return slope === 0 ? 0 : slope;
 }
 
+/** ★★★ 2026-09-27 【冲刺分两条支,别再拿一条套所有形态】——
+ *  出处:GD 2.2081 `PlayerObject::update` @ 0x140389480(.tmp/ghidra-out/dashmove.txt,我逐行读过):
+ *    · 1403894ac  `CMP byte [player+0xb70],0` ⇒ **非 0 时**先 CALL 0x14038a0c0(逐帧"飞行"更新),
+ *      然后走【速度支】:
+ *        140389577  XMM0 = m_dashX(+0x570) ; Δx = dt × m_dashX
+ *        140389587  Δy = dt × m_dashY(+0x578)
+ *        14038958b/140389594  把 m_dashX/m_dashY 反写回 +0xaf8/+0x9a0
+ *      ⇒ 这两个字段是【速度分量】,不是斜率对 ✓
+ *    · `[player+0xb70] == 0` 时走【斜率支】14038959f:Δy = m_dashY × Δx(经典支,见 dashSlopeOf)✓
+ *  而 startDashing 在 `[player+0xb70] != 0` 那一支里(0x140395c28 起)写的是
+ *      dir = ccpForAngle(θ × π/180) × (环.m_dashSpeed × 5.7700019)   // 0x140623024 = 5.7700019
+ *  ⇒ **飞行形态的冲刺 = 沿环的方向恒速 5.77 块/秒**(不是"斜率 × 当前横向速度" ✗)。
+ *  ★ 为什么必须分:本关两枚 rot=90 的粉箭头在 UFO 段(x≈367.5 / 404.5),斜率支会按
+ *    tan70°=2.75 倍当前横向速度砸下去(2.2 格就撞上 (370.5,3.5) 那把锯),
+ *    而恒速支是 5.77 块/秒、横向只有 1.97 块/秒 —— 这才是用户看到的"以前那样" ✓
+ *    (用户 2026-09-27:「按下之后立马往下扎,速度跟之前不一样」/「一开始 UFO 段的粉箭头」✓) */
+export const DASH_SPEED_PER_FRAME = (5.7700019 * U) / 60;   // 5.7700019 块/秒 ⇒ 2.885 单位/帧
+/** 飞行支的方向(单位向量,世界 y 向上:正 = 朝上) */
+export function dashDirOf(rotDeg: number): { x: number; y: number } {
+  const th = Math.max(-70, Math.min(70, foldDashAngle(rotDeg)));
+  return { x: Math.cos((th * Math.PI) / 180), y: Math.sin((th * Math.PI) / 180) };
+}
+/** 环角 ⇒ 折好、夹好的 θ(度) —— dashSlopeOf / dashDirOf 共用同一条式子 ✓ */
+function foldDashAngle(rotDeg: number): number {
+  const wrap180 = (a: number) => {
+    let v = a % 360;
+    if (v > 180) v -= 360;
+    if (v < -180) v += 360;
+    return v;
+  };
+  let th = wrap180(-(rotDeg || 0));
+  if (Math.abs(th) > 90) th = wrap180(th > 0 ? 180 - th : -180 - th);
+  return th;
+}
+
 export interface RunState {
   tick: number; x: number; y: number; vy: number; onGround: boolean;
   mode: Mode; gdir: number; speed: number; dead: boolean; done: boolean;
@@ -1276,12 +1311,25 @@ export class World {
              vxAbs = 覆盖冲刺期间的横向速度(World.vx 是只读 getter,探针改不了 ⇒ 只能在这里替)
        未设置时 slope === d.slope、横向修正也不执行 ⇒ 与改动前逐字段一致 ✓ */
       const ov = (globalThis as { __dashOverride?: { ang?: number; vxAbs?: number } }).__dashOverride;
-      const slope = ov?.ang != null ? dashSlopeOf(ov.ang) : d.slope;   // m_dashY(+0x578)
-      if (ov?.vxAbs != null) this.x += (ov.vxAbs - this.vx) * s;       // 把公共路径已经推过的横向补成 vxAbs ✓
-      /* 纵向速度 = 斜率 × 横向速度 ⇒ 本帧纵向位移 = m_dashY × 本帧横向位移 ✓(源码 0x14038959f)
-         ★ vx 用【带符号】的:自由模式往左走时斜率跟着翻(源码用的是位移本身,不是它的绝对值)✓ */
-      this.vy = slope * this.vx;
-      this.y += this.vy * s;
+      /* ★★ 两条支(出处见 dashDirOf / DASH_SPEED_PER_FRAME 的注释,源码 0x140389480):
+            · 飞行形态(飞船/UFO/波浪):位移 = dt × (m_dashX, m_dashY),
+              而 startDashing 写的是 ccpForAngle(θ) × (m_dashSpeed × 5.7700019)
+              ⇒ **沿方向恒速 5.77 块/秒**,横向也要按它覆盖(公共路径已经推过 vx ⇒ 这里补差)✓
+            · 其余形态:Δy = m_dashY × Δx(斜率支,见 dashSlopeOf)✓ */
+      const flying = this.mode === 'ship' || this.mode === 'ufo' || this.mode === 'wave';
+      if (flying) {
+        const dir = dashDirOf(ov?.ang ?? d.ang);
+        this.x += (dir.x * DASH_SPEED_PER_FRAME - this.vx) * s;   // 横向补成冲刺速度 ✓
+        this.vy = dir.y * DASH_SPEED_PER_FRAME;                    // 源码把 m_dashY 反写回 vy(+0x9a0)✓
+        this.y += this.vy * s;
+      } else {
+        const slope = ov?.ang != null ? dashSlopeOf(ov.ang) : d.slope;   // m_dashY(+0x578)
+        if (ov?.vxAbs != null) this.x += (ov.vxAbs - this.vx) * s;       // 把公共路径已经推过的横向补成 vxAbs ✓
+        /* 纵向速度 = 斜率 × 横向速度 ⇒ 本帧纵向位移 = m_dashY × 本帧横向位移 ✓(源码 0x14038959f)
+           ★ vx 用【带符号】的:自由模式往左走时斜率跟着翻(源码用的是位移本身,不是它的绝对值)✓ */
+        this.vy = slope * this.vx;
+        this.y += this.vy * s;
+      }
       /* 结束条件:源码里只有 `m_maxDuration > 0 && 超时` 这一条会自动停,而环自带时长是键 590
          (→ m_maxDuration +0x750),本关的环/箭头全都没配 ⇒ 0 ⇒ **永不自动结束** ✓;
          唯一的结束路径是松手(releaseButton ⇒ stopDashing)⇒ 按住就一直冲、松手立刻恢复重力 ✓
