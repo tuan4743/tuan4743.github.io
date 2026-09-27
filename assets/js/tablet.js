@@ -90,8 +90,10 @@
       tickClock();
       clearInterval(clockT);
       clockT = setInterval(tickClock, 20000);
-      /* 焦点交给第一个 APP,键盘用户 Tab 得进来 */
-      var firstApp = root.querySelector(".tablet__app");
+      /* 焦点交给第一个 APP,键盘用户 Tab 得进来。
+         ★ immediate = 这次是【页面加载时恢复状态】,不是用户按的 ——
+           那时抢焦点会平白在页面上画出一个焦点框(而且回车就把它打开了)。 */
+      var firstApp = immediate ? null : root.querySelector(".tablet__app");
       if (firstApp) { try { firstApp.focus({ preventScroll: true }); } catch (e) { } }
     } else {
       root.classList.remove("is-on");
@@ -99,7 +101,8 @@
       body.classList.remove("tablet-open");
       clearInterval(clockT); clockT = 0;
       hideT = setTimeout(function () { if (!open) root.hidden = true; }, 420);
-      if (toggle) { try { toggle.focus({ preventScroll: true }); } catch (e) { } }
+      /* 收起后焦点回到那枚开关 —— 同上,恢复状态时不抢 */
+      if (toggle && !immediate) { try { toggle.focus({ preventScroll: true }); } catch (e) { } }
     }
     if (toggle) toggle.setAttribute("aria-expanded", on ? "true" : "false");
     if (toggle) toggle.title = on ? "收起平板主界面,回到 CD" : "打开平板主界面";

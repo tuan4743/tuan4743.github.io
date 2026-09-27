@@ -257,7 +257,8 @@ ok('[hidden] 与 .is-on 分两拍(否则过渡不跑)',
   /root\.hidden = false;[\s\S]{0,160}void root\.offsetWidth/.test(tjs),
   '先揭 [hidden],强制布局,再加 .is-on');
 ok('键盘能进得来(焦点交给第一个 APP)',
-  /firstApp[\s\S]{0,80}\.focus\(/.test(tjs));
+  /firstApp[\s\S]{0,80}\.focus\(/.test(tjs) && /immediate \? null : root\.querySelector\("\.tablet__app"\)/.test(tjs),
+  '只在用户按下开关时抢焦点,页面加载恢复状态时不抢');
 ok('留了现场读数 __tablet()(这个环境没浏览器)',
   /window\.__tablet = function/.test(tjs));
 ok('★ 读数里带几何(平板盒 / 玻璃四边)—— 这一层最容易错的就是"内容有没有落在玻璃里"',
