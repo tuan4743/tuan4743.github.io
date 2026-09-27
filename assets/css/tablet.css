@@ -1,0 +1,466 @@
+/* ============================================================
+   平板主界面(用户要求)—— 按下屏幕顶缘的箭头,整块屏幕变成一块平板的主屏
+   ─────────────────────────────────────────────────────────────
+   ★★ 定位:这一层必须以【玻璃窗口】为坐标系,不是以视口为坐标系。
+        第一版写的是 `inset: var(--sp-t) var(--sp-x) var(--sp-b)`,那是错的:
+        --sp-* 只定义在 .screen 上(intro.css 第 63~65 行),而这一层在
+        <body> 下、.screen 外 —— 取不到就等于没写(整条 inset 作废),
+        只能靠 frame-fitted 那条 `inset:0` 兜着。而 inset:0 意味着
+        【内边距从视口边缘算起】,玻璃却是往里缩了 5%/8% 的一块 ——
+        于是内容被 clip-path 从上面切掉一条、从左边切掉一条:
+        用户看到的正是"大小不对,不能贴到屏幕的框"、
+        "搜索栏太大,顶出去了"(卡片左半截被切在玻璃外)、
+        "有些卡片貌似没生效"(日期/电量整行、时钟大半都被切没了)。
+      ⇒ 现在用 frame-fit.js 写在 <html> 上的 --ff-win-*(就是玻璃窗口的四边),
+        量不到才退回 CSS 里的保底值。这组变量在 :root,所以 body 这一层看得见。
+      ⇒ 两种情形分开写清楚(见下面的 html.frame-fitted 那条):
+          · 已贴合:inset:0 + clip-path 裁出玻璃形状(背景一路铺到玻璃边,
+            四角跟着斜切走),窗口那圈尺寸改成【内边距】;
+          · 没贴合:直接 inset 到窗口,不用裁。
+   ★ z-index 40:高于所有盘(最高 8)、高于窗框(34)、高于顶栏(20)。
+     顶缘那枚开关是 41 —— 它在模板里被搬到了 .scene 外面(原因见 index.html),
+     否则 .scene 这个 fixed 层叠上下文会把它封在里面,永远压不过这一层。
+   ============================================================ */
+.tablet {
+    position: absolute;
+    /* 玻璃窗口四边(px)。--ff-win-* 由 frame-fit.js 写在 <html> 上 */
+    --tab-g-t: var(--ff-win-top, 13vh);
+    --tab-g-r: var(--ff-win-right, 5vw);
+    --tab-g-b: var(--ff-win-bottom, 7.5vh);
+    --tab-g-l: var(--ff-win-left, 5vw);
+    /* 内容离玻璃边再让一点,别贴着金属框 */
+    --tab-gap-y: clamp(12px, 1.8vh, 22px);
+    --tab-gap-x: clamp(16px, 2.2vw, 34px);
+    inset: var(--tab-g-t) var(--tab-g-r) var(--tab-g-b) var(--tab-g-l);
+    z-index: 40;
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(8px, 1.5vh, 18px);
+    padding: var(--tab-gap-y) var(--tab-gap-x);
+    color: #eaf3ff;
+    background:
+        radial-gradient(120% 80% at 50% -10%, rgba(88, 132, 214, .30), rgba(12, 18, 33, 0) 62%),
+        radial-gradient(90% 70% at 80% 110%, rgba(126, 84, 200, .22), rgba(12, 18, 33, 0) 60%),
+        linear-gradient(168deg, #0d1424 0%, #0a1020 52%, #070b16 100%);
+    /* ★ 转场:从"略微缩小 + 下移 + 变暗"展开到位。360ms ——
+       用户要"短的过场动画":再长就显拖,再短就像闪一下。
+       transform-origin 放上缘:像是从屏幕顶缘那枚按钮上"掀开"的。 */
+    transform-origin: 50% 0;
+    transform: translateY(-14px) scale(.965);
+    opacity: 0;
+    transition:
+        transform .36s cubic-bezier(.2, .9, .25, 1),
+        opacity .26s ease;
+    will-change: transform, opacity;
+}
+
+/* 已贴合:铺满视口,靠 clip-path 裁成玻璃形状;窗口那圈尺寸转成内边距
+   —— padding 不能写进 intro.css 那条(那里只是把 .tablet 和 .screen-static
+   并列到同一条剪裁规则上),放在这里离变量定义近。
+   两条同选择器同层级,属性不重叠,同时生效。 */
+html.frame-fitted .tablet {
+    padding: calc(var(--tab-g-t) + var(--tab-gap-y)) calc(var(--tab-g-r) + var(--tab-gap-x)) calc(var(--tab-g-b) + var(--tab-gap-y));
+}
+
+.tablet[hidden] { display: none; }
+
+.tablet.is-on {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+}
+
+/* 屏幕玻璃上的一层反光:让它读起来像"一块发光的屏",而不是一张贴纸 */
+.tablet__glow {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, .07), rgba(255, 255, 255, 0) 26%),
+        radial-gradient(120% 60% at 50% 120%, rgba(120, 200, 255, .10), rgba(0, 0, 0, 0) 70%);
+    mix-blend-mode: screen;
+}
+
+/* ---------- 状态行:日期 + 电量 ---------- */
+.tablet__status {
+    position: relative;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: clamp(.68rem, .84vw, .82rem);
+    letter-spacing: .14em;
+    color: rgba(198, 220, 246, .62);
+}
+
+.tablet__battery {
+    position: relative;
+    width: 26px;
+    height: 12px;
+    border: 1px solid rgba(198, 220, 246, .5);
+    border-radius: 3px;
+    padding: 1.5px;
+}
+
+.tablet__battery::after {          /* 电池正极那个小凸起 */
+    content: "";
+    position: absolute;
+    right: -3px;
+    top: 50%;
+    width: 2px;
+    height: 5px;
+    margin-top: -2.5px;
+    border-radius: 0 1px 1px 0;
+    background: rgba(198, 220, 246, .5);
+}
+
+.tablet__battery i {
+    display: block;
+    height: 100%;
+    width: var(--batt, 86%);
+    border-radius: 1.5px;
+    background: rgba(198, 220, 246, .68);
+    transition: width .3s ease;
+}
+
+.tablet__battery i.is-charging { background: #8ff0b8; }
+
+/* ---------- 卡片通用外观 ----------
+   ★ 这里【不能】写 overflow:hidden:搜索那张卡片的结果面板是绝对定位、
+     挂在卡片【下面】的,裁掉就再也弹不出来了。要滚的是列表自己。 */
+.tablet__card {
+    position: relative;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    border-radius: 14px;
+    border: 1px solid rgba(150, 190, 240, .20);
+    background: rgba(255, 255, 255, .045);
+    padding: clamp(10px, 1.5vh, 18px) clamp(12px, 1.5vw, 20px);
+    /* 入场(比 APP 早一拍:先铺底,再落图标)+ 悬停描边。
+       ★ transition-delay 是按【上面的属性顺序】逐条给的,所以入场那两个
+         给 70ms、悬停那两个给 0s —— 写成一句 transition-delay:70ms 的话,
+         连悬停描边也会被拖 70ms。 */
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity .3s ease, transform .34s cubic-bezier(.2, .9, .25, 1),
+                border-color .2s ease, background .2s ease;
+}
+
+.tablet.is-on .tablet__card {
+    opacity: 1;
+    transform: none;
+    transition-delay: 70ms, 70ms, 0s, 0s;
+}
+
+.tablet__card-title {
+    flex: 0 0 auto;
+    font-size: clamp(.62rem, .78vw, .74rem);
+    letter-spacing: .2em;
+    color: rgba(198, 220, 246, .5);
+    margin-bottom: clamp(6px, 1vh, 10px);
+}
+
+/* ---------- 两行网格 ---------- */
+.tablet__row {
+    position: relative;
+    display: grid;
+    gap: clamp(8px, 1.4vw, 18px);
+    min-height: 0;
+}
+
+/* 第一行:时钟 | 搜索。时钟稍窄,搜索要放得下一行提示。
+   高度配比:上面这行(时钟/搜索)比下面那行(列表)多分一点 ——
+   列表里的内容本来就不多(仓库里就两篇文章、四个标签),
+   给它太高只会显得空(用户已经说过一次"有点空")。 */
+.tablet__row--widgets {
+    flex: 1.25 1 0;
+    grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr);
+}
+
+/* 第二行:最近更新 | 标签 —— 用户说"目前看有点空",这两张填的是真实内容 */
+.tablet__row--fill {
+    flex: .85 1 0;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+}
+
+/* ---------- 时钟卡片 ---------- */
+.tablet__clock { justify-content: center; }
+
+.tablet__time {
+    font-variant-numeric: tabular-nums;
+    font-size: clamp(2.4rem, 8.2vh, 5rem);
+    font-weight: 300;
+    letter-spacing: .02em;
+    line-height: 1;
+    color: #f2f8ff;
+    text-shadow: 0 0 30px rgba(140, 200, 255, .35);
+}
+
+.tablet__weekday {
+    margin-top: clamp(4px, .8vh, 10px);
+    font-size: clamp(.74rem, .98vw, .9rem);
+    letter-spacing: .18em;
+    color: rgba(198, 220, 246, .58);
+}
+
+/* ---------- 搜索卡片 ---------- */
+.tablet__search { justify-content: center; }
+
+.tablet__search.is-searching {
+    border-color: rgba(150, 200, 255, .5);
+    background: rgba(255, 255, 255, .07);
+}
+
+.tablet__search-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(150, 190, 240, .18);
+    background: rgba(8, 13, 24, .5);
+    padding: clamp(6px, .9vh, 10px) clamp(10px, 1.2vw, 16px);
+    color: rgba(198, 220, 246, .6);
+}
+
+.tablet__search-box input {
+    flex: 1 1 auto;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    color: #eaf3ff;
+    font: inherit;
+    font-size: clamp(.86rem, 1.05vw, .98rem);
+    letter-spacing: .04em;
+    outline: none;
+}
+
+.tablet__search-box input::placeholder { color: rgba(198, 220, 246, .38); }
+.tablet__search-box input::-webkit-search-cancel-button { filter: invert(1) opacity(.5); }
+
+/* 结果面板:贴在搜索框下方,自己滚 */
+.tablet__search-results {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% + 6px);
+    z-index: 3;
+    max-height: min(34vh, 280px);
+    overflow: auto;
+    border-radius: 12px;
+    border: 1px solid rgba(150, 190, 240, .26);
+    background: rgba(9, 14, 26, .96);
+    box-shadow: 0 18px 44px rgba(0, 0, 0, .55);
+    backdrop-filter: blur(10px);
+}
+
+/* ---------- 最近更新 / 标签 ---------- */
+.tablet__recent-list,
+.tablet__tag-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+}
+
+.tablet__recent-list { display: flex; flex-direction: column; }
+
+.tablet__recent-item {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: clamp(6px, 1vh, 11px) 2px;
+    border-bottom: 1px solid rgba(150, 190, 240, .10);
+    color: rgba(226, 238, 252, .88);
+    text-decoration: none;
+    transition: color .18s ease, border-color .18s ease;
+}
+
+.tablet__recent-item:last-child { border-bottom: 0; }
+.tablet__recent-item:hover { color: #fff; border-color: rgba(170, 214, 255, .35); }
+
+.tablet__recent-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: clamp(.76rem, .95vw, .9rem);
+    letter-spacing: .03em;
+}
+
+.tablet__recent-date {
+    flex: 0 0 auto;
+    font-size: clamp(.62rem, .78vw, .74rem);
+    letter-spacing: .1em;
+    color: rgba(198, 220, 246, .42);
+}
+
+.tablet__tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: 8px;
+}
+
+.tablet__tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: clamp(5px, .8vh, 9px) clamp(11px, 1vw, 16px);
+    border-radius: 999px;
+    border: 1px solid rgba(150, 190, 240, .22);
+    background: rgba(255, 255, 255, .05);
+    color: rgba(216, 232, 252, .82);
+    font-size: clamp(.72rem, .9vw, .84rem);
+    letter-spacing: .04em;
+    text-decoration: none;
+    transition: border-color .18s ease, color .18s ease;
+}
+
+.tablet__tag:hover { border-color: rgba(170, 214, 255, .5); color: #fff; }
+.tablet__tag i { font-style: normal; color: rgba(198, 220, 246, .45); }
+
+/* ---------- APP(导航)----------
+   ★ 用 flex + 居中,不是 auto-fit 网格:auto-fit 会把空轨道也摊开,
+     5 个图标会被撑成一排 300px 宽的大格子(第一版就是这个样子,很空)。*/
+.tablet__apps {
+    position: relative;
+    flex: 0 0 auto;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: flex-start;
+    gap: clamp(8px, 1.4vh, 18px) clamp(18px, 2.6vw, 46px);
+}
+
+.tablet__app {
+    width: clamp(78px, 7.6vw, 106px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 2px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-decoration: none;
+    cursor: pointer;
+    /* ★ 错开落位:每个图标按 --app-i 依次出现,像主屏"泼"上来。
+       延迟只给 0~6 个,再多也只是尾部拖长,不至于让人等。 */
+    opacity: 0;
+    transform: translateY(10px) scale(.94);
+    transition: opacity .26s ease, transform .3s cubic-bezier(.2, .9, .25, 1.3);
+}
+
+.tablet.is-on .tablet__app {
+    opacity: 1;
+    transform: none;
+    transition-delay: calc(90ms + var(--app-i, 0) * 34ms);
+}
+
+.tablet__app:hover .tablet__app-icon,
+.tablet__app:focus-visible .tablet__app-icon {
+    transform: translateY(-2px) scale(1.06);
+    border-color: rgba(170, 214, 255, .55);
+    box-shadow: 0 12px 26px rgba(0, 0, 0, .42), 0 0 0 1px rgba(170, 214, 255, .22);
+}
+
+.tablet__app:focus-visible { outline: none; }
+
+.tablet__app-icon {
+    /* ★ 尺寸:第一版 clamp(40px,5.2vh,58px) 在 848px 高的屏幕上只有 44px,
+       用户说"APP按钮有点小"。现在按屏高的 8% 走,下限也抬到 56px。 */
+    width: clamp(56px, 8vh, 82px);
+    height: clamp(56px, 8vh, 82px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 26%;
+    border: 1px solid rgba(150, 190, 240, .20);
+    background: linear-gradient(158deg, rgba(255, 255, 255, .12), rgba(255, 255, 255, .03));
+    box-shadow: 0 6px 16px rgba(0, 0, 0, .32);
+    color: #dceaff;
+    transition: transform .22s cubic-bezier(.2, .9, .25, 1.3), border-color .2s ease,
+                box-shadow .2s ease;
+}
+
+/* 菜单项的图标是顶栏那套 SVG(见 hugo.toml 的 pre),这里只调尺寸 */
+.tablet__app-icon svg {
+    width: 50%;
+    height: 50%;
+    display: block;
+}
+
+.tablet__app-name {
+    font-size: clamp(.7rem, .88vw, .82rem);
+    letter-spacing: .08em;
+    color: rgba(214, 232, 252, .78);
+    white-space: nowrap;
+}
+
+/* ---------- 底部提示 ---------- */
+.tablet__hint {
+    flex: 0 0 auto;
+    text-align: center;
+    font-size: clamp(.62rem, .78vw, .74rem);
+    letter-spacing: .12em;
+    color: rgba(198, 220, 246, .38);
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity .3s ease, transform .34s cubic-bezier(.2, .9, .25, 1);
+}
+
+.tablet.is-on .tablet__hint {
+    opacity: 1;
+    transform: none;
+    transition-delay: 70ms;
+}
+
+.tablet__hint kbd {
+    font: inherit;
+    padding: 1px 5px;
+    border-radius: 4px;
+    border: 1px solid rgba(198, 220, 246, .28);
+    background: rgba(255, 255, 255, .06);
+}
+
+/* ---------- 窄屏 / 矮屏 ---------- */
+@media (max-width: 900px), (max-height: 560px) {
+    .tablet__time { font-size: clamp(1.8rem, 5vh, 2.6rem); }
+
+    .tablet__row--widgets,
+    .tablet__row--fill {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .tablet__apps { gap: 8px 14px; }
+
+    .tablet__app { width: 72px; }
+
+    .tablet__app-icon {
+        width: 46px;
+        height: 46px;
+    }
+}
+
+/* ---------- "减少动态效果":不要错开落位,直接出现 ---------- */
+@media (prefers-reduced-motion: reduce) {
+    .tablet,
+    .tablet__app,
+    .tablet__app-icon,
+    .tablet__card,
+    .tablet__hint {
+        transition-duration: .01ms !important;
+        transition-delay: 0ms !important;
+    }
+
+    .tablet__app,
+    .tablet__card,
+    .tablet__hint {
+        opacity: 1;
+        transform: none;
+    }
+}

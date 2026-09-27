@@ -31,8 +31,11 @@
 {{- $frostJs := resources.Get "js/page-frost.js" -}}
 {{- $solarJs := resources.Get "js/page-solar.js" -}}
 {{- $solarTuneJs := resources.Get "js/page-solar-tune.js" -}}
+{{- $tabletCss := resources.Get "css/tablet.css" -}}
+{{- $tabletJs := resources.Get "js/tablet.js" -}}
+{{- $searchJs2 := resources.Get "js/search.js" -}}
 {{- $pagesJs := resources.Get "js/pages.js" -}}
-{{- range $name := slice "css/intro.css" "css/holo.css" "css/terminal.css" "js/frame-fit.js" "js/intro.js" "js/boot-post.js" "js/boot-fx.js" "js/boot-glsl.js" "js/holo-reticle.js" "js/status-panel.js" "js/song-ring.js" "js/cd-boot.js" "js/cd3d.js" "js/cd-audio.js" "js/cd-fx.js" "js/theme-palette.js" "js/header-search.js" "js/magnetic-cursor.js" "css/pages.css" "js/pages.js" "js/page-self.js" "js/page-self-tune.js" "js/page-frost.js" "js/page-solar.js" "js/page-solar-tune.js" "js/cd4-terminal.js" -}}
+{{- range $name := slice "css/intro.css" "css/holo.css" "css/terminal.css" "js/frame-fit.js" "js/intro.js" "js/boot-post.js" "js/boot-fx.js" "js/boot-glsl.js" "js/holo-reticle.js" "js/status-panel.js" "js/song-ring.js" "js/cd-boot.js" "js/cd3d.js" "js/cd-audio.js" "js/cd-fx.js" "js/theme-palette.js" "js/header-search.js" "js/magnetic-cursor.js" "css/pages.css" "js/pages.js" "js/page-self.js" "js/page-self-tune.js" "js/page-frost.js" "js/page-solar.js" "js/page-solar-tune.js" "js/cd4-terminal.js" "css/tablet.css" "js/tablet.js" "js/search.js" -}}
     {{- if not (resources.Get $name) -}}
         {{- warnf "缺少资源 assets/%s —— 该功能会被跳过(检查文件是否完整)" $name -}}
     {{- end -}}
@@ -64,6 +67,9 @@
 {{- with $frostJs }}{{ $frostJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $solarJs }}{{ $solarJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $solarTuneJs }}{{ $solarTuneJs = . | fingerprint "sha256" }}{{ end -}}
+{{- with $tabletCss }}{{ $tabletCss = . | fingerprint "sha256" }}{{ end -}}
+{{- with $tabletJs }}{{ $tabletJs = . | fingerprint "sha256" }}{{ end -}}
+{{- with $searchJs2 }}{{ $searchJs2 = . | fingerprint "sha256" }}{{ end -}}
 {{- with $pagesJs }}{{ $pagesJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $introCss }}
 <link rel="stylesheet" href="{{ .RelPermalink }}">{{ end }}
@@ -72,6 +78,8 @@
 {{- with $pagesCss }}
 <link rel="stylesheet" href="{{ .RelPermalink }}">{{ end }}
 {{- with $termCss }}
+<link rel="stylesheet" href="{{ .RelPermalink }}">{{ end }}
+{{- with $tabletCss }}
 <link rel="stylesheet" href="{{ .RelPermalink }}">{{ end }}
 <script>/* 着色器网址带内容指纹:着色器一改网址就变,浏览器不会拿到旧版本 */
 window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}", snow: "{{ with $snowGlsl }}{{ .RelPermalink }}{{ end }}", aurora: "{{ with $auroraGlsl }}{{ .RelPermalink }}{{ end }}" };</script>
@@ -103,14 +111,6 @@ window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}",
             <div class="screen-static" id="screen-static" aria-hidden="true">
                 <canvas id="screen-static-cv"></canvas>
             </div>
-            <!-- 状态栏(顶栏):按上缘的箭头可显示/隐藏 -->
-            <button class="statusbar-toggle" id="statusbar-toggle" aria-expanded="true" aria-controls="statusbar"
-                title="显示 / 隐藏状态栏">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                    stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
-                    <polyline points="6 15 12 9 18 15"></polyline>
-                </svg>
-            </button>
             <div class="statusbar" id="statusbar">
                 <script>
         /* 每张盘对应的歌(游玩模式插盘时喂给游戏引擎;文件名与盘 key 同名,都在 assets/cd/music/)。
@@ -328,6 +328,15 @@ window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}",
             } catch (e) {}
         })();
     </script>
+    {{/* ★★★ search.js 必须排在 header-search.js 【之前】。
+       为什么:header-search.js 已经退化成兜底,它开头有一条守卫 ——
+       "页面里已经有 [data-search] 容器就让位"。而 defer 脚本是按【文档顺序】执行的,
+       所以谁在前谁先跑。
+       ★ 我第一版把 search.js 接在了脚本列表的末尾,于是 header-search.js 先跑:
+         那时 search.js 还没建实例,守卫判定"没有 data-search ⇒ 我来",
+         两套逻辑就同时挂在了同一个输入框上(各渲染一遍,看着会闪)。
+       ★ 顺序这种事必须钉住:测试里有一条断言直接读【渲染出来的 <script> 顺序】。 */}}
+    {{ with $searchJs2 }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
     {{ with $searchJs }}<script defer src="{{ .RelPermalink }}"></script>
     {{ end }}{{ with $cursorJs }}<script defer src="{{ .RelPermalink }}"></script>
     {{ end }}{{ with $paletteJs }}<script defer src="{{ .RelPermalink }}"></script>
@@ -342,10 +351,140 @@ window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}",
     {{ with $frostJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
     {{ with $solarJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
     {{ with $solarTuneJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
+    {{ with $tabletJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
     {{ with $frameFitJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
     {{ with $introJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
     {{ with $reticleJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
     {{ with $statusJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
     {{ with $ringJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
+
+{{/* ============================================================
+     顶缘那枚下拉按钮 + 平板主界面(用户要求)
+     按下箭头 → 整块屏幕变成【一块平板的主屏】:导航变成 APP 图标、
+     搜索单独一张卡片,再加时钟 / 最近更新 / 标签几张卡片;收起回 CD。
+     ─────────────────────────────────────────────────────────────
+     ★★ 按钮【必须】待在 <body> 这一层,不能留在 .screen 里。
+         根因:.scene 是 position:fixed(intro.css 第 37 行),而
+         【fixed 元素自己就创建一个层叠上下文】—— 于是 .screen 里写的任何
+         z-index 都被封死在 .scene 这一层里,对外一律算"0"级。
+         平板层 z-index 40 在 .scene 【外面】,所以它把整块 .scene
+         (连同 z-index 41 的这枚按钮)一起盖住了 ——
+         用户报的"图层比下拉按钮要高,实际应该是下拉按钮的图层最高"就是这个。
+         ⇒ 搬到 .scene 外面,41 才真的和 40 在同一个层叠上下文里比大小。
+         ⇒ 它的 top 也不能再写 --sp-t 了:那组变量只定义在 .screen 上
+           (intro.css 第 63~65 行),站在 body 上取不到 —— 改用
+           --ff-win-top(frame-fit.js 写在 <html> 上,量不到就退回 13vh)。
+     ★ 平板为什么是【独立的层】而不是"改造下拉菜单":
+         下拉菜单浮在页面上面,而页面本身有 5 张盘各自的层级(到 8)和各自的
+         画布 —— 一处层级算错就被当前那张盘盖住。做成独立一层、
+         z-index 高于所有盘,就从结构上不会打架。
+     ★ 数据全部来自真实数据源:APP 来自 site.Menus.main(和顶栏同一份配置,
+         图标用同一个 $m.Pre,不会各自漂),最近更新/标签来自站点内容。
+     ============================================================ */}}
+<button class="statusbar-toggle" id="statusbar-toggle" aria-expanded="false" aria-controls="tablet"
+    title="打开平板主界面">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+        <polyline points="6 15 12 9 18 15"></polyline>
+    </svg>
+</button>
+
+<div class="tablet" id="tablet" data-tablet-home hidden aria-hidden="true" aria-label="平板主界面">
+    <div class="tablet__glow" aria-hidden="true"></div>
+
+    {{/* 状态行:日期 + 电量 —— 让它像一块真平板 */}}
+    <div class="tablet__status">
+        <span class="tablet__date" data-tablet-date></span>
+        <span class="tablet__battery" aria-hidden="true">
+            <i data-tablet-battery></i>
+        </span>
+    </div>
+
+    {{/* 第一行:时钟卡片 | 搜索卡片(搜索复用顶栏那套组件,见 assets/js/search.js) */}}
+    <div class="tablet__row tablet__row--widgets">
+        <section class="tablet__card tablet__clock" data-tablet-clock>
+            <div class="tablet__time" data-tablet-time>--:--</div>
+            <div class="tablet__weekday" data-tablet-weekday></div>
+        </section>
+
+        <section class="tablet__card tablet__search" data-search>
+            <div class="tablet__search-box">
+                <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    aria-hidden="true">
+                    <circle cx="11" cy="11" r="7"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input type="search" placeholder="搜索站内…" autocomplete="off" aria-label="搜索站内" data-search-input>
+            </div>
+            <div class="tablet__search-results" hidden data-search-results>
+                <div class="search-results-list"></div>
+            </div>
+        </section>
+    </div>
+
+    {{/* APP:每个菜单项一个图标。
+        ★ 图标直接取菜单项的 .Pre —— 顶栏导航用的也是它(hugo.toml 里 pre = '<svg …>'),
+          两处因此永远是同一份图标,不会各自漂。
+        ★ 兜底:某个菜单项没写 pre 时给一个通用方块,不至于空一格。
+        ★ 这里【没有】播放器:播放器按钮本来就在机身左缘(融进边框里了),
+          再放一枚重复的图标只会在主屏上多出一个不知道该干什么的格子。 */}}
+    <div class="tablet__apps">
+        {{- $items := site.Menus.main -}}
+        {{- range $i, $m := $items }}
+        <a class="tablet__app" href="{{ $m.URL | absLangURL }}" data-tablet-app="{{ $m.Identifier }}"
+            style="--app-i: {{ $i }}">
+            <span class="tablet__app-icon">
+                {{- with $m.Pre }}
+                {{ . | safeHTML }}
+                {{- else }}
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="4" y="4" width="16" height="16" rx="4"></rect>
+                    <path d="M9 12h6"></path>
+                </svg>
+                {{- end }}
+            </span>
+            <span class="tablet__app-name">{{ $m.Name }}</span>
+        </a>
+        {{- end }}
+    </div>
+
+    {{/* 第二行:最近更新 | 标签 —— 用户说"目前看有点空",
+        这两张卡片填的是【真实内容】而不是装饰:文章列表和标签云。 */}}
+    <div class="tablet__row tablet__row--fill">
+        {{- $mains := site.Params.mainSections | default (slice "posts" "tech") -}}
+        {{- $recent := first 4 (where site.RegularPages.ByDate.Reverse "Section" "in" $mains) -}}
+        {{- if $recent }}
+        <section class="tablet__card tablet__recent">
+            <div class="tablet__card-title">最近更新</div>
+            <div class="tablet__recent-list">
+                {{- range $recent }}
+                <a class="tablet__recent-item" href="{{ .RelPermalink }}">
+                    <span class="tablet__recent-title">{{ .Title }}</span>
+                    {{- if not .Date.IsZero }}
+                    <time class="tablet__recent-date" datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "01-02" }}</time>
+                    {{- end }}
+                </a>
+                {{- end }}
+            </div>
+        </section>
+        {{- end }}
+
+        {{- with site.Taxonomies.tags }}
+        <section class="tablet__card tablet__tags">
+            <div class="tablet__card-title">标签</div>
+            <div class="tablet__tag-list">
+                {{- range first 8 .ByCount }}
+                <a class="tablet__tag" href="{{ .Page.RelPermalink }}">{{ .Page.Title }}<i>{{ .Count }}</i></a>
+                {{- end }}
+            </div>
+        </section>
+        {{- end }}
+    </div>
+
+    <div class="tablet__hint">按 <kbd>Esc</kbd> 或再点顶缘的箭头回到 CD-05</div>
+</div>
+
 </body>
 </html>

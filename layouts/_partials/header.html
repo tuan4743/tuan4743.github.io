@@ -189,7 +189,15 @@
                 </li>
                 {{- end }}
             </ul>
-            <div class="search-widget" id="header-search">
+            {{/* ★ 这一块现在是【可复用搜索组件】的一个实例(见 assets/js/search.js):
+                   data-search          = 一个实例的根
+                   data-search-input    = 那个实例的输入框
+                   data-search-results  = 结果面板
+                 ★ 组件【不再依赖 id】:它只在容器内查找。id 保留着是因为
+                   页面上(和外面)可能还有按 id 引用它的东西 —— 但复用第二处
+                   (平板主界面的搜索卡片)时不必再编一套 id。
+                 ★ 这段标记必须和 search.js 里 build() 的查找顺序一致,测试里钉着。 */}}
+            <div class="search-widget" id="header-search" data-search>
                 <div class="search-box">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -198,9 +206,9 @@
                         <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                     </svg>
                     <input id="header-search-input" type="search" placeholder="搜索..." autocomplete="off"
-                        accesskey="/" aria-label="搜索" title="搜索 (Alt + /)">
+                        accesskey="/" aria-label="搜索" title="搜索 (Alt + /)" data-search-input>
                 </div>
-                <div class="search-results" id="header-search-results" hidden>
+                <div class="search-results" id="header-search-results" hidden data-search-results>
                     <div class="search-results-list"></div>
                     <a class="search-results-more" href="{{ "/search/" | absLangURL }}">在搜索页中查看全部 →</a>
                 </div>

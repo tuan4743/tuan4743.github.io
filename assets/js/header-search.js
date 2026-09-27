@@ -1,6 +1,16 @@
-/* 顶栏即时搜索:加载 /index.json,输入即搜,下拉展示结果 */
+/* 顶栏即时搜索:加载 /index.json,输入即搜,下拉展示结果
+   ─────────────────────────────────────────────────────────────
+   ★★★ 这个文件已经被 assets/js/search.js 取代(它把同一套逻辑抽成了
+        「凡是带 data-search 的容器都能挂一个实例」的可复用组件)。
+        保留它只是为了兜底:万一哪次改动漏掉了 search.js 的引用,
+        旧的这一份还能让顶栏搜索照常工作 —— 而不是整块搜索失效。
+   ★ 所以进来先看一眼:页面里有没有 data-search 容器?
+        有 ⇒ 新组件已经接好了,这里【直接让位】,一个监听都不注册
+             (两套逻辑同时挂在同一个输入框上会各渲染一遍,闪)。
+        没有 ⇒ 说明 search.js 没加载成功,退回旧行为。 */
 (function () {
   "use strict";
+  if (document.querySelector("[data-search]")) return;   /* 新组件在,让位 */
   var input = document.getElementById("header-search-input");
   if (!input) return;
   var panel = document.getElementById("header-search-results");

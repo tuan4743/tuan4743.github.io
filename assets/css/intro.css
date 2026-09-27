@@ -104,7 +104,8 @@ body.scene-open .scene {
        所有内容(日志、圆环、百分比、数据列)自然就落进安全区,
        一行渲染代码都不用改。
      · 花屏(雪花)要铺满整块屏幕,所以 .is-full 时把 canvas 放回全屏,靠裁边收口。 */
-html.frame-fitted .screen-static {
+html.frame-fitted .screen-static,
+html.frame-fitted .tablet {
     inset: 0;
     border-radius: 0;
     clip-path: var(--ff-clip);
@@ -120,7 +121,16 @@ html.frame-fitted .screen-static {
        (雪花扫过去了,黑留在原地)。这一层平时必须是 transparent(见上面 .screen-static)。
        注意:也【不要】在这里写 background: transparent —— 这条选择器(html.frame-fitted
        .screen-static)比 .screen-static.is-black 更具体,写死 transparent 会把黑屏状态
-       一起按掉(打开 CD 架时 glass 边缘会透出页面)。 */
+       一起按掉(打开 CD 架时 glass 边缘会透出页面)。
+       ★★ 平板主界面(.tablet)列在同一个选择器里:量到的贴图窗口(--ff-clip)必须
+          也作用到平板上,它才会裁到金属框的斜切角、严丝合缝待在玻璃里。
+          这一层没有"该黑"的状态,所以它【自己那份 background 写在 tablet.css 里】,
+          这里不碰(上面那段告诫只针对 .screen-static 那层的黑屏状态)。
+       ★★ 但 inset:0 对平板只是【背景】合适,对【内容】是坑:内容盒会从视口
+          边缘算起,而玻璃是往里缩了一块 —— 内边距算错就把内容连同卡片切掉
+          (用户报的"大小不对/搜索栏顶出去了/有些卡片貌似没生效"就是它)。
+          所以 tablet.css 里另有一条同选择器的规则,把窗口那一圈尺寸
+          转成 padding 还给内容。两条属性不重叠,同时生效。 */
 }
 
 html.frame-fitted .screen-static canvas {
@@ -175,9 +185,16 @@ body.statusbar-hidden .statusbar {
 .statusbar-toggle {
     position: absolute;
     left: 50%;
-    top: calc(var(--sp-t) - 10px);   /* 位置别动:刚好跟屏幕可视区上缘对齐 */
+    /* ★ 位置:刚跟屏幕可视区上缘对齐。
+       原来写的是 calc(var(--sp-t) - 10px) —— 这枚按钮【已经搬到 .scene 外面】
+       (见 index.html 里那段:留在 .scene 里会被这个 fixed 层叠上下文封住,
+       永远压不过 z-index 40 的平板层,用户报过"图层比下拉按钮要高"),
+       而 --sp-* 只定义在 .screen 上,站在 body 上取不到 —— 取不到整条 top 就作废。
+       改用 frame-fit.js 写在 <html> 上的 --ff-win-top(量不到退回 13vh,
+       和 .screen 里那份保底值一致)。 */
+    top: calc(var(--ff-win-top, 13vh) - 10px);
     transform: translateX(-50%);
-    z-index: 41;
+    z-index: 41;                     /* 全场最高交互层:必须随时能把平板收回去 */
     width: 88px;                     /* 横向拉长(原来是 46px)*/
     height: 18px;
     display: flex;
@@ -189,7 +206,17 @@ body.statusbar-hidden .statusbar {
     background: var(--intro-glass);
     color: var(--intro-dim);
     cursor: pointer;
-    transition: color 0.18s ease, border-color 0.18s ease, transform 0.42s cubic-bezier(0.22, 0.61, 0.36, 1);
+    transition: color 0.18s ease, border-color 0.18s ease, opacity 0.3s ease,
+        transform 0.42s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/* CD 架拉出来时(.scene 整体左移 66vw)这枚按钮原来跟着屏幕一起移出画面;
+   现在它在 .scene 外面不会跟着走,所以显式收起来 ——
+   既保持原来的观感,也顺手挡住"架开着时打开平板"这种错位状态
+   (平板层不在 .scene 里,不会跟着平移,架开时打开它就会和金属框错位)。 */
+body.scene-open .statusbar-toggle {
+    opacity: 0;
+    pointer-events: none;
 }
 
 .statusbar-toggle:hover {
