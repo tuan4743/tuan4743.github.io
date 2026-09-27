@@ -50,7 +50,12 @@
   var SELECTOR = [
     "[data-magnetic]", ".menu a", ".nav-right a", ".side-item", ".side-search",
     ".glass-btn", ".repo-card", ".post-entry", ".slot-toggle", ".rack-close",
-    ".theme-toggle", ".palette-swatch", ".search-result-item", ".post-row", "button"
+    ".theme-toggle", ".palette-swatch", ".search-result-item", ".post-row",
+    /* ★ 排除第五张盘的碎片:.frost-shard 也是 <button>,但它只有 18~37px,
+       磁吸(MAGNET=0.12)会把画出来的光标整个拉到碎片中心、并且把中心点藏起来 ——
+       用户看到的是"光标和实际化霜的位置对不上"(真实指针在化霜,画出来的光标跑了)。
+       碎片靠"边缘爆闪"提示就够了,不需要磁吸。 */
+    "button:not(.frost-shard)"
   ].join(",");
 
   /* ---------- DOM:一张铺满视口的画布 ---------- */

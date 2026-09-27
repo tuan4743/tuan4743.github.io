@@ -128,18 +128,50 @@
     ctx.drawImage(small, 0, 0, small.width, small.height, 0, 0, W, H);
     ctx.restore();
 
-    /* ③ 扫描线 + ④ 暗角 + ⑤ 噪声:全部来自预烘焙覆盖图(每帧 1 次 drawImage)*/
+    /* ③ 扫描线 + ④ 暗角 + ⑤ 噪声:全部来自预烘焙覆盖图(每帧 1 次 drawImage)
+       ★★★ 这一层必须【乘上画面的 alpha】再叠回去,不能直接 source-over 铺满。
+       为什么:五套开机动画的收尾都是把 canvas 擦成透明的
+         (未来 = destination-out 扫线、成长 = 逐格缩没、迷茫 = 圆形清除、
+          技术 = 横带飞走、自我 = 脸掉出屏幕),
+       擦出来的透明像素本该露出底下的页面 ——
+       而这张覆盖图里画的是【不透明的黑】(扫描线 rgba(0,0,0,.16)、暗角到 .55、
+       噪声),直接 source-over 铺上去,等于在"已经揭开的地方"又刷了一层黑:
+       用户报的"大雪花飞过的地方还有黑屏遮挡",除了 .screen-static 那个常驻黑底之外,
+       这里也贡献了一份(实测边缘/四角约 35~40% 的压暗)。
+       ★ 做法:把覆盖图先用 destination-in 和画面相乘(alpha_scene × overlay),
+         于是"画面是透明的地方,覆盖图也变透明",揭开的地方就真的干净了;
+         亮着的地方(雪花、日志、圆环)照样有扫描线和暗角,CRT 的质感一点没少。 */
     if (overlayW !== W || overlayH !== H || !overlays.length) buildOverlay(W, H);
     overlayAge += 1;
     if (overlayAge % 3 === 0) overlayIdx = (overlayIdx + 1) % overlays.length;
-    ctx.drawImage(overlays[overlayIdx], 0, 0, W, H);
-
+    var ov = overlays[overlayIdx];
+    var scratch = overlayBuf(W, H);
+    var og = scratch.getContext("2d");
+    og.setTransform(1, 0, 0, 1, 0, 0);
+    og.globalCompositeOperation = "source-over";
+    og.globalAlpha = 1;
+    og.clearRect(0, 0, W, H);
+    og.drawImage(ov, 0, 0, W, H);
+    og.globalCompositeOperation = "destination-in";
+    og.drawImage(off, 0, 0, W, H);          /* ← 用画面的 alpha 裁覆盖图 */
+    og.globalCompositeOperation = "source-over";
+    ctx.drawImage(scratch, 0, 0, W, H);
+    /* ★ 闪烁那一笔同理:它原来也是"整屏压黑",会把揭开的地方再压一次。
+       现在只压画面本身有的像素(整屏 source-atop)。 */
     var flick = 0.985 + Math.random() * 0.03;
     ctx.save();
-    ctx.globalCompositeOperation = "source-over";
+    ctx.globalCompositeOperation = "source-atop";
     ctx.fillStyle = "rgba(0,0,0," + ((1 - flick) * 0.9).toFixed(3) + ")";
     ctx.fillRect(0, 0, W, H);
     ctx.restore();
+  }
+
+  /* 给"覆盖图 × 画面 alpha"用的暂存画布(按尺寸缓存一张,不每帧新建) */
+  var _obuf = null;
+  function overlayBuf(W, H) {
+    if (!_obuf) _obuf = document.createElement("canvas");
+    if (_obuf.width !== W || _obuf.height !== H) { _obuf.width = W; _obuf.height = H; }
+    return _obuf;
   }
 
   /* 对外:收尾时清空离屏 —— 动画最后一帧不留在离屏上,

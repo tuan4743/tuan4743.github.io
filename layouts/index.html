@@ -17,6 +17,7 @@
 {{- $cd4BootJs := resources.Get "js/cd4-boot.js" -}}
 {{- $trainGlsl := resources.Get "shaders/train.glsl" -}}
 {{- $snowGlsl := resources.Get "shaders/snow.glsl" -}}
+{{- $auroraGlsl := resources.Get "shaders/aurora.glsl" -}}
 {{- $cd3dJs := resources.Get "js/cd3d.js" -}}
 {{- $audioJs := resources.Get "js/cd-audio.js" -}}
 {{- $fxJs := resources.Get "js/cd-fx.js" -}}
@@ -25,11 +26,13 @@
 {{- $cursorJs := resources.Get "js/magnetic-cursor.js" -}}
 {{- $pagesCss := resources.Get "css/pages.css" -}}
 {{- $termCss := resources.Get "css/terminal.css" -}}
-{{- $deckJs := resources.Get "js/page-deck.js" -}}
+{{- $selfJs := resources.Get "js/page-self.js" -}}
+{{- $selfTuneJs := resources.Get "js/page-self-tune.js" -}}
+{{- $frostJs := resources.Get "js/page-frost.js" -}}
 {{- $solarJs := resources.Get "js/page-solar.js" -}}
 {{- $solarTuneJs := resources.Get "js/page-solar-tune.js" -}}
 {{- $pagesJs := resources.Get "js/pages.js" -}}
-{{- range $name := slice "css/intro.css" "css/holo.css" "css/terminal.css" "js/frame-fit.js" "js/intro.js" "js/boot-post.js" "js/boot-fx.js" "js/boot-glsl.js" "js/holo-reticle.js" "js/status-panel.js" "js/song-ring.js" "js/cd-boot.js" "js/cd3d.js" "js/cd-audio.js" "js/cd-fx.js" "js/theme-palette.js" "js/header-search.js" "js/magnetic-cursor.js" "css/pages.css" "js/pages.js" "js/page-deck.js" "js/page-solar.js" "js/page-solar-tune.js" "js/cd4-terminal.js" -}}
+{{- range $name := slice "css/intro.css" "css/holo.css" "css/terminal.css" "js/frame-fit.js" "js/intro.js" "js/boot-post.js" "js/boot-fx.js" "js/boot-glsl.js" "js/holo-reticle.js" "js/status-panel.js" "js/song-ring.js" "js/cd-boot.js" "js/cd3d.js" "js/cd-audio.js" "js/cd-fx.js" "js/theme-palette.js" "js/header-search.js" "js/magnetic-cursor.js" "css/pages.css" "js/pages.js" "js/page-self.js" "js/page-self-tune.js" "js/page-frost.js" "js/page-solar.js" "js/page-solar-tune.js" "js/cd4-terminal.js" -}}
     {{- if not (resources.Get $name) -}}
         {{- warnf "缺少资源 assets/%s —— 该功能会被跳过(检查文件是否完整)" $name -}}
     {{- end -}}
@@ -48,6 +51,7 @@
 {{- with $cd4BootJs }}{{ $cd4BootJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $trainGlsl }}{{ $trainGlsl = . | fingerprint "sha256" }}{{ end -}}
 {{- with $snowGlsl }}{{ $snowGlsl = . | fingerprint "sha256" }}{{ end -}}
+{{- with $auroraGlsl }}{{ $auroraGlsl = . | fingerprint "sha256" }}{{ end -}}
 {{- with $cd3dJs }}{{ $cd3dJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $audioJs }}{{ $audioJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $fxJs }}{{ $fxJs = . | fingerprint "sha256" }}{{ end -}}
@@ -55,7 +59,9 @@
 {{- with $searchJs }}{{ $searchJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $cursorJs }}{{ $cursorJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $pagesCss }}{{ $pagesCss = . | fingerprint "sha256" }}{{ end -}}
-{{- with $deckJs }}{{ $deckJs = . | fingerprint "sha256" }}{{ end -}}
+{{- with $selfJs }}{{ $selfJs = . | fingerprint "sha256" }}{{ end -}}
+{{- with $selfTuneJs }}{{ $selfTuneJs = . | fingerprint "sha256" }}{{ end -}}
+{{- with $frostJs }}{{ $frostJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $solarJs }}{{ $solarJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $solarTuneJs }}{{ $solarTuneJs = . | fingerprint "sha256" }}{{ end -}}
 {{- with $pagesJs }}{{ $pagesJs = . | fingerprint "sha256" }}{{ end -}}
@@ -68,7 +74,7 @@
 {{- with $termCss }}
 <link rel="stylesheet" href="{{ .RelPermalink }}">{{ end }}
 <script>/* 着色器网址带内容指纹:着色器一改网址就变,浏览器不会拿到旧版本 */
-window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}", snow: "{{ with $snowGlsl }}{{ .RelPermalink }}{{ end }}" };</script>
+window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}", snow: "{{ with $snowGlsl }}{{ .RelPermalink }}{{ end }}", aurora: "{{ with $auroraGlsl }}{{ .RelPermalink }}{{ end }}" };</script>
 <script type="importmap">
     {
         "imports": {
@@ -331,7 +337,9 @@ window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}",
     {{ with $bootGlslJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
     {{ with $cd4BootJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
     {{ with $pagesJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
-    {{ with $deckJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
+    {{ with $selfJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
+    {{ with $selfTuneJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
+    {{ with $frostJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
     {{ with $solarJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
     {{ with $solarTuneJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
     {{ with $frameFitJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}

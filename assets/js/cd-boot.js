@@ -143,8 +143,20 @@
     }
     var T = { fill: Math.min(1100, pieces.length * 8 + 320), hold: 220, fall: 900 };
 
+    /* ★★ "所有 emoji 掉出屏幕之后,只剩一张空脸" —— 用户对这一页的要求。
+       做法:最后一张 emoji 开始下落的时刻(tLastFall)之后,屏幕中央淡入一张
+       灰色的、没有五官的脸 —— 只在画布上画个圆角方块,【不画眼睛不画嘴】。
+       为什么只画个底:真正的脸是 .self-facebox 里那套手写 SVG(它要能被拖上去的
+       emoji 变形、要能变透明/融化),画布上再画一张真脸的话,两套轮廓对不齐,
+       换场那一瞬间会"跳"一下。这里只负责把"那里有一张脸"这件事先立住,
+       等 .self 起来(它自己的 .55s 淡入)正好把这张底接过去。
+       底用 #2f3a4d,与 pages.css 的 --self-blank 是同一个值 —— 改颜色要一起改。 */
+    var tLastFall = T.fill + T.hold + 520;
+    var FACE = { at: tLastFall, dur: 420 };
+
     return {
-      total: T.fill + T.hold + T.fall + 60,
+      /* 时长要多留一点给最后那张空脸淡入(FACE.at 偏后),别让它在没淡完时就被切掉 */
+      total: Math.max(T.fill + T.hold + T.fall + 60, FACE.at + FACE.dur + 80),
       /* ★ 黑屏要留到"贴满并开始下落"那一刻:
          这段时间里页面仍被黑底盖着,emoji 一层层贴上去,
          等铺满了再撤黑屏(而不是一接手就撤,那时还没盖住页面) */
@@ -172,6 +184,29 @@
           else drawFallbackFace(ctx, e.size);
           ctx.restore();
         }
+
+        /* 收尾:emoji 都掉下去了,屏幕中央留一张空脸(只有轮廓,没有五官)*/
+        var fa = clamp((el - FACE.at) / FACE.dur, 0, 1);
+        if (fa <= 0) return;
+        var side = Math.min(W, H) * 0.30;
+        var w = side * 0.80, h = side;
+        var r = side * 0.22;                 /* 圆角:emoji 的脸是圆角方块,不是正圆 */
+        var x = (W - w) / 2, y = (H - h) / 2;
+        ctx.save();
+        ctx.globalAlpha = fa;
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+        ctx.fillStyle = "#2f3a4d";           /* 与 pages.css 的 --self-blank 同一个值 */
+        ctx.fill();
+        ctx.strokeStyle = "rgba(206, 228, 255, " + (0.30 * fa).toFixed(3) + ")";
+        ctx.lineWidth = Math.max(1.5, side * 0.016);
+        ctx.stroke();
+        ctx.restore();
       }
     };
   }

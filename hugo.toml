@@ -67,45 +67,151 @@ paginate = 10
       key = "self"
       title = "自我"
       tagline = "WHO AM I"
-      text = "留白:面板内容待补充"
+      text = "点一下飘着的 emoji,把它贴到我脸上 —— 贴满,你就认识我了。"
       # ---- CD 架文字介绍(左上:主题 + 配文 / 左下:歌名 + 歌手)----
       caption = "我思故我在"   # 主题配文(留空则用上面的 text)
       bg = "#efc243"          # CD 架背景色(跟随"当前选中的盘");文字自动取其反色 #103dbc
       song = "emomomo"
       artist = "RAS"
-    # ---- 第一张盘「自我」的主页内容:滑动分页(实现见 assets/js/page-deck.js)----
-    # 每页 = 标题 + 正文 +(可选)图片;奇数页图片在右、偶数页在左,自动交替。
-    # 正文里的换行会原样显示(pages.css 用了 white-space: pre-line)。
-    # 图片:放进 static/assets/pages/self/,这里写 "/assets/pages/self/01.webp";
-    #       image 留空 = 显示占位块(带"图片位"字样),方便先看排版。
-    # 下面的文字是占位文案,直接改这里就行。
+
+    # ============================================================
+    # 第一张盘「自我」的主页内容:Emoji 拼贴自我介绍
+    #   实现:assets/js/page-self.js + assets/css/pages.css 的 .self 段
+    #   骨架:layouts/partials/pages/self.html
+    #   玩法:屏幕中央一张【没有五官的空白脸】,四周像星星一样飘着 14 个 emoji;
+    #         每个 emoji = 一个特质,点一下(或拖上去)就贴到脸上并蹦出一句话;
+    #         全部贴满 → 脸变成那个夸张形象,并汇总出一段自我介绍。
+    # ------------------------------------------------------------
+    # 每条 = 一个特质,五个字段:
+    #   emoji  显示在飘浮区里的那个字(原样输出,想换直接改这里)
+    #   key    内部标识(JS 用;也是 data-key 与 CSS 类名,别用中文)
+    #   pod    往脸上加的是哪种东西(要和 self.html 里 data-pod 对上):
+    #            socket = 加一样东西(眼镜 / 耳机 / 杯子 / 手柄 / 火苗 /
+    #                     星星眼 / 口罩 / 王冠 / Z / 音符 / 黑眼圈 / 红鼻子)
+    #            skin   = 改整张脸本身(融化 / 半透明 / 睁不开眼)
+    #          ★ skin 类【同时只会有一个生效】(两个一起上会互相打架),
+    #            所以贴第二个 skin 时前一个会自动被顶掉 —— 见 page-self.js 的 place()
+    #   label  贴到脸上之后,无障碍读屏用的名字
+    #   text   贴上去时蹦出来的那句话
+    #   alt    可选:emoji 字符与想表达的东西差太远时,给读屏用的说明
+    #          (比如 🫠 是"融化的脸",我们要的是"社交电量低")
+    # ★ 想再加?在这里加一段就行:飘浮位置会自动重排(见 page-self.js 的 RING),
+    #   脸的部件记得同步在 self.html 里加一组 data-part="<key>" data-pod="<pod>"。
+    # ============================================================
     [[params.intro.decks.self]]
-      title = "我是谁"
-      text = """所有的故事都从这个问题开始。
-
-我不太会回答它,所以选择把它写下来 —— 写下来的东西,会慢慢变成答案的一部分。"""
-      image = ""
-
-    [[params.intro.decks.self]]
-      title = "两面镜子"
-      text = """一面是别人眼里的我,一面是我以为的我。
-
-两张脸长得并不一样。中间的差值,大概就是需要慢慢补上的部分。"""
-      image = ""
+      emoji = "💗"
+      key = "blush"
+      pod = "socket"
+      label = "脸红"
+      text = "嘴上说没事,心里其实很在意。"
 
     [[params.intro.decks.self]]
-      title = "把自己拆开看"
-      text = """情绪、习惯、偏好 —— 原本以为理所当然的东西,拆开之后才发现各有来路。
-
-看清来路,才知道哪些可以留着,哪些可以换掉。"""
-      image = ""
+      emoji = "☕"
+      key = "coffee"
+      pod = "socket"
+      label = "咖啡"
+      text = "靠咖啡续命,晚上照样失眠。"
 
     [[params.intro.decks.self]]
-      title = "还没写完"
-      text = """这份自我认知不会有"完成"的那一天。
+      emoji = "💻"
+      key = "code"
+      pod = "socket"
+      label = "代码"
+      text = "写代码是工作,也是爱好。"
 
-它更像一个持续更新的页面:过一段时间回来看,总会觉得上一版有点陌生。"""
-      image = ""
+    [[params.intro.decks.self]]
+      emoji = "🎮"
+      key = "game"
+      pod = "socket"
+      label = "游戏"
+      text = "游戏菜,但爱玩。"
+
+    [[params.intro.decks.self]]
+      emoji = "🎧"
+      key = "music"
+      pod = "socket"
+      label = "耳机"
+      text = "没有音乐,写不出东西。"
+
+    [[params.intro.decks.self]]
+      emoji = "🌙"
+      key = "night"
+      pod = "socket"
+      label = "熬夜"
+      text = "夜猫子,凌晨灵感最多。"
+
+    [[params.intro.decks.self]]
+      emoji = "🤡"
+      key = "clown"
+      pod = "socket"
+      label = "小丑"
+      text = "经常自嘲,但内心很认真。"
+
+    [[params.intro.decks.self]]
+      emoji = "✨"
+      key = "sparkle"
+      pod = "socket"
+      label = "星星眼"
+      text = "看到喜欢的东西会失去理智。"
+
+    [[params.intro.decks.self]]
+      emoji = "😷"
+      key = "mask"
+      pod = "socket"
+      label = "口罩"
+      text = "社交场合戴着脸,回家才摘。"
+
+    [[params.intro.decks.self]]
+      emoji = "👑"
+      key = "crown"
+      pod = "socket"
+      label = "王冠"
+      text = "嘴上说随便,心里早有答案。"
+
+    [[params.intro.decks.self]]
+      emoji = "💤"
+      key = "nap"
+      pod = "socket"
+      label = "补觉"
+      text = "白天睡不醒,晚上睡不着。"
+
+    [[params.intro.decks.self]]
+      emoji = "🎵"
+      key = "note"
+      pod = "socket"
+      label = "打拍子"
+      text = "走路都在打拍子,自己没发觉。"
+
+    [[params.intro.decks.self]]
+      emoji = "🫠"
+      key = "melt"
+      pod = "skin"
+      label = "融化"
+      text = "社交电量低,需要独处充电。"
+      alt = "融化的脸"
+
+    [[params.intro.decks.self]]
+      emoji = "😪"
+      key = "heavy"
+      pod = "skin"
+      label = "睁不开眼"
+      text = "困是真的困,撑也是真的撑。"
+      alt = "困倦的脸"
+
+    [[params.intro.decks.self]]
+      emoji = "🔥"
+      key = "fire"
+      pod = "socket"
+      label = "上头"
+      text = "三分钟热度,但热的时候很烫。"
+
+    [[params.intro.decks.self]]
+      emoji = "👻"
+      key = "clear"
+      pod = "skin"
+      label = "半透明"
+      text = "热闹之后会消失一阵。"
+      alt = "幽灵"
 
     # ---- 第二张盘「成长」的主页内容:科幻风太阳系行星图 ----
     # 恒星(屏幕最左那颗)的标题 / 副标题
@@ -286,14 +392,81 @@ paginate = 10
       key = "future"
       title = "未来"
       tagline = "FUTURE"
-      text = "留白:面板内容待补充"
+      text = "窗上结了霜。暖一暖,底下写着几句话。"
       caption = "终将光芒万丈"
+      # 收尾宣言:碎片全部收齐后浮在屏幕中央的那一段(见 pages/future.html)
+      declaration = "霜不会一次化完,路也不会一次看清。你只要走到下一盏灯。"
       bg = "#ffffff"          # 纯白(菱形自动取白);这张的反色是黑,压在深底上会看不见,
       fg = "#dceeff"          # 所以单独指定成浅蓝(文字/按钮/音频条都用它)。
       # 注:菱形是"白色 50% 叠深底"=浅灰,所以浅蓝要够亮才能同时压得住浅灰和深底;
       # 太中间的蓝(比如 #9dd2ff)在浅灰菱形上只有 2.3:1,会糊
       song = "The lost aria"
       artist = "Plum"
+
+    # ============================================================
+    # 第五张盘「未来」的主页内容:夜窗 · 极光 · 记忆碎片
+    #   实现:assets/js/page-frost.js + layouts/partials/pages/future.html
+    #   玩法(方案由用户给):
+    #     窗上结满霜 → 鼠标/手指靠近的地方被"暖"化,化成水滴滑下来 →
+    #     霜底下浮出半透明的记忆碎片 → 点开一片,它飞到屏幕中央放大、显出文字 →
+    #     收下的碎片变成夜空里的一颗星 → 同主题的星星连成一个星座 →
+    #     全部收齐:中央浮出未来宣言,窗外亮起极光。
+    # ------------------------------------------------------------
+    # 每条 = 一片碎片(一句"写给未来的话")。字段:
+    #   text   写给未来的话(显示在碎片上;也是真 DOM 文本,可选中 / 可读屏)
+    #   theme  星座分组名。同名的一起连成一个星座。
+    #          ★ 留 3 条【不写 theme】的 —— 用户要求"保留几颗单独的,
+    #            不然整体全是星座反而不好看"。
+    #   位置与形状(不规则多边形)由 JS 按面板尺寸算,这里不用写坐标;
+    #   加一句删一句都不用调布局。
+    # ★ 写作口径(用户这一版重新定的):"写给未来的自己 / 我对未来的愿景"。
+    #   —— 和上一版(回头看剩下什么)正好相反:这一版是【向前看】的。
+    #   长度按"碎片上一次读完"来控,不超过一行半。
+    # ============================================================
+    [[params.intro.decks.future]]
+      text = "愿未来的你,依然对世界好奇。"
+      theme = "好奇"
+
+    [[params.intro.decks.future]]
+      text = "愿你还会为一件与你无关的事停下来。"
+      theme = "好奇"
+
+    [[params.intro.decks.future]]
+      text = "愿你还肯为「不知道」多花一点时间。"
+      theme = "好奇"
+
+    [[params.intro.decks.future]]
+      text = "未来,我想写出改变世界的一小段代码。"
+      theme = "创造"
+
+    [[params.intro.decks.future]]
+      text = "愿你把想做的事做完一次,而不是开始很多次。"
+      theme = "创造"
+
+    [[params.intro.decks.future]]
+      text = "愿你做出来的东西,真的有人用上了。"
+      theme = "创造"
+
+    [[params.intro.decks.future]]
+      text = "希望能在某个雪夜,读完一本厚厚的书。"
+      theme = "生活"
+
+    [[params.intro.decks.future]]
+      text = "愿你有几个朋友,不用解释也懂。"
+      theme = "生活"
+
+    [[params.intro.decks.future]]
+      text = "愿你身边的那个人,一直还在。"
+      theme = "生活"
+
+    [[params.intro.decks.future]]
+      text = "愿你偶尔想起今天这个晚上。"
+
+    [[params.intro.decks.future]]
+      text = "愿你没变成自己讨厌的那种人。"
+
+    [[params.intro.decks.future]]
+      text = "愿你还敢说「我想要」。"
 
 [markup]
   [markup.goldmark]

@@ -109,7 +109,18 @@ html.frame-fitted .screen-static {
     border-radius: 0;
     clip-path: var(--ff-clip);
     -webkit-clip-path: var(--ff-clip);
-    background: #04060a;
+    /* ★★ 这里【不能】写 background(原来是 background: #04060a,已删)。
+       这一层是"黑屏/花屏"那层,黑底只该属于"屏幕该黑"的状态,也就是下面的 .is-black。
+       写成常驻的话,开机动画的收尾就永远揭不开页面:五套场景收尾都是靠 canvas 自己
+       把画面【擦成透明】来露页面的(未来那张盘 = sceneSnow 的 destination-out 扫线、
+       成长 = 逐格缩没、迷茫 = 出屏圆形清除、技术 = 横带飞走、自我 = 脸掉出屏幕),
+       而 canvas 在 frame-fitted 下只占"最大内接矩形"(见下面 canvas 那条规则),
+       它一透明,看到的就是【这一层自己的背景】—— 背景常年 #04060a 的话,
+       擦出来的还是黑:用户报的"大雪花飞过的地方还有黑屏遮挡"就是这个
+       (雪花扫过去了,黑留在原地)。这一层平时必须是 transparent(见上面 .screen-static)。
+       注意:也【不要】在这里写 background: transparent —— 这条选择器(html.frame-fitted
+       .screen-static)比 .screen-static.is-black 更具体,写死 transparent 会把黑屏状态
+       一起按掉(打开 CD 架时 glass 边缘会透出页面)。 */
 }
 
 html.frame-fitted .screen-static canvas {
@@ -134,7 +145,11 @@ html.frame-fitted .screen-static.is-full canvas {
     opacity: 1;
 }
 
-/* 黑屏(CD 架打开 = 光驱拔出状态,屏幕无信号)*/
+/* 黑屏(CD 架打开 = 光驱拔出状态,屏幕无信号;开机动画的 loading 段也靠它)。
+   ★★ 整条"黑底"就只挂在这个状态上:开机动画里 intro.js 撤掉 .is-black 的那一刻
+      (cd-boot.js 的 blackUntil),这一层回到 transparent,scene 擦掉/没画到的地方
+      才真的露出底下的页面 —— 这条不变量是五套开机动画"揭开页面"的前提,
+      别把背景色挪回上面那条 frame-fitted 规则里(原因写在那里)。 */
 .screen-static.is-black {
     opacity: 1;
     background: #04060a;

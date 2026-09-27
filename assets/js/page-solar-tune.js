@@ -13,7 +13,19 @@
 (function () {
   "use strict";
 
-  var WANT = location.search.indexOf("tune") >= 0;
+
+  /* ★ 精确判断某个查询参数存在(不再用 indexOf 子串匹配)。
+     教训:原来写 location.search.indexOf("tune") >= 0,
+     于是 "?selftune" 里因为含有 "tune",把太阳系那块面板也一起打开了,
+     两块面板又都在右上角,互相覆盖。 */
+  function hasFlag(name) {
+    var q = location.search.replace(/^\?/, "").split("&");
+    for (var i = 0; i < q.length; i++) {
+      if (q[i] === name || q[i].indexOf(name + "=") === 0) return true;
+    }
+    return false;
+  }
+  var WANT = hasFlag("tune");
   var FIELDS = [
     { f: "x", label: "x", min: 0, max: 1, step: 0.001, dflt: 0.5 },
     { f: "y", label: "y", min: 0, max: 1, step: 0.001, dflt: 0.5 },

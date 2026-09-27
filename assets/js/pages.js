@@ -2,9 +2,9 @@
    每张盘"自己的主页内容"页 —— 核心(注册 / 切换 / 重排)
    ─────────────────────────────────────────────────────────────
    各个页面模块自己注册(按 DOM 上的 data-<type> 找元素):
-     page-deck.js   → register("deck",  …)  第一张:滑动分页
+     page-self.js   → register("self",  …)  第一张:Emoji 拼贴自我介绍
      page-solar.js  → register("solar", …)  第二张:太阳系 HUD
-     (后面第三/四/五张照这个模式加)
+     (第三张 lost 的引擎在 gd-web/,第四张 tech 的终端由 tech.html 自己引)
    模块要实现两个方法:
      api.key                这一页对应哪张盘(hugo.toml 里的 key)
      api.activate(true|false)  被选中 / 被换下

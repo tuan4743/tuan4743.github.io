@@ -231,7 +231,7 @@
     panels.forEach(function (p) {
       p.classList.toggle("is-active", p.getAttribute("data-panel") === key);
     });
-    /* 通知"每张盘自己的主页内容"模块(见 page-deck.js):只有当前这张盘会被激活 */
+    /* 通知"每张盘自己的主页内容"模块(见 pages.js):只有当前这张盘会被激活 */
     if (window.CDPages && window.CDPages.activate) window.CDPages.activate(key);
     /* 再广播一次"这张盘激活了"(第四张盘的终端在听这个) */
     try { window.dispatchEvent(new CustomEvent("cd-panel", { detail: key })); } catch (e) {}

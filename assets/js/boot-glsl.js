@@ -23,6 +23,19 @@
     "uniform sampler2D iChannel1;",
     "uniform sampler2D iChannel2;",
     "uniform sampler2D iChannel3;",
+    /* ★★★ 时间必须【两个名字都声明】。
+       教训(用户第六轮贴了控制台):
+         [boot-glsl] 编译失败 aurora: ERROR: 0:210: 'uTime' : undeclared identifier
+       原因:这份头只声明了 iTime,而极光那份 GLSL 全程用的是 u_time/uTime
+       (它原文件顶上有 `#define u_time iTime`,我照搬时按约定去掉了那行、
+         把正文换成了 uTime —— 换名是对的,但我【没有在宿主里声明 uTime】)。
+       于是着色器一编译就失败,而失败的后果是【极光整层不出现】:
+       render() 返回 null,那一层就一直是空的 —— 用户看到的"极光没有"就是这个。
+       ★ 为什么雪那一场没暴露这个问题:它正文里用的是 iTime,没碰 uTime。
+       ★ 两个名字指向同一个值,host 在 render() 里两个都 set 一遍(见下面 uniform1f)。
+       以后再加着色器:正文用哪个名字,这里就必须声明哪个 ——
+       测试里有一条断言钉着"正文用到的每个时间名字,FRAG_HEAD 里都声明了"。 */
+    "uniform float uTime;",
     ""
   ].join("\n");
 
@@ -87,6 +100,7 @@
     var u = {
       res: gl.getUniformLocation(pr, "iResolution"),
       time: gl.getUniformLocation(pr, "iTime"),
+      utime: gl.getUniformLocation(pr, "uTime"),
       mouse: gl.getUniformLocation(pr, "iMouse"),
       ch0: gl.getUniformLocation(pr, "iChannel0"),
       cloud: gl.getUniformLocation(pr, "uCloud"),
@@ -132,6 +146,9 @@
     gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
     if (prog.u.res) gl.uniform3f(prog.u.res, w, h, 1);
     if (prog.u.time) gl.uniform1f(prog.u.time, time);
+    /* ★ 两个时间名字都要喂:不同着色器用的名字不一样(雪用 iTime,极光用 uTime)。
+       少喂一个,那个 uniform 就是 0 —— 着色器不会报错,但画面是静止的/错的。 */
+    if (prog.u.utime) gl.uniform1f(prog.u.utime, time);
     if (prog.u.mouse) gl.uniform4f(prog.u.mouse, 0, 0, 0, 0);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, noiseTex);
