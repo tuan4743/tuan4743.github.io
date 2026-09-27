@@ -110,8 +110,38 @@
           var cx = (best.x + best.w / 2) * S, cy = (best.y + best.h / 2) * S;
           var k = Math.max(0.9, 1 - (2 * GAP) / Math.max(80, best.h * S));
           function shrink(p) { return [cx + (p[0] - cx) * k, cy + (p[1] - cy) * k]; }
-          var poly = pts.map(function (p) { return shrink([p[0], p[1]]); })
-            .concat(pts.slice().reverse().map(function (p) { return shrink([p[2], p[3]]); }));
+          /* 逐行轮廓的原始点(贴图坐标,没经过 shrink)*/
+          var raw = pts.map(function (p) { return [p[0], p[1]]; })
+            .concat(pts.slice().reverse().map(function (p) { return [p[2], p[3]]; }));
+          var poly = raw.map(shrink);
+
+          /* ④ 覆盖用轮廓(cover):给"必须把整块屏幕盖住"的层用(平板主界面)。
+                poly 是给黑屏/花屏那层用的 —— 它被 shrink() 往中心收了 k 倍
+                (见上面 GAP 的来历),四周因此留出一圈【没盖到】的地方:
+                用户按开平板时,底下那张 CD 页就从这一圈露出来
+                ("这个平板界面不能完全遮住")。
+               做法:拿【没收过】的原始逐行轮廓(raw),每个点沿 x 往外让 PADT,
+               最上一行/最下一行再沿 y 往外让 PADT。
+               ★ 两个都试过才定下来的:
+                 · 直接在 poly 上加固定外扩 —— 不够:shrink 在左右两边挖掉的是
+                   ~20px(离中心越远挖得越多),固定几像素补不回来,还是露 13px;
+                 · 整体放大一个倍数 —— 太狠:倍数由最极端那一行(左侧电源键那道
+                   凹口比别的行多探出 13px)决定,算出来 1.028,于是【所有】行
+                   被推出去 23px,平板会啃掉左边一整条金属边框。
+                 ⇒ 用没收缩的轮廓 + 每行各自往外让固定的几像素:刚好盖住、不多啃。
+               ★ 单位:这里是【贴图坐标】。medL/medR 是缩略图坐标(要 ×S),
+                 而 pts 里的 x/y 已经是贴图坐标 —— 混用会把窗口中心算错
+                 (本轮踩过:算出 kc=1.69,平板整个糊到边框外面去)。 */
+          var PADT = 5;                         /* ≈ 屏幕上 4px */
+          var cover = null;
+          if (raw.length >= 6) {
+            var cxm = (medL * S + medR * S) / 2;
+            cover = raw.map(function (p) {
+              var x = p[0] + (p[0] < cxm ? -PADT : PADT);
+              var y = p[1] <= ry0 ? ry0 - PADT : (p[1] >= ry1 ? ry1 + PADT : p[1]);
+              return [x, y];
+            });
+          }
 
           done({
             img: [img.naturalWidth, img.naturalHeight],
@@ -119,7 +149,8 @@
             box: hRun && vRun ? [hRun[0] * S, vRun[0] * S, hRun[1] * S, vRun[1] * S] : null,
             /* 窗口四边的稳健值(图上坐标):左右取中位数,上下取中线透明段的两端 */
             win: [medL * S, ry0, medR * S, ry1],
-            polygon: poly.length >= 6 ? poly : null
+            polygon: poly.length >= 6 ? poly : null,
+            coverClip: cover
           });
         } catch (e) { done(null); }
       };
@@ -161,7 +192,7 @@
     if (!data) {
       html.classList.remove("frame-fitted");
       ["--ff-safe-top", "--ff-safe-right", "--ff-safe-bottom", "--ff-safe-left",
-        "--ff-clip", "--ff-win-top", "--ff-win-right", "--ff-win-bottom", "--ff-win-left"]
+        "--ff-clip", "--ff-clip-cover", "--ff-win-top", "--ff-win-right", "--ff-win-bottom", "--ff-win-left"]
         .forEach(function (k) { s.removeProperty(k); });
       return;
     }
@@ -178,11 +209,15 @@
     s.setProperty("--ff-safe-top", Math.round(safeIns[1]) + "px");
     s.setProperty("--ff-safe-right", Math.round(safeIns[2]) + "px");
     s.setProperty("--ff-safe-bottom", Math.round(safeIns[3]) + "px");
-    if (data.polygon) {
-      s.setProperty("--ff-clip", "polygon(" + data.polygon.map(function (p) {
+    function polyStr(pts) {
+      return "polygon(" + pts.map(function (p) {
         return (p[0] * sx).toFixed(1) + "px " + (p[1] * sy).toFixed(1) + "px";
-      }).join(", ") + ")");
+      }).join(", ") + ")";
     }
+    if (data.polygon) s.setProperty("--ff-clip", polyStr(data.polygon));
+    /* 覆盖用轮廓:平板主界面要"把整块屏幕盖住",不能像黑屏层那样四周留一圈
+       (见 measure() 里 COVER 那段)。量不到就退回 --ff-clip。 */
+    if (data.coverClip) s.setProperty("--ff-clip-cover", polyStr(data.coverClip));
     html.classList.add("frame-fitted");
     clampSp(winIns);
   }

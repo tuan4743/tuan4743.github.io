@@ -170,13 +170,14 @@ html.frame-fitted .tablet {
     min-height: 0;
 }
 
-/* 第一行:时钟 | 搜索。时钟稍窄,搜索要放得下一行提示。
-   高度配比:上面这行(时钟/搜索)比下面那行(列表)多分一点 ——
+/* 第一行:时钟 | 快捷控制(明暗/音量)| 搜索。
+   高度配比:上面这行比下面那行(列表)多分一点 ——
    列表里的内容本来就不多(仓库里就两篇文章、四个标签),
    给它太高只会显得空(用户已经说过一次"有点空")。 */
 .tablet__row--widgets {
     flex: 1.25 1 0;
-    grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr);
+    /* 中间那列按内容宽(auto):它就是一个按钮 + 一条滑条 */
+    grid-template-columns: minmax(0, .85fr) auto minmax(0, 1.15fr);
 }
 
 /* 第二行:最近更新 | 标签 —— 用户说"目前看有点空",这两张填的是真实内容 */
@@ -205,8 +206,87 @@ html.frame-fitted .tablet {
     color: rgba(198, 220, 246, .58);
 }
 
-/* ---------- 搜索卡片 ---------- */
-.tablet__search { justify-content: center; }
+/* ---------- 快捷控制卡片:明暗 + 音量(用户点名要放回时钟右边)---------- */
+.tablet__controls {
+    justify-content: center;
+    gap: clamp(8px, 1.4vh, 16px);
+    padding: clamp(10px, 1.5vh, 18px) clamp(12px, 1.3vw, 18px);
+}
+
+.tablet__ctl {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.tablet__ctl-btn {
+    flex: 0 0 auto;
+    width: clamp(30px, 3.6vh, 42px);
+    height: clamp(30px, 3.6vh, 42px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 11px;
+    border: 1px solid rgba(150, 190, 240, .22);
+    background: rgba(255, 255, 255, .05);
+    color: #dceaff;
+    cursor: pointer;
+    transition: border-color .18s ease, color .18s ease, background .18s ease;
+}
+
+.tablet__ctl-btn:hover,
+.tablet__ctl-btn:focus-visible {
+    border-color: rgba(170, 214, 255, .55);
+    background: rgba(255, 255, 255, .09);
+    color: #fff;
+    outline: none;
+}
+
+.tablet__ctl-btn svg { width: 56%; height: 56%; display: block; }
+
+/* 两个图标的显示由 JS 按当前主题挂的 class 决定(见 tablet.js syncControls):
+   不靠 html[data-theme] —— 那还可能是 "auto",得连着系统偏好一起判断,
+   而 dataset.theme 是顶栏那枚按钮真正写的东西。 */
+.tablet__ctl-btn .ic-sun { display: none; }
+.tablet__ctl-btn.is-light .ic-moon { display: none; }
+.tablet__ctl-btn.is-light .ic-sun { display: block; }
+.tablet__ctl-btn .snd-off { display: none; }
+.tablet__ctl-btn.is-muted .snd-on { display: none; }
+.tablet__ctl-btn.is-muted .snd-off { display: block; }
+.tablet__ctl-btn.is-muted { color: rgba(255, 150, 150, .9); }
+
+.tablet__ctl-name {
+    font-size: clamp(.7rem, .86vw, .8rem);
+    letter-spacing: .08em;
+    color: rgba(214, 232, 252, .78);
+    white-space: nowrap;
+}
+
+.tablet__vol {
+    flex: 1 1 auto;
+    min-width: 64px;
+    height: 18px;
+    margin: 0;
+    accent-color: #7ff0ff;
+    background: transparent;
+    cursor: pointer;
+}
+
+.tablet__vol-out {
+    flex: 0 0 auto;
+    min-width: 34px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-size: clamp(.66rem, .82vw, .76rem);
+    color: rgba(198, 220, 246, .6);
+}
+
+/* ---------- 搜索卡片 ----------
+   ★ 结果面板【在卡片里面】(用户:第一版"展开后不是在卡片内的",所以"不太丝滑")。
+     第一版把它绝对定位挂在卡片下面 —— 视觉上和卡片是两块,展开时还压住下面的东西。
+     现在它就在卡片里往下排:卡片高度由整行决定,展开不改任何布局,所以不跳。 */
+.tablet__search { justify-content: flex-start; }
 
 .tablet__search.is-searching {
     border-color: rgba(150, 200, 255, .5);
@@ -240,20 +320,26 @@ html.frame-fitted .tablet {
 .tablet__search-box input::placeholder { color: rgba(198, 220, 246, .38); }
 .tablet__search-box input::-webkit-search-cancel-button { filter: invert(1) opacity(.5); }
 
-/* 结果面板:贴在搜索框下方,自己滚 */
+/* 结果面板:在卡片【里面】,占满输入框以下的空间,自己滚。
+   ★ 入场用 animation,不用 transition:元素从 display:none(带 [hidden])
+     变成可见的那一帧,transition 没有"上一帧"可以插值,是不会跑的;
+     animation 在元素重新变为可见时一定会重新开始。
+   ★ 也别在这里写 display —— [hidden] 的 display:none 会被自己的 display 盖掉
+     (这个坑在本项目踩过:.frost-read / .self-card)。 */
 .tablet__search-results {
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: calc(100% + 6px);
-    z-index: 3;
-    max-height: min(34vh, 280px);
+    flex: 1 1 auto;
+    min-height: 0;
+    margin-top: clamp(8px, 1.2vh, 14px);
     overflow: auto;
-    border-radius: 12px;
-    border: 1px solid rgba(150, 190, 240, .26);
-    background: rgba(9, 14, 26, .96);
-    box-shadow: 0 18px 44px rgba(0, 0, 0, .55);
-    backdrop-filter: blur(10px);
+    border-radius: 10px;
+    border: 1px solid rgba(150, 190, 240, .18);
+    background: rgba(8, 13, 24, .42);
+    animation: tabletSearchIn .22s ease both;
+}
+
+@keyframes tabletSearchIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
 }
 
 /* ---------- 最近更新 / 标签 ---------- */

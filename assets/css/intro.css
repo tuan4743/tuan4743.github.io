@@ -133,6 +133,18 @@ html.frame-fitted .tablet {
           转成 padding 还给内容。两条属性不重叠,同时生效。 */
 }
 
+/* ★ 平板的剪裁走【覆盖轮廓】--ff-clip-cover,不用 --ff-clip:
+   --ff-clip 是给黑屏/花屏那层的,它被 frame-fit 刻意往中心收过(四周留一圈余量),
+   平板要是也用同一份,就会有一圈盖不到 —— 底下那张 CD 页从那圈露出来,
+   正是用户说的"这个平板界面不能完全遮住"。
+   覆盖轮廓是同一份逐行轮廓,但不内收,反而往外放到四边都盖过窗口
+   (见 frame-fit.js 的 measure() 里 COVER 那段);四角的斜切形状照旧,
+   所以玻璃的切角还是贴合的。 */
+html.frame-fitted .tablet {
+    clip-path: var(--ff-clip-cover, var(--ff-clip));
+    -webkit-clip-path: var(--ff-clip-cover, var(--ff-clip));
+}
+
 html.frame-fitted .screen-static canvas {
     /* canvas 是替换元素:width:auto 会退回 300×150 的固有尺寸(踩过),
        所以宽高得自己用 calc 算 —— 100% 是这一层(现在铺满视口)的尺寸 */

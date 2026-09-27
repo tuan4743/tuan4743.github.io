@@ -210,8 +210,7 @@ ok('★ "减少动态效果"下不平移、不错开(只直接出现)',
   '有 reduced-motion 分支');
 
 /* ---------- ⑤ 尺寸与磁吸(用户:"APP按钮有点小"、"扫描框移上去不会吸附")---------- */
-const iconPx = clampOf(decl(allBlocks(tcss, '.tablet__app-icon {'), 'width') || '0px');
-ok('★ APP 图标够大(第一版 848px 高的屏上只有 44px,用户说太小)',
+const iconPx = clampOf(decl(allBlocks(tcss, '.tablet__app-icon {'), 'width') || '0px');ok('★ APP 图标够大(第一版 848px 高的屏上只有 44px,用户说太小)',
   iconPx >= 56, `图标 ${iconPx.toFixed(0)}px(clamp 下限 ≥56,按屏高 8%)`);
 ok('★ 磁吸光标认 .tablet__app(它们是 <a>,兜底那条 button:not(.frost-shard) 罩不到)',
   /\.tablet__app/.test(mjs.split('var SELECTOR')[1].split('].join')[0]),
@@ -219,7 +218,75 @@ ok('★ 磁吸光标认 .tablet__app(它们是 <a>,兜底那条 button:not(.fros
 ok('★ APP 用 flex 居中排,不是 auto-fit 网格(auto-fit 会把 5 个图标摊成一排 300px 宽的大格子)',
   /\.tablet__apps\s*\{[^}]*display:\s*flex/.test(tcss) && /justify-content:\s*center/.test(tcss));
 
-/* ---------- ⑥ 搜索组件:两处实例 ---------- */
+/* ---------- ⑥ 第三轮:三件事 ----------
+   ① 平板要【完全盖住】整块屏幕 —— 第一版用的是给黑屏层那份轮廓(--ff-clip),
+      而那份被 frame-fit 刻意往中心收过 k 倍(留给黑屏一点余量),
+      于是平板四周有一圈盖不到,底下那张 CD 页从那一圈露出来。
+      现在多算一份"覆盖轮廓"(--ff-clip-cover),只给平板用。
+      ★ 数值证明(把贴图解码、按同一套算法复算,看覆盖轮廓的四边是不是真的
+        都超过窗口)放在 .tmp/frame-gap.mjs —— 这里钉的是【结构不变量】:
+        黑屏层仍然用收过的那份、平板用放出去的那份,两者不能互换。
+   ② 搜索结果要【在搜索卡片里面】,而且展开要顺(用 animation 不是 transition)。
+   ③ 明暗 + 音量两枚控件要回到平板、放在时钟卡片右边,而且不许另起一套逻辑。 */
+const ffjs = fs.readFileSync(`${BH}/assets/js/frame-fit.js`, 'utf8');
+ok('★ frame-fit 另外算了一份【覆盖轮廓】并写进 --ff-clip-cover',
+  /coverClip/.test(ffjs) && /--ff-clip-cover/.test(ffjs) && /var PADT = 5/.test(ffjs),
+  '黑屏层那条 --ff-clip 不动,新增 --ff-clip-cover');
+ok('★ 覆盖轮廓 = 未收缩的逐行轮廓 + 每行各自往外让 PADT',
+  /var raw = pts\.map/.test(ffjs) && /var poly = raw\.map\(shrink\)/.test(ffjs) &&
+  /raw\.map\(function \(p\) \{[\s\S]{0,240}p\[0\] < cxm \? -PADT : PADT/.test(ffjs),
+  '★ 不能用整体放大:倍数会被"电源键凹口"那一行带偏(算出来 1.028),所有行一起被推出去 23px,啃掉一条边框');
+/* 数值证明(把外框贴图解码、按同一套算法复算)在 .tmp/frame-gap.mjs —— 1850×848 下:
+     玻璃四边 101/70/94/75;旧轮廓(--ff-clip)没盖住 7/8/18/7 px;
+     新轮廓(--ff-clip-cover)四边都翻过去了(最外那行 -14,其余 -3~-4)。*/
+ok('★★ 平板用覆盖轮廓,黑屏层仍用收过的那份(两者不能互换)',
+  /html\.frame-fitted \.tablet \{[^}]*clip-path: var\(--ff-clip-cover, var\(--ff-clip\)\)/.test(icss) &&
+  /html\.frame-fitted \.screen-static,\s*\n?html\.frame-fitted \.tablet \{[\s\S]*?clip-path: var\(--ff-clip\)/.test(icss),
+  '平板:--ff-clip-cover · .screen-static:--ff-clip');
+
+ok('★ 搜索结果面板【在卡片里】(不再绝对定位挂到卡片下面)',
+  /\.tablet__search-results \{[\s\S]*?flex: 1 1 auto/.test(tcss) &&
+  !/\.tablet__search-results \{[\s\S]*?position: absolute/.test(tcss),
+  '用户:"不太丝滑,展开后不是在卡片内的"');
+ok('★ 结果面板的入场用 animation(display 从 none 变可见时 transition 不会跑)',
+  /@keyframes tabletSearchIn/.test(tcss) && /animation: tabletSearchIn/.test(tcss),
+  'keyframes tabletSearchIn');
+ok('★ 搜索卡片里输入框在上、结果在下面排(不再垂直居中)',
+  /\.tablet__search \{ justify-content: flex-start; \}/.test(tcss));
+
+ok('★ 明暗 / 音量两枚控件回到了平板(用户:放到时钟卡片右边)',
+  /data-tablet-theme/.test(tpl) && /data-tablet-mute/.test(tpl) &&
+  /data-tablet-volume\b/.test(tpl) && /data-tablet-volume-out/.test(tpl),
+  '四个钩子都在模板里');
+{
+  const iClock = built.indexOf('tablet__clock');
+  const iCtl = built.indexOf('tablet__controls');
+  const iSear = built.indexOf('tablet__search"');
+  ok('★ 位置就在时钟卡片右边(时钟 → 控件 → 搜索,渲染顺序)',
+    iClock > 0 && iCtl > iClock && iSear > iCtl,
+    `时钟@${iClock} < 控件@${iCtl} < 搜索@${iSear}`);
+  const wRow = allBlocks(tcss, '.tablet__row--widgets {');
+  ok('★ 三列:时钟 | 控件(auto)| 搜索',
+    (decl(wRow, 'grid-template-columns').match(/minmax|auto/g) || []).length === 3,
+    decl(wRow, 'grid-template-columns'));
+}
+ok('★★ 控件【不另起一套逻辑】:去点顶栏那两个 + 往 #volume-range 派发 input',
+  /getElementById\("theme-toggle"\)/.test(tjs) && /getElementById\("volume-range"\)/.test(tjs) &&
+  /volRange\.dispatchEvent\(new Event\("input"/.test(tjs) && /themeBtn\.click\(\)/.test(tjs),
+  '明暗 = 点顶栏那枚;音量 = 写进去再派发 input');
+ok('★★ 平板自己【不写】主题/音量那两个存储键(否则两边会各存一份状态)',
+  /* ★ 必须先剥注释:这段代码的注释里【本来就写着 "pref-theme"】(解释为什么不去写它),
+     不剥就会把自己的说明当成证据判红 —— 本轮就踩了一次(README 里那条"注释会毒化
+     源码扫描"的老坑,又一次)。 */
+  !/pref-theme/.test(tjs.replace(/\/\*[\s\S]*?\*\//g, '')) &&
+  !/VOL_KEY/.test(tjs) &&
+  !/localStorage[\s\S]{0,40}volume/i.test(tjs.replace(/\/\*[\s\S]*?\*\//g, '')),
+  '持久化仍然只由 theme-palette.js / cd-audio.js 做');
+ok('★ 顶栏那边一动,平板跟着同步(两处都挂监听)',
+  /themeBtn\.addEventListener\("click", syncControls\)/.test(tjs) &&
+  /volRange\.addEventListener\("input", syncControls\)/.test(tjs));
+
+/* ---------- ⑦ 搜索组件:两处实例 ---------- */
 ok('搜索抽成了可复用组件(一个容器 = 一个实例)',
   /document\.querySelectorAll\("\[data-search\]"\)/.test(sjs) && /function build\(/.test(sjs));
 ok('★ 顶栏那份也换成了组件契约(不是只给平板另写一套)',

@@ -400,11 +400,63 @@ window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}",
         </span>
     </div>
 
-    {{/* 第一行:时钟卡片 | 搜索卡片(搜索复用顶栏那套组件,见 assets/js/search.js) */}}
+    {{/* 第一行:时钟卡片 | 快捷控制(明暗 + 音量)| 搜索卡片 */}}
     <div class="tablet__row tablet__row--widgets">
         <section class="tablet__card tablet__clock" data-tablet-clock>
             <div class="tablet__time" data-tablet-time>--:--</div>
             <div class="tablet__weekday" data-tablet-weekday></div>
+        </section>
+
+        {{/* 快捷控制:用户点名要"之前调整页面深暗和音量的按钮",放到时钟卡片右边。
+            ★ 这里【不重新实现】它们:明暗 = 去点顶栏那枚 #theme-toggle,
+              音量 = 写进顶栏那条 #volume-range 再派发一个 input 事件 ——
+              走的是同一套逻辑、同一个 localStorage 键(pref-theme / 音量),
+              两处不会各存一份状态、也不会各写一套。反过来,顶栏那边一动,
+              这里跟着同步(见 tablet.js 的 syncControls)。 */}}
+        <section class="tablet__card tablet__controls" aria-label="快捷控制">
+            <div class="tablet__ctl">
+                <button class="tablet__ctl-btn" type="button" data-tablet-theme title="切换明暗(Alt + T)"
+                    aria-label="切换明暗">
+                    <svg class="ic-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg class="ic-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+                <span class="tablet__ctl-name">明暗</span>
+            </div>
+
+            <div class="tablet__ctl">
+                <button class="tablet__ctl-btn" type="button" data-tablet-mute title="静音 / 取消静音"
+                    aria-label="静音开关">
+                    <svg class="snd-on" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                        <path d="M15.6 8.6a5 5 0 0 1 0 6.8"></path>
+                        <path d="M18.6 5.4a9.5 9.5 0 0 1 0 13.2"></path>
+                    </svg>
+                    <svg class="snd-off" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                        <line x1="22" y1="9" x2="16" y2="15"></line>
+                        <line x1="16" y1="9" x2="22" y2="15"></line>
+                    </svg>
+                </button>
+                <input class="tablet__vol" type="range" min="0" max="100" step="1" value="50" aria-label="音量"
+                    data-tablet-volume>
+                <output class="tablet__vol-out" data-tablet-volume-out>50%</output>
+            </div>
         </section>
 
         <section class="tablet__card tablet__search" data-search>

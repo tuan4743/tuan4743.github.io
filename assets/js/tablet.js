@@ -88,6 +88,7 @@
       root.setAttribute("aria-hidden", "false");
       body.classList.add("tablet-open");
       tickClock();
+      syncControls();
       clearInterval(clockT);
       clockT = setInterval(tickClock, 20000);
       /* 焦点交给第一个 APP,键盘用户 Tab 得进来。
@@ -155,6 +156,54 @@
     if (a) { try { localStorage.setItem(KEY, "0"); } catch (err) { } }
   });
 
+  /* ---------- 快捷控制:明暗 + 音量(用户要"之前那两个按钮",放回时钟卡片右边)----------
+     ★★ 这里【一行控制逻辑都不重新实现】:明暗 = 去点顶栏那枚 #theme-toggle,
+        音量 = 写进顶栏那条 #volume-range 再派发一个 input ——
+        背后还是 theme-palette.js 与 cd-audio.js 那两套,
+        状态也还是它们那两个 localStorage 键(pref-theme / 音量)。
+        自己另存一份的话,两处迟早会不一致(这个项目里已经踩过"同一个键两套语义")。
+     ★ 反过来:顶栏那边(或 Alt+T / 悬停面板)一动,这里跟着同步 —— 所以两边都挂监听。 */
+  var themeBtn = document.getElementById("theme-toggle");
+  var soundBtn = document.getElementById("sound-toggle");
+  var volRange = document.getElementById("volume-range");
+  var ctlTheme = root.querySelector("[data-tablet-theme]");
+  var ctlMute = root.querySelector("[data-tablet-mute]");
+  var ctlVol = root.querySelector("[data-tablet-volume]");
+  var ctlVolOut = root.querySelector("[data-tablet-volume-out]");
+
+  function syncControls() {
+    if (ctlTheme) {
+      /* 主题可能还是 "auto"(页面开头的内联脚本只在 localStorage 里有值时才写),
+         那就跟着系统偏好判断 —— 判断依据和 CSS 里那份保持一致。 */
+      var t = document.documentElement.dataset.theme;
+      var light = t === "light" || (t !== "dark" && !!window.matchMedia &&
+        window.matchMedia("(prefers-color-scheme: light)").matches);
+      ctlTheme.classList.toggle("is-light", !!light);
+    }
+    if (ctlMute && soundBtn) ctlMute.classList.toggle("is-muted", soundBtn.classList.contains("is-muted"));
+    if (volRange) {
+      var v = Number(volRange.value);
+      if (isFinite(v)) {
+        if (ctlVol) ctlVol.value = String(v);
+        if (ctlVolOut) ctlVolOut.textContent = Math.round(v) + "%";
+      }
+    }
+  }
+
+  if (ctlTheme && themeBtn) ctlTheme.addEventListener("click", function () { themeBtn.click(); });
+  if (themeBtn) themeBtn.addEventListener("click", syncControls);       /* Alt+T / 顶栏点的也算 */
+  if (ctlMute && soundBtn) ctlMute.addEventListener("click", function () { soundBtn.click(); });
+  if (soundBtn) soundBtn.addEventListener("click", syncControls);
+  if (ctlVol && volRange) {
+    ctlVol.addEventListener("input", function () {
+      volRange.value = ctlVol.value;
+      /* 派发 input:音量、静音状态、顶栏那行显示全由 cd-audio.js 一处更新 */
+      try { volRange.dispatchEvent(new Event("input", { bubbles: true })); } catch (e) { }
+      syncControls();
+    });
+  }
+  if (volRange) volRange.addEventListener("input", syncControls);
+
   /* ---------- 起来 ---------- */
   (function init() {
     var saved = null;
@@ -162,6 +211,7 @@
     /* 记忆:默认关(进来先看 CD)。用户按开之后,刷新仍然是开的。 */
     setOpen(saved === "1", true);
     initBattery();
+    syncControls();
   })();
 
   /* 现场读数 —— 和 __frostMark / __frostAurora 同一个用意:
@@ -188,6 +238,13 @@
       time: elTime ? elTime.textContent : "",
       weekday: elWeek ? elWeek.textContent : "",
       date: elDate ? elDate.textContent : "",
+      controls: {
+        theme: !!ctlTheme, mute: !!ctlMute, vol: !!ctlVol,
+        themeTarget: !!themeBtn, muteTarget: !!soundBtn, volTarget: !!volRange,
+        light: ctlTheme ? ctlTheme.classList.contains("is-light") : null,
+        muted: ctlMute ? ctlMute.classList.contains("is-muted") : null,
+        volume: ctlVol ? ctlVol.value : null
+      },
       css: cs ? {
         opacity: cs.opacity, transform: cs.transform, zIndex: cs.zIndex,
         inset: [cs.top, cs.right, cs.bottom, cs.left].join(" "),
