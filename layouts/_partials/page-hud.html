@@ -1,74 +1,70 @@
 {{/* ============================================================
-     右侧 HUD(博客页)—— 第二阶段第一刀
+     右侧 HUD(博客页)—— 第二阶段第二刀:先把【边框】画对
      ─────────────────────────────────────────────────────────────
-     用户给的布局图:最右侧是一条 HUD 栏,从上到下是
-       ① 导航栏(就是他说的"那是 HUD 内部的按钮,就是导航栏,不过移到右侧了")
-       ② 三个按钮:导出 Markdown / GitHub / WeChat 二维码   ← 下一刀
-       ③ 右下三件套:音量滑条 / 明暗旋钮 / 配色滑条
-     风格 = 首页 CD 选择页左侧那块 HUD(.holo):SVG 画边框,按钮压在线上。
+     用户第一刀之后的要求:"效果不对,先去掉顶部的所有东西,画出边框先。
+     边框并不是一个正统的矩形,而是一个多边形。"然后给了走向(见下)。
 
-     ★ 三个数据源都是真的,不写死:
-       · 导航项 = site.Menus.main(和顶栏、平板 APP 同一份配置);
-       · 音量 = localStorage 的 cd-audio-vol(cd-audio.js 读的就是这个键);
-       · 配色 = 一个色相角,由 page-hud.js 现算整套配色变量。
-     ★ 三个 id(#theme-toggle / #volume-range / #palette-hue)是【故意的】:
-       主题的 footer 脚本按 id 找 #theme-toggle 绑事件(它不关心人在哪儿),
-       cd-audio.js 按 id 找 #volume-range —— 换位置不用改那边一行代码。
-     ★ 这个 partial 只在【非首页】渲染(见 extend_footer.html):
-       首页有它自己那套(平板主界面),同一个页面里不能出现两套同 id 的控件。
+     ★ 坐标约定(用户原话):"以页面右上角为坐标原点,水平向左为 x 轴,
+       页面比例为坐标(坐标范围为 0~100)"。
+       —— 所以 x 越大越靠【左】;SVG 的 x 是向右为正 ⇒ 换算就是 x_svg = 100 − x。
+       —— "页面比例"= 百分比:一个单位 = 宽/高的 1%。这决定了 45° 的含义:
+          45° 是【坐标空间】里的 dx=dy(用户给的 y₁=10 就是由此推出的:
+          从 x=10 到 x=8 走了 dx=2,45° ⇒ dy 也是 2,8+2=10 ✓)。
+
+     ★ 走向对照表(左边是用户的话,右边是算出来的顶点):
+       ┌────────────────────────────────────┬──────────────────┬──────────────────┐
+       │ 用户描述                            │ 用户的坐标       │ SVG 坐标         │
+       ├────────────────────────────────────┼──────────────────┼──────────────────┤
+       │ 起点(页面顶部,横坐标 30)           │ (30, 0)          │ (70, 0)          │
+       │ 与水平 60° 往右下,到竖坐标 8        │ (25.3812, 8)     │ (74.6188, 8)     │
+       │ 接着向右(往屏幕右)直到横坐标 10     │ (10, 8)          │ (90, 8)          │
+       │ 45° 往右下,直到横坐标 8(记 y₁=10)  │ (8, 10)          │ (92, 10)         │
+       │ 往下直到竖坐标 100−y₁ = 90          │ (8, 90)          │ (92, 90)         │
+       │ 45° 往左下,直到横坐标 10           │ (10, 92)         │ (90, 92)         │
+       │ 接着到横坐标 20                     │ (20, 92)         │ (80, 92)         │
+       │ 60° 往左下,直到下边框(y=100)       │ (24.6188, 100)   │ (75.3812, 100)   │
+       └────────────────────────────────────┴──────────────────┴──────────────────┘
+       ★ 60° 那两段的水平位移 = 8 ÷ tan(60°) = 8 ÷ 1.7320508 = 4.6188022。
+         (往右下时 x 减少 → 30−4.6188 = 25.3812;往左下时 x 增加 →
+          20+4.6188 = 24.6188。)
+       ★ 用户那句"接着向右直到横坐标 20":x 轴向左为正,10 → 20 是【向左】走的,
+         和"向右"两字冲突 —— 我按【坐标 20】算(也就是继续往外走)。
+         要是本意是回到右侧(比如 8 或 6),改一个数就行。
+
+     ★★ 还有一件必须说清的事:45°/60° 是【坐标空间】的角度,不是屏幕上的角度。
+        因为 viewBox 是 0~100 的正方形再被 preserveAspectRatio="none" 拉成视口比例,
+        16:9 屏上"45°"看起来约 29°、"60°"看起来约 44°。
+        这是用户给的坐标制式本身的含义(证据就是 y₁=10),所以照做;
+        要真按屏幕角度画,横位移得乘上视口宽高比 —— 那是另一套数。
+
+     ★ 这一刀【只画边框】:
+       · 顶栏(品牌 + 搜索)和 HUD 那一列导航都先撤了(见 baseof.html / 本文件的注释);
+       · 右下三件套留着(#theme-toggle 必须在 —— 主题 footer 末尾按 id 找它且没判空);
+       · 拐点短刺(CD 页那套 .holo-lock)先不画:形状还没定,先让用户看清这条线。
      ============================================================ */}}
-{{- $current := . -}}
-{{- $pageURL := $current.Permalink | absLangURL -}}
-{{- /* 外轮廓:一条折线走完整个形状(同一条 d 画四层,见 page-hud.css)。
-       ★ viewBox="0 0 100 540" —— 100:540 ≈ 这一条栏的真实长宽比(约 1:5)。
-         比例必须接近:preserveAspectRatio="none" 会把用户单位拉成非等比,
-         而虚线的 dasharray 是按用户单位算的 —— 比例差太多,横线那几段虚线
-         就会比竖线的长一大截(第一版 1:4.4 就是这个毛病)。
-       从右上角起 → 顶边往左 → 45° 切角 → 主线下来 → 45° 切角 → 底边往右。
-       ★ 开口在【右边】:那条边就是视口右缘,不画线,栏看起来是"贴着屏幕站"的。 */ -}}
-{{- $frame := "M92 8 L10 8 L4 14 L4 526 L10 532 L92 532" -}}
-{{- /* 拐点短刺:每个顶点两组互相垂直的短线(往形状外面长) */ -}}
-{{- $lock := "M92 8 h8 M92 8 v-8 M10 8 h-8 M10 8 v-8 M4 14 h-8 M4 14 v-8 M4 526 h-8 M4 526 v8 M10 532 h-8 M10 532 v8 M92 532 h8 M92 532 v8" -}}
-{{/* ★ data-hud-page = 这一页自己的 RelPermalink。
-      两个用处:① 三枚按钮里"导出本篇文章的 Markdown"要知道自己站在哪一页;
-                ② tests/page-hud.test.mjs 拿它和每个产物文件自己的 canonical 对账 ——
-                   只要 HUD 又被人挪回 partialCached 的 footer 链里(见 baseof.html),
-                   整批页面会立刻变红。 */}}
-<div class="page-hud" id="page-hud" data-hud-page="{{ $current.RelPermalink }}">
-    <svg class="page-hud__frame" viewBox="0 0 100 540" preserveAspectRatio="none" aria-hidden="true"
+{{- /* 外轮廓:一条折线走完整个形状(同一条 d 画三层,和 CD 页左侧 .holo 同一套语言) */ -}}
+{{- $frame := "M70 0 L74.6188 8 L90 8 L92 10 L92 90 L90 92 L80 92 L75.3812 100" -}}
+<div class="page-hud" id="page-hud" data-hud-page="{{ .RelPermalink }}">
+    {{/* ★ viewBox="0 0 100 100" 就是用户的坐标制式:一个单位 = 一页的 1%。
+         ★ preserveAspectRatio="none" 把它拉满视口 ⇒ 坐标即百分比。
+         ★ 每条线都要 vector-effect:non-scaling-stroke:
+           它让【线宽和虚线节拍都按屏幕像素算】,不被 viewBox 的拉伸带跑
+           (SVG 工作组确认过 dash* 与 stroke-width 走同一套换算,见 svgwg#323)。
+           所以 --hud-dash 那串数字和 CD 页可以逐字相同。 */}}
+    <svg class="page-hud__frame" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"
         data-hud-frame="{{ $frame }}">
         <path class="hud-halo" d="{{ $frame }}"></path>
         <path class="hud-line" d="{{ $frame }}"></path>
-        <path class="hud-lock" d="{{ $lock }}"></path>
         <path class="hud-run" d="{{ $frame }}"></path>
     </svg>
 
-    {{/* ① 导航:图标取菜单项的 pre(和顶栏/平板同一批 SVG,不会各自漂) */}}
-    <nav class="hud-nav" aria-label="站点导航">
-        {{- range $i, $m := site.Menus.main }}
-        {{- $itemURL := (cond (strings.HasSuffix .URL "/") .URL (printf "%s/" .URL)) | absLangURL -}}
-        {{- $isHere := eq $itemURL $pageURL -}}
-        <a class="hud-nav__item{{ if $isHere }} is-current{{ end }}" href="{{ .URL | absLangURL }}"
-            data-hud-nav="{{ $m.Identifier }}"{{ if $isHere }} aria-current="page"{{ end }}
-            title="{{ $m.Title | default $m.Name }}" style="--hud-i: {{ $i }}">
-            <span class="hud-nav__icon" aria-hidden="true">
-                {{- with $m.Pre }}{{ . }}{{ else }}
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                    stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="4" y="4" width="16" height="16" rx="4"></rect>
-                    <path d="M9 12h6"></path>
-                </svg>
-                {{- end }}
-            </span>
-            <span class="hud-nav__name">{{ $m.Name }}</span>
-        </a>
-        {{- end }}
-    </nav>
-
-    {{/* ③ 右下三件套:滑条 / 旋钮 / 滑条
+    {{/* ★ 右下三件套:滑条 / 旋钮 / 滑条
            —— 排法和 CD 页左侧凸起里那三件一致(推子 / 方按钮 / 推子)。
            用户明确:"不是展开,是右下角那三个控件本身就长这样" ⇒
-           音量、配色都没有弹出面板,就是常驻的两根竖滑条。 */}}
+           音量、配色都没有弹出面板,就是常驻的两根竖滑条。
+           ★ 留着它们还有一个硬原因:主题 footer 末尾那句
+             document.getElementById("theme-toggle").addEventListener(...) 没有判空,
+             这个 id 在博客页上必须存在。 */}}
     <div class="hud-ctl">
         <div class="hud-fader">
             <div class="hud-fader__head">

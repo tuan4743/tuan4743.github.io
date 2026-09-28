@@ -46,7 +46,14 @@
 {{- else }}
 <body id="top">
 {{- end }}
-    {{ partialCached "header.html" . .Page -}}
+    {{/* ★★ 顶栏(品牌 + 搜索)按用户第二刀的要求【撤掉了】:
+           "效果不对,先去掉顶部的所有东西,画出边框先。"
+           标记本身没删,还在 layouts/_partials/header.html(以及它用的
+           nav-switches.html / search 组件)—— 要加回来,把下面那行取消注释即可。
+         ★ 撤的是【渲染】,不是文件:这样"顶栏要不要、长什么样"回头改一行就能试。
+         ★ 注意:HUD 边框的起点在页面顶部(y=0)横坐标 30 处 ——
+           顶栏在的时候会把它第一段斜线盖住,这也是先撤掉它的原因之一。 */}}
+    {{/* {{ partialCached "header.html" . .Page -}} */}}
     <main class="main">
         {{- block "main" . }}{{ end }}
     </main>

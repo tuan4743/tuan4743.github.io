@@ -1,18 +1,24 @@
 /* ============================================================
-   右侧 HUD —— 博客页"最右侧那一条"(第二阶段 / 第一刀)
+   右侧 HUD —— 博客页"最右侧那条边框"(第二阶段 / 第二刀)
    ─────────────────────────────────────────────────────────────
-   用户给的最终布局图:最右侧是一条【HUD 栏】,里面从上到下是
-     ① 导航栏(menu.main 五项 —— 它就是从顶栏搬过来的,见 header.html)
-     ② 三个按钮(导出 Markdown / GitHub / WeChat)—— 下一刀
-     ③ 右下三件套:音量滑条 / 明暗旋钮 / 配色滑条
-   风格照 CD 选择页左侧那块 HUD(.holo):一条折线走完外轮廓、
-   同一条 d 画四层(光晕 / 断续主线 / 拐点短刺 / 跑马灯)、
-   按钮用 HTML 绝对定位压在线上,SVG 只管画线。
+   用户第一刀之后的原话:"效果不对,先去掉顶部的所有东西,画出边框先。
+   边框并不是一个正统的矩形,而是一个多边形。"
+   ⇒ 这一刀**只有边框**(+ 右下三件套),顶栏和那列导航都先撤了。
+
+   ★★ 坐标制式(用户给的,别自己改):
+      "以页面右上角为坐标原点,水平向左为 x 轴,页面比例为坐标(0~100)"
+      · x 越大越靠左;SVG 的 x 向右为正 ⇒ x_svg = 100 − x;
+      · "页面比例"= 百分比,所以 viewBox 就是 0 0 100 100,
+        再用 preserveAspectRatio="none" 拉满视口 —— 一个单位 = 一页的 1%;
+      · 45°/60° 是【坐标空间】的角度(dx=dy 就是 45°),不是屏幕上的角度:
+        16:9 屏上"45°"看起来约 29°(用户给的 y₁=10 就是这么推出来的,
+        见 page-hud.html 顶部那张对照表)。
+      · 顶点坐标写在 page-hud.html 的 $frame 里,不在这里 —— 一格都不重复。
 
    ★★ 三个必须记住的约束
-   1) 这条栏是 position:fixed(挂在 <footer> 里,和 .page-cosmos 同一处),
-      所以绝对不能用 absolute —— 那样的包含块会变成文档初始包含块,滚轮一滚它就跑。
-   2) 整条默认 pointer-events:none,只有控件自己开 auto ——
+   1) 这一层是 position:fixed + inset:0(挂在 baseof 里,不是 footer 链):
+      边框是按【整页百分比】定位的,所以容器必须是整个视口。
+   2) 整层默认 pointer-events:none,只有控件自己开 auto ——
       否则这层会把正文右半边的点击和划词全吃掉。
    3) 底色永远是一片深空星云(--bg-base 不随深浅主题变),所以 HUD 的线
       永远是浅色 #eaf3ff;而正文卡片 .main 用的是 --theme(随主题和色相变)——
@@ -39,33 +45,28 @@
     /* ═══════ 1. 形状层(和 .holo 一一对应)═══════ */
     --hud-ink: #eaf3ff;                   /* 线色 */
     --hud-line-w: 1px;                    /* 主线宽 */
-    --hud-dash: 26 9 5 7 42 12 13 8 7 6;  /* 断续节拍(和 CD 页同一条) */
+    --hud-dash: 26 9 5 7 42 12 13 8 7 6;  /* 断续节拍(和 CD 页逐字相同) */
     --hud-line-a: 0.42;                   /* 主线不透明度 */
     --hud-halo-w: 6px;                    /* 伴描边(=发光)宽度 */
     --hud-halo-a: 0.05;
-    --hud-lock-w: 1.4px;                  /* 锁定点短刺线宽 */
-    --hud-run-len: 46;                    /* 跑马灯长度(路径单位) */
-    --hud-run-total: 1260;                /* 路径总长(起始偏移:> 总长 = 每圈之间有停顿) */
-    --hud-run-dur: 11s;                   /* 跑一圈用时 */
-    --hud-glow: 0;                        /* 0~1:CD 页由音乐电平写;这一页留给"阅读进度"(下一刀) */
+    --hud-run-len: 46;                    /* 跑马灯长度(屏幕像素) */
+    --hud-run-dur: 12s;                   /* 跑一圈用时 */
+    /* ★ 跑马灯的起始偏移也是【屏幕像素】:它必须 > 这条折线的屏幕总长,
+       否则白线跑不完全程就跳回去了。折线屏幕总长 ≈ 0.97×视口高 + 0.25×视口宽
+       (竖线占 80% 高、两段斜线各 8% 高、两段横线共 25.4% 宽)——
+       1080 高 / 1920 宽算下来约 1536px,2560 宽约 2050px。
+       取 2400 能在这一档视口下都跑完整圈,代价是小屏上多停一会儿。 */
+    --hud-run-total: 2400;
+    --hud-glow: 0;                        /* 0~1:CD 页由音乐电平写;这一页留给"阅读进度"(以后) */
 
-    /* ═══════ 2. 这一条栏本身 ═══════ */
-    --hud-w: clamp(150px, 9vw, 196px);    /* 栏宽 */
-    --hud-pad: clamp(10px, 1.1vw, 18px);  /* 栏内边距 */
-    --hud-top: var(--header-height);      /* 从顶栏下面开始(和图上一样) */
-    --hud-spine: 10%;                     /* 导航项的左边界(= 框内那条主线右边一点) */
-
-    /* ═══════ 3. 导航项 ═══════ */
-    --hud-nav-gap: 6px;                   /* 项与项之间 */
-    --hud-nav-h: clamp(44px, 6.2vh, 60px);/* 每项高度 */
-    --hud-icon: 16px;                     /* 图标 */
-    --hud-nav-fs: 13px;                   /* 导航字号 */
-    --hud-nav-ls: 0.16em;
-    --hud-row-line: rgba(234, 243, 255, 0.16);   /* 每项上面那条短横线 */
-    --hud-row-line-on: rgba(234, 243, 255, 0.55);
+    /* ═══════ 2. 这条边框围出来的那一列 ═══════
+       ★ 8% 不是随手写的:折线的竖段就在 x=8 处(用户坐标),
+         右下三件套必须落在竖线【右边】那一列里,否则会骑到正文上。 */
+    --hud-w: clamp(96px, 8%, 220px);      /* 竖线右侧那一列的宽 */
+    --hud-pad: clamp(10px, 1.1vw, 18px);  /* 与视口边缘的间距 */
     --hud-ink-dim: rgba(234, 243, 255, 0.62);
 
-    /* ═══════ 4. 右下三件套 ═══════ */
+    /* ═══════ 3. 右下三件套 ═══════ */
     --hud-fader-len: clamp(64px, 9vh, 96px);   /* 滑条长度 */
     --hud-rail-w: 6px;                         /* 轨道粗细 */
     --hud-rail: rgba(234, 243, 255, 0.22);
@@ -75,17 +76,14 @@
     --hud-ctl-ls: 0.2em;
     --hud-val-fs: 10px;
 
-    /* ═══════ 5. 字体 ═══════ */
+    /* ═══════ 4. 字体 ═══════ */
     --hud-font: "Alpha Sector", "Pixel CN", "PingFang SC", "Microsoft YaHei",
         "Noto Sans SC", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     --hud-smooth: none;                   /* 像素字体要锐利:留 none */
 
     position: fixed;
-    top: var(--hud-top);
-    right: 0;
-    bottom: 0;
-    width: var(--hud-w);
-    z-index: 30;                          /* < 顶栏的 40:顶栏的下拉面板要压得住它 */
+    inset: 0;                             /* ★ 整个视口:边框是按整页百分比画的 */
+    z-index: 30;                          /* < 顶栏的 40(顶栏回来时,它的下拉面板要压得住) */
     pointer-events: none;                 /* ★ 见开头第 2 条 */
     color: var(--hud-ink);
     font-family: var(--hud-font);
@@ -94,10 +92,14 @@
 }
 
 /* ---------------- 形状层 ---------------- */
-/* ★ viewBox 的宽高比要接近这一条栏的真实比例(实测约 1:4.9~5.9):
-   preserveAspectRatio="none" 会把用户单位拉成非等比,而 dasharray 是按【用户单位】
-   算的 —— 比例差太多的话,横线的虚线段会比竖线的长一大截(第一版就是这个毛病)。
-   数值钉在 tests/page-hud.test.mjs 里。*/
+/* ★ viewBox="0 0 100 100" 就是用户的坐标制式:一个单位 = 一页的 1%;
+   preserveAspectRatio="none" 把它拉满视口 ⇒ 坐标即百分比(见 page-hud.html 的对照表)。
+   ★★ 所以"45°"是【坐标空间】的 45°(dx=dy),不是屏幕上的 45° ——
+      16:9 屏上它看起来约 29°、"60°"看起来约 44°。这是用户给的坐标制式本身
+      决定的(证据:他给的 y₁=10,正是"dx=2 且 45° ⇒ dy=2"推出来的)。
+   ★★ 每条线都要 vector-effect:non-scaling-stroke —— 它让【线宽和虚线节拍都按
+      屏幕像素算】,不被 viewBox 的拉伸带跑(SVG 工作组确认 dash* 与 stroke-width
+      走同一套换算,svgwg#323)。所以 --hud-dash 那串数字能和 CD 页逐字相同。 */
 .page-hud__frame {
     position: absolute;
     inset: 0;
@@ -129,15 +131,8 @@
     opacity: calc(var(--hud-line-a) + var(--hud-glow) * 0.4);
 }
 
-/* 拐点短刺:每个顶点两组互相垂直的短线(雷达锁定点) */
-.hud-lock {
-    fill: none;
-    stroke: #ffffff;
-    stroke-width: var(--hud-lock-w);
-    stroke-linecap: square;
-    vector-effect: non-scaling-stroke;
-    opacity: calc(0.5 + var(--hud-glow) * 0.4);
-}
+/* 拐点短刺(CD 页那套 .holo-lock)这一刀先不画:形状还没定,
+   先让用户只看清这条线;形状定下来再把短刺补回来。 */
 
 /* 跑马灯:一段白线绕外框走一圈 */
 .hud-run {
@@ -154,116 +149,18 @@
     to { stroke-dashoffset: 0; }
 }
 
-/* ---------------- 导航栏(menu.main 搬过来)---------------- */
-.hud-nav {
-    position: absolute;
-    left: var(--hud-spine);
-    right: var(--hud-pad);
-    top: var(--hud-pad);
-    display: flex;
-    flex-direction: column;
-    gap: var(--hud-nav-gap);
-    pointer-events: auto;                 /* ★ 只有控件自己开 */
-}
-
-/* 每一项:一条短横线(线左端一个小圆点)+ 图标 + 名字。
-   ★ 用"横线 + 文字躺在结构线之间"这种写法(和 .gd-mode 一致),
-     不做填充卡片 —— 一列五个实心盒子会把这条栏压得很重。 */
-.hud-nav__item {
-    position: relative;
-    display: flex;
-    align-items: center;
-    gap: 0.6em;
-    min-height: var(--hud-nav-h);
-    padding: 0.35em 0 0.35em 0.9em;
-    color: var(--hud-ink-dim);
-    font-size: var(--hud-nav-fs);
-    letter-spacing: var(--hud-nav-ls);
-    text-decoration: none;
-    transition: color 0.18s ease, background-color 0.18s ease;
-}
-
-.hud-nav__item::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 0;
-    height: 1px;
-    background: var(--hud-row-line);
-    transition: background-color 0.18s ease;
-}
-
-.hud-nav__item::after {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 5px;
-    height: 5px;
-    margin: -2px 0 0 -2px;
-    border-radius: 50%;
-    background: var(--hud-row-line);
-    transition: background-color 0.18s ease, box-shadow 0.18s ease;
-}
-
-.hud-nav__item:hover,
-.hud-nav__item:focus-visible {
-    color: var(--hud-ink);
-    background-color: rgba(234, 243, 255, 0.05);
-    text-decoration: none;
-}
-
-.hud-nav__item:hover::before,
-.hud-nav__item:hover::after {
-    background: var(--hud-row-line-on);
-}
-
-.hud-nav__item.is-current {
-    color: var(--hud-ink);
-}
-
-.hud-nav__item.is-current::before {
-    background: var(--hud-row-line-on);
-}
-
-.hud-nav__item.is-current::after {
-    background: #ffffff;
-    box-shadow: 0 0 0 3px rgba(234, 243, 255, 0.14);
-}
-
-.hud-nav__icon {
-    flex: 0 0 auto;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: var(--hud-icon);
-    height: var(--hud-icon);
-    opacity: 0.9;
-}
-
-/* 图标来自 menu.main 的 pre(hugo.toml 里那段 <svg class="menu-icon">):
-   ★ 它自己没写 width/height,顶栏是靠 `.menu .menu-icon` 那条规则量尺寸的;
-     这里不在 .menu 里,必须自己给尺寸 —— 否则 svg 会按 300×150 的固有尺寸铺开。 */
-.hud-nav__icon svg {
-    width: var(--hud-icon);
-    height: var(--hud-icon);
-    display: block;
-}
-
-.hud-nav__name {
-    white-space: nowrap;
-}
-
 /* ---------------- 右下三件套:滑条 / 旋钮 / 滑条 ---------------- */
 /* 排法照 CD 页左侧凸起里那三件(.holo-stack:推子 / 方按钮 / 推子):
    用户原话"右下角那三个控件本身就长这样。不是展开" ——
-   所以音量、配色都【没有弹出面板】,就是常驻的两根滑条。 */
+   所以音量、配色都【没有弹出面板】,就是常驻的两根竖滑条。
+   ★ 位置必须落在折线竖段(x=8)【右边】那一列里 —— 骑上去就压进正文区了。
+   ★ 第一刀那列导航(.hud-nav*)的样式已随标记一起删掉(需要时见 commit ad55235)。 */
 .hud-ctl {
     position: absolute;
-    left: var(--hud-pad);
     right: var(--hud-pad);
     bottom: var(--hud-pad);
+    left: auto;
+    width: calc(var(--hud-w) - 2 * var(--hud-pad));
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -451,22 +348,18 @@
     display: block;
 }
 
-/* ---------------- 和主题既有元素抢位置的两处 ---------------- */
-/* 1) 「回到顶部」那枚圆按钮是 position:fixed + right:2rem + z-index:99,
-      不挪开就正好压在右下三件套上面 */
+/* ---------------- 和主题既有元素抢位置 ---------------- */
+/* 「回到顶部」那枚圆按钮是 position:fixed + right:2rem + z-index:99,
+   不挪开就正好压在右下三件套上面。
+   (第一刀那条"给顶栏搜索框让位"的 padding-right 已经删了 ——
+    用户这一刀要求把顶栏整个撤掉,没有顶栏要让位了。) */
 :root[data-theme].shell-page .top-link {
     right: calc(var(--hud-w) + 1.6rem);
 }
 
-/* 2) 顶栏右侧的搜索框本来顶到视口最右缘 —— 正好撞上这条栏;
-      先让它停在这一条栏左边(顶栏那一刀再细调位置) */
-:root[data-theme].shell-page .header-nav {
-    padding-right: calc(var(--hud-w) + 0.75rem);
-}
-
-/* ---------------- 窄屏:这一条栏没地方站,整条藏掉 ---------------- */
-/* 正文是 720px 居中列,两边各要留出栏宽 + 一点缝;
-   视口不够宽时两边的留白撑不下这一条栏,与其压住正文不如先收起来。 */
+/* ---------------- 窄屏:这条边框连同三件套一起藏掉 ---------------- */
+/* 边框本身铺满整页,窄屏也画得出来;真正放不下的是右下那一列控件
+   (而且这个设计本来就是桌面版的)。与其只留半截,不如整条先收起来。 */
 @media (max-width: 1180px) {
     .page-hud {
         display: none;
@@ -474,10 +367,6 @@
 
     :root[data-theme].shell-page .top-link {
         right: 2rem;
-    }
-
-    :root[data-theme].shell-page .header-nav {
-        padding-right: 0.75rem;
     }
 }
 
