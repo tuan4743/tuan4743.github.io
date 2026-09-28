@@ -1,39 +1,50 @@
 {{- /* ============================================================
-     投影节点(左上角那面三角投影)
+     投影(占住【平板主界面】左上角一角的等腰直角三角形)
      ─────────────────────────────────────────────────────────────
-     用户改过一次:原来画的是屏幕右上角一枚小方块节点,现在要
-     "占住左上角一角的三角形投影"。
-     它标的是"这块屏幕和右边的那些页面之间的交界"——整块机器向右平移出去的
-     时候(见 shell.css 第三节),这面投影留在原地,落地页上它还在同一个位置,
-     过场因此是连的。
-     ★ 纯装饰:aria-hidden + pointer-events:none,不抢点击。
-     ★ 几何:viewBox 200×140,直角在左上角;斜边是那条亮线,
-       里面两条是平行于斜边的扫描线(会在 CSS 里往斜边方向漂)。
-     ★ 样式在 assets/css/extended/shell.css(第二节)。
+     用户改过两次,现在是第三版:
+       ① 第一版画在屏幕右上角(一枚小方块节点);
+       ② 第二版挪到左上角、但钉在视口上 —— 于是 CD 页和内容页上都会冒出来;
+       ③ 这一版:等腰直角三角形(两条直角边一样长)、更小、加点小装饰,
+          而且【只住在平板主界面里】——它是平板的一层,平板一关就没了,
+          过场时跟着平板一起滑走,不会出现在 CD 页或博客页上。
+     ★ 纯装饰:aria-hidden;定位/尺寸/动画在 assets/css/extended/shell.css 第二节。
      ============================================================ */ -}}
 <div class="proj-node" aria-hidden="true">
-    <svg viewBox="0 0 200 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg viewBox="0 0 168 168" fill="none" xmlns="http://www.w3.org/2000/svg">
         <defs>
-            {{/* 从角上那点亮出来,往斜边方向淡掉 */}}
+            {{/* 从角上那点亮起来,往斜边方向淡掉 */}}
             <linearGradient id="pnGrad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0" stop-color="#22d3ee" stop-opacity="0.26" />
-                <stop offset="0.55" stop-color="#22d3ee" stop-opacity="0.08" />
+                <stop offset="0" stop-color="#22d3ee" stop-opacity="0.24" />
+                <stop offset="0.55" stop-color="#22d3ee" stop-opacity="0.07" />
                 <stop offset="1" stop-color="#22d3ee" stop-opacity="0" />
             </linearGradient>
         </defs>
-        {{/* 三角本体 */}}
-        <path class="pn-fill" d="M0 0 H196 L0 136 Z" />
-        {{/* 内侧那两道平行于斜边的扫描线(会漂) */}}
+        {{/* 三角本体:两条直角边都 160(等腰直角三角形,斜边正好 45°) */}}
+        <path class="pn-fill" d="M0 0 H160 L0 160 Z" />
+        {{/* 平行于斜边的两道扫描线(会往斜边方向漂) */}}
         <g class="pn-scan">
-            <path d="M121.5 0 L0 84.3" />
-            <path d="M66.6 0 L0 46.2" />
+            <path d="M112 0 L0 112" />
+            <path d="M74 0 L0 74" />
         </g>
-        {{/* 斜边 + 两条直角边(贴着屏幕边的观感) */}}
-        <path class="pn-edge" d="M196 0 L0 136" />
-        <path class="pn-leg" d="M0 0 H196" />
-        <path class="pn-leg" d="M0 0 V136" />
+        {{/* 斜边内侧一条虚线:双线的 HUD 观感 */}}
+        <path class="pn-dash" d="M148 0 L0 148" />
+        {{/* 斜边上三道垂直小刻度(垂直于斜边 = 沿 45° 方向) */}}
+        <g class="pn-tick">
+            <path d="M112 32 L128 48" />
+            <path d="M72 72 L88 88" />
+            <path d="M32 112 L48 128" />
+        </g>
+        {{/* 两条直角边上的标尺刻度 */}}
+        <g class="pn-ruler">
+            <path d="M44 0 V6 M84 0 V6 M124 0 V6" />
+            <path d="M0 44 H6 M0 84 H6 M0 124 H6" />
+        </g>
+        {{/* 直角边(压着屏幕边)+ 斜边 */}}
+        <path class="pn-leg" d="M0 0 H160" />
+        <path class="pn-leg" d="M0 0 V160" />
+        <path class="pn-edge" d="M160 0 L0 160" />
         {{/* 角上的节点:亮芯 + 呼吸环 */}}
-        <circle class="pn-ring" cx="21" cy="17" r="6.5" />
-        <circle class="pn-core" cx="21" cy="17" r="2.6" />
+        <circle class="pn-ring" cx="20" cy="20" r="7" />
+        <circle class="pn-core" cx="20" cy="20" r="2.6" />
     </svg>
 </div>

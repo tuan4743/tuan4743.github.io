@@ -30,7 +30,6 @@
      .page-cosmos 是 position:fixed + inset:0 + z-index:-1 ⇒ 钉在视口、
      铺满、且画在所有内容【后面】。 */}}
 <div class="page-cosmos">{{ partial "cosmos.html" . }}</div>
-{{ partial "projection-node.html" . }}
 {{- with resources.Get "js/page-slide.js" }}
 {{- $u := . | fingerprint "sha256" }}
 <script defer src="{{ $u.RelPermalink }}"></script>

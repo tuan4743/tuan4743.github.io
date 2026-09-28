@@ -48,14 +48,17 @@ ok('首页:没有 shell-page 类(它的底是那块屏幕,不是整页星云)',
 /* ---------- ② 其余页面拿到同一套 ---------- */
 ok('技术页:挂了 shell-page', /classList\.add\("shell-page"\)/.test(tech));
 ok('技术页:宇宙背景在', cls('cosmos').test(tech));
-ok('技术页:投影节点在', cls('proj-node').test(tech));
 ok('技术页:page-slide.js 在', /page-slide\.[0-9a-f]+\.js/.test(tech));
 ok('技术页:没有重复的 .intro-bg(那是首页的)', !/intro-bg/.test(tech));
-ok('★ 两个 partial 是【两处共用】的,不是各写一份',
+ok('★★ 技术页【没有】投影 —— 它只属于平板主界面',
+  !cls('proj-node').test(tech) && !/projection-node/.test(rd(`${BH}/layouts/partials/extend_footer.html`)),
+  '用户:"固定在了首页的左上角,导致 CD 页和内容页都会出现"');
+ok('★ 宇宙背景是两处共用的(首页 + 其余页面)',
   /partial "cosmos\.html"/.test(rd(`${BH}/layouts/index.html`)) &&
-  /partial "cosmos\.html"/.test(rd(`${BH}/layouts/partials/extend_footer.html`)) &&
+  /partial "cosmos\.html"/.test(rd(`${BH}/layouts/partials/extend_footer.html`)));
+ok('★ 投影只在一处渲染:平板里面',
   /partial "projection-node\.html"/.test(rd(`${BH}/layouts/index.html`)) &&
-  /partial "projection-node\.html"/.test(rd(`${BH}/layouts/partials/extend_footer.html`)));
+  (rd(`${BH}/layouts/index.html`).match(/partial "projection-node\.html"/g) || []).length === 1);
 
 /* ---------- ③ 宇宙背景:CD 架和页面背景是同一份 ---------- */
 ok('★ .cosmos-nebula 的星云声明只有一份(在 shell.css)',
@@ -108,23 +111,33 @@ ok('★ "减少动态效果"下直接跳,不播动画',
   /prefers-reduced-motion/.test(slideJs) && /prefers-reduced-motion/.test(shellCode));
 ok('留了现场读数 __pageSlide()(这个环境没浏览器)', /window\.__pageSlide = function/.test(slideJs));
 
-/* ---------- ⑤ 三角投影(占住左上角的一角)---------- */
+/* ---------- ⑤ 投影:平板左上角那面等腰直角三角形 ---------- */
 const nodeHtml = rd(`${BH}/layouts/_partials/projection-node.html`);
-ok('★ 节点是 fixed 且不吃点击(它要穿过过场留在原地)',
-  /\.proj-node\s*\{[^}]*position: fixed/.test(shellCode) &&
-  /\.proj-node\s*\{[^}]*pointer-events: none/.test(shellCode));
-ok('★ 节点在所有层最上面(43 > 平板 40 / 顶缘按钮 41)',
-  /\.proj-node\s*\{[^}]*z-index: 43/.test(shellCode));
-ok('★★ 它钉在【左上角】(用户:原来在右上角,应该在左上角)',
-  /\.proj-node\s*\{[^}]*left: 0/.test(shellCode) && /\.proj-node\s*\{[^}]*top: 0/.test(shellCode) &&
-  !/\.proj-node\s*\{[^}]*\n\s*right:/.test(shellCode),
-  'left/top 贴角,不能再有 right');
-ok('★★ 是一块【三角】投影,占住那一角(直角在左上角)',
-  /<path class="pn-fill" d="M0 0 H\d+ L0 \d+ Z"/.test(nodeHtml) && /<linearGradient id="pnGrad"/.test(nodeHtml),
-  '直角在 (0,0),斜边指向右下');
-ok('★ 风格跟 HUD(斜边亮线 + 平行扫描线 + 角上节点呼吸)',
-  /\.pn-edge\s*\{/.test(shellCode) && /\.pn-scan path\s*\{/.test(shellCode) &&
-  /@keyframes pn-sweep/.test(shellCode) && /@keyframes pn-pulse/.test(shellCode));
+/* ★ 形状是【算出来】的:从 pn-fill 的 path 里把三条边读出来,
+   断言两条直角边相等(等腰直角三角形),而不是看字符串像不像。 */
+const tri = /<path class="pn-fill" d="M0 0 H(\d+) L0 (\d+) Z"/.exec(nodeHtml);
+const legX = tri ? Number(tri[1]) : NaN, legY = tri ? Number(tri[2]) : NaN;
+ok('★★ 是【等腰直角三角形】(两条直角边一样长,直角在左上角)',
+  Number.isFinite(legX) && legX === legY && legX > 0,
+  `直角边 ${legX} × ${legY}`);
+ok('★ 比上一版小(clamp 的上限 ≤ 140px,上一版是 210px)',
+  (() => { const m = /\.tablet \.proj-node\s*\{[^}]*width:\s*clamp\((\d+)px,\s*[\d.]+vw,\s*(\d+)px\)/.exec(shellCode);
+    return m && Number(m[2]) <= 140 && Number(m[1]) >= 60; })(),
+  ((/\.tablet \.proj-node\s*\{[^}]*width:\s*(clamp\([^)]*\))/.exec(shellCode) || [])[1] || '?'));
+ok('★★ 它住在【平板里面】(不再是钉在视口上的一层)',
+  /\.tablet \.proj-node\s*\{[^}]*position: absolute/.test(shellCode) &&
+  !/^\.proj-node\s*\{[^}]*position: fixed/m.test(shellCode) &&
+  /class="tablet"[^>]*>[\s\S]{0,200}projection-node/.test(idx),
+  '只随平板出现/消失、过场时随平板滑走');
+ok('★ 贴住左上角、且不吃点击', /\.tablet \.proj-node\s*\{[^}]*left: 0/.test(shellCode) &&
+  /\.tablet \.proj-node\s*\{[^}]*top: 0/.test(shellCode) &&
+  /\.tablet \.proj-node\s*\{[^}]*pointer-events: none/.test(shellCode));
+ok('★ 加了小装饰:斜边虚线 + 斜边刻度 + 两条直角边的标尺',
+  /\.pn-dash\s*\{/.test(shellCode) && /\.pn-tick\s*\{/.test(shellCode) && /\.pn-ruler\s*\{/.test(shellCode) &&
+  /class="pn-dash"/.test(nodeHtml) && /class="pn-tick"/.test(nodeHtml) && /class="pn-ruler"/.test(nodeHtml));
+ok('★ 风格仍然是 HUD(扫描线漂移 + 角上节点呼吸)',
+  /@keyframes pn-sweep/.test(shellCode) && /@keyframes pn-pulse/.test(shellCode) &&
+  /\.pn-scan path\s*\{/.test(shellCode));
 
 /* ---------- ⑥ 背景必须是"钉在视口的最底层" ----------
    用户报过一次:"你直接把它固定在了滑动界面内,不仅挡住了主页面,
@@ -145,6 +158,21 @@ ok('★★ .page-cosmos 钉在视口 + 画在所有内容后面(z-index 负数)'
 ok('★ 页面底色给了 html(body 透明),否则 body 的背景会盖住负 z-index 那层',
   /:root\[data-theme\]\.shell-page\s*\{[^}]*background: var\(--bg-base/.test(shellCode) &&
   /:root\[data-theme\]\.shell-page body\s*\{[^}]*background: transparent/.test(shellCode));
+
+/* ---------- ⑦ 内容的背景【按主题正常变化】(用户澄清过)----------
+   用户原话:"底层背景是不随深暗变化,但是原本内容的背景,就是你现在这种文本框的形式,
+   这个框是正常变化的"。第一版把 --primary/--content/--entry 整套都按成深底浅字,
+   等于把主题按死了 —— 错。现在只动"页面底色",卡片走主题自己的变量。 */
+const shellPageRules = (shellCode.match(/:root\[data-theme\]\.shell-page[^{]*\{[^}]*\}/g) || []).join('\n');
+ok('★★ 不再覆盖主题调色板(--primary / --content / --entry / --border 一律别碰)',
+  !/--primary:/.test(shellPageRules) && !/--content:/.test(shellPageRules) &&
+  !/--entry:/.test(shellPageRules) && !/--border:/.test(shellPageRules) &&
+  !/--theme:/.test(shellPageRules),
+  '把主题按死的话,浅色主题下也是深底浅字 —— 那不是用户要的');
+ok('★★ 正文面板跟着主题走(用主题自己的 --theme 调出来)',
+  /:root\[data-theme\]\.shell-page \.main\s*\{[^}]*color-mix\(in srgb, var\(--theme\)/.test(shellCode) &&
+  /:root\[data-theme\]\.shell-page \.main\s*\{[^}]*var\(--border\)/.test(shellCode),
+  '浅色主题=浅卡,深色主题=深卡');
 
 /* ---------- 出结果 ---------- */
 let pass = 0;

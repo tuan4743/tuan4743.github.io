@@ -12,9 +12,9 @@
          两处【共用同一批类】,不是抄一份(抄了迟早会漂)。
          ★ 它刻意【不跟深浅主题走】:不管 data-theme 是 dark 还是 light,
            背景都是同一片星云 —— 用户要的就是"切换深浅背景也不变"。
-     二、三角投影节 .proj-node —— 占住屏幕【左上角】的一角(HUD 风格)。
-         它【不跟着平移】:机器滑走了它还在原地,落地页上它也在同一个位置,
-         过场因此是连的。
+     二、投影 .proj-node —— 占住【平板主界面】左上角一角的等腰直角三角形
+         (HUD 风格)。它住在平板那一层里面:只随平板出现/消失,过场时随平板滑走,
+         不会出现在 CD 页或博客页上。
      三、向左滑过场 —— 点 APP → 整块机器(场景 + 平板 + 顶缘按钮)左移 100vw,
          滑完再由 JS 跳转。用的是 CD 架那套 transform + 同一条缓动曲线,
          只是这次滑的是【整屏】而不是 66vw。
@@ -118,20 +118,22 @@
     pointer-events: none;
 }
 
-/* ---------- 二、投影节点(左上角那面三角投影)----------
-   用户改过一次:原来画在右上角(一枚小方块节点),现在要"占住左上角一角的三角形"。
-   ★ position: fixed + left/top 0,而且【不参与平移】—— 机器滑走时它留在原地,
-     落地页上它还在同一个位置,过场因此是连的(它是"投影口",不是屏幕里的内容)。
-   ★ z-index 43:高于平板(40)和顶缘按钮(41)。 */
-.proj-node {
-    position: fixed;
+/* ---------- 二、投影(平板主界面左上角那面等腰直角三角形)----------
+   ★ 它在【平板那一层里面】(见 layouts/index.html 的 .tablet),不是钉在视口上的:
+     只随平板出现、随平板消失、过场时随平板一起滑走。
+     上一版写成 position:fixed + z-index:43,结果 CD 页和博客页上都会冒出来
+     (用户报的"固定在了首页的左上角,导致 CD 页和内容页都会出现")。
+   ★ 定位用绝对定位贴住平板(也就是玻璃)的左上角;
+     z-index 1:压在玻璃反光之上、卡片之下那一档里(卡片在角上是空的,
+     内容从"玻璃边 + 内边距"才开始,不会打架)。 */
+.tablet .proj-node {
+    position: absolute;
     left: 0;
     top: 0;
-    z-index: 43;
-    width: clamp(120px, 13vw, 210px);
+    z-index: 1;
+    width: clamp(88px, 9vw, 132px);
     pointer-events: none;
     opacity: 0.9;
-    filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.28));
 }
 
 .proj-node svg {
@@ -158,15 +160,34 @@
     animation-delay: 0.9s;
 }
 
-/* 斜边与两条直角边:细亮线,和 CD 界面那套 HUD 同一路数 */
+/* 斜边 + 斜边内侧那条虚线 + 直角边:细亮线,和 CD 界面那套 HUD 同一路数 */
 .pn-edge {
     stroke: rgba(160, 235, 255, 0.62);
     stroke-width: 1.1;
 }
 
+.pn-dash {
+    stroke: rgba(160, 235, 255, 0.22);
+    stroke-width: 1;
+    stroke-dasharray: 5 6;
+}
+
 .pn-leg {
     stroke: rgba(160, 235, 255, 0.3);
     stroke-width: 1;
+}
+
+/* 装饰:斜边上的垂直刻度 + 两条直角边上的标尺 */
+.pn-tick {
+    stroke: rgba(160, 235, 255, 0.5);
+    stroke-width: 1;
+    stroke-linecap: round;
+}
+
+.pn-ruler {
+    stroke: rgba(160, 235, 255, 0.34);
+    stroke-width: 1;
+    stroke-linecap: round;
 }
 
 .pn-ring {
@@ -234,45 +255,35 @@ body.page-out {
 }
 
 /* ---------- 四、右边的那些页面(第一批:先给它们"同一个样式") ----------
-   ★ 这一批只做到"滑过去不穿帮":同一个宇宙背景 + 同一个投影节点 + 一层
-     看得清的内容面板。博客页本身按"轻量、舒适"重做是【第二批】的事。
-   ★ 深色底 + 浅色字是【故意】的:背景恒定不跟主题走,字就得跟着背景走,
-     否则浅色主题下会变成深灰字压在黑星云上(读不了)。
-     选择器带 :root[data-theme],是为了压过主题自己的 :root[data-theme="dark"]
-     那一组变量(它的特异度是 (0,2,0))。 */
-:root[data-theme].shell-page body {
-    --theme: transparent;
-    --entry: rgba(10, 16, 30, 0.62);
-    --primary: #eaf3ff;
-    --secondary: rgba(198, 220, 246, 0.72);
-    --tertiary: rgba(150, 190, 240, 0.32);
-    --content: rgba(226, 238, 252, 0.9);
-    --code-bg: rgba(8, 13, 24, 0.62);
-    --code-block-bg: rgba(8, 13, 24, 0.72);
-    --border: rgba(150, 190, 240, 0.16);
-    background: transparent;
-}
-
+   ★★ 用户澄清过一次,别再做错:
+      · 【底层背景】不跟深浅主题走 —— 永远是同一片星云
+        (所以 body 透明,让 .page-cosmos 露出来);
+      · 【内容自己的背景】按主题【正常变化】 —— 正文面板就是一张卡片,
+        深色主题下是深卡、浅色主题下是浅卡,字色也跟着主题走。
+      上一版把整套调色板( --primary / --content / --entry …)都按成了"深底浅字",
+      那是把主题整个按死了 —— 错的。这一版只动"页面底色"这一件事。
+   ★ body 透明:PaperMod 的 body 背景是 var(--theme),不透明会把负 z-index
+     那层星云盖掉。注意只透明【背景】,--theme 这个变量本身留着给卡片用。 */
 :root[data-theme].shell-page {
     background: var(--bg-base, #030307);
 }
 
-/* 内容面板:一块带边框的磨砂玻璃,压在星云上 */
+:root[data-theme].shell-page body {
+    background: transparent;
+}
+
+/* 正文面板:一张【跟着主题走】的磨砂卡片(略微透一点,能看见后面的星云)。
+   color-mix 用的就是主题自己的 --theme(浅色主题=白、深色主题=深灰),
+   所以深浅一切换它自己就跟着变。 */
 :root[data-theme].shell-page .main {
-    background: rgba(9, 14, 26, 0.5);
-    border: 1px solid rgba(150, 190, 240, 0.16);
+    background: color-mix(in srgb, var(--theme) 86%, transparent);
+    border: 1px solid var(--border);
     border-radius: 18px;
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
     padding: clamp(16px, 2.4vh, 30px) clamp(16px, 2.6vw, 36px);
     margin: clamp(12px, 2.2vh, 28px) auto;
-}
-
-/* 顶栏(这些页面还留着旧顶栏,第二批再动它):给右上角那枚投影节点让位,
-   别让"配色/音量"那几个开关压到它身上。 */
-:root[data-theme].shell-page .header-nav {
-    padding-right: clamp(70px, 6vw, 104px);
 }
 
 /* ---------- "减少动态效果":背景和投影都不要动 ---------- */
