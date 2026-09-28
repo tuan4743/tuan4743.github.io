@@ -76,11 +76,14 @@ ok('★ 背景【不跟深浅主题走】(用户:切换深浅背景也不变)',
   !/\.cosmos-nebula[\s\S]{0,200}data-theme/.test(shellCode),
   'cosmos 那两条规则里没有任何 data-theme 分支');
 
-/* ---------- ④ 右滑过场 ---------- */
-ok('★ 三条一起滑:场景 / 平板 / 顶缘按钮',
-  /body\.intro-page\.page-out \.scene\s*\{[^}]*translateX\(100vw\)/.test(shellCode) &&
-  /body\.intro-page\.page-out \.tablet\s*\{[^}]*translateX\(100vw\)/.test(shellCode) &&
-  /body\.intro-page\.page-out \.statusbar-toggle\s*\{[^}]*translateX\(calc\(-50% \+ 100vw\)\)/.test(shellCode),
+/* ---------- ④ 向左滑过场 ----------
+   ★ 方向要说清楚,免得下次又做反:世界坐标从左到右是
+     【CD 选择页 | 首页 | 其他页】——其他页在首页【右边】,
+     所以"去右边的页面"= 视口往右移 = 内容【向左】平移。 */
+ok('★ 三条一起滑,而且是【向左】100vw(其他页在首页右边)',
+  /body\.intro-page\.page-out \.scene\s*\{[^}]*translateX\(-100vw\)/.test(shellCode) &&
+  /body\.intro-page\.page-out \.tablet\s*\{[^}]*translateX\(-100vw\)/.test(shellCode) &&
+  /body\.intro-page\.page-out \.statusbar-toggle\s*\{[^}]*translateX\(calc\(-50% - 100vw\)\)/.test(shellCode),
   '平板和按钮不在 .scene 里(层级原因),必须单独带上,否则一眼穿帮');
 /* ★ 时长要把前导点带上再 parseFloat:`.55s` 用 [\d.]+ 抓到的是 "55"(= 55 秒)。
    这个坑本轮又踩了一次(探针里),测试里记下来。 */
@@ -105,15 +108,43 @@ ok('★ "减少动态效果"下直接跳,不播动画',
   /prefers-reduced-motion/.test(slideJs) && /prefers-reduced-motion/.test(shellCode));
 ok('留了现场读数 __pageSlide()(这个环境没浏览器)', /window\.__pageSlide = function/.test(slideJs));
 
-/* ---------- ⑤ 投影节点 ---------- */
+/* ---------- ⑤ 三角投影(占住左上角的一角)---------- */
+const nodeHtml = rd(`${BH}/layouts/_partials/projection-node.html`);
 ok('★ 节点是 fixed 且不吃点击(它要穿过过场留在原地)',
   /\.proj-node\s*\{[^}]*position: fixed/.test(shellCode) &&
   /\.proj-node\s*\{[^}]*pointer-events: none/.test(shellCode));
 ok('★ 节点在所有层最上面(43 > 平板 40 / 顶缘按钮 41)',
   /\.proj-node\s*\{[^}]*z-index: 43/.test(shellCode));
-ok('★ 节点是 SVG 画的,风格跟 HUD(细线 + 青色 + 呼吸 + 朝右流动的光束)',
-  /<svg viewBox="0 0 92 40"/.test(rd(`${BH}/layouts/_partials/projection-node.html`)) &&
-  /@keyframes pn-flow/.test(shellCode) && /@keyframes pn-pulse/.test(shellCode));
+ok('★★ 它钉在【左上角】(用户:原来在右上角,应该在左上角)',
+  /\.proj-node\s*\{[^}]*left: 0/.test(shellCode) && /\.proj-node\s*\{[^}]*top: 0/.test(shellCode) &&
+  !/\.proj-node\s*\{[^}]*\n\s*right:/.test(shellCode),
+  'left/top 贴角,不能再有 right');
+ok('★★ 是一块【三角】投影,占住那一角(直角在左上角)',
+  /<path class="pn-fill" d="M0 0 H\d+ L0 \d+ Z"/.test(nodeHtml) && /<linearGradient id="pnGrad"/.test(nodeHtml),
+  '直角在 (0,0),斜边指向右下');
+ok('★ 风格跟 HUD(斜边亮线 + 平行扫描线 + 角上节点呼吸)',
+  /\.pn-edge\s*\{/.test(shellCode) && /\.pn-scan path\s*\{/.test(shellCode) &&
+  /@keyframes pn-sweep/.test(shellCode) && /@keyframes pn-pulse/.test(shellCode));
+
+/* ---------- ⑥ 背景必须是"钉在视口的最底层" ----------
+   用户报过一次:"你直接把它固定在了滑动界面内,不仅挡住了主页面,
+   滚轮一滚还跟着走"。根因:这份标记是在 <footer> 里渲染的(主题的 footer.html
+   调 extend_footer),而 cosmos.html 那层是 position:absolute ——
+   包含块变成文档初始包含块,于是变成钉在文档顶部的一张图,既压住正文又跟着滚。
+   ⇒ 必须套一层 .page-cosmos(fixed + inset:0 + z-index:-1)。 */
+const extFooter = rd(`${BH}/layouts/partials/extend_footer.html`);
+ok('★★ 其余页面的背景套了 .page-cosmos 容器',
+  /<div class="page-cosmos">\{\{ partial "cosmos\.html"/.test(extFooter) &&
+  /class="?page-cosmos/.test(tech),
+  '不套的话就是"压在正文上、还跟着滚轮走"那张图');
+ok('★★ .page-cosmos 钉在视口 + 画在所有内容后面(z-index 负数)',
+  /\.page-cosmos\s*\{[^}]*position: fixed/.test(shellCode) &&
+  /\.page-cosmos\s*\{[^}]*inset: 0/.test(shellCode) &&
+  /\.page-cosmos\s*\{[^}]*z-index: -1/.test(shellCode),
+  '定位元素写 z-index:0 也会画在静态正文之上 —— 必须负数');
+ok('★ 页面底色给了 html(body 透明),否则 body 的背景会盖住负 z-index 那层',
+  /:root\[data-theme\]\.shell-page\s*\{[^}]*background: var\(--bg-base/.test(shellCode) &&
+  /:root\[data-theme\]\.shell-page body\s*\{[^}]*background: transparent/.test(shellCode));
 
 /* ---------- 出结果 ---------- */
 let pass = 0;

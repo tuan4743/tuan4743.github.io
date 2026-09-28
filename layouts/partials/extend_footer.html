@@ -22,7 +22,14 @@
        而它必须在【首帧】就在,所以 CSS(assets/css/extended/shell.css)是
        跟着主题样式表一起加载的,这里只放标记。 */ -}}
 {{- if not .IsHome }}
-{{ partial "cosmos.html" . }}
+{{/* ★ 必须套一层 .page-cosmos:
+     这个 partial 是【在 <footer> 里面】被调用的(见主题的 _partials/footer.html),
+     而 cosmos.html 自己那层 .cosmos 是 position:absolute —— 直接放进去的话,
+     它的包含块会变成"文档初始包含块",于是变成一张钉在文档顶部的图:
+     既盖住正文(z-index 压着 .main),滚轮一滚它又跟着页面走(用户报的就是这个)。
+     .page-cosmos 是 position:fixed + inset:0 + z-index:-1 ⇒ 钉在视口、
+     铺满、且画在所有内容【后面】。 */}}
+<div class="page-cosmos">{{ partial "cosmos.html" . }}</div>
 {{ partial "projection-node.html" . }}
 {{- with resources.Get "js/page-slide.js" }}
 {{- $u := . | fingerprint "sha256" }}

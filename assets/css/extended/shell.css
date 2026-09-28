@@ -1,20 +1,21 @@
 /* ============================================================
    全站外壳(Shell)—— 首页和"右边的那些页面"共用的三样东西
    ─────────────────────────────────────────────────────────────
-   用户的设计:首页是"仿真屏幕"(重在交互),博客页在【这块屏幕的右侧】——
-   不是同一页里的东西,而是另一张页面;点平板上的 APP 时整块屏幕【完全右滑】出去,
+   用户的设计:世界坐标从左到右依次是【CD 选择页 | 首页(仿真屏幕)| 其他页】——
+   其他页住在首页的【右边】,是另一张页面,不是同一页里的东西。
+   点平板上的 APP 时,整块机器【向左平移 100vw】出去(视口往右移),
    滑完再跳过去。为了不穿帮,滑走时露出来的东西和落地页必须是【同一个样式】,
-   于是看起来就像"在同一个页面里右滑"。
+   于是看起来就像"在同一个页面里平移"。
 
    这个文件就是那份"同一个样式",三部分:
      一、宇宙背景 .cosmos —— 从 CD 页(机箱左侧的 CD 架)那套星云搬过来的,
          两处【共用同一批类】,不是抄一份(抄了迟早会漂)。
          ★ 它刻意【不跟深浅主题走】:不管 data-theme 是 dark 还是 light,
            背景都是同一片星云 —— 用户要的就是"切换深浅背景也不变"。
-     二、投影节点 .proj-node —— 屏幕右上角那枚小小的 SVG 节点(HUD 风格),
-         标出"内容往右边去"这件事。它【不跟着右滑】:机器滑走了它还在原地,
-         落地页上它也在同一个位置 —— 过场因此是连的。
-     三、右滑过场 —— 点 APP → 整块机器(场景 + 平板 + 顶缘按钮)右滑 100vw,
+     二、三角投影节 .proj-node —— 占住屏幕【左上角】的一角(HUD 风格)。
+         它【不跟着平移】:机器滑走了它还在原地,落地页上它也在同一个位置,
+         过场因此是连的。
+     三、向左滑过场 —— 点 APP → 整块机器(场景 + 平板 + 顶缘按钮)左移 100vw,
          滑完再由 JS 跳转。用的是 CD 架那套 transform + 同一条缓动曲线,
          只是这次滑的是【整屏】而不是 66vw。
 
@@ -104,28 +105,33 @@
     border-radius: inherit;
 }
 
-/* 页面上的那份:钉在视口,永远在后面 */
+/* 页面上的那份:钉在视口,永远在所有内容的【后面】
+   ★ z-index 必须是负数:定位元素哪怕写 z-index:0 也会画在【静态内容之上】
+     (在同一个层叠上下文里,定位层排在普通块级内容后面),于是整片星云会盖住正文 ——
+     用户报的"挡住了主页面"就是这个。写成 -1 就画在内容之前、html 底色之后。
+   ★ 必须是 position:fixed:这套标记是在 <footer> 里被渲染出来的,
+     用 absolute 的话包含块会变成文档初始包含块,滚轮一滚它跟着走。 */
 .page-cosmos {
     position: fixed;
     inset: 0;
-    z-index: 0;
+    z-index: -1;
     pointer-events: none;
 }
 
-/* ---------- 二、投影节点 ----------
-   屏幕右上角那枚小结节:风格跟 CD 界面的 HUD 走(细线 + 青色 + 呼吸)。
-   ★ position: fixed + 不参与右滑 —— 机器滑走了它留在原地,落地页上它还在同一个
-     位置,过场因此是连的(它是"投影口",不是屏幕上的一块内容)。 */
+/* ---------- 二、投影节点(左上角那面三角投影)----------
+   用户改过一次:原来画在右上角(一枚小方块节点),现在要"占住左上角一角的三角形"。
+   ★ position: fixed + left/top 0,而且【不参与平移】—— 机器滑走时它留在原地,
+     落地页上它还在同一个位置,过场因此是连的(它是"投影口",不是屏幕里的内容)。
+   ★ z-index 43:高于平板(40)和顶缘按钮(41)。 */
 .proj-node {
     position: fixed;
-    top: clamp(8px, 1.4vh, 18px);
-    right: clamp(10px, 1.2vw, 22px);
+    left: 0;
+    top: 0;
     z-index: 43;
-    width: clamp(64px, 5.6vw, 96px);
+    width: clamp(120px, 13vw, 210px);
     pointer-events: none;
-    color: var(--intro-accent, #22d3ee);
-    opacity: 0.85;
-    filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.35));
+    opacity: 0.9;
+    filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.28));
 }
 
 .proj-node svg {
@@ -135,21 +141,37 @@
     overflow: visible;
 }
 
-.pn-hull {
-    stroke: rgba(150, 210, 240, 0.42);
-    stroke-width: 1;
-    fill: rgba(6, 12, 22, 0.55);
+/* 三角本体:从角上亮起来,往斜边方向淡掉 */
+.pn-fill {
+    fill: url(#pnGrad);
 }
 
-.pn-tick {
-    stroke: rgba(150, 210, 240, 0.55);
-    stroke-width: 1.2;
-    stroke-linecap: round;
+/* 平行于斜边的两道扫描线:往斜边方向慢慢漂出去(像投影在扫) */
+.pn-scan path {
+    stroke: rgba(34, 211, 238, 0.34);
+    stroke-width: 1;
+    animation: pn-sweep 4.6s ease-in-out infinite;
+}
+
+.pn-scan path:last-child {
+    stroke: rgba(34, 211, 238, 0.2);
+    animation-delay: 0.9s;
+}
+
+/* 斜边与两条直角边:细亮线,和 CD 界面那套 HUD 同一路数 */
+.pn-edge {
+    stroke: rgba(160, 235, 255, 0.62);
+    stroke-width: 1.1;
+}
+
+.pn-leg {
+    stroke: rgba(160, 235, 255, 0.3);
+    stroke-width: 1;
 }
 
 .pn-ring {
-    stroke: var(--intro-accent, #22d3ee);
-    stroke-width: 1.1;
+    stroke: rgba(34, 211, 238, 0.8);
+    stroke-width: 1;
     fill: none;
     animation: pn-pulse 3.4s ease-in-out infinite;
 }
@@ -159,56 +181,48 @@
     animation: pn-core 3.4s ease-in-out infinite;
 }
 
-.pn-beam {
-    stroke: rgba(34, 211, 238, 0.85);
-    stroke-width: 1.1;
-    stroke-linecap: round;
-    stroke-dasharray: 5 4;
-    animation: pn-flow 2.6s linear infinite;
-}
-
-.pn-beam--2 { stroke-dasharray: 3 5; animation-duration: 3.4s; opacity: 0.7; }
-.pn-beam--3 { stroke-dasharray: 3 5; animation-duration: 3.4s; animation-delay: 0.4s; opacity: 0.7; }
-
 @keyframes pn-pulse {
-    0%, 100% { opacity: 0.55; }
+    0%, 100% { opacity: 0.4; }
     50% { opacity: 1; }
 }
 
 @keyframes pn-core {
-    0%, 100% { opacity: 0.75; r: 3; }
-    50% { opacity: 1; r: 3.8; }
+    0%, 100% { opacity: 0.72; }
+    50% { opacity: 1; }
 }
 
-/* 光束朝右流动:暗示"内容往右边的页面去" */
-@keyframes pn-flow {
-    from { stroke-dashoffset: 9; }
-    to { stroke-dashoffset: 0; }
+/* 顺着斜边的法向往外漂一点点(22.5° 那条法线方向)*/
+@keyframes pn-sweep {
+    0% { transform: translate(0, 0); opacity: 0.15; }
+    45% { opacity: 0.9; }
+    100% { transform: translate(26px, 18px); opacity: 0; }
 }
 
-/* ---------- 三、右滑过场 ----------
-   ★ 复用的是 CD 架那套:.scene 上的 transform + 同一条缓动曲线(intro.css 里
-     `body.scene-open .scene` 那条),只是这次滑【整屏 100vw】而不是 66vw,
-     而且是"滑完就跳走"。
+/* ---------- 三、向左滑过场 ----------
+   ★ 方向:世界坐标从左到右是【CD 选择页 | 首页 | 其他页】——其他页在首页【右边】。
+     所以"去右边的页面"= 视口往右移 = 内容【向左】平移 100vw。
+     ★ 复用的是 CD 架那套:.scene 上的 transform + 同一条缓动曲线(intro.css 里
+     `body.scene-open .scene` 那条,它把左边的 CD 架拉进画面 —— 同一种"刚体平移"),
+     只是这次滑【整屏 100vw】而且是"滑完就跳走"。
    ★ 选择器写成 body.intro-page.page-out(三个类)是为了压过 intro.css 里
      body.scene-open .scene 那条同属性声明 —— extended 那份样式表在 intro.css
      【之前】加载,同分时后加载的赢,所以这里必须多一个类。 */
 body.intro-page.page-out .scene {
-    transform: translateX(100vw);
+    transform: translateX(-100vw);
 }
 
 /* 平板和顶缘那枚按钮都不在 .scene 里(它们是为了压住 CD 页的层级才搬到 body 的),
-   所以右滑时要单独带上 —— 否则屏幕滑走了、平板还在原地,一眼穿帮。
+   所以过场时要单独带上 —— 否则屏幕滑走了、平板还在原地,一眼穿帮。
    ★ 两条的过渡时长也要改成和 .scene 一样(平板原本 .36s、按钮原本 .42s):
      三样东西必须同起同落,差一点就能看出"它们不是一块的"。 */
 body.intro-page.page-out .tablet {
-    transform: translateX(100vw);
+    transform: translateX(-100vw);
     opacity: 1;
     transition: transform .55s cubic-bezier(.22, .61, .36, 1), opacity .26s ease;
 }
 
 body.intro-page.page-out .statusbar-toggle {
-    transform: translateX(calc(-50% + 100vw));
+    transform: translateX(calc(-50% - 100vw));
     transition: color .18s ease, border-color .18s ease, opacity .3s ease,
         transform .55s cubic-bezier(.22, .61, .36, 1);
 }
@@ -261,13 +275,13 @@ body.page-out {
     padding-right: clamp(70px, 6vw, 104px);
 }
 
-/* ---------- "减少动态效果":背景和节点都不要动 ---------- */
+/* ---------- "减少动态效果":背景和投影都不要动 ---------- */
 @media (prefers-reduced-motion: reduce) {
     .cosmos-nebula,
     .cosmos-grid,
     .pn-ring,
     .pn-core,
-    .pn-beam {
+    .pn-scan path {
         animation: none !important;
     }
 }
