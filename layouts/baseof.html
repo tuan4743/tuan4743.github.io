@@ -1,0 +1,69 @@
+{{- /* ============================================================
+     baseof.html —— 本站覆盖主题的这一份,【只为了一件事】:
+     把右侧 HUD 放在 partialCached 之外。
+     ─────────────────────────────────────────────────────────────
+     ★★ 主题原来是这么调 footer 的(baseof.html 第 28 行):
+          {{ partialCached "footer.html" . .Layout .Kind (.Param "hideFooter") (.Param "ShowCodeCopyButtons") }}
+        缓存键是 (Layout, Kind, hideFooter, ShowCodeCopyButtons) ——
+        【同一类页面共享同一份渲染结果】。于是挂在 footer 链里的东西
+        全都"按类"取,而不是"按页"取。
+     ★★ 我第一版把右侧 HUD 放在 extend_footer.html 里(和 .page-cosmos 一处),
+        结果 /about/ 和 /posts/hello-world/ 这两个 page 拿到了同一份 footer:
+        HUD 里导航的"当前页"高亮写死成了【第一次渲染那个页面】的 permalink。
+        更坏的是它【每次构建还不一样】(Hugo 并行渲染,谁先谁后不定)——
+        表现为"同一个模板连跑三次,结果三个样"。
+        查法:往 HUD 根节点写一个 data-hud-dbg="{{ .Permalink }}",
+        连跑几次构建比对,值会跳。
+     ⇒ 结论(已经写进 tests/page-hud.test.mjs):
+        · 【按页面变】的东西一律不能放进 extend_footer / footer 链
+          (HUD 的当前页高亮、下一刀的"导出这篇文章的 Markdown"都是按页变的);
+        · 页脚链里只留【与页面无关】的:.page-cosmos、投影、脚本标签。
+        · 主题的 header 是 partialCached "header.html" . .Page —— 按页缓存,安全;
+          但 footer 不是。
+     ★ 这份 baseof 与主题那份【逐字一致】,只有一处不同:HUD 那一行。
+       主题升级时对着 themes/PaperMod/layouts/baseof.html 比一下就行。
+     ============================================================ */ -}}
+{{- if lt hugo.Version "0.146.0" }}
+{{- errorf "=> hugo v0.146.0 or greater is required for hugo-PaperMod to build " }}
+{{- end -}}
+
+<!DOCTYPE html>
+{{- $theme := site.Params.defaultTheme | default "auto" }}
+{{- if eq $theme "dark" }}
+<html lang="{{ site.Language }}" dir="{{ .Language.LanguageDirection | default "auto" }}" data-theme="dark">
+{{- else if eq $theme "light" }}
+<html lang="{{ site.Language }}" dir="{{ .Language.LanguageDirection | default "auto" }}" data-theme="light">
+{{- else }}
+<html lang="{{ site.Language }}" dir="{{ .Language.LanguageDirection | default "auto" }}" data-theme="auto">
+{{- end }}
+
+<head>
+    {{- partial "head.html" . }}
+</head>
+
+{{- if (or (ne .Kind `page` ) (eq .Layout `archives`) (eq .Layout `search`)) }}
+<body class="list" id="top">
+{{- else }}
+<body id="top">
+{{- end }}
+    {{ partialCached "header.html" . .Page -}}
+    <main class="main">
+        {{- block "main" . }}{{ end }}
+    </main>
+
+    {{/* ★★ 右侧 HUD 必须【在这里】渲染 —— 不能放进下面那个 partialCached 的 footer 链:
+           · 缓存键只到 (Layout, Kind, …) 这一层 ⇒ 放进去就会整类页面共用一份;
+           · 按页面变的东西(当前页高亮 / 导出这篇文章的 .md)会写死成别人的。
+         ★ 位置也有讲究:必须在 footer.html 之前 —— 那个 partial 末尾有一句
+           document.getElementById("theme-toggle").addEventListener(...)(没有判空),
+           而 HUD 里的明暗旋钮就是那个 id。
+         ★ 首页走自己的独立模板(layouts/index.html),不经过这里;
+           这里的 if 只是把"万一"挡住(首页有它自己那套平板主界面)。 */}}
+    {{- if not .IsHome }}
+    {{ partial "page-hud.html" . }}
+    {{- end }}
+
+    {{ partialCached "footer.html" . .Layout .Kind (.Param "hideFooter") (.Param "ShowCodeCopyButtons") -}}
+</body>
+
+</html>

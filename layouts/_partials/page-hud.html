@@ -1,0 +1,131 @@
+{{/* ============================================================
+     右侧 HUD(博客页)—— 第二阶段第一刀
+     ─────────────────────────────────────────────────────────────
+     用户给的布局图:最右侧是一条 HUD 栏,从上到下是
+       ① 导航栏(就是他说的"那是 HUD 内部的按钮,就是导航栏,不过移到右侧了")
+       ② 三个按钮:导出 Markdown / GitHub / WeChat 二维码   ← 下一刀
+       ③ 右下三件套:音量滑条 / 明暗旋钮 / 配色滑条
+     风格 = 首页 CD 选择页左侧那块 HUD(.holo):SVG 画边框,按钮压在线上。
+
+     ★ 三个数据源都是真的,不写死:
+       · 导航项 = site.Menus.main(和顶栏、平板 APP 同一份配置);
+       · 音量 = localStorage 的 cd-audio-vol(cd-audio.js 读的就是这个键);
+       · 配色 = 一个色相角,由 page-hud.js 现算整套配色变量。
+     ★ 三个 id(#theme-toggle / #volume-range / #palette-hue)是【故意的】:
+       主题的 footer 脚本按 id 找 #theme-toggle 绑事件(它不关心人在哪儿),
+       cd-audio.js 按 id 找 #volume-range —— 换位置不用改那边一行代码。
+     ★ 这个 partial 只在【非首页】渲染(见 extend_footer.html):
+       首页有它自己那套(平板主界面),同一个页面里不能出现两套同 id 的控件。
+     ============================================================ */}}
+{{- $current := . -}}
+{{- $pageURL := $current.Permalink | absLangURL -}}
+{{- /* 外轮廓:一条折线走完整个形状(同一条 d 画四层,见 page-hud.css)。
+       ★ viewBox="0 0 100 540" —— 100:540 ≈ 这一条栏的真实长宽比(约 1:5)。
+         比例必须接近:preserveAspectRatio="none" 会把用户单位拉成非等比,
+         而虚线的 dasharray 是按用户单位算的 —— 比例差太多,横线那几段虚线
+         就会比竖线的长一大截(第一版 1:4.4 就是这个毛病)。
+       从右上角起 → 顶边往左 → 45° 切角 → 主线下来 → 45° 切角 → 底边往右。
+       ★ 开口在【右边】:那条边就是视口右缘,不画线,栏看起来是"贴着屏幕站"的。 */ -}}
+{{- $frame := "M92 8 L10 8 L4 14 L4 526 L10 532 L92 532" -}}
+{{- /* 拐点短刺:每个顶点两组互相垂直的短线(往形状外面长) */ -}}
+{{- $lock := "M92 8 h8 M92 8 v-8 M10 8 h-8 M10 8 v-8 M4 14 h-8 M4 14 v-8 M4 526 h-8 M4 526 v8 M10 532 h-8 M10 532 v8 M92 532 h8 M92 532 v8" -}}
+{{/* ★ data-hud-page = 这一页自己的 RelPermalink。
+      两个用处:① 三枚按钮里"导出本篇文章的 Markdown"要知道自己站在哪一页;
+                ② tests/page-hud.test.mjs 拿它和每个产物文件自己的 canonical 对账 ——
+                   只要 HUD 又被人挪回 partialCached 的 footer 链里(见 baseof.html),
+                   整批页面会立刻变红。 */}}
+<div class="page-hud" id="page-hud" data-hud-page="{{ $current.RelPermalink }}">
+    <svg class="page-hud__frame" viewBox="0 0 100 540" preserveAspectRatio="none" aria-hidden="true"
+        data-hud-frame="{{ $frame }}">
+        <path class="hud-halo" d="{{ $frame }}"></path>
+        <path class="hud-line" d="{{ $frame }}"></path>
+        <path class="hud-lock" d="{{ $lock }}"></path>
+        <path class="hud-run" d="{{ $frame }}"></path>
+    </svg>
+
+    {{/* ① 导航:图标取菜单项的 pre(和顶栏/平板同一批 SVG,不会各自漂) */}}
+    <nav class="hud-nav" aria-label="站点导航">
+        {{- range $i, $m := site.Menus.main }}
+        {{- $itemURL := (cond (strings.HasSuffix .URL "/") .URL (printf "%s/" .URL)) | absLangURL -}}
+        {{- $isHere := eq $itemURL $pageURL -}}
+        <a class="hud-nav__item{{ if $isHere }} is-current{{ end }}" href="{{ .URL | absLangURL }}"
+            data-hud-nav="{{ $m.Identifier }}"{{ if $isHere }} aria-current="page"{{ end }}
+            title="{{ $m.Title | default $m.Name }}" style="--hud-i: {{ $i }}">
+            <span class="hud-nav__icon" aria-hidden="true">
+                {{- with $m.Pre }}{{ . }}{{ else }}
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="4" y="4" width="16" height="16" rx="4"></rect>
+                    <path d="M9 12h6"></path>
+                </svg>
+                {{- end }}
+            </span>
+            <span class="hud-nav__name">{{ $m.Name }}</span>
+        </a>
+        {{- end }}
+    </nav>
+
+    {{/* ③ 右下三件套:滑条 / 旋钮 / 滑条
+           —— 排法和 CD 页左侧凸起里那三件一致(推子 / 方按钮 / 推子)。
+           用户明确:"不是展开,是右下角那三个控件本身就长这样" ⇒
+           音量、配色都没有弹出面板,就是常驻的两根竖滑条。 */}}
+    <div class="hud-ctl">
+        <div class="hud-fader">
+            <div class="hud-fader__head">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                    <path d="M15.6 8.6a5 5 0 0 1 0 6.8"></path>
+                    <path d="M18.6 5.4a9.5 9.5 0 0 1 0 13.2"></path>
+                </svg>
+                <span class="hud-fader__label">音量</span>
+            </div>
+            <div class="hud-fader__body">
+                <input id="volume-range" class="hud-range hud-range--vol" type="range" min="0" max="100" step="1"
+                    value="50" aria-label="音量" orient="vertical">
+            </div>
+            <output class="hud-fader__val" id="hud-vol-val" for="volume-range">50%</output>
+        </div>
+
+        {{/* 明暗旋钮:指针跟着主题转(左右两个位置),太阳/月亮图标由主题自己的
+            规则切换 —— [data-theme="dark"] .moon / [data-theme="light"] .sun,
+            那两条规则在主题的 header.css 里而且是全局的,这里直接吃到。 */}}
+        <button id="theme-toggle" class="hud-knob" accesskey="t" title="明暗 (Alt + T)" aria-label="切换明暗">
+            <span class="hud-knob__dial" aria-hidden="true"></span>
+            <svg class="moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+            <svg class="sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="5"></circle>
+                <line x1="12" y1="1" x2="12" y2="3"></line>
+                <line x1="12" y1="21" x2="12" y2="23"></line>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                <line x1="1" y1="12" x2="3" y2="12"></line>
+                <line x1="21" y1="12" x2="23" y2="12"></line>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+        </button>
+
+        <div class="hud-fader">
+            <div class="hud-fader__head">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 22a10 10 0 1 1 10-10c0 1.7-1.3 3-3 3h-2.4c-1.2 0-2.2 1-2.2 2.2 0 .6.2 1.1.6 1.5.4.4.6.9.6 1.5 0 1.5-1.2 2.8-2.8 2.8Z"></path>
+                    <circle cx="7.5" cy="10.5" r="1"></circle>
+                    <circle cx="12" cy="7.5" r="1"></circle>
+                    <circle cx="16.5" cy="10.5" r="1"></circle>
+                </svg>
+                <span class="hud-fader__label">配色</span>
+            </div>
+            <div class="hud-fader__body">
+                <input id="palette-hue" class="hud-range hud-range--hue" type="range" min="0" max="360" step="1"
+                    value="220" aria-label="背景配色(色相)" orient="vertical">
+            </div>
+            <output class="hud-fader__val" id="hud-hue-val" for="palette-hue">—</output>
+        </div>
+    </div>
+</div>

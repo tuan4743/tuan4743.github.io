@@ -277,12 +277,18 @@ ok('★★ 首页没有顶栏 / 菜单 / 顶栏搜索了(用户要求整个删�
 ok('★ 但顶缘那枚按钮留着(它是打开平板的入口)',
   /id="statusbar-toggle"/.test(tplCode) && /id="?statusbar-toggle/.test(built),
   '模板与渲染产物里都在(最小化的产物没有引号)');
-ok('★★ 三个开关抽成了 partial,而且【两处共用】(顶栏 + 平板)',
+ok('★★ 三个开关仍然抽在 partial 里,但【位置变了】:平板这一处照旧,其余页面换成右侧 HUD',
   /logo-switches/.test(nsw) && /id="theme-toggle"/.test(nsw) &&
   /id="sound-toggle"/.test(nsw) && /id="volume-range"/.test(nsw) &&
   /id="palette-toggle"/.test(nsw) && /id="palette-panel"/.test(nsw) &&
-  /partial "nav-switches\.html" \./.test(hdr) && /partial "nav-switches\.html" \./.test(tpl),
-  'header.html(其余页面)与 index.html(平板)都 include 它 —— id 不会重复,因为首页不再走 header');
+  /partial "nav-switches\.html" \./.test(tpl) && !/partial "nav-switches\.html"/.test(hdr),
+  '★ 第二阶段第一刀:用户要"最右侧那条 HUD"+ 顶栏只留品牌与搜索 ⇒ ' +
+  '其余页面的开关搬进 HUD,顶栏那份撤掉(nav-switches 仍归首页平板用);' +
+  '同一个页面里两套同 id 会按 id 绑错人');
+const hudTpl2 = fs.readFileSync(`${BH}/layouts/_partials/page-hud.html`, 'utf8');
+ok('★ 其余页面的明暗/音量/配色改由右侧 HUD 提供(#theme-toggle 那个 id 是主题脚本按 id 找的)',
+  /id="theme-toggle"/.test(hudTpl2) && /id="volume-range"/.test(hudTpl2) && /id="palette-hue"/.test(hudTpl2),
+  '音量/配色在 HUD 里是两根常驻滑条 —— 用户:"不是展开,是右下角那三个控件本身就长这样"');
 ok('★ 开关的正文没被改坏(明暗 / 音量 / 配色 / 语言都还在)',
   /theme-toggle/.test(nsw) && /volume-panel/.test(nsw) && /palette-swatches/.test(nsw) &&
   /lang-menu/.test(nsw), '四块都在');

@@ -33,7 +33,20 @@
 {{/* 投影:博客页上【一直显示】(首页那一份只在过场时亮,见 shell.css 第二节)。
     两处位置完全一样(视口左上角),所以从首页滑过来的时候它是连的。 */}}
 {{ partial "projection-node.html" . }}
+
+{{/* ★★ 右侧 HUD 【不在这里】—— 它在 layouts/baseof.html 里渲染。
+     为什么:这个 partial 是被主题的 footer.html 调用的,而主题用
+       partialCached "footer.html" . .Layout .Kind … 
+     缓存了整个 footer —— 缓存键只到"页面种类"这一层,
+     凡按页面变的东西(HUD 的当前页高亮、导出本文 .md)都会写死成别的页面。
+     页脚链里只留【与页面无关】的东西:宇宙背景、投影、脚本标签。
+     详见 baseof.html 顶部那段。 */}}
+
 {{- with resources.Get "js/page-slide.js" }}
+{{- $u := . | fingerprint "sha256" }}
+<script defer src="{{ $u.RelPermalink }}"></script>
+{{- end }}
+{{- with resources.Get "js/page-hud.js" }}
 {{- $u := . | fingerprint "sha256" }}
 <script defer src="{{ $u.RelPermalink }}"></script>
 {{- end }}

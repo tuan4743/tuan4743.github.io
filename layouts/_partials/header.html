@@ -32,36 +32,22 @@
             </a>
             {{- end }}
 
-            {{- partial "nav-switches.html" . }}
+            {{- /* ★ 三个开关(明暗 / 音量 / 配色)【已经搬走】—— 见右侧 HUD
+                   (layouts/_partials/page-hud.html 的右下三件套)。
+                   用户给的布局图里,顶栏只剩【品牌 + 搜索栏】两样东西。
+                   ★ 搬走不会丢功能:主题 footer 的脚本是按 id 找 #theme-toggle 的
+                     (document.getElementById,不关心它在哪),cd-audio.js 同理。
+                   ★ 也【不能】两边都渲染:同一个页面里两套同 id 的控件,
+                     按 id 找人的那些脚本只会绑到先出现的那个。 */ -}}
         </div>
         <div class="nav-right">
-            {{- $currentPage := . }}
-            <ul id="menu" class="menu">
-                {{- range site.Menus.main }}
-                {{- $menu_item_url := (cond (strings.HasSuffix .URL "/") .URL (printf "%s/" .URL) ) | absLangURL }}
-                {{- $page_url:= $currentPage.Permalink | absLangURL }}
-                {{- $is_search := eq (site.GetPage .KeyName).Layout `search` }}
-                <li>
-                    <a href="{{ .URL | absLangURL }}" title="{{ .Title | default .Name }} {{- cond $is_search (" (Alt + /)" | safeHTMLAttr) ("" | safeHTMLAttr ) }}"
-                    {{- cond $is_search (" accesskey=/" | safeHTMLAttr) ("" | safeHTMLAttr ) }}
-                    {{- if eq $menu_item_url $page_url }} class="active"{{- end }}>
-                        <span {{- if eq $menu_item_url $page_url }} class="active" {{- end }}>
-                            {{- .Pre }}
-                            {{- .Name -}}
-                            {{ .Post -}}
-                        </span>
-                        {{- if (findRE "://" .URL) }}&nbsp;
-                        <svg fill="none" shape-rendering="geometricPrecision" stroke="currentColor" stroke-linecap="round"
-                            stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 24" height="12" width="12">
-                            <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"></path>
-                            <path d="M15 3h6v6"></path>
-                            <path d="M10 14L21 3"></path>
-                        </svg>
-                        {{- end }}
-                    </a>
-                </li>
-                {{- end }}
-            </ul>
+            {{- /* ★ 五个菜单项【已经搬到右侧 HUD 的导航栏】(layouts/_partials/page-hud.html)。
+                   用户给的布局图:导航栏在屏幕最右侧,竖着排。
+                   ★ 数据源还是同一份 site.Menus.main —— 图标也还是同一个 $m.Pre,
+                     三处(顶栏旧址 / 平板 APP / 右侧 HUD)不会各自漂。
+                   ★ 必须删干净,不能只藏起来:这段原来是 <ul id="menu">,
+                     主题 footer 的脚本按 id 取它(#menu 那个横向滚动记忆),
+                     留着就会出现两个 id="menu"。 */ -}}
             {{/* ★ 这一块现在是【可复用搜索组件】的一个实例(见 assets/js/search.js):
                    data-search          = 一个实例的根
                    data-search-input    = 那个实例的输入框

@@ -1,18 +1,30 @@
 # tests/
 
-这个目录放**不依赖浏览器就能跑**的验收脚本。五条,随时可以重跑:
+这个目录放**不依赖浏览器就能跑**的验收脚本。六条,随时可以重跑:
 
 ```bash
 node tuagfey-blog/tests/self-panel.test.mjs      # 第一张盘 行为(99 条)
 node tuagfey-blog/tests/face-geometry.test.mjs   # 第一张盘 几何+浅色+一致性(71 条)
 node tuagfey-blog/tests/frost-panel.test.mjs     # 第五张盘 行为+交互可达性+画法(143 条)
-node tuagfey-blog/tests/tablet-home.test.mjs     # 首页平板主界面 结构/层级/几何(60 条)
-node tuagfey-blog/tests/shell-slide.test.mjs     # 外壳:宇宙背景+投影节点+右滑过场(28 条)
+node tuagfey-blog/tests/tablet-home.test.mjs     # 首页平板主界面 结构/层级/几何(61 条)
+node tuagfey-blog/tests/shell-slide.test.mjs     # 外壳:宇宙背景+投影节点+右滑过场(42 条)
+node tuagfey-blog/tests/page-hud.test.mjs        # 博客页右侧 HUD:边框/导航/右下三件套(58 条)
 ```
 
 ★ 都要在**工作区根目录**下跑(`node tuagfey-blog/tests/…`):脚本里读的是仓库里的
 真文件,相对路径按当前目录解析 —— 在 `tuagfey-blog/` 里跑会找不到
 `assets/css/pages.css`(踩过)。
+
+★ 前五条里读构建产物(`.tmp/t1`)的那几条,跑之前先构建一次,而且**要带
+`--cleanDestinationDir`**:
+
+```bash
+.tools/hugo/hugo.exe --source tuagfey-blog --quiet --minify \
+  --cleanDestinationDir --destination .tmp/t1
+```
+
+不清目录的话,某一页可能还是**上一次构建**留下的旧文件 —— 本轮就因此白追了一轮
+(同一个模板两次构建结果不同,其实是"读到的那份不是这一次的产物")。
 
 ## 外壳与平移过场(第五轮,第一批)
 
@@ -126,7 +138,100 @@ node tuagfey-blog/tests/shell-slide.test.mjs     # 外壳:宇宙背景+投影节
 - **回来的方向**(从博客页滑回首页):那些页面还没有 APP 列表,等第二批。
 - 那些页面上仍然留着旧顶栏(给它加了 `padding-right`,别压到左上角那面三角投影上)。
 
+## 博客页右侧 HUD(第二阶段第一刀)
+
+用户给的最终布局图:最右侧是一条 HUD 栏,从上到下 =
+**导航栏**(`menu.main` 五项,从顶栏搬过来)/ **三枚按钮**(导出 Markdown / GitHub / WeChat)/
+**右下三件套**(音量滑条 / 明暗旋钮 / 配色滑条)。
+风格照 CD 选择页左侧那块 HUD(`.holo`):**一条折线走完外轮廓、同一条 `d` 画四层**
+(光晕 / 断续主线 / 拐点短刺 / 跑马灯),按钮用 HTML 绝对定位压在线上。
+
+这一刀只做**边框 + 导航栏 + 右下三件套**(外加把顶栏瘦成"品牌 + 搜索")。
+不做(用户明确往后排):目录面板(等这条站住再做)、进度条、三支笔、三枚按钮、
+顶栏搜索条、左侧番茄钟与播放器。
+
+### ★★★ 最值钱的一条:主题用 `partialCached` 缓存了整个 footer
+
+本轮踩得最深的坑,症状是**"同一个模板连跑三次,结果三个样"**。
+
+```hugo
+{{! themes/PaperMod/layouts/baseof.html }}
+{{ partialCached "footer.html" . .Layout .Kind (.Param "hideFooter") (.Param "ShowCodeCopyButtons") }}
+```
+
+缓存键只到 **`(Layout, Kind, hideFooter, ShowCodeCopyButtons)`** 这一层 ——
+`/about/` 和 `/posts/hello-world/` 都是 `page`、参数也一样,于是**共用同一份 footer 渲染结果**。
+我第一版把 HUD 放在 `extend_footer.html` 里(和 `.page-cosmos`、投影一处),
+于是导航的"当前页高亮"写死成了**第一次渲染那个页面**的 permalink:
+
+| 产物文件 | `.Permalink`(HUD 里读到的) |
+|---|---|
+| `/tech/index.html` | `https://tuagfey.com/posts/`(posts 分区) |
+| `/about/index.html` | `…/posts/hello-world/` 或 `…/guestbook/` 或 `…/about/`(**每次构建都不一样**) |
+
+★ 为什么"每次都不一样":Hugo 并行渲染页面,`(Layout, Kind)` 这一类里**谁先渲染完谁定调**。
+★ **查法**(值得背下来):往出问题的 partial 根节点写一个
+`data-hud-dbg="{{ .Kind }}|{{ .Permalink }}"`,连跑几次构建比对 —— 值会跳,就是缓存。
+
+⇒ 结构性的修法:自建一份 `layouts/baseof.html`(与主题逐字一致,只多一行),
+把 HUD **按页**渲染在 `partialCached` 之外,并且排在 `footer.html` **之前**
+(那个 partial 末尾有一句 `document.getElementById("theme-toggle").addEventListener(...)`,
+**没有判空** —— HUD 里的明暗旋钮就是那个 id)。
+
+⇒ 规矩:**按页面变的东西一律不能进 footer 链**。
+页脚链里只留与页面无关的:`.page-cosmos`、投影节点、脚本标签。
+(下一刀的"导出**这篇文章**的 Markdown"天生按页变 —— 现在这个结构已经容得下它了。)
+
+⇒ 测试里对应的是 **`⑨` 那一组** + 逐页对账:HUD 根节点上有
+`data-hud-page="{{ .RelPermalink }}"`,测试扫**每一个**构建产物,
+断言它等于那个文件自己的 `rel=canonical` 路径。**只要 HUD 再被挪回 footer 链,
+整批页面立刻变红** —— 而不是表现为"某几页的高亮看着有点怪"。
+
+### 其它几条(都钉在 `page-hud.test.mjs` 里)
+
+| 事 | 约定 | 为什么 |
+|---|---|---|
+| 这一层不吃点击 | `.page-hud` 是 `pointer-events: none`,导航与三件套各自 `auto` | 整条是 `position: fixed` 铺在右边,不关掉的话正文右半边的**点击和划词全没了** |
+| 层叠 | 这条栏 `z-index: 30`,顶栏是 `40`(跨文件读数比大小) | 顶栏的搜索/配色下拉面板得压得住它 |
+| `#theme-toggle` | 博客页上**正好一个** | 主题 footer 那句没有判空,少了就是 `TypeError`,整段脚本不跑 |
+| 明暗旋钮 | **不需要 HUD 自己绑事件** | 主题按 id 找人,搬到哪里都生效(和平板当初那套一样) |
+| 音量滑条 | 写的是 `cd-audio-vol`(cd-audio.js 读的那个键) | 两边永远是同一个音量,不各存一份 |
+| 老导航 | 顶栏里 `id="menu"` 必须**删干净** | 主题 footer 按 `#menu` 取横向滚动位置,留着就是两个同 id |
+| 图标尺寸 | `.hud-nav__icon svg` 必须自己给宽高 | 菜单项的 `<svg class="menu-icon">` **没写 width/height**,顶栏是靠 `.menu .menu-icon` 量的;HUD 不在 `.menu` 里 ⇒ 不给尺寸就会按 300×150 的固有尺寸铺开 |
+| `--hud-*` 变量 | CSS 里用到的每个都必须有定义(测试自动对账) | 拼错一个不会有任何报错,只会**静默失效** |
+
+### ★★ `viewBox` 的比例要和这条栏的真实长宽比接近
+
+框是 `preserveAspectRatio="none"` + 每条线 `vector-effect: non-scaling-stroke`
+(线宽不会被拉伸),但 **`stroke-dasharray` 是按"用户单位"算的** ——
+viewBox 比例和实际比例差太多,横线那几段虚线就会比竖线的长一大截。
+
+实测这条栏在常见桌面视口下是 **1:4.9~5.9**,所以 viewBox 取 `0 0 100 540`(1:5.4),
+测试把三个视口算出来的真实比值和它逐个比(差都在 30% 以内)。第一版用的 1:4.4 就偏了。
+
+### ★★ 最小化会把 SVG 路径数据改写掉(探针又踩一次)
+
+模板里写的 `M92 8 h8 M92 8 v-8 …`,产物里变成 `M92 8h8M92 8V0M10 8H2…` ——
+**`h-8` / `v-8` 这种相对写法会被改写成绝对命令**。用 `/h-8/` 去产物里找,一个都匹配不到。
+⇒ 规矩:**"结构"看源码,"不是同一个东西"看产物**。这条断言现在就是两半拼的:
+`(dLock.match(/[Mm]/g)||[]).length === 12 && /M92 8 h8 M92 8 v-8/.test(模板源码)`。
+
+### ★★ 最小化产物里的 href 是【绝对网址】
+
+导航项用的是 `.URL | absLangURL`,所以产物里是 `href=https://tuagfey.com/tech/`。
+第一版探针锚定的是相对路径(`/tech/`),于是假红。
+现在改成:**把每一项那个 `<a>` 标签整个抠出来**,用 `hrefOf()` 读它的 href,
+断言"以 `http(s)://` 或 `/` 开头、且不是 `#`" —— 不猜它长什么样,直接把真实值打进报告。
+
+### ★★ 探针的 `indexOf` 会撞到自己的注释
+
+"HUD 必须排在 partialCached 的 footer 之前"那条,用
+`baseof.indexOf('partialCached "footer.html"')` 定位 —— 而**我在 baseof 顶上的说明里
+就原样写着这句话**,于是撞到的是注释,断言假红。修法是比之前先 `noC()` 剥注释。
+(和"注释会毒化源码扫描"是同一个坑,这一轮是第二次;`noC()` 现在在测试顶部统一做一次。)
+
 ## 首页:平板主界面(2026-09-27 那一轮)
+
 
 - **`tablet-home.test.mjs`(39)** —— 按下屏幕顶缘那枚下拉按钮,整块屏幕变成一页
   "平板主屏"(导航变 APP、搜索一张卡片、时钟/最近更新/标签几张卡片)。
@@ -532,6 +637,10 @@ headless 起不来。这是环境限制,不是代码问题。
 | **探针要求属性带引号,而最小化产物不带** | 数到 0 个 APP,差一点误判成"APP 全没了" |
 | **用 `/calc\([^)]*\)/` 去拆 `calc(var(--a) + var(--b))`** | 在第一个 `)` 就断掉,几何断言报 NaN(要自己配对括号) |
 | **只看"数字谁大"就断定层级**(41 > 40 应该在上面) | 漏掉层叠上下文:fixed 的祖先把 41 封死了 |
+| **拿源码里的 `h-8` / `v-8` 去最小化产物里找** | 最小化把 SVG 路径改写成绝对命令(`H2`/`V0`),假红 |
+| **锚定相对 href,而 `absLangURL` 出来的是绝对网址** | 导航五项"href 都是假的",假红 |
+| **`indexOf` 撞到自己注释里的同一句话** | "顺序不对"假红(先 `noC()` 剥注释) |
+| **构建产物不干净就下结论**(同一模板两次结果不同) | 白追一轮:`--cleanDestinationDir` 之后再比 |
 
 ## ★★★ 最危险的一次:测试绿,而那段代码从来没跑过
 

@@ -19,4 +19,25 @@
          所以必须带 if not .IsHome。 */ -}}
 {{- if not .IsHome }}
 <script>document.documentElement.classList.add("shell-page");</script>
+
+{{- /* ---------- 右侧 HUD(第二阶段第一刀)----------
+     ★ 样式表在这里单独挂,不放 assets/css/extended/:
+       extended 那个包是【全站】都会加载的,而这条 HUD 只有博客页有 ——
+       放进去等于让首页白下几 KB。这里挂的另一层好处是它排在主样式表【之后】,
+       同分时压得住主题自己的规则(比如给顶栏让位那条 padding)。
+       见 assets/css/page-hud.css 开头那三条约束。 */ -}}
+{{- with resources.Get "css/page-hud.css" }}
+{{- $u := . | fingerprint "sha256" }}
+<link rel="stylesheet" href="{{ $u.RelPermalink }}">
+{{- end }}
+
+{{- /* ---------- 配色:必须在首帧前就位 ----------
+     ★ 这里内联的是【同一个文件】(不是抄一份算法):配色算法只有
+       assets/js/hud-palette.js 这一处 —— tests/page-hud.test.mjs 钉着这一点。
+     ★ 顺序不能动:它开头会检查 shell-page 这个类(只对博客页生效),
+       所以必须排在上面那句挂 class 的脚本后面。
+     ★ 它是"还原上次拖过的色相",没拖过就一个字都不写(不偷偷改用户观感)。 */ -}}
+{{- with resources.Get "js/hud-palette.js" }}
+<script>{{ .Content | safeJS }}</script>
+{{- end }}
 {{- end }}

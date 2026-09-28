@@ -1,0 +1,493 @@
+/* ============================================================
+   右侧 HUD —— 博客页"最右侧那一条"(第二阶段 / 第一刀)
+   ─────────────────────────────────────────────────────────────
+   用户给的最终布局图:最右侧是一条【HUD 栏】,里面从上到下是
+     ① 导航栏(menu.main 五项 —— 它就是从顶栏搬过来的,见 header.html)
+     ② 三个按钮(导出 Markdown / GitHub / WeChat)—— 下一刀
+     ③ 右下三件套:音量滑条 / 明暗旋钮 / 配色滑条
+   风格照 CD 选择页左侧那块 HUD(.holo):一条折线走完外轮廓、
+   同一条 d 画四层(光晕 / 断续主线 / 拐点短刺 / 跑马灯)、
+   按钮用 HTML 绝对定位压在线上,SVG 只管画线。
+
+   ★★ 三个必须记住的约束
+   1) 这条栏是 position:fixed(挂在 <footer> 里,和 .page-cosmos 同一处),
+      所以绝对不能用 absolute —— 那样的包含块会变成文档初始包含块,滚轮一滚它就跑。
+   2) 整条默认 pointer-events:none,只有控件自己开 auto ——
+      否则这层会把正文右半边的点击和划词全吃掉。
+   3) 底色永远是一片深空星云(--bg-base 不随深浅主题变),所以 HUD 的线
+      永远是浅色 #eaf3ff;而正文卡片 .main 用的是 --theme(随主题和色相变)——
+      这两件事不要混:用户原话"底层背景是不随深暗变化,但是原本内容的背景是正常变化的"。
+
+   ★ 尺寸 / 位置 / 颜色全部集中在下面 .page-hud 的变量里,要挪只改这里。
+   ============================================================ */
+
+/* 和 CD 页同一套像素字体(holo.css 里声明过一次,但那只在首页加载 ——
+   博客页要自己声明一遍才吃得到;中文字形不在这个字体里,会自动回退) */
+@font-face {
+    font-family: "Pixel CN";
+    src: url("/fonts/HYPixel9pxJ-2.ttf") format("truetype");
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Alpha Sector";
+    src: url("/fonts/AlphaSector.otf") format("opentype");
+    font-display: swap;
+}
+
+.page-hud {
+    /* ═══════ 1. 形状层(和 .holo 一一对应)═══════ */
+    --hud-ink: #eaf3ff;                   /* 线色 */
+    --hud-line-w: 1px;                    /* 主线宽 */
+    --hud-dash: 26 9 5 7 42 12 13 8 7 6;  /* 断续节拍(和 CD 页同一条) */
+    --hud-line-a: 0.42;                   /* 主线不透明度 */
+    --hud-halo-w: 6px;                    /* 伴描边(=发光)宽度 */
+    --hud-halo-a: 0.05;
+    --hud-lock-w: 1.4px;                  /* 锁定点短刺线宽 */
+    --hud-run-len: 46;                    /* 跑马灯长度(路径单位) */
+    --hud-run-total: 1260;                /* 路径总长(起始偏移:> 总长 = 每圈之间有停顿) */
+    --hud-run-dur: 11s;                   /* 跑一圈用时 */
+    --hud-glow: 0;                        /* 0~1:CD 页由音乐电平写;这一页留给"阅读进度"(下一刀) */
+
+    /* ═══════ 2. 这一条栏本身 ═══════ */
+    --hud-w: clamp(150px, 9vw, 196px);    /* 栏宽 */
+    --hud-pad: clamp(10px, 1.1vw, 18px);  /* 栏内边距 */
+    --hud-top: var(--header-height);      /* 从顶栏下面开始(和图上一样) */
+    --hud-spine: 10%;                     /* 导航项的左边界(= 框内那条主线右边一点) */
+
+    /* ═══════ 3. 导航项 ═══════ */
+    --hud-nav-gap: 6px;                   /* 项与项之间 */
+    --hud-nav-h: clamp(44px, 6.2vh, 60px);/* 每项高度 */
+    --hud-icon: 16px;                     /* 图标 */
+    --hud-nav-fs: 13px;                   /* 导航字号 */
+    --hud-nav-ls: 0.16em;
+    --hud-row-line: rgba(234, 243, 255, 0.16);   /* 每项上面那条短横线 */
+    --hud-row-line-on: rgba(234, 243, 255, 0.55);
+    --hud-ink-dim: rgba(234, 243, 255, 0.62);
+
+    /* ═══════ 4. 右下三件套 ═══════ */
+    --hud-fader-len: clamp(64px, 9vh, 96px);   /* 滑条长度 */
+    --hud-rail-w: 6px;                         /* 轨道粗细 */
+    --hud-rail: rgba(234, 243, 255, 0.22);
+    --hud-thumb: 24px;                         /* 滑块头(圆钮)直径 */
+    --hud-knob: clamp(48px, 6.4vh, 62px);      /* 中间那枚明暗旋钮 */
+    --hud-ctl-fs: 9px;                         /* 标签字号(9 的倍数,和 CD 页一致) */
+    --hud-ctl-ls: 0.2em;
+    --hud-val-fs: 10px;
+
+    /* ═══════ 5. 字体 ═══════ */
+    --hud-font: "Alpha Sector", "Pixel CN", "PingFang SC", "Microsoft YaHei",
+        "Noto Sans SC", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --hud-smooth: none;                   /* 像素字体要锐利:留 none */
+
+    position: fixed;
+    top: var(--hud-top);
+    right: 0;
+    bottom: 0;
+    width: var(--hud-w);
+    z-index: 30;                          /* < 顶栏的 40:顶栏的下拉面板要压得住它 */
+    pointer-events: none;                 /* ★ 见开头第 2 条 */
+    color: var(--hud-ink);
+    font-family: var(--hud-font);
+    -webkit-font-smoothing: var(--hud-smooth);
+    -moz-osx-font-smoothing: var(--hud-smooth);
+}
+
+/* ---------------- 形状层 ---------------- */
+/* ★ viewBox 的宽高比要接近这一条栏的真实比例(实测约 1:4.9~5.9):
+   preserveAspectRatio="none" 会把用户单位拉成非等比,而 dasharray 是按【用户单位】
+   算的 —— 比例差太多的话,横线的虚线段会比竖线的长一大截(第一版就是这个毛病)。
+   数值钉在 tests/page-hud.test.mjs 里。*/
+.page-hud__frame {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    overflow: visible;
+    pointer-events: none;
+}
+
+.hud-halo,
+.hud-line,
+.hud-run {
+    fill: none;
+    stroke: var(--hud-ink);
+    stroke-linejoin: miter;
+    vector-effect: non-scaling-stroke;    /* ★ 线宽不跟着拉伸变粗 */
+}
+
+.hud-halo {
+    stroke-width: var(--hud-halo-w);
+    stroke-linecap: round;
+    opacity: calc(var(--hud-halo-a) + var(--hud-glow) * 0.1);
+}
+
+.hud-line {
+    stroke-width: var(--hud-line-w);
+    stroke-dasharray: var(--hud-dash);
+    opacity: calc(var(--hud-line-a) + var(--hud-glow) * 0.4);
+}
+
+/* 拐点短刺:每个顶点两组互相垂直的短线(雷达锁定点) */
+.hud-lock {
+    fill: none;
+    stroke: #ffffff;
+    stroke-width: var(--hud-lock-w);
+    stroke-linecap: square;
+    vector-effect: non-scaling-stroke;
+    opacity: calc(0.5 + var(--hud-glow) * 0.4);
+}
+
+/* 跑马灯:一段白线绕外框走一圈 */
+.hud-run {
+    stroke: #ffffff;
+    stroke-width: 1.6px;
+    stroke-linecap: round;
+    stroke-dasharray: var(--hud-run-len) 2000;
+    opacity: calc(0.45 + var(--hud-glow) * 0.45);
+    animation: hud-run var(--hud-run-dur) linear infinite;
+}
+
+@keyframes hud-run {
+    from { stroke-dashoffset: var(--hud-run-total); }
+    to { stroke-dashoffset: 0; }
+}
+
+/* ---------------- 导航栏(menu.main 搬过来)---------------- */
+.hud-nav {
+    position: absolute;
+    left: var(--hud-spine);
+    right: var(--hud-pad);
+    top: var(--hud-pad);
+    display: flex;
+    flex-direction: column;
+    gap: var(--hud-nav-gap);
+    pointer-events: auto;                 /* ★ 只有控件自己开 */
+}
+
+/* 每一项:一条短横线(线左端一个小圆点)+ 图标 + 名字。
+   ★ 用"横线 + 文字躺在结构线之间"这种写法(和 .gd-mode 一致),
+     不做填充卡片 —— 一列五个实心盒子会把这条栏压得很重。 */
+.hud-nav__item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.6em;
+    min-height: var(--hud-nav-h);
+    padding: 0.35em 0 0.35em 0.9em;
+    color: var(--hud-ink-dim);
+    font-size: var(--hud-nav-fs);
+    letter-spacing: var(--hud-nav-ls);
+    text-decoration: none;
+    transition: color 0.18s ease, background-color 0.18s ease;
+}
+
+.hud-nav__item::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 1px;
+    background: var(--hud-row-line);
+    transition: background-color 0.18s ease;
+}
+
+.hud-nav__item::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 5px;
+    height: 5px;
+    margin: -2px 0 0 -2px;
+    border-radius: 50%;
+    background: var(--hud-row-line);
+    transition: background-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.hud-nav__item:hover,
+.hud-nav__item:focus-visible {
+    color: var(--hud-ink);
+    background-color: rgba(234, 243, 255, 0.05);
+    text-decoration: none;
+}
+
+.hud-nav__item:hover::before,
+.hud-nav__item:hover::after {
+    background: var(--hud-row-line-on);
+}
+
+.hud-nav__item.is-current {
+    color: var(--hud-ink);
+}
+
+.hud-nav__item.is-current::before {
+    background: var(--hud-row-line-on);
+}
+
+.hud-nav__item.is-current::after {
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(234, 243, 255, 0.14);
+}
+
+.hud-nav__icon {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--hud-icon);
+    height: var(--hud-icon);
+    opacity: 0.9;
+}
+
+/* 图标来自 menu.main 的 pre(hugo.toml 里那段 <svg class="menu-icon">):
+   ★ 它自己没写 width/height,顶栏是靠 `.menu .menu-icon` 那条规则量尺寸的;
+     这里不在 .menu 里,必须自己给尺寸 —— 否则 svg 会按 300×150 的固有尺寸铺开。 */
+.hud-nav__icon svg {
+    width: var(--hud-icon);
+    height: var(--hud-icon);
+    display: block;
+}
+
+.hud-nav__name {
+    white-space: nowrap;
+}
+
+/* ---------------- 右下三件套:滑条 / 旋钮 / 滑条 ---------------- */
+/* 排法照 CD 页左侧凸起里那三件(.holo-stack:推子 / 方按钮 / 推子):
+   用户原话"右下角那三个控件本身就长这样。不是展开" ——
+   所以音量、配色都【没有弹出面板】,就是常驻的两根滑条。 */
+.hud-ctl {
+    position: absolute;
+    left: var(--hud-pad);
+    right: var(--hud-pad);
+    bottom: var(--hud-pad);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: clamp(12px, 2vh, 22px);
+    pointer-events: auto;
+}
+
+.hud-fader {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+        "label label"
+        "body  val";
+    align-items: end;
+    row-gap: 6px;
+    column-gap: 6px;
+}
+
+.hud-fader__head {
+    grid-area: label;
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    opacity: 0.8;
+}
+
+.hud-fader__head svg {
+    width: 13px;
+    height: 13px;
+    display: block;
+}
+
+.hud-fader__label {
+    font-size: var(--hud-ctl-fs);
+    letter-spacing: var(--hud-ctl-ls);
+    color: var(--hud-ink-dim);
+}
+
+.hud-fader__body {
+    grid-area: body;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: var(--hud-fader-len);
+}
+
+.hud-fader__val {
+    grid-area: val;
+    font-size: var(--hud-val-fs);
+    color: var(--hud-ink-dim);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+}
+
+/* 竖滑条:横着写、再转 -90°(和 CD 页两根推子同一个做法:
+   转完 值 仍然是从下往上增大) */
+.hud-range {
+    -webkit-appearance: none;
+    appearance: none;
+    width: var(--hud-fader-len);
+    height: var(--hud-rail-w);
+    margin: 0;
+    transform: rotate(-90deg);
+    background: var(--hud-rail);
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+}
+
+/* 配色的轨道 = 一条完整的色相带(转 -90° 后就是"下红上红"绕一圈) */
+.hud-range--hue {
+    background: linear-gradient(to right,
+        hsl(0, 78%, 58%) 0%, hsl(60, 78%, 58%) 17%, hsl(120, 78%, 58%) 33%,
+        hsl(180, 78%, 58%) 50%, hsl(240, 78%, 58%) 67%, hsl(300, 78%, 58%) 83%,
+        hsl(360, 78%, 58%) 100%);
+    opacity: 0.85;
+}
+
+/* 滑块头:圆钮(深底 + 亮边,和 CD 页推子的滑块头同一做法) */
+.hud-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: var(--hud-thumb);
+    height: var(--hud-thumb);
+    border-radius: 50%;
+    background-color: rgba(10, 14, 22, 0.88);
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 72% 72%;
+    border: 1.5px solid rgba(234, 243, 255, 0.85);
+    box-shadow: 0 0 0 3px rgba(234, 243, 255, 0.08);
+    cursor: grab;
+}
+
+.hud-range::-moz-range-thumb {
+    width: var(--hud-thumb);
+    height: var(--hud-thumb);
+    border-radius: 50%;
+    background-color: rgba(10, 14, 22, 0.88);
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 72% 72%;
+    border: 1.5px solid rgba(234, 243, 255, 0.85);
+    box-shadow: 0 0 0 3px rgba(234, 243, 255, 0.08);
+    cursor: grab;
+}
+
+/* 音量滑块头 = 喇叭图标;配色滑块头 = 那个色相的实心圆 */
+.hud-range--vol::-webkit-slider-thumb {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23eaf3ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolygon points='11 5 6 9 2 9 2 15 6 15 11 19 11 5'/%3E%3Cpath d='M15.6 8.6a5 5 0 0 1 0 6.8'/%3E%3C/svg%3E");
+}
+
+.hud-range--vol::-moz-range-thumb {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23eaf3ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolygon points='11 5 6 9 2 9 2 15 6 15 11 19 11 5'/%3E%3Cpath d='M15.6 8.6a5 5 0 0 1 0 6.8'/%3E%3C/svg%3E");
+}
+
+.hud-range--hue::-webkit-slider-thumb {
+    background-image: conic-gradient(from 0deg,
+        hsl(0, 78%, 58%), hsl(60, 78%, 58%), hsl(120, 78%, 58%), hsl(180, 78%, 58%),
+        hsl(240, 78%, 58%), hsl(300, 78%, 58%), hsl(360, 78%, 58%));
+    background-size: 62% 62%;
+}
+
+.hud-range--hue::-moz-range-thumb {
+    background-image: conic-gradient(from 0deg,
+        hsl(0, 78%, 58%), hsl(60, 78%, 58%), hsl(120, 78%, 58%), hsl(180, 78%, 58%),
+        hsl(240, 78%, 58%), hsl(300, 78%, 58%), hsl(360, 78%, 58%));
+    background-size: 62% 62%;
+}
+
+/* 中间的明暗旋钮:一枚圆钮 + 一根指针,深浅两个位置;
+   太阳/月亮图标由主题自己的规则切换([data-theme] .sun/.moon,见主题 header.css) */
+.hud-knob {
+    position: relative;
+    flex: 0 0 auto;
+    width: var(--hud-knob);
+    height: var(--hud-knob);
+    padding: 0;
+    border-radius: 50%;
+    border: 1px solid rgba(234, 243, 255, 0.42);
+    background: rgba(234, 243, 255, 0.05);
+    color: var(--hud-ink);
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: background-color 0.18s ease, border-color 0.18s ease;
+}
+
+.hud-knob:hover {
+    background: rgba(234, 243, 255, 0.16);
+}
+
+.hud-knob__dial {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    --hud-knob-a: -42deg;                 /* 浅色:指针偏左 */
+    transform: rotate(var(--hud-knob-a));
+    transition: transform 0.32s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+:root[data-theme="dark"] .hud-knob__dial {
+    --hud-knob-a: 42deg;                  /* 深色:指针偏右 */
+}
+
+.hud-knob__dial::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 12%;
+    width: 2px;
+    height: 26%;
+    margin-left: -1px;
+    border-radius: 1px;
+    background: currentColor;
+    opacity: 0.85;
+}
+
+.hud-knob svg {
+    width: 44%;
+    height: 44%;
+    display: block;
+}
+
+/* ---------------- 和主题既有元素抢位置的两处 ---------------- */
+/* 1) 「回到顶部」那枚圆按钮是 position:fixed + right:2rem + z-index:99,
+      不挪开就正好压在右下三件套上面 */
+:root[data-theme].shell-page .top-link {
+    right: calc(var(--hud-w) + 1.6rem);
+}
+
+/* 2) 顶栏右侧的搜索框本来顶到视口最右缘 —— 正好撞上这条栏;
+      先让它停在这一条栏左边(顶栏那一刀再细调位置) */
+:root[data-theme].shell-page .header-nav {
+    padding-right: calc(var(--hud-w) + 0.75rem);
+}
+
+/* ---------------- 窄屏:这一条栏没地方站,整条藏掉 ---------------- */
+/* 正文是 720px 居中列,两边各要留出栏宽 + 一点缝;
+   视口不够宽时两边的留白撑不下这一条栏,与其压住正文不如先收起来。 */
+@media (max-width: 1180px) {
+    .page-hud {
+        display: none;
+    }
+
+    :root[data-theme].shell-page .top-link {
+        right: 2rem;
+    }
+
+    :root[data-theme].shell-page .header-nav {
+        padding-right: 0.75rem;
+    }
+}
+
+/* ---------------- 减少动态效果 ---------------- */
+@media (prefers-reduced-motion: reduce) {
+    .hud-run {
+        animation: none !important;
+    }
+
+    .hud-knob__dial {
+        transition: none;
+    }
+}
