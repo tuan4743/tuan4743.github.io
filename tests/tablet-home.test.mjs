@@ -244,6 +244,35 @@ ok('★★ 平板用覆盖轮廓,黑屏层仍用收过的那份(两者不能互�
   /html\.frame-fitted \.screen-static,\s*\n?html\.frame-fitted \.tablet \{[\s\S]*?clip-path: var\(--ff-clip\)/.test(icss),
   '平板:--ff-clip-cover · .screen-static:--ff-clip');
 
+/* ---- 玻璃垫层(用户提的"把边框的透明区域填充一下")----
+   它不补缝(平板自己已经盖满),它解决两件缝补不掉的事:
+   ① clip-path 的抗锯齿边缘像素会和【底下的东西】混色 —— 底下是 CD 页就透出一圈浅描边;
+   ② 平板是 opacity 淡入的,淡入过程中底下那页会透出来。
+   所以它必须:和平板同一份剪裁、同一个底色、只在平板开着时可见、不吃点击。 */
+const gbBlock = allBlocks(tcss, '.glass-backing');
+ok('★ 玻璃垫层在标记里(aria-hidden,纯装饰)',
+  /class="glass-backing"\s+aria-hidden="true"/.test(tpl) && /class=glass-backing/.test(built));
+ok('★★ 垫层的形状和平板【同一份剪裁】(差一点就又能透出别的东西)',
+  /clip-path: var\(--ff-clip-cover, var\(--ff-clip\)\)/.test(gbBlock),
+  '--ff-clip-cover');
+ok('★★ 垫层的底色和平板【同一个变量】(颜色差一点,"边缘混色"就白做了)',
+  /--tab-bg:\s*linear-gradient/.test(allBlocks(tcss, ':root {')) &&
+  /background: var\(--tab-bg\)/.test(gbBlock) &&
+  /var\(--tab-bg\)/.test(tBlock),
+  '两边都写 var(--tab-bg),底色只定义一次');
+{
+  const zTab2 = Number((/z-index:\s*(\d+)/.exec(tBlock) || [])[1]);
+  const zGb = Number((/z-index:\s*(\d+)/.exec(gbBlock) || [])[1]);
+  ok('★ 垫层紧贴在平板【下面】一层(39 < 40),而且在所有盘上面',
+    zGb > 0 && zGb < zTab2 && zGb > 20, `垫层 ${zGb} < 平板 ${zTab2}`);
+}
+ok('★ 垫层只在平板开着时可见,而且不吃点击、不动画错拍',
+  /body\.tablet-open \.glass-backing \{\s*opacity: 1;/.test(tcss) &&
+  /pointer-events: none/.test(gbBlock) && /transition: opacity \.26s ease/.test(gbBlock),
+  'body.tablet-open + pointer-events:none + 与平板同为 .26s');
+ok('★ 量不到窗口轮廓时垫层不出场(那时没有可裁的形状)',
+  /html\.frame-fitted \.glass-backing \{\s*display: block;/.test(tcss) && /display: none/.test(gbBlock));
+
 ok('★ 搜索结果面板【在卡片里】(不再绝对定位挂到卡片下面)',
   /\.tablet__search-results \{[\s\S]*?flex: 1 1 auto/.test(tcss) &&
   !/\.tablet__search-results \{[\s\S]*?position: absolute/.test(tcss),

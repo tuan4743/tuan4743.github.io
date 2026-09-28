@@ -381,6 +381,16 @@ window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}",
      ★ 数据全部来自真实数据源:APP 来自 site.Menus.main(和顶栏同一份配置,
          图标用同一个 $m.Pre,不会各自漂),最近更新/标签来自站点内容。
      ============================================================ */}}
+{{/* 玻璃垫层:平板一开,先把整块玻璃铺成不透明的屏幕底色(见 tablet.css 顶部那段)。
+    为什么还需要它 —— 平板自己已经能盖住整块玻璃了,但:
+      · clip-path 是【抗锯齿】的:平板那圈 1px 边缘像素会和底下的东西混色,
+        底下是 CD 页时透出一圈浅描边;底下是同一族深色就看不出来;
+      · 平板是 opacity 淡入的,淡入过程中底下那张 CD 页会透出来 ——
+        有垫层就只在"屏幕底色 → 平板"之间过渡。
+    ★ 这是用户提的办法("把仿屏幕边框的透明区域填充一下,这样就不用改页面了"),
+      确实不用碰那五张页面。 */}}
+<div class="glass-backing" aria-hidden="true"></div>
+
 <button class="statusbar-toggle" id="statusbar-toggle" aria-expanded="false" aria-controls="tablet"
     title="打开平板主界面">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
