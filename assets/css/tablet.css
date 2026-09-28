@@ -206,25 +206,34 @@ html.frame-fitted .tablet {
     color: rgba(198, 220, 246, .58);
 }
 
-/* ---------- 快捷控制卡片:明暗 + 音量(用户点名要放回时钟右边)---------- */
+/* ---------- 快捷控制卡片:明暗 / 音量 / 背景配色 ----------
+   里面是【原件】—— partial "nav-switches.html" 渲染出来的 .logo-switches,
+   和其余页面的顶栏用的是同一份标记、同一批 id(#theme-toggle / #sound-toggle /
+   #volume-range / #palette-*)。
+   ★ 所以这里只做"搬进卡片"这一件事,不重画控件:
+     · 排成一行、居中;
+     · 音量从"悬停弹出"改成【常驻在卡片里】—— 平板主界面上悬停是很别扭的交互
+       (鼠标得正好停在图标上),而且用户要的就是"能直接调音量";
+     · 背景配色仍然是弹出面板(5 个色块 + 名字横排太宽,塞不进这一行)。 */
 .tablet__controls {
     justify-content: center;
-    gap: clamp(8px, 1.4vh, 16px);
-    padding: clamp(10px, 1.5vh, 18px) clamp(12px, 1.3vw, 18px);
+    padding: clamp(10px, 1.5vh, 18px) clamp(10px, 1.2vw, 16px);
 }
 
-.tablet__ctl {
+.tablet__controls .logo-switches {
     display: flex;
     align-items: center;
-    gap: 10px;
-    min-width: 0;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: clamp(10px, 1.2vw, 18px);
 }
 
-.tablet__ctl-btn {
+/* 三枚开关按钮(明暗 / 静音 / 配色)统一成卡片里的方形图标键 */
+.tablet__controls .theme-toggle {
     flex: 0 0 auto;
-    width: clamp(30px, 3.6vh, 42px);
-    height: clamp(30px, 3.6vh, 42px);
-    display: flex;
+    width: clamp(34px, 4vh, 44px);
+    height: clamp(34px, 4vh, 44px);
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     border-radius: 11px;
@@ -232,55 +241,52 @@ html.frame-fitted .tablet {
     background: rgba(255, 255, 255, .05);
     color: #dceaff;
     cursor: pointer;
-    transition: border-color .18s ease, color .18s ease, background .18s ease;
+    transition: border-color .18s ease, background .18s ease, color .18s ease;
 }
 
-.tablet__ctl-btn:hover,
-.tablet__ctl-btn:focus-visible {
+.tablet__controls .theme-toggle:hover,
+.tablet__controls .theme-toggle:focus-visible {
     border-color: rgba(170, 214, 255, .55);
     background: rgba(255, 255, 255, .09);
     color: #fff;
     outline: none;
 }
 
-.tablet__ctl-btn svg { width: 56%; height: 56%; display: block; }
+/* ★ 静音状态的两个图标(custom.css 里是 #sound-toggle.is-muted 那套)
+   在卡片里同样生效 —— 不用重写,只要别把 svg 的显示规则覆盖掉。 */
 
-/* 两个图标的显示由 JS 按当前主题挂的 class 决定(见 tablet.js syncControls):
-   不靠 html[data-theme] —— 那还可能是 "auto",得连着系统偏好一起判断,
-   而 dataset.theme 是顶栏那枚按钮真正写的东西。 */
-.tablet__ctl-btn .ic-sun { display: none; }
-.tablet__ctl-btn.is-light .ic-moon { display: none; }
-.tablet__ctl-btn.is-light .ic-sun { display: block; }
-.tablet__ctl-btn .snd-off { display: none; }
-.tablet__ctl-btn.is-muted .snd-on { display: none; }
-.tablet__ctl-btn.is-muted .snd-off { display: block; }
-.tablet__ctl-btn.is-muted { color: rgba(255, 150, 150, .9); }
-
-.tablet__ctl-name {
-    font-size: clamp(.7rem, .86vw, .8rem);
-    letter-spacing: .08em;
-    color: rgba(214, 232, 252, .78);
-    white-space: nowrap;
+/* 音量面板:常驻。去掉绝对定位、悬停展开和那层弹窗外观,变成卡片里的一行滑条 */
+.tablet__controls .volume-panel {
+    position: static;
+    width: auto;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
-.tablet__vol {
-    flex: 1 1 auto;
-    min-width: 64px;
-    height: 18px;
-    margin: 0;
-    accent-color: #7ff0ff;
-    background: transparent;
-    cursor: pointer;
+.tablet__controls .volume-panel-title { display: none; }  /* 卡片里不必再写"音量"两个字 */
+
+.tablet__controls .volume-range {
+    width: clamp(64px, 8vw, 130px);
+    background: rgba(150, 190, 240, .28);
 }
 
-.tablet__vol-out {
-    flex: 0 0 auto;
+.tablet__controls .volume-value {
+    margin-top: 0;
     min-width: 34px;
-    text-align: right;
-    font-variant-numeric: tabular-nums;
-    font-size: clamp(.66rem, .82vw, .76rem);
     color: rgba(198, 220, 246, .6);
 }
+
+/* 配色面板仍然从按钮下方弹出 —— 卡片【不能】overflow:hidden,否则它被裁掉 */
+.tablet__controls .palette-wrap { position: relative; }
 
 /* ---------- 搜索卡片 ----------
    ★ 结果面板【在卡片里面】(用户:第一版"展开后不是在卡片内的",所以"不太丝滑")。

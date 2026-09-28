@@ -844,26 +844,17 @@
   window.__screenBoot = screenBoot;      /* 调试/验证入口:手动放一次开机动画(__screenBoot("emoji") 指定那套)*/
   window.__hexCfg = HEX;                 /* 调试:可以直接改 loading 的时长 */
 
-  /* ---------- 状态栏:上缘箭头显示 / 隐藏(记忆在 localStorage)---------- */
-  var sbToggle = document.getElementById("statusbar-toggle");
-  var SB_KEY = "cd-statusbar";
-
-  function setStatusbar(show) {
-    body.classList.toggle("statusbar-hidden", !show);
-    if (sbToggle) sbToggle.setAttribute("aria-expanded", show ? "true" : "false");
-    try { localStorage.setItem(SB_KEY, show ? "1" : "0"); } catch (e) {}
-  }
-
-  (function initStatusbar() {
-    var saved = null;
-    try { saved = localStorage.getItem(SB_KEY); } catch (e) {}
-    setStatusbar(saved !== "0");
-    if (sbToggle) {
-      sbToggle.addEventListener("click", function () {
-        setStatusbar(body.classList.contains("statusbar-hidden"));
-      });
-    }
-  })();
+  /* ---------- 状态栏的"上缘箭头收放"已经删掉 ----------
+     原来这里有一整套:点顶缘那枚箭头 → 把 .statusbar 收起来 / 放出来,
+     状态记在 localStorage 的 "cd-statusbar"。
+     两件事让它彻底作废:
+       · 那枚箭头现在开的是【平板主界面】(见 tablet.js —— 它在捕获阶段就把这一下
+         截走,这套监听根本轮不到执行);
+       · 首页那条老顶栏整个删掉了(用户要求),`.statusbar` 这个元素已经不存在。
+     ⇒ 留着只会误导:它还会往 "cd-statusbar" 写值、给 body 挂一个没人理会的
+       statusbar-hidden(cd4-terminal.js 会读这个类来决定顶部让位 —— 它现在取到的
+       是"没有导航"这个正确答案,但那是靠 navEl 找不到、跟这个类无关)。
+     ★ 顶缘那枚按钮(#statusbar-toggle)【还在】—— 它是打开平板的入口,别一起删了。 */
 
   /* ---------- 场景平移开合(视角平移,刚体) ---------- */
   function setOpen(open, onBootEnd) {

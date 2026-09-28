@@ -1084,8 +1084,10 @@
   window.addEventListener("frame-fit", function () { fitToFrame(); });
 
   /* 顶部站点导航(浮层)让位:导航默认收起,那就不让;真露出来才量它的高度。
-     ★ 注意别在 initStatusbar() 之前量 —— 那时候 statusbar-hidden 还没加上,
-       会量出一个"导航开着"的高度,然后文字就永远往下沉(用户报过)。 */
+     ★ 首页现在已经【没有顶栏】了(导航都搬进平板主界面)—— 那时 navEl 找不到,
+       navVisible() 直接返回 false、让位量恒为 0,正是想要的答案,这里不用改。
+     ★ statusbar-hidden 是旧那套"上缘箭头收放顶栏"留下的类,那套已经删了;
+       这两处判断留着只是兜底(万一以后又有个能收起的顶栏)。 */
   var navEl = document.querySelector("header") || document.querySelector(".statusbar");
   function navVisible() {
     if (!navEl) return false;

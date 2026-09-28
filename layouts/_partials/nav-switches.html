@@ -1,0 +1,140 @@
+{{/* ============================================================
+     顶栏右侧的开关组:明暗 / 音量(仅首页)/ 背景配色 / 语言
+     ─────────────────────────────────────────────────────────────
+     ★ 抽成 partial 的原因:【首页把那条老导航整个删掉了】(用户要求),
+       但这几个开关不能跟着消失 —— 它们现在渲染进【平板主界面的快捷控制卡片】
+       (见 layouts/index.html)。
+     ★ 两处用的是同一份标记、同一批 id(#theme-toggle / #sound-toggle /
+       #volume-range / #palette-*),所以 theme-palette.js 与 cd-audio.js
+       【一行都不用改】—— 它们按 id 找人,人在哪儿它们不管。
+       同一个页面里只会渲染到其中一处(首页走平板,其余页面走顶栏),id 不会重复。
+     ============================================================ */}}
+{{- $label_text := (site.Params.label.text | default site.Title) }}
+            {{- $lsenabled := (or (not site.Params.disableThemeToggle) (and (not site.Params.disableLangToggle) (hugo.IsMultilingual))) }}
+            {{- if $lsenabled }}
+            <div class="logo-switches">
+                {{- if (not site.Params.disableThemeToggle) }}
+                <button id="theme-toggle" class="theme-toggle" accesskey="t" title="(Alt + T)" aria-label="Toggle theme">
+                    <svg class="moon" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg class="sun" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+                {{- end }}
+
+                {{- if .IsHome }}
+                {{- /* 音量:喇叭按钮 = 静音开关,悬停/聚焦展开滑动条调音量 */}}
+                <div class="sound-wrap" id="sound-wrap">
+                    <button id="sound-toggle" class="theme-toggle" aria-pressed="false" title="静音 / 取消静音"
+                        aria-label="静音开关" aria-expanded="false" aria-controls="volume-panel">
+                        <svg class="snd-on" xmlns="http://www.w3.org/2000/svg" width="17" height="17"
+                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                            <path d="M15.6 8.6a5 5 0 0 1 0 6.8"></path>
+                            <path d="M18.6 5.4a9.5 9.5 0 0 1 0 13.2"></path>
+                        </svg>
+                        <svg class="snd-off" xmlns="http://www.w3.org/2000/svg" width="17" height="17"
+                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                            <line x1="22" y1="9" x2="16" y2="15"></line>
+                            <line x1="16" y1="9" x2="22" y2="15"></line>
+                        </svg>
+                    </button>
+                    <div class="volume-panel" id="volume-panel">
+                        <div class="volume-panel-title">音量</div>
+                        <input id="volume-range" class="volume-range" type="range" min="0" max="100" step="1" value="50"
+                            aria-label="音量">
+                        <output class="volume-value" id="volume-value">50%</output>
+                    </div>
+                </div>
+                {{- end }}
+
+                <div class="palette-wrap" id="palette-wrap">
+                    <button id="palette-toggle" class="theme-toggle" accesskey="p" title="背景配色 (Alt + P)"
+                        aria-label="Toggle palette">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 22a10 10 0 1 1 10-10c0 1.7-1.3 3-3 3h-2.4c-1.2 0-2.2 1-2.2 2.2 0 .6.2 1.1.6 1.5.4.4.6.9.6 1.5 0 1.5-1.2 2.8-2.8 2.8Z"></path>
+                            <circle cx="7.5" cy="10.5" r="1"></circle>
+                            <circle cx="12" cy="7.5" r="1"></circle>
+                            <circle cx="16.5" cy="10.5" r="1"></circle>
+                        </svg>
+                    </button>
+                    <div class="palette-panel" id="palette-panel">
+                        <div class="palette-panel-title">背景配色</div>
+                        <div class="palette-swatches">
+                            <div class="palette-option">
+                                <button class="palette-swatch" data-palette="" title="默认"
+                                    aria-label="默认配色"
+                                    style="background: linear-gradient(90deg, #ffffff 50%, #1d1e20 50%);"></button>
+                                <span class="palette-name">默认</span>
+                            </div>
+                            <div class="palette-option">
+                                <button class="palette-swatch" data-palette="mist" title="雾蓝"
+                                    aria-label="雾蓝配色"
+                                    style="background: linear-gradient(90deg, rgb(240,244,250) 50%, rgb(22,28,42) 50%);"></button>
+                                <span class="palette-name">雾蓝</span>
+                            </div>
+                            <div class="palette-option">
+                                <button class="palette-swatch" data-palette="warm" title="暖阳"
+                                    aria-label="暖阳配色"
+                                    style="background: linear-gradient(90deg, rgb(250,245,236) 50%, rgb(38,33,26) 50%);"></button>
+                                <span class="palette-name">暖阳</span>
+                            </div>
+                            <div class="palette-option">
+                                <button class="palette-swatch" data-palette="mint" title="薄荷"
+                                    aria-label="薄荷配色"
+                                    style="background: linear-gradient(90deg, rgb(238,247,243) 50%, rgb(19,30,27) 50%);"></button>
+                                <span class="palette-name">薄荷</span>
+                            </div>
+                            <div class="palette-option">
+                                <button class="palette-swatch" data-palette="violet" title="夜紫"
+                                    aria-label="夜紫配色"
+                                    style="background: linear-gradient(90deg, rgb(246,243,252) 50%, rgb(28,24,41) 50%);"></button>
+                                <span class="palette-name">夜紫</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                {{- if (not site.Params.disableLangToggle) }}
+                    {{- $lang := .Lang}}
+                    {{- with site.Home.Translations }}
+                    {{- $separator := or $label_text (not site.Params.disableThemeToggle)}}
+                    {{- if $separator }}<span class="nav-sep">|</span>{{ end }}
+                    <ul class="lang-menu">
+                        {{- range . -}}
+                        {{- if ne $lang .Lang }}
+                        <li>
+                            <a href="{{- .Permalink -}}" title="{{ .Language.Params.languageAltTitle | default (.Language.LanguageName | emojify) | default (.Lang | title) }}"
+                                aria-label="{{ .Language.LanguageName | default (.Lang | title) }}">
+                                {{- if (and site.Params.displayFullLangName (.Language.LanguageName)) }}
+                                {{- .Language.LanguageName | emojify -}}
+                                {{- else }}
+                                {{- .Lang | title -}}
+                                {{- end -}}
+                            </a>
+                        </li>
+                        {{- end -}}
+                        {{- end}}
+                    </ul>
+                    {{- end }}
+                {{- end }}
+            </div>
+            {{- end }}

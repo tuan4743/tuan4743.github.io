@@ -21,11 +21,21 @@ const ok = (name, pass, info) => rows.push([!!pass, name, info === undefined ? '
 
 /* ---------- 素材 ---------- */
 const tpl = fs.readFileSync(`${BH}/layouts/index.html`, 'utf8');
+/* ★ 扫模板源码之前必须先剥注释:Hugo 注释({{/* … *\/}})、CSS 注释、HTML 注释都要剥。
+   本轮又踩了一次 —— 解释"这里原来是什么"的注释里写着 `<div class="statusbar">` /
+   `partial "header.html"` / `data-tablet-theme`,于是"首页不该再有它们"这几条
+   被自己的说明判红。README 里那条"注释会毒化源码扫描"是第 N 次了。 */
+const noC = (s) => String(s)
+  .replace(/\{\{\/\*[\s\S]*?\*\/\}\}/g, '')
+  .replace(/\/\*[\s\S]*?\*\//g, '')
+  .replace(/<!--[\s\S]*?-->/g, '');
+const tplCode = noC(tpl);
 const built = fs.readFileSync(`${WS}/.tmp/t1/index.html`, 'utf8');   /* 构建产物:验"真正发出去的那份" */
 const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '');
 const tcss = strip(fs.readFileSync(`${BH}/assets/css/tablet.css`, 'utf8'));
 const icss = strip(fs.readFileSync(`${BH}/assets/css/intro.css`, 'utf8'));
 const tjs = fs.readFileSync(`${BH}/assets/js/tablet.js`, 'utf8');
+const ijs = fs.readFileSync(`${BH}/assets/js/intro.js`, 'utf8');
 const sjs = fs.readFileSync(`${BH}/assets/js/search.js`, 'utf8');
 const hjs = fs.readFileSync(`${BH}/assets/js/header-search.js`, 'utf8');
 const hdr = fs.readFileSync(`${BH}/layouts/_partials/header.html`, 'utf8');
@@ -254,36 +264,69 @@ ok('★ 结果面板的入场用 animation(display 从 none 变可见时 transit
 ok('★ 搜索卡片里输入框在上、结果在下面排(不再垂直居中)',
   /\.tablet__search \{ justify-content: flex-start; \}/.test(tcss));
 
-/* ---- 被盖住的老导航不能还"活着"(用户:"老导航页没删干净") ----
-   顶栏被平板盖住,但它在 DOM 里、还 focusable:Tab 走得进去、Ctrl+K 会把焦点
-   塞进那个看不见的搜索框、accesskey 也一样 —— 用户对着空气打字。 */
-ok('★ 平板开着时顶栏退出交互(visibility 而不是 display,几何不变)',
-  /body\.tablet-open \.statusbar \{\s*visibility: hidden;/.test(icss),
-  '否则 Tab / Ctrl+K / accesskey 都能进到被盖住的顶栏里');
+/* ---- 老顶栏整个删掉(用户第四轮的选择:"首页顶栏那条老导航整个删掉")----
+   ★ 删它的时候有两个坑,两条都钉在这里:
+     ① 三个开关(明暗/音量/背景配色)原来住在顶栏里,不能跟着一起消失 ——
+        它们抽成了 partial "nav-switches.html",渲染进平板;
+     ② GD_SONGS 那段内联脚本原来也包在 .statusbar 里面(游戏引擎要用),得挪出来。 */
+const nsw = fs.readFileSync(`${BH}/layouts/_partials/nav-switches.html`, 'utf8');
+ok('★★ 首页没有顶栏 / 菜单 / 顶栏搜索了(用户要求整个删掉)',
+  !/class="header"/.test(tplCode) && !/<div class="statusbar"/.test(tplCode) &&
+  !/partial "header\.html"/.test(tplCode) && !/<ul id="menu"/.test(tplCode),
+  'index.html 里不再 include header.html');
+ok('★ 但顶缘那枚按钮留着(它是打开平板的入口)',
+  /id="statusbar-toggle"/.test(tplCode) && /id="?statusbar-toggle/.test(built),
+  '模板与渲染产物里都在(最小化的产物没有引号)');
+ok('★★ 三个开关抽成了 partial,而且【两处共用】(顶栏 + 平板)',
+  /logo-switches/.test(nsw) && /id="theme-toggle"/.test(nsw) &&
+  /id="sound-toggle"/.test(nsw) && /id="volume-range"/.test(nsw) &&
+  /id="palette-toggle"/.test(nsw) && /id="palette-panel"/.test(nsw) &&
+  /partial "nav-switches\.html" \./.test(hdr) && /partial "nav-switches\.html" \./.test(tpl),
+  'header.html(其余页面)与 index.html(平板)都 include 它 —— id 不会重复,因为首页不再走 header');
+ok('★ 开关的正文没被改坏(明暗 / 音量 / 配色 / 语言都还在)',
+  /theme-toggle/.test(nsw) && /volume-panel/.test(nsw) && /palette-swatches/.test(nsw) &&
+  /lang-menu/.test(nsw), '四块都在');
+ok('★ 渲染产物里这批 id 一个不少、且只出现一次',
+  (built.match(/id=theme-toggle|id="theme-toggle"/g) || []).length === 1 &&
+  /id=(sound-toggle|"sound-toggle")/.test(built) &&
+  /id=(volume-range|"volume-range")/.test(built) &&
+  /id=(palette-panel|"palette-panel")/.test(built),
+  '首页只渲染平板那一处');
+ok('★ 它们确实在平板那一层里(在 data-tablet-home 之后)',
+  built.indexOf('id=theme-toggle') > built.indexOf('data-tablet-home') &&
+  built.indexOf('id=palette-panel') > built.indexOf('data-tablet-home'));
+ok('★★ GD_SONGS 那段脚本活下来了(它原来包在 .statusbar 里,别跟着删)',
+  /GD_SONGS/.test(tpl) && /GD_SONGS/.test(built), '游戏引擎要用它');
+ok('★ 平板上不再有"代理按钮"(原件就在那儿,代理没有意义)',
+  !/data-tablet-theme/.test(tplCode) && !/data-tablet-mute/.test(tplCode) &&
+  !/data-tablet-volume\b/.test(tplCode) && !/tablet__ctl\b/.test(noC(tcss)),
+  '上一版那三个代理钩子和它们的样式都删掉了');
+ok('★★ 音量从"悬停弹出"改成常驻在卡片里(平板主界面上悬停很别扭)',
+  /\.tablet__controls \.volume-panel \{[\s\S]*?position: static/.test(tcss) &&
+  /\.tablet__controls \.volume-panel \{[\s\S]*?opacity: 1/.test(tcss) &&
+  /\.tablet__controls \.volume-panel \{[\s\S]*?visibility: visible/.test(tcss),
+  'position:static + opacity/visibility 常开');
+ok('★ 配色面板仍然是弹出的,所以卡片不能 overflow:hidden',
+  !/\.tablet__controls \{[^}]*overflow: hidden/.test(tcss));
+ok('★ 旧的"上缘箭头收放顶栏"机制已经删干净(它只会误导)',
+  !/function setStatusbar/.test(ijs) && !/statusbar-hidden \.statusbar/.test(icss),
+  'intro.js 里的 setStatusbar/initStatusbar 与那两条样式都删了');
 ok('★★ Ctrl+K 优先给平板里那一处搜索(offsetParent 不为 null 不等于看得见)',
   /classList\.contains\("tablet-open"\)/.test(sjs) && /closest\("\[data-tablet-home\]"\)/.test(sjs),
   'search.js 里加了"平板开着就只认平板那一处"');
 
-ok('★ 明暗 / 音量两枚控件回到了平板(用户:放到时钟卡片右边)',
-  /data-tablet-theme/.test(tpl) && /data-tablet-mute/.test(tpl) &&
-  /data-tablet-volume\b/.test(tpl) && /data-tablet-volume-out/.test(tpl),
-  '四个钩子都在模板里');
+ok('★ 位置就在时钟卡片右边(时钟 → 控件 → 搜索,渲染顺序)',
+  built.indexOf('tablet__clock') > 0 &&
+  built.indexOf('tablet__controls') > built.indexOf('tablet__clock') &&
+  built.indexOf('tablet__search"') > built.indexOf('tablet__controls'),
+  '三张卡片一行');
 {
-  const iClock = built.indexOf('tablet__clock');
-  const iCtl = built.indexOf('tablet__controls');
-  const iSear = built.indexOf('tablet__search"');
-  ok('★ 位置就在时钟卡片右边(时钟 → 控件 → 搜索,渲染顺序)',
-    iClock > 0 && iCtl > iClock && iSear > iCtl,
-    `时钟@${iClock} < 控件@${iCtl} < 搜索@${iSear}`);
   const wRow = allBlocks(tcss, '.tablet__row--widgets {');
   ok('★ 三列:时钟 | 控件(auto)| 搜索',
-    (decl(wRow, 'grid-template-columns').match(/minmax|auto/g) || []).length === 3,
+    (decl(wRow, 'grid-template-columns') || '').split('minmax').length - 1 === 2 &&
+    /\bauto\b/.test(decl(wRow, 'grid-template-columns')),
     decl(wRow, 'grid-template-columns'));
 }
-ok('★★ 控件【不另起一套逻辑】:去点顶栏那两个 + 往 #volume-range 派发 input',
-  /getElementById\("theme-toggle"\)/.test(tjs) && /getElementById\("volume-range"\)/.test(tjs) &&
-  /volRange\.dispatchEvent\(new Event\("input"/.test(tjs) && /themeBtn\.click\(\)/.test(tjs),
-  '明暗 = 点顶栏那枚;音量 = 写进去再派发 input');
 ok('★★ 平板自己【不写】主题/音量那两个存储键(否则两边会各存一份状态)',
   /* ★ 必须先剥注释:这段代码的注释里【本来就写着 "pref-theme"】(解释为什么不去写它),
      不剥就会把自己的说明当成证据判红 —— 本轮就踩了一次(README 里那条"注释会毒化
@@ -291,10 +334,7 @@ ok('★★ 平板自己【不写】主题/音量那两个存储键(否则两边�
   !/pref-theme/.test(tjs.replace(/\/\*[\s\S]*?\*\//g, '')) &&
   !/VOL_KEY/.test(tjs) &&
   !/localStorage[\s\S]{0,40}volume/i.test(tjs.replace(/\/\*[\s\S]*?\*\//g, '')),
-  '持久化仍然只由 theme-palette.js / cd-audio.js 做');
-ok('★ 顶栏那边一动,平板跟着同步(两处都挂监听)',
-  /themeBtn\.addEventListener\("click", syncControls\)/.test(tjs) &&
-  /volRange\.addEventListener\("input", syncControls\)/.test(tjs));
+  '持久化仍然只由 theme-palette.js / cd-audio.js 做,而它们按 id 找人 —— 人在平板里也照样工作');
 
 /* ---------- ⑦ 搜索组件:两处实例 ---------- */
 ok('搜索抽成了可复用组件(一个容器 = 一个实例)',
