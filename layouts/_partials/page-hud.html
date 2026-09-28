@@ -108,16 +108,16 @@
                 <path d="M12 2C6.48 2 2 6.58 2 12.26c0 4.5 2.87 8.32 6.84 9.67.5.1.68-.22.68-.49l-.01-1.7c-2.78.62-3.37-1.37-3.37-1.37-.45-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.62.07-.62 1 .07 1.53 1.06 1.53 1.06.9 1.57 2.35 1.12 2.92.85.09-.66.35-1.12.63-1.38-2.22-.26-4.56-1.14-4.56-5.06 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.7 0 0 .84-.28 2.75 1.05a9.3 9.3 0 0 1 5 0c1.91-1.33 2.75-1.05 2.75-1.05.55 1.4.2 2.44.1 2.7.64.72 1.03 1.63 1.03 2.75 0 3.93-2.35 4.8-4.58 5.05.36.32.68.94.68 1.9l-.01 2.82c0 .27.18.6.69.49A10.06 10.06 0 0 0 22 12.26C22 6.58 17.52 2 12 2Z"></path>
             </svg>
         </a>
-        <button class="hud-act" id="hud-wechat" data-hud-act="wechat" aria-expanded="false"
-            aria-controls="hud-qr" title="微信二维码">
+        {{/* ★ 用户第八轮:"点微信这个按钮出来的二维码好小,不如干脆复制我的微信号到剪切板算了:tuagfey."
+               ⇒ 去掉二维码面板,改成点一下把微信号复制走,并弹一句"已复制"。 */}}
+        <button class="hud-act" id="hud-wechat" data-hud-act="wechat" data-copy="tuagfey"
+            aria-label="复制我的微信号" title="复制微信号:tuagfey">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M9.2 4C5.2 4 2 6.7 2 10c0 1.9 1 3.5 2.7 4.6l-.7 2.2 2.5-1.3c.8.2 1.7.4 2.7.4h.5a5.5 5.5 0 0 1-.2-1.4c0-3.2 3.1-5.8 6.9-5.8h.6C15.9 6 12.9 4 9.2 4Zm-2.6 3.4a.95.95 0 1 1 0 1.9.95.95 0 0 1 0-1.9Zm5.2 0a.95.95 0 1 1 0 1.9.95.95 0 0 1 0-1.9Z"></path>
                 <path d="M22 14.4c0-2.8-2.7-5-6-5s-6 2.2-6 5 2.7 5 6 5c.7 0 1.4-.1 2-.3l2 1.1-.6-1.8c1.6-.9 2.6-2.4 2.6-4Zm-8-1.5a.8.8 0 1 1 0 1.6.8.8 0 0 1 0-1.6Zm4 0a.8.8 0 1 1 0 1.6.8.8 0 0 1 0-1.6Z"></path>
             </svg>
         </button>
-        <div class="hud-qr" id="hud-qr" hidden>
-            <img src="{{ "/others/wechat.jpg" | absURL }}" alt="微信二维码" width="168" height="168" loading="lazy">
-        </div>
+        <span class="hud-toast" id="hud-toast" role="status" hidden></span>
     </div>
 
     {{/* ⑤ 竖栏:从"凹下去的地方"(y≈11.33)起,依次五个导航按钮。
@@ -211,6 +211,7 @@
                 <i class="hud-pen__dot" aria-hidden="true"></i>
                 <input class="hud-pen__range" type="range" min="1" max="24" step="1" value="8"
                     aria-label="荧光笔大小" data-hud-pen-size="marker">
+            </span>
                 <span class="hud-pen__colors" role="group" aria-label="荧光笔颜色">
                     <button class="hud-pen__swatch" type="button" data-hud-pen-color="marker"
                         style="--pen-c: #f5d90a" title="黄" aria-label="黄色"></button>
@@ -223,7 +224,7 @@
                     <button class="hud-pen__swatch" type="button" data-hud-pen-color="marker"
                         style="--pen-c: #eaf3ff" title="白" aria-label="白色"></button>
                 </span>
-            </span>
+
         </div>
         <div class="hud-pen" data-hud-pen="annot">
             <button class="hud-pen__btn" aria-pressed="false" title="记号笔">

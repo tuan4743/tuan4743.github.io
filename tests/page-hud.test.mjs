@@ -337,18 +337,11 @@ ok('★★★ 搜索框有一颗【自画的 ×】:原生那颗只派发 search�
   /inst\.clear\(\)/.test(hudJs) &&
   /input\.addEventListener\("search", run\)/.test(noC(rd(`${BH}/assets/js/search.js`))),
   '★ [hidden] 那条不能漏:display:inline-flex 会把 hidden 属性盖掉(老坑)');
-ok('★ WeChat 按钮:二维码点出来(藏着的图,不在首屏白下载)',
-  /id="?hud-wechat"?/.test(tech) && /id="?hud-qr"?/.test(tech) && /others\/wechat\.jpg/.test(hudTplCode) &&
-  /hud-qr\[hidden\]\s*\{\s*display:\s*none/.test(cssCode) &&
-  fs.existsSync(`${BH}/static/others/wechat.jpg`));
-ok('★★★ 改造 5(第五轮第二次):导航整列【垂直居中】—— 中间那项(归档)正好在页面中线',
-  (() => {
-    const ids = [...tech.matchAll(/data-hud-nav="?([\w-]+)"?/g)].map((m) => m[1]);
-    return ids.join(',') === 'home,tech,archives,guestbook,about' &&
-      /\.hud-nav\s*\{[^}]*top:\s*50%/.test(cssCode) &&
-      /\.hud-nav\s*\{[^}]*transform:\s*translateY\(-50%\)/.test(cssCode) &&
-      !/\.hud-nav\s*\{[^}]*top:\s*var\(--hud-notch\)/.test(cssCode);
-  })(), '用户:"把右侧的导航栏从上对齐改成居中吧,就是中间的那个归档的中间刚好在页面居中的位置"');
+ok('★★ 微信按钮:点一下把微信号复制走(二维码太小,用户改成复制了)',
+  /data-hud-act="?wechat"?/.test(tech) && /data-copy="?tuagfey"?/.test(tech) &&
+  /id="?hud-toast"?/.test(tech) && !/hud-qr/.test(tech) &&
+  /navigator\.clipboard/.test(hudJs) && /execCommand/.test(hudJs),
+  '用户:"不如干脆复制我的微信号到剪切板算了:tuagfey" —— 还要有 execCommand 兜底 + 一句提示');
 ok('★ 当前页那一项有 is-current + aria-current="page"',
   /\bis-current\b/.test(tagOf(tech, 'tech')) && /aria-current="?page/.test(tagOf(tech, 'tech')) &&
   !/\bis-current\b/.test(tagOf(tech, 'home')) &&

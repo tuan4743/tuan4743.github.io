@@ -338,28 +338,25 @@
     display: block;
 }
 
-/* 微信二维码:点出来,再点收回去 */
-.hud-qr {
+/* 复制成功的提示(替代原来那块二维码面板) */
+.hud-toast {
     position: absolute;
-    top: calc(100% + 10px);
+    top: calc(100% + 8px);
     right: 0;
-    padding: 8px;
-    border: 1px solid var(--hud-line-soft);
-    border-radius: 6px;
+    padding: 5px 9px;
+    border: 1px solid var(--hud-line-on);
+    border-radius: 4px;
     background: rgba(8, 12, 22, 0.96);
     backdrop-filter: blur(8px);
+    color: var(--hud-ink);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
     z-index: 2;
 }
 
-.hud-qr[hidden] {
+.hud-toast[hidden] {
     display: none;
-}
-
-.hud-qr img {
-    display: block;
-    width: 168px;
-    height: auto;
-    border-radius: 3px;
 }
 
 /* ═══════ 改造 5:竖栏里的五个导航 ═══════
@@ -488,20 +485,27 @@
     -webkit-appearance: none;
     appearance: none;
     width: var(--hud-fader-len);
-    height: var(--hud-rail-w);
+    /* ★★ 命中区必须够宽:rotate(-90deg) 之后,这个 height 就是【横向】的命中宽度。
+       原来写的是轨粗 5px ⇒ 只有正中间那 5px 点得到,拇指两边溢出的部分全点不着,
+       用户看到的是"光点移上去没反应,要往右挪一点点才拖得动"。
+       现在给到滑块头直径,轨道用"中间 5px 的底色"画出来。 */
+    height: var(--hud-thumb);
     margin: 0;
     transform: rotate(-90deg);
-    background: var(--hud-rail);
+    background: var(--hud-rail) center / 100% var(--hud-rail-w) no-repeat;
     border-radius: 3px;
     outline: none;
     cursor: pointer;
 }
 
 .hud-range--hue {
-    background: linear-gradient(to right,
+    background-image: linear-gradient(to right,
         hsl(0, 78%, 58%) 0%, hsl(60, 78%, 58%) 17%, hsl(120, 78%, 58%) 33%,
         hsl(180, 78%, 58%) 50%, hsl(240, 78%, 58%) 67%, hsl(300, 78%, 58%) 83%,
         hsl(360, 78%, 58%) 100%);
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 100% var(--hud-rail-w);
     opacity: 0.85;
 }
 
@@ -672,6 +676,10 @@
 .hud-pen.is-on .hud-pen__colors {
     display: inline-flex;
 }
+
+/* ★ 颜色点必须是 .hud-pen 的直接子元素【不能】放进 .hud-pen__size ——
+   那个盒子是 overflow:hidden + 定宽(96px),塞进去会被整段裁掉,
+   症状就是"颜色点没出现"(用户第八轮报的)。 */
 
 .hud-pen__swatch {
     width: 13px;

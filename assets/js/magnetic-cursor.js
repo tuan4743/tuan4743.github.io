@@ -171,8 +171,15 @@
     if (target && target.isConnected) {
       var r = target.getBoundingClientRect();
       var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-      tx = cx + (mx - cx) * MAGNET;
-      ty = cy + (my - cy) * MAGNET;
+      /* ★★ 小目标【不做磁吸偏移】(用户第八轮:"吸附框的位置还是不对啊,就是偏左,
+         你可以看看 CD 页的几个按钮的吸附框怎么做的,那几个很准")。
+         CD 页那几个是大按钮,12% 的偏移相对尺寸看不出来;HUD 里 52~72px 的方按钮,
+         同样的绝对偏移 + 外扩就明显"框跑到左边去了"。
+         ⇒ 小于 90px 的目标:MAGNET 记 0(框严格压在目标中心),只有大件才吃磁吸。 */
+      var small = Math.min(r.width, r.height) < 90;
+      var mg = small ? 0 : MAGNET;
+      tx = cx + (mx - cx) * mg;
+      ty = cy + (my - cy) * mg;
       /* ★★ 外扩按目标尺寸走(用户第五轮:"下面的三个笔,吸附的框和实际的框偏移比较大")。
          原来是固定 PAD=10 ⇒ 一个高 30px 的按钮被撑成 50px 的框,看着就是"框和按钮不重合"。
          现在小目标按 22% 外扩(最小 4px),大目标照样 10px 封顶。 */

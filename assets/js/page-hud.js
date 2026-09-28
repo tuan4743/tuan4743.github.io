@@ -309,24 +309,49 @@
     activatePen("");
     Object.keys(penColors).forEach(function (n) { paintPenColor(n, penColors[n]); });
 
-    /* ---------------- 微信二维码 ---------------- */
+    /* ---------------- 微信:复制微信号 ----------------
+       ★ 用户第八轮:"点微信这个按钮出来的二维码好小,不如干脆复制我的微信号到剪切板算了:tuagfey."
+       ★ 剪贴板 API 在非 https / 旧浏览器上可能没有 ⇒ 退回 execCommand 那条老路,
+         再不行就把微信号【显示出来】让用户自己抄(不能点了没反应)。 */
     var wxBtn = byId("hud-wechat");
-    var qr = byId("hud-qr");
+    var toast = byId("hud-toast");
+    var toastTimer = null;
 
-    function setQr(open) {
-        if (!qr || !wxBtn) return;
-        qr.hidden = !open;
-        wxBtn.setAttribute("aria-expanded", open ? "true" : "false");
+    function say(text) {
+        if (!toast) return;
+        toast.textContent = text;
+        toast.hidden = false;
+        if (toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () { toast.hidden = true; }, 1800);
     }
 
-    if (wxBtn && qr) {
+    function fallbackCopy(text) {
+        try {
+            var ta = document.createElement("textarea");
+            ta.value = text;
+            ta.setAttribute("readonly", "");
+            ta.style.position = "fixed";
+            ta.style.opacity = "0";
+            document.body.appendChild(ta);
+            ta.select();
+            var ok = document.execCommand && document.execCommand("copy");
+            document.body.removeChild(ta);
+            return !!ok;
+        } catch (e) { return false; }
+    }
+
+    if (wxBtn) {
         wxBtn.addEventListener("click", function (e) {
             e.stopPropagation();
-            setQr(qr.hidden);
+            var text = wxBtn.getAttribute("data-copy") || "";
+            var done = function (ok) { say(ok ? "已复制微信号:" + text : "微信号:" + text); };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(fallbackCopy(text)); });
+            } else {
+                done(fallbackCopy(text));
+            }
         });
-        document.addEventListener("click", function () { setQr(false); });
-        document.addEventListener("keydown", function (e) {
-            if (e.key === "Escape") setQr(false);
-        });
+        document.addEventListener("click", function () { if (toast) toast.hidden = true; });
+        document.addEventListener("keydown", function (e) { if (e.key === "Escape" && toast) toast.hidden = true; });
     }
 })();
