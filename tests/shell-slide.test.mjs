@@ -123,26 +123,43 @@ ok('★ 比上一版小(clamp 的上限 ≤ 140px,上一版是 210px)',
   (() => { const m = /(?:^|[^.\w-])\.proj-node\s*\{[^}]*width:\s*clamp\((\d+)px,\s*[\d.]+vw,\s*(\d+)px\)/.exec(shellCode);
     return m && Number(m[2]) <= 140 && Number(m[1]) >= 60; })(),
   ((/(?:^|[^.\w-])\.proj-node\s*\{[^}]*width:\s*(clamp\([^)]*\))/.exec(shellCode) || [])[1] || '?'));
-ok('★★ 首页那一份靠【被盖住】隐藏 —— 它在 .intro-bg 之后、.scene 之前',
+ok('★★ 首页那一份是【机器的一部分】:在 .scene 里,跟着机器平移',
   (() => {
     const i = idx.indexOf('partial "projection-node.html"');
-    const bg = idx.indexOf('partial "cosmos.html"');
     const scene = idx.indexOf('<div class="scene"');
-    return i > bg && i < scene;
+    const rack = idx.indexOf('<div class="rack"');
+    return i > scene && i < rack;
   })(),
-  '三层 z-index 都是 0 ⇒ 绘制顺序 = DOM 顺序 = 星云 → 投影 → 机器');
+  '用户:"我要的是贴着屏幕,跟着屏幕移动"');
+ok('★★ 它贴在屏幕右缘【外侧】(left: 100vw)⇒ 静止时在视口外,平时看不见',
+  /\.intro-page \.proj-node\s*\{[^}]*position: absolute/.test(shellCode) &&
+  /\.intro-page \.proj-node\s*\{[^}]*left: 100vw/.test(shellCode) &&
+  /\.intro-page \.proj-node\s*\{[^}]*top: 0/.test(shellCode));
+/* ★ 这条是这一版的关键几何:机器的位移(-100vw)和投影的起始位置(+100vw)必须
+   正好抵消,它才会停在视口左上角、和博客页那一份(0,0)对齐。
+   所以从两处各自把数读出来比,而不是"看着像"。 */
+{
+  const shift = /body\.intro-page\.page-out \.scene\s*\{[^}]*translateX\((-?[\d.]+)vw\)/.exec(shellCode);
+  const start = /\.intro-page \.proj-node\s*\{[^}]*left:\s*([\d.]+)vw/.exec(shellCode);
+  /* ★ 博客页那条写的是 `left: 0`(没有单位,0 不用单位)——
+     正则要容忍"裸 0",否则读出来是 NaN(这一版就踩了)。 */
+  const land = /:root\[data-theme\]\.shell-page \.proj-node\s*\{[^}]*left:\s*(0|[\d.]+vw)/.exec(shellCode);
+  const s = shift ? Number(shift[1]) : NaN, a = start ? Number(start[1]) : NaN;
+  const b = land ? Number(String(land[1]).replace('vw', '')) : NaN;
+  ok('★★ 平移量 + 起始位置 = 落地位置(它正好停在左上角,和博客页对齐)',
+    Number.isFinite(s) && Number.isFinite(a) && Number.isFinite(b) && a + s === b,
+    `${a}vw ${s >= 0 ? '+' : '-'} ${Math.abs(s)}vw = ${a + s}vw,博客页在 ${b}vw`);
+}
 ok('★★ 它自己【没有任何动画】(用户:"动画没播放完这东西直接就跑到屏幕上")',
   !/\.proj-node[^{]*\{[^}]*animation:/.test(shellCode) &&
   !/\.intro-page[^{]*\.proj-node[^{]*\{[^}]*opacity: 0/.test(shellCode) &&
   !/\.intro-page\.page-out \.proj-node/.test(shellCode),
   '节奏完全由机器那 0.55s 的平移决定,不给自己排时间线');
-ok('★★ 它钉在左上角、不吃点击,且不参与平移',
-  /\.proj-node\s*\{[^}]*position: fixed/.test(shellCode) &&
-  /\.proj-node\s*\{[^}]*left: 0/.test(shellCode) &&
-  /\.proj-node\s*\{[^}]*top: 0/.test(shellCode) &&
+ok('★ 它不吃点击、也不盖住机器上的东西(z-index 与屏幕贴图同层)',
   /\.proj-node\s*\{[^}]*pointer-events: none/.test(shellCode) &&
-  !/page-out \.proj-node/.test(shellCode));
-ok('★ 博客页那一份压在内容下面(z-index -1),否则会盖住左上角的 logo',
+  /\.intro-page \.proj-node\s*\{[^}]*z-index: 34/.test(shellCode));
+ok('★ 博客页那一份在左上角、压在内容下面(z-index -1),否则会盖住 logo',
+  /:root\[data-theme\]\.shell-page \.proj-node\s*\{[^}]*position: fixed/.test(shellCode) &&
   /:root\[data-theme\]\.shell-page \.proj-node\s*\{[^}]*z-index: -1/.test(shellCode));
 ok('★ 博客页顶栏跟着做成半透明磨砂 —— 不然它会把投影的上面一截切掉,同时保住可读性',
   /:root\[data-theme\]\.shell-page \.header\s*\{[^}]*color-mix\(in srgb, var\(--theme\) 72%/.test(shellCode));

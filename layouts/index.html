@@ -108,16 +108,6 @@ window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}",
          partial + 同一批类 ⇒ 看起来像"在同一个页面里平移"(见 shell.css 顶部)。 */}}
     <div class="intro-bg">{{ partial "cosmos.html" . }}</div>
 
-    {{/* 投影(三角形,见 partials/projection-node.html)。
-        ★★ 它是【世界里的一个东西】,不是"淡入淡出的特效":
-           放在 .intro-bg 之后、.scene 之前,三层的 z-index 都是 0,
-           于是绘制顺序 = DOM 顺序 = 星云 → 投影 → 机器。
-           机器(屏幕那层是不透明的整屏背景)平时正好把它盖住,
-           点 APP 左移时机器让开,它【被"揭"出来】—— 没有任何自己的动画,
-           所以不会出现"过场还没播完它就自己跑到屏幕上"。
-        ★ 博客页上那一份(extend_footer 里)没有机器盖着,所以一直看得见。 */}}
-    {{ partial "projection-node.html" . }}
-
     <!-- 场景:屏幕(右缘为光驱边缝)+ 右侧 CD 架,整体刚体平移 -->
     <div class="scene" id="scene">
         <div class="screen" id="screen">
@@ -192,6 +182,15 @@ window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}",
             <!-- 屏幕贴图(金属边框):已把黑心转成透明,盖在内容之上 -->
             <div class="screen-frame" aria-hidden="true"></div>
         </div>
+
+        {{/* 投影(三角形,见 partials/projection-node.html)。
+            ★★ 它是【机器的一部分】:贴在屏幕右缘外侧(100vw 处),跟着 .scene 一起平移。
+               · 静止时它在视口右边之外 ⇒ 平时(CD 页、平板主界面)根本看不见;
+               · 点 APP 后整个机器左移 100vw ⇒ 它正好从右边扫进来,
+                 最后停在视口的【左上角】—— 而博客页上那一份也在左上角,
+                 所以过场是接得上的。
+            ★ 它是 .scene 的子元素 ⇒ 平移由机器带着走,自己【没有任何动画】。 */}}
+        {{ partial "projection-node.html" . }}
 
         <!-- CD 架:从屏幕右缘滑出,内部轮盘以插入点(hub)为轴心 -->
         <div class="rack" id="rack" aria-hidden="true">
