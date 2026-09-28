@@ -273,14 +273,20 @@ ok('★★★ 搜索组件接线:search.js 必须排在 header-search.js 之前(
   /search\.[0-9a-f]+\.js/.test(tech) && /header-search\.[0-9a-f]+\.js/.test(tech),
   'defer 按文档顺序执行:header-search.js 一进来看到 data-search 就让位');
 ok('★★ 改造 4:右上角三枚按钮 = 导出 Markdown / GitHub / WeChat',
-  /data-hud-act="?md"?/.test(tech) && /data-hud-act="?github"?/.test(tech) && /data-hud-act="?wechat"?/.test(tech) &&
+  /data-hud-act="?md"?/.test(post) && /data-hud-act="?github"?/.test(tech) && /data-hud-act="?wechat"?/.test(tech) &&
   /data-hud-act="github" href="\{\{ \$gh \| default "https:\/\/github\.com\/tuan4743" \}\}"/.test(hudTplCode) &&
   /data-hud-act=github href=https:\/\/github\.com\/tuan4743/.test(tech),
   '★ 产物里属性没有引号(踩过五次的坑);GitHub 地址优先取 socialIcons,取不到才用兜底常量');
+ok('★★★ 导出按钮【只在普通文章页】出现 —— 列表页没有"这一篇"可导出,给了就是 404', (() => {
+  const hasMd = (h) => /data-hud-act="?md"?/.test(h);
+  return hasMd(post) && !hasMd(tech) && !hasMd(home) &&
+    /if eq \$current\.Kind "page"/.test(hudTplCode) &&
+    !fs.existsSync(`${WS}/.tmp/t1/tech/index.md`) &&
+    fs.existsSync(`${WS}/.tmp/t1/posts/hello-world/index.md`);
+})(), '实测 /tech/index.md 就是 404 —— 宁缺一个按钮,不给死链');
 ok('★★★ 导出按钮指向 Hugo【真生成】的那份 .md(不是前端拼的)',
   /data-hud-act="md" href="\{\{ \$md \}\}" download/.test(hudTplCode) &&
-  /data-hud-act=md href=[^\s>]*index\.md/.test(tech) &&
-  fs.existsSync(`${WS}/.tmp/t1/posts/hello-world/index.md`) &&
+  /data-hud-act=md href=[^\s>]*index\.md/.test(post) &&
   /^---/.test(rd(`${WS}/.tmp/t1/posts/hello-world/index.md`)) &&
   /\[outputFormats\.markdown\]/.test(rd(`${BH}/hugo.toml`)) &&
   fs.existsSync(`${BH}/layouts/_default/single.md`),

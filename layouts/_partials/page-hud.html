@@ -72,6 +72,10 @@
     {{- $gh := "" -}}
     {{- with (index (where site.Params.socialIcons "name" "github") 0) }}{{ $gh = .url }}{{ end -}}
     <div class="hud-acts">
+        {{- /* ★★ 只给【普通文章页】渲染这一枚:分区/首页这类列表页没有"这一篇"可导出
+               (hugo.toml 里写的是 page = ["HTML","markdown"],只有 Kind=page 才有 .md)。
+               宁缺一个按钮,不给一个 404 的链接 —— /tech/index.md 实测就是 404。 */}}
+        {{- if eq $current.Kind "page" }}
         <a class="hud-act" data-hud-act="md" href="{{ $md }}" download title="导出这篇文章的 Markdown">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                 stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -80,6 +84,7 @@
                 <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"></path>
             </svg>
         </a>
+        {{- end }}
         <a class="hud-act" data-hud-act="github" href="{{ $gh | default "https://github.com/tuan4743" }}"
             target="_blank" rel="noopener noreferrer" title="GitHub">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
