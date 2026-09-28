@@ -518,8 +518,8 @@ ok('★★ 三支笔齐:荧光笔 / 记号笔 / 橡皮擦,放在底部横带里'
 ok('★★ 每支笔都有"尺寸滑条",选中时【就地展开】(宽度 0 → 有宽度)', (() => {
   const sizes = [...hudTplCode.matchAll(/data-hud-pen-size="(\w+)"/g)].map((m) => m[1]);
   return sizes.join(',') === 'marker,annot,eraser' &&
-    /\.hud-pen__size\s*\{[^}]*width:\s*0/.test(cssCode) &&
-    /\.hud-pen\.is-on \.hud-pen__size\s*\{[^}]*width:\s*clamp\(/.test(cssCode);
+    /\.hud-pen__tools\s*\{[^}]*width:\s*0/.test(cssCode) &&
+    /\.hud-pen\.is-on \.hud-pen__tools\s*\{[^}]*width:\s*clamp\(/.test(cssCode);
 })(), 'rc="按一下激活并展开为滑条"');
 ok('★★ 展开靠 flex 自动重排(没手写位移动画)', /\.hud-pens\s*\{[^}]*justify-content:\s*flex-end/.test(cssCode) &&
   /\.hud-pen\s*\{[^}]*display:\s*flex/.test(cssCode),
@@ -668,7 +668,7 @@ ok('★★ 笔色存 localStorage,预览球跟着变色',
   /PEN_COLOR = "hud-pen-color"/.test(hudJs) && /setPenColor/.test(hudJs) &&
   /background:\s*var\(--pen-color/.test(cssCode));
 ok('★★ 展开时名字收成图标:底带 23% 宽要装下"三支笔 + 大小 + 颜色"',
-  /\.hud-pen\.is-on \.hud-pen__name\s*\{\s*display:\s*none/.test(cssCode) &&
+  /\.hud-pen\.is-on \.hud-pen__name\s*\{\s*max-width:\s*0/.test(cssCode) &&
   /\.hud-pen__btn\s*\{[^}]*font-size:\s*11px/.test(cssCode),
   '用户:"这三个按钮的字号大一点点" + 新加颜色控件 ⇒ 只能靠收起名字腾地方');
 /* ---------- 出结果 ---------- */

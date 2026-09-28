@@ -70,6 +70,39 @@
     "button:not(.frost-shard)"
   ].join(",");
 
+  /* 笔形态的光标:记号笔 = ×(两笔交叉),荧光笔/橡皮 = 圆框(直径 = 笔的大小) */
+  function drawPenCursor(ctx, x, y, cfg) {
+    var dpr = window.devicePixelRatio || 1;
+    ctx.save();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (cfg.shape === "x") {
+      var r = cfg.size || 10;                   /* × 的臂长(半径) */
+      ctx.strokeStyle = "rgba(234, 243, 255, 0.95)";
+      ctx.lineWidth = 1.6;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(x - r, y - r); ctx.lineTo(x + r, y + r);
+      ctx.moveTo(x + r, y - r); ctx.lineTo(x - r, y + r);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(x, y, 1.6, 0, Math.PI * 2);
+      ctx.fillStyle = "#eaf3ff";
+      ctx.fill();
+    } else {
+      var rad = Math.max(3, (cfg.size || 8) / 2);   /* 直径 = 笔的大小 */
+      ctx.strokeStyle = "rgba(234, 243, 255, 0.9)";
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      ctx.arc(x, y, rad, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(x, y, 1.4, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(234, 243, 255, 0.9)";
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
   /* ---------- DOM:一张铺满视口的画布 ---------- */
   var cv = document.createElement("canvas");
   cv.className = "magnetic-cursor-cv";
@@ -166,8 +199,20 @@
     ctx.clearRect(0, 0, W, H);
     if (mx < -900) return;
 
+    /* ★★ 选了笔之后的鼠标形态(用户第九轮):
+         · 记号笔 → 从矩形扫描框收紧到中心光点,再展开成一个 ×,而且【实时跟手】;
+         · 荧光笔 / 橡皮 → 圆框,直径 = 那支笔选的大小。
+       配置由 page-hud.js 写进 window.__mcPenCfg(它知道当前选了哪支笔、多大)。 */
+    var penCfg = window.__mcPenCfg;
+    if (penCfg && penCfg.shape) {
+      fx = mx; fy = my; fw = 0; fh = 0;          /* 实时:位置不缓存 */
+      drawPenCursor(ctx, mx, my, penCfg);
+      return;
+    }
+
     /* ---- 目标点与尺寸:磁吸时贴向目标中心 ---- */
     var tx = mx, ty = my, tw = SIZE, th = SIZE;
+    var small = false;
     if (target && target.isConnected) {
       var r = target.getBoundingClientRect();
       var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
@@ -176,7 +221,7 @@
          CD 页那几个是大按钮,12% 的偏移相对尺寸看不出来;HUD 里 52~72px 的方按钮,
          同样的绝对偏移 + 外扩就明显"框跑到左边去了"。
          ⇒ 小于 90px 的目标:MAGNET 记 0(框严格压在目标中心),只有大件才吃磁吸。 */
-      var small = Math.min(r.width, r.height) < 90;
+      small = Math.min(r.width, r.height) < 90;
       var mg = small ? 0 : MAGNET;
       tx = cx + (mx - cx) * mg;
       ty = cy + (my - cy) * mg;
@@ -191,12 +236,19 @@
       th = r.height + Math.min(PAD, Math.max(4, Math.min(r.width, r.height) * 0.22)) * 2;
     }
 
-    /* ---- 平滑收敛(帧率无关)---- */
-    var k = 1 - Math.pow(1 - SMOOTH, dt * 60);
+    /* ---- 平滑收敛(帧率无关)----
+       ★★ 小目标【不缓动】:直接跳到目标位置/尺寸。
+          用户第九轮:"吸附还是不对啊,分析好了再改" —— 复核后的真原因是【滞后】:
+          位置和尺寸都是按帧收敛的,鼠标扫过 52~72px 的小按钮时框永远落后几帧,
+          看上去就是"框跑到左上角去了"。CD 页那几个按钮大,同样的滞后相对尺寸
+          看不出来,所以那边一直显得很准。
+          ⇒ 小目标锁定后一帧到位,大件(卡片之类)保留原来的滑动感。 */
+    var snap = small;
+    var k = snap ? 1 : 1 - Math.pow(1 - SMOOTH, dt * 60);
     var px = fx, py = fy;
     fx += (tx - fx) * k;
     fy += (ty - fy) * k;
-    var ks = 1 - Math.pow(1 - SIZE_EASE, dt * 60);
+    var ks = snap ? 1 : 1 - Math.pow(1 - SIZE_EASE, dt * 60);
     fw += (tw - fw) * ks;
     fh += (th - fh) * ks;
 

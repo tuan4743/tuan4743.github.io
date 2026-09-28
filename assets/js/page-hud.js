@@ -239,6 +239,7 @@
         store.set(PEN_SIZE, JSON.stringify(penSizes));
         var el = document.querySelector('[data-hud-pen="' + name + '"]');
         if (el) el.style.setProperty("--pen-size", String(val));
+        publishPenCursor();
     }
 
     penInputs.forEach(function (input) {
@@ -250,6 +251,26 @@
         /* 拖滑条时别让它顺手把按钮点了/把页面划了 */
         input.addEventListener("click", function (e) { e.stopPropagation(); });
     });
+
+    /* ---- 笔的鼠标形态(用户第九轮)----
+       · 记号笔 → ×,实时跟手;
+       · 荧光笔 / 橡皮 → 圆框,直径 = 那支笔选的大小;
+       · 没选笔 → 恢复默认的矩形扫描框。
+       配置写进 window.__mcPenCfg,magnetic-cursor.js 每帧读它(松耦合:
+       它不需要知道 HUD 里选了哪支笔)。 */
+    function publishPenCursor() {
+        var on = null;
+        for (var i = 0; i < pens.length; i++) if (pens[i].classList.contains("is-on")) on = pens[i];
+        if (!on || !window.__mcPenCfg) { window.__mcPenCfg = null; return; }
+        var name = on.getAttribute("data-hud-pen");
+        var size = parseFloat(penSizes[name]);
+        if (!isFinite(size)) size = 8;
+        /* 尺寸滑动条是 1~24(Markdown 里的"笔尖大小"),换算成屏幕像素:
+           圆形框给直径(×1.7),× 给臂长(×0.75) */
+        window.__mcPenCfg = name === "annot"
+            ? { shape: "x", size: Math.round(6 + size * 0.75) }
+            : { shape: "circle", size: Math.round(size * 1.7) };
+    }
 
     /* ---- 笔色(用户第七轮:"笔应该还要加一个调节颜色的滑块,或者几个颜色的选项")----
        选了"几个颜色的选项":五颗圆点。颜色和大小一样存 localStorage,
@@ -294,6 +315,7 @@
             if (btn) btn.setAttribute("aria-pressed", on ? "true" : "false");
         });
         store.set(PEN_ON, name || "");
+        publishPenCursor();
     }
 
     pens.forEach(function (p) {

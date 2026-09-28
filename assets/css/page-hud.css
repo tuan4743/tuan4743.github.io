@@ -627,8 +627,19 @@
 /* ★★ 展开时把名字收起来(只留图标):底带只有 x 7~30 那 23% 宽,
    要同时装下"三支笔 + 大小滑条 + 一排颜色点",名字是唯一能让出来的地方。
    鼠标悬停还有 title 提示,不至于不知道是哪支。 */
+/* ★ 用【收宽度】代替 display:none:display 一改就是一整帧重排(用户:"自动重排有点卡"),
+   宽度过渡 + overflow 隐藏是平滑的。 */
+.hud-pen__name {
+    display: inline-block;
+    max-width: 6em;
+    overflow: hidden;
+    white-space: nowrap;
+    transition: max-width 0.26s cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.2s ease;
+}
+
 .hud-pen.is-on .hud-pen__name {
-    display: none;
+    max-width: 0;
+    opacity: 0;
 }
 
 .hud-pen__btn:hover {
@@ -649,19 +660,28 @@
 }
 
 /* 展开出来的那截尺寸滑条:宽度从 0 长出来 ⇒ 同一行的其它按钮自动重排 */
-.hud-pen__size {
+/* ★★ 大小滑条 + 颜色点合并进【一个】会动宽度的容器(.hud-pen__tools):
+   只动一个宽度,而不是两个元素各自 display 切换(那样每帧都要重排,就是"卡"的来源)。 */
+.hud-pen__tools {
     display: flex;
     align-items: center;
     gap: 6px;
     width: 0;
     overflow: hidden;
     opacity: 0;
-    transition: width 0.26s cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.2s ease;
+    will-change: width;
+    transition: width 0.28s cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.22s ease;
 }
 
-.hud-pen.is-on .hud-pen__size {
-    width: clamp(74px, 4.6vw, 96px);       /* ★ 收窄:底带只有 x 7~30 那 23% */
+.hud-pen.is-on .hud-pen__tools {
+    width: clamp(170px, 11vw, 250px);
     opacity: 1;
+}
+
+.hud-pen__size {
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
 /* ═══════ 笔的颜色(用户:"笔应该还要加一个调节颜色的滑块,或者几个颜色的选项")═══════
@@ -675,6 +695,10 @@
 
 .hud-pen.is-on .hud-pen__colors {
     display: inline-flex;
+}
+
+.hud-pen__colors {
+    flex: 0 0 auto;
 }
 
 /* ★ 颜色点必须是 .hud-pen 的直接子元素【不能】放进 .hud-pen__size ——
