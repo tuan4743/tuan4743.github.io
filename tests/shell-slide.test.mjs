@@ -50,15 +50,14 @@ ok('技术页:挂了 shell-page', /classList\.add\("shell-page"\)/.test(tech));
 ok('技术页:宇宙背景在', cls('cosmos').test(tech));
 ok('技术页:page-slide.js 在', /page-slide\.[0-9a-f]+\.js/.test(tech));
 ok('技术页:没有重复的 .intro-bg(那是首页的)', !/intro-bg/.test(tech));
-ok('★★ 技术页【没有】投影 —— 它只属于平板主界面',
-  !cls('proj-node').test(tech) && !/projection-node/.test(rd(`${BH}/layouts/partials/extend_footer.html`)),
-  '用户:"固定在了首页的左上角,导致 CD 页和内容页都会出现"');
+ok('★★ 技术页【一直有】投影 —— 用户:"博客页是一直出现"',
+  cls('proj-node').test(tech) && /partial "projection-node\.html"/.test(rd(`${BH}/layouts/partials/extend_footer.html`)));
 ok('★ 宇宙背景是两处共用的(首页 + 其余页面)',
   /partial "cosmos\.html"/.test(rd(`${BH}/layouts/index.html`)) &&
   /partial "cosmos\.html"/.test(rd(`${BH}/layouts/partials/extend_footer.html`)));
-ok('★ 投影只在一处渲染:平板里面',
-  /partial "projection-node\.html"/.test(rd(`${BH}/layouts/index.html`)) &&
-  (rd(`${BH}/layouts/index.html`).match(/partial "projection-node\.html"/g) || []).length === 1);
+ok('★ 投影两处各渲染一次(首页一份、博客页一份),用的是同一个 partial',
+  (rd(`${BH}/layouts/index.html`).match(/partial "projection-node\.html"/g) || []).length === 1 &&
+  (rd(`${BH}/layouts/partials/extend_footer.html`).match(/partial "projection-node\.html"/g) || []).length === 1);
 
 /* ---------- ③ 宇宙背景:CD 架和页面背景是同一份 ---------- */
 ok('★ .cosmos-nebula 的星云声明只有一份(在 shell.css)',
@@ -121,17 +120,32 @@ ok('★★ 是【等腰直角三角形】(两条直角边一样长,直角在左�
   Number.isFinite(legX) && legX === legY && legX > 0,
   `直角边 ${legX} × ${legY}`);
 ok('★ 比上一版小(clamp 的上限 ≤ 140px,上一版是 210px)',
-  (() => { const m = /\.tablet \.proj-node\s*\{[^}]*width:\s*clamp\((\d+)px,\s*[\d.]+vw,\s*(\d+)px\)/.exec(shellCode);
+  (() => { const m = /(?:^|[^.\w-])\.proj-node\s*\{[^}]*width:\s*clamp\((\d+)px,\s*[\d.]+vw,\s*(\d+)px\)/.exec(shellCode);
     return m && Number(m[2]) <= 140 && Number(m[1]) >= 60; })(),
-  ((/\.tablet \.proj-node\s*\{[^}]*width:\s*(clamp\([^)]*\))/.exec(shellCode) || [])[1] || '?'));
-ok('★★ 它住在【平板里面】(不再是钉在视口上的一层)',
-  /\.tablet \.proj-node\s*\{[^}]*position: absolute/.test(shellCode) &&
-  !/^\.proj-node\s*\{[^}]*position: fixed/m.test(shellCode) &&
-  /class="tablet"[^>]*>[\s\S]{0,200}projection-node/.test(idx),
-  '只随平板出现/消失、过场时随平板滑走');
-ok('★ 贴住左上角、且不吃点击', /\.tablet \.proj-node\s*\{[^}]*left: 0/.test(shellCode) &&
-  /\.tablet \.proj-node\s*\{[^}]*top: 0/.test(shellCode) &&
-  /\.tablet \.proj-node\s*\{[^}]*pointer-events: none/.test(shellCode));
+  ((/(?:^|[^.\w-])\.proj-node\s*\{[^}]*width:\s*(clamp\([^)]*\))/.exec(shellCode) || [])[1] || '?'));
+ok('★★ 首页那一份靠【被盖住】隐藏 —— 它在 .intro-bg 之后、.scene 之前',
+  (() => {
+    const i = idx.indexOf('partial "projection-node.html"');
+    const bg = idx.indexOf('partial "cosmos.html"');
+    const scene = idx.indexOf('<div class="scene"');
+    return i > bg && i < scene;
+  })(),
+  '三层 z-index 都是 0 ⇒ 绘制顺序 = DOM 顺序 = 星云 → 投影 → 机器');
+ok('★★ 它自己【没有任何动画】(用户:"动画没播放完这东西直接就跑到屏幕上")',
+  !/\.proj-node[^{]*\{[^}]*animation:/.test(shellCode) &&
+  !/\.intro-page[^{]*\.proj-node[^{]*\{[^}]*opacity: 0/.test(shellCode) &&
+  !/\.intro-page\.page-out \.proj-node/.test(shellCode),
+  '节奏完全由机器那 0.55s 的平移决定,不给自己排时间线');
+ok('★★ 它钉在左上角、不吃点击,且不参与平移',
+  /\.proj-node\s*\{[^}]*position: fixed/.test(shellCode) &&
+  /\.proj-node\s*\{[^}]*left: 0/.test(shellCode) &&
+  /\.proj-node\s*\{[^}]*top: 0/.test(shellCode) &&
+  /\.proj-node\s*\{[^}]*pointer-events: none/.test(shellCode) &&
+  !/page-out \.proj-node/.test(shellCode));
+ok('★ 博客页那一份压在内容下面(z-index -1),否则会盖住左上角的 logo',
+  /:root\[data-theme\]\.shell-page \.proj-node\s*\{[^}]*z-index: -1/.test(shellCode));
+ok('★ 博客页顶栏跟着做成半透明磨砂 —— 不然它会把投影的上面一截切掉,同时保住可读性',
+  /:root\[data-theme\]\.shell-page \.header\s*\{[^}]*color-mix\(in srgb, var\(--theme\) 72%/.test(shellCode));
 ok('★ 加了小装饰:斜边虚线 + 斜边刻度 + 两条直角边的标尺',
   /\.pn-dash\s*\{/.test(shellCode) && /\.pn-tick\s*\{/.test(shellCode) && /\.pn-ruler\s*\{/.test(shellCode) &&
   /class="pn-dash"/.test(nodeHtml) && /class="pn-tick"/.test(nodeHtml) && /class="pn-ruler"/.test(nodeHtml));

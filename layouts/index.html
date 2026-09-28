@@ -104,9 +104,19 @@ window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}",
         </div>
     </div>
     {{/* 背景:首页的"宇宙背景"就是 .intro-bg 这一层 —— 它【不跟着 .scene 滑】,
-         所以点 APP 右滑时露出来的正是它,而落地页(博客页)用的也是同一份
-         partial + 同一批类 ⇒ 看起来像"在同一个页面里右滑"(见 shell.css 顶部)。 */}}
+         所以点 APP 平移时露出来的正是它,而落地页(博客页)用的也是同一份
+         partial + 同一批类 ⇒ 看起来像"在同一个页面里平移"(见 shell.css 顶部)。 */}}
     <div class="intro-bg">{{ partial "cosmos.html" . }}</div>
+
+    {{/* 投影(三角形,见 partials/projection-node.html)。
+        ★★ 它是【世界里的一个东西】,不是"淡入淡出的特效":
+           放在 .intro-bg 之后、.scene 之前,三层的 z-index 都是 0,
+           于是绘制顺序 = DOM 顺序 = 星云 → 投影 → 机器。
+           机器(屏幕那层是不透明的整屏背景)平时正好把它盖住,
+           点 APP 左移时机器让开,它【被"揭"出来】—— 没有任何自己的动画,
+           所以不会出现"过场还没播完它就自己跑到屏幕上"。
+        ★ 博客页上那一份(extend_footer 里)没有机器盖着,所以一直看得见。 */}}
+    {{ partial "projection-node.html" . }}
 
     <!-- 场景:屏幕(右缘为光驱边缝)+ 右侧 CD 架,整体刚体平移 -->
     <div class="scene" id="scene">
@@ -372,12 +382,7 @@ window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}",
     {{ with $statusJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
     {{ with $ringJs }}<script defer src="{{ .RelPermalink }}"></script>{{ end }}
 
-{{/* 投影:占住【平板主界面】左上角一角的三角形(见 partials/projection-node.html)。
-    ★ 它挂在平板【里面】(不是钉在视口上):这样它只在平板开着时出现,
-      过场时跟着平板一起滑走 —— 用户报过"钉在视口上会导致 CD 页和内容页都冒出来"。 */}}
-
-{{/* ============================================================
-     顶缘那枚下拉按钮 + 平板主界面(用户要求)
+{{/* 顶缘那枚下拉按钮 + 平板主界面(用户要求)
      按下箭头 → 整块屏幕变成【一块平板的主屏】:导航变成 APP 图标、
      搜索单独一张卡片,再加时钟 / 最近更新 / 标签几张卡片;收起回 CD。
      ─────────────────────────────────────────────────────────────
@@ -409,10 +414,6 @@ window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}",
 
 <div class="tablet" id="tablet" data-tablet-home hidden aria-hidden="true" aria-label="平板主界面">
     <div class="tablet__glow" aria-hidden="true"></div>
-
-    {{/* 投影:左上角那面三角形。它在这里(平板里面)而不是钉在视口上 ——
-        只在平板开着时出现,过场时跟着平板一起滑走。 */}}
-    {{ partial "projection-node.html" . }}
 
     {{/* 状态行:日期 + 电量 —— 让它像一块真平板 */}}
     <div class="tablet__status">
