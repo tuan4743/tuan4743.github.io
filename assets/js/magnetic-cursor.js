@@ -231,24 +231,23 @@
       /* ★ 再收一档:用户第七轮又说"吸附框还是有偏差,基本都是有点偏大+偏左"。
          22% 对 64px 的方按钮仍是 14px(被 PAD 封到 10)⇒ 框比按钮大 20px。
          现在小目标按 10% 走(64px ⇒ 6.4px),最小 3px —— 框基本贴着按钮。 */
+      /* ★★★ 真 bug(第九轮才揪出来):这两行原来【不是一个公式】——
+         上一轮只把"宽"改成 10%,"高"还留着旧的 22% ⇒ 框又扁又大、
+         和按钮不是一个尺寸(用户:"吸附框的位置还是不对啊,整体就是图片的效果")。
+         现在宽高共用同一个 pad。 */
       var pad = Math.min(PAD, Math.max(3, Math.min(r.width, r.height) * 0.10));
       tw = r.width + pad * 2;
-      th = r.height + Math.min(PAD, Math.max(4, Math.min(r.width, r.height) * 0.22)) * 2;
+      th = r.height + pad * 2;
     }
 
     /* ---- 平滑收敛(帧率无关)----
-       ★★ 小目标【不缓动】:直接跳到目标位置/尺寸。
-          用户第九轮:"吸附还是不对啊,分析好了再改" —— 复核后的真原因是【滞后】:
-          位置和尺寸都是按帧收敛的,鼠标扫过 52~72px 的小按钮时框永远落后几帧,
-          看上去就是"框跑到左上角去了"。CD 页那几个按钮大,同样的滞后相对尺寸
-          看不出来,所以那边一直显得很准。
-          ⇒ 小目标锁定后一帧到位,大件(卡片之类)保留原来的滑动感。 */
-    var snap = small;
-    var k = snap ? 1 : 1 - Math.pow(1 - SMOOTH, dt * 60);
+       ★★ 这里【保持缓动】:用户明确说过"瞬时吸附绝对不要改,给我改回去"。
+          曾经试过"小目标一帧到位",被否掉了 —— 手感的连续性比"看起来准"重要。 */
+    var k = 1 - Math.pow(1 - SMOOTH, dt * 60);
     var px = fx, py = fy;
     fx += (tx - fx) * k;
     fy += (ty - fy) * k;
-    var ks = snap ? 1 : 1 - Math.pow(1 - SIZE_EASE, dt * 60);
+    var ks = 1 - Math.pow(1 - SIZE_EASE, dt * 60);
     fw += (tw - fw) * ks;
     fh += (th - fh) * ks;
 
@@ -262,8 +261,12 @@
     var targetRot = target ? 0 : spinAngle + lean;
     rot += angleDelta(targetRot, rot) * (1 - Math.pow(1 - ROT_EASE, dt * 60));
 
-    /* ---- ③ 微抖动:两个不同频率的正弦叠加(平滑慢漂,不是每帧乱跳)---- */
-    if (!reduced) {
+    /* ---- ③ 微抖动:两个不同频率的正弦叠加(平滑慢漂,不是每帧乱跳)----
+       ★★★ 另一个真 bug:抖动是【无条件】加在画框位置上的(bx = fx + jx)。
+         没锁定时它让框显得"活着",但锁定之后它仍然把框推着漂几个像素 ——
+         大按钮上看不出来,HUD 里 60px 的导航项上就是【恒定的偏移】。
+         ⇒ 锁定(有 target)时不再抖动,框严格压在目标上。 */
+    if (!reduced && !target) {
       var tt = now / 1000;
       jx = JITTER * 0.5 * (Math.sin(tt * DRIFT[0] * 6.283 + DRIFT_PH[0]) + 0.6 * Math.sin(tt * DRIFT[1] * 6.283 + DRIFT_PH[1]));
       jy = JITTER * 0.5 * (Math.sin(tt * DRIFT[1] * 6.283 + DRIFT_PH[1] + 1.7) + 0.6 * Math.sin(tt * DRIFT[0] * 6.283 + DRIFT_PH[0] + 0.9));
