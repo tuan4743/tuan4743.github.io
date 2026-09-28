@@ -27,16 +27,17 @@
     --hud-toc-lane: calc(70vw + 12px);
     --hud-toc-x: calc(70vw + 30px);
     --hud-toc-panel-w: 160px;
-    /* 面板和进度条【同一个高度、同一个垂直中心】——
-       这两个数也由 JS 写(用户第三轮:"怎么这个卡片没有居中对齐?":
-       原因就是面板用百分比高度、进度条用另一个百分比,谁也没对齐谁)。 */
+    /* 竖向三段:面板高(--hud-toc-panel-h)、圆按钮、上下留白 —— 加起来 = 盒子高。
+       这些数都由 JS 写(用户第三轮:"怎么这个卡片没有居中对齐?":原因是面板和
+       进度条各用一个百分比,谁也没对齐谁;第四轮又加了那枚回到顶部)。 */
     --hud-toc-y: 18%;
-    --hud-toc-h: 520px;
+    --hud-toc-panel-h: 440px;
+    --hud-toc-h: 505px;
 
-    /* 字号/字距由 hud-toc.js 写在这两个变量上(存 localStorage)
-       ★ 第二轮"字体也比较小" ⇒ 放大一档;第三轮"还是有点小" ⇒ 再放大一档 */
-    --toc-fs: 15px;
-    --toc-ls: 0.03em;
+    /* 目录自己的字号/字距:用户挑好的那组(第四轮:"字号16,字间距4我觉得很好看")
+       ⇒ 固定,不再跟着按钮变 —— 按钮现在调的是【正文】。 */
+    --toc-fs: 16px;
+    --toc-ls: 0.04em;
 
     --hud-toc-ink: rgba(234, 243, 255, 0.92);
     --hud-toc-dim: rgba(234, 243, 255, 0.7);
@@ -57,8 +58,15 @@
 }
 
 /* ---------------- 进度条 ----------------
-   外面这层 .hud-toc__lane 铺满整个 .hud-toc(也就是和面板同高、同心),
-   竖线在里面垂直居中、高度 = 面板高(--hud-toc-h)。 */
+   外面这层 .hud-toc__lane 铺满整个 .hud-toc(和面板同高、同心),
+   竖线在里面垂直居中、高度 = 面板高(--hud-toc-h)。
+   ★★ 上一版这里被我自己改坏了(用户第四轮:"进度条怎么被修没了,只剩一个移动点"):
+      .hud-toc__prog 写了 height: var(--hud-toc-h) 但它是 __lane 的 flex 子项,
+      flex 默认 align-items:stretch 会把它拉满整条 lane(505px → 986px);
+      而我的修复又把 __lane 设成了 align-items:center —— 结果它的高度变成
+      "内容高度":里面只有一个绝对定位的光点 ⇒ 高度 0 ⇒ 槽线整条消失。
+      ⇒ 现在让 __lane 自己 stretch(拉满),__prog 用 align-self:center +
+        显式 height: var(--hud-toc-h):槽线有了确定的高度,不再依赖内容。 */
 .hud-toc__lane {
     position: absolute;
     left: calc(var(--hud-toc-lane) - var(--hud-toc-x));
@@ -66,18 +74,21 @@
     height: 100%;
     width: 0;
     display: flex;
-    align-items: center;
+    justify-content: center;
     pointer-events: none;
 }
 
 .hud-toc__prog {
     position: relative;
+    align-self: center;                 /* ★ 有了它才有确定高度 */
+    flex: 0 0 auto;
     width: 2px;
-    height: var(--hud-toc-h);     /* ★ 和面板等高 —— 这就是"对齐" */
+    transform: translateY(-22px);       /* 和面板同心(回到顶部那枚占了下方 44px,见 JS 的 TOP_H)
+                                           —— 这 22px = (TOP_H + TOP_GAP) / 2 */
+    height: var(--hud-toc-panel-h);     /* ★ 和面板等高 —— 这就是"对齐" */
     border-radius: 2px;
     background: var(--hud-toc-line);
     pointer-events: none;
-    transform: translateX(-50%);
 }
 
 /* 已经读过的部分:从顶部长下来 */
@@ -105,21 +116,77 @@
     box-shadow: 0 0 8px 2px color-mix(in srgb, var(--hud-toc-cyan) 70%, transparent);
 }
 
-/* ---------------- 面板(收起页签留给导航栏用,这里不再放)---------------- */
+/* ---------------- 面板(收起页签留给导航栏用,这里不再放)----------------
+   ★ 竖向排:面板在上、「回到顶部」在下(用户第四轮:"这个按钮给他放到
+     目录页下面靠内容页的地方吧")。整盒在 .hud-toc 里垂直居中。 */
 .hud-toc__box {
     position: absolute;
     left: calc(var(--hud-toc-lane) - var(--hud-toc-x) + 18px);
     top: 0;
     height: 100%;
+    padding: 10px 0;
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 10px;
     pointer-events: auto;
+}
+
+/* 回到顶部:圆形,和主题原来那枚一个手感(线色/玻璃底/悬浮变青) */
+.hud-toc__top {
+    flex: 0 0 auto;
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid var(--hud-toc-line);
+    border-radius: 50%;
+    background: rgba(8, 12, 22, 0.78);
+    backdrop-filter: blur(9px);
+    color: var(--hud-toc-ink);
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;               /* 还没滚动时和主题那枚一样"不出现" */
+    transition: opacity 0.2s ease, border-color 0.16s ease, background-color 0.16s ease, color 0.16s ease;
+}
+
+.hud-toc__top.is-on {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.hud-toc__top:hover,
+.hud-toc__top:focus-visible {
+    border-color: var(--hud-toc-cyan);
+    background: rgba(34, 211, 238, 0.14);
+    color: #ffffff;
+}
+
+.hud-toc__top svg {
+    width: 15px;
+    height: 15px;
+    display: block;
+}
+
+/* ★★ 把主题自带的那枚 fixed 圆按钮"废掉"(只废功能与视觉,元素留着):
+   用户第四轮说它原来在左下角、现在挪到目录下面 ⇒ 一块地方不能有两个回到顶部。
+   ★ 不能用 display:none —— 主题的 footer.html 里有一段脚本每帧 toggle 它的
+     .hidden 类;我们这边是靠【同步那个类】决定自己那枚的显隐的,
+     元素一旦不参与布局,类照样在,但"看不见"和"不显示"就混在一起了。
+     用 opacity + pointer-events 更干净:它还在、类还在,只是既不显示也不挡点击。 */
+:root[data-theme].shell-page .top-link {
+    opacity: 0 !important;
+    pointer-events: none !important;
 }
 
 .hud-toc__panel {
     position: relative;              /* 装饰层的定位基准 */
     width: var(--hud-toc-panel-w);
-    height: 100%;
+    flex: 0 0 auto;
+    height: var(--hud-toc-panel-h);  /* ★ 面板自己的高(盒子高 = 它 + 回到顶部那枚) */
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -258,8 +325,8 @@
     flex: 0 0 auto;
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 11px 13px;
+    gap: 5px;
+    padding: 10px 11px;
     border-top: 1px solid var(--hud-toc-line);
     font-size: 13px;
     white-space: nowrap;

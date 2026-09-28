@@ -69,18 +69,33 @@
                 {{- end -}}
             </nav>
 
-            {{/* ── 字号 / 字距:面板左下角那一组小方块(用户图上标的"字号 字距 □□ □□")──
-                 ★ 只管【目录自己的字】,不动正文 —— 它们长在目录面板里。 */}}
-            <div class="hud-toc__size" role="group" aria-label="目录字号与字距">
-                <span class="hud-toc__size-lab">字号</span>
-                <button class="hud-toc__step" type="button" data-hud-toc-size="-1" aria-label="目录字号减小">−</button>
-                <button class="hud-toc__step" type="button" data-hud-toc-size="1" aria-label="目录字号增大">+</button>
-                <span class="hud-toc__size-lab">字距</span>
-                <button class="hud-toc__step" type="button" data-hud-toc-track="-1" aria-label="目录字距减小">−</button>
-                <button class="hud-toc__step" type="button" data-hud-toc-track="1" aria-label="目录字距增大">+</button>
+            {{/* ── 字号 / 字距:面板左下角那一组小方块(用户图上标的"字号 字距 □□ □□")
+                 ★ 用户第四轮:"我发现你这个字号怎么是调整这个目录页的,其实我想调整
+                   内容页的,方便用户。" ⇒ 这两个按钮【调的是正文】。
+                   目录自己的字号/字距就固定成用户挑好的那组(16px / 4),不再参与调节。
+                 ★ 面板最窄只有 168px:两块标签吃掉近 60px 会把读数挤没,
+                   所以只留一个"正文"标签,四个按钮用 aria-label 说明各自管什么。 */}}
+            <div class="hud-toc__size" role="group" aria-label="正文字号与字距">
+                <span class="hud-toc__size-lab">正文</span>
+                <button class="hud-toc__step" type="button" data-hud-toc-size="-1" aria-label="正文字号减小" title="正文字号 −">−</button>
+                <button class="hud-toc__step" type="button" data-hud-toc-size="1" aria-label="正文字号增大" title="正文字号 +">+</button>
+                <button class="hud-toc__step" type="button" data-hud-toc-track="-1" aria-label="正文字距减小" title="正文字距 −">−</button>
+                <button class="hud-toc__step" type="button" data-hud-toc-track="1" aria-label="正文字距增大" title="正文字距 +">+</button>
                 <span class="hud-toc__size-val" id="hud-toc-size-val" aria-live="polite"></span>
             </div>
         </div>
+
+        {{/* 「回到顶部」——用户第四轮:"左下角有一个圆的 go to top 按钮……这个按钮给他放到
+            目录页下面靠内容页的地方吧"。
+            ★ 为什么自己画一个:主题那枚是 position:fixed + right:2rem,搬进这块要跟
+              一堆百分比打架;自己画一个位置精确,而且照旧触发同一套滚动逻辑。 */}}
+        <button class="hud-toc__top" type="button" id="hud-toc-top" aria-label="回到顶部" title="回到顶部">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round" aria-hidden="true">
+                <polyline points="17 11 12 6 7 11"></polyline>
+                <polyline points="17 18 12 13 7 18"></polyline>
+            </svg>
+        </button>
     </div>
 </div>
 {{- end -}}

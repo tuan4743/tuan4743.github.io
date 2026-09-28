@@ -112,13 +112,13 @@ ok('★ 目录的收起页签已停用(hidden),标记留着给导航栏复用',
 ok('模块也认 hidden(停用后不再初始化 aria)',
   /if \(toggle && !toggle\.hidden\)/.test(js));
 
-/* ★ 用户第二、三条:整体太小 ⇒ 两轮放大 */
-ok('★ 目录字号再放大一档(默认 15px,上限 24px)',
-  /--toc-fs:\s*15px/.test(css) &&
-  /FS_MAX\s*=\s*24/.test(js) &&
-  /--hud-toc__title|\.hud-toc__title\s*\{[^}]*font-size:\s*21px/.test(css));
-ok('字体大小/字距仍然可调并存 localStorage',
-  /localStorage\.setItem\(KEY/.test(js) && /localStorage\.getItem\(KEY/.test(js));
+/* ★ 用户第四轮挑定:"目录页的字号16,字间距4我觉得很好看" ⇒ 目录固定这一组 */
+ok('★ 目录字号固定成用户挑的 16px / 0.04em(不再跟着按钮变)',
+  /--toc-fs:\s*16px/.test(css) && /--toc-ls:\s*0\.04em/.test(css) &&
+  /\.hud-toc__title\s*\{[^}]*font-size:\s*21px/.test(css));
+ok('字体大小/字距可调并存 localStorage(现在存的是正文那组)',
+  /localStorage\.setItem\(KEY/.test(js) && /localStorage\.getItem\(KEY/.test(js) &&
+  /KEY = "content-type"/.test(js));
 
 /* ★ 用户第三条:"卡片整体我觉得可以再装饰一下" */
 ok('★ 面板有四角直角括号装饰(和笔那排的框同一套美术)',
@@ -129,16 +129,18 @@ ok('装饰不吃鼠标事件(纯装饰)',
 ok('当前小节有青色底衬(不只是左边条)',
   /\.hud-toc__item\.is-current\s*\{[^}]*background:\s*linear-gradient/.test(css));
 
-/* ★ "卡片怎么没有居中对齐":面板和进度条必须【同高 + 同中心】 */
-ok('★ 进度条高度 = 面板高度(不是另一个百分比)',
-  /\.hud-toc__prog\s*\{[^}]*height:\s*var\(--hud-toc-h\)/.test(css) &&
+/* ★ "卡片怎么没有居中对齐":面板和进度条必须【同高 + 同中心】
+   (第四轮又在面板下面加了一枚回到顶部,所以高度分成了"盒子高"和"面板高") */
+ok('★ 进度条高度 = 面板高度(不是盒子高、更不是百分比)',
+  /\.hud-toc__prog\s*\{[^}]*height:\s*var\(--hud-toc-panel-h\)/.test(css) &&
   /\.hud-toc\s*\{[^}]*height:\s*var\(--hud-toc-h\)/.test(css));
-ok('★ 两个都挂在同一个垂直中心上(flex + align-items:center)',
+ok('★ 三者共用一个垂直中心:整层 flex 居中 + 槽线自己 align-self + 面板与圆按钮竖排',
   /\.hud-toc\s*\{[^}]*align-items:\s*center/.test(css) &&
-  /\.hud-toc__lane\s*\{[^}]*align-items:\s*center/.test(css) &&
-  /\.hud-toc__box\s*\{[^}]*align-items:\s*center/.test(css));
-ok('高度由 JS 按宽度定比例后写进 --hud-toc-h',
-  /setProperty\("--hud-toc-h",\s*h \+ "px"\)/.test(js) && /H_RATIO/.test(js));
+  /\.hud-toc__prog\s*\{[^}]*align-self:\s*center/.test(css) &&
+  /\.hud-toc__box\s*\{[^}]*justify-content:\s*center/.test(css));
+ok('高度由 JS 按宽度定比例后写进 --hud-toc-h 和 --hud-toc-panel-h',
+  /setProperty\("--hud-toc-h",\s*boxH \+ "px"\)/.test(js) &&
+  /setProperty\("--hud-toc-panel-h",\s*panelH \+ "px"\)/.test(js) && /H_RATIO/.test(js));
 
 /* ============================================================
    ③ 运行时:拿真模块 + 假 DOM 跑一遍
@@ -213,6 +215,9 @@ function fakeDom() {
      测试里把它标成"没隐藏",好把"收起/展开"这套逻辑本身继续钉住 ——
      导航栏那一版会直接复用同一段代码。 */
   toggle.hidden = false;
+  /* 「回到顶部」:我们那枚 + 主题那枚(模块靠主题那枚的 .hidden 同步显隐) */
+  const topBtn = mk('button'), themeTop = mk('a');
+  themeTop._cls.add("hidden");
   const root = mk('div');
   root._q = { '.hud-toc__prog': prog, '.hud-toc__prog-thumb': thumb, '.hud-toc__list': list };
   root._qa = { '.hud-toc__item': items };
@@ -243,16 +248,26 @@ function fakeDom() {
     heads[id] = h;
   });
 
+  /* documentElement 上要能写 CSS 变量(正文字号就写在它身上) */
+  const elVars = {};
+  const docElStyle = {
+    setProperty: (k, v) => { elVars[k] = String(v); },
+    getPropertyValue: (k) => (k in elVars ? elVars[k] : ''),
+    removeProperty: (k) => { delete elVars[k]; }
+  };
+
   const doc = {
     /* ★ documentElement.clientWidth 是【视口宽、不含滚动条】——
        布局计算全按它算(和真浏览器一个口径);少给一个就会直接崩。 */
-    documentElement: { clientWidth: 1700, clientHeight: 1000, classList: { add() {}, remove() {}, contains: () => false } },
+    documentElement: { clientWidth: 1700, clientHeight: 1000, style: docElStyle, classList: { add() {}, remove() {}, contains: () => false } },
     /* ★ 正文标题走 id 属性(真浏览器里就是 id="s1");目录内部的几个固定 id 直接给。 */
     getElementById: (id) => {
       if (id === 'hud-toc') return root;
       if (id === 'hud-toc-panel') return panel;
       if (id === 'hud-toc-toggle') return toggle;
       if (id === 'hud-toc-size-val') return sizeVal;
+      if (id === 'hud-toc-top') return topBtn;
+      if (id === 'top-link') return themeTop;
       return secIds.indexOf(id) >= 0 ? heads[id] : null;
     },
     querySelector: (s) => {
@@ -420,26 +435,79 @@ function pressOn(rootEl, target) {
   ok('再点一次展开回来', api.collapsed() === false && env.toggle.getAttribute('aria-expanded') === 'true');
 }
 
-/* ---- ③d 字号 / 字距 ---- */
+/* ---- ③d 字号 / 字距:★ 调的是【正文】,不是目录(用户第四轮)---- */
 {
   const env = fakeDom();
   const api = boot(env);
-  ok('默认字号 15px / 字距 0.03em(用户两轮都说小 ⇒ 放大两档)',
-    env.root.style.getPropertyValue('--toc-fs') === '15px' &&
-    env.root.style.getPropertyValue('--toc-ls') === '0.03em',
-    env.root.style.getPropertyValue('--toc-fs') + ' / ' + env.root.style.getPropertyValue('--toc-ls'));
+  ok('★ 默认写的是【正文】的字号变量(不是目录的)',
+    env.doc.documentElement.style.getPropertyValue('--article-fs') === '17px' &&
+    env.root.style.getPropertyValue('--toc-fs') === '',
+    '正文 ' + env.doc.documentElement.style.getPropertyValue('--article-fs') +
+    ' / 目录 ' + (env.root.style.getPropertyValue('--toc-fs') || '(没被碰过)'));
+  ok('行距跟着一起写(字越大行距比例略收)',
+    Number(env.doc.documentElement.style.getPropertyValue('--article-lh')) > 1.5 &&
+    Number(env.doc.documentElement.style.getPropertyValue('--article-lh')) < 1.8,
+    env.doc.documentElement.style.getPropertyValue('--article-lh'));
   pressOn(env.root, env.buttons.sizeUp); pressOn(env.root, env.buttons.sizeUp);
   pressOn(env.root, env.buttons.trackUp);
-  ok('★ 字号 +2 ⇒ 17px', env.root.style.getPropertyValue('--toc-fs') === '17px', env.root.style.getPropertyValue('--toc-fs'));
-  ok('★ 字距 +1 ⇒ 0.04em', env.root.style.getPropertyValue('--toc-ls') === '0.04em', env.root.style.getPropertyValue('--toc-ls'));
-  ok('字号写进了 localStorage', /"fs":17/.test(env.store['hud-toc-type'] || ''), env.store['hud-toc-type']);
-  ok('读数写成短格式(面板窄也不会被裁出半个单位)', env.sizeVal.textContent === '17/4', String(env.sizeVal.textContent));
+  ok('★ 字号 +2 ⇒ 19px(正文)', env.doc.documentElement.style.getPropertyValue('--article-fs') === '19px',
+    env.doc.documentElement.style.getPropertyValue('--article-fs'));
+  ok('★ 字距 +1 ⇒ 0.001em(正文)', env.doc.documentElement.style.getPropertyValue('--article-ls') === '0.001em',
+    env.doc.documentElement.style.getPropertyValue('--article-ls'));
+  ok('★ 目录自己的字号不受影响(用户挑好的 16px 固定)',
+    env.root.style.getPropertyValue('--toc-fs') === '', '目录变量从头到尾没被写过');
+  ok('字号写进了 localStorage', /"fs":19/.test(env.store['content-type'] || ''), env.store['content-type']);
+  ok('读数写成短格式', env.sizeVal.textContent === '19/1', String(env.sizeVal.textContent));
   for (let i = 0; i < 30; i++) pressOn(env.root, env.buttons.sizeUp);
-  ok('★ 字号有上限 24px(不越界)', env.root.style.getPropertyValue('--toc-fs') === '24px', env.root.style.getPropertyValue('--toc-fs'));
+  ok('★ 字号有上限 22px', env.doc.documentElement.style.getPropertyValue('--article-fs') === '22px',
+    env.doc.documentElement.style.getPropertyValue('--article-fs'));
   for (let i = 0; i < 40; i++) pressOn(env.root, env.buttons.sizeDown);
-  ok('★ 字号有下限 13px(不越界)', env.root.style.getPropertyValue('--toc-fs') === '13px', env.root.style.getPropertyValue('--toc-fs'));
+  ok('★ 字号有下限 14px', env.doc.documentElement.style.getPropertyValue('--article-fs') === '14px',
+    env.doc.documentElement.style.getPropertyValue('--article-fs'));
   for (let i = 0; i < 40; i++) pressOn(env.root, env.buttons.trackDown);
-  ok('★ 字距下限是 0em(不会变负)', env.root.style.getPropertyValue('--toc-ls') === '0.00em', env.root.style.getPropertyValue('--toc-ls'));
+  ok('★ 字距下限是 0em(不会变负)', env.doc.documentElement.style.getPropertyValue('--article-ls') === '0.000em',
+    env.doc.documentElement.style.getPropertyValue('--article-ls'));
+}
+
+/* ---- ③d2 回到顶部:在目录下面、和主题那枚同步 ----
+   ★ 用户第四轮:"左下角有一个圆的 go to top 按钮……这个按钮给他放到目录页
+     下面靠内容页的地方吧" */
+{
+  const env = fakeDom();
+  const api = boot(env);
+  ok('产物里有我们自己的回到顶部按钮', /id=hud-toc-top|id="hud-toc-top"/.test(sPost));
+  ok('主题原来那枚被让位(不是删掉:它的类和滚动逻辑还被借用)',
+    /:root\[data-theme\]\.shell-page \.top-link\s*\{[^}]*opacity:\s*0/.test(css) &&
+    /:root\[data-theme\]\.shell-page \.top-link\s*\{[^}]*pointer-events:\s*none/.test(css));
+  ok('★ 按钮在面板下方(盒子里是竖向排列)',
+    /\.hud-toc__box\s*\{[^}]*flex-direction:\s*column/.test(css) &&
+    /\.hud-toc__panel\s*\{[^}]*flex:\s*0 0 auto/.test(css));
+  ok('★ 面板高 = 盒子高 − 圆按钮 − 间距 − 上下留白(JS 算)',
+    /panelH = boxH - TOP_H - TOP_GAP - BOX_PAD/.test(js) &&
+    /setProperty\("--hud-toc-panel-h"/.test(js));
+  ok('默认不吃鼠标事件,滚动到位才亮(和主题那枚一致)',
+    /\.hud-toc__top\s*\{[^}]*opacity:\s*0/.test(css) && /\.hud-toc__top\.is-on\s*\{[^}]*opacity:\s*1/.test(css));
+  ok('点击交给主题那套滚动(不重复实现)', /themeTop\.click\(\)/.test(js));
+  ok('显隐跟着主题那枚走(MutationObserver + scroll 双保险)',
+    /MutationObserver/.test(js) && /topBtn\.classList\.toggle\("is-on"/.test(js));
+}
+
+/* ---- ③d3 进度条槽线:第四轮坏过一次(只剩一个光点)----
+   根因:.hud-toc__prog 是 flex 子项,又被设成 align-items:center,
+        高度变成"内容高度" ⇒ 里面只有绝对定位的光点 ⇒ 高度 0 ⇒ 整条槽没了。
+   ⇒ 现在:__lane 自身 stretch,__prog 用 align-self:center + 显式高度。 */
+{
+  ok('★ 槽线高度 = 面板高(不依赖内容)',
+    /\.hud-toc__prog\s*\{[^}]*height:\s*var\(--hud-toc-panel-h\)/.test(css));
+  ok('★ __prog 自己 align-self:center(不再靠父级 align-items)',
+    /\.hud-toc__prog\s*\{[^}]*align-self:\s*center/.test(css) &&
+    /\.hud-toc__lane\s*\{[^}]*justify-content:\s*center/.test(css) &&
+    !/\.hud-toc__lane\s*\{[^}]*align-items:\s*center/.test(css));
+  ok('槽线有可见的轨道色(不是透明)',
+    /\.hud-toc__prog\s*\{[^}]*background:\s*var\(--hud-toc-line\)/.test(css));
+  ok('和面板同心(父级居中 + 面板下方多出圆按钮的补偿)',
+    /\.hud-toc\s*\{[^}]*align-items:\s*center/.test(css) &&
+    /\.hud-toc__prog\s*\{[^}]*translateY\(-22px\)/.test(css));
 }
 
 /* ---- ③g 位置:量出来的三个数必须"面板永远不压导航"(用户第一个问题) ----
@@ -488,15 +556,16 @@ function pressOn(rootEl, target) {
     env.root.style.getPropertyValue('--hud-toc-lane') + ' / ' + env.root.style.getPropertyValue('--hud-toc-panel-w'));
 }
 
-/* ---- ③e 读回上次存的字号 ---- */
+/* ---- ③e 读回上次存的【正文】字号 ---- */
 {
   const env = fakeDom();
-  env.store['hud-toc-type'] = JSON.stringify({ fs: 16, ls: 8 });
+  env.store['content-type'] = JSON.stringify({ fs: 20, ls: 5 });
   boot(env);
-  ok('★ 下次打开沿用上次的字号/字距',
-    env.root.style.getPropertyValue('--toc-fs') === '16px' &&
-    env.root.style.getPropertyValue('--toc-ls') === '0.08em',
-    env.root.style.getPropertyValue('--toc-fs') + ' / ' + env.root.style.getPropertyValue('--toc-ls'));
+  ok('★ 下次打开沿用上次的【正文】字号/字距',
+    env.doc.documentElement.style.getPropertyValue('--article-fs') === '20px' &&
+    env.doc.documentElement.style.getPropertyValue('--article-ls') === '0.005em',
+    env.doc.documentElement.style.getPropertyValue('--article-fs') + ' / ' +
+    env.doc.documentElement.style.getPropertyValue('--article-ls'));
 }
 
 /* ---- ③f 没有这块 DOM 时必须静默退出(列表页/首页会加载同一个脚本) ---- */

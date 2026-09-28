@@ -10,6 +10,17 @@
     --mc-size: 34px;                        /* 默认框体尺寸 */
     --mc-thick: 2px;                        /* 角标线宽 */
     --mc-dot: 6px;                          /* 中心实点直径 */
+
+    /* ---------- 正文排版(由右下角/目录面板那组"字号 / 字距"按钮驱动)----------
+       ★ 用户原话:"我发现你这个字号怎么是调整这个目录页的,其实我想调整内容页的,
+         方便用户。" ⇒ 那组按钮现在写的是这三个变量(hud-toc.js 的 applyType)。
+       ★ 为什么放在 :root 而不是直接改 .post-content 的 font-size:
+         主题那条规则带类名权重,行内改样式不好维护;走变量就只有这一个开关。
+       ★ 只作用于【正文的段落/列表/引用】,标题、代码块、表格的相对比例不动 ——
+         这和"阅读器调字号"的预期一致(代码块跟着变大会很难看)。 */
+    --article-fs: 17px;
+    --article-lh: 1.72;
+    --article-ls: 0em;
 }
 
 :root[data-theme="dark"] {
@@ -636,4 +647,30 @@ body {
 
 .palette-swatch.active {
     box-shadow: 0 0 0 2px var(--theme), 0 0 0 4px var(--primary);
+}
+
+/* ============================================================
+   正文排版:消费 --article-fs / --article-lh / --article-ls
+   (由目录面板左下角那组"字号 / 字距"驱动,见 assets/js/hud-toc.js)
+   ─────────────────────────────────────────────────────────────
+   用户第四轮:"我想调整内容页的,方便用户" ⇒ 这是"阅读器调字号"那种功能。
+   ★ 只动正文的段落 / 列表 / 引用 / 表格文字:
+     标题、行内代码、代码块、图片题注的相对比例【不动】—— 代码块跟着变大会
+     撑破版心,标题跟着变大会把层次压平。这是刻意的。
+   ★ 列表项和引用也要带上,否则调大字号时它们的行距会和段落不一致。
+   ============================================================ */
+.post-content p,
+.post-content li,
+.post-content blockquote,
+.post-content dd,
+.post-content td,
+.post-content th {
+    font-size: var(--article-fs);
+    line-height: var(--article-lh);
+    letter-spacing: var(--article-ls);
+}
+
+/* 引用块里的段落别再叠一层(它的字号已经被上面那条设过了) */
+.post-content blockquote p {
+    font-size: inherit;
 }

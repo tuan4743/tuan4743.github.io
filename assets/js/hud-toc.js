@@ -49,11 +49,14 @@
   var GAP_NAV = 6;       /* 面板离竖栏 */
   var MIN_W = 168;       /* 比这窄就别显示了 */
   var MAX_W = 400;       /* 太宽也难看(宽屏上缝会很大) */
-  /* 面板高度:按可用宽度定比例(卡片不能又窄又长),再夹到视口高度的 56% 以内。
-     ★ 用户第三轮:"怎么这个卡片没有居中对齐?" —— 面板和进度条的高度原来各用
-       一个整页百分比,谁也没对齐谁;现在两个高度都取这一个数,并且共用同一个
-       垂直中心(.hud-toc 是 flex + align-items:center)。 */
+  /* 高度:先进 = 盒子总高(面板 + 下面那枚回到顶部),再由它算出面板高。
+     ★ 用户第三轮:"怎么这个卡片没有居中对齐?" —— 面板和进度条的高度原来各用一个
+       整页百分比,谁也没对齐谁;现在进度条高度直接取【面板高】这一个数,
+       两者共用同一个垂直中心(.hud-toc 是 flex + align-items:center)。 */
   var H_RATIO = 2.4, H_MIN = 300, H_MAX_VH = 0.56;
+  var TOP_H = 34;        /* 回到顶部那枚圆按钮的高 */
+  var TOP_GAP = 10;      /* 它和面板之间的间距 */
+  var BOX_PAD = 20;      /* 盒子上下各留 10px(见 CSS 的 padding) */
   var lastSig = "";     /* 上一次真正写下去的几何签名 */
   var last = null;      /* 量到的中间值,排障出口用 */
 
@@ -67,8 +70,10 @@
     var left = bar + GAP_PANEL;
     var gap = Math.round(navLeft - GAP_NAV - left);    /* 这条缝真正能用的宽 */
     var w = Math.min(MAX_W, gap);
-    var h = Math.round(Math.max(H_MIN, Math.min(w * H_RATIO, vh * H_MAX_VH)));
-    last = { vw: vw, vh: vh, mr: Math.round(mr), navLeft: Math.round(navLeft), left: Math.round(left), gap: gap, w: w, h: h };
+    var boxH = Math.round(Math.max(H_MIN, Math.min(w * H_RATIO, vh * H_MAX_VH)));   /* 盒子总高 */
+    var panelH = boxH - TOP_H - TOP_GAP - BOX_PAD;                                  /* 面板自己的高 */
+    last = { vw: vw, vh: vh, mr: Math.round(mr), navLeft: Math.round(navLeft), left: Math.round(left),
+             gap: gap, w: w, boxH: boxH, panelH: panelH };
 
     /* ★★ 守卫【不能】只看"宽度有没有变":同一个宽度下几何可能已经变了
        (1700 宽时 345px 可以对应 left=1264 也可以对应 left=1277,
@@ -87,11 +92,12 @@
       root.style.setProperty("--hud-toc-lane", bar + "px");
       root.style.setProperty("--hud-toc-x", left + "px");
       root.style.setProperty("--hud-toc-panel-w", w + "px");
-      root.style.setProperty("--hud-toc-h", h + "px");
-      /* 垂直中心:面板高 h,让它落在 [top, top+h] 正中 —— 顶带上沿(6%)以下、
-         底带(94%)以上取中点。同时给上下留 3% 余量,别贴到折线上。 */
-      var center = Math.max(0.06 + h / vh / 2 + 0.005, Math.min(0.94 - h / vh / 2 - 0.005, 0.5));
-      root.style.setProperty("--hud-toc-y", ((center - h / vh / 2) * 100).toFixed(3) + "%");
+      root.style.setProperty("--hud-toc-h", boxH + "px");
+      root.style.setProperty("--hud-toc-panel-h", panelH + "px");
+      /* 垂直中心:盒子高 boxH,让它落在 [top, top+boxH] 正中 —— 顶带上沿(6%)以下、
+         底带(94%)以上取中点。同时给上下留 0.5% 余量,别贴到折线上。 */
+      var center = Math.max(0.06 + boxH / vh / 2 + 0.005, Math.min(0.94 - boxH / vh / 2 - 0.005, 0.5));
+      root.style.setProperty("--hud-toc-y", ((center - boxH / vh / 2) * 100).toFixed(3) + "%");
       lastSig = sig;
     }
   }
@@ -101,10 +107,24 @@
   requestAnimationFrame(function () { layout(); });
   setTimeout(function () { layout(); }, 300);
 
-  /* ---------- ④ 字号 / 字距(存 localStorage)---------- */
-  var FS_MIN = 13, FS_MAX = 24, LS_MIN = 0, LS_MAX = 16;   /* 字距存 0~16,用时 /100 当 em */
-  var KEY = "hud-toc-type";
-  var fs = 15, ls = 3;
+  /* ============================================================
+     ④ 字号 / 字距:★ 调的是【正文】,不是目录
+     ─────────────────────────────────────────────────────────────
+     用户第四轮:"我发现你这个字号怎么是调整这个目录页的,其实我想调整内容页的,
+     方便用户。"
+     ⇒ 这两个按钮改的是【文章正文】的字号/行距,目录自己的那组固定成用户挑好的
+       (16px / 0.04em,见 hud-toc.css 的 --toc-fs / --toc-ls)。
+     ★ 怎么改正文:不改 .post-content 自己的 font-size(它的声明带类名权重,
+       直接改行内样式不好维护),而是在 :root 上写两个变量,由
+       assets/css/extended/custom.css 里的 article-typography 段落消费:
+           --article-fs / --article-lh
+       这样"正文排版"只有一个开关,以后要接主题设置也方便。
+     ★ 存 localStorage,和主题切换一个套路(下次打开还是你调好的大小)。
+     ============================================================ */
+  var FS_MIN = 14, FS_MAX = 22, FS_STEP = 1;
+  var LS_MIN = 0, LS_MAX = 10;
+  var KEY = "content-type";
+  var fs = 17, ls = 0;          /* 17px 是 PaperMod 正文的默认字号 */
   try {
     var saved = JSON.parse(localStorage.getItem(KEY) || "null");
     if (saved && typeof saved.fs === "number" && typeof saved.ls === "number") {
@@ -115,9 +135,12 @@
   function applyType() {
     fs = Math.max(FS_MIN, Math.min(FS_MAX, fs));
     ls = Math.max(LS_MIN, Math.min(LS_MAX, ls));
-    root.style.setProperty("--toc-fs", fs + "px");
-    root.style.setProperty("--toc-ls", (ls / 100).toFixed(2) + "em");
-    /* 读数写短一点(面板最窄只有 168px,写全 "15px/0.03em" 会被裁掉尾巴) */
+    var de = document.documentElement;
+    de.style.setProperty("--article-fs", fs + "px");
+    /* 行距跟着字号走:字越大,行距比例略收一点,免得一屏只剩几行 */
+    de.style.setProperty("--article-lh", (1.72 - (fs - 17) * 0.03).toFixed(2));
+    de.style.setProperty("--article-ls", (ls / 1000).toFixed(3) + "em");
+    /* 读数写短一点(面板最窄只有 168px);完整含义在按钮的 title 里 */
     if (sizeVal) sizeVal.textContent = fs + "/" + ls;
     try { localStorage.setItem(KEY, JSON.stringify({ fs: fs, ls: ls })); } catch (e) {}
   }
@@ -129,10 +152,34 @@
     e.preventDefault();
     var d1 = b.getAttribute("data-hud-toc-size");
     var d2 = b.getAttribute("data-hud-toc-track");
-    if (d1) fs += Number(d1);
+    if (d1) fs += Number(d1) * FS_STEP;
     if (d2) ls += Number(d2);
     applyType();
   });
+
+  /* ---------- 回到顶部(用户第四轮:"左下角有一个圆的 go to top 按钮……
+       这个按钮给他放到目录页下面靠内容页的地方吧")----------
+     ★ 我们只画按钮和位置;滚动行为交给主题自己那套:点一下触发原按钮的 click,
+       平滑滚动、URL 里的 #top 都由它处理,不重复实现。
+     ★ 显隐也和主题同步:主题的脚本每帧给 #top-link toggle .hidden,
+       我们把那个类映到自己这枚上(它就是"该不该出现"的唯一真相)。 */
+  var topBtn = document.getElementById("hud-toc-top");
+  var themeTop = document.getElementById("top-link");
+  if (topBtn) {
+    topBtn.addEventListener("click", function () {
+      if (themeTop) themeTop.click();
+      else window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+    var syncTop = function () {
+      var on = themeTop ? !themeTop.classList.contains("hidden") : window.pageYOffset > 200;
+      topBtn.classList.toggle("is-on", on);
+    };
+    if (themeTop && window.MutationObserver) {
+      try { new MutationObserver(syncTop).observe(themeTop, { attributes: true, attributeFilter: ["class"] }); } catch (e) {}
+    }
+    window.addEventListener("scroll", syncTop, { passive: true });
+    syncTop();
+  }
 
   /* ---------- ③ 收起 / 展开(暂留给导航栏,见下)----------
      ★★★ 用户第二轮第四条:"这个右滑的收起页我其实本意是想给导航栏的,
@@ -234,6 +281,19 @@
   window.__hudToc = {
     items: items.length, p: function () { return measure(); },
     fs: function () { return fs; }, ls: function () { return ls; },
+    /* ★ 这两个是【正文】的排版,不是目录的(用户第四轮要求) */
+    article: function () {
+      var de = document.documentElement;
+      return {
+        fs: de.style.getPropertyValue("--article-fs"),
+        lh: de.style.getPropertyValue("--article-lh"),
+        ls: de.style.getPropertyValue("--article-ls")
+      };
+    },
+    tocType: function () {
+      var cs = getComputedStyle(root);
+      return { fs: cs.getPropertyValue("--toc-fs").trim(), ls: cs.getPropertyValue("--toc-ls").trim() };
+    },
     collapsed: function () { return root.classList.contains("is-collapsed"); },
     tight: function () { return root.classList.contains("is-tight"); },
     layout: function () { return last; },
