@@ -68,4 +68,15 @@
 {{- $u := . | fingerprint "sha256" }}
 <script defer src="{{ $u.RelPermalink }}"></script>
 {{- end }}
+{{- /* 番茄钟(左栏,可收起):用户"可以先继续做番茄钟,番茄钟做成可收起的"。
+     ★ 和 HUD/目录 一个套路:自己的文件、自己的指纹、拿不到 DOM 就静默退出。
+     ★ 它在这里(if not .IsHome 里面)是【故意的】:首页那块屏是 CD 架 + 平板
+       那一套,左栏没有位置;点开博客页才需要专注计时。CSS 是全局挂的(见
+       extend_head.html 末尾),所以首页不会出现"有样式没逻辑"的空壳。
+     ★ 必须排在 page-hud.js 之后:它读 page-hud 算好的几何(--hud-cover 那些),
+       defer 按文档顺序执行,谁在前谁先跑。 */ -}}
+{{- with resources.Get "js/hud-timer.js" }}
+{{- $u := . | fingerprint "sha256" }}
+<script defer src="{{ $u.RelPermalink }}"></script>
+{{- end }}
 {{- end }}

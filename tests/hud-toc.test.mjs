@@ -72,8 +72,28 @@ for (const [name, needle] of [
   ok(`图上的「${name}」在产物里`, sPost.includes(needle));
 }
 ok('字号/字距是两组各两个按钮(图上那四个小方块)',
-  (sPost.match(/data-hud-toc-size=/g) || []).length === 2 &&
-  (sPost.match(/data-hud-toc-track=/g) || []).length === 2);
+  (sPost.match(/data-hud-toc-size=/g) || []).length === 4 &&
+  (sPost.match(/data-hud-toc-track=/g) || []).length === 4,
+  '面板里两组各两个 + 左栏那枚备用胶囊里两组各两个 = 每页 4 个(见下一节)');
+/* ★★ 用户第五轮:"你把字号字距改成了一个正文,导致现在是一个配文四个按钮,
+   不知道具体哪个是哪个。" ⇒ 两行各有自己的标签和读数(见 ③d 的读数断言)。 */
+ok('★ 字号/字距各有自己的行标签(不再共用一个"正文")',
+  /class=hud-toc__size-lab[^>]*>字号</.test(sPost) && /class=hud-toc__size-lab[^>]*>字距</.test(sPost) &&
+  !/class=hud-toc__size-lab[^>]*>正文</.test(sPost),
+  '标签:字号 / 字距');
+ok('★ 两行各有自己的读数元素(id 不同)',
+  /id=hud-toc-size-val/.test(sPost) && /id=hud-toc-track-val/.test(sPost) &&
+  !/hud-toc__size-val[^>]*id=hud-toc-size-val[^>]*hud-toc-track/.test(sPost));
+/* ★★ 用户第五轮之后从截图上发现的第二个毛病:面板在 1416 的窗口上只有 190px,
+   而我把读数那一列写成了定宽 50px —— "0.003" 放不下,浏览器【按字符】折行,
+   屏幕上是一列竖着的 "0 . 0 0 3"。
+   ⇒ 读数列必须是 auto;标签列可以定宽(它只有两个字)。 */
+ok('★ 读数那一列不能定宽(定宽会把 "0.003" 折成一列竖字)',
+  /grid-template-columns:\s*26px auto auto/.test(css) &&
+  !/grid-template-columns:\s*[^;]*\b\d+px\s+auto\s+\d+px/.test(css),
+  '两行:标签 26px + 按钮 auto + 读数 auto');
+ok('★ 面板最小宽 176(够放"字距 [−][+] 0.003"一整行)',
+  /MIN_W = 176/.test(js), 'MIN_W');
 
 /* 挂载链:HUD 里渲染 + 样式和脚本都发出去 */
 ok('page-hud.html 里渲染了 hud-toc', /partial "hud-toc\.html"/.test(hudTpl));
@@ -110,7 +130,7 @@ ok('★ 目录的收起页签已停用(hidden),标记留着给导航栏复用',
   /\.hud-toc__toggle\s*\{[^}]*display:\s*none/.test(css) &&
   /\.hud-toc__toggle:not\(\[hidden\]\)/.test(css));
 ok('模块也认 hidden(停用后不再初始化 aria)',
-  /if \(toggle && !toggle\.hidden\)/.test(js));
+  /if \(toggle && !toggle\.hidden/.test(js));
 
 /* ★ 用户第四轮挑定:"目录页的字号16,字间距4我觉得很好看" ⇒ 目录固定这一组 */
 ok('★ 目录字号固定成用户挑的 16px / 0.04em(不再跟着按钮变)',
@@ -145,7 +165,8 @@ ok('高度由 JS 按宽度定比例后写进 --hud-toc-h 和 --hud-toc-panel-h',
 /* ============================================================
    ③ 运行时:拿真模块 + 假 DOM 跑一遍
    ============================================================ */
-function fakeDom() {
+function fakeDom(opts) {
+  const noToc = !!(opts && opts.noToc);
   const mk = (tag) => {
     const vars = {};
     const el = {
@@ -210,7 +231,15 @@ function fakeDom() {
   });
 
   const list = mk('nav');
-  const panel = mk('div'), toggle = mk('button'), prog = mk('div'), thumb = mk('span'), sizeVal = mk('span');
+  const panel = mk('div'), toggle = mk('button'), prog = mk('div'), thumb = mk('span');
+  /* ★ 两个读数各一个元素(用户第五轮:一个"正文"配四个按钮认不出谁管谁)
+     ⇒ 模块分别写 #hud-toc-size-val 和 #hud-toc-track-val。
+     少给 trackVal 这一条,第二个读数就永远是空字符串,断言会假失败。 */
+  const sizeVal = mk('span'), trackVal = mk('span');
+  /* ★ 左栏那枚备用胶囊(窄屏/列表页上的字号控件):默认 hidden,
+     模块按"目录还能不能用"决定要不要把它顶上来。 */
+  const typePillEl = mk('div'), typeSizeVal = mk('span'), typeTrackVal = mk('span');
+  typePillEl.hidden = true;
   /* ★ 生产环境里这个页签是 hidden 的(用户要把"收起"给导航栏用)⇒ 模块不绑事件。
      测试里把它标成"没隐藏",好把"收起/展开"这套逻辑本身继续钉住 ——
      导航栏那一版会直接复用同一段代码。 */
@@ -235,8 +264,7 @@ function fakeDom() {
   const navEl = mk('nav');
   navEl._rect = { left: 1470, top: 300, right: 1700, bottom: 700 };
 
-  const heads = {};
-  const secTopDoc = { s1: 600, s2: 1300, s3: 2000 };   /* 三个小节在文档里的位置 */
+  const heads = {};  const secTopDoc = { s1: 600, s2: 1300, s3: 2000 };   /* 三个小节在文档里的位置 */
   secIds.forEach((id) => {
     const h = mk('h2');
     /* ★ 正文标题上必须有 id:模块是 document.getElementById(条目里的 data-hud-toc-id)。
@@ -262,10 +290,18 @@ function fakeDom() {
     documentElement: { clientWidth: 1700, clientHeight: 1000, style: docElStyle, classList: { add() {}, remove() {}, contains: () => false } },
     /* ★ 正文标题走 id 属性(真浏览器里就是 id="s1");目录内部的几个固定 id 直接给。 */
     getElementById: (id) => {
+      /* ★★ 列表页/首页根本没有目录 DOM:整块 hud-toc* 都要返回 null ——
+         模块就是从"拿不到目录"推出"该把备用胶囊顶上来"的。 */
+      if (noToc && (id === 'hud-toc' || id === 'hud-toc-panel' || id === 'hud-toc-toggle' ||
+        id === 'hud-toc-size-val' || id === 'hud-toc-track-val' || id === 'hud-toc-top')) return null;
       if (id === 'hud-toc') return root;
       if (id === 'hud-toc-panel') return panel;
       if (id === 'hud-toc-toggle') return toggle;
       if (id === 'hud-toc-size-val') return sizeVal;
+      if (id === 'hud-toc-track-val') return trackVal;
+      if (id === 'hud-type') return typePillEl;
+      if (id === 'hud-type-size-val') return typeSizeVal;
+      if (id === 'hud-type-track-val') return typeTrackVal;
       if (id === 'hud-toc-top') return topBtn;
       if (id === 'top-link') return themeTop;
       return secIds.indexOf(id) >= 0 ? heads[id] : null;
@@ -309,7 +345,11 @@ function fakeDom() {
   };
   const storage = {};
   const env = {
-    root, panel, toggle, prog, thumb, list, items, sizeVal, heads, main, doc, win,
+    root, panel, toggle, prog, thumb, list, items, sizeVal, trackVal, heads, main, doc, win,
+    typePillEl, typeSizeVal, typeTrackVal,
+    /* ★ 备用胶囊那几条用例要在块外造按钮点击,所以把造按钮的工具一起交出去
+       (mk 是块内私有的,不交出来外面就只能手搓对象,重复一遍反而更容易写错) */
+    mkBtn,
     buttons: { sizeDown, sizeUp, trackDown, trackUp },
     /* ★ 滚一下:光标元素(正文/小节)的视口坐标自动跟着变 —— 真实浏览器就是这样。
        手改 rect 很容易把两套坐标系搞混(第一版就是这么错的)。 */
@@ -457,7 +497,13 @@ function pressOn(rootEl, target) {
   ok('★ 目录自己的字号不受影响(用户挑好的 16px 固定)',
     env.root.style.getPropertyValue('--toc-fs') === '', '目录变量从头到尾没被写过');
   ok('字号写进了 localStorage', /"fs":19/.test(env.store['content-type'] || ''), env.store['content-type']);
-  ok('读数写成短格式', env.sizeVal.textContent === '19/1', String(env.sizeVal.textContent));
+  /* ★ 用户第五轮:"一个配文四个按钮,不知道具体哪个是哪个" ⇒ 两个读数各写各的 */
+  ok('★ 字号那一行的读数 = "19px"(带单位、只讲字号)',
+    env.sizeVal.textContent === '19px', String(env.sizeVal.textContent));
+  ok('★ 字距那一行的读数 = "0.001"(只讲字距)',
+    env.trackVal.textContent === '0.001', String(env.trackVal.textContent));
+  ok('★ 读数不再拼成含糊的 "19/1"',
+    !/^\d+\/\d+$/.test(String(env.sizeVal.textContent)));
   for (let i = 0; i < 30; i++) pressOn(env.root, env.buttons.sizeUp);
   ok('★ 字号有上限 22px', env.doc.documentElement.style.getPropertyValue('--article-fs') === '22px',
     env.doc.documentElement.style.getPropertyValue('--article-fs'));
@@ -575,6 +621,56 @@ function pressOn(rootEl, target) {
   let threw = null;
   try { boot(env); } catch (e) { threw = e.message; }
   ok('★ 页面上没有目录时不报错(列表页/首页也加载这个脚本)', threw === null, String(threw));
+}
+
+/* ---- ③g 备用胶囊:目录用不了的时候,字号控件必须还在 ----
+   ★ 用户第五轮之后从 CDP 扫描里发现的:目录面板在缝太窄时整块 display:none,
+     而字号控件住在面板里 ⇒ 1280 及以下的窗口上【根本调不了正文字号】,
+     可"方便用户调内容页"正是用户这一轮点名的需求。 */
+{
+  /* g1:有目录、缝太窄 ⇒ 胶囊顶上 */
+  const env = fakeDom();
+  const api = boot(env);
+  ok('★ 目录收掉时(.is-tight)备用胶囊顶上来',
+    api.tight() === true && api.pill() === true,
+    'tight=' + api.tight() + ' pill=' + api.pill());
+  ok('胶囊上的读数也写上了当前值',
+    env.typeSizeVal.textContent === '17px' && env.typeTrackVal.textContent === '0',
+    env.typeSizeVal.textContent + ' / ' + env.typeTrackVal.textContent);
+
+  /* 点胶囊里的 + :模块的委托点击挂在 root 上,而 root 里有面板那四个按钮 ——
+     这里直接按胶囊上的按钮点(root 上的处理器会收到冒泡)。 */
+  const pillUp = env.mkBtn('data-hud-toc-size', 1);
+  pressOn(env.root, pillUp);
+  ok('★ 点胶囊里的 + 也能改正文字号(同一套 data 属性)',
+    env.doc.documentElement.style.getPropertyValue('--article-fs') === '18px' &&
+    env.typeSizeVal.textContent === '18px',
+    env.doc.documentElement.style.getPropertyValue('--article-fs'));
+
+  /* g2:缝够宽 ⇒ 胶囊让位(同一个控件不该出现两份) */
+  env.main._rect = { left: 600, top: 200, right: 1280, bottom: 1174 };
+  env.doc.querySelector = (s) => (s.indexOf('.hud-nav') === 0
+    ? { getBoundingClientRect: () => ({ left: 1600, right: 1700, top: 0, bottom: 0 }) } : env.main);
+  api.relayout();
+  ok('★ 目录能用时胶囊收起来(不在屏幕上出现两份字号控件)',
+    api.tight() === false && api.pill() === false,
+    'tight=' + api.tight() + ' pill=' + api.pill());
+}
+
+/* ---- ③h 列表页/首页(完全没有目录 DOM):胶囊必须顶上 ----
+   第一版这里写的是 if (!root) return; ⇒ 那些页面上字号控件一个都没有。 */
+{
+  const env = fakeDom({ noToc: true });
+  const api = boot(env);
+  ok('★ 没有目录 DOM 时备用胶囊顶上(列表页也能调正文)',
+    api.pill() === true, 'pill=' + api.pill());
+  ok('★ 没有目录时不报错,而且读数照写',
+    env.typeSizeVal.textContent === '17px', env.typeSizeVal.textContent);
+  const pillUp = env.mkBtn('data-hud-toc-size', 1);
+  pressOn(env.typePillEl, pillUp);     /* root 为 null ⇒ 处理器挂在胶囊自己身上 */
+  ok('★ 列表页上点胶囊真的改到了正文字号',
+    env.doc.documentElement.style.getPropertyValue('--article-fs') === '18px',
+    env.doc.documentElement.style.getPropertyValue('--article-fs'));
 }
 
 /* ---------------- 输出 ---------------- */

@@ -51,3 +51,18 @@
 <script>{{ .Content | safeJS }}</script>
 {{- end }}
 {{- end }}
+
+{{- /* ---------- 番茄钟(左栏,可收起)的样式 ----------
+     ★ 和上面那两块同一个套路:自己的文件、自己的指纹、排在 page-hud.css 之后
+       (它吃 --hud-font / --mc-color / --hud-cover 这几个变量)。
+     ★★ 注意它在 if not .IsHome【外面】:番茄钟的【DOM】挂在 .page-hud 里
+       (layouts/_partials/page-hud.html 第 ⑥ 节),而 .page-hud 只在博客页渲染
+       (baseof.html 里带 if not .IsHome)。样式跟着进 if 也不会错,但放在外面
+       更省心:哪天真要给首页也加一个,只需在那边补一句 partial,不必再回来
+       改样式表的位置。首页没有那个 DOM,这几 KB 不会被解析成任何东西。
+     ★ 它是 fixed 定位的自绘块,不参与任何 Hugo 端计算,所以没有"首帧闪一下"
+       的问题,挂在 <head> 末尾就行。 */ -}}
+{{- with resources.Get "css/hud-timer.css" }}
+{{- $u := . | fingerprint "sha256" }}
+<link rel="stylesheet" href="{{ $u.RelPermalink }}">
+{{- end }}

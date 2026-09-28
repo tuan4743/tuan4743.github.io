@@ -74,14 +74,20 @@
                    内容页的,方便用户。" ⇒ 这两个按钮【调的是正文】。
                    目录自己的字号/字距就固定成用户挑好的那组(16px / 4),不再参与调节。
                  ★ 面板最窄只有 168px:两块标签吃掉近 60px 会把读数挤没,
-                   所以只留一个"正文"标签,四个按钮用 aria-label 说明各自管什么。 */}}
+                   四个按钮长得一样,认不出哪两个管字号 —— 拆成【两行】:
+                        字号  [−][+]  17px
+                        字距  [−][+]  0
+                    每行一个标签、两个按钮、自己的读数;宽度靠 CSS 的 grid 标签列管,
+                    不再靠"少写字"。两个读数各有自己的 id(JS 不再拼 "17/0")。 */}}
             <div class="hud-toc__size" role="group" aria-label="正文字号与字距">
-                <span class="hud-toc__size-lab">正文</span>
+                <span class="hud-toc__size-lab">字号</span>
                 <button class="hud-toc__step" type="button" data-hud-toc-size="-1" aria-label="正文字号减小" title="正文字号 −">−</button>
                 <button class="hud-toc__step" type="button" data-hud-toc-size="1" aria-label="正文字号增大" title="正文字号 +">+</button>
+                <span class="hud-toc__size-val" id="hud-toc-size-val" aria-live="polite"></span>
+                <span class="hud-toc__size-lab">字距</span>
                 <button class="hud-toc__step" type="button" data-hud-toc-track="-1" aria-label="正文字距减小" title="正文字距 −">−</button>
                 <button class="hud-toc__step" type="button" data-hud-toc-track="1" aria-label="正文字距增大" title="正文字距 +">+</button>
-                <span class="hud-toc__size-val" id="hud-toc-size-val" aria-live="polite"></span>
+                <span class="hud-toc__size-val" id="hud-toc-track-val" aria-live="polite"></span>
             </div>
         </div>
 

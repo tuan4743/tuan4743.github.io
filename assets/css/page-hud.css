@@ -779,6 +779,97 @@
     cursor: grab;
 }
 
+/* ---------------- 正文字号 / 字距的【备用位置】 ----------------
+   用户第五轮之后从 CDP 扫描里发现的:字号控件住在侧边目录的面板里,而那块面板
+   在缝太窄时【整块收掉】(见 assets/js/hud-toc.js 的 MIN_W)—— 1280 及以下的
+   窗口上目录没了,字号也跟着没了;而"方便用户调内容页"正是用户这一轮点名的需求。
+   ⇒ 目录用不了的时候,由这枚胶囊顶上:同一套 data 属性、同一份读写逻辑
+     (assets/js/hud-toc.js 的 onTypeClick,同时挂在面板和这枚胶囊上 ——
+      胶囊不在目录那一块里,只挂一个容器的话点它不会冒泡过去),显隐由
+      layout() 按【实测宽度】决定。
+   ★ 位置:左栏顶部。不用另外写窄屏规则 —— 1180 及以下整层 .page-hud 都不显示。 */
+.hud-type {
+    position: fixed;
+    left: min(76px, max(20px, calc(3.6vw - 20px)));
+    /* ★★ top 必须避开番茄钟收起时那枚胶囊 —— 它也在左栏、也在顶部
+       (CDP 扫描报出来的:两枚胶囊叠在一起,上面那枚把下面那枚的点击吃掉了,
+       症状是"点番茄钟胶囊展不开")。
+       番茄钟胶囊高 34px:所以这枚放到 13% 以下,两者隔着一段。
+       ★ 而且这两枚在宽度上是互补的:字号胶囊只在 1260~1310 出现,
+         那段区间番茄钟是收起的;番茄钟展开态(≥1400 常见)时字号胶囊是藏着的 ——
+         真撞上的机会本来就不多,但"不错开"是硬规矩。 */
+    top: 13%;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 9px;
+    border: 1px solid rgba(234, 243, 255, 0.22);
+    border-radius: 8px;
+    background: var(--hud-cover, rgba(6, 10, 18, 0.86));
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    color: rgba(234, 243, 255, 0.92);
+    font-family: var(--hud-font);
+    pointer-events: auto;
+}
+
+.hud-type[hidden] {
+    display: none;
+}
+
+/* ★★ 再窄就没有它能站的地方了 —— 这个数是【量出来】的,不是算出来的:
+     胶囊宽 218px,左缘 min(76px, 3.6vw−20px);
+     720px 居中的正文左缘 = vw/2 − 360(vw 大时它反而更靠右,所以最紧的是中段)。
+     CDP 实测:1330px ⇒ 胶囊右缘 245 / 正文 281(余 36px,安全)
+               1310px ⇒ 245 / 271(余 26)   1280px ⇒ 244 / 256(余 12)
+               1250px ⇒ 243 / 241(压 2px!)
+     ⇒ 1260 是最后一条安全线,所以 1259 及以下不显示这枚胶囊:
+       保持"这个宽度上没有字号控件"(和加之前一样)——比压住正文好。
+   ★ 下面 1180 是 .page-hud 整层消失的那一档,两边不重叠,各管各的。 */
+@media (max-width: 1259px) {
+    .hud-type {
+        display: none;
+    }
+}
+
+.hud-type__lab {
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: rgba(234, 243, 255, 0.68);
+    white-space: nowrap;
+}
+
+.hud-type__step {
+    width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid rgba(234, 243, 255, 0.22);
+    border-radius: 4px;
+    background: rgba(234, 243, 255, 0.06);
+    color: rgba(234, 243, 255, 0.92);
+    font-family: var(--hud-font);
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color 0.16s ease, border-color 0.16s ease;
+}
+
+.hud-type__step:hover {
+    background: rgba(234, 243, 255, 0.2);
+    border-color: rgba(234, 243, 255, 0.6);
+}
+
+.hud-type__val {
+    min-width: 26px;
+    font-size: 11px;
+    color: rgba(234, 243, 255, 0.62);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
 /* ---------------- 和主题既有元素抢位置 ---------------- */
 /* 「回到顶部」那枚圆按钮是 position:fixed + right:2rem + z-index:99,
    不挪开就正好压在右下三件套上。 */

@@ -1,0 +1,516 @@
+/* ============================================================
+   番茄钟(左栏,可收起)—— 用户:"可以先继续做番茄钟,番茄钟做成可收起的"
+   ─────────────────────────────────────────────────────────────
+   为什么单独一个文件、而不是塞进 page-hud.css:
+     · page-hud.css 是"外壳"(框线、LOGO、搜索、导航、滑条、笔),
+       用户自己会动它的旋钮(--hud-logo-size / x / y),我不该往里塞新东西;
+     · 和上一步的侧边目录一个套路:hud-toc.css / hud-toc.js 自成一块,
+       找不到 DOM 就静默退出。这一块同样只在 .page-hud 存在时才有意义。
+
+   ★ 两种形态(用户点名的"可收起"):
+       展开  .hud-timer(默认)      → 整张卡片
+       收起  .hud-timer.is-min      → 只留左上角一枚小胶囊(时间 + 状态点)
+     切换【全部在 CSS 里】按 .is-min 走,JS 只切类名和文字 ——
+     免得像目录那块一样"布局一半在 JS、一半在 CSS",调一个数要改两个地方。
+
+   ★ 位置:左栏。视口左边那一条(x 0~5%)在 1416 宽下只有 70px,放不下卡片,
+     所以卡片从 3.6vw−20px 处起;宽度跟着视口走(见下面 --hud-timer-w 的算式),
+     右缘永远停在【正文左缘】(720px 居中,随窗口变)的左边。
+     窄到 1180 以下整块收起(见文件末尾 media query),和 HUD 其它块一个规矩。
+   ============================================================ */
+
+.hud-timer {
+    /* ★★ 宽度【跟着视口走】,不是写死 252px。
+       为什么(CDP 扫描逼出来的):正文是 720px 居中,它的左缘随窗口变窄而左移
+       ——  1440 ⇒ 336px,1366 ⇒ 299px,1280 ⇒ 256px,1200 ⇒ 216px。
+       而卡片右缘 = clamp(x) + 宽:写死 252 的话在 1366 上就是 307px,吃掉正文 8px;
+       在 1200 上更狠。
+       现在:宽 = min(252, max(156, 28vw − 176px)),左距 = min(76, max(20, 3.6vw − 20px))
+             ⇒ 右缘 ≈ min(328, 31.6vw − 196px),永远停在正文左缘左边约 20px。
+             1920 ⇒ 最小侧 252 宽 / 右缘 328(和正文 576 差得远,宽屏就是要大气)
+             1440 ⇒ 227 宽 / 右缘 282(正文 336)
+             1366 ⇒ 207 宽 / 右缘 262(正文 299)
+             1280 ⇒ 182 宽 / 右缘 237(正文 256)
+             1200 ⇒ 160 宽(夹到下限)/ 右缘 217(正文 216,刚好贴住不压)
+       ★ 156px 是这套界面的【下限】:再窄"今日完成 0 个番茄"那行就折行了。
+         所以 1180 以下(正文左缘 216px 以下)整块收掉 —— 见文件末尾的 media query。 */
+    --hud-timer-w: clamp(156px, calc(28vw - 176px), 252px);
+    --hud-timer-h: 392px;                     /* .is-min 时被清掉(胶囊只有 34px) */
+    --hud-timer-ink: rgba(234, 243, 255, 0.92);
+    --hud-timer-dim: rgba(234, 243, 255, 0.68);
+    --hud-timer-line: rgba(234, 243, 255, 0.22);
+    --hud-timer-on: rgba(234, 243, 255, 0.6);
+    --hud-timer-cy: var(--mc-color, rgb(34, 211, 238));
+
+    position: fixed;
+    left: min(76px, max(20px, calc(3.6vw - 20px)));
+    top: 50%;
+    width: var(--hud-timer-w);
+    height: var(--hud-timer-h);
+    transform: translateY(-50%);
+    pointer-events: none;                     /* 只有控件自己开 auto(整层一个规矩) */
+    font-family: var(--hud-font);
+    color: var(--hud-timer-ink);
+}
+
+/* 收起:高度交给胶囊(不然卡片那 392px 会留一片"看不见但占位"的死区) */
+.hud-timer.is-min {
+    height: auto;
+}
+
+/* ---------------- 展开态:卡片 ---------------- */
+.hud-timer__shell {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 12px 14px 13px;
+    border: 1px solid var(--hud-timer-line);
+    border-radius: 10px;
+    background: var(--hud-cover, rgba(6, 10, 18, 0.86));
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25), 0 12px 34px rgba(0, 0, 0, 0.34);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    /* ★ overflow:hidden 是上保险:矮屏(--hud-timer-h 收到 352px)时内容总高
+       约 380px,多出来的十几像素宁可裁掉"今日完成"那一行,也不能把
+       "开始"按钮顶出卡片外 —— 溢出到卡片外的按钮看起来像浮在半空。 */
+    overflow: hidden;
+    opacity: 1;
+    transition: opacity 0.16s ease, transform 0.16s ease;
+    pointer-events: auto;
+}
+
+.hud-timer.is-min .hud-timer__shell {
+    opacity: 0;
+    transform: scale(0.97);
+    pointer-events: none;
+}
+
+/* 四角直角括号 —— 和目录面板、笔那排同一套美术(纯装饰、不吃事件) */
+.hud-timer__deco {
+    position: absolute;
+    inset: 4px;
+    pointer-events: none;
+}
+
+.hud-timer__deco i {
+    position: absolute;
+    width: 11px;
+    height: 11px;
+    border: 1px solid var(--hud-timer-cy);
+    opacity: 0.5;
+}
+
+.hud-timer__deco i:nth-child(1) { left: 0; top: 0; border-width: 1px 0 0 1px; }
+.hud-timer__deco i:nth-child(2) { right: 0; top: 0; border-width: 1px 1px 0 0; }
+.hud-timer__deco i:nth-child(3) { right: 0; bottom: 0; border-width: 0 1px 1px 0; }
+.hud-timer__deco i:nth-child(4) { left: 0; bottom: 0; border-width: 0 0 1px 1px; }
+
+.hud-timer__head {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: baseline;
+    gap: 9px;
+    padding-bottom: 9px;
+    border-bottom: 1px solid var(--hud-timer-line);
+}
+
+.hud-timer__title {
+    font-family: "Pixel CN", var(--hud-font);
+    font-size: 18px;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+}
+
+.hud-timer__en {
+    font-size: 10px;
+    letter-spacing: 0.24em;
+    color: var(--hud-timer-dim);
+    text-transform: uppercase;
+}
+
+/* 收起那枚(展开态在右上角) */
+.hud-timer__min {
+    margin-left: auto;
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid var(--hud-timer-line);
+    border-radius: 5px;
+    background: rgba(234, 243, 255, 0.06);
+    color: var(--hud-timer-ink);
+    cursor: pointer;
+    transition: background-color 0.16s ease, border-color 0.16s ease;
+}
+
+.hud-timer__min:hover {
+    background: rgba(234, 243, 255, 0.18);
+    border-color: var(--hud-timer-on);
+}
+
+.hud-timer__min svg {
+    width: 14px;
+    height: 14px;
+    display: block;
+}
+
+.hud-timer__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 9px;
+    padding-top: 11px;
+}
+
+/* ---------------- 表盘 ---------------- */
+/* ★ 为什么不画成圆环进度条那种"两段弧":
+   stroke-dasharray 在 SVG 里是按【用户单位】算的,一个圆 r=54 ⇒ 周长 339.29;
+   JS 只写 --hud-timer-p(0~1),弧长由 CSS 算 —— 一个数一个真相。
+   ★ transform: rotate(-90deg) 让 0 点回到 12 点方向(CSS 的 px 单位在 SVG 上
+   有兼容坑,所以旋转写在 .hud-timer__arc 自己身上、用 transform-box)。 */
+.hud-timer__ring {
+    position: relative;
+    flex: 0 0 auto;
+    width: 132px;
+    height: 132px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    cursor: pointer;
+}
+
+.hud-timer__ring svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.hud-timer__track,
+.hud-timer__arc {
+    fill: none;
+    stroke-width: 3;
+}
+
+.hud-timer__track {
+    stroke: var(--hud-timer-line);
+}
+
+.hud-timer__arc {
+    stroke: var(--hud-timer-cy);
+    stroke-linecap: round;
+    transform: rotate(-90deg);
+    transform-origin: 60px 60px;
+    transform-box: view-box;
+    /* 周长 = 2πr ≈ 339.29;进度 0 时整条藏起来 */
+    stroke-dasharray: 339.29;
+    stroke-dashoffset: calc(339.29 * (1 - var(--hud-timer-p, 0)));
+    transition: stroke-dashoffset 0.2s linear;
+}
+
+.hud-timer__mid {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    pointer-events: none;
+}
+
+.hud-timer__time {
+    font-size: 30px;
+    line-height: 1;
+    letter-spacing: 0.04em;
+    font-variant-numeric: tabular-nums;
+}
+
+.hud-timer__state {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    color: var(--hud-timer-dim);
+}
+
+/* 计时中:数字亮一点 + 光环呼吸(用户不喜欢"按了没反应"的控件) */
+.hud-timer.is-run .hud-timer__time {
+    color: #ffffff;
+    text-shadow: 0 0 10px color-mix(in srgb, var(--hud-timer-cy) 62%, transparent);
+}
+
+.hud-timer.is-run .hud-timer__arc {
+    filter: drop-shadow(0 0 5px color-mix(in srgb, var(--hud-timer-cy) 70%, transparent));
+}
+
+/* ---------------- 模式 / 时长 / 动作 ---------------- */
+.hud-timer__modes,
+.hud-timer__presets {
+    flex: 0 0 auto;
+    display: flex;
+    gap: 6px;
+}
+
+.hud-timer__mode,
+.hud-timer__preset {
+    min-width: 52px;
+    height: 26px;
+    padding: 0 10px;
+    border: 1px solid var(--hud-timer-line);
+    border-radius: 5px;
+    background: rgba(234, 243, 255, 0.05);
+    color: var(--hud-timer-dim);
+    font-family: var(--hud-font);
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+
+.hud-timer__preset {
+    min-width: 42px;
+    height: 24px;
+    padding: 0 8px;
+    font-size: 12px;
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
+}
+
+.hud-timer__mode:hover,
+.hud-timer__preset:hover {
+    background: rgba(234, 243, 255, 0.16);
+    border-color: var(--hud-timer-on);
+    color: var(--hud-timer-ink);
+}
+
+.hud-timer__mode.is-on,
+.hud-timer__preset.is-on {
+    border-color: var(--hud-timer-cy);
+    color: #ffffff;
+    background: color-mix(in srgb, var(--hud-timer-cy) 18%, transparent);
+}
+
+.hud-timer__acts {
+    flex: 0 0 auto;
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 76px;
+    gap: 7px;
+}
+
+.hud-timer__btn {
+    height: 30px;
+    border: 1px solid var(--hud-timer-cy);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--hud-timer-cy) 20%, transparent);
+    color: #ffffff;
+    font-family: var(--hud-font);
+    font-size: 14px;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: background-color 0.16s ease, border-color 0.16s ease;
+}
+
+.hud-timer__btn:hover {
+    background: color-mix(in srgb, var(--hud-timer-cy) 34%, transparent);
+}
+
+.hud-timer__btn--ghost {
+    border-color: var(--hud-timer-line);
+    background: rgba(234, 243, 255, 0.05);
+    color: var(--hud-timer-dim);
+    letter-spacing: 0.06em;
+}
+
+.hud-timer__btn--ghost:hover {
+    background: rgba(234, 243, 255, 0.16);
+    color: var(--hud-timer-ink);
+}
+
+.hud-timer__meta {
+    flex: 0 0 auto;
+    margin: 0;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: rgba(234, 243, 255, 0.5);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---------------- 收起态:左上角那枚小胶囊 ---------------- */
+.hud-timer__pill {
+    /* ★ 只有它自己按内容宽(absolute 元素默认 shrink-to-fit,但父级是
+       width:var(--hud-timer-w) 的固定宽块,不写这句在某些浏览器里会被拉满)——
+       胶囊该跟着"25:00 番茄钟"这几个字走,不该跟着卡片宽走。 */
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: fit-content;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    border: 1px solid var(--hud-timer-line);
+    border-radius: 17px;
+    background: var(--hud-cover, rgba(6, 10, 18, 0.86));
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    color: var(--hud-timer-ink);
+    font-family: var(--hud-font);
+    cursor: pointer;
+    opacity: 0;
+    transform: translateX(-8px);
+    pointer-events: none;
+    transition: opacity 0.16s ease, transform 0.16s ease, border-color 0.16s ease;
+}
+
+.hud-timer.is-min .hud-timer__pill {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+}
+
+.hud-timer__pill:hover {
+    border-color: var(--hud-timer-on);
+}
+
+.hud-timer__dot {
+    width: 7px;
+    height: 7px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: rgba(234, 243, 255, 0.35);
+    box-shadow: none;
+    transition: background-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+/* 计时中:小灯亮起来并呼吸 —— 收起之后"还在跑"这件事要看得见 */
+.hud-timer.is-min.is-run .hud-timer__dot {
+    background: var(--hud-timer-cy);
+    box-shadow: 0 0 8px 2px color-mix(in srgb, var(--hud-timer-cy) 60%, transparent);
+    animation: hud-timer-breath 1.8s ease-in-out infinite;
+}
+
+@keyframes hud-timer-breath {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+}
+
+.hud-timer__pill-time {
+    font-size: 15px;
+    letter-spacing: 0.06em;
+    font-variant-numeric: tabular-nums;
+}
+
+.hud-timer__pill-hint {
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    color: var(--hud-timer-dim);
+}
+
+/* ---------------- 窄屏:整块收掉 ----------------
+   1180 以下正文左缘已经压到 x≈300px,而卡片右缘约 328px ⇒ 开始咬了。
+   和 HUD 其它块一个规矩:宁可没有,也不能压住正文。 */
+@media (max-width: 1180px) {
+    .hud-timer {
+        display: none;
+    }
+}
+
+/* ---------------- 窄屏一档:内容跟着卡片一起缩 ----------------
+   ★★ 这一节是"真浏览器量出来"才发现的:卡片右缘必须停在正文左缘左边,
+      而正文(720px 居中)的左缘随窗口变窄而左移 ⇒ 卡片宽只能跟着视口走
+      (见上面 --hud-timer-w 的算式)。1440 以上缝够,不用动;
+      1400 以下卡片最窄会到 156px,这时候表盘、按钮、内边距都要跟着收,
+      不然 132px 的表盘在 156px 的卡片里会把左右内边距挤没。
+   ★ 为什么不是"直接收掉整块":用户要的是【可收起】的番茄钟 ——
+     1280 的笔记本上 display:none 等于把功能删了。缩一档仍然能用。
+   ★ 1180 以下才真的收掉(那时候正文左缘已经到 216px,再缩也塞不下)。 */
+@media (max-width: 1400px) {
+    .hud-timer__shell {
+        padding: 10px 11px 11px;
+    }
+
+    .hud-timer__en {
+        display: none;                     /* 先让位的是那行英文小字 */
+    }
+
+    .hud-timer__title {
+        font-size: 16px;
+    }
+
+    .hud-timer__ring {
+        width: 102px;
+        height: 102px;
+    }
+
+    .hud-timer__time {
+        font-size: 23px;
+    }
+
+    .hud-timer__body {
+        gap: 7px;
+        padding-top: 9px;
+    }
+
+    .hud-timer__mode,
+    .hud-timer__preset {
+        min-width: 40px;
+        height: 24px;
+        padding: 0 6px;
+        font-size: 12px;
+    }
+
+    .hud-timer__preset {
+        min-width: 32px;
+        font-size: 11px;
+    }
+
+    .hud-timer__btn {
+        height: 28px;
+        font-size: 13px;
+        letter-spacing: 0.06em;
+    }
+
+    .hud-timer__acts {
+        grid-template-columns: 1fr 56px;
+    }
+
+    .hud-timer__meta {
+        font-size: 10px;
+        letter-spacing: 0.02em;
+    }
+}
+
+/* 矮屏(笔记本 13" 常见 768):卡片矮一点,别顶到顶带/底带 */
+@media (max-height: 760px) {
+    .hud-timer {
+        --hud-timer-h: 352px;
+    }
+
+    .hud-timer__ring {
+        width: 116px;
+        height: 116px;
+    }
+
+    .hud-timer__time {
+        font-size: 26px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .hud-timer__shell,
+    .hud-timer__pill,
+    .hud-timer__arc {
+        transition: none;
+    }
+
+    .hud-timer.is-min.is-run .hud-timer__dot {
+        animation: none;
+    }
+}

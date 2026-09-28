@@ -320,13 +320,28 @@
     background: linear-gradient(90deg, color-mix(in srgb, var(--hud-toc-cyan) 16%, transparent), transparent 72%);
 }
 
-/* ---------------- 字号 / 字距(面板左下角那组小方块)---------------- */
+/* ---------------- 字号 / 字距(面板左下角那组小方块)----------------
+   ★★ 用户第五轮:"你把字号字距改成了一个正文,导致现在是一个配文四个按钮,
+      不知道具体哪个是哪个。" ⇒ 从"一个标签 + 四个按钮"改成【两行】:
+          字号  [−][+]  17px
+          字距  [−][+]  0
+      每行三列(标签 / 两个按钮 / 读数)。用 grid 而不是 flex 的原因:
+      flex 里读数用 margin-left:auto 会被推到"整行最右",两行的读数就对不齐;
+      grid 的第二列固定 50px,两行的按钮和读数天然成列。 */
 .hud-toc__size {
     flex: 0 0 auto;
-    display: flex;
+    display: grid;
+    /* ★★ 第二列【不能定宽】—— 第一版写的是 30px auto 50px,在 1416 的窗口上
+       面板只有 190px,50px 那一列放不下 "0.003"(5 字符 ≈ 52px)⇒ 浏览器把
+       它【按字符】折行,每个字符一行竖着排(用户会看到一列竖着的 "0 . 0 0 3")。
+       改成 auto:读数有多宽就占多宽,两行仍然各自成列(标签列定宽 26px,
+       两行的按钮自然对齐);真放不下时靠 .hud-toc__list 那种思路不适用,
+       所以另外把面板最小宽从 168 提到 176(见 hud-toc.js 的 MIN_W)。 */
+    grid-template-columns: 26px auto auto;
     align-items: center;
-    gap: 5px;
-    padding: 10px 11px;
+    justify-content: start;
+    gap: 6px 5px;
+    padding: 9px 11px 10px;
     border-top: 1px solid var(--hud-toc-line);
     font-size: 13px;
     white-space: nowrap;
@@ -335,13 +350,16 @@
 
 .hud-toc__size-lab {
     color: var(--hud-toc-dim);
-    letter-spacing: 0.1em;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
 }
 
-/* ★ 用户第三条:"下面那个字号字距的按钮也是,因为整体小看着太小了" ⇒ 放大 */
+/* ★ 用户第三条:"下面那个字号字距的按钮也是,因为整体小看着太小了" ⇒ 放大。
+   ★ 两行各 20px 之后整块高 67px(原来一行 42px);面板本身是 flex 列、
+     列表 flex:1 1 auto,所以多出来的 25px 全部从列表里扣,面板总高不变。 */
 .hud-toc__step {
-    width: 22px;
-    height: 22px;
+    width: 20px;
+    height: 20px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -363,15 +381,15 @@
 }
 
 .hud-toc__size-val {
-    margin-left: auto;
-    color: rgba(234, 243, 255, 0.45);
-    font-size: 11px;
+    /* 每行自己的读数:紧跟在自己那两个按钮后面,宽度按内容(auto 列)。
+       ★ 不加 text-overflow/overflow:hidden —— 上一版给定宽 50px + 省略号,
+         既会折行又会把 "0.003" 截成 "0.0…",两头都不讨好;
+         现在宁可让整行去顶 .hud-toc__size 的 overflow(面板窄时裁右边)。 */
+    color: rgba(234, 243, 255, 0.62);
+    font-size: 12px;
     letter-spacing: 0.02em;
-    /* 读数只是"当前值",面板窄时可以被裁 —— 按钮才是要点的东西 */
-    flex: 0 1 auto;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
 }
 
 /* ---------------- 空间不够就整块收掉(JS 会按实际空隙加 .is-tight)---------------- */

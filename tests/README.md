@@ -9,8 +9,9 @@ node tuagfey-blog/tests/frost-panel.test.mjs     # 第五张盘 行为+交互可
 node tuagfey-blog/tests/tablet-home.test.mjs     # 首页平板主界面 结构/层级/几何(61 条)
 node tuagfey-blog/tests/shell-slide.test.mjs     # 外壳:宇宙背景+投影节点+右滑过场(42 条)
 node tuagfey-blog/tests/page-hud.test.mjs        # 博客页右侧 HUD:边框/导航/右下三件套(113 条)
-node tuagfey-blog/tests/hud-toc.test.mjs         # 侧边目录:构建产物+进度+收起+字号字距(54 条)
-node tuagfey-blog/tests/cursor-art.test.mjs      # 磁力光标:笔的两种形态(中心光点+旋转,20 条)
+node tuagfey-blog/tests/hud-toc.test.mjs         # 侧边目录 + 正文字号控件(两个家)(96 条)
+node tuagfey-blog/tests/hud-timer.test.mjs       # 番茄钟:状态机+跨刷新+可收起(68 条)
+node tuagfey-blog/tests/cursor-art.test.mjs      # 磁力光标:笔的两种形态(中心光点+旋转,28 条)
 ```
 
 ★ 都要在**工作区根目录**下跑(`node tuagfey-blog/tests/…`):脚本里读的是仓库里的
@@ -54,6 +55,12 @@ Hugo exit 0、页面看着像构建过的、模板明明改了、产物里就是
 | `window.__mc` 在笔形态下读不到 | 赋值在 `tick()` 末尾,笔分支提前 `return` 了 | 排障出口必须写在所有 `return` 之前 |
 | 正文链接/标签/上下篇不吸附 | 白名单一直"列类名",兜底只认 `<button>`,而这些是 `<a>` | 改排除法 `main.main a:not(.anchor)`;测试逐条规则查"有没有漏 .anchor" |
 | 进度条只剩一个光点 | `.hud-toc__prog` 是 flex 子项又被设成 `align-items:center`,高度变成内容高(= 0,里面只有绝对定位的光点) | 槽线自己 `align-self:center` + 显式高度;测试同时钉住"父级不再用 align-items:center" |
+| 一个"正文"+ 四个按钮,分不清谁管谁 | 上一轮为了不被 168px 的面板挤破,把两块标签合并成了一个 | 拆成两行(字号/字距 各一行),每行一个标签 + 两个按钮 + **自己的读数**;测试钉标签文案和两个 id |
+| 读数被折成一列竖字 | 读数那一列写成定宽 50px,"0.003" 放不下 ⇒ 浏览器按**字符**折行 | 列宽改 auto,面板最小宽 168→176;CDP 量 clientHeight > lineHeight*1.5 就算折行 |
+| 点备用胶囊里的 + 毫无反应(测试却是绿的) | 胶囊**不在** #hud-toc 里面(是 .page-hud 的另一个子元素),事件冒泡不到 root 上;而假 DOM 里我把点击直接派给了 root | 同一个 handler 分别挂到两个容器;假 DOM 的点击必须**派给按钮**、让冒泡走完剩下的路 |
+| 卡片在 1366/1280 上压住正文左缘 | 卡片宽写死 252px,而正文左缘 = vw/2 − 360 随窗口左移 | 宽度跟着视口:clamp(156px, 28vw − 176px, 252px);CDP 扫十档宽度 |
+| 番茄钟"跑过的这段时间"刷新后消失 | accum 只在暂停/跑完时更新,"跑着"的时间只活在内存里 | 新增 sync():把已过时间落进 accum 并把 startedAt 挪到当下(约 1 次/秒) |
+| 计时测试里"剩 18 分钟"永远差 2 分钟 | ① 模块里 Date 走的是真墙钟(只在 boot 里换了 globalThis.Date,漏了 window.Date);② 第二台假 DOM 的时钟从默认值重新开始,没接着第一台走 | 假 Date 挂两处、且必须是"真构造器 + now"(new Date() 还要给 loadDone 用);fakeDom({start}) 让"刷新"前后共用一条时间线 |
 
 ★ 一条通用经验:**Hugo 的 JS 压缩会保留注释**,所以"在产物里搜旧写法"很容易
 命中注释里那句"以前是怎么写的" ⇒ 假红。搜之前先 `noC()` 剥注释。
@@ -62,6 +69,19 @@ Hugo exit 0、页面看着像构建过的、模板明明改了、产物里就是
 `closest()` 返回 null(事件委托永远不触发)、`requestAnimationFrame` 同步回调却不
 销掉"已排的帧"(模块的节流从此卡死)。两次都长得像真 bug,白查了很久。
 写假 DOM 时先问一句:"浏览器在这里的真实语义是什么?"
+
+★ 第三条(第二十轮补):假 DOM 还会**替你掩盖真问题**。
+"点胶囊没反应"那条,假 DOM 里是把点击直接派给容器的(容器上有处理器,所以绿),
+而真实浏览器里点击只会在**按钮**上发生、靠冒泡往上走 —— 胶囊根本不在那个容器里,
+于是线上毫无反应。**假 DOM 的点击要派给按钮,让冒泡去走完剩下的路**;
+凡是"容器 A 里的处理器要接住子元素 B 的事件"这类设计,都要问一句
+"在真浏览器里,这个事件真的会经过 A 吗?"
+
+★ 第四条:UI 尺寸类的东西**别用算术代替量测**。
+这一轮我用手算推出"胶囊 218px、正文左缘 vw/2−360 ⇒ 1232 是临界",
+但实际量出来是 **1260** 才安全(胶囊左缘被 min(76px, 3.6vw−20px) 夹住之后
+并不是线性的)。差 28px,写错就正好压住正文一角。CDP 扫一遍十档宽度
+比推那三行公式便宜得多。
 
 ## 外壳与平移过场(第五轮,第一批)
 

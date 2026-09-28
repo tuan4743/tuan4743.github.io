@@ -154,7 +154,102 @@
         {{- end }}
     </nav>
 
-    {{/* ⑥ 右下三件套:两根滑条【并排】在上,明暗做成圆角矩形长按钮压在最下面。
+    {{/* ============================================================
+         ⑥ 左栏:番茄钟(可收起)—— 用户:"可以先继续做番茄钟,番茄钟做成可收起的"。
+         ★ 为什么放在【这里】而不是塞进 extend_footer 那类 partial:
+           它是 HUD 的一部分(.page-hud 的子元素,定位/配色/字体全部沿用
+           page-hud.css 那一套变量),搬出去就成孤儿了。
+         ★ 收起形态是一枚【小胶囊】,不是"整个消失":计时还在跑,得有个地方看。
+         ★ 结构(展开 ⇒ 收起)全部由 CSS 按 .is-min 切,JS 只切类名 + 写文字,
+           免得"布局一半在 JS、一半在 CSS"里外不是人(目录那块踩过)。
+         ★ 只有博客页有它的脚本:extend_footer.html 里那个 if not .IsHome 管着 ——
+           首页那块屏是 CD 架 + 平板那一套,左栏没有位置。
+         ★★ 这一段说明里【故意不写模板定界符】:Go 模板的注释遇到"注释结束"
+           那两字节就收尾,里面再出现一次会【提前收尾】,报的是
+           "comment ends before closing delimiter" —— 而且报错行号指向注释
+           结尾那一行,不是罪魁那一行(本轮真踩了,查了两轮才看出来)。
+           结论:模板注释里写那两个字符,一律用汉字说,不写真身。 */}}
+    <div class="hud-timer is-min" id="hud-timer" data-hud-min="25">
+        <div class="hud-timer__shell">
+            <span class="hud-timer__deco" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+
+            <div class="hud-timer__head">
+                <span class="hud-timer__title">番茄钟</span>
+                <span class="hud-timer__en">FOCUS</span>
+                {{/* 收起:这颗按钮【一直在】,展开态是"收到胶囊"、收起态是"展开" */}}
+                <button class="hud-timer__min" id="hud-timer-min" type="button" aria-expanded="true"
+                    aria-controls="hud-timer-card" title="收起番茄钟" aria-label="收起番茄钟">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <polyline points="4 14 10 14 10 20"></polyline>
+                        <polyline points="20 10 14 10 14 4"></polyline>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="hud-timer__body" id="hud-timer-card">
+                <button class="hud-timer__ring" id="hud-timer-ring" type="button" aria-label="开始或暂停计时"
+                    title="开始 / 暂停">
+                    <svg viewBox="0 0 120 120" aria-hidden="true">
+                        <circle class="hud-timer__track" cx="60" cy="60" r="54"></circle>
+                        <circle class="hud-timer__arc" id="hud-timer-arc" cx="60" cy="60" r="54"></circle>
+                    </svg>
+                    <span class="hud-timer__mid">
+                        <span class="hud-timer__time" id="hud-timer-time">25:00</span>
+                        <span class="hud-timer__state" id="hud-timer-state">专注 / 待机</span>
+                    </span>
+                </button>
+
+                <div class="hud-timer__modes" role="group" aria-label="计时模式">
+                    <button class="hud-timer__mode is-on" type="button" data-hud-timer-phase="focus"
+                        aria-pressed="true">专注</button>
+                    <button class="hud-timer__mode" type="button" data-hud-timer-phase="break"
+                        aria-pressed="false">小憩</button>
+                </div>
+
+                <div class="hud-timer__presets" id="hud-timer-presets" role="group" aria-label="时长">
+                    <button class="hud-timer__preset is-on" type="button" data-hud-timer-min="25">25</button>
+                    <button class="hud-timer__preset" type="button" data-hud-timer-min="45">45</button>
+                    <button class="hud-timer__preset" type="button" data-hud-timer-min="5">5</button>
+                    <button class="hud-timer__preset" type="button" data-hud-timer-min="15">15</button>
+                </div>
+
+                <div class="hud-timer__acts">
+                    <button class="hud-timer__btn" type="button" id="hud-timer-toggle" aria-label="开始计时">开始</button>
+                    <button class="hud-timer__btn hud-timer__btn--ghost" type="button" id="hud-timer-reset"
+                        aria-label="重置计时" title="重置">重置</button>
+                </div>
+                <p class="hud-timer__meta" id="hud-timer-meta">今日完成 0 个番茄</p>
+            </div>
+        </div>
+
+        <button class="hud-timer__pill" id="hud-timer-pill" type="button" aria-label="展开番茄钟" title="展开番茄钟">
+            <span class="hud-timer__dot" aria-hidden="true"></span>
+            <span class="hud-timer__pill-time" id="hud-timer-pill-time">25:00</span>
+            <span class="hud-timer__pill-hint">番茄钟</span>
+        </button>
+    </div>
+
+    {{/* ⑥b 正文字号 / 字距的【备用位置】—— 用户第五轮之后从 CDP 扫描里发现的:
+         目录面板在 1280 及以下会因为缝太窄整块收掉(.hud-toc.is-tight),
+         而字号控件住在面板里 ⇒ 那些窗口上【根本调不了正文字号】。
+         用户这一轮点名的需求就是"调整内容页的,方便用户",不能在窄屏上没了。
+         ⇒ 目录在的时候用它自己的两行;目录不在的时候,这里这枚胶囊顶上(同一套
+            data 属性、同一个读写逻辑,见 assets/js/hud-toc.js 的 pill 一段)。
+         ★ 默认 hidden:谁该显示由 JS 决定(目录没渲染 / 目录收掉时才显示)。
+         ★ 位置:左栏顶部(番茄钟上面),和番茄钟胶囊一个尺寸,窄屏上不打架。 */}}
+    <div class="hud-type" id="hud-type" hidden role="group" aria-label="正文字号与字距">
+        <span class="hud-type__lab">字号</span>
+        <button class="hud-type__step" type="button" data-hud-toc-size="-1" aria-label="正文字号减小" title="正文字号 −">−</button>
+        <button class="hud-type__step" type="button" data-hud-toc-size="1" aria-label="正文字号增大" title="正文字号 +">+</button>
+        <span class="hud-type__val" id="hud-type-size-val"></span>
+        <span class="hud-type__lab">字距</span>
+        <button class="hud-type__step" type="button" data-hud-toc-track="-1" aria-label="正文字距减小" title="正文字距 −">−</button>
+        <button class="hud-type__step" type="button" data-hud-toc-track="1" aria-label="正文字距增大" title="正文字距 +">+</button>
+        <span class="hud-type__val" id="hud-type-track-val"></span>
+    </div>
+
+    {{/* ⑦ 右下三件套:两根滑条【并排】在上,明暗做成圆角矩形长按钮压在最下面。
          ★ 并排是否塞得下:竖栏宽 = 5vw(1920→96px,1440→72px),
            一根竖滑条横向只需要滑块头那点宽度(24px)+ 标签(两个字 ≈ 22px)
            ⇒ 每根 36~48px,两根并排够用;再窄就轮到"可展开"那套(还没做)。
@@ -200,7 +295,7 @@
         </button>
     </div>
 
-    {{/* ⑦ 底部横带(y 94~100、往左伸到 x=25)里的三支笔:
+    {{/* ⑧ 底部横带(y 94~100、往左伸到 x=25)里的三支笔:
          可选按钮 —— 按一下激活,并且【就地展开】成一条尺寸滑条;
          同时只开一支(JS 负责),展开/合上时同一行的其它按钮自动重排(flex 的活儿)。
          ★ 尺寸现在只是记在 localStorage 里(笔还没有落笔的地方);

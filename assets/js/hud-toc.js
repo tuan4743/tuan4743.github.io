@@ -15,16 +15,33 @@
 (function () {
   "use strict";
 
+  /* ============================================================
+     取 DOM —— ★ 目录这一块【全部可选】,因为正文字号控件有两个家:
+       · 文章页:目录面板里的两行(常规位置)
+       · 其它页 / 目录被收掉时:HUD 左栏那枚胶囊 #hud-type(备用位置)
+     用户第五轮之后从 CDP 扫描发现:面板在 1280 及以下会因缝太窄整块收掉,
+     字号控件跟着消失 —— 而"方便用户调内容页"正是他要的东西。
+     ⇒ 第一版这里写的是 if (!root) return; 加上 if (!panel || !items.length) return;,
+       于是列表页(没有目录 DOM)连胶囊都不工作。现在改成:有哪块就做哪块的事。
+     ============================================================ */
   var root = document.getElementById("hud-toc");
-  if (!root) return;
-  var panel = document.getElementById("hud-toc-panel");
-  var toggle = document.getElementById("hud-toc-toggle");
-  var prog = root.querySelector(".hud-toc__prog");
-  var thumb = root.querySelector(".hud-toc__prog-thumb");
-  var list = root.querySelector(".hud-toc__list");
-  var items = [].slice.call(root.querySelectorAll(".hud-toc__item"));
+  var panel = root ? document.getElementById("hud-toc-panel") : null;
+  var toggle = root ? document.getElementById("hud-toc-toggle") : null;
+  var prog = root ? root.querySelector(".hud-toc__prog") : null;
+  var thumb = root ? root.querySelector(".hud-toc__prog-thumb") : null;
+  var items = root ? [].slice.call(root.querySelectorAll(".hud-toc__item")) : [];
   var sizeVal = document.getElementById("hud-toc-size-val");
-  if (!panel || !items.length) return;
+  /* ★ 用户第五轮:"一个配文四个按钮,不知道具体哪个是哪个" ⇒ 两个读数各管一行 */
+  var trackVal = document.getElementById("hud-toc-track-val");
+  var typePill = document.getElementById("hud-type");
+  var pillSizeVal = document.getElementById("hud-type-size-val");
+  var pillTrackVal = document.getElementById("hud-type-track-val");
+
+  /* 目录真的能用吗(有 DOM、有面板、有至少两个条目)—— 不能用的页面就靠备用胶囊 */
+  var tocUsable = !!(root && panel && items.length);
+  /* 点击委托挂在哪两个容器上 —— root(面板那四个按钮)和 typePill(备用胶囊)。
+     ★ 两个都要挂:胶囊不在 root 里,只挂 root 的话胶囊上的点击不会冒泡上来。 */
+  if (!root && !typePill) return;
 
   /* 正文容器:PaperMod 是 <main class="main">。进度条只跟它算 ——
      标题带、页脚、上下篇导航都不该算进"这篇文章读了多少"。 */
@@ -47,7 +64,11 @@
   var GAP_BAR = 12;      /* 进度条离正文右缘 */
   var GAP_PANEL = 18;    /* 面板离进度条 */
   var GAP_NAV = 6;       /* 面板离竖栏 */
-  var MIN_W = 168;       /* 比这窄就别显示了 */
+  var MIN_W = 176;       /* 比这窄就别显示了。
+                            ★ 176 而不是 168(第五轮从截图上看出来的):面板里
+                              "字号 [−][+] 19px / 字距 [−][+] 0.003" 两行里最长的一行
+                              ≈ 26 + 5 + 22 + 5 + 22 + 5 + 42 + 内边距 22 = 171px,
+                              168 会让读数折行(浏览器把 "0.003" 按字符竖着排)。 */
   var MAX_W = 400;       /* 太宽也难看(宽屏上缝会很大) */
   /* 高度:先进 = 盒子总高(面板 + 下面那枚回到顶部),再由它算出面板高。
      ★ 用户第三轮:"怎么这个卡片没有居中对齐?" —— 面板和进度条的高度原来各用一个
@@ -61,6 +82,13 @@
   var last = null;      /* 量到的中间值,排障出口用 */
 
   function layout() {
+    /* ★ 这一页没有目录 DOM(列表页/首页,或者标题太少没渲染)⇒ 没有几何可量,
+       备用胶囊直接顶上,然后收工。不写这个 early return 的话下面
+       root.classList 会抛错(而这一版之前是"整块 return 掉",胶囊也跟着没了)。 */
+    if (!root) {
+      if (typePill) typePill.hidden = false;
+      return;
+    }
     var vw = document.documentElement.clientWidth;
     var vh = document.documentElement.clientHeight;
     var mr = main.getBoundingClientRect().right;
@@ -81,6 +109,20 @@
        也【不能】写成"视口没变就整个跳过":视口没变、正文右缘和竖栏左缘变了
        (字体/图标加载完)同样要重算,否则旧值一直留着。 */
     root.classList.toggle("is-tight", !(w >= MIN_W));
+
+    /* ★★ 备用胶囊的显隐 —— 只在"目录这一块用不了"的时候才顶上:
+         · 缝太窄(root 被加上 .is-tight,面板整个 display:none)
+         · 或者干脆没有目录 DOM(列表页/首页:标题太少不渲染)
+       有目录的时候不显示它:同一个控件不该在屏幕上出现两份。
+       ★ 判据取的是【实测宽度】而不是"切了什么类" —— 类可能因为别的原因被切,
+         而这里要回答的问题始终是"用户现在还能不能在目录里调字号"。
+       ★★ 下半句是 CDP 扫描逼出来的:胶囊宽 218px,而正文左缘在 1200 的窗口上
+         只有 216px ⇒ 再窄就没有它能站的地方了(硬要显示就是压住正文一角)。
+         这种情况交给 CSS 里的 @media (max-width: 1239px){ display:none } ——
+         那些窗口上"目录没有、胶囊也没有",和改之前一样,但至少不会压正文。
+         为什么不用 JS 判:视口宽是个纯 CSS 事实,写在这里要多一个常量、
+         还要跟 CSS 里的媒体查询对齐,两个数早晚会走散。 */
+    if (typePill) typePill.hidden = (tocUsable && w >= MIN_W);
     var sig = [Math.round(vw), Math.round(vh), Math.round(mr), Math.round(navLeft)].join("|");
     if (sig !== lastSig) {
       /* ★ 单位只用 px,不掺百分比:left: calc(73.294% - 74.353% + 18px)
@@ -140,14 +182,25 @@
     /* 行距跟着字号走:字越大,行距比例略收一点,免得一屏只剩几行 */
     de.style.setProperty("--article-lh", (1.72 - (fs - 17) * 0.03).toFixed(2));
     de.style.setProperty("--article-ls", (ls / 1000).toFixed(3) + "em");
-    /* 读数写短一点(面板最窄只有 168px);完整含义在按钮的 title 里 */
-    if (sizeVal) sizeVal.textContent = fs + "/" + ls;
+    /* ★ 三个读数是【同一个值的三个显示位】:面板里的两行 + 备用胶囊上的两个。
+       全都在这里写,不在别处各写一份 —— 上一版就是"面板有读数、胶囊没读数",
+       窄屏上用户根本不知道当前字号是多少。 */
+    if (sizeVal) sizeVal.textContent = fs + "px";
+    if (trackVal) trackVal.textContent = (ls / 1000).toFixed(3).replace(/0+$/, "").replace(/\.$/, "") || "0";
+    if (pillSizeVal) pillSizeVal.textContent = fs + "px";
+    if (pillTrackVal) pillTrackVal.textContent = (ls / 1000).toFixed(3).replace(/0+$/, "").replace(/\.$/, "") || "0";
     try { localStorage.setItem(KEY, JSON.stringify({ fs: fs, ls: ls })); } catch (e) {}
   }
   applyType();
 
-  root.addEventListener("click", function (e) {
-    var b = e.target.closest ? e.target.closest("[data-hud-toc-size],[data-hud-toc-track]") : null;
+  /* ★★ 两处按钮、一份处理器 —— 但要挂在【两个容器】上,不能只挂 root:
+     我第一版写的是 clickHost = root || typePill,以为"有 root 就挂 root"够了。
+     错在:备用胶囊【不在 root 里面】(root 是 hud-toc 那块,胶囊是 .page-hud 的
+     另一个子元素),所以点胶囊根本冒泡不到 root 上 —— 真浏览器里点它毫无反应,
+     而假 DOM 的测试反而过了(那里我把点击直接派发给了 root)。
+     ⇒ 现在是同一个 handler 分别 addEventListener 到 root 和 typePill 上。 */
+  function onTypeClick(e) {
+    var b = e.target && e.target.closest ? e.target.closest("[data-hud-toc-size],[data-hud-toc-track]") : null;
     if (!b) return;
     e.preventDefault();
     var d1 = b.getAttribute("data-hud-toc-size");
@@ -155,7 +208,9 @@
     if (d1) fs += Number(d1) * FS_STEP;
     if (d2) ls += Number(d2);
     applyType();
-  });
+  }
+  if (root) root.addEventListener("click", onTypeClick);
+  if (typePill) typePill.addEventListener("click", onTypeClick);
 
   /* ---------- 回到顶部(用户第四轮:"左下角有一个圆的 go to top 按钮……
        这个按钮给他放到目录页下面靠内容页的地方吧")----------
@@ -186,13 +241,14 @@
      收起导航栏可以让用户更专注。" ⇒ 目录这块的页签先停用(hud-toc.html 里
      给它加了 hidden),但代码留着 —— 导航栏那版直接复用这一套。 */
   function setOpen(on) {
+    if (!root) return;
     root.classList.toggle("is-collapsed", !on);
     if (toggle) {
       toggle.setAttribute("aria-expanded", on ? "true" : "false");
       toggle.title = on ? "收起目录" : "展开目录";
     }
   }
-  if (toggle && !toggle.hidden) {
+  if (toggle && !toggle.hidden && root) {
     toggle.addEventListener("click", function () {
       setOpen(root.classList.contains("is-collapsed"));
     });
@@ -231,6 +287,7 @@
       activeId = id;
       items.forEach(function (a) { a.classList.toggle("is-current", a === best); });
       /* 把高亮那条滚进面板可视区(面板只有一屏高) */
+      var list = root.querySelector(".hud-toc__list");
       if (list) {
         var lr = list.getBoundingClientRect(), ar = best.getBoundingClientRect();
         if (ar.top < lr.top || ar.bottom > lr.bottom) {
@@ -249,6 +306,9 @@
     onScroll();
   }
 
+  /* ★ 下面这些全部依赖目录 DOM 与正文几何 —— 列表页上它们没有意义,
+     但 layout() 还是要跑(它负责把备用胶囊显出来)。 */
+  if (tocUsable) {
   window.addEventListener("scroll", onScroll, { passive: true });
   window.addEventListener("resize", onResize);
   /* 正文/导航的宽度会因为字体加载、图片撑开、窗口缩放而变 ⇒ 都要重量一次。
@@ -276,6 +336,10 @@
   });
 
   paint();
+  } else if (typePill) {
+    /* 没有目录可用:备用胶囊直接顶上 */
+    typePill.hidden = false;
+  }
 
   /* 排障出口:和 window.__mc 一个套路 —— 线上自查靠它 */
   window.__hudToc = {
@@ -291,15 +355,19 @@
       };
     },
     tocType: function () {
+      if (!root) return { fs: '', ls: '' };
       var cs = getComputedStyle(root);
       return { fs: cs.getPropertyValue("--toc-fs").trim(), ls: cs.getPropertyValue("--toc-ls").trim() };
     },
-    collapsed: function () { return root.classList.contains("is-collapsed"); },
-    tight: function () { return root.classList.contains("is-tight"); },
+    collapsed: function () { return root ? root.classList.contains("is-collapsed") : null; },
+    tight: function () { return root ? root.classList.contains("is-tight") : null; },
+    /* ★ 备用胶囊(窄屏/列表页上的字号控件)现在顶上来了吗 */
+    pill: function () { return typePill ? !typePill.hidden : null; },
     layout: function () { return last; },
     relayout: function () { layout(); return last; },
     /* 位置是量出来的,所以要能一眼看到量了啥(验收用) */
     box: function () {
+      if (!root) return null;
       var r = root.getBoundingClientRect();
       return { left: Math.round(r.left), width: Math.round(r.width), vw: document.documentElement.clientWidth };
     },
