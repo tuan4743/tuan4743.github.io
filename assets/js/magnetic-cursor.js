@@ -72,36 +72,62 @@
 
   /* 笔形态的光标:记号笔 = ×(两笔交叉),荧光笔/橡皮 = 圆框(直径 = 笔的大小) */
   var penShape = null, penT = 0;   /* 笔形态:当前形状 + 展开进度(0~1)*/
+
+  /* ★★★ 笔的两种形态用的就是【锁定框的美术】,不是另画一套(用户第十轮:
+     "这个美术不对啊,应该沿用之前锁定框的美术,因为这只是锁定框的两种形态")。
+     ⇒ 同一个 COLOR(--mc-color 青)、同一个 THICK(--mc-thick)、同一套
+       "外发光 + 细线"的双层画法、同一个中心光点(DOT)、同一个 alpha 淡入淡出。
+     · 记号笔 = ×(四条臂从中心往外,越外越淡,和锁定框的角线同一种渐变语言);
+     · 荧光笔 / 橡皮 = 圆框(四段弧,断口在四个斜角上 —— 就是锁定框那四个角
+       搬到一个圆上),直径 = 那支笔选的大小。
+     t 是展开进度:从中心光点长出来。 */
+  function penStroke(x1, y1, x2, y2, alpha) {
+    ctx.globalAlpha = alpha * 0.16;
+    ctx.strokeStyle = COLOR;
+    ctx.lineWidth = THICK + 4;
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+    ctx.globalAlpha = alpha * 0.95;
+    ctx.lineWidth = THICK;
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  }
+
+  function penArc(cx, cy, r, from, to, alpha) {
+    ctx.globalAlpha = alpha * 0.16;
+    ctx.strokeStyle = COLOR;
+    ctx.lineWidth = THICK + 4;
+    ctx.beginPath(); ctx.arc(cx, cy, r, from, to); ctx.stroke();
+    ctx.globalAlpha = alpha * 0.95;
+    ctx.lineWidth = THICK;
+    ctx.beginPath(); ctx.arc(cx, cy, r, from, to); ctx.stroke();
+  }
+
   function drawPenCursor(ctx, x, y, cfg, t) {
     t = typeof t === "number" ? t : 1;
-    var dpr = window.devicePixelRatio || 1;
+    var alpha = fade;
     ctx.save();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.lineCap = "round";
     if (cfg.shape === "x") {
-      var r = (cfg.size || 10) * t;             /* × 的臂长(半径)× 展开进度 */
-      ctx.strokeStyle = "rgba(234, 243, 255, 0.95)";
-      ctx.lineWidth = 1.6;
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      ctx.moveTo(x - r, y - r); ctx.lineTo(x + r, y + r);
-      ctx.moveTo(x + r, y - r); ctx.lineTo(x - r, y + r);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(x, y, 1.6, 0, Math.PI * 2);
-      ctx.fillStyle = "#eaf3ff";
-      ctx.fill();
+      var arm = Math.max(1, (cfg.size || 10) * t);      /* 臂长(半径)*/
+      /* 四条臂:从中心往外画(中心亮、往外淡)*/
+      penStroke(x, y, x - arm, y - arm, alpha);
+      penStroke(x, y, x + arm, y - arm, alpha);
+      penStroke(x, y, x - arm, y + arm, alpha);
+      penStroke(x, y, x + arm, y + arm, alpha);
     } else {
-      var rad = Math.max(0.5, ((cfg.size || 8) / 2) * t);   /* 直径 = 笔的大小 × 展开进度 */
-      ctx.strokeStyle = "rgba(234, 243, 255, 0.9)";
-      ctx.lineWidth = 1.3;
-      ctx.beginPath();
-      ctx.arc(x, y, rad, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(x, y, 1.4, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(234, 243, 255, 0.9)";
-      ctx.fill();
+      var rad = Math.max(0.8, ((cfg.size || 8) / 2) * t);   /* 直径 = 笔的大小 */
+      /* 四段弧,断口落在四个斜角(45°/135°/225°/315°)—— 和锁定框四个角对应 */
+      var gap = Math.PI / 7;
+      for (var k = 0; k < 4; k++) {
+        var mid = Math.PI / 4 + k * Math.PI / 2;
+        penArc(x, y, rad, mid - Math.PI / 4 + gap, mid + Math.PI / 4 - gap, alpha);
+      }
     }
+    /* 中心光点:一直是鼠标的真实位置(和未锁定时的那个点同一套)*/
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = COLOR;
+    ctx.beginPath(); ctx.arc(x, y, Math.max(1.2, DOT / 4), 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
     ctx.restore();
   }
 
