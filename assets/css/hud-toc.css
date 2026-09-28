@@ -1,0 +1,266 @@
+/* ============================================================
+   侧边目录(TOC)—— 用户:"加一个侧边目录,就放在内容页和侧边栏的中间"
+   ─────────────────────────────────────────────────────────────
+   位置不用猜,正文和 HUD 的宽度都是定死的(theme-vars.css):
+       --main-width: 720px,居中  ⇒  1920 视口下正文占 x 31.3% ~ 68.7%
+       竖栏(导航那一条)在   x 89% ~ 95%(--hud-col: 5vw)
+       ⇒ "中间"就是 x 69% ~ 88% 这一段,约 360px 宽 —— 正好够一块目录。
+   ★★ 所以这里全部用【整页百分比】定位(和 page-hud.css 同一套坐标),
+      想挪位置只改下面这 4 个数:--hud-toc-bar-x / --hud-toc-x / --hud-toc-y / --hud-toc-h。
+   ★ 窄屏(≤1400)直接整块收掉:720px 正文 + 两块侧栏挤不下,不硬塞。
+   ============================================================ */
+
+.hud-toc {
+    --hud-toc-bar-x: 69.5%;      /* 进度条中心的 x(正文右缘外一点点) */
+    --hud-toc-x: 73%;            /* 面板左缘的 x */
+    --hud-toc-y: 16.5%;          /* 面板上缘的 y(顶带上沿 y=6 以下) */
+    --hud-toc-h: 62%;            /* 面板最高占整页的百分比 */
+    --hud-toc-panel-w: clamp(150px, 11.5vw, 220px);
+    --hud-toc-bar-h: 62%;        /* 进度条长度 */
+
+    /* 字号/字距由 hud-toc.js 写在这两个变量上(存 localStorage) */
+    --toc-fs: 12px;
+    --toc-ls: 0.04em;
+
+    --hud-toc-ink: rgba(234, 243, 255, 0.92);
+    --hud-toc-dim: rgba(234, 243, 255, 0.55);
+    --hud-toc-line: rgba(234, 243, 255, 0.22);
+    --hud-toc-on: rgba(234, 243, 255, 0.62);
+    --hud-toc-cyan: var(--mc-color, rgb(34, 211, 238));
+
+    position: absolute;
+    left: var(--hud-toc-x);
+    top: var(--hud-toc-y);
+    width: calc(100% - var(--hud-toc-x));
+    height: var(--hud-toc-h);
+    display: flex;
+    align-items: center;
+    pointer-events: none;                /* 只有控件自己开 auto(和整层一个规矩) */
+    font-family: var(--hud-font);
+    color: var(--hud-toc-ink);
+}
+
+/* ---------------- 进度条 ---------------- */
+.hud-toc__prog {
+    position: absolute;
+    left: calc(var(--hud-toc-bar-x) - var(--hud-toc-x));
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 2px;
+    height: var(--hud-toc-bar-h);
+    border-radius: 2px;
+    background: var(--hud-toc-line);
+    pointer-events: none;
+}
+
+/* 已经读过的部分:从顶部长下来 */
+.hud-toc__prog::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: calc(var(--hud-toc-p, 0) * 100%);
+    border-radius: 2px;
+    background: linear-gradient(to bottom, rgba(234, 243, 255, 0.1), var(--hud-toc-cyan));
+}
+
+/* 跟着滚动走的光点 */
+.hud-toc__prog-thumb {
+    position: absolute;
+    left: 50%;
+    top: calc(var(--hud-toc-p, 0) * 100%);
+    width: 7px;
+    height: 7px;
+    margin: -3.5px 0 0 -3.5px;
+    border-radius: 50%;
+    background: #eaf3ff;
+    box-shadow: 0 0 8px 2px color-mix(in srgb, var(--hud-toc-cyan) 70%, transparent);
+}
+
+/* ---------------- 面板 + 收起页签 ---------------- */
+.hud-toc__box {
+    position: absolute;
+    left: calc(var(--hud-toc-bar-x) - var(--hud-toc-x) + 16px);
+    top: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: row-reverse;         /* ★ 页签贴面板右缘(收起时它自己滑过来) */
+    align-items: center;
+    gap: 8px;
+    pointer-events: auto;
+}
+
+.hud-toc__panel {
+    max-width: var(--hud-toc-panel-w);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--hud-toc-line);
+    border-radius: 6px;
+    background: rgba(10, 14, 24, 0.82);
+    backdrop-filter: blur(8px);
+    transition: max-width 0.34s cubic-bezier(0.4, 0.05, 0.2, 1),
+                opacity 0.34s ease, border-color 0.2s ease;
+}
+
+.hud-toc.is-collapsed .hud-toc__panel {
+    max-width: 0;
+    opacity: 0;
+    border-color: transparent;
+}
+
+.hud-toc__head {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 10px 12px 8px;
+    border-bottom: 1px solid var(--hud-toc-line);
+}
+
+.hud-toc__title {
+    font-family: "Pixel CN", var(--hud-font);   /* 手绘图上"目录"就是像素字 */
+    font-size: 15px;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+}
+
+.hud-toc__en {
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    color: var(--hud-toc-dim);
+    text-transform: uppercase;
+}
+
+/* 条目列表:自己滚,滚动条藏起来(面板本身很短) */
+.hud-toc__list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 6px 0 8px;
+    scrollbar-width: none;
+}
+
+.hud-toc__list::-webkit-scrollbar { width: 0; height: 0; }
+
+.hud-toc__item {
+    display: block;
+    padding: 3px 12px 3px 10px;
+    border-left: 2px solid transparent;
+    color: var(--hud-toc-dim);
+    font-size: var(--toc-fs);
+    letter-spacing: var(--toc-ls);
+    line-height: 1.45;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-decoration: none;
+    transition: color 0.16s ease, border-color 0.16s ease;
+}
+
+.hud-toc__item[data-hud-toc-lvl="3"] { padding-left: 22px; font-size: calc(var(--toc-fs) - 1px); }
+.hud-toc__item[data-hud-toc-lvl="4"] { padding-left: 34px; font-size: calc(var(--toc-fs) - 1px); }
+
+.hud-toc__item:hover {
+    color: var(--hud-toc-ink);
+}
+
+.hud-toc__item.is-current {
+    border-left-color: var(--hud-toc-cyan);
+    color: #ffffff;
+}
+
+/* ---------------- 字号 / 字距(面板左下角那组小方块)---------------- */
+.hud-toc__size {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 7px 10px;
+    border-top: 1px solid var(--hud-toc-line);
+    font-size: 10px;
+    white-space: nowrap;
+}
+
+.hud-toc__size-lab {
+    color: var(--hud-toc-dim);
+    letter-spacing: 0.1em;
+}
+
+.hud-toc__step {
+    width: 16px;
+    height: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid var(--hud-toc-line);
+    border-radius: 3px;
+    background: rgba(234, 243, 255, 0.05);
+    color: var(--hud-toc-ink);
+    font-family: var(--hud-font);
+    font-size: 11px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color 0.16s ease, border-color 0.16s ease;
+}
+
+.hud-toc__step:hover {
+    background: rgba(234, 243, 255, 0.18);
+    border-color: var(--hud-toc-on);
+}
+
+.hud-toc__size-val {
+    margin-left: auto;
+    color: rgba(234, 243, 255, 0.4);
+    font-size: 9px;
+    letter-spacing: 0.04em;
+}
+
+/* ---------------- 收起页签 ---------------- */
+.hud-toc__toggle {
+    flex: 0 0 auto;
+    width: 20px;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid var(--hud-toc-line);
+    border-radius: 4px;
+    background: rgba(10, 14, 24, 0.82);
+    backdrop-filter: blur(8px);
+    color: var(--hud-toc-ink);
+    cursor: pointer;
+    transition: background-color 0.16s ease, border-color 0.16s ease;
+}
+
+.hud-toc__toggle:hover {
+    background: rgba(234, 243, 255, 0.16);
+    border-color: var(--hud-toc-on);
+}
+
+.hud-toc__toggle svg {
+    width: 13px;
+    height: 13px;
+    display: block;
+    transition: transform 0.34s cubic-bezier(0.4, 0.05, 0.2, 1);
+}
+
+/* 展开时箭头朝右(点它往右收),收起后翻成朝左 */
+.hud-toc.is-collapsed .hud-toc__toggle svg {
+    transform: rotate(180deg);
+}
+
+/* ---------------- 窄屏:整块收掉 ---------------- */
+@media (max-width: 1400px) {
+    .hud-toc { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .hud-toc__panel,
+    .hud-toc__toggle svg { transition: none; }
+}

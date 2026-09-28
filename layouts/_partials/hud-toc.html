@@ -1,0 +1,80 @@
+{{/* ============================================================
+     侧边目录(进度条 + 目录面板 + 收起)
+     ─────────────────────────────────────────────────────────────
+     用户原话:"加一个侧边目录,就放在内容页和侧边栏的中间"。
+     左边那张手绘图上给的三样东西,这里的落点:
+       · 「进度条」          → 最左边那条竖线(+ 跟着滚动的光点)
+       · 「目录 TOC」        → 中间那块矩形,标题 + 条目
+       · 「字号 字距 □□ □□」 → 面板【左下角】那一组小方块
+       · 「收起 >」          → 面板【右侧中间】那个页签
+
+     ★★ 为什么可以放在 HUD 这一层里(而不是塞进正文模板):
+        HUD 是 position:fixed; inset:0,子元素的 left/top 百分比 = 整页百分比,
+        和边框那条折线同一套坐标 —— 所以"内容页右边、竖栏左边"这个位置
+        直接写 left:73% 就对上了,不用碰正文模板。
+     ★★ 只在【文章页】出现:目录要拿 .Fragments(正文标题),列表页没有;
+        另外标题少于 2 条时整块不渲染(一条也不值得做目录)。
+     ============================================================ */}}
+{{- $frags := .Fragments.Headings -}}
+{{- if and (not .IsHome) $frags -}}
+{{- $items := slice -}}
+{{- range $frags -}}
+    {{/* ★ 第一层是文章自己的 h1(标题),不是小节 —— 它出现在目录里就是重复标题。
+       实测:hello-world.md 有 3 个 h2,而这里只给出 1 个顶层片段(= 那个 h1),
+       所以以前"至少 2 条才渲染"的门槛把所有文章都挡掉了,一块目录都没出来。 */}}
+    {{- range .Headings -}}
+        {{- $items = $items | append (dict "id" .ID "title" .Title "lvl" 2) -}}
+        {{- range .Headings -}}
+            {{- $items = $items | append (dict "id" .ID "title" .Title "lvl" 3) -}}
+            {{- range .Headings -}}
+                {{- $items = $items | append (dict "id" .ID "title" .Title "lvl" 4) -}}
+            {{- end -}}
+        {{- end -}}
+    {{- end -}}
+{{- end -}}
+{{- if ge (len $items) 2 -}}
+<div class="hud-toc" id="hud-toc" data-hud-toc="{{ .RelPermalink }}">
+    {{/* ── 阅读进度:竖线 + 跟着走的光点。位置由 hud-toc.js 每帧写 --hud-toc-p ── */}}
+    <div class="hud-toc__prog" aria-hidden="true">
+        <span class="hud-toc__prog-thumb"></span>
+    </div>
+
+    {{/* ★ 面板和"收起"页签装在同一个盒子里的原因:
+        flex + row-reverse ⇒ 页签永远贴在【面板右缘】。
+        收起来时面板的 max-width 收到 0,页签就跟着滑到最左(= 原面板右缘的位置),
+        正好是手绘图上「收起 >」站的那一格。 */}}
+    <div class="hud-toc__box">
+        <button class="hud-toc__toggle" type="button" id="hud-toc-toggle" aria-expanded="true" aria-controls="hud-toc"
+            title="收起目录">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round" aria-hidden="true">
+                <polyline points="9 6 15 12 9 18"></polyline>
+            </svg>
+        </button>
+        <div class="hud-toc__panel" id="hud-toc-panel">
+            <div class="hud-toc__head">
+                <span class="hud-toc__title">目录</span>
+                <span class="hud-toc__en">TOC</span>
+            </div>
+            <nav class="hud-toc__list" aria-label="文章目录">
+                {{- range $items -}}
+                <a class="hud-toc__item" href="#{{ .id }}" data-hud-toc-lvl="{{ .lvl }}" data-hud-toc-id="{{ .id }}">{{ .title }}</a>
+                {{- end -}}
+            </nav>
+
+            {{/* ── 字号 / 字距:面板左下角那一组小方块(用户图上标的"字号 字距 □□ □□")──
+                 ★ 只管【目录自己的字】,不动正文 —— 它们长在目录面板里。 */}}
+            <div class="hud-toc__size" role="group" aria-label="目录字号与字距">
+                <span class="hud-toc__size-lab">字号</span>
+                <button class="hud-toc__step" type="button" data-hud-toc-size="-1" aria-label="目录字号减小">−</button>
+                <button class="hud-toc__step" type="button" data-hud-toc-size="1" aria-label="目录字号增大">+</button>
+                <span class="hud-toc__size-lab">字距</span>
+                <button class="hud-toc__step" type="button" data-hud-toc-track="-1" aria-label="目录字距减小">−</button>
+                <button class="hud-toc__step" type="button" data-hud-toc-track="1" aria-label="目录字距增大">+</button>
+                <span class="hud-toc__size-val" id="hud-toc-size-val" aria-live="polite"></span>
+            </div>
+        </div>
+    </div>
+</div>
+{{- end -}}
+{{- end -}}

@@ -31,6 +31,16 @@
 <link rel="stylesheet" href="{{ $u.RelPermalink }}">
 {{- end }}
 
+{{- /* ---------- 侧边目录(TOC)的样式 ----------
+     ★ 和 page-hud.css 一样单独挂一个指纹文件,不塞 extended/:
+       extended 是全站都加载的,而这块只有文章页才有。
+     ★ 必须排在 page-hud.css【之后】—— 它用 --hud-font / --mc-color 这些变量,
+       同权重冲突时要后加载的说了算。 */ -}}
+{{- with resources.Get "css/hud-toc.css" }}
+{{- $u := . | fingerprint "sha256" }}
+<link rel="stylesheet" href="{{ $u.RelPermalink }}">
+{{- end }}
+
 {{- /* ---------- 配色:必须在首帧前就位 ----------
      ★ 这里内联的是【同一个文件】(不是抄一份算法):配色算法只有
        assets/js/hud-palette.js 这一处 —— tests/page-hud.test.mjs 钉着这一点。

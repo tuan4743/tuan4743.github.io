@@ -1,6 +1,6 @@
 # tests/
 
-这个目录放**不依赖浏览器就能跑**的验收脚本。六条,随时可以重跑:
+这个目录放**不依赖浏览器就能跑**的验收脚本。八条,随时可以重跑:
 
 ```bash
 node tuagfey-blog/tests/self-panel.test.mjs      # 第一张盘 行为(99 条)
@@ -8,7 +8,9 @@ node tuagfey-blog/tests/face-geometry.test.mjs   # 第一张盘 几何+浅色+�
 node tuagfey-blog/tests/frost-panel.test.mjs     # 第五张盘 行为+交互可达性+画法(143 条)
 node tuagfey-blog/tests/tablet-home.test.mjs     # 首页平板主界面 结构/层级/几何(61 条)
 node tuagfey-blog/tests/shell-slide.test.mjs     # 外壳:宇宙背景+投影节点+右滑过场(42 条)
-node tuagfey-blog/tests/page-hud.test.mjs        # 博客页右侧 HUD:边框/导航/右下三件套(58 条)
+node tuagfey-blog/tests/page-hud.test.mjs        # 博客页右侧 HUD:边框/导航/右下三件套(113 条)
+node tuagfey-blog/tests/hud-toc.test.mjs         # 侧边目录:构建产物+进度+收起+字号字距(54 条)
+node tuagfey-blog/tests/cursor-art.test.mjs      # 磁力光标:笔的两种形态(中心光点+旋转,20 条)
 ```
 
 ★ 都要在**工作区根目录**下跑(`node tuagfey-blog/tests/…`):脚本里读的是仓库里的
@@ -20,11 +22,20 @@ node tuagfey-blog/tests/page-hud.test.mjs        # 博客页右侧 HUD:边框/�
 
 ```bash
 .tools/hugo/hugo.exe --source tuagfey-blog --quiet --minify \
-  --cleanDestinationDir --destination .tmp/t1
+  --cleanDestinationDir --destination C:/Users/hp/Desktop/deep-workspace/.tmp/t1
 ```
 
 不清目录的话,某一页可能还是**上一次构建**留下的旧文件 —— 本轮就因此白追了一轮
 (同一个模板两次构建结果不同,其实是"读到的那份不是这一次的产物")。
+
+★★★ **`--destination` 必须写绝对路径**(目前踩过最贵的坑):
+`--destination .tmp/t1` 这种相对路径是按 **`--source`** 解析的,不是按当前目录。
+所以命令实际写到了 `tuagfey-blog/.tmp/t1`,而测试读的是
+`<工作区>/.tmp/t1`(哪一次留下的旧产物都不知道)。症状极其误导:
+Hugo exit 0、页面看着像构建过的、模板明明改了、产物里就是没有新东西 ⇒
+于是开始怀疑 partial 没被调用、怀疑 `.Fragments` 是空的 —— 全都在查一个
+根本没被读到的目录。**构建完先看产物的 LastWriteTime 是不是刚刚**,再看内容。
+(CI 里 `hugo --minify` 不带 `--source`,默认就是 `public/`,不受这条影响。)
 
 ## 外壳与平移过场(第五轮,第一批)
 
@@ -861,6 +872,29 @@ headless 起不来。这是环境限制,不是代码问题。
 | **锚定相对 href,而 `absLangURL` 出来的是绝对网址** | 导航五项"href 都是假的",假红 |
 | **`indexOf` 撞到自己注释里的同一句话** | "顺序不对"假红(先 `noC()` 剥注释) |
 | **构建产物不干净就下结论**(同一模板两次结果不同) | 白追一轮:`--cleanDestinationDir` 之后再比 |
+| **`--destination` 写相对路径** | 产物落进 `tuagfey-blog/.tmp/…`,测试读的是工作区那份旧产物 —— 见上文,最贵的一次 |
+| **渲染注释的源码里搜"旧写法"** | Hugo 压缩**保留 JS 注释**,注释里写着"以前是 `DOT / 5`" ⇒ 假红。先 `noC()` 再搜 |
+| **假 DOM 里 `closest()` 返回 null** | 事件委托永远不触发,看着像"点了没反应"的真 bug,其实是桩函数偷懒 |
+| **假 DOM 里 `getBoundingClientRect()` 只给 top** | 其余字段变 `undefined` ⇒ 进度静默算成 NaN/夹到 0 |
+| **假 rAF 立刻同步回调、却不销掉"已排的帧"** | 模块 `if (!raf)` 的节流从此卡死:第二次滚动起再也不重绘(真浏览器正常) |
+| **忘了假 DOM 需要 `id` / `data-*` 属性** | 模块取不到元素 ⇒ "高亮永远停在第一项",看着像功能没做 |
+| **块内 `const` 与块外同名函数** | 块内声明在整个块里都是 TDZ ⇒ 后面的块 `ReferenceError`,报错点还指在调用行 |
+
+## ★ 侧边目录 / 光标美术这两轮踩到的坑(都写进各自测试里了)
+
+1. **`.Fragments.Headings` 的第一层是文章自己的 h1**,不是小节 —— 拿它当小节用,
+   再加上"至少两条才渲染"的门槛,结果**所有文章一块目录都出不来**,而 Hugo
+   exit 0、页面也看着正常。现在 partial 里显式跳过第一层。
+2. **`×` 恒为 0° 的真相**:`gradLine` 用绝对坐标 + 自己 `save/restore`,
+   它**不看当前变换矩阵** ⇒ 外面 `ctx.rotate` 对 `×` 完全无效(圆框那半边用的是
+   `arc`,吃矩阵,所以只有它在转)。扫源码看到 `ctx.rotate` 会以为"在转"。
+3. **直角 `×` 是 90° 对称的**:就算真转了 90°/180°/270°,画出来和原图逐像素相同。
+   ⇒ 旋转除了"吃到矩阵",还得让**白色内芯沿对角臂打转**才看得出来。
+4. **中心光点"消失"**:笔形态那半边把半径写成 `DOT / 5`(=1.2px),又和未锁定时
+   那颗点(带呼吸、半径 `DOT/2`、外加一圈柔光)是**两份手写实现** ⇒ 视觉上等于换了一颗点。
+   现在抽成一个 `drawCenterDot`,三处共用。
+5. **`window.__mc` 在笔形态下根本读不到**:赋值在 `tick()` 末尾,而笔形态那里
+   提前 `return` 了 ⇒ 线上"到底转没转"没法自查。排障出口必须写在 `return` 之前。
 
 ## ★★★ 最危险的一次:测试绿,而那段代码从来没跑过
 

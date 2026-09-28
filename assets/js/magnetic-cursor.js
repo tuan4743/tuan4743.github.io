@@ -87,23 +87,59 @@
     else { ctx.shadowColor = "transparent"; ctx.shadowBlur = 0; }
   }
 
+  /* ★★★ 中心那个光点,三处必须是同一个东西(用户:"鼠标中心的那个光点呢?怎么不见了")。
+     真原因有两个,都是我自己造出来的:
+       ① 笔形态里我写的是 Math.max(1.1, DOT / 5) —— DOT=10 时半径只有 2px,
+          整颗点 4px 宽、正压在 4 条白心线交叉的位置上,等于没画;
+       ② 未锁定时的那个点带呼吸(半径 DOT/2 起跳,还有一圈 4.2 倍半径的柔光),
+          形状和大小都对不上,所以视觉上"换了一颗点"。
+     现在抽成一个函数:未锁定 / 记号笔 / 圆框三种情况调的都是它。
+     breath = 呼吸系数(未锁定时才动,笔形态固定 1)。 */
+  function drawCenterDot(x, y, alpha, breath) {
+    var r = Math.max(1.6, (DOT / 2) * (breath || 1));
+    ctx.save();
+    var g2 = ctx.createRadialGradient(x, y, 0, x, y, r * 4.2);
+    g2.addColorStop(0, hexA(COLOR, 0.5));
+    g2.addColorStop(1, hexA(COLOR, 0));
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = g2;
+    ctx.beginPath(); ctx.arc(x, y, r * 4.2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#eaf3ff";
+    ctx.shadowColor = hexA(COLOR, 0.9);
+    ctx.shadowBlur = GLOW + 1;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
   function drawPenCursor(ctx, x, y, cfg, t, rotDeg, alpha) {
     t = typeof t === "number" ? t : 1;
+    var rad = 0;
+    var rotRad = (rotDeg * Math.PI) / 180;
     ctx.save();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.globalAlpha = 1;
     ctx.lineCap = "round";
     if (cfg.shape === "x") {
+      /* ★★★ 真 bug(用户:"×还是不转"):× 的四条臂是 gradLine 画的,而 gradLine 用的是
+         「绝对坐标 + 自己 save/restore」,它不看当前变换矩阵 —— 所以外面 ctx.rotate 转了
+         等于没转(圆框那半边走的是 arc,arc 吃当前矩阵,所以只有它在转)。
+         现在把四条臂放进和圆框同一套 translate + rotate 里,坐标改成以中心为原点。
+         另一半原因更隐蔽:直角 × 是 90° 对称的,转 90° / 180° / 270° 和原图一模一样,
+         所以就算真的在转,眼睛也看不出来。⇒ 让那团【白色内芯】跟着 rot 沿对角臂打转
+         (青晕位置不动,所以还是原来那个 ×;亮芯绕着中心跑,旋转才看得见)。 */
       var arm = Math.max(1, (cfg.size || 10) * t);
-      /* 四条臂:用 gradLine —— 白心在中心,往四角淡出,和锁定框角线同一种画法 */
-      gradLine(x, y, x - arm, y - arm, alpha, true);
-      gradLine(x, y, x + arm, y - arm, alpha, true);
-      gradLine(x, y, x - arm, y + arm, alpha, true);
-      gradLine(x, y, x + arm, y + arm, alpha, true);
-    } else {
-      var rad = Math.max(0.8, ((cfg.size || 8) / 2) * t);
+      var coreT = Math.min(0.9, Math.max(0, Math.abs(Math.sin(rotRad)) * 0.62 + 0.06));
       ctx.translate(x, y);
-      ctx.rotate((rotDeg * Math.PI) / 180);      /* ★ 跟着转 */
+      ctx.rotate(rotRad);
+      gradLine(0, 0, -arm, -arm, alpha, true, coreT);
+      gradLine(0, 0, arm, -arm, alpha, true, coreT);
+      gradLine(0, 0, -arm, arm, alpha, true, coreT);
+      gradLine(0, 0, arm, arm, alpha, true, coreT);
+    } else {
+      rad = Math.max(0.8, ((cfg.size || 8) / 2) * t);
+      ctx.translate(x, y);
+      ctx.rotate(rotRad);                       /* ★ 跟着转 */
       var gap = Math.PI / 7;
       for (var k = 0; k < 4; k++) {
         var mid = Math.PI / 4 + (k * Math.PI) / 2;
@@ -122,14 +158,9 @@
       }
     }
     penGlow(false);
-    /* 中心光点 = 鼠标真实位置(和未锁定时那个点是同一个:COLOR + 白心)*/
-    ctx.globalAlpha = alpha;
-    ctx.fillStyle = "#ffffff";
-    ctx.beginPath(); ctx.arc(x, y, Math.max(1.1, DOT / 5), 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = hexA(COLOR, 0.9);
-    ctx.beginPath(); ctx.arc(x, y, Math.max(1.9, DOT / 3), 0, Math.PI * 2); ctx.fill();
-    ctx.globalAlpha = 1;
     ctx.restore();
+    /* 中心光点 = 鼠标真实位置(和未锁定时那颗点完全同一套画法)*/
+    drawCenterDot(x, y, alpha);
   }
 
   /* ---------- DOM:一张铺满视口的画布 ---------- */
@@ -196,11 +227,18 @@
     return [w, h];
   }
 
-  /* 一条带渐变 + 外发光的线:从 (x1,y1) 亮,到 (x2,y2) 淡出 */
-  function gradLine(x1, y1, x2, y2, alpha, glow) {
+  /* 一条带渐变 + 外发光的线:从 (x1,y1) 亮,到 (x2,y2) 淡出
+     coreT(可选,0~1)= 那团"白色内芯"落在整条线的哪个位置。
+       不传 = 0(亮端就在起点,角线一直是这个画法);
+       只有记号笔的 × 传它 —— × 是 90° 对称的,亮芯不绕着中心跑,
+       转起来眼睛根本看不出(见 drawPenCursor 里的说明)。 */
+  function gradLine(x1, y1, x2, y2, alpha, glow, coreT) {
+    var ct = ((typeof coreT === "number" && isFinite(coreT)) ? Math.max(0, Math.min(0.9, coreT)) : 0);
+    var mid = Math.max(ct + 0.02, 0.28);
     var g = ctx.createLinearGradient(x1, y1, x2, y2);
-    g.addColorStop(0, "rgba(255,255,255," + (0.95 * alpha).toFixed(3) + ")");
-    g.addColorStop(0.28, hexA(COLOR, 0.85 * alpha));
+    g.addColorStop(0, "rgba(255,255,255," + (0.95 * alpha * (1 - ct)).toFixed(3) + ")");
+    if (ct > 0) g.addColorStop(ct, "rgba(255,255,255," + (0.95 * alpha).toFixed(3) + ")");
+    g.addColorStop(mid, hexA(COLOR, 0.85 * alpha));
     g.addColorStop(1, hexA(COLOR, 0));
     ctx.save();
     ctx.strokeStyle = g;
@@ -316,11 +354,21 @@
 
     /* ---- ★ 笔的两种形态(记号笔 = ×,荧光笔/橡皮 = 圆框)----
        放在这里是为了吃到上面刚算好的 rot:锁定框会转,这两个形态也要跟着转
-       (用户:"×和圆框也是要旋转的")。位置用鼠标真实坐标,不做缓动、不加抖动。 */
+       (用户:"×和圆框也是要旋转的")。位置用鼠标真实坐标,不做缓动、不加抖动。
+
+       ★★ 排障出口必须在 return 之前写好:上一版 window.__mc 在函数最末尾赋值,
+          笔形态这里一 return,外面就读不到 rot / 形态 —— 线上"× 到底转没转"
+          根本没法自查(只能靠这里的录制器才看出来它一直恒为 0)。 */
     var penCfg = window.__mcPenCfg;
     if (penCfg && penCfg.shape) {
       if (penShape !== penCfg.shape) { penShape = penCfg.shape; penT = 0; }
       penT += (1 - penT) * Math.min(1, dt * 9);
+      window.__mc = {
+        x: Math.round(fx), y: Math.round(fy), w: Math.round(fw), h: Math.round(fh),
+        draw: [+(mx).toFixed(3), +(my).toFixed(3)], mouse: [Math.round(mx), Math.round(my)],
+        locked: false, pen: penCfg.shape, rot: +rot.toFixed(2),
+        jitter: [0, 0], dot: +(DOT / 2).toFixed(2), fade: +fade.toFixed(2), reduced: reduced
+      };
       drawPenCursor(ctx, mx, my, penCfg, penT, rot, fade);
       return;
     }
@@ -340,13 +388,17 @@
     var corners = [
       [-hw, -hh, 1, 1], [hw, -hh, -1, 1], [-hw, hh, 1, -1], [hw, hh, -1, -1]
     ];
-    corners.forEach(function (c) {
+    /* ★ 用显式下标循环(原来 forEach 的回调会把 index 顶到第 2 个参数上,
+       以后想往 gradLine 传 coreT 会踩坑)*/
+    for (var ci = 0; ci < corners.length; ci++) {
+      var c = corners[ci];
       var x = c[0], y = c[1], sx = c[2], sy = c[3];
       gradLine(x, y, x + sx * arm, y, alpha, true);          /* 横边 */
       gradLine(x, y, x, y + sy * arm, alpha, true);          /* 竖边 */
       /* ④ 辅助刻度:两条边旁边各几根细小垂直线 */
-      TICKS.forEach(function (t, i) {
-        var ta = alpha * (0.55 - i * 0.18);
+      for (var ti = 0; ti < TICKS.length; ti++) {
+        var t = TICKS[ti];
+        var ta = alpha * (0.55 - ti * 0.18);
         ctx.save();
         ctx.shadowColor = hexA(COLOR, 0.5);
         ctx.shadowBlur = 3;
@@ -361,30 +413,17 @@
         ctx.lineTo(x - sx * TICK_LEN, y + sy * arm * t);
         ctx.stroke();
         ctx.restore();
-      });
-    });
+      }
+    }
     ctx.restore();
 
-    /* ---- ② 中心点:呼吸缩放 + 柔光(锁定时让位给框体)---- */
+    /* ---- ② 中心点:呼吸缩放 + 柔光(锁定时让位给框体)----
+       ★ 和笔形态共用 drawCenterDot —— 之前这里是手写的第二份实现,
+         两份长得不一样,切到笔的时候中心点看着就"不见了"。 */
     if (!locked) {
-      var rr = (DOT / 2) * (1 + (reduced ? 0 : Math.sin(pulse) * PULSE));
-      var px2 = mx + jx * 0.5, py2 = my + jy * 0.5;   /* 点也跟着抖一点点(幅度减半)*/
-      var g2 = ctx.createRadialGradient(px2, py2, 0, px2, py2, rr * 4.2);
-      g2.addColorStop(0, hexA(COLOR, 0.5));
-      g2.addColorStop(1, hexA(COLOR, 0));
-      ctx.save();
-      ctx.globalAlpha = fade;
-      ctx.fillStyle = g2;
-      ctx.beginPath();
-      ctx.arc(px2, py2, rr * 4.2, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = "#eaf3ff";
-      ctx.shadowColor = hexA(COLOR, 0.9);
-      ctx.shadowBlur = 8;
-      ctx.beginPath();
-      ctx.arc(px2, py2, rr, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
+      /* 点也跟着抖一点点(幅度减半)*/
+      drawCenterDot(mx + jx * 0.5, my + jy * 0.5, fade,
+        reduced ? 1 : 1 + Math.sin(pulse) * PULSE);
     }
 
     window.__mc = {
