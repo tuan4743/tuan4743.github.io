@@ -62,7 +62,15 @@
         return Math.round(v * 1e4) / 1e4;
     }
 
-    /* 把算出来的折线写到三条 path 上(它们必须永远同一条 d) */
+    /* 把算出来的折线写到三条 path 上(它们必须永远同一条 d)
+       ★★★ 选择器【必须】限定在边框那支 SVG 里(.page-hud__frame)。
+         第一版写的是 root.querySelectorAll("path") —— root 是整个 HUD,
+         于是导航图标、三枚按钮图标里凡是用 <path> 画的,d 全被改成了这条折线
+         (坐标 0~100,塞进 24×24 的图标 viewBox 里 ⇒ 什么都看不见)。
+         症状极具误导性:用 <polyline>/<rect>/<line>/<circle> 画的图标
+         (技术 / 归档 / 关于的头)一切正常,用 <path> 画的(主页 / 留言 / 三个按钮)
+         整只消失 —— 看着像"素材丢了",其实是自己的 JS 把它们改没了。
+         测试里现在有一条:只有 .page-hud__frame 里的 path 会被写 d。 */
     function drawFrame() {
         var root = document.getElementById("page-hud");
         if (!root) return;
@@ -70,7 +78,7 @@
         var h = window.innerHeight || document.documentElement.clientHeight || 0;
         if (!w || !h) return;
         var g = gFrame(w, h);
-        var paths = root.querySelectorAll("path");
+        var paths = root.querySelectorAll(".page-hud__frame path");
         for (var i = 0; i < paths.length; i++) paths[i].setAttribute("d", g.path);
         root.setAttribute("data-hud-frame", g.path);
         if (window.__hudFrame) window.__hudFrame.last = g;
@@ -157,6 +165,40 @@
             } catch (e) { }
             paintVol();
         });
+    }
+
+    /* ---------------- HUD 自己那颗搜索清空按钮(×) ----------------
+       ★ 为什么不用浏览器自带的那颗(input[type=search] 的 cancel 按钮):
+         它只派发 search、不派发 input(部分浏览器就是这样),于是点了 ×
+         面板不收、结果不清 —— 用户原话"右侧的×没用"。
+         这颗直接清空输入框 + 调组件自己暴露的 clear(),任何浏览器一个样。
+       ★ 没内容的时候它自己是 hidden 的(CSS 里 .hud-search__clear[hidden] 有 display:none
+         —— 不写这一条的话,那个 display:inline-flex 会把 hidden 属性盖掉)。 */
+    var sInput = byId("header-search-input");
+    var sClear = byId("hud-search-clear");
+
+    function paintClear() {
+        if (sClear) sClear.hidden = !(sInput && sInput.value);
+    }
+
+    if (sInput && sClear) {
+        sInput.addEventListener("input", paintClear);
+        sInput.addEventListener("search", paintClear);
+        sClear.addEventListener("click", function (e) {
+            e.stopPropagation();
+            var root = byId("header-search");
+            var inst = root && root.__search;
+            if (inst && inst.clear) {
+                inst.clear();
+            } else {
+                sInput.value = "";
+                var panel = byId("header-search-results");
+                if (panel) panel.hidden = true;
+            }
+            paintClear();
+            sInput.focus();
+        });
+        paintClear();
     }
 
     /* ---------------- 三支笔:激活 + 展开尺寸滑条 ----------------

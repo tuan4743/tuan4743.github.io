@@ -150,19 +150,21 @@
 }
 
 /* ═══════ 改造 2:凸起里的 LOGO ═══════
-   折线在顶部伸到 x≈43(60° 斜线),所以文字从 x=37 往右排,不能顶穿它。 */
+   ★ 放大到 3~4 倍(用户:"字体可以大三倍到四倍")。
+   ★ 位置:文字块【贴住凸起的最左端】—— right 从 42% 起,往右排。
+     上限由那条 60° 斜线决定:它在页顶只到 x≈43(16:9 下),所以右边缘不能越过 42%。 */
 .hud-logo {
     position: absolute;
-    right: 37%;
-    top: 1.2%;
+    right: 42%;
+    top: 0.6%;
     pointer-events: auto;
-    font-size: clamp(13px, 0.95vw, 19px);
-    letter-spacing: 0.14em;
-    line-height: 1;
+    font-size: clamp(26px, 3vw, 58px);
+    letter-spacing: 0.1em;
+    line-height: 1.05;
     color: #f4f8ff;
     text-decoration: none;
     white-space: nowrap;
-    text-shadow: 0 0 18px rgba(160, 235, 255, 0.25);
+    text-shadow: 0 0 24px rgba(160, 235, 255, 0.3);
 }
 
 .hud-logo:hover {
@@ -183,7 +185,7 @@
 .hud-search .search-box input {
     width: 100%;
     height: clamp(26px, 3vh, 34px);
-    padding: 0 0.7rem 0 2rem;
+    padding: 0 2.2rem 0 2rem;      /* 右边给自画的 × 留位置 */
     border: 1px solid var(--hud-line-soft);
     border-radius: 4px;
     background: rgba(234, 243, 255, 0.04);
@@ -191,6 +193,47 @@
     font-family: var(--hud-font);
     font-size: 12px;
     letter-spacing: 0.06em;
+}
+
+/* ★ 关掉浏览器自带的清空按钮:它只派发 search 不派发 input(有些浏览器),
+   点了面板不收 —— 用户报的"右侧的×没用"就是它。改用下面那颗自画的。 */
+.hud-search .search-box input::-webkit-search-cancel-button,
+.hud-search .search-box input::-webkit-search-decoration {
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.hud-search__clear {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    border-radius: 3px;
+    background: none;
+    color: rgba(234, 243, 255, 0.66);
+    cursor: pointer;
+}
+
+.hud-search__clear:hover {
+    color: var(--hud-ink);
+    background: rgba(234, 243, 255, 0.1);
+}
+
+.hud-search__clear[hidden] {
+    display: none;
+}
+
+.hud-search__clear svg {
+    width: 12px;
+    height: 12px;
+    display: block;
 }
 
 .hud-search .search-box input::placeholder {
@@ -212,41 +255,50 @@
     backdrop-filter: blur(8px);
 }
 
-/* ═══════ 改造 4:右上角那三枚按钮 ═══════ */
+/* ═══════ 改造 4:右上角那三枚按钮 —— 四象限排布 + 放大到两倍 ═══════
+   用户:"分成四个象限,三个按钮应该分别在第一二四象限,而且大小至少比现在大两倍"。
+   左上=导出、右上=GitHub、右下=WeChat,左下那格留空。 */
 .hud-acts {
     position: absolute;
     right: var(--hud-pad);
-    top: 1.4%;
-    display: flex;
+    top: 0.8%;
+    display: grid;
+    grid-template-columns: auto auto;
+    gap: clamp(6px, 0.7vh, 11px);
+    justify-items: center;
     align-items: center;
-    gap: 8px;
     pointer-events: auto;
 }
 
+.hud-act[data-hud-act="md"] { grid-area: 1 / 1; }
+.hud-act[data-hud-act="github"] { grid-area: 1 / 2; }
+.hud-act[data-hud-act="wechat"] { grid-area: 2 / 2; }
+
 .hud-act {
-    width: clamp(26px, 2.4vh, 34px);
-    height: clamp(26px, 2.4vh, 34px);
+    width: clamp(52px, 5.4vh, 72px);
+    height: clamp(52px, 5.4vh, 72px);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     padding: 0;
     border: 1px solid var(--hud-line-soft);
-    border-radius: 4px;
-    background: rgba(234, 243, 255, 0.04);
-    color: var(--hud-ink);
+    border-radius: 6px;
+    background: rgba(234, 243, 255, 0.05);
+    color: rgba(234, 243, 255, 0.9);
     cursor: pointer;
-    transition: background-color 0.16s ease, border-color 0.16s ease;
+    transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
 }
 
 .hud-act:hover,
 .hud-act[aria-expanded="true"] {
-    background: rgba(234, 243, 255, 0.14);
+    background: rgba(234, 243, 255, 0.16);
     border-color: var(--hud-line-on);
+    color: #ffffff;
 }
 
 .hud-act svg {
-    width: 55%;
-    height: 55%;
+    width: 52%;
+    height: 52%;
     display: block;
 }
 
@@ -275,7 +327,10 @@
 }
 
 /* ═══════ 改造 5:竖栏里的五个导航 ═══════
-   从"凹下去的地方"(竖段起点 y≈11.33)开始,依次往下。 */
+   从"凹下去的地方"(竖段起点 y≈11.33)开始,依次往下。
+   ★ 用户:"字体图标可以大一点,总体往下撑一撑。现在太小气了" ⇒
+     图标 15→22px、名字 10~12→12~16px、每项内边距和项间距一起加大,
+     整列自然从凹点一直撑到右下三件套上面。 */
 .hud-nav {
     position: absolute;
     right: 0;
@@ -283,7 +338,7 @@
     width: var(--hud-col);
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: clamp(6px, 1.1vh, 14px);
     pointer-events: auto;
 }
 
@@ -292,14 +347,14 @@
     flex-direction: column;              /* 图标在上、名字在下 —— 5vw 宽的列里最省地方 */
     align-items: center;
     justify-content: center;
-    gap: 2px;
-    padding: 0.5em 0.2em;
+    gap: 4px;
+    padding: 0.75em 0.2em;
     color: var(--hud-ink-dim);
-    font-size: clamp(10px, 0.72vw, 12px);
+    font-size: clamp(12px, 0.86vw, 16px);
     letter-spacing: 0.1em;
     text-decoration: none;
     border: 1px solid transparent;
-    border-radius: 4px;
+    border-radius: 5px;
     transition: color 0.16s ease, background-color 0.16s ease, border-color 0.16s ease;
 }
 
@@ -320,16 +375,16 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 15px;
-    height: 15px;
-    opacity: 0.92;
+    width: 22px;
+    height: 22px;
+    opacity: 0.95;
 }
 
 /* ★ 菜单项的 svg 自己没写 width/height(顶栏是靠 .menu .menu-icon 量的),
    这里不在 .menu 里 ⇒ 必须自己给尺寸,否则会按 300×150 的固有尺寸铺开。 */
 .hud-nav__icon svg {
-    width: 15px;
-    height: 15px;
+    width: 22px;
+    height: 22px;
     display: block;
 }
 
@@ -337,11 +392,15 @@
     white-space: nowrap;
 }
 
-/* ═══════ 改造 6:导航以下的右下角 —— 两根滑条并排 + 明暗长按钮 ═══════ */
+/* ═══════ 改造 6 + 5:右下角 —— 两根滑条并排 + 明暗长按钮,整组【下移到底带右边】
+   用户第五轮:"下面的底带三支笔,最右侧应该是从横坐标 7,给上面的明暗长按钮 +
+   两滑条并排留位置,然后把明暗长按钮 + 两滑条并排放下来。"
+   ⇒ 笔的横带从 x=7 起(见 .hud-pens),腾出右下角 x 0~7;这组控件就下移到这里,
+     底部贴到页面下沿附近。 */
 .hud-ctl {
     position: absolute;
     right: 0;
-    bottom: calc(100% - var(--hud-band) + 2%);
+    bottom: 1.2%;
     width: var(--hud-col);
     display: flex;
     flex-direction: column;
@@ -484,12 +543,13 @@
 }
 
 /* ═══════ 改造 7:底部横带里的三支笔 ═══════
-   横带 = y 94~100、往左伸到 x=25 ⇒ 右对齐,展开时靠 flex 自动把别的挤开(重排)。 */
+   横带 = y 94~100、往左伸到 x=25;★ 按用户第五轮的要求,最右侧从 x=7 起
+   —— 把 x 0~7 那一段让给右下角的"两滑条 + 明暗长按钮"。 */
 .hud-pens {
     position: absolute;
-    right: 0;
+    right: 7%;                            /* ★ 从横坐标 7 开始,不再顶到右缘 */
     bottom: 0;
-    width: var(--hud-band-x);
+    width: calc(var(--hud-band-x) - 7%);
     height: calc(100% - var(--hud-band));
     display: flex;
     align-items: center;

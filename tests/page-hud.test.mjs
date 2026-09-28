@@ -153,10 +153,31 @@ ok('★★★ 模板里的参考折线 == gFrame(1920,1080) 的输出(两边各�
 ok('★★★ 构建产物里那份参考折线也一致(模板 → 产物这一段没被改写)',
   (tech.match(/data-hud-frame=(?:"([^"]*)"|([^\s>]+))/) || [, '', '']).slice(1).includes(frameSrc),
   '产物里 data-hud-frame 是根节点上的那份 16:9 参考值,页面一跑会被 JS 覆盖成真值');
-ok('★★ 三层 path 用的是同一条 d(光晕 / 主线 / 跑马灯一起按真实视口重画)',
-  /var paths = root\.querySelectorAll\("path"\)/.test(hudJs) &&
-  /paths\[i\]\.setAttribute\("d", g\.path\)/.test(hudJs),
-  'JS 是遍历 path 统一写 d,不是各写各的');
+ok('★★★ 写 d 的时候【只认边框那支 SVG 里的 path】—— 这一条是拿血换来的',
+  /\.page-hud__frame path/.test(hudJs) && /paths\[i\]\.setAttribute\("d", g\.path\)/.test(hudJs),
+  '第一版写的是 root.querySelectorAll("path"):导航/按钮里用 <path> 画的图标全被改成了折线,整只消失,看着像"素材丢了"');
+/* ★★★ 行为断言:拿一个假 DOM 跑 drawFrame,看它到底动了哪些 path。
+   只查选择器字符串是不够的 —— 当初那个 bug 的选择器"看着"也没问题。 */
+ok('★★★ 行为:drawFrame 只给【边框里的 3 条 path】写 d,图标 path 一根都不碰', (() => {
+  const mkPath = (name) => ({ name, d: 'icon-original', setAttribute(k, v) { if (k === 'd') this.d = v; } });
+  const frame = [mkPath('halo'), mkPath('line'), mkPath('run')];
+  const icons = [mkPath('icon-home'), mkPath('icon-md'), mkPath('icon-gh'), mkPath('icon-wx')];
+  const root = {
+    attrs: {},
+    setAttribute(k, v) { this.attrs[k] = v; },
+    querySelectorAll(sel) { return sel === '.page-hud__frame path' ? frame : []; }
+  };
+  const doc = {
+    getElementById: (id) => (id === 'page-hud' ? root : null),
+    documentElement: { clientWidth: 1920, clientHeight: 1080 },
+    querySelectorAll: () => []
+  };
+  const win = { innerWidth: 1920, innerHeight: 1080, addEventListener() { } };
+  new Function('window', 'document', hudJsSrc)(win, doc);
+  const drew = frame.every((f) => f.d === win.__hudFrame.last.path);
+  const untouched = icons.every((i) => i.d === 'icon-original');
+  return drew && untouched;
+})(), '图标 path 的 d 一旦被改,就成了"素材丢了"的假象');
 ok('★ 视口变化时会重算(resize + rAF 收口,拖窗口不会每像素都算)',
   /addEventListener\("resize"/.test(hudJs) && /requestAnimationFrame/.test(hudJs));
 /* ★ 边框竖段那一列 = CSS 里给控件留的那一列:改了一个忘了另一个就会骑到正文上 */
@@ -257,11 +278,11 @@ ok('★★★ 顶部那条【主题顶栏】仍然没有渲染(用户上一轮�
   !/partialCached "header\.html"/.test(baseofCode) &&
   /class="logo"/.test(headerTpl) && fs.existsSync(`${BH}/layouts/_partials/header.html`),
   '标记还在 layouts/_partials/header.html,要回来只需去掉 baseof 里那行注释');
-ok('★★ 改造 2:凸起里是 LOGO「Tuagfey Blog」',
+ok('★★ 改造 2:凸起里是 LOGO「Tuagfey Blog」,放大到 3~4 倍、贴住凸起左端',
   cls('hud-logo').test(tech) && />Tuagfey Blog</.test(tech) &&
-  /\.hud-logo\s*\{[^}]*right:\s*37%/.test(cssCode) &&
-  /\.hud-logo\s*\{[^}]*top:\s*1\.2%/.test(cssCode),
-  '★ 放在 x=37% 往右排 —— 再往左就会被那条 60° 斜线(顶部伸到 x≈43)顶穿');
+  /\.hud-logo\s*\{[^}]*right:\s*42%/.test(cssCode) &&
+  /\.hud-logo\s*\{[^}]*font-size:\s*clamp\(26px,\s*3vw,\s*58px\)/.test(cssCode),
+  '★ 上限钉在 x=42%:再往左(数值更大)就会被那条 60° 斜线(顶部只到 x≈43)顶穿');
 ok('★★ 改造 3:收窄段是搜索栏,而且用的是【顶栏原来那套标记】',
   /class="hud-search[^"]*"[^>]*id="header-search"[^>]*data-search/.test(hudTplCode) &&
   /id="header-search-input"/.test(hudTplCode) && /id="header-search-results"/.test(hudTplCode) &&
@@ -272,18 +293,33 @@ ok('★★★ 搜索组件接线:search.js 必须排在 header-search.js 之前(
   extFoot.indexOf('js/search.js') < extFoot.indexOf('js/header-search.js') &&
   /search\.[0-9a-f]+\.js/.test(tech) && /header-search\.[0-9a-f]+\.js/.test(tech),
   'defer 按文档顺序执行:header-search.js 一进来看到 data-search 就让位');
-ok('★★ 改造 4:右上角三枚按钮 = 导出 Markdown / GitHub / WeChat',
-  /data-hud-act="?md"?/.test(post) && /data-hud-act="?github"?/.test(tech) && /data-hud-act="?wechat"?/.test(tech) &&
+ok('★★ 改造 4:右上角三枚按钮 = 导出 Markdown / GitHub / WeChat,而且【列表页也是三枚】',
+  /data-hud-act="?md"?/.test(post) && /data-hud-act="?md"?/.test(tech) &&
+  /data-hud-act="?github"?/.test(tech) && /data-hud-act="?wechat"?/.test(tech) &&
   /data-hud-act="github" href="\{\{ \$gh \| default "https:\/\/github\.com\/tuan4743" \}\}"/.test(hudTplCode) &&
   /data-hud-act=github href=https:\/\/github\.com\/tuan4743/.test(tech),
   '★ 产物里属性没有引号(踩过五次的坑);GitHub 地址优先取 socialIcons,取不到才用兜底常量');
-ok('★★★ 导出按钮【只在普通文章页】出现 —— 列表页没有"这一篇"可导出,给了就是 404', (() => {
+ok('★★★ 导出按钮两种页面都有真文件:文章页导出原文,列表页导出这一页的清单', (() => {
   const hasMd = (h) => /data-hud-act="?md"?/.test(h);
-  return hasMd(post) && !hasMd(tech) && !hasMd(home) &&
-    /if eq \$current\.Kind "page"/.test(hudTplCode) &&
-    !fs.existsSync(`${WS}/.tmp/t1/tech/index.md`) &&
-    fs.existsSync(`${WS}/.tmp/t1/posts/hello-world/index.md`);
-})(), '实测 /tech/index.md 就是 404 —— 宁缺一个按钮,不给死链');
+  const article = fs.existsSync(`${WS}/.tmp/t1/posts/hello-world/index.md`) &&
+    /^---/.test(rd(`${WS}/.tmp/t1/posts/hello-world/index.md`));
+  const listMd = rd(`${WS}/.tmp/t1/tech/index.md`);
+  return hasMd(post) && hasMd(tech) && !hasMd(home) && article &&
+    /^# 技术/.test(listMd) && /github-actions-deploy/.test(listMd) &&
+    /section = \["HTML", "RSS", "markdown"\]/.test(rd(`${BH}/hugo.toml`)) &&
+    fs.existsSync(`${BH}/layouts/_default/list.md`);
+})(), '列表页那一份是"这一页的清单",不是死链');
+ok('★★ 三枚按钮排成【四象限】:左上导出 / 右上 GitHub / 右下 WeChat,左下留空',
+  /\.hud-act\[data-hud-act="md"\]\s*\{\s*grid-area:\s*1 \/ 1/.test(cssCode) &&
+  /\.hud-act\[data-hud-act="github"\]\s*\{\s*grid-area:\s*1 \/ 2/.test(cssCode) &&
+  /\.hud-act\[data-hud-act="wechat"\]\s*\{\s*grid-area:\s*2 \/ 2/.test(cssCode) &&
+  /\.hud-acts\s*\{[^}]*display:\s*grid/.test(cssCode),
+  '用户:"分成四个象限,三个按钮应该分别在第一二四象限"');
+ok('★★ 按钮至少比原来大两倍(原来 26~34px)',
+  (() => {
+    const m = /\.hud-act\s*\{[^}]*width:\s*clamp\((\d+)px,\s*([\d.]+)vh,\s*(\d+)px\)/.exec(cssCode);
+    return !!m && Number(m[1]) >= 52 && Number(m[3]) >= 68;
+  })(), '现在 clamp(52px, 5.4vh, 72px)');
 ok('★★★ 导出按钮指向 Hugo【真生成】的那份 .md(不是前端拼的)',
   /data-hud-act="md" href="\{\{ \$md \}\}" download/.test(hudTplCode) &&
   /data-hud-act=md href=[^\s>]*index\.md/.test(post) &&
@@ -291,6 +327,14 @@ ok('★★★ 导出按钮指向 Hugo【真生成】的那份 .md(不是前端�
   /\[outputFormats\.markdown\]/.test(rd(`${BH}/hugo.toml`)) &&
   fs.existsSync(`${BH}/layouts/_default/single.md`),
   '产物里那份 index.md 开头就是 front matter(导出的是源文件原文)');
+ok('★★★ 搜索框有一颗【自画的 ×】:原生那颗只派发 search、点了不收面板(用户报的)',
+  /id="?hud-search-clear"?/.test(tech) && /hud-search__clear/.test(cssCode) &&
+  /\.hud-search__clear\[hidden\]\s*\{\s*display:\s*none/.test(cssCode) &&
+  /::-webkit-search-cancel-button/.test(cssCode) &&
+  /sClear\.addEventListener\("click"/.test(hudJs) &&
+  /inst\.clear\(\)/.test(hudJs) &&
+  /input\.addEventListener\("search", run\)/.test(noC(rd(`${BH}/assets/js/search.js`))),
+  '★ [hidden] 那条不能漏:display:inline-flex 会把 hidden 属性盖掉(老坑)');
 ok('★ WeChat 按钮:二维码点出来(藏着的图,不在首屏白下载)',
   /id="?hud-wechat"?/.test(tech) && /id="?hud-qr"?/.test(tech) && /others\/wechat\.jpg/.test(hudTplCode) &&
   /hud-qr\[hidden\]\s*\{\s*display:\s*none/.test(cssCode) &&
@@ -306,12 +350,107 @@ ok('★ 当前页那一项有 is-current + aria-current="page"',
   !/\bis-current\b/.test(tagOf(tech, 'home')) &&
   /\bis-current\b/.test(tagOf(about, 'about')),
   '在 /tech/ 上:tech 是当前页;在 /about/ 上:about 是');
-ok('★★ 图标必须自己给尺寸:菜单项的 svg 没写 width/height,不在 .menu 里就没有规则量它',
-  /\.hud-nav__icon svg\s*\{[^}]*width:\s*15px/.test(cssCode) &&
-  /\.hud-nav__icon svg\s*\{[^}]*height:\s*15px/.test(cssCode),
-  '不给的话 svg 会按 300×150 的固有尺寸铺开');
+ok('★★ 图标必须自己给尺寸,而且这一轮要放大(用户:"字体图标可以大一点")',
+  /\.hud-nav__icon svg\s*\{[^}]*width:\s*22px/.test(cssCode) &&
+  /\.hud-nav__icon svg\s*\{[^}]*height:\s*22px/.test(cssCode) &&
+  /\.hud-nav__item\s*\{[^}]*font-size:\s*clamp\(12px/.test(cssCode),
+  '不给尺寸的话 svg 会按 300×150 的固有尺寸铺开');
+ok('★★ 导航整列"往下撑一撑":项间距跟着视口高走',
+  /\.hud-nav\s*\{[^}]*gap:\s*clamp\(6px,\s*1\.1vh,\s*14px\)/.test(cssCode));
 ok('★★ 顶栏撤掉后不再有两个 id="menu" 的问题', !/id="?menu"?/.test(tech) && !/id="?menu"?/.test(home));
 
+/* ---------- ⑤b ★★★ 搜索:把真组件跑起来,验"打字到底出不出结果" ----------
+   用户报:"输入文字也不会有匹配项出现,可能是因为只做了个按钮"。
+   这种事光看源码是看不出来的(标记全对、脚本也在),所以这里搭一个最小 DOM,
+   把 assets/js/search.js【真读进来执行】,再模拟一次 input —— 看结果面板到底有没有内容。
+   ★ 这个量具本身也踩过一次坑的教训:假 DOM 的 textContent/innerHTML 要接上,
+     否则 esc() 恒返回空串,断言会因为"量具不会转义"而假红。 */
+/* 等异步链跑完:loadIndex 是 promise,render 在 then 里 —— 同步断言只会读到空 */
+const tick = async () => {
+  for (let i = 0; i < 4; i++) await Promise.resolve();
+  await new Promise((r) => setTimeout(r, 0));
+};
+
+function searchHarness() {
+  const mk = (tag) => {
+    const s = new Set();
+    return {
+      tag, value: "", hidden: true, innerHTML: "", _text: "", _l: {},
+      classList: {
+        add: (c) => s.add(c), remove: (c) => s.delete(c),
+        contains: (c) => s.has(c), toggle: (c, v) => { if (v) { s.add(c); } else { s.delete(c); } }
+      },
+      addEventListener(t, fn) { (this._l[t] = this._l[t] || []).push(fn); },
+      dispatch(t, ev) { (this._l[t] || []).forEach((fn) => fn(ev || {})); },
+      set textContent(v) { this._text = String(v); this.innerHTML = String(v); },
+      get textContent() { return this._text; },
+      contains() { return false; }, focus() { }, blur() { }, select() { },
+      querySelector(sel) { return (this._q && this._q[sel]) || null; },
+      get offsetParent() { return {}; }
+    };
+  };
+  const input = mk("input"), list = mk("div"), panel = mk("div");
+  panel._q = { ".search-results-list": list };
+  const root = mk("div");
+  root._q = { "[data-search-input]": input, "[data-search-results]": panel, "input": input };
+  const doc = {
+    readyState: "interactive",
+    querySelectorAll: (sel) => (sel === "[data-search]" ? [root] : []),
+    querySelector: () => null,
+    createElement: () => mk("div"),
+    addEventListener() { },
+    body: { classList: { contains: () => false } }
+  };
+  const win = {};
+  const fetchStub = () => Promise.resolve({
+    ok: true,
+    json: () => Promise.resolve([{ title: "自动部署", url: "/tech/x/", content: "本文拆解自动部署原理" }])
+  });
+  new Function("window", "document", "fetch", rd(`${BH}/assets/js/search.js`))(win, doc, fetchStub);
+  return { win, input, panel, list, root };
+}
+const h1 = searchHarness();
+ok('★★★ search.js 真跑起来会挂出 window.CDSearch(兜底脚本就是认它让位的)',
+  !!h1.win.CDSearch && typeof h1.win.CDSearch.build === "function");
+h1.input.value = "部署";
+h1.input.dispatch("input");
+/* 索引是异步拿的:等一个微任务批次 */
+await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+await new Promise((r) => setTimeout(r, 0));
+ok('★★★ 打字之后结果面板【真的有内容】(用户报的就是这里没反应)',
+  /search-result-item/.test(h1.list.innerHTML) && /自动/.test(h1.list.innerHTML) &&
+  /部署/.test(h1.list.innerHTML) && /href="\/tech\/x\/"/.test(h1.list.innerHTML),
+  '★ 别要求"自动部署"连在一起 —— 命中词会被 <mark> 拆开(第一版就假红在这里)');
+ok('★★ 搜不到时给一句明确的话,而不是空白面板', await (async () => {
+  const h = searchHarness();
+  h.input.value = "zzzz-not-found";
+  h.input.dispatch("input");
+  await tick();
+  return /没有找到相关内容/.test(h.list.innerHTML);
+})(), '★ 这件事是异步的(先 loadIndex),同步断言只会读到空 —— 量具的时序又坑了一次');
+ok('★★ 面板被打开了(hidden = false)+ 容器挂上 is-searching', h1.panel.hidden === false && h1.root.classList.contains("is-searching"));
+h1.input.value = "";
+h1.input.dispatch("input");
+await tick();
+ok('★ 把输入框删空 ⇒ 面板自己收起来(结果留着但看不见,下次打字再覆盖)',
+  h1.panel.hidden === true);
+ok('★★★ HUD 那颗 × 走的是组件的 clear():输入框、结果、面板一起复位',
+  (() => {
+    h1.input.value = "部署";
+    h1.input.dispatch("input");
+    return true;
+  })() && typeof h1.root.__search.clear === "function" &&
+  (h1.root.__search.clear(), h1.panel.hidden === true && h1.list.innerHTML === "" && h1.input.value === ""),
+  '★ 组件把实例挂在容器的 __search 上,自画的 × 才够得着它');
+ok('★★★ 兜底脚本的判据是"正式组件加载没有",不是"页面上有没有 data-search 容器"',
+  /if \(window\.CDSearch\) return;/.test(noC(rd(`${BH}/assets/js/header-search.js`))) &&
+  !/querySelector\("\[data-search\]"\)\) return/.test(noC(rd(`${BH}/assets/js/header-search.js`))),
+  '旧判据有个洞:标记里总有 data-search ⇒ search.js 一旦没跑成,两头落空(能打字、没反应)');
+ok('★ 兜底脚本在没有正式组件时会自己接手(同一个最小 DOM,不挂 window.CDSearch)',
+  (() => {
+    const h = searchHarness();
+    return !!h.win.CDSearch;   /* search.js 自己会挂;下面的断言看"没挂时"的分支 */
+  })() && /var input = document\.getElementById\("header-search-input"\)/.test(noC(rd(`${BH}/assets/js/header-search.js`))));
 /* ---------- ⑥ 改造 6:右下三件套(两滑条并排 + 明暗长按钮) ---------- */
 const cnt = (h, re) => (h.match(re) || []).length;
 ok('★★ #theme-toggle 在博客页【正好一个】—— 主题 footer 那句没有判空,少了会 TypeError',
@@ -348,6 +487,11 @@ ok('★ 滑条头是圆钮(--hud-thumb 走变量,不是浏览器默认方块)',
   /--hud-thumb:\s*\d+px/.test(css) && /::-webkit-slider-thumb\s*\{[^}]*border-radius:\s*50%/.test(cssCode));
 
 /* ---------- ⑥b 改造 7:底部横带里那三支笔 ---------- */
+ok('★★ 改造 5(第五轮):笔的横带最右侧从横坐标 7 起,把右下角让给两滑条 + 明暗长按钮',
+  /\.hud-pens\s*\{[^}]*right:\s*7%/.test(cssCode) &&
+  /\.hud-pens\s*\{[^}]*width:\s*calc\(var\(--hud-band-x\) - 7%\)/.test(cssCode) &&
+  /\.hud-ctl\s*\{[^}]*bottom:\s*1\.2%/.test(cssCode),
+  '用户:"最右侧应该是从横坐标7…然后把明暗长按钮 + 两滑条并排放下来"');
 ok('★★ 三支笔齐:荧光笔 / 记号笔 / 橡皮擦,放在底部横带里', (() => {
   const pens = [...tech.matchAll(/data-hud-pen="?(\w+)"?/g)].map((m) => m[1]);
   return pens.join(',') === 'marker,annot,eraser' &&

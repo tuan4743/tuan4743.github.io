@@ -96,14 +96,27 @@
 
     input.addEventListener("focus", function () { if (input.value.trim()) open(); });
 
-    input.addEventListener("input", function () {
+    function run() {
       var q = input.value;
       loadIndex().then(function () {
         if (!q.trim()) { close(); return; }
         render(listEl, q);
         open();
       });
-    });
+    }
+
+    input.addEventListener("input", run);
+    /* ★★ 浏览器自带的那个"×"(input[type=search] 的清空按钮)在有些浏览器里
+       只派发 search、不派发 input —— 于是点了 × 面板不收、结果不清(用户报的就是这个)。
+       两个事件都听上;HUD 那边还自己画了一颗 × 直接调 close()。 */
+    input.addEventListener("search", run);
+
+    /* 外部想清空(比如 HUD 那颗自画的 ×)就走这里:输入框、面板一起复位 */
+    function clear() {
+      input.value = "";
+      listEl.innerHTML = "";
+      close();
+    }
 
     input.addEventListener("keydown", function (e) {
       if (e.key === "Enter") {
@@ -119,8 +132,10 @@
       }
     });
 
-    var inst = { root: root, input: input, panel: panel, close: close };
+    var inst = { root: root, input: input, panel: panel, close: close, clear: clear };
     instances.push(inst);
+    /* 让页面上的东西(自画的 ×、别的按钮)能拿到这一处的实例 */
+    root.__search = inst;
     return inst;
   }
 

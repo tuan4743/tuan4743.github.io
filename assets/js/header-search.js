@@ -3,18 +3,24 @@
    ★★★ 这个文件已经被 assets/js/search.js 取代(它把同一套逻辑抽成了
         「凡是带 data-search 的容器都能挂一个实例」的可复用组件)。
         保留它只是为了兜底:万一哪次改动漏掉了 search.js 的引用,
-        旧的这一份还能让顶栏搜索照常工作 —— 而不是整块搜索失效。
-   ★ 所以进来先看一眼:页面里有没有 data-search 容器?
-        有 ⇒ 新组件已经接好了,这里【直接让位】,一个监听都不注册
-             (两套逻辑同时挂在同一个输入框上会各渲染一遍,闪)。
-        没有 ⇒ 说明 search.js 没加载成功,退回旧行为。 */
+        旧的这一份还能让搜索照常工作 —— 而不是整块搜索失效。
+   ★★ 判据从"页面里有没有 data-search 容器"改成了"正式组件到底加载没有":
+        旧判据 `if (document.querySelector("[data-search]")) return;` 有个洞 ——
+        标记里【总有】data-search(搜索框就长在 HUD 里),所以只要 search.js
+        因为任何原因没跑到(引用漏了、顺序反了、加载失败),
+        这里就会让位,而那边又没接上 ⇒ 两头落空,用户看到的是"能打字、没反应"。
+        改成认 window.CDSearch(由 search.js 在文件末尾挂出来)之后:
+          · 正式组件在 → 让位 ✓
+          · 正式组件不在/没跑成 → 兜底接手 ✓
+        顺带把"两个脚本的加载顺序"这条硬约束也拆掉了(defer 谁先谁后都不再致命)。*/
 (function () {
   "use strict";
-  if (document.querySelector("[data-search]")) return;   /* 新组件在,让位 */
+  if (window.CDSearch) return;   /* 正式组件在,让位 */
   var input = document.getElementById("header-search-input");
   if (!input) return;
   var panel = document.getElementById("header-search-results");
-  var listEl = panel.querySelector(".search-results-list");
+  if (!panel) return;
+  var listEl = panel.querySelector(".search-results-list") || panel;
 
   var index = null;
   var indexLoaded = false;
