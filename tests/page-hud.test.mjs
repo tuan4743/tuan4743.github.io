@@ -74,54 +74,96 @@ ok('★ 样式表是【单独挂】的,没放进 assets/css/extended/(那是全�
   fs.existsSync(`${BH}/assets/css/page-hud.css`) &&
   !fs.existsSync(`${BH}/assets/css/extended/page-hud.css`));
 
-/* ---------- ② ★★★ 边框几何:逐顶点对着用户给的走向对账 ---------- */
-const frameSrc = (hudTpl.match(/\$frame := "([^"]+)"/) || [, ''])[1];
-const pts = [...frameSrc.matchAll(/[ML]\s*(-?[\d.]+)\s+(-?[\d.]+)/g)].map((m) => [Number(m[1]), Number(m[2])]);
-const near = (a, b, tol) => Math.abs(a - b) <= (tol === undefined ? 1e-3 : tol);
-const T60 = Math.tan(Math.PI / 3);            /* tan60° = 1.7320508… */
-const D60 = 8 / T60;                          /* 60° 走 8 格竖 → 水平 4.6188022 */
-/* SVG 的 x 向右为正,用户的 x 向左为正 ⇒ 换算 */
-const U = pts.map(([x, y]) => [100 - x, y]);
+/* ---------- ② ★★★ 边框几何:把算法跑起来,验【屏幕角度】 ----------
+   用户纠正过一次:"你的角度理解错了,你现在画的是与水平方向30°,而我要的是60°,
+   陡一点的线。而且你这个45°完全不是45°啊。"
+   ⇒ 45°/60° 是【屏幕上的角度】,换算是 Δx% = Δy% × (视口高 ÷ 视口宽) ÷ tan(角)。
+   ⇒ 所以这条折线只能在运行时算:真值在 assets/js/page-hud.js 的 gFrame(w, h)。
+     这里把它拿真源码跑起来(给一个最小的 window,不要 document ⇒ 它直接 return),
+     然后对着"每段的屏幕角度"和"每个顶点"验 —— 不是比字符串。 */
+const hudJsSrc = rd(`${BH}/assets/js/page-hud.js`);
+const win = {};
+new Function('window', 'document', hudJsSrc)(win, undefined);   /* document=undefined ⇒ 只导函数 */
+const gFrame = win.__hudFrame && win.__hudFrame.gFrame;
+ok('★★ 几何函数 gFrame(w,h) 能在没有 DOM 的环境里单独跑(测试靠它验真值)',
+  typeof gFrame === 'function');
+const REF_W = 1920, REF_H = 1080;
+const ref = gFrame ? gFrame(REF_W, REF_H) : { user: [], path: '' };
+const U = ref.user;
+/* 屏幕角度:两点的像素位移算 atan */
+const angOf = (i, j, W, H, pts) => {
+  const p = pts || U;
+  const dx = (Math.abs(p[j][0] - p[i][0]) / 100) * W;
+  const dy = (Math.abs(p[j][1] - p[i][1]) / 100) * H;
+  return (Math.atan2(dy, dx) * 180) / Math.PI;
+};
+ok('★★ 十个顶点(用户坐标:x 从右缘向左,单位是页宽的 %)',
+  U.length === 10, U.map(([x, y]) => '(' + x.toFixed(3) + ',' + y.toFixed(3) + ')').join(' '));
+ok('★ ① 起点 = 横坐标 45、页顶', Math.abs(U[0][0] - 45) < 1e-9 && Math.abs(U[0][1]) < 1e-9);
+ok('★★ ② 第一段屏幕上正好 60°(陡的那条),到竖坐标 9',
+  Math.abs(angOf(0, 1, REF_W, REF_H) - 60) < 1e-9 && Math.abs(U[1][1] - 9) < 1e-9,
+  angOf(0, 1, REF_W, REF_H).toFixed(6) + '°');
+ok('★ ③ 第二段水平,到横坐标 30',
+  Math.abs(U[2][1] - U[1][1]) < 1e-9 && Math.abs(U[2][0] - 30) < 1e-9);
+ok('★★ ④ 第三段屏幕上正好 45°(往右上),到竖坐标 6',
+  Math.abs(angOf(2, 3, REF_W, REF_H) - 45) < 1e-9 && Math.abs(U[3][1] - 6) < 1e-9,
+  angOf(2, 3, REF_W, REF_H).toFixed(6) + '°');
+ok('★ ⑤ 第四段水平,到横坐标 10',
+  Math.abs(U[4][1] - U[3][1]) < 1e-9 && Math.abs(U[4][0] - 10) < 1e-9);
+ok('★★ ⑥ 第五段屏幕上正好 45°(往右下),到横坐标 6 —— 落点就是 y₁',
+  Math.abs(angOf(4, 5, REF_W, REF_H) - 45) < 1e-9 && Math.abs(U[5][0] - 6) < 1e-9,
+  angOf(4, 5, REF_W, REF_H).toFixed(6) + '°');
+const y1 = U[5][1];
+ok('★★ ⑦ 竖段:到 100 − y₁(用户自己给的关系式),而且 x 不变',
+  Math.abs(U[6][1] - (100 - y1)) < 1e-9 && Math.abs(U[6][0] - U[5][0]) < 1e-9,
+  'y₁=' + y1.toFixed(4) + ' ⇒ 100−y₁=' + (100 - y1).toFixed(4));
+ok('★★ ⑧ 第六段屏幕上正好 45°(往左下),到横坐标 10',
+  Math.abs(angOf(6, 7, REF_W, REF_H) - 45) < 1e-9 && Math.abs(U[7][0] - 10) < 1e-9,
+  angOf(6, 7, REF_W, REF_H).toFixed(6) + '°');
+ok('★ ⑨ 第七段水平,到横坐标 25',
+  Math.abs(U[8][1] - U[7][1]) < 1e-9 && Math.abs(U[8][0] - 25) < 1e-9);
+ok('★★ ⑩ 最后一段屏幕上正好 60°,落到下边框(y=100)',
+  Math.abs(angOf(8, 9, REF_W, REF_H) - 60) < 1e-9 && Math.abs(U[9][1] - 100) < 1e-9,
+  angOf(8, 9, REF_W, REF_H).toFixed(6) + '°');
+ok('★★ 45° 那两段互为镜像 ⇒ ⑧ 的落点恒等于 y=94(与视口长宽比无关)',
+  Math.abs(U[7][1] - 94) < 1e-9, 'y=' + U[7][1].toFixed(6));
+/* ★★ 换视口:角度必须【一个都不变】—— 这正是"按屏幕角度"的定义 */
+const views = [[2560, 1440], [1440, 900], [1850, 848], [1280, 1024], [3440, 1440]];
+const angErr = [];
+for (const [W, H] of views) {
+  const g = gFrame(W, H);
+  const chk = [[0, 1, 60], [2, 3, 45], [4, 5, 45], [6, 7, 45], [8, 9, 60]];
+  for (const [i, j, want] of chk) {
+    const got = angOf(i, j, W, H, g.user);
+    if (Math.abs(got - want) > 1e-9) angErr.push(`${W}×${H} P${i + 1}→P${j + 1}: ${got.toFixed(6)}≠${want}`);
+  }
+}
+ok('★★★ 换五种视口(含 21:9),五段斜线的屏幕角度一个都不变',
+  angErr.length === 0, angErr.length ? angErr.join(' | ') : views.map((v) => v.join('×')).join(' '));
+ok('★★ 视口一变,长宽比换算确实动了顶点(否则说明根本没在按屏幕角度算)',
+  Math.abs(gFrame(1920, 1080).y1 - gFrame(2560, 1440).y1) < 1e-9 &&
+  Math.abs(gFrame(1440, 900).y1 - gFrame(1920, 1080).y1) > 0.1,
+  '16:9 的 y₁=' + gFrame(1920, 1080).y1.toFixed(4) + ',16:10 的 y₁=' + gFrame(1440, 900).y1.toFixed(4));
 
-ok('★★ 边框是一条 8 个顶点的【折线】(不是闭合多边形:起于上边框、止于下边框)',
-  pts.length === 8 && !/[Zz]/.test(frameSrc), frameSrc);
-ok('★★ 顶点逐个对账(用户坐标:起点 (30,0) → … → 终点 (24.6188,100))',
-  U.length === 8 &&
-  near(U[0][0], 30) && near(U[0][1], 0) &&
-  near(U[1][0], 30 - D60) && near(U[1][1], 8) &&
-  near(U[2][0], 10) && near(U[2][1], 8) &&
-  near(U[3][0], 8) && near(U[3][1], 10) &&
-  near(U[4][0], 8) && near(U[4][1], 90) &&
-  near(U[5][0], 10) && near(U[5][1], 92) &&
-  near(U[6][0], 20) && near(U[6][1], 92) &&
-  near(U[7][0], 20 + D60) && near(U[7][1], 100),
-  U.map(([x, y]) => '(' + x.toFixed(4) + ',' + y.toFixed(4) + ')').join(' '));
-ok('★ ① 起点在页面顶部(y=0)、横坐标 30', near(U[0][0], 30) && near(U[0][1], 0));
-ok('★★ ② 第一段与水平成 60°(坐标空间:水平位移 = 8 ÷ tan60°)',
-  near(Math.abs(U[1][0] - U[0][0]), D60, 1e-3) && near(U[1][1] - U[0][1], 8),
-  'Δx=' + Math.abs(U[1][0] - U[0][0]).toFixed(4) + ' Δy=' + (U[1][1] - U[0][1]).toFixed(4));
-ok('★ ③ 第二段是水平线(到横坐标 10)',
-  near(U[2][1] - U[1][1], 0) && near(U[2][0], 10) && U[2][0] < U[1][0],
-  '用户坐标 x 从 ' + U[1][0].toFixed(2) + ' 走到 10 = 屏幕上的"向右"');
-ok('★★ ④ 第三段是 45° 内收:dx = dy = 2,于是 y₁ = 10',
-  near(Math.abs(U[3][0] - U[2][0]), Math.abs(U[3][1] - U[2][1])) &&
-  near(Math.abs(U[3][0] - U[2][0]), 2) && near(U[3][1], 10),
-  'y₁ = ' + U[3][1] + '(不是拍的:45° 且走了 2 格 ⇒ 8+2)');
-const y1 = U[3][1];
-ok('★★ ⑤ 竖段一直下到 100 − y₁ = 90(用户自己给的关系式)',
-  near(U[4][1], 100 - y1) && near(U[4][0], U[3][0]),
-  'y₁=' + y1 + ' ⇒ 100−y₁=' + (100 - y1));
-ok('★★ ⑥ 第四段是 45° 外扩:dx = dy = 2',
-  near(Math.abs(U[5][0] - U[4][0]), Math.abs(U[5][1] - U[4][1])) &&
-  near(Math.abs(U[5][0] - U[4][0]), 2),
-  '对称:上端 10→8 内收,下端 8→10 外扩');
-ok('★ ⑦ 第五段回到横坐标 20',
-  near(U[6][1] - U[5][1], 0) && near(U[6][0], 20));
-ok('★★ ⑧ 最后一段 60° 落到下边框(y=100)',
-  near(Math.abs(U[7][0] - U[6][0]), D60, 1e-3) && near(U[7][1], 100),
-  'Δx=' + Math.abs(U[7][0] - U[6][0]).toFixed(4));
-ok('★★ 整条线不回到右缘、也不闭合 —— 它就是一条"从页顶拉到页底"的边框',
-  U.every(([x]) => x >= 8 - 1e-6) && U.some(([x]) => x > 20));
+/* ★★★ 防漂:模板里那份参考折线必须就是 gFrame(1920,1080) 的输出 */
+const frameSrc = (hudTpl.match(/\$frame := "([^"]+)"/) || [, ''])[1];
+ok('★★★ 模板里的参考折线 == gFrame(1920,1080) 的输出(两边各算一遍再比,逐字相同)',
+  !!frameSrc && frameSrc === ref.path,
+  '模板: ' + frameSrc + '\n     函数: ' + ref.path);
+ok('★★★ 构建产物里那份参考折线也一致(模板 → 产物这一段没被改写)',
+  (tech.match(/data-hud-frame=(?:"([^"]*)"|([^\s>]+))/) || [, '', '']).slice(1).includes(frameSrc),
+  '产物里 data-hud-frame 是根节点上的那份 16:9 参考值,页面一跑会被 JS 覆盖成真值');
+ok('★★ 三层 path 用的是同一条 d(光晕 / 主线 / 跑马灯一起按真实视口重画)',
+  /var paths = svg\.querySelectorAll\("path"\)/.test(hudJs) &&
+  /paths\[i\]\.setAttribute\("d", g\.path\)/.test(hudJs),
+  'JS 是遍历 path 统一写 d,不是各写各的');
+ok('★ 视口变化时会重算(resize + rAF 收口,拖窗口不会每像素都算)',
+  /addEventListener\("resize"/.test(hudJs) && /requestAnimationFrame/.test(hudJs));
+/* ★ 边框竖段那一列 = CSS 里给控件留的那一列:改了一个忘了另一个就会骑到正文上 */
+const spineX = 100 - U[5][0];   /* 竖段在 SVG 里的 x */
+ok('★★ CSS 的 --hud-w 和折线竖段对得上(6vw ↔ SVG x=94 ⇒ 距右缘 6%)',
+  spineX === 94 && /--hud-w:\s*6vw/.test(css),
+  '竖段 SVG x=' + spineX);
 
 /* ---------- ③ 形状层:同一条 d 画三层 + 屏幕像素的虚线 ---------- */
 const dOf = (html, klass) => {
@@ -133,11 +175,33 @@ const dLine = dOf(tech, 'hud-line');
 const dRun = dOf(tech, 'hud-run');
 ok('★★ 光晕 / 主线 / 跑马灯 用的是【同一条 d】(抄成三份迟早漂)',
   !!dHalo && dHalo === dLine && dHalo === dRun, dHalo);
-/* ★★ 最小化会把路径数据改写掉:产物里是 M70 0 74.6188 8H90l2 2V90l-2 2H80L75.3812 1e2 ——
-   h/v 相对命令被换掉、100 被写成 1e2。所以"结构"看源码、"同不同"看产物。 */
-ok('★ 产物里那三条 path 也确实是同一条(最小化改写它,但改的是同一种改法)',
-  dHalo === dLine && dLine === dRun && /1e2|100/.test(dHalo),
-  '注意 100 在产物里是 1e2');
+/* ★★ 最小化会把路径数据整个改写:M55 0 L57.9228 9 … L73.0514 100
+   变成了 M55 0l2.9228 9H70l1.6875-3H90l4 7.1111V86.8889L90 94H75l-1.9486 6 ——
+   相对命令、V/H、连最后的 100 都被并进 "l-1.9486 6" 里去了。
+   所以【别用正则去产物里找数字】:老老实实按 SVG 路径语法走一遍,拿到顶点再比。 */
+const walkPath = (d) => {
+  const toks = d.match(/[MmLlHhVvZz]|-?\d*\.?\d+(?:e-?\+?\d+)?/gi) || [];
+  const pts = [];
+  let i = 0, x = 0, y = 0, cmd = '';
+  while (i < toks.length) {
+    if (/[A-Za-z]/.test(toks[i])) cmd = toks[i++];
+    const n = () => Number(toks[i++]);
+    if (cmd === 'M' || cmd === 'L') { x = n(); y = n(); pts.push([x, y]); if (cmd === 'M') cmd = 'L'; }
+    else if (cmd === 'm' || cmd === 'l') { x += n(); y += n(); pts.push([x, y]); if (cmd === 'm') cmd = 'l'; }
+    else if (cmd === 'H') { x = n(); pts.push([x, y]); }
+    else if (cmd === 'h') { x += n(); pts.push([x, y]); }
+    else if (cmd === 'V') { y = n(); pts.push([x, y]); }
+    else if (cmd === 'v') { y += n(); pts.push([x, y]); }
+    else if (cmd === 'Z' || cmd === 'z') { i++; }
+    else throw new Error('不会解析的路径段: ' + cmd + ' @' + i);
+  }
+  return pts;
+};
+const builtUser = walkPath(dHalo).map(([x, y]) => [100 - x, y]);
+ok('★★★ 把产物里那条 minify 过的 d 解析回顶点,和参考折线逐点相同',
+  builtUser.length === ref.user.length &&
+  builtUser.every(([x, y], k) => Math.abs(x - ref.user[k][0]) < 1e-3 && Math.abs(y - ref.user[k][1]) < 1e-3),
+  builtUser.map(([x, y]) => '(' + x.toFixed(3) + ',' + y.toFixed(3) + ')').join(' '));
 ok('★ 边框在标记里是【三条 path】(halo / line / run;短刺这一刀没画)',
   (hudTplCode.match(/<path class="hud-(halo|line|run)"/g) || []).length === 3);
 ok('★★ 三个类在 CSS 里都有规则,而且都 vector-effect: non-scaling-stroke',
@@ -155,8 +219,8 @@ ok('★ 跑马灯的 dasharray / 偏移 / 时长都走变量',
   /@keyframes hud-run\s*\{[^}]*stroke-dashoffset:\s*var\(--hud-run-total\)/.test(cssCode) &&
   /animation:\s*hud-run var\(--hud-run-dur\)/.test(cssCode));
 ok('★★ 跑马灯的起始偏移要 > 折线的屏幕总长,否则白线跑不完全程就跳回去',
-  Number(/--hud-run-total:\s*(\d+)/.exec(cssCode)[1]) > 0.97 * 1080 + 0.25 * 1920,
-  '1080 高 / 1920 宽这一档算下来折线约 1536px');
+  Number(/--hud-run-total:\s*(\d+)/.exec(cssCode)[1]) > 0.9 * 1080 + 0.83 * 1920 / 1.6,
+  '这一版折线屏幕总长 ≈ 0.9×视口高 + 0.55×视口宽;1080/1920 下约 2030px');
 ok('★ CD 页那套"音乐电平点亮线条"的口子留着(--hud-glow)',
   /--hud-glow:\s*0;/.test(css) && /calc\(var\(--hud-line-a\) \+ var\(--hud-glow\)/.test(cssCode));
 
@@ -178,11 +242,6 @@ const used = new Set((css.match(/var\(--hud-[\w-]+/g) || []).map((s) => s.slice(
 const missing = [...used].filter((v) => !defined.has(v));
 ok('★★ CSS 里用到的 --hud-* 变量全都有定义(拼错不会有任何报错,只会静默失效)',
   missing.length === 0, missing.join(', '));
-ok('★ 三件套落在折线竖段(x=8)【右边】那一列里(--hud-w 就是那 8%)',
-  /--hud-w:\s*clamp\([^)]*\b8%/.test(css) &&
-  /\.hud-ctl\s*\{[^}]*right:\s*var\(--hud-pad\)/.test(cssCode) &&
-  /\.hud-ctl\s*\{[^}]*width:\s*calc\(var\(--hud-w\)/.test(cssCode),
-  '骑到竖线上就会压进正文区');
 
 /* ---------- ⑤ 顶部已清空(用户第二刀的要求)---------- */
 /* ★ baseof 里那行是被 Hugo 注释包起来的:剥掉注释后,"渲染"这件事必须消失。

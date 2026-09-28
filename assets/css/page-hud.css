@@ -52,17 +52,17 @@
     --hud-run-len: 46;                    /* 跑马灯长度(屏幕像素) */
     --hud-run-dur: 12s;                   /* 跑一圈用时 */
     /* ★ 跑马灯的起始偏移也是【屏幕像素】:它必须 > 这条折线的屏幕总长,
-       否则白线跑不完全程就跳回去了。折线屏幕总长 ≈ 0.97×视口高 + 0.25×视口宽
-       (竖线占 80% 高、两段斜线各 8% 高、两段横线共 25.4% 宽)——
-       1080 高 / 1920 宽算下来约 1536px,2560 宽约 2050px。
-       取 2400 能在这一档视口下都跑完整圈,代价是小屏上多停一会儿。 */
-    --hud-run-total: 2400;
+       否则白线跑不完全程就跳回去了。这一版折线的屏幕总长大约
+       0.9×视口高 + 0.55×视口宽(竖段 73.8% 高 + 五段横线共 45% 宽 + 四段斜线)
+       —— 1080/1920 下约 2030px,1440/2560 下约 2700px。
+       取 3200 能覆盖到 1440p,代价是小屏上多停一会儿。 */
+    --hud-run-total: 3200;
     --hud-glow: 0;                        /* 0~1:CD 页由音乐电平写;这一页留给"阅读进度"(以后) */
 
     /* ═══════ 2. 这条边框围出来的那一列 ═══════
-       ★ 8% 不是随手写的:折线的竖段就在 x=8 处(用户坐标),
-         右下三件套必须落在竖线【右边】那一列里,否则会骑到正文上。 */
-    --hud-w: clamp(96px, 8%, 220px);      /* 竖线右侧那一列的宽 */
+       ★ 6vw 不是随手写的:折线的竖段就在 x=6(用户坐标 = 距右缘 6% 页宽),
+         右下三件套必须落在它【右边】那一列里,否则会骑到正文上。 */
+    --hud-w: 6vw;
     --hud-pad: clamp(10px, 1.1vw, 18px);  /* 与视口边缘的间距 */
     --hud-ink-dim: rgba(234, 243, 255, 0.62);
 
@@ -170,18 +170,16 @@
 
 .hud-fader {
     width: 100%;
-    display: grid;
-    grid-template-columns: 1fr auto;
-    grid-template-areas:
-        "label label"
-        "body  val";
-    align-items: end;
-    row-gap: 6px;
-    column-gap: 6px;
+    /* ★ 竖着一列排(标签 / 滑条 / 数值),不并排 ——
+       这一列只有 6vw 宽(1920 上是 115px,1440 上 86px),
+       数值并排会把滑条挤没。竖排之后需要的最小宽度只有滑块头那么宽。 */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
 }
 
 .hud-fader__head {
-    grid-area: label;
     display: flex;
     align-items: center;
     gap: 0.5em;
@@ -201,7 +199,6 @@
 }
 
 .hud-fader__body {
-    grid-area: body;
     position: relative;
     display: flex;
     align-items: center;
@@ -210,12 +207,12 @@
 }
 
 .hud-fader__val {
-    grid-area: val;
     font-size: var(--hud-val-fs);
     color: var(--hud-ink-dim);
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.06em;
     white-space: nowrap;
+    text-align: center;
 }
 
 /* 竖滑条:横着写、再转 -90°(和 CD 页两根推子同一个做法:
