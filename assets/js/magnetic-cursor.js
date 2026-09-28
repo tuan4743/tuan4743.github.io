@@ -71,62 +71,63 @@
   ].join(",");
 
   /* 笔形态的光标:记号笔 = ×(两笔交叉),荧光笔/橡皮 = 圆框(直径 = 笔的大小) */
-  var penShape = null, penT = 0;   /* 笔形态:当前形状 + 展开进度(0~1)*/
+  var penShape = null, penT = 0;   /* 笔形态:形状 + 展开进度(0~1)*/
 
-  /* ★★★ 笔的两种形态用的就是【锁定框的美术】,不是另画一套(用户第十轮:
-     "这个美术不对啊,应该沿用之前锁定框的美术,因为这只是锁定框的两种形态")。
-     ⇒ 同一个 COLOR(--mc-color 青)、同一个 THICK(--mc-thick)、同一套
-       "外发光 + 细线"的双层画法、同一个中心光点(DOT)、同一个 alpha 淡入淡出。
-     · 记号笔 = ×(四条臂从中心往外,越外越淡,和锁定框的角线同一种渐变语言);
-     · 荧光笔 / 橡皮 = 圆框(四段弧,断口在四个斜角上 —— 就是锁定框那四个角
-       搬到一个圆上),直径 = 那支笔选的大小。
-     t 是展开进度:从中心光点长出来。 */
-  function penStroke(x1, y1, x2, y2, alpha) {
-    ctx.globalAlpha = alpha * 0.16;
-    ctx.strokeStyle = COLOR;
-    ctx.lineWidth = THICK + 4;
-    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
-    ctx.globalAlpha = alpha * 0.95;
-    ctx.lineWidth = THICK;
-    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  /* ★★★ 这就是【锁定框的美术】原样搬过来(用户:"这个美术不对啊,应该沿用之前锁定框的
+     美术,因为这只是锁定框的两种形态" + "现在是纯青色,缺少内发光")。
+     锁定框那四条角线是 gradLine 画的,它的渐变是:
+        白 (0.95α) → 青 (0.85α, 28% 处) → 透明
+     再叠一层 shadowColor=青 + shadowBlur 的外发光 —— 那个"白心 + 青晕"就是内发光。
+     上一版我用 strokeStyle=COLOR 平涂,所以看着是"纯青色、没有内亮"。
+     · 记号笔 = ×:四条臂从中心往外,中心是白心(和角线的亮端在角上同理);
+     · 荧光笔/橡皮 = 圆框:四段弧(断口在四个斜角上),同样的白心 + 青晕;
+     · 两个都跟着 rot 转。 */
+  function penGlow(on) {
+    if (on) { ctx.shadowColor = hexA(COLOR, 0.75); ctx.shadowBlur = GLOW; }
+    else { ctx.shadowColor = "transparent"; ctx.shadowBlur = 0; }
   }
 
-  function penArc(cx, cy, r, from, to, alpha) {
-    ctx.globalAlpha = alpha * 0.16;
-    ctx.strokeStyle = COLOR;
-    ctx.lineWidth = THICK + 4;
-    ctx.beginPath(); ctx.arc(cx, cy, r, from, to); ctx.stroke();
-    ctx.globalAlpha = alpha * 0.95;
-    ctx.lineWidth = THICK;
-    ctx.beginPath(); ctx.arc(cx, cy, r, from, to); ctx.stroke();
-  }
-
-  function drawPenCursor(ctx, x, y, cfg, t) {
+  function drawPenCursor(ctx, x, y, cfg, t, rotDeg, alpha) {
     t = typeof t === "number" ? t : 1;
-    var alpha = fade;
     ctx.save();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.globalAlpha = 1;
     ctx.lineCap = "round";
     if (cfg.shape === "x") {
-      var arm = Math.max(1, (cfg.size || 10) * t);      /* 臂长(半径)*/
-      /* 四条臂:从中心往外画(中心亮、往外淡)*/
-      penStroke(x, y, x - arm, y - arm, alpha);
-      penStroke(x, y, x + arm, y - arm, alpha);
-      penStroke(x, y, x - arm, y + arm, alpha);
-      penStroke(x, y, x + arm, y + arm, alpha);
+      var arm = Math.max(1, (cfg.size || 10) * t);
+      /* 四条臂:用 gradLine —— 白心在中心,往四角淡出,和锁定框角线同一种画法 */
+      gradLine(x, y, x - arm, y - arm, alpha, true);
+      gradLine(x, y, x + arm, y - arm, alpha, true);
+      gradLine(x, y, x - arm, y + arm, alpha, true);
+      gradLine(x, y, x + arm, y + arm, alpha, true);
     } else {
-      var rad = Math.max(0.8, ((cfg.size || 8) / 2) * t);   /* 直径 = 笔的大小 */
-      /* 四段弧,断口落在四个斜角(45°/135°/225°/315°)—— 和锁定框四个角对应 */
+      var rad = Math.max(0.8, ((cfg.size || 8) / 2) * t);
+      ctx.translate(x, y);
+      ctx.rotate((rotDeg * Math.PI) / 180);      /* ★ 跟着转 */
       var gap = Math.PI / 7;
       for (var k = 0; k < 4; k++) {
-        var mid = Math.PI / 4 + k * Math.PI / 2;
-        penArc(x, y, rad, mid - Math.PI / 4 + gap, mid + Math.PI / 4 - gap, alpha);
+        var mid = Math.PI / 4 + (k * Math.PI) / 2;
+        var f0 = mid - Math.PI / 4 + gap, f1 = mid + Math.PI / 4 - gap;
+        penGlow(true);
+        ctx.globalAlpha = 0.85 * alpha;
+        ctx.strokeStyle = hexA(COLOR, 0.85 * alpha);
+        ctx.lineWidth = THICK;
+        ctx.beginPath(); ctx.arc(0, 0, rad, f0, f1); ctx.stroke();
+        /* 白心那一道(比青线细一点、亮一点 —— 和 gradLine 的 0 号色标同源)*/
+        penGlow(false);
+        ctx.globalAlpha = 0.9 * alpha;
+        ctx.strokeStyle = "rgba(255,255,255," + (0.9 * alpha).toFixed(3) + ")";
+        ctx.lineWidth = Math.max(0.6, THICK * 0.6);
+        ctx.beginPath(); ctx.arc(0, 0, rad, f0, f1); ctx.stroke();
       }
     }
-    /* 中心光点:一直是鼠标的真实位置(和未锁定时的那个点同一套)*/
+    penGlow(false);
+    /* 中心光点 = 鼠标真实位置(和未锁定时那个点是同一个:COLOR + 白心)*/
     ctx.globalAlpha = alpha;
-    ctx.fillStyle = COLOR;
-    ctx.beginPath(); ctx.arc(x, y, Math.max(1.2, DOT / 4), 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath(); ctx.arc(x, y, Math.max(1.1, DOT / 5), 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = hexA(COLOR, 0.9);
+    ctx.beginPath(); ctx.arc(x, y, Math.max(1.9, DOT / 3), 0, Math.PI * 2); ctx.fill();
     ctx.globalAlpha = 1;
     ctx.restore();
   }
@@ -239,18 +240,6 @@
          · 记号笔 → 从矩形扫描框收紧到中心光点,再展开成一个 ×,而且【实时跟手】;
          · 荧光笔 / 橡皮 → 圆框,直径 = 那支笔选的大小。
        配置由 page-hud.js 写进 window.__mcPenCfg(它知道当前选了哪支笔、多大)。 */
-    var penCfg = window.__mcPenCfg;
-    if (penCfg && penCfg.shape) {
-      fx = mx; fy = my; fw = 0; fh = 0;          /* 实时:位置不缓存 */
-      /* ★ 展开动画:换了形态(或者刚进笔模式)时从 0 长到 1 ——
-         就是用户说的"从矩形扫描框收紧到中心光点,展开成一个 ×"。
-         光点本身一直在(画在中心),形状按 penT 长大。 */
-      if (penShape !== penCfg.shape) { penShape = penCfg.shape; penT = 0; }
-      penT += (1 - penT) * Math.min(1, dt * 9);
-      drawPenCursor(ctx, mx, my, penCfg, penT);
-      return;
-    }
-    penShape = null; penT = 0;
 
     /* ---- 目标点与尺寸:磁吸时贴向目标中心 ---- */
     var tx = mx, ty = my, tw = SIZE, th = SIZE;
@@ -324,6 +313,18 @@
     fade += (fadeTo - fade) * Math.min(1, dt * 8);
     cv.style.opacity = fade.toFixed(3);
     if (fade < 0.02) return;
+
+    /* ---- ★ 笔的两种形态(记号笔 = ×,荧光笔/橡皮 = 圆框)----
+       放在这里是为了吃到上面刚算好的 rot:锁定框会转,这两个形态也要跟着转
+       (用户:"×和圆框也是要旋转的")。位置用鼠标真实坐标,不做缓动、不加抖动。 */
+    var penCfg = window.__mcPenCfg;
+    if (penCfg && penCfg.shape) {
+      if (penShape !== penCfg.shape) { penShape = penCfg.shape; penT = 0; }
+      penT += (1 - penT) * Math.min(1, dt * 9);
+      drawPenCursor(ctx, mx, my, penCfg, penT, rot, fade);
+      return;
+    }
+    penShape = null; penT = 0;
 
     /* ---- 画框 ---- */
     var bx = fx + jx, by = fy + jy;
