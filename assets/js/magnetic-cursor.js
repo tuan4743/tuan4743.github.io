@@ -149,7 +149,15 @@
   }
 
   function resize() {
-    var w = window.innerWidth, h = window.innerHeight;
+    /* ★★★ 真 bug(第十轮从代码里找出来的):这里原来用 window.innerWidth/innerHeight,
+       它们【包含滚动条】;而画布的 CSS 尺寸是 100%(不含滚动条)。
+       博客页一定有纵向滚动条 ⇒ 后备缓冲比 CSS 盒子宽出那 15~17px ⇒
+       浏览器把画布【横向拉伸】了 scrollbar/innerWidth(约 1.3%),
+       于是画出来的框离原点越远偏得越多 —— 导航栏在最右边,偏移最大,
+       用户看到的就是"吸附框位置不对,整体偏左"。
+       ⇒ 用 documentElement.clientWidth/Height:和 CSS 的 100% 是同一个盒子。 */
+    var w = document.documentElement.clientWidth || window.innerWidth;
+    var h = document.documentElement.clientHeight || window.innerHeight;
     dpr = Math.min(window.devicePixelRatio || 1, 2);
     if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) {
       cv.width = Math.round(w * dpr);
@@ -235,7 +243,9 @@
          上一轮只把"宽"改成 10%,"高"还留着旧的 22% ⇒ 框又扁又大、
          和按钮不是一个尺寸(用户:"吸附框的位置还是不对啊,整体就是图片的效果")。
          现在宽高共用同一个 pad。 */
-      var pad = Math.min(PAD, Math.max(3, Math.min(r.width, r.height) * 0.10));
+      /* ★★ 小目标:pad = 0 —— 框【严格贴合】目标的矩形,一点都不外扩。
+         用户连着三轮说"偏大",那就干脆不加:框和按钮四条边重合。 */
+      var pad = small ? 0 : Math.min(PAD, Math.max(4, Math.min(r.width, r.height) * 0.16));
       tw = r.width + pad * 2;
       th = r.height + pad * 2;
     }

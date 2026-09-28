@@ -656,10 +656,10 @@ ok('★★★ 磁力光标认得 HUD 里的元素,但【不吃 LOGO】', (() => 
   return need.every((sel) => mcJs.includes(sel)) && !mcJs.includes('".hud-logo"');
 })(), '白名单兜底只认 button:下载/GitHub/导航是 <a>、搜索框是 <input>;LOGO 用户点名不要吸');
 ok('★★ 吸附框外扩按目标尺寸(10%,最小 3px;大目标仍 10px 封顶)',
-  /Math\.max\(3, Math\.min\(r\.width, r\.height\) \* 0\.10\)/.test(mcJs) && /var PAD = 10;/.test(mcJs),
+  /small \? 0 : Math\.min\(PAD/.test(mcJs) && /var PAD = 10;/.test(mcJs),
   '两轮都报"吸附框偏大偏左":固定 PAD=10 把矮按钮撑成大框');
-ok('★★ 每支笔带一排颜色点(5 色 × 3 支),展开时才出现', (() => {
-  return (hudTplCode.match(/hud-pen__swatch/g) || []).length === 15 &&
+ok('★★ 每支笔带一排颜色点(5 色 × 2 支(橡皮没有颜色)),展开时才出现', (() => {
+  return (hudTplCode.match(/hud-pen__swatch/g) || []).length === 10 &&
     /data-hud-pen-color="marker"/.test(hudTplCode) &&
     /\.hud-pen__colors\s*\{[^}]*display:\s*none/.test(cssCode) &&
     /\.hud-pen\.is-on \.hud-pen__colors\s*\{[^}]*display:\s*inline-flex/.test(cssCode);
@@ -671,6 +671,11 @@ ok('★★ 展开时名字收成图标:底带 23% 宽要装下"三支笔 + 大�
   /\.hud-pen\.is-on \.hud-pen__name\s*\{\s*max-width:\s*0/.test(cssCode) &&
   /\.hud-pen__btn\s*\{[^}]*font-size:\s*11px/.test(cssCode),
   '用户:"这三个按钮的字号大一点点" + 新加颜色控件 ⇒ 只能靠收起名字腾地方');
+ok('★★★ 画布的 CSS 盒子与后备缓冲必须是同一个盒子(滚动条那条真 bug)', (() => {
+  const mc = fs.readFileSync(`${BH}/assets/js/magnetic-cursor.js`, 'utf8');
+  return /document\.documentElement\.clientWidth \|\| window\.innerWidth/.test(mc) &&
+    !/var w = window\.innerWidth/.test(mc);
+})(), '★ 用 innerWidth 会把滚动条算进去(比 CSS 的 100% 宽)⇒ 画布被横向拉伸 ⇒ 离原点越远偏得越多');
 /* ---------- 出结果 ---------- */
 let pass = 0;
 for (const [p, n, i] of rows) { if (p) pass++; console.log('  ' + (p ? '✓' : '✗') + ' ' + n + (i ? '   [' + i + ']' : '')); }
