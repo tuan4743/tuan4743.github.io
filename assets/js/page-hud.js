@@ -37,9 +37,13 @@
        返回:{ path: 给 SVG 的 d(x_svg = 100 − x),fill: 闭合版(给底板用),
               user: 用户坐标下的顶点 }
        ------------------------------------------------------------ */
-    function gFrame(w, h) {
+    function gFrame(w, h, bandX) {
         var k = h / w;                       /* 视口的高/宽比 */
         var y1;
+        /* ★ ⑨ 的横坐标(= 底带往左伸到哪)是【一个接口】:默认 35,
+           也可以在 CSS 里改 --hud-band-x,drawFrame 会把它读进来传给这里 ——
+           一个数同时管折线和三支笔那一行的宽度(用户:"把 x 从 25 扩到 30 我感觉就差不多了")。 */
+        var bx = isFinite(parseFloat(bandX)) ? parseFloat(bandX) : 35;
 
         var p1 = [45, 0];
         var p2 = [p1[0] - (9 * k) / T60, 9];   /* ② 60°:Δy=9 ⇒ Δx = 9k/√3 */
@@ -51,7 +55,7 @@
         y1 = p6[1];
         var p7 = [5, 100 - y1];                /* ⑦ 用户自己给的关系式 */
         var p8 = [8, p7[1] + 3 / k];           /* ⑧ 45°:Δx=3 ⇒ Δy = 3/k(恒等于 94) */
-        var p9 = [35, p8[1]];                  /* ⑨ */
+        var p9 = [bx, p8[1]];                  /* ⑨(底带往左伸到 bx%)*/
         var p10 = [p9[0] + (6 * k) / T60, 100];/* ⑩ 60°:Δy=6 ⇒ Δx = 6k/√3 */
 
         var user = [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10];
@@ -83,7 +87,13 @@
         var w = window.innerWidth || document.documentElement.clientWidth || 0;
         var h = window.innerHeight || document.documentElement.clientHeight || 0;
         if (!w || !h) return;
-        var g = gFrame(w, h);
+        /* 底带宽度:优先读 CSS 里的 --hud-band-x(接口),读不到就用默认 35 */
+        var bandX = null;
+        try {
+            var cs = window.getComputedStyle ? window.getComputedStyle(root).getPropertyValue("--hud-band-x") : "";
+            bandX = parseFloat(String(cs).replace("%", ""));
+        } catch (e) { }
+        var g = gFrame(w, h, bandX);
         var paths = root.querySelectorAll(".hud-halo, .hud-line, .hud-run");
         for (var i = 0; i < paths.length; i++) paths[i].setAttribute("d", g.path);
         /* 底板:同一圈轮廓的【闭合版】—— 它把框里那一块盖住,

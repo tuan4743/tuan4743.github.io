@@ -56,6 +56,12 @@
        所以第一版里只有"播放器"那枚 <button> 会吸,五个导航 APP 全都不吸。
        卡片上的链接(最近更新/标签)同理,一起列进来。 */
     ".tablet__app", ".tablet__recent-item", ".tablet__tag",
+    /* ★★ 右侧 HUD(用户第五轮反馈:"有一些按钮鼠标移上去不会吸附,比如搜索框、
+       下载、Github,以及导航页")。原因就是这个白名单:兜底那条只认 button,
+       而 HUD 里下载/GitHub 是 <a>、导航项是 <a>、搜索框是 <input> —— 一个都不匹配。
+       明暗和三支笔之所以会吸,只是因为它们恰好是 <button>。 */
+    ".hud-act", ".hud-nav__item", ".hud-search input", ".hud-search__clear",
+    ".hud-pen__btn", ".hud-pen__range", ".hud-logo",
     /* ★ 排除第五张盘的碎片:.frost-shard 也是 <button>,但它只有 18~37px,
        磁吸(MAGNET=0.12)会把画出来的光标整个拉到碎片中心、并且把中心点藏起来 ——
        用户看到的是"光标和实际化霜的位置对不上"(真实指针在化霜,画出来的光标跑了)。
@@ -166,8 +172,12 @@
       var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
       tx = cx + (mx - cx) * MAGNET;
       ty = cy + (my - cy) * MAGNET;
-      tw = r.width + PAD * 2;
-      th = r.height + PAD * 2;
+      /* ★★ 外扩按目标尺寸走(用户第五轮:"下面的三个笔,吸附的框和实际的框偏移比较大")。
+         原来是固定 PAD=10 ⇒ 一个高 30px 的按钮被撑成 50px 的框,看着就是"框和按钮不重合"。
+         现在小目标按 22% 外扩(最小 4px),大目标照样 10px 封顶。 */
+      var pad = Math.min(PAD, Math.max(4, Math.min(r.width, r.height) * 0.22));
+      tw = r.width + pad * 2;
+      th = r.height + Math.min(PAD, Math.max(4, Math.min(r.width, r.height) * 0.22)) * 2;
     }
 
     /* ---- 平滑收敛(帧率无关)---- */

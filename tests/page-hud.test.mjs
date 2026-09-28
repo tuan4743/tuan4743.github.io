@@ -283,17 +283,16 @@ ok('★★★ 顶部那条【主题顶栏】仍然没有渲染(用户上一轮�
   !/partialCached "header\.html"/.test(baseofCode) &&
   /class="logo"/.test(headerTpl) && fs.existsSync(`${BH}/layouts/_partials/header.html`),
   '标记还在 layouts/_partials/header.html,要回来只需去掉 baseof 里那行注释');
-ok('★★ 改造 2:凸起里是 LOGO,【左边缘】落在 x=42% 往右排(不能再往左,否则顶穿 60° 斜线)',
-  cls('hud-logo').test(tech) && />Tuagfey Blog</.test(tech) &&
-  /\.hud-logo\s*\{[^}]*left:\s*58%/.test(cssCode) &&
-  !/\.hud-logo\s*\{[^}]*right:/.test(cssCode) &&
-  /\.hud-logo\s*\{[^}]*font-size:\s*clamp\(18px,\s*1\.95vw,\s*38px\)/.test(cssCode),
-  '★ 上一版写 right:42% 是"右边缘在 42%",文字往左长出去、穿过斜线还被视口左缘切掉(用户:"位置和大小不对")');
-ok('★★ 字号上限由可用宽度定死:x 28(搜索框左缘)到 x 43(斜线)那 15%',
-  (() => {
-    const max = /font-size:\s*clamp\(18px,\s*1\.95vw,\s*(\d+)px\)/.exec(css) || [];
-    return Number(max[1] || 0) <= 40;
-  })(), '1920 宽下 15% = 288px,"Tuagfey Blog" 在 38px 字号下约 250px ✓');
+ok('★★★ LOGO 的位置与字号是【三个接口变量】(用户:"这条给我一个接口,改字体大小和位置")', (() => {
+    const size = /--hud-logo-size:\s*clamp\((\d+)px,\s*([\d.]+)vw,\s*(\d+)px\)/.exec(css);
+    return cls('hud-logo').test(tech) && />Tuagfey Blog</.test(tech) &&
+      !!size && Number(size[1]) >= 16 && Number(size[3]) >= 32 &&
+      /--hud-logo-x:\s*\d+%/.test(css) && /--hud-logo-y:\s*[\d.]+%/.test(css) &&
+      /\.hud-logo\s*\{[^}]*left:\s*var\(--hud-logo-x\)/.test(cssCode) &&
+      /\.hud-logo\s*\{[^}]*top:\s*var\(--hud-logo-y\)/.test(cssCode) &&
+      /\.hud-logo\s*\{[^}]*font-size:\s*var\(--hud-logo-size\)/.test(cssCode) &&
+      !/\.hud-logo\s*\{[^}]*right:/.test(cssCode);
+  })(), '★ right 那一版是"右边缘在 42%",文字往左长出去、穿过斜线还被视口左缘切掉');
 ok('★★ 改造 3:收窄段是搜索栏,而且用的是【顶栏原来那套标记】',
   /class="hud-search[^"]*"[^>]*id="header-search"[^>]*data-search/.test(hudTplCode) &&
   /id="header-search-input"/.test(hudTplCode) && /id="header-search-results"/.test(hudTplCode) &&
@@ -326,11 +325,20 @@ ok('★★ 三枚按钮排成【四象限】:左上导出 / 右上 GitHub / 右�
   /\.hud-act\[data-hud-act="wechat"\]\s*\{\s*grid-area:\s*2 \/ 2/.test(cssCode) &&
   /\.hud-acts\s*\{[^}]*display:\s*grid/.test(cssCode),
   '用户:"分成四个象限,三个按钮应该分别在第一二四象限"');
-ok('★★ 按钮至少比原来大两倍(原来 26~34px)',
+ok('★★ 按钮比原来(26~34px)大不少,但【高】必须压进顶带:clamp(42px, 5vh, 64px)',
   (() => {
     const m = /\.hud-act\s*\{[^}]*width:\s*clamp\((\d+)px,\s*([\d.]+)vh,\s*(\d+)px\)/.exec(cssCode);
-    return !!m && Number(m[1]) >= 52 && Number(m[3]) >= 68;
-  })(), '现在 clamp(52px, 5.4vh, 72px)');
+    const hm = /\.hud-act\s*\{[^}]*height:\s*clamp\((\d+)px,\s*([\d.]+)vh,\s*(\d+)px\)/.exec(cssCode);
+    return !!m && !!hm && Number(m[1]) >= 42 && Number(hm[3]) >= 60 &&
+      Number(hm[2]) + 0.4 <= 6;
+  })(), '★ 用户:"下载还是顶出去了" —— 四象限的第一行越过了 y=6% 那条沿;高 ≤5vh + top 0.4% 才装得下');
+ok('★★ 底带宽度是【一个接口】:--hud-band-x 同时管折线 ⑨ 和三支笔那一行的宽度',
+  /--hud-band-x:\s*35%/.test(css) &&
+  /function gFrame\(w, h, bandX\)/.test(hudJs) &&
+  /var bx = isFinite\(parseFloat\(bandX\)\)/.test(hudJs) &&
+  /getPropertyValue\("--hud-band-x"\)/.test(hudJs) &&
+  /\.hud-pens\s*\{[^}]*width:\s*calc\(var\(--hud-band-x\) - 7%\)/.test(cssCode),
+  '用户在找"把 x 从 25 扩到 30"这个数 —— 现在它就在 CSS 第一屏');
 ok('★★★ 导出按钮指向 Hugo【真生成】的那份 .md(不是前端拼的)',
   /data-hud-act="md" href="\{\{ \$md \}\}" download/.test(hudTplCode) &&
   /data-hud-act=md href=[^\s>]*index\.md/.test(post) &&
@@ -644,6 +652,18 @@ ok('★ 三支笔【只做外观与交互】,没有偷偷去改正文(还没有�
   !/createElement\("canvas"\)/.test(hudJs) &&
   !/md-content/.test(hudJs),
   '用户当时选的是"先只做外观";真正能画是后面的事');
+
+/* ---------- ⑪ 磁力光标:HUD 里的元素也要认(第五轮反馈 4/5) ---------- */
+const mcJs = fs.readFileSync(`${BH}/assets/js/magnetic-cursor.js`, 'utf8');
+ok('★★★ 磁力光标要认得 HUD 里的元素(用户:"搜索框、下载、Github、以及导航页"移上去不吸附)',
+  ['".hud-act"', '".hud-nav__item"', '".hud-search input"', '".hud-pen__btn"', '".hud-logo"']
+    .every((sel) => mcJs.includes(sel)),
+  '★ 白名单那条兜底只认 button:HUD 里下载/GitHub/导航是 <a>、搜索框是 <input>,一个都不匹配');
+ok('★★ 吸附框的外扩改成按目标尺寸走(用户:"三个笔,吸附的框和实际的框偏移比较大")',
+  /var pad = Math\.min\(PAD, Math\.max\(4, Math\.min\(r\.width, r\.height\) \* 0\.22\)\)/.test(mcJs),
+  '固定 PAD=10 会把一个高 30px 的按钮撑成 50px 的框,看着就是"框和按钮不重合"');
+ok('★ 大目标的外扩还是 10px 封顶(别把卡片之类的框也缩小了)',
+  /Math\.min\(PAD,/.test(mcJs) && /var PAD = 10;/.test(mcJs));
 
 /* ---------- 出结果 ---------- */
 let pass = 0;

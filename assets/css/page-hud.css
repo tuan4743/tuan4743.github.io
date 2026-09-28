@@ -71,6 +71,18 @@
     --hud-band: 94%;                      /* 底带顶边 y */
     --hud-band-x: 35%;                    /* 底带往左伸到 x(⑨ 从 25 拓到 35:要塞下三支笔 + 展开的滑条) */
     --hud-ink-dim: rgba(234, 243, 255, 0.62);
+
+    /* ═══════ 2b. LOGO 的接口(用户:"这条给我一个接口,改字体大小和位置")═══════
+       改这三个数就够了,别的都不用动:
+         --hud-logo-size  字号
+         --hud-logo-x     文字【左边缘】距页面【左】边的百分比
+                          (= 距右缘 100 − 这个数;62% ⇔ 距右缘 38%)
+         --hud-logo-y     文字上边缘距页面顶部的百分比
+       ★ 上限的由来:能用的横向空间是 x 28(搜索框左缘)到 x 43(那条 60° 斜线),
+         也就是 15% 页宽 —— 1920 下约 288px,"Tuagfey Blog" 在 38px 字号下约 250px。 */
+    --hud-logo-size: clamp(20px, 2.1vw, 40px);
+    --hud-logo-x: 60%;
+    --hud-logo-y: 1.1%;
     --hud-line-soft: rgba(234, 243, 255, 0.22);
     --hud-line-on: rgba(234, 243, 255, 0.6);
 
@@ -174,10 +186,10 @@
      那 15%,所以 1920 下最多约 38px(原来 13~19px,现在约两倍多)。 */
 .hud-logo {
     position: absolute;
-    left: 58%;
-    top: 0.9%;
+    left: var(--hud-logo-x);
+    top: var(--hud-logo-y);
     pointer-events: auto;
-    font-size: clamp(18px, 1.95vw, 38px);
+    font-size: var(--hud-logo-size);
     letter-spacing: 0.08em;
     line-height: 1.05;
     color: #f4f8ff;
@@ -280,7 +292,7 @@
 .hud-acts {
     position: absolute;
     right: var(--hud-pad);
-    top: 0.8%;
+    top: 0.4%;
     display: grid;
     grid-template-columns: auto auto;
     gap: clamp(6px, 0.7vh, 11px);
@@ -294,8 +306,11 @@
 .hud-act[data-hud-act="wechat"] { grid-area: 2 / 2; }
 
 .hud-act {
-    width: clamp(52px, 5.4vh, 72px);
-    height: clamp(52px, 5.4vh, 72px);
+    /* ★★ 尺寸上限由顶带那条沿(y=6%)定死:第一行必须整个落在带里,
+       所以按钮高 ≤ 约 5vh(再加上 top 0.4% 才不到 6%)。
+       用户报的"下载还是顶出去了"就是第一行越过了那条沿。 */
+    width: clamp(42px, 5vh, 64px);
+    height: clamp(42px, 5vh, 64px);
     display: inline-flex;
     align-items: center;
     justify-content: center;
