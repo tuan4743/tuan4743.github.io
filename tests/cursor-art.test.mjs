@@ -248,6 +248,50 @@ function boot() {
     `半径范围 ${Math.min(...solidR).toFixed(2)} ~ ${Math.max(...solidR).toFixed(2)}`);
 }
 
+/* ============================================================
+   ⑤ 锁定框该锁谁(用户第三轮:"内容页的某些可点击事件,比如文本链接、标签、
+      上下一页等,扫描框不会锁")
+   ─────────────────────────────────────────────────────────────
+   这是老毛病第三次犯:白名单里只列了已知的类名,而兜底那条只认 <button>。
+   正文里的链接/标签/上下篇导航都是 <a> ⇒ 一个都不匹配。
+   这里不靠"跑一遍 DOM",直接把选择器抠出来用真 DOM(jsdom 没有,就用
+   Chrome 里量过的真实选择器语义)检查:白名单文本里必须出现这些覆盖。
+   ★ 关键的一条是 main.main a —— 用排除法覆盖正文里所有能点的东西,
+     而不是继续列类名(列类名必漏)。
+   ============================================================ */
+{
+  src_check: {
+    const src = fs.readFileSync(`${BH}/assets/js/magnetic-cursor.js`, "utf8");
+    /* ★ 一行里可能有好几条规则(写成 "a", "b", "c" 挤一行),
+       所以【按引号扫】,不要按行切 —— 按行切会把 "b", "c 连成一坨,
+       于是"某条规则漏了 .anchor"这种断言会误报。 */
+    const block = (src.match(/var SELECTOR = \[([\s\S]*?)\]\.join\(","\)/) || [, ""])[1]
+      .replace(/\/\*[\s\S]*?\*\//g, "");
+    const rules = (block.match(/"([^"]*)"/g) || []).map((s) => s.slice(1, -1));
+    const sel = rules.join(",");
+    ok('选择器条目能正常切出来(逐条,不按行)', rules.length > 20, `rule 数=${rules.length}`);
+    ok('★ 正文里所有链接都进白名单(main.main a,排除锚点)',
+      /main\.main a:not\(\.anchor\)/.test(sel), '没有再犯"只认 button"的老毛病');
+    ok('标签在列表里', /\.post-tags a/.test(sel) || /\.terms-tags a/.test(sel));
+    ok('上下一页/翻页在列表里', /\.paginav a/.test(sel) && /\.post-nav a/.test(sel));
+    ok('面包屑/页脚链接在列表里', /\.breadcrumbs a/.test(sel) && /\.footer a/.test(sel));
+    /* ★★ 会命中标题旁 .anchor 的,只有"正文/整篇"这几条(锚点就长在正文里):
+         main.main a / .post-single a / .post-content a —— 每条都必须自己带 :not(.anchor)。
+       实测 .anchor 就是被 .post-single a / .post-content a 漏进来的
+       (只在 main.main a 那条写 :not 不够)。
+       ★ .post-tags a / .post-nav a 这类是【局部容器】里的链接,锚点不会长在那儿,
+         不必也不该给它们加 :not —— 加了反而是噪音。 */
+    const bodyWide = rules.filter((r) => /^(main\.main a|\.post-single a|\.post-content a)(:|$)/.test(r));
+    const leaky = bodyWide.filter((r) => !/:not\(\.anchor\)/.test(r));
+    ok('★ 覆盖整篇正文的那几条规则都排除了 .anchor', bodyWide.length >= 3 && leaky.length === 0,
+      `正文级规则 ${bodyWide.length} 条,漏的:${leaky.join(" | ") || "无"}`);
+    ok('碎片的排除还在(那是用户明确要求不吸的)', /button:not\(\.frost-shard\)/.test(sel));
+    /* ★ 别用 indexOf(".hud-logo") 判 —— ".hud-logo__x" 这种也会命中。按独立选择器比。 */
+    ok('LOGO 仍然不吸(用户:"它只是个 LOGO")',
+      !rules.some((r) => r.trim() === ".hud-logo"), rules.filter((r) => r.indexOf("hud-logo") >= 0).join(" | ") || "(未出现)");
+  }
+}
+
 /* ---------------- 输出 ---------------- */
 let bad = 0;
 const pad = (s, n) => String(s).padEnd(n);

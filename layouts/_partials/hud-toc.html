@@ -34,9 +34,12 @@
 {{- end -}}
 {{- if ge (len $items) 2 -}}
 <div class="hud-toc" id="hud-toc" data-hud-toc="{{ .RelPermalink }}">
-    {{/* ── 阅读进度:竖线 + 跟着走的光点。位置由 hud-toc.js 每帧写 --hud-toc-p ── */}}
-    <div class="hud-toc__prog" aria-hidden="true">
-        <span class="hud-toc__prog-thumb"></span>
+    {{/* ── 阅读进度:竖线 + 跟着走的光点。位置/长度由 hud-toc.js 写
+        --hud-toc-lane-x / --hud-toc-prog-h / --hud-toc-p(每帧)── */}}
+    <div class="hud-toc__lane" aria-hidden="true">
+        <div class="hud-toc__prog">
+            <span class="hud-toc__prog-thumb"></span>
+        </div>
     </div>
 
     {{/* ★★★ 用户第二轮第四条:"这个右滑的收起页我其实本意是想给导航栏的,
@@ -51,6 +54,11 @@
             </svg>
         </button>
         <div class="hud-toc__panel" id="hud-toc-panel">
+            {{/* 用户第三轮:"卡片整体我觉得可以再装饰一下" ⇒ 四角直角括号
+                (和右下角那排笔的框同一套美术),纯装饰、不吃鼠标事件。 */}}
+            <span class="hud-toc__deco" aria-hidden="true">
+                <i></i><i></i><i></i><i></i>
+            </span>
             <div class="hud-toc__head">
                 <span class="hud-toc__title">目录</span>
                 <span class="hud-toc__en">TOC</span>

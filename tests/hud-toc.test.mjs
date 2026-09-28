@@ -112,13 +112,33 @@ ok('★ 目录的收起页签已停用(hidden),标记留着给导航栏复用',
 ok('模块也认 hidden(停用后不再初始化 aria)',
   /if \(toggle && !toggle\.hidden\)/.test(js));
 
-/* ★ 用户第二、三条:整体太小 ⇒ 字号放大一档 */
-ok('★ 目录字号放大(默认 ≥13px,上限 ≥20px,步进按钮 ≥20px)',
-  /--toc-fs:\s*13\.5px/.test(css) &&
-  /FS_MAX\s*=\s*22/.test(js) &&
-  /\.hud-toc__step\s*\{[^}]*width:\s*22px/.test(css));
+/* ★ 用户第二、三条:整体太小 ⇒ 两轮放大 */
+ok('★ 目录字号再放大一档(默认 15px,上限 24px)',
+  /--toc-fs:\s*15px/.test(css) &&
+  /FS_MAX\s*=\s*24/.test(js) &&
+  /--hud-toc__title|\.hud-toc__title\s*\{[^}]*font-size:\s*21px/.test(css));
 ok('字体大小/字距仍然可调并存 localStorage',
   /localStorage\.setItem\(KEY/.test(js) && /localStorage\.getItem\(KEY/.test(js));
+
+/* ★ 用户第三条:"卡片整体我觉得可以再装饰一下" */
+ok('★ 面板有四角直角括号装饰(和笔那排的框同一套美术)',
+  (sPost.match(/class=hud-toc__deco|<span class="hud-toc__deco"/g) || []).length === 1 &&
+  /\.hud-toc__deco i\s*\{[^}]*border:\s*1px solid var\(--hud-toc-cyan\)/.test(css));
+ok('装饰不吃鼠标事件(纯装饰)',
+  /\.hud-toc__deco\s*\{[^}]*pointer-events:\s*none/.test(css));
+ok('当前小节有青色底衬(不只是左边条)',
+  /\.hud-toc__item\.is-current\s*\{[^}]*background:\s*linear-gradient/.test(css));
+
+/* ★ "卡片怎么没有居中对齐":面板和进度条必须【同高 + 同中心】 */
+ok('★ 进度条高度 = 面板高度(不是另一个百分比)',
+  /\.hud-toc__prog\s*\{[^}]*height:\s*var\(--hud-toc-h\)/.test(css) &&
+  /\.hud-toc\s*\{[^}]*height:\s*var\(--hud-toc-h\)/.test(css));
+ok('★ 两个都挂在同一个垂直中心上(flex + align-items:center)',
+  /\.hud-toc\s*\{[^}]*align-items:\s*center/.test(css) &&
+  /\.hud-toc__lane\s*\{[^}]*align-items:\s*center/.test(css) &&
+  /\.hud-toc__box\s*\{[^}]*align-items:\s*center/.test(css));
+ok('高度由 JS 按宽度定比例后写进 --hud-toc-h',
+  /setProperty\("--hud-toc-h",\s*h \+ "px"\)/.test(js) && /H_RATIO/.test(js));
 
 /* ============================================================
    ③ 运行时:拿真模块 + 假 DOM 跑一遍
@@ -404,19 +424,20 @@ function pressOn(rootEl, target) {
 {
   const env = fakeDom();
   const api = boot(env);
-  ok('默认字号 13.5px / 字距 0.03em(用户:"字体也比较小" ⇒ 放大过)',
-    env.root.style.getPropertyValue('--toc-fs') === '13.5px' &&
+  ok('默认字号 15px / 字距 0.03em(用户两轮都说小 ⇒ 放大两档)',
+    env.root.style.getPropertyValue('--toc-fs') === '15px' &&
     env.root.style.getPropertyValue('--toc-ls') === '0.03em',
     env.root.style.getPropertyValue('--toc-fs') + ' / ' + env.root.style.getPropertyValue('--toc-ls'));
   pressOn(env.root, env.buttons.sizeUp); pressOn(env.root, env.buttons.sizeUp);
   pressOn(env.root, env.buttons.trackUp);
-  ok('★ 字号 +2 ⇒ 15.5px', env.root.style.getPropertyValue('--toc-fs') === '15.5px', env.root.style.getPropertyValue('--toc-fs'));
+  ok('★ 字号 +2 ⇒ 17px', env.root.style.getPropertyValue('--toc-fs') === '17px', env.root.style.getPropertyValue('--toc-fs'));
   ok('★ 字距 +1 ⇒ 0.04em', env.root.style.getPropertyValue('--toc-ls') === '0.04em', env.root.style.getPropertyValue('--toc-ls'));
-  ok('字号写进了 localStorage', /"fs":15\.5/.test(env.store['hud-toc-type'] || ''), env.store['hud-toc-type']);
+  ok('字号写进了 localStorage', /"fs":17/.test(env.store['hud-toc-type'] || ''), env.store['hud-toc-type']);
+  ok('读数写成短格式(面板窄也不会被裁出半个单位)', env.sizeVal.textContent === '17/4', String(env.sizeVal.textContent));
   for (let i = 0; i < 30; i++) pressOn(env.root, env.buttons.sizeUp);
-  ok('★ 字号有上限 22px(不越界)', env.root.style.getPropertyValue('--toc-fs') === '22px', env.root.style.getPropertyValue('--toc-fs'));
+  ok('★ 字号有上限 24px(不越界)', env.root.style.getPropertyValue('--toc-fs') === '24px', env.root.style.getPropertyValue('--toc-fs'));
   for (let i = 0; i < 40; i++) pressOn(env.root, env.buttons.sizeDown);
-  ok('★ 字号有下限 12px(不越界)', env.root.style.getPropertyValue('--toc-fs') === '12px', env.root.style.getPropertyValue('--toc-fs'));
+  ok('★ 字号有下限 13px(不越界)', env.root.style.getPropertyValue('--toc-fs') === '13px', env.root.style.getPropertyValue('--toc-fs'));
   for (let i = 0; i < 40; i++) pressOn(env.root, env.buttons.trackDown);
   ok('★ 字距下限是 0em(不会变负)', env.root.style.getPropertyValue('--toc-ls') === '0.00em', env.root.style.getPropertyValue('--toc-ls'));
 }

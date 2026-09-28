@@ -67,7 +67,26 @@
        磁吸(MAGNET=0.12)会把画出来的光标整个拉到碎片中心、并且把中心点藏起来 ——
        用户看到的是"光标和实际化霜的位置对不上"(真实指针在化霜,画出来的光标跑了)。
        碎片靠"边缘爆闪"提示就够了,不需要磁吸。 */
-    "button:not(.frost-shard)"
+    "button:not(.frost-shard)",
+    /* ★★★ 第三轮用户反馈:"内容页的某些可点击事件,比如文本链接、标签、上下一页等,
+       扫描框不会锁"。又是同一个毛病:这些都是 <a>,而兜底那条只认 <button>。
+       ⇒ 把正文里"能点的东西"全补进来。
+       ★ 这里用【排除法】(main.main 下所有 a,再排掉不该锁的)而不是一个个列类名:
+         正文链接的形态太多(行内链接、外链、脚注、代码块里的链接……),列类名必漏;
+         真正不该锁的只有这几个:
+           · .anchor  —— 标题旁边那个 "#" 锚点,贴着标题,锁它会跟划词打架
+           · .toc a   —— PaperMod 自带的折叠目录(哪天开出来时)
+         (目录自己的 .hud-toc__item 不在这里,它自己那条已经单独列了。) */
+    "main.main a:not(.anchor)",
+    /* ★★ 实测(CDP 在真页面上逐条 matches 查出来的):标题旁的 .anchor
+       是被【这几条】漏进来的 —— 我一开始只在 main.main a 那条写了 :not(.anchor),
+       而 .post-single a / .post-content a 同样匹配 <a class="anchor">,
+       于是"排除了却还在"。那个锚点量出来是 0×0(PaperMod 的 "#" 静止时不显示),
+       锁一个 0 尺寸的框没有意义,所以这几条也一并排除。 */
+    ".post-tags a", ".post-single a:not(.anchor)", ".post-content a:not(.anchor)",
+    ".paginav a", ".post-nav a",
+    ".post-footer a", ".entry-footer a", ".breadcrumbs a", ".footer a",
+    ".top-link", ".share-buttons a", ".terms-tags a"
   ].join(",");
 
   /* 笔形态的光标:记号笔 = ×(两笔交叉),荧光笔/橡皮 = 圆框(直径 = 笔的大小) */

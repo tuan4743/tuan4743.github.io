@@ -27,16 +27,19 @@
     --hud-toc-lane: calc(70vw + 12px);
     --hud-toc-x: calc(70vw + 30px);
     --hud-toc-panel-w: 160px;
-    --hud-toc-y: 13%;            /* 面板上缘的 y(顶带上沿 y=6 以下) */
-    --hud-toc-h: 66%;            /* 面板高占整页的百分比 */
+    /* 面板和进度条【同一个高度、同一个垂直中心】——
+       这两个数也由 JS 写(用户第三轮:"怎么这个卡片没有居中对齐?":
+       原因就是面板用百分比高度、进度条用另一个百分比,谁也没对齐谁)。 */
+    --hud-toc-y: 18%;
+    --hud-toc-h: 520px;
 
     /* 字号/字距由 hud-toc.js 写在这两个变量上(存 localStorage)
-       ★ 用户第二轮:"太小了,明明有那么大的空间,字体也比较小" ⇒ 整体放大一档 */
-    --toc-fs: 13.5px;
+       ★ 第二轮"字体也比较小" ⇒ 放大一档;第三轮"还是有点小" ⇒ 再放大一档 */
+    --toc-fs: 15px;
     --toc-ls: 0.03em;
 
     --hud-toc-ink: rgba(234, 243, 255, 0.92);
-    --hud-toc-dim: rgba(234, 243, 255, 0.62);
+    --hud-toc-dim: rgba(234, 243, 255, 0.7);
     --hud-toc-line: rgba(234, 243, 255, 0.22);
     --hud-toc-on: rgba(234, 243, 255, 0.62);
     --hud-toc-cyan: var(--mc-color, rgb(34, 211, 238));
@@ -53,17 +56,28 @@
     color: var(--hud-toc-ink);
 }
 
-/* ---------------- 进度条 ---------------- */
-.hud-toc__prog {
+/* ---------------- 进度条 ----------------
+   外面这层 .hud-toc__lane 铺满整个 .hud-toc(也就是和面板同高、同心),
+   竖线在里面垂直居中、高度 = 面板高(--hud-toc-h)。 */
+.hud-toc__lane {
     position: absolute;
     left: calc(var(--hud-toc-lane) - var(--hud-toc-x));
-    top: 50%;
-    transform: translate(-50%, -50%);
-    width: 2px;
+    top: 0;
     height: 100%;
+    width: 0;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+}
+
+.hud-toc__prog {
+    position: relative;
+    width: 2px;
+    height: var(--hud-toc-h);     /* ★ 和面板等高 —— 这就是"对齐" */
     border-radius: 2px;
     background: var(--hud-toc-line);
     pointer-events: none;
+    transform: translateX(-50%);
 }
 
 /* 已经读过的部分:从顶部长下来 */
@@ -103,6 +117,7 @@
 }
 
 .hud-toc__panel {
+    position: relative;              /* 装饰层的定位基准 */
     width: var(--hud-toc-panel-w);
     height: 100%;
     display: flex;
@@ -111,10 +126,33 @@
     border: 1px solid var(--hud-toc-line);
     border-radius: 7px;
     /* ★ 比第一版更透一点:面板变宽了,再那么实就把背景星云糊住了 */
-    background: rgba(8, 12, 22, 0.72);
+    background:
+        linear-gradient(180deg, rgba(234, 243, 255, 0.045), rgba(234, 243, 255, 0) 42%),
+        rgba(8, 12, 22, 0.72);
     backdrop-filter: blur(9px);
     transition: border-color 0.2s ease;
 }
+
+/* 装饰:四角直角括号(和右下角那排笔的方框同一套美术) */
+.hud-toc__deco {
+    position: absolute;
+    inset: 5px;
+    pointer-events: none;
+}
+
+.hud-toc__deco i {
+    position: absolute;
+    width: 9px;
+    height: 9px;
+    border: 1px solid var(--hud-toc-cyan);
+    opacity: 0.5;
+}
+
+/* 左上 / 右上 / 左下 / 右下:每个只留两条边 */
+.hud-toc__deco i:nth-child(1) { left: 0; top: 0; border-right: 0; border-bottom: 0; }
+.hud-toc__deco i:nth-child(2) { right: 0; top: 0; border-left: 0; border-bottom: 0; }
+.hud-toc__deco i:nth-child(3) { left: 0; bottom: 0; border-right: 0; border-top: 0; }
+.hud-toc__deco i:nth-child(4) { right: 0; bottom: 0; border-left: 0; border-top: 0; }
 
 /* ★★★ 用户的第四条:"这个右滑的收起页我其实本意是想给导航栏的,
    收起导航栏可以让用户更专注" ⇒ 目录这一页签【停用】。
@@ -161,14 +199,14 @@
 
 .hud-toc__title {
     font-family: "Pixel CN", var(--hud-font);   /* 手绘图上"目录"就是像素字 */
-    font-size: 18px;
+    font-size: 21px;
     letter-spacing: 0.08em;
     white-space: nowrap;
 }
 
 .hud-toc__en {
-    font-size: 10px;
-    letter-spacing: 0.24em;
+    font-size: 11px;
+    letter-spacing: 0.26em;
     color: var(--hud-toc-dim);
     text-transform: uppercase;
 }
@@ -179,7 +217,7 @@
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
-    padding: 8px 0 10px;
+    padding: 10px 0 12px;
     scrollbar-width: none;
 }
 
@@ -187,29 +225,32 @@
 
 .hud-toc__item {
     display: block;
-    padding: 5px 14px 5px 13px;
+    padding: 6px 14px 6px 14px;
     border-left: 2px solid transparent;
     color: var(--hud-toc-dim);
     font-size: var(--toc-fs);
     letter-spacing: var(--toc-ls);
-    line-height: 1.5;
+    line-height: 1.55;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     text-decoration: none;
-    transition: color 0.16s ease, border-color 0.16s ease;
+    transition: color 0.16s ease, border-color 0.16s ease, background-color 0.16s ease;
 }
 
-.hud-toc__item[data-hud-toc-lvl="3"] { padding-left: 26px; font-size: calc(var(--toc-fs) - 1px); }
-.hud-toc__item[data-hud-toc-lvl="4"] { padding-left: 38px; font-size: calc(var(--toc-fs) - 1px); }
+.hud-toc__item[data-hud-toc-lvl="3"] { padding-left: 28px; font-size: calc(var(--toc-fs) - 1.5px); }
+.hud-toc__item[data-hud-toc-lvl="4"] { padding-left: 42px; font-size: calc(var(--toc-fs) - 1.5px); }
 
 .hud-toc__item:hover {
     color: var(--hud-toc-ink);
+    background: rgba(234, 243, 255, 0.06);
 }
 
+/* 当前小节:青色左边条 + 一层很淡的底(用户第三轮要的"装饰"之一) */
 .hud-toc__item.is-current {
     border-left-color: var(--hud-toc-cyan);
     color: #ffffff;
+    background: linear-gradient(90deg, color-mix(in srgb, var(--hud-toc-cyan) 16%, transparent), transparent 72%);
 }
 
 /* ---------------- 字号 / 字距(面板左下角那组小方块)---------------- */
@@ -218,10 +259,11 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 10px 15px;
+    padding: 11px 13px;
     border-top: 1px solid var(--hud-toc-line);
-    font-size: 12px;
+    font-size: 13px;
     white-space: nowrap;
+    overflow: hidden;              /* 面板窄的时候宁可裁掉读数,也不让按钮挤出去 */
 }
 
 .hud-toc__size-lab {
@@ -255,9 +297,14 @@
 
 .hud-toc__size-val {
     margin-left: auto;
-    color: rgba(234, 243, 255, 0.42);
+    color: rgba(234, 243, 255, 0.45);
     font-size: 11px;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.02em;
+    /* 读数只是"当前值",面板窄时可以被裁 —— 按钮才是要点的东西 */
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* ---------------- 空间不够就整块收掉(JS 会按实际空隙加 .is-tight)---------------- */

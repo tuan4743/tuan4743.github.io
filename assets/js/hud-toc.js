@@ -49,11 +49,17 @@
   var GAP_NAV = 6;       /* 面板离竖栏 */
   var MIN_W = 168;       /* 比这窄就别显示了 */
   var MAX_W = 400;       /* 太宽也难看(宽屏上缝会很大) */
+  /* 面板高度:按可用宽度定比例(卡片不能又窄又长),再夹到视口高度的 56% 以内。
+     ★ 用户第三轮:"怎么这个卡片没有居中对齐?" —— 面板和进度条的高度原来各用
+       一个整页百分比,谁也没对齐谁;现在两个高度都取这一个数,并且共用同一个
+       垂直中心(.hud-toc 是 flex + align-items:center)。 */
+  var H_RATIO = 2.4, H_MIN = 300, H_MAX_VH = 0.56;
   var lastSig = "";     /* 上一次真正写下去的几何签名 */
   var last = null;      /* 量到的中间值,排障出口用 */
 
   function layout() {
     var vw = document.documentElement.clientWidth;
+    var vh = document.documentElement.clientHeight;
     var mr = main.getBoundingClientRect().right;
     var nav = document.querySelector(".hud-nav");
     var navLeft = nav ? nav.getBoundingClientRect().left : vw * 0.94;
@@ -61,15 +67,16 @@
     var left = bar + GAP_PANEL;
     var gap = Math.round(navLeft - GAP_NAV - left);    /* 这条缝真正能用的宽 */
     var w = Math.min(MAX_W, gap);
-    last = { vw: vw, mr: Math.round(mr), navLeft: Math.round(navLeft), left: Math.round(left), gap: gap, w: w };
+    var h = Math.round(Math.max(H_MIN, Math.min(w * H_RATIO, vh * H_MAX_VH)));
+    last = { vw: vw, vh: vh, mr: Math.round(mr), navLeft: Math.round(navLeft), left: Math.round(left), gap: gap, w: w, h: h };
 
     /* ★★ 守卫【不能】只看"宽度有没有变":同一个宽度下几何可能已经变了
        (1700 宽时 345px 可以对应 left=1264 也可以对应 left=1277,
-        后者就会把面板右缘压到导航上)—— 所以按【三个数的签名】比。
+        后者就会把面板右缘压到导航上)—— 所以按【几何签名】比。
        也【不能】写成"视口没变就整个跳过":视口没变、正文右缘和竖栏左缘变了
        (字体/图标加载完)同样要重算,否则旧值一直留着。 */
     root.classList.toggle("is-tight", !(w >= MIN_W));
-    var sig = [Math.round(vw), Math.round(mr), Math.round(navLeft)].join("|");
+    var sig = [Math.round(vw), Math.round(vh), Math.round(mr), Math.round(navLeft)].join("|");
     if (sig !== lastSig) {
       /* ★ 单位只用 px,不掺百分比:left: calc(73.294% - 74.353% + 18px)
          我以为是 18px − 18px = 0,浏览器算出来是 +13.375px
@@ -80,6 +87,11 @@
       root.style.setProperty("--hud-toc-lane", bar + "px");
       root.style.setProperty("--hud-toc-x", left + "px");
       root.style.setProperty("--hud-toc-panel-w", w + "px");
+      root.style.setProperty("--hud-toc-h", h + "px");
+      /* 垂直中心:面板高 h,让它落在 [top, top+h] 正中 —— 顶带上沿(6%)以下、
+         底带(94%)以上取中点。同时给上下留 3% 余量,别贴到折线上。 */
+      var center = Math.max(0.06 + h / vh / 2 + 0.005, Math.min(0.94 - h / vh / 2 - 0.005, 0.5));
+      root.style.setProperty("--hud-toc-y", ((center - h / vh / 2) * 100).toFixed(3) + "%");
       lastSig = sig;
     }
   }
@@ -90,9 +102,9 @@
   setTimeout(function () { layout(); }, 300);
 
   /* ---------- ④ 字号 / 字距(存 localStorage)---------- */
-  var FS_MIN = 12, FS_MAX = 22, LS_MIN = 0, LS_MAX = 16;   /* 字距存 0~16,用时 /100 当 em */
+  var FS_MIN = 13, FS_MAX = 24, LS_MIN = 0, LS_MAX = 16;   /* 字距存 0~16,用时 /100 当 em */
   var KEY = "hud-toc-type";
-  var fs = 13.5, ls = 3;
+  var fs = 15, ls = 3;
   try {
     var saved = JSON.parse(localStorage.getItem(KEY) || "null");
     if (saved && typeof saved.fs === "number" && typeof saved.ls === "number") {
@@ -105,7 +117,8 @@
     ls = Math.max(LS_MIN, Math.min(LS_MAX, ls));
     root.style.setProperty("--toc-fs", fs + "px");
     root.style.setProperty("--toc-ls", (ls / 100).toFixed(2) + "em");
-    if (sizeVal) sizeVal.textContent = fs + "px/" + (ls / 100).toFixed(2) + "em";
+    /* 读数写短一点(面板最窄只有 168px,写全 "15px/0.03em" 会被裁掉尾巴) */
+    if (sizeVal) sizeVal.textContent = fs + "/" + ls;
     try { localStorage.setItem(KEY, JSON.stringify({ fs: fs, ls: ls })); } catch (e) {}
   }
   applyType();
