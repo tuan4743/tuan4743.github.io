@@ -136,11 +136,22 @@
       }
     });
 
-    /* Ctrl/⌘+K 聚焦到【当前可见】的那个搜索框 */
+    /* Ctrl/⌘+K 聚焦到【当前可见】的那个搜索框
+       ★ 这里踩过一次:offsetParent 不为 null 【不等于】用户看得见 ——
+         平板主界面开着时,顶栏那一处还在 DOM 里、也没 display:none,
+         于是焦点被塞进一个【被平板整个盖住】的输入框:用户对着空气打字。
+         所以平板开着的时候,只认平板里那一处(用 data-tablet-home 认,不认类名)。 */
     document.addEventListener("keydown", function (e) {
       if (!(e.ctrlKey || e.metaKey) || String(e.key).toLowerCase() !== "k") return;
-      for (var k = 0; k < instances.length; k++) {
-        var it = instances[k];
+      var order = instances;
+      if (document.body.classList.contains("tablet-open")) {
+        for (var j = 0; j < instances.length; j++) {
+          var r = instances[j].root;
+          if (r.closest && r.closest("[data-tablet-home]")) { order = [instances[j]]; break; }
+        }
+      }
+      for (var k = 0; k < order.length; k++) {
+        var it = order[k];
         if (it.input.offsetParent !== null) {      /* 可见的那个 */
           e.preventDefault();
           it.input.focus();

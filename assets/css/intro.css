@@ -182,12 +182,25 @@ html.frame-fitted .screen-static.is-full canvas {
     z-index: 20;
 }
 
-/* 主界面顶栏 = 状态栏:上缘箭头可显示/隐藏 */
+/* 主界面顶栏 = 状态栏 */
 .statusbar {
     position: relative;
     transition: transform 0.42s cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.3s ease;
 }
 
+/* ★ 平板主界面开着时,顶栏被平板整个盖住 —— 但它【还在 DOM 里、还 focusable】:
+   Tab 能走进去、Ctrl+K 会把焦点塞进那个看不见的搜索框、顶栏上的 accesskey 也一样。
+   visibility:hidden 让它彻底退出交互与无障碍树;它本来就被盖着,视觉上没有任何差别。
+   用 visibility 而不是 display:none:【几何不变】,量它高度/位置的代码
+   (cd4-terminal.js 的 syncTopGap)不用改也不会读到 0。 */
+body.tablet-open .statusbar {
+    visibility: hidden;
+}
+
+/* 旧的"上缘箭头收放顶栏"那套(statusbar-hidden)已经不再由按钮驱动 ——
+   按钮现在开的是平板主界面(见 tablet.js)。
+   ★ 这条样式先留着:cd4-terminal.js 还在读 statusbar-hidden 决定终端的让位,
+     而且万一哪天真要一个"收起顶栏"的入口,这就是现成的。 */
 body.statusbar-hidden .statusbar {
     transform: translateY(-140%);
     opacity: 0;

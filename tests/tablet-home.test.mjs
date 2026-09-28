@@ -254,6 +254,16 @@ ok('★ 结果面板的入场用 animation(display 从 none 变可见时 transit
 ok('★ 搜索卡片里输入框在上、结果在下面排(不再垂直居中)',
   /\.tablet__search \{ justify-content: flex-start; \}/.test(tcss));
 
+/* ---- 被盖住的老导航不能还"活着"(用户:"老导航页没删干净") ----
+   顶栏被平板盖住,但它在 DOM 里、还 focusable:Tab 走得进去、Ctrl+K 会把焦点
+   塞进那个看不见的搜索框、accesskey 也一样 —— 用户对着空气打字。 */
+ok('★ 平板开着时顶栏退出交互(visibility 而不是 display,几何不变)',
+  /body\.tablet-open \.statusbar \{\s*visibility: hidden;/.test(icss),
+  '否则 Tab / Ctrl+K / accesskey 都能进到被盖住的顶栏里');
+ok('★★ Ctrl+K 优先给平板里那一处搜索(offsetParent 不为 null 不等于看得见)',
+  /classList\.contains\("tablet-open"\)/.test(sjs) && /closest\("\[data-tablet-home\]"\)/.test(sjs),
+  'search.js 里加了"平板开着就只认平板那一处"');
+
 ok('★ 明暗 / 音量两枚控件回到了平板(用户:放到时钟卡片右边)',
   /data-tablet-theme/.test(tpl) && /data-tablet-mute/.test(tpl) &&
   /data-tablet-volume\b/.test(tpl) && /data-tablet-volume-out/.test(tpl),
