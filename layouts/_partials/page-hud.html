@@ -1,104 +1,153 @@
 {{/* ============================================================
-     右侧 HUD(博客页)—— 第二阶段第二刀:先把【边框】画对
+     右侧 HUD(博客页)—— 第二阶段第三刀:把 7 条改造逐条落位
      ─────────────────────────────────────────────────────────────
-     用户第一刀之后的要求:"效果不对,先去掉顶部的所有东西,画出边框先。
-     边框并不是一个正统的矩形,而是一个多边形。"然后给了走向(见下)。
+     用户这一轮的原话(按 1~7 编号),每条都在下面标了落点:
+       1. 拉高框的优先级(不然上滑时会被内容重叠、穿过去)  → .page-hud 的 z-index
+       2. 左上角那个凸起放 LOGO「Tuagfey Blog」              → .hud-logo
+       3. 凸起往下收(再一次凸起之前)那一段放搜索栏          → .hud-search
+       4. 搜索栏右边、右上角那块空白放三枚按钮               → .hud-acts
+       5. 右侧竖栏从"凹下去的地方"起,依次放五个导航按钮      → .hud-nav
+       6. 导航以下、右下角空白:明暗做成圆角矩形长按钮在最下面,
+          两根滑条并排在它上面                               → .hud-ctl
+       7. 下面的横带塞三支笔(荧光笔/记号笔/橡皮擦):
+          可选,按一下激活并展开成滑条调大小,自动重排        → .hud-pens
 
-     ★★ 坐标制式(用户原话):"以页面右上角为坐标原点,水平向左为 x 轴,
-        页面比例为坐标(坐标范围为 0~100)"。
-        —— x 越大越靠【左】;SVG 的 x 向右为正 ⇒ x_svg = 100 − x。
-        —— "页面比例"= 百分比:一个单位 = 一页的 1%;viewBox 就是 0 0 100 100
-           再 preserveAspectRatio="none" 拉满视口。
-
-     ★★★ 角度是【屏幕上的角度】—— 用户纠正过一次,别再弄错:
-        "你的角度理解错了,你现在画的是与水平方向30°,而我要的是60°,陡一点的线。
-         而且你这个45°完全不是45°啊。"
-        第一版我把 45°/60° 当成"百分比坐标空间"里的角度(dx=dy 就当 45°)——
-        16:9 屏上那只有 29°,他看到的当然不是 45°。正确换算:
-            屏幕 tan(角) = (Δy% × 视口高) ÷ (Δx% × 视口宽)
-            ⇒ Δx% = Δy% × (视口高 ÷ 视口宽) ÷ tan(角)
-        所以斜线的水平位移跟视口长宽比有关 ⇒ 这条折线【只能在运行时算】:
-        assets/js/page-hud.js 的 gFrame(w, h) 才是唯一算法,
-        下面 $frame 那份是【16:9 的参考值】(也是没有 JS 时的样子),
-        测试会把两边各算一遍再比,逐字相同才算过。
-
-     ★ 走向(用户第二版提示词)与 16:9 下的顶点:
-       ┌────────────────────────────────────────┬───────────────────┬────────────────────┐
-       │ 用户描述                                │ 用户坐标(x←右缘)  │ SVG 坐标            │
-       ├────────────────────────────────────────┼───────────────────┼────────────────────┤
-       │ ① 起点:横坐标 45,页顶                  │ (45, 0)           │ (55, 0)            │
-       │ ② 屏幕 60° 往右下,到竖坐标 9            │ (42.0772, 9)      │ (57.9228, 9)       │
-       │ ③ 接着向右直到横坐标 30                 │ (30, 9)           │ (70, 9)            │
-       │ ④ 屏幕 45° 往右上,到竖坐标 6            │ (28.3125, 6)      │ (71.6875, 6)       │
-       │ ⑤ 接着向右直到横坐标 10                 │ (10, 6)           │ (90, 6)            │
-       │ ⑥ 屏幕 45° 往右下,到横坐标 6            │ (6, 13.1111)      │ (94, 13.1111)      │
-       │ ⑦ 往下直到竖坐标 100 − y₁(y₁=13.1111)  │ (6, 86.8889)      │ (94, 86.8889)      │
-       │ ⑧ 屏幕 45° 往左下,到横坐标 10           │ (10, 94)          │ (90, 94)           │
-       │ ⑨ 接着到横坐标 25                       │ (25, 94)          │ (75, 94)           │
-       │ ⑩ 屏幕 60° 往左下,直到下边框            │ (26.9486, 100)    │ (73.0514, 100)     │
-       └────────────────────────────────────────┴───────────────────┴────────────────────┘
-       ★ 两个不随视口变的漂亮关系:
-         · ④ 与 ⑧ 是 45° ⇒ y₁ = 6 + 4·(宽/高),而 ⑧ 的落点恒等于 y = 94;
-         · ⑦ 用 100 − y₁,所以竖段永远对称地夹在中间。
-       ★ 用户两版提示词里都写了"接着向右直到横坐标 N",而 N 比上一个小坐标【大】——
-         x 轴向左为正,10 → 25 是往【左】走。按坐标算(继续往外),
-        并在汇报里点出来(他没否掉这个读法)。
-
-     ★ 这一刀仍然【只有边框】+ 右下三件套:
-       · 顶栏(品牌 + 搜索)和那列导航都还没回来(见 baseof.html 的注释);
-       · 拐点短刺(CD 页那套 .holo-lock)也先不画 —— 等形状定了再补。
+     ★★ 位置的算法:整层是 position:fixed; inset:0,所以子元素的
+        right / top / bottom 里的百分比【就等于用户坐标制的百分比】——
+        和边框那条折线是同一套数(见下面 CSS 里的 --hud-ledge / --hud-notch 等)。
+        "凸起"= 折线往左伸出到 x≈43 的那块(深 9%);
+        "收窄段"= 折线退回到 y=6 那条浅边、横跨 x 8~28 的那条;
+        "右上角空白"= x<8 且 y<6 的角;  "凹下去的地方"= 竖段起点 y≈11.33。
      ============================================================ */}}
 {{- /* 参考折线 = gFrame(1920, 1080) 的输出(16:9);真值由 page-hud.js 按实际视口重算。
-       ★ 想手改这条?别改 —— 改 assets/js/page-hud.js 里的 gFrame(),
-         然后跑 node tuagfey-blog/tests/page-hud.test.mjs:两边不一致会立刻红。 */ -}}
-{{- $frame := "M55 0 L57.9228 9 L70 9 L71.6875 6 L90 6 L94 13.1111 L94 86.8889 L90 94 L75 94 L73.0514 100" -}}
-<div class="page-hud" id="page-hud" data-hud-page="{{ .RelPermalink }}" data-hud-frame="{{ $frame }}">
-    {{/* ★ viewBox="0 0 100 100" 就是用户的坐标制式:一个单位 = 一页的 1%。
-         ★ preserveAspectRatio="none" 把它拉满视口 ⇒ 坐标即百分比。
-         ★★ d 会被 assets/js/page-hud.js 按【真实视口】重算一遍 ——
-            45°/60° 是屏幕角度,斜线的水平位移跟长宽比有关,所以真值只能运行时算。
-            根节点上的 data-hud-frame 先是上面那份 16:9 参考值,页面一跑就被覆盖成真值
-            (探针/测试读的就是它)。
-         ★ 每条线都要 vector-effect:non-scaling-stroke:
-           它让【线宽和虚线节拍都按屏幕像素算】,不被 viewBox 的拉伸带跑
-           (SVG 工作组确认过 dash* 与 stroke-width 走同一套换算,见 svgwg#323)。
-           所以 --hud-dash 那串数字和 CD 页可以逐字相同。 */}}
+       ★ 想手改?改 assets/js/page-hud.js 的 gFrame(),别改这里 ——
+         测试会把两边各算一遍再比,不一致立刻红。 */ -}}
+{{- $frame := "M55 0 L57.9228 9 L70 9 L71.6875 6 L92 6 L95 11.3333 L95 88.6667 L92 94 L75 94 L73.0514 100" -}}
+{{- $current := . -}}
+<div class="page-hud" id="page-hud" data-hud-page="{{ $current.RelPermalink }}" data-hud-frame="{{ $frame }}">
+    {{/* ★ viewBox="0 0 100 100" 就是用户的坐标制式(一个单位 = 一页的 1%);
+         preserveAspectRatio="none" 把它拉满视口 ⇒ 坐标即百分比。
+         ★★ d 会被 page-hud.js 按【真实视口】重算(45°/60° 是屏幕角度,
+            斜线的水平位移跟长宽比有关)。
+         ★ 三条线都 vector-effect:non-scaling-stroke:线宽【和虚线节拍】都按
+           屏幕像素算,不被 viewBox 的拉伸带跑 —— 所以 --hud-dash 能和 CD 页逐字相同。 */}}
     <svg class="page-hud__frame" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
         <path class="hud-halo" d="{{ $frame }}"></path>
         <path class="hud-line" d="{{ $frame }}"></path>
         <path class="hud-run" d="{{ $frame }}"></path>
     </svg>
 
-    {{/* ★ 右下三件套:滑条 / 旋钮 / 滑条
-           —— 排法和 CD 页左侧凸起里那三件一致(推子 / 方按钮 / 推子)。
-           用户明确:"不是展开,是右下角那三个控件本身就长这样" ⇒
-           音量、配色都没有弹出面板,就是常驻的两根竖滑条。
-           ★ 留着它们还有一个硬原因:主题 footer 末尾那句
-             document.getElementById("theme-toggle").addEventListener(...) 没有判空,
-             这个 id 在博客页上必须存在。 */}}
-    <div class="hud-ctl">
-        <div class="hud-fader">
-            <div class="hud-fader__head">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                    <path d="M15.6 8.6a5 5 0 0 1 0 6.8"></path>
-                    <path d="M18.6 5.4a9.5 9.5 0 0 1 0 13.2"></path>
-                </svg>
-                <span class="hud-fader__label">音量</span>
-            </div>
-            <div class="hud-fader__body">
-                <input id="volume-range" class="hud-range hud-range--vol" type="range" min="0" max="100" step="1"
-                    value="50" aria-label="音量" orient="vertical">
-            </div>
-            <output class="hud-fader__val" id="hud-vol-val" for="volume-range">50%</output>
-        </div>
+    {{/* ② 凸起里的 LOGO —— 折线在顶部伸到 x≈43;文字从这里往右排,不能顶穿那条 60° 斜线 */}}
+    <a class="hud-logo" href="{{ "" | absLangURL }}" accesskey="h" title="回到首页 (Alt + H)">
+        {{- site.Title -}}
+    </a>
 
-        {{/* 明暗旋钮:指针跟着主题转(左右两个位置),太阳/月亮图标由主题自己的
-            规则切换 —— [data-theme="dark"] .moon / [data-theme="light"] .sun,
-            那两条规则在主题的 header.css 里而且是全局的,这里直接吃到。 */}}
-        <button id="theme-toggle" class="hud-knob" accesskey="t" title="明暗 (Alt + T)" aria-label="切换明暗">
-            <span class="hud-knob__dial" aria-hidden="true"></span>
+    {{/* ③ 收窄段(y=6 那条浅边、x 8~28)里的搜索框。
+         ★ 这里用的是【顶栏原来那套标记】:同一个 id(#header-search-input /
+           #header-search-results)+ data-search —— 组件是按容器找实例的
+           (assets/js/search.js),所以搬过来不用改组件一行。
+         ★ search.js 必须排在 header-search.js 之前加载(后者一进来看到
+           data-search 就让位);见 extend_footer.html 的顺序注释。 */}}
+    <div class="hud-search search-widget" id="header-search" data-search>
+        <div class="search-box">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                aria-hidden="true">
+                <circle cx="11" cy="11" r="7"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input id="header-search-input" type="search" placeholder="搜索站内…" autocomplete="off"
+                accesskey="/" aria-label="搜索" title="搜索 (Alt + /)" data-search-input>
+        </div>
+        <div class="search-results" id="header-search-results" hidden data-search-results>
+            <div class="search-results-list"></div>
+            <a class="search-results-more" href="{{ "/search/" | absLangURL }}">在搜索页中查看全部 →</a>
+        </div>
+    </div>
+
+    {{/* ④ 右上角那三枚按钮:导出 Markdown / GitHub / WeChat(二维码)。
+         ★ 导出那份 .md 是 Hugo 真生成的一个输出格式(见 hugo.toml 的
+           [outputFormats.markdown] 与 layouts/single.md),不是前端拼的字符串。 */}}
+    {{- $md := printf "%sindex.md" $current.RelPermalink -}}
+    {{- $gh := "" -}}
+    {{- with (index (where site.Params.socialIcons "name" "github") 0) }}{{ $gh = .url }}{{ end -}}
+    <div class="hud-acts">
+        <a class="hud-act" data-hud-act="md" href="{{ $md }}" download title="导出这篇文章的 Markdown">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 3v12"></path>
+                <path d="M7.5 10.5 12 15l4.5-4.5"></path>
+                <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"></path>
+            </svg>
+        </a>
+        <a class="hud-act" data-hud-act="github" href="{{ $gh | default "https://github.com/tuan4743" }}"
+            target="_blank" rel="noopener noreferrer" title="GitHub">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 2C6.48 2 2 6.58 2 12.26c0 4.5 2.87 8.32 6.84 9.67.5.1.68-.22.68-.49l-.01-1.7c-2.78.62-3.37-1.37-3.37-1.37-.45-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.62.07-.62 1 .07 1.53 1.06 1.53 1.06.9 1.57 2.35 1.12 2.92.85.09-.66.35-1.12.63-1.38-2.22-.26-4.56-1.14-4.56-5.06 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.7 0 0 .84-.28 2.75 1.05a9.3 9.3 0 0 1 5 0c1.91-1.33 2.75-1.05 2.75-1.05.55 1.4.2 2.44.1 2.7.64.72 1.03 1.63 1.03 2.75 0 3.93-2.35 4.8-4.58 5.05.36.32.68.94.68 1.9l-.01 2.82c0 .27.18.6.69.49A10.06 10.06 0 0 0 22 12.26C22 6.58 17.52 2 12 2Z"></path>
+            </svg>
+        </a>
+        <button class="hud-act" id="hud-wechat" data-hud-act="wechat" aria-expanded="false"
+            aria-controls="hud-qr" title="微信二维码">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M9.2 4C5.2 4 2 6.7 2 10c0 1.9 1 3.5 2.7 4.6l-.7 2.2 2.5-1.3c.8.2 1.7.4 2.7.4h.5a5.5 5.5 0 0 1-.2-1.4c0-3.2 3.1-5.8 6.9-5.8h.6C15.9 6 12.9 4 9.2 4Zm-2.6 3.4a.95.95 0 1 1 0 1.9.95.95 0 0 1 0-1.9Zm5.2 0a.95.95 0 1 1 0 1.9.95.95 0 0 1 0-1.9Z"></path>
+                <path d="M22 14.4c0-2.8-2.7-5-6-5s-6 2.2-6 5 2.7 5 6 5c.7 0 1.4-.1 2-.3l2 1.1-.6-1.8c1.6-.9 2.6-2.4 2.6-4Zm-8-1.5a.8.8 0 1 1 0 1.6.8.8 0 0 1 0-1.6Zm4 0a.8.8 0 1 1 0 1.6.8.8 0 0 1 0-1.6Z"></path>
+            </svg>
+        </button>
+        <div class="hud-qr" id="hud-qr" hidden>
+            <img src="{{ "/others/wechat.jpg" | absURL }}" alt="微信二维码" width="168" height="168" loading="lazy">
+        </div>
+    </div>
+
+    {{/* ⑤ 竖栏:从"凹下去的地方"(y≈11.33)起,依次五个导航按钮。
+         数据还是 site.Menus.main,图标还是同一个 $m.Pre(和顶栏旧址、平板 APP 同源)。 */}}
+    <nav class="hud-nav" aria-label="站点导航">
+        {{- $pageURL := $current.Permalink | absLangURL -}}
+        {{- range $i, $m := site.Menus.main }}
+        {{- $itemURL := (cond (strings.HasSuffix .URL "/") .URL (printf "%s/" .URL)) | absLangURL -}}
+        {{- $isHere := eq $itemURL $pageURL -}}
+        <a class="hud-nav__item{{ if $isHere }} is-current{{ end }}" href="{{ .URL | absLangURL }}"
+            data-hud-nav="{{ $m.Identifier }}"{{ if $isHere }} aria-current="page"{{ end }}
+            title="{{ $m.Title | default $m.Name }}" style="--hud-i: {{ $i }}">
+            <span class="hud-nav__icon" aria-hidden="true">
+                {{- with $m.Pre }}{{ . }}{{ else }}
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="4" y="4" width="16" height="16" rx="4"></rect>
+                    <path d="M9 12h6"></path>
+                </svg>
+                {{- end }}
+            </span>
+            <span class="hud-nav__name">{{ $m.Name }}</span>
+        </a>
+        {{- end }}
+    </nav>
+
+    {{/* ⑥ 右下三件套:两根滑条【并排】在上,明暗做成圆角矩形长按钮压在最下面。
+         ★ 并排是否塞得下:竖栏宽 = 5vw(1920→96px,1440→72px),
+           一根竖滑条横向只需要滑块头那点宽度(24px)+ 标签(两个字 ≈ 22px)
+           ⇒ 每根 36~48px,两根并排够用;再窄就轮到"可展开"那套(还没做)。
+         ★ 明暗那个 id【必须】是 #theme-toggle:主题 footer 末尾那句
+           document.getElementById("theme-toggle").addEventListener(...) 没有判空。 */}}
+    <div class="hud-ctl">
+        <div class="hud-faders">
+            <div class="hud-fader">
+                <div class="hud-fader__body">
+                    <input id="volume-range" class="hud-range hud-range--vol" type="range" min="0" max="100" step="1"
+                        value="50" aria-label="音量" orient="vertical">
+                </div>
+                <span class="hud-fader__label">音量</span>
+                <output class="hud-fader__val" id="hud-vol-val" for="volume-range">50%</output>
+            </div>
+            <div class="hud-fader">
+                <div class="hud-fader__body">
+                    <input id="palette-hue" class="hud-range hud-range--hue" type="range" min="0" max="360" step="1"
+                        value="220" aria-label="背景配色(色相)" orient="vertical">
+                </div>
+                <span class="hud-fader__label">配色</span>
+                <output class="hud-fader__val" id="hud-hue-val" for="palette-hue">默认</output>
+            </div>
+        </div>
+        <button id="theme-toggle" class="hud-theme" accesskey="t" title="明暗 (Alt + T)" aria-label="切换明暗">
             <svg class="moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
@@ -115,24 +164,66 @@
                 <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
                 <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
             </svg>
+            <span class="hud-theme__name">明暗</span>
         </button>
+    </div>
 
-        <div class="hud-fader">
-            <div class="hud-fader__head">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M12 22a10 10 0 1 1 10-10c0 1.7-1.3 3-3 3h-2.4c-1.2 0-2.2 1-2.2 2.2 0 .6.2 1.1.6 1.5.4.4.6.9.6 1.5 0 1.5-1.2 2.8-2.8 2.8Z"></path>
-                    <circle cx="7.5" cy="10.5" r="1"></circle>
-                    <circle cx="12" cy="7.5" r="1"></circle>
-                    <circle cx="16.5" cy="10.5" r="1"></circle>
-                </svg>
-                <span class="hud-fader__label">配色</span>
-            </div>
-            <div class="hud-fader__body">
-                <input id="palette-hue" class="hud-range hud-range--hue" type="range" min="0" max="360" step="1"
-                    value="220" aria-label="背景配色(色相)" orient="vertical">
-            </div>
-            <output class="hud-fader__val" id="hud-hue-val" for="palette-hue">—</output>
+    {{/* ⑦ 底部横带(y 94~100、往左伸到 x=25)里的三支笔:
+         可选按钮 —— 按一下激活,并且【就地展开】成一条尺寸滑条;
+         同时只开一支(JS 负责),展开/合上时同一行的其它按钮自动重排(flex 的活儿)。
+         ★ 尺寸现在只是记在 localStorage 里(笔还没有落笔的地方);
+           滑条左边那颗圆点会跟着变大 —— 免得成了一个"按了没反应"的控件。 */}}
+    <div class="hud-pens" role="group" aria-label="标记工具">
+        <div class="hud-pen" data-hud-pen="marker">
+            <button class="hud-pen__btn" aria-pressed="false" title="荧光笔">
+                <span class="hud-pen__ico" aria-hidden="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M15 4 20 9 9 20H4v-5L15 4Z"></path>
+                        <path d="M13 6l5 5"></path>
+                    </svg>
+                </span>
+                <span class="hud-pen__name">荧光笔</span>
+            </button>
+            <span class="hud-pen__size">
+                <i class="hud-pen__dot" aria-hidden="true"></i>
+                <input class="hud-pen__range" type="range" min="1" max="24" step="1" value="8"
+                    aria-label="荧光笔大小" data-hud-pen-size="marker">
+            </span>
+        </div>
+        <div class="hud-pen" data-hud-pen="annot">
+            <button class="hud-pen__btn" aria-pressed="false" title="记号笔">
+                <span class="hud-pen__ico" aria-hidden="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 20h16"></path>
+                        <path d="M14 4.5 19.5 10 10 19.5H4.5V14L14 4.5Z"></path>
+                    </svg>
+                </span>
+                <span class="hud-pen__name">记号笔</span>
+            </button>
+            <span class="hud-pen__size">
+                <i class="hud-pen__dot" aria-hidden="true"></i>
+                <input class="hud-pen__range" type="range" min="1" max="24" step="1" value="5"
+                    aria-label="记号笔大小" data-hud-pen-size="annot">
+            </span>
+        </div>
+        <div class="hud-pen" data-hud-pen="eraser">
+            <button class="hud-pen__btn" aria-pressed="false" title="橡皮擦">
+                <span class="hud-pen__ico" aria-hidden="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M8 20H20"></path>
+                        <path d="M13.5 4.5 20 11l-8 8H7l-3-3 9.5-11.5Z"></path>
+                    </svg>
+                </span>
+                <span class="hud-pen__name">橡皮擦</span>
+            </button>
+            <span class="hud-pen__size">
+                <i class="hud-pen__dot" aria-hidden="true"></i>
+                <input class="hud-pen__range" type="range" min="1" max="24" step="1" value="14"
+                    aria-label="橡皮擦大小" data-hud-pen-size="eraser">
+            </span>
         </div>
     </div>
 </div>

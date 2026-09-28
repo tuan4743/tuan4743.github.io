@@ -67,7 +67,7 @@ ok('★ 样式只从 extend_head 里挂、而且带 if not .IsHome',
   /page-hud\.[0-9a-f]+\.css/.test(tech) && /page-hud\.[0-9a-f]+\.js/.test(tech));
 ok('★★ partial 只在 baseof 里调用一次,而且【不在 footer 链里】',
   (baseof.match(/partial "page-hud\.html"/g) || []).length === 1 &&
-  !/page-hud\.html/.test(extFoot) &&
+  !/page-hud\.html/.test(noC(extFoot)) &&
   !/page-hud\.html/.test(rd(`${BH}/layouts/index.html`)),
   '见 ⑨:主题的 footer 是 partialCached 的,按页面变的东西放进去会被"整类页面共用"');
 ok('★ 样式表是【单独挂】的,没放进 assets/css/extended/(那是全站都加载的包)',
@@ -108,17 +108,17 @@ ok('★ ③ 第二段水平,到横坐标 30',
 ok('★★ ④ 第三段屏幕上正好 45°(往右上),到竖坐标 6',
   Math.abs(angOf(2, 3, REF_W, REF_H) - 45) < 1e-9 && Math.abs(U[3][1] - 6) < 1e-9,
   angOf(2, 3, REF_W, REF_H).toFixed(6) + '°');
-ok('★ ⑤ 第四段水平,到横坐标 10',
-  Math.abs(U[4][1] - U[3][1]) < 1e-9 && Math.abs(U[4][0] - 10) < 1e-9);
-ok('★★ ⑥ 第五段屏幕上正好 45°(往右下),到横坐标 6 —— 落点就是 y₁',
-  Math.abs(angOf(4, 5, REF_W, REF_H) - 45) < 1e-9 && Math.abs(U[5][0] - 6) < 1e-9,
+ok('★ ⑤ 第四段水平,到横坐标 8',
+  Math.abs(U[4][1] - U[3][1]) < 1e-9 && Math.abs(U[4][0] - 8) < 1e-9);
+ok('★★ ⑥ 第五段屏幕上正好 45°(往右下),到横坐标 5 —— 落点就是 y₁',
+  Math.abs(angOf(4, 5, REF_W, REF_H) - 45) < 1e-9 && Math.abs(U[5][0] - 5) < 1e-9,
   angOf(4, 5, REF_W, REF_H).toFixed(6) + '°');
 const y1 = U[5][1];
 ok('★★ ⑦ 竖段:到 100 − y₁(用户自己给的关系式),而且 x 不变',
   Math.abs(U[6][1] - (100 - y1)) < 1e-9 && Math.abs(U[6][0] - U[5][0]) < 1e-9,
   'y₁=' + y1.toFixed(4) + ' ⇒ 100−y₁=' + (100 - y1).toFixed(4));
-ok('★★ ⑧ 第六段屏幕上正好 45°(往左下),到横坐标 10',
-  Math.abs(angOf(6, 7, REF_W, REF_H) - 45) < 1e-9 && Math.abs(U[7][0] - 10) < 1e-9,
+ok('★★ ⑧ 第六段屏幕上正好 45°(往左下),到横坐标 8',
+  Math.abs(angOf(6, 7, REF_W, REF_H) - 45) < 1e-9 && Math.abs(U[7][0] - 8) < 1e-9,
   angOf(6, 7, REF_W, REF_H).toFixed(6) + '°');
 ok('★ ⑨ 第七段水平,到横坐标 25',
   Math.abs(U[8][1] - U[7][1]) < 1e-9 && Math.abs(U[8][0] - 25) < 1e-9);
@@ -154,16 +154,16 @@ ok('★★★ 构建产物里那份参考折线也一致(模板 → 产物这一
   (tech.match(/data-hud-frame=(?:"([^"]*)"|([^\s>]+))/) || [, '', '']).slice(1).includes(frameSrc),
   '产物里 data-hud-frame 是根节点上的那份 16:9 参考值,页面一跑会被 JS 覆盖成真值');
 ok('★★ 三层 path 用的是同一条 d(光晕 / 主线 / 跑马灯一起按真实视口重画)',
-  /var paths = svg\.querySelectorAll\("path"\)/.test(hudJs) &&
+  /var paths = root\.querySelectorAll\("path"\)/.test(hudJs) &&
   /paths\[i\]\.setAttribute\("d", g\.path\)/.test(hudJs),
   'JS 是遍历 path 统一写 d,不是各写各的');
 ok('★ 视口变化时会重算(resize + rAF 收口,拖窗口不会每像素都算)',
   /addEventListener\("resize"/.test(hudJs) && /requestAnimationFrame/.test(hudJs));
 /* ★ 边框竖段那一列 = CSS 里给控件留的那一列:改了一个忘了另一个就会骑到正文上 */
 const spineX = 100 - U[5][0];   /* 竖段在 SVG 里的 x */
-ok('★★ CSS 的 --hud-w 和折线竖段对得上(6vw ↔ SVG x=94 ⇒ 距右缘 6%)',
-  spineX === 94 && /--hud-w:\s*6vw/.test(css),
-  '竖段 SVG x=' + spineX);
+ok('★★ CSS 的竖栏宽度和折线竖段对得上(5vw ↔ SVG x=95 ⇒ 距右缘 5%)',
+  spineX === 95 && /--hud-col:\s*5vw/.test(css),
+  '竖段 SVG x=' + spineX + ';改了一个忘了另一个,右下控件就骑到正文上了');
 
 /* ---------- ③ 形状层:同一条 d 画三层 + 屏幕像素的虚线 ---------- */
 const dOf = (html, klass) => {
@@ -234,47 +234,97 @@ ok('★★ 必须固定在整个视口:边框是按【整页百分比】定位�
   /\.page-hud\s*\{[^}]*inset:\s*0/.test(cssCode),
   '第一刀它是一条窄栏(top:--header-height + width);这一刀改成整页');
 const zHud = Number(/\.page-hud\s*\{[^}]*z-index:\s*(\d+)/.exec(cssCode)[1]);
-const zHeader = Number(/\.header\s*\{[^}]*z-index:\s*(\d+)/.exec(noC(rd(`${BH}/assets/css/extended/custom.css`)))[1]);
-ok('★★ z-index 要大于正文、小于顶栏(顶栏回来时它的下拉面板得压得住)',
-  zHud > 0 && zHud < zHeader, `hud=${zHud} header=${zHeader}`);
+ok('★★★ 改造 1:优先级必须压过页面上所有会动的层 —— 正文卡片、主题那枚回到顶部(99)、顶栏下拉(100/120)',
+  zHud >= 150,
+  '用户原话:"想办法拉高框的优先级,不然页面上滑时会从框中重叠并穿过去";现在 hud=' + zHud);
+ok('★ 磁力光标(9999/10000)故意还在它上面 —— 那是"鼠标指针"那一层,不抢',
+  zHud < 9999);
 const defined = new Set((css.match(/--hud-[\w-]+(?=\s*:)/g) || []));
 const used = new Set((css.match(/var\(--hud-[\w-]+/g) || []).map((s) => s.slice(4)));
 const missing = [...used].filter((v) => !defined.has(v));
 ok('★★ CSS 里用到的 --hud-* 变量全都有定义(拼错不会有任何报错,只会静默失效)',
   missing.length === 0, missing.join(', '));
 
-/* ---------- ⑤ 顶部已清空(用户第二刀的要求)---------- */
+/* ---------- ⑤ 改造 2/3/4/5:凸起里的 LOGO、收窄段的搜索、右上角三枚按钮、竖栏五个导航 ---------- */
 /* ★ baseof 里那行是被 Hugo 注释包起来的:剥掉注释后,"渲染"这件事必须消失。
    ★ 写这段注释时【不要把 Hugo 注释的收尾字符原样打出来】—— 它会提前关掉
      这个 JS 块注释(README 里记着这个坑,这是第五次)。 */
 const baseofCode = noC(baseof);
-ok('★★★ 顶栏(品牌 + 搜索)在博客页上【不再渲染】',
-  !cls('header').test(tech) && !cls('logo').test(tech) && !/data-search/.test(tech) &&
-  !/partialCached "header\.html"/.test(baseofCode),
-  '用户原话:"先去掉顶部的所有东西,画出边框先"');
-ok('★★★ 顶栏是"取消渲染",不是删文件 —— 标记还在,把它那行的注释去掉就能回来',
-  /layouts\/_partials\/header\.html/.test(baseof) &&
-  /class="logo"/.test(headerTpl) &&
-  fs.existsSync(`${BH}/layouts/_partials/header.html`),
-  '把"顶栏要不要"变成一行注释的事,而不是一场考古');
-ok('★★ 第一刀那列导航(menu.main)也撤了,而且样式没留成死代码',
-  !/data-hud-nav/.test(tech) && !/hud-nav/.test(hudTplCode) && !/hud-nav/.test(cssCode),
-  '标记与样式一起撤;要取回见 commit ad55235');
-ok('★★ 顶栏撤掉后不再有两个 id="menu" 的问题(整条都没了)',
-  !/id="?menu"?/.test(tech) && !/id="?menu"?/.test(home));
+/* 取某一项那个 <a> 标签本身来看它的 href/class(最小化后属性没引号) */
+const tagOf = (html, id) => (html.match(new RegExp('<a\\b[^>]*data-hud-nav="?' + id + '"?[^>]*>')) || [''])[0];
+ok('★★★ 顶部那条【主题顶栏】仍然没有渲染(用户上一轮要求撤掉;现在这些东西都进了 HUD)',
+  !cls('header').test(tech) && !cls('logo').test(tech) &&
+  !/partialCached "header\.html"/.test(baseofCode) &&
+  /class="logo"/.test(headerTpl) && fs.existsSync(`${BH}/layouts/_partials/header.html`),
+  '标记还在 layouts/_partials/header.html,要回来只需去掉 baseof 里那行注释');
+ok('★★ 改造 2:凸起里是 LOGO「Tuagfey Blog」',
+  cls('hud-logo').test(tech) && />Tuagfey Blog</.test(tech) &&
+  /\.hud-logo\s*\{[^}]*right:\s*37%/.test(cssCode) &&
+  /\.hud-logo\s*\{[^}]*top:\s*1\.2%/.test(cssCode),
+  '★ 放在 x=37% 往右排 —— 再往左就会被那条 60° 斜线(顶部伸到 x≈43)顶穿');
+ok('★★ 改造 3:收窄段是搜索栏,而且用的是【顶栏原来那套标记】',
+  /class="hud-search[^"]*"[^>]*id="header-search"[^>]*data-search/.test(hudTplCode) &&
+  /id="header-search-input"/.test(hudTplCode) && /id="header-search-results"/.test(hudTplCode) &&
+  /class="?hud-search/.test(tech) && /id="?header-search-input"?/.test(tech),
+  '同一个 id + data-search ⇒ 组件不用改一行(search.js 是按容器找实例的)');
+ok('★★★ 搜索组件接线:search.js 必须排在 header-search.js 之前(否则两个都没接上)',
+  extFoot.indexOf('js/search.js') > -1 && extFoot.indexOf('js/header-search.js') > -1 &&
+  extFoot.indexOf('js/search.js') < extFoot.indexOf('js/header-search.js') &&
+  /search\.[0-9a-f]+\.js/.test(tech) && /header-search\.[0-9a-f]+\.js/.test(tech),
+  'defer 按文档顺序执行:header-search.js 一进来看到 data-search 就让位');
+ok('★★ 改造 4:右上角三枚按钮 = 导出 Markdown / GitHub / WeChat',
+  /data-hud-act="?md"?/.test(tech) && /data-hud-act="?github"?/.test(tech) && /data-hud-act="?wechat"?/.test(tech) &&
+  /data-hud-act="github" href="\{\{ \$gh \| default "https:\/\/github\.com\/tuan4743" \}\}"/.test(hudTplCode) &&
+  /data-hud-act=github href=https:\/\/github\.com\/tuan4743/.test(tech),
+  '★ 产物里属性没有引号(踩过五次的坑);GitHub 地址优先取 socialIcons,取不到才用兜底常量');
+ok('★★★ 导出按钮指向 Hugo【真生成】的那份 .md(不是前端拼的)',
+  /data-hud-act="md" href="\{\{ \$md \}\}" download/.test(hudTplCode) &&
+  /data-hud-act=md href=[^\s>]*index\.md/.test(tech) &&
+  fs.existsSync(`${WS}/.tmp/t1/posts/hello-world/index.md`) &&
+  /^---/.test(rd(`${WS}/.tmp/t1/posts/hello-world/index.md`)) &&
+  /\[outputFormats\.markdown\]/.test(rd(`${BH}/hugo.toml`)) &&
+  fs.existsSync(`${BH}/layouts/_default/single.md`),
+  '产物里那份 index.md 开头就是 front matter(导出的是源文件原文)');
+ok('★ WeChat 按钮:二维码点出来(藏着的图,不在首屏白下载)',
+  /id="?hud-wechat"?/.test(tech) && /id="?hud-qr"?/.test(tech) && /others\/wechat\.jpg/.test(hudTplCode) &&
+  /hud-qr\[hidden\]\s*\{\s*display:\s*none/.test(cssCode) &&
+  fs.existsSync(`${BH}/static/others/wechat.jpg`));
+ok('★★ 改造 5:竖栏里五个导航,从"凹下去的地方"起', (() => {
+  const ids = [...tech.matchAll(/data-hud-nav="?([\w-]+)"?/g)].map((m) => m[1]);
+  return ids.join(',') === 'home,tech,archives,guestbook,about' &&
+    /\.hud-nav\s*\{[^}]*top:\s*var\(--hud-notch\)/.test(cssCode) &&
+    /--hud-notch:\s*12%/.test(css);
+})(), '折线的凹点是 y≈11.33%');
+ok('★ 当前页那一项有 is-current + aria-current="page"',
+  /\bis-current\b/.test(tagOf(tech, 'tech')) && /aria-current="?page/.test(tagOf(tech, 'tech')) &&
+  !/\bis-current\b/.test(tagOf(tech, 'home')) &&
+  /\bis-current\b/.test(tagOf(about, 'about')),
+  '在 /tech/ 上:tech 是当前页;在 /about/ 上:about 是');
+ok('★★ 图标必须自己给尺寸:菜单项的 svg 没写 width/height,不在 .menu 里就没有规则量它',
+  /\.hud-nav__icon svg\s*\{[^}]*width:\s*15px/.test(cssCode) &&
+  /\.hud-nav__icon svg\s*\{[^}]*height:\s*15px/.test(cssCode),
+  '不给的话 svg 会按 300×150 的固有尺寸铺开');
+ok('★★ 顶栏撤掉后不再有两个 id="menu" 的问题', !/id="?menu"?/.test(tech) && !/id="?menu"?/.test(home));
 
-/* ---------- ⑥ 右下三件套 ---------- */
+/* ---------- ⑥ 改造 6:右下三件套(两滑条并排 + 明暗长按钮) ---------- */
 const cnt = (h, re) => (h.match(re) || []).length;
 ok('★★ #theme-toggle 在博客页【正好一个】—— 主题 footer 那句没有判空,少了会 TypeError',
   cnt(tech, /id="?theme-toggle"?/g) === 1 && cnt(post, /id="?theme-toggle"?/g) === 1);
+ok('★★ 明暗是【圆角矩形的长按钮】,而且压在最下面',
+  /class="?hud-theme/.test(tech) && /id="?theme-toggle"?/.test(tech) &&
+  /\.hud-theme\s*\{[^}]*border-radius:\s*999px/.test(cssCode) &&
+  /\.hud-theme\s*\{[^}]*width:\s*100%/.test(cssCode),
+  '用户原话:"明暗做成圆角矩形的长按钮在最下面"');
 ok('★ 明暗那枚用的是主题自己的 .sun / .moon 类(主题那两条 display 规则是全局的)',
-  /class="?hud-knob/.test(tech) && /class="?moon/.test(tech) && /class="?sun/.test(tech) &&
+  /class="?moon/.test(tech) && /class="?sun/.test(tech) &&
   /\[data-theme="dark"\] \.moon/.test(rd(`${BH}/themes/PaperMod/assets/css/common/header.css`)));
-ok('★ 旋钮的指针有深浅两个位置(不是"点一下什么都不动")',
-  /\.hud-knob__dial\s*\{[^}]*--hud-knob-a:\s*-?\d+deg/.test(cssCode) &&
-  /:root\[data-theme="dark"\] \.hud-knob__dial\s*\{[^}]*--hud-knob-a:\s*-?\d+deg/.test(cssCode));
 ok('★★ 明暗不需要 HUD 自己绑事件(主题按 id 找人,换位置照样生效)',
   !/theme-toggle/.test(hudJs), 'page-hud.js 里不该出现 theme-toggle');
+ok('★★ 两根滑条是【并排】在长按钮上面(flex row,不是上下堆)',
+  /\.hud-faders\s*\{[^}]*flex-direction:\s*row/.test(cssCode) &&
+  /\.hud-ctl\s*\{[^}]*flex-direction:\s*column/.test(cssCode) &&
+  (hudTplCode.match(/class="hud-fader"/g) || []).length === 2,
+  '并排塞得下:竖栏 5vw(1920→96px),一根竖滑条横向只要滑块头那点宽度');
 ok('★ 音量滑条:0~100,一个', /id="?volume-range"?/.test(tech) &&
   /id="volume-range"[^>]*min="?0"?[^>]*max="?100"?/.test(hudTplCode) &&
   cnt(tech, /id="?volume-range"?/g) === 1);
@@ -290,6 +340,34 @@ ok('★ 滑条是竖的(和 CD 页两根推子同一个做法:横着写再转 -9
   /\.hud-range\s*\{[^}]*transform:\s*rotate\(-90deg\)/.test(cssCode));
 ok('★ 滑条头是圆钮(--hud-thumb 走变量,不是浏览器默认方块)',
   /--hud-thumb:\s*\d+px/.test(css) && /::-webkit-slider-thumb\s*\{[^}]*border-radius:\s*50%/.test(cssCode));
+
+/* ---------- ⑥b 改造 7:底部横带里那三支笔 ---------- */
+ok('★★ 三支笔齐:荧光笔 / 记号笔 / 橡皮擦,放在底部横带里', (() => {
+  const pens = [...tech.matchAll(/data-hud-pen="?(\w+)"?/g)].map((m) => m[1]);
+  return pens.join(',') === 'marker,annot,eraser' &&
+    /\.hud-pens\s*\{[^}]*bottom:\s*0/.test(cssCode) &&
+    /\.hud-pens\s*\{[^}]*height:\s*calc\(100% - var\(--hud-band\)\)/.test(cssCode);
+})(), '横带 = y 94~100、往左伸到 x=25(折线底下那条横臂)');
+ok('★★ 每支笔都有"尺寸滑条",选中时【就地展开】(宽度 0 → 有宽度)', (() => {
+  const sizes = [...hudTplCode.matchAll(/data-hud-pen-size="(\w+)"/g)].map((m) => m[1]);
+  return sizes.join(',') === 'marker,annot,eraser' &&
+    /\.hud-pen__size\s*\{[^}]*width:\s*0/.test(cssCode) &&
+    /\.hud-pen\.is-on \.hud-pen__size\s*\{[^}]*width:\s*clamp\(/.test(cssCode);
+})(), 'rc="按一下激活并展开为滑条"');
+ok('★★ 展开靠 flex 自动重排(没手写位移动画)', /\.hud-pens\s*\{[^}]*justify-content:\s*flex-end/.test(cssCode) &&
+  /\.hud-pen\s*\{[^}]*display:\s*flex/.test(cssCode),
+  '用户:"同样做好自动重排" —— 同一行里前面的按钮被挤开就是重排');
+ok('★★ 同时只能开一支(JS 里 activatePen 会把其它支关掉)',
+  /function activatePen\(name\)/.test(hudJs) && /p\.classList\.toggle\("is-on", on\)/.test(hudJs) &&
+  /activatePen\(p\.classList\.contains\("is-on"\) \? "" : name\)/.test(hudJs),
+  '再按一次收起来');
+ok('★★ 滑条不是"按了没反应":圆点预览跟着大小变,尺寸存在 localStorage',
+  /--pen-size/.test(cssCode) && /\.hud-pen__dot::after/.test(cssCode) &&
+  /hud-pen-size/.test(hudJs) && /PEN_SIZE/.test(hudJs),
+  '笔还没有落笔的画布,所以至少让"大小"看得见');
+ok('★ 笔的 aria:按下状态有 aria-pressed(读屏能知道选没选中)',
+  /aria-pressed="false"/.test(hudTplCode) &&
+  /btn\.setAttribute\("aria-pressed"/.test(hudJs));
 
 /* ---------- ⑦ 配色:HSV 连续调,而且算法只有一份 ---------- */
 ok('★★ 色相键只有一处读写(hud-palette.js):抄成两份,首帧还原和拖动生效就会各算各的',
@@ -315,7 +393,7 @@ ok('★ 色相滑条会跟着主题变化重算(hue 存的是角度,不是颜色
 
 /* ---------- ⑧ 别和页面上原有的东西抢位置 ---------- */
 ok('★★ 「回到顶部」那枚圆按钮让开了右下三件套(它是 fixed + right:2rem + z-index:99)',
-  /:root\[data-theme\]\.shell-page \.top-link\s*\{[^}]*right:\s*calc\(var\(--hud-w\)/.test(cssCode));
+  /:root\[data-theme\]\.shell-page \.top-link\s*\{[^}]*right:\s*calc\(var\(--hud-col\)/.test(cssCode));
 ok('★★ 窄屏:整条藏掉,让位那条也要一起撤回(不然右边会空出一块)',
   /@media \(max-width: 1180px\)\s*\{[\s\S]*?\.page-hud\s*\{[^}]*display:\s*none/.test(cssCode) &&
   (cssCode.match(/@media \(max-width: 1180px\)\s*\{([\s\S]*?)\n\}/) || ['', ''])[1].includes('right: 2rem'));
@@ -372,11 +450,17 @@ ok('★★★ 逐页对账:每个产物里 HUD 的页面标记 == 这个文件�
   `扫了 ${withHud} 个带 HUD 的页面;` + (mismatch.length ? ' 出问题的:' + mismatch.join(' | ') : '全部一致'));
 ok('★★ 首页不在这次逐页扫描里(它没有 HUD,也不该有)', !homeHasHud);
 
-/* ---------- ⑩ 这一刀【不做】的东西没被顺手做进来 ---------- */
-ok('★ 三枚按钮 / 三支笔 / 目录面板 / 进度条 / 左上角投影之类:都还没做',
-  !/hud-toc|hud-progress|hud-pen|hud-export|pomodoro|hud-btn/.test(cssCode) &&
+/* ---------- ⑩ 还没做的东西没被顺手做进来 ---------- */
+ok('★ 目录面板 / 进度条 / 左侧番茄钟与播放器 / 首页平板:这一轮都还没动',
+  !/hud-toc|hud-progress|pomodoro/.test(cssCode) &&
   !/目录|进度条/.test(hudTplCode) &&
-  !/github\.com\/tuan4743/.test(hudTplCode) && !/wechat/.test(hudTplCode));
+  !/intro-page|tablet/.test(hudTplCode),
+  '下一刀:目录面板 + 收起 + 字号/字距 + 进度条');
+ok('★ 三支笔【只做外观与交互】,没有偷偷去改正文(还没有落笔的画布)',
+  !/document\.addEventListener\("pointerdown"/.test(hudJs) &&
+  !/createElement\("canvas"\)/.test(hudJs) &&
+  !/md-content/.test(hudJs),
+  '用户当时选的是"先只做外观";真正能画是后面的事');
 
 /* ---------- 出结果 ---------- */
 let pass = 0;

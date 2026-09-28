@@ -17,6 +17,20 @@ paginate = 10
 
 [outputs]
   home = ["HTML", "RSS", "JSON"]
+  # ★ 每个页面额外生成一份 markdown(public/<文章路径>/index.md)。
+  #   用途:右侧 HUD 上那枚"导出 Markdown"按钮 —— 点下去直接下载这篇文章的原文,
+  #   而不是前端拿 DOM 拼字符串。模板见 layouts/_default/single.md。
+  page = ["HTML", "markdown"]
+
+[mediaTypes]
+  [mediaTypes."text/markdown"]
+    suffixes = ["md"]
+
+[outputFormats.markdown]
+  mediaType = "text/markdown"
+  baseName = "index"
+  isPlainText = true
+  isHTML = false
 
 [params]
   env = "production"

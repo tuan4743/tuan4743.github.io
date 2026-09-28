@@ -1,4 +1,17 @@
-{{- /* 全站页脚扩展:顶栏即时搜索 + 背景配色切换 + 磁力光标(带指纹,自动打破浏览器缓存) */ -}}
+{{- /* 全站页脚扩展:即时搜索 + 背景配色切换 + 磁力光标(带指纹,自动打破浏览器缓存) */ -}}
+{{- /* ★★★ 顺序不能动:search.js 必须排在 header-search.js 【之前】。
+       为什么:搜索框现在住在右侧 HUD 里(layouts/_partials/page-hud.html 的
+       .hud-search),带 data-search 容器 —— 而 header-search.js 开头那条守卫是
+       "页面里已经有 [data-search] 容器就让位",defer 脚本按【文档顺序】执行,
+       谁在前谁先跑。要是 header-search.js 先跑,它会让位;而 search.js 还没建实例,
+       结果这一页【两个搜索都没接上】(和首页当初那个坑一模一样)。
+       ★ search.js 本来是首页(index.html)自己 include 的;其余页面一直没有它,
+         因为搜索框原来在顶栏里、由 header-search.js 兜着。现在搜索框搬到 HUD,
+         就把正式组件也带过来 —— 顶栏那一刀再回来时也是同一套。 */ -}}
+{{- with resources.Get "js/search.js" }}
+{{- $u := . | fingerprint "sha256" }}
+<script defer src="{{ $u.RelPermalink }}"></script>
+{{- end }}
 {{- with resources.Get "js/header-search.js" }}
 {{- $u := . | fingerprint "sha256" }}
 <script defer src="{{ $u.RelPermalink }}"></script>
