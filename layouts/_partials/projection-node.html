@@ -1,0 +1,25 @@
+{{- /* ============================================================
+     投影节点(屏幕右上角那枚小结节)
+     ─────────────────────────────────────────────────────────────
+     它标的是"这块屏幕的内容往【右边】去"——博客页就住在屏幕右侧。
+     ★ 它是 position: fixed,而且【不参与右滑】:整块机器滑走时它留在原地,
+       落地页上它还在同一个位置 —— 过场因此是连的(它不是屏幕里的内容,
+       是机器外壳上的一个"投影口")。
+     ★ 纯装饰:aria-hidden + pointer-events:none,不抢点击。
+     ★ 样式在 assets/css/extended/shell.css(第二节),动画在
+       prefers-reduced-motion 下会停。
+     ============================================================ */ -}}
+<div class="proj-node" aria-hidden="true">
+    <svg viewBox="0 0 92 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        {{/* 外壳:切角方 + 四角刻度(和 CD 界面那套 HUD 同一路数) */}}
+        <path class="pn-hull" d="M14 3 H58 L70 15 V25 L58 37 H14 L2 25 V15 Z" />
+        <path class="pn-tick" d="M14 0.5 V6 M0.5 15 H6 M14 39.5 V34 M0.5 25 H6" />
+        {{/* 节点本体:菱形环 + 亮芯(呼吸) */}}
+        <path class="pn-ring" d="M30 12 L38 20 L30 28 L22 20 Z" />
+        <circle class="pn-core" cx="30" cy="20" r="3.2" />
+        {{/* 朝右引出的三道光束(虚线流动 = 内容往右边的页面去) */}}
+        <path class="pn-beam" d="M70 20 H90" />
+        <path class="pn-beam pn-beam--2" d="M70 13 H84" />
+        <path class="pn-beam pn-beam--3" d="M70 27 H84" />
+    </svg>
+</div>

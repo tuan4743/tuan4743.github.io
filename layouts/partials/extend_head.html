@@ -9,3 +9,14 @@
         } catch (e) {}
     })();
 </script>
+
+{{- /* ★ 首页之外的那些页面挂上 shell-page(见 assets/css/extended/shell.css 第四节):
+       它们的底是同一片宇宙背景、字是浅色、内容装在一块磨砂面板里。
+       ★ 为什么用内联脚本挂 class,而不是写进模板的 <body>:这些页面走 PaperMod 的
+         baseof,body 的 class 由主题决定,插不进去;而这句和上面那句恢复配色一样,
+         必须在首帧之前跑(晚了会闪一下主题底色)。
+       ★ 首页不能挂(它的底是那块仿真屏幕,不是整页星云)—— head.html 两边都会调,
+         所以必须带 if not .IsHome。 */ -}}
+{{- if not .IsHome }}
+<script>document.documentElement.classList.add("shell-page");</script>
+{{- end }}

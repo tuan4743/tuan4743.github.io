@@ -348,18 +348,13 @@ body.scene-open .statusbar-toggle {
     color: var(--rack-fg, var(--primary));
     transition: background-color 560ms cubic-bezier(0.4, 0, 0.2, 1), color 560ms cubic-bezier(0.4, 0, 0.2, 1);
 
-    /* ============ 背景亮度的可调参数:改这几个就够了 ============
-       想更黑 → 把 --neb-* 的 alpha(最后一个数字)调到 0.05~0.10,--bg-base 调成 #000
-       想更"紫" → 把 --neb-1/--neb-3 的 RGB 加大(比如 90,50,150)
-       想更灰(降饱和)→ 让三个通道数值靠拢(比如 --neb-1 改成 rgba(60,58,72,...)) */
-    --bg-base: #030307;                     /* 最底的黑 */
-    --neb-1: rgba(56, 38, 100, 0.26);       /* 星云雾 1:左上,紫 */
-    --neb-2: rgba(30, 46, 108, 0.23);       /* 星云雾 2:右上,蓝 */
-    --neb-3: rgba(64, 34, 84, 0.30);        /* 星云雾 3:下方,品红紫 */
-    --neb-4: rgba(14, 18, 44, 0.28);        /* 中心那团:偏中性 */
-    --star-alpha: 0.74;                     /* 星点整体强度 */
-    --grid-alpha: 0.42;                      /* 网格整体强度 */
-    --grid-line: rgba(58, 186, 168, 0.075);  /* 网格线颜色(青绿) */
+    /* ============ 星云 / 网格的参数已经搬到"全站共用"的那一份 ============
+       --bg-base / --neb-1..4 / --star-alpha / --grid-alpha / --grid-line 的默认值
+       现在定义在 :root —— 见 assets/css/extended/shell.css 顶部。
+       为什么搬:点 APP 右滑时露出来的【页面背景】和这里的 CD 架背景必须是同一份,
+       各写一套迟早会漂(用户要的正是"两处一个样式")。
+       想调背景亮度/紫度就去那一个地方改,原来那几句说明也搬过去了。
+       ★ CD 架上那两根推子写的仍然是【.rack 上的内联变量】,照旧只影响 CD 架这一块。 */
     --glow-alpha: 0.2;                        /* 盘周围光晕强度(第三层) */
     /* ★ 光晕位置:默认跟着盘走,这里可以再偏移 / 缩放
        glow-dx/glow-dy 是相对"盘心"的像素偏移(负数是往左/往上),想整体挪就直接调这两个
@@ -782,53 +777,17 @@ body.scene-open .hub {
     border-radius: inherit;
 }
 
-/* 1. 最远层:深空星云 —— 颜色/亮度全部走 --neb-* / --bg-base(见 .rack 顶部) */
+/* 1. 最远层:深空星云 —— 颜色/亮度全部走 --neb-* / --bg-base
+   ★ 声明本身在 assets/css/extended/shell.css(类名 .cosmos-nebula,和页面背景共用);
+     这里只剩 CD 架自己的层级。 */
 .rack-bg {
     z-index: 0;
-    opacity: var(--bg-power, 1);
-    background-color: var(--bg-base, #030307);
-    background-image:
-        radial-gradient(52% 42% at 16% 24%, var(--neb-1) 0%, transparent 66%),
-        radial-gradient(46% 50% at 76% 14%, var(--neb-2) 0%, transparent 68%),
-        radial-gradient(64% 56% at 62% 86%, var(--neb-3) 0%, transparent 72%),
-        radial-gradient(40% 40% at 38% 52%, var(--neb-4) 0%, transparent 74%),
-        linear-gradient(162deg, var(--bg-base, #030307) 0%, #04040a 45%, var(--bg-base, #030307) 100%);
-    animation: rack-nebula 46s ease-in-out infinite alternate;
 }
 
-/* 星点单独一层,方便用 --star-alpha 一个数调强弱 */
-.rack-bg::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    opacity: var(--star-alpha, 0.34);
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='170' height='170'%3E%3Cg fill='%23ffffff'%3E%3Ccircle cx='14' cy='26' r='0.85' opacity='.42'/%3E%3Ccircle cx='63' cy='12' r='0.6' opacity='.28'/%3E%3Ccircle cx='104' cy='41' r='1' opacity='.46'/%3E%3Ccircle cx='152' cy='22' r='0.55' opacity='.24'/%3E%3Ccircle cx='31' cy='79' r='0.7' opacity='.32'/%3E%3Ccircle cx='86' cy='96' r='0.9' opacity='.42'/%3E%3Ccircle cx='139' cy='112' r='0.6' opacity='.26'/%3E%3Ccircle cx='22' cy='139' r='0.95' opacity='.36'/%3E%3Ccircle cx='74' cy='152' r='0.5' opacity='.22'/%3E%3Ccircle cx='126' cy='159' r='0.75' opacity='.32'/%3E%3C/g%3E%3C/svg%3E");
-    background-size: 170px 170px;
-}
-
-@keyframes rack-nebula {
-    from { background-position: 0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%; }
-    to { background-position: 6% 3%, -5% 4%, 4% -3%, -3% -4%, 0% 0%; }
-}
-
-/* 2. 中层:复古数据网格 —— 颜色/强度走 --grid-line / --grid-alpha */
+/* 2. 中层:复古数据网格 —— 声明同样在 shell.css(类名 .cosmos-grid);
+   这里只剩 CD 架自己的层级。 */
 .rack-grid {
     z-index: 0;
-    opacity: var(--grid-alpha, 0.5);
-    background-image:
-        repeating-linear-gradient(0deg, var(--grid-line) 0px, var(--grid-line) 1px, transparent 1px, transparent 26px),
-        repeating-linear-gradient(90deg, var(--grid-line) 0px, var(--grid-line) 1px, transparent 1px, transparent 26px);
-    /* 雷达网格:平的,不做透视 —— 一旦加 rotateX,线条会被拉开成大片色块 */
-    transform: none;
-    -webkit-mask-image: radial-gradient(44% 34% at 42% 60%, #000 0%, rgba(0, 0, 0, 0.5) 42%, transparent 76%);
-    mask-image: radial-gradient(44% 34% at 42% 60%, #000 0%, rgba(0, 0, 0, 0.5) 42%, transparent 76%);
-    animation: rack-grid-drift 14s linear infinite;
-}
-
-@keyframes rack-grid-drift {
-    from { background-position: 0 0, 0 0; }
-    to { background-position: 0 26px, 0 0; }
 }
 
 /* 3. 最近层:盘周围的雾化光晕 —— 位置/半径跟盘走,颜色跟主题色,强度跟音乐 */

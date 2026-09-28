@@ -11,3 +11,21 @@
 {{- $u := . | fingerprint "sha256" }}
 <script defer src="{{ $u.RelPermalink }}"></script>
 {{- end }}
+
+{{- /* ============================================================
+     右边那些页面的"外壳"(第一批):宇宙背景 + 投影节点 + 右滑过场脚本
+     ─────────────────────────────────────────────────────────────
+     为什么首页不在这里做:首页是独立模板(layouts/index.html),它自己
+     include 了这两个 partial、也自己注册了 page-slide.js;这里再放一遍就重复了。
+     ⇒ 一律 if not .IsHome。
+     ★ 背景放在页脚位置没关系:它是 position:fixed + z-index:0,压不到内容;
+       而它必须在【首帧】就在,所以 CSS(assets/css/extended/shell.css)是
+       跟着主题样式表一起加载的,这里只放标记。 */ -}}
+{{- if not .IsHome }}
+{{ partial "cosmos.html" . }}
+{{ partial "projection-node.html" . }}
+{{- with resources.Get "js/page-slide.js" }}
+{{- $u := . | fingerprint "sha256" }}
+<script defer src="{{ $u.RelPermalink }}"></script>
+{{- end }}
+{{- end }}

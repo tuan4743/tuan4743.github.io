@@ -1,0 +1,273 @@
+/* ============================================================
+   全站外壳(Shell)—— 首页和"右边的那些页面"共用的三样东西
+   ─────────────────────────────────────────────────────────────
+   用户的设计:首页是"仿真屏幕"(重在交互),博客页在【这块屏幕的右侧】——
+   不是同一页里的东西,而是另一张页面;点平板上的 APP 时整块屏幕【完全右滑】出去,
+   滑完再跳过去。为了不穿帮,滑走时露出来的东西和落地页必须是【同一个样式】,
+   于是看起来就像"在同一个页面里右滑"。
+
+   这个文件就是那份"同一个样式",三部分:
+     一、宇宙背景 .cosmos —— 从 CD 页(机箱左侧的 CD 架)那套星云搬过来的,
+         两处【共用同一批类】,不是抄一份(抄了迟早会漂)。
+         ★ 它刻意【不跟深浅主题走】:不管 data-theme 是 dark 还是 light,
+           背景都是同一片星云 —— 用户要的就是"切换深浅背景也不变"。
+     二、投影节点 .proj-node —— 屏幕右上角那枚小小的 SVG 节点(HUD 风格),
+         标出"内容往右边去"这件事。它【不跟着右滑】:机器滑走了它还在原地,
+         落地页上它也在同一个位置 —— 过场因此是连的。
+     三、右滑过场 —— 点 APP → 整块机器(场景 + 平板 + 顶缘按钮)右滑 100vw,
+         滑完再由 JS 跳转。用的是 CD 架那套 transform + 同一条缓动曲线,
+         只是这次滑的是【整屏】而不是 66vw。
+
+   ★ 这个文件走 PaperMod 的 extended 通道(assets/css/extended/*.css 会被
+     自动拼进全站样式表),所以首页和其余页面都吃得到,不用各处注册。
+   ============================================================ */
+
+/* ---------- 一、宇宙背景 ----------
+   ★ 这些变量原来定义在 .rack 上;为了让"页面背景"和"CD 架背景"用的是同一份,
+     默认值提到 :root。CD 架上那两根推子写的仍然是【.rack 上的内联变量】,
+     所以它们照旧只影响 CD 架那一块,不会把整页背景一起拽走。 */
+:root {
+    --bg-base: #030307;                     /* 最底的黑 */
+    --neb-1: rgba(56, 38, 100, 0.26);       /* 星云雾 1:左上,紫 */
+    --neb-2: rgba(30, 46, 108, 0.23);       /* 星云雾 2:右上,蓝 */
+    --neb-3: rgba(64, 34, 84, 0.30);        /* 星云雾 3:下方,品红紫 */
+    --neb-4: rgba(14, 18, 44, 0.28);        /* 中心那团:偏中性 */
+    --star-alpha: 0.74;                     /* 星点整体强度 */
+    --grid-alpha: 0.42;                     /* 网格整体强度 */
+    --grid-line: rgba(58, 186, 168, 0.075); /* 网格线颜色(青绿) */
+}
+
+/* 容器:只管铺满,长什么样交给下面两层 */
+.cosmos {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    border-radius: inherit;
+}
+
+/* 1. 最远层:深空星云 —— 颜色/亮度全部走 --neb-* / --bg-base
+   ★ 这段和 .rack-bg 那份声明是【同一段文字】,只是搬到了这里、
+     由 .cosmos-nebula 这个类来承载(CD 架的标记上也挂了这个类)。 */
+.cosmos-nebula {
+    background-color: var(--bg-base, #030307);
+    background-image:
+        radial-gradient(52% 42% at 16% 24%, var(--neb-1) 0%, transparent 66%),
+        radial-gradient(46% 50% at 76% 14%, var(--neb-2) 0%, transparent 68%),
+        radial-gradient(64% 56% at 62% 86%, var(--neb-3) 0%, transparent 72%),
+        radial-gradient(40% 40% at 38% 52%, var(--neb-4) 0%, transparent 74%),
+        linear-gradient(162deg, var(--bg-base, #030307) 0%, #04040a 45%, var(--bg-base, #030307) 100%);
+    opacity: var(--bg-power, 1);
+    animation: cosmos-nebula 46s ease-in-out infinite alternate;
+}
+
+/* 星点单独一层,方便用 --star-alpha 一个数调强弱 */
+.cosmos-nebula::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    opacity: var(--star-alpha, 0.34);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='170' height='170'%3E%3Cg fill='%23ffffff'%3E%3Ccircle cx='14' cy='26' r='0.85' opacity='.42'/%3E%3Ccircle cx='63' cy='12' r='0.6' opacity='.28'/%3E%3Ccircle cx='104' cy='41' r='1' opacity='.46'/%3E%3Ccircle cx='152' cy='22' r='0.55' opacity='.24'/%3E%3Ccircle cx='31' cy='79' r='0.7' opacity='.32'/%3E%3Ccircle cx='86' cy='96' r='0.9' opacity='.42'/%3E%3Ccircle cx='139' cy='112' r='0.6' opacity='.26'/%3E%3Ccircle cx='22' cy='139' r='0.95' opacity='.36'/%3E%3Ccircle cx='74' cy='152' r='0.5' opacity='.22'/%3E%3Ccircle cx='126' cy='159' r='0.75' opacity='.32'/%3E%3C/g%3E%3C/svg%3E");
+    background-size: 170px 170px;
+}
+
+@keyframes cosmos-nebula {
+    from { background-position: 0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%; }
+    to { background-position: 6% 3%, -5% 4%, 4% -3%, -3% -4%, 0% 0%; }
+}
+
+/* 2. 中层:复古数据网格 —— 颜色/强度走 --grid-line / --grid-alpha */
+.cosmos-grid {
+    opacity: var(--grid-alpha, 0.5);
+    background-image:
+        repeating-linear-gradient(0deg, var(--grid-line) 0px, var(--grid-line) 1px, transparent 1px, transparent 26px),
+        repeating-linear-gradient(90deg, var(--grid-line) 0px, var(--grid-line) 1px, transparent 1px, transparent 26px);
+    /* 雷达网格:平的,不做透视 —— 一旦加 rotateX,线条会被拉开成大片色块 */
+    transform: none;
+    -webkit-mask-image: radial-gradient(44% 34% at 42% 60%, #000 0%, rgba(0, 0, 0, 0.5) 42%, transparent 76%);
+    mask-image: radial-gradient(44% 34% at 42% 60%, #000 0%, rgba(0, 0, 0, 0.5) 42%, transparent 76%);
+    animation: cosmos-grid-drift 14s linear infinite;
+}
+
+@keyframes cosmos-grid-drift {
+    from { background-position: 0 0, 0 0; }
+    to { background-position: 0 26px, 0 0; }
+}
+
+/* 两层都要定位:它们由 .cosmos / .rack 这类容器负责铺满 */
+.cosmos-nebula,
+.cosmos-grid {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+}
+
+/* 页面上的那份:钉在视口,永远在后面 */
+.page-cosmos {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+}
+
+/* ---------- 二、投影节点 ----------
+   屏幕右上角那枚小结节:风格跟 CD 界面的 HUD 走(细线 + 青色 + 呼吸)。
+   ★ position: fixed + 不参与右滑 —— 机器滑走了它留在原地,落地页上它还在同一个
+     位置,过场因此是连的(它是"投影口",不是屏幕上的一块内容)。 */
+.proj-node {
+    position: fixed;
+    top: clamp(8px, 1.4vh, 18px);
+    right: clamp(10px, 1.2vw, 22px);
+    z-index: 43;
+    width: clamp(64px, 5.6vw, 96px);
+    pointer-events: none;
+    color: var(--intro-accent, #22d3ee);
+    opacity: 0.85;
+    filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.35));
+}
+
+.proj-node svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+}
+
+.pn-hull {
+    stroke: rgba(150, 210, 240, 0.42);
+    stroke-width: 1;
+    fill: rgba(6, 12, 22, 0.55);
+}
+
+.pn-tick {
+    stroke: rgba(150, 210, 240, 0.55);
+    stroke-width: 1.2;
+    stroke-linecap: round;
+}
+
+.pn-ring {
+    stroke: var(--intro-accent, #22d3ee);
+    stroke-width: 1.1;
+    fill: none;
+    animation: pn-pulse 3.4s ease-in-out infinite;
+}
+
+.pn-core {
+    fill: #eaf3ff;
+    animation: pn-core 3.4s ease-in-out infinite;
+}
+
+.pn-beam {
+    stroke: rgba(34, 211, 238, 0.85);
+    stroke-width: 1.1;
+    stroke-linecap: round;
+    stroke-dasharray: 5 4;
+    animation: pn-flow 2.6s linear infinite;
+}
+
+.pn-beam--2 { stroke-dasharray: 3 5; animation-duration: 3.4s; opacity: 0.7; }
+.pn-beam--3 { stroke-dasharray: 3 5; animation-duration: 3.4s; animation-delay: 0.4s; opacity: 0.7; }
+
+@keyframes pn-pulse {
+    0%, 100% { opacity: 0.55; }
+    50% { opacity: 1; }
+}
+
+@keyframes pn-core {
+    0%, 100% { opacity: 0.75; r: 3; }
+    50% { opacity: 1; r: 3.8; }
+}
+
+/* 光束朝右流动:暗示"内容往右边的页面去" */
+@keyframes pn-flow {
+    from { stroke-dashoffset: 9; }
+    to { stroke-dashoffset: 0; }
+}
+
+/* ---------- 三、右滑过场 ----------
+   ★ 复用的是 CD 架那套:.scene 上的 transform + 同一条缓动曲线(intro.css 里
+     `body.scene-open .scene` 那条),只是这次滑【整屏 100vw】而不是 66vw,
+     而且是"滑完就跳走"。
+   ★ 选择器写成 body.intro-page.page-out(三个类)是为了压过 intro.css 里
+     body.scene-open .scene 那条同属性声明 —— extended 那份样式表在 intro.css
+     【之前】加载,同分时后加载的赢,所以这里必须多一个类。 */
+body.intro-page.page-out .scene {
+    transform: translateX(100vw);
+}
+
+/* 平板和顶缘那枚按钮都不在 .scene 里(它们是为了压住 CD 页的层级才搬到 body 的),
+   所以右滑时要单独带上 —— 否则屏幕滑走了、平板还在原地,一眼穿帮。
+   ★ 两条的过渡时长也要改成和 .scene 一样(平板原本 .36s、按钮原本 .42s):
+     三样东西必须同起同落,差一点就能看出"它们不是一块的"。 */
+body.intro-page.page-out .tablet {
+    transform: translateX(100vw);
+    opacity: 1;
+    transition: transform .55s cubic-bezier(.22, .61, .36, 1), opacity .26s ease;
+}
+
+body.intro-page.page-out .statusbar-toggle {
+    transform: translateX(calc(-50% + 100vw));
+    transition: color .18s ease, border-color .18s ease, opacity .3s ease,
+        transform .55s cubic-bezier(.22, .61, .36, 1);
+}
+
+/* 过场期间别让用户再点第二下 / 别让滚动条冒出来 */
+body.page-out {
+    pointer-events: none;
+    overflow: hidden;
+}
+
+/* ---------- 四、右边的那些页面(第一批:先给它们"同一个样式") ----------
+   ★ 这一批只做到"滑过去不穿帮":同一个宇宙背景 + 同一个投影节点 + 一层
+     看得清的内容面板。博客页本身按"轻量、舒适"重做是【第二批】的事。
+   ★ 深色底 + 浅色字是【故意】的:背景恒定不跟主题走,字就得跟着背景走,
+     否则浅色主题下会变成深灰字压在黑星云上(读不了)。
+     选择器带 :root[data-theme],是为了压过主题自己的 :root[data-theme="dark"]
+     那一组变量(它的特异度是 (0,2,0))。 */
+:root[data-theme].shell-page body {
+    --theme: transparent;
+    --entry: rgba(10, 16, 30, 0.62);
+    --primary: #eaf3ff;
+    --secondary: rgba(198, 220, 246, 0.72);
+    --tertiary: rgba(150, 190, 240, 0.32);
+    --content: rgba(226, 238, 252, 0.9);
+    --code-bg: rgba(8, 13, 24, 0.62);
+    --code-block-bg: rgba(8, 13, 24, 0.72);
+    --border: rgba(150, 190, 240, 0.16);
+    background: transparent;
+}
+
+:root[data-theme].shell-page {
+    background: var(--bg-base, #030307);
+}
+
+/* 内容面板:一块带边框的磨砂玻璃,压在星云上 */
+:root[data-theme].shell-page .main {
+    background: rgba(9, 14, 26, 0.5);
+    border: 1px solid rgba(150, 190, 240, 0.16);
+    border-radius: 18px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+    padding: clamp(16px, 2.4vh, 30px) clamp(16px, 2.6vw, 36px);
+    margin: clamp(12px, 2.2vh, 28px) auto;
+}
+
+/* 顶栏(这些页面还留着旧顶栏,第二批再动它):给右上角那枚投影节点让位,
+   别让"配色/音量"那几个开关压到它身上。 */
+:root[data-theme].shell-page .header-nav {
+    padding-right: clamp(70px, 6vw, 104px);
+}
+
+/* ---------- "减少动态效果":背景和节点都不要动 ---------- */
+@media (prefers-reduced-motion: reduce) {
+    .cosmos-nebula,
+    .cosmos-grid,
+    .pn-ring,
+    .pn-core,
+    .pn-beam {
+        animation: none !important;
+    }
+}
