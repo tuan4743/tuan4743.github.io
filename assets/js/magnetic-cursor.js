@@ -71,12 +71,14 @@
   ].join(",");
 
   /* 笔形态的光标:记号笔 = ×(两笔交叉),荧光笔/橡皮 = 圆框(直径 = 笔的大小) */
-  function drawPenCursor(ctx, x, y, cfg) {
+  var penShape = null, penT = 0;   /* 笔形态:当前形状 + 展开进度(0~1)*/
+  function drawPenCursor(ctx, x, y, cfg, t) {
+    t = typeof t === "number" ? t : 1;
     var dpr = window.devicePixelRatio || 1;
     ctx.save();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     if (cfg.shape === "x") {
-      var r = cfg.size || 10;                   /* × 的臂长(半径) */
+      var r = (cfg.size || 10) * t;             /* × 的臂长(半径)× 展开进度 */
       ctx.strokeStyle = "rgba(234, 243, 255, 0.95)";
       ctx.lineWidth = 1.6;
       ctx.lineCap = "round";
@@ -89,7 +91,7 @@
       ctx.fillStyle = "#eaf3ff";
       ctx.fill();
     } else {
-      var rad = Math.max(3, (cfg.size || 8) / 2);   /* 直径 = 笔的大小 */
+      var rad = Math.max(0.5, ((cfg.size || 8) / 2) * t);   /* 直径 = 笔的大小 × 展开进度 */
       ctx.strokeStyle = "rgba(234, 243, 255, 0.9)";
       ctx.lineWidth = 1.3;
       ctx.beginPath();
@@ -214,9 +216,15 @@
     var penCfg = window.__mcPenCfg;
     if (penCfg && penCfg.shape) {
       fx = mx; fy = my; fw = 0; fh = 0;          /* 实时:位置不缓存 */
-      drawPenCursor(ctx, mx, my, penCfg);
+      /* ★ 展开动画:换了形态(或者刚进笔模式)时从 0 长到 1 ——
+         就是用户说的"从矩形扫描框收紧到中心光点,展开成一个 ×"。
+         光点本身一直在(画在中心),形状按 penT 长大。 */
+      if (penShape !== penCfg.shape) { penShape = penCfg.shape; penT = 0; }
+      penT += (1 - penT) * Math.min(1, dt * 9);
+      drawPenCursor(ctx, mx, my, penCfg, penT);
       return;
     }
+    penShape = null; penT = 0;
 
     /* ---- 目标点与尺寸:磁吸时贴向目标中心 ---- */
     var tx = mx, ty = my, tw = SIZE, th = SIZE;
@@ -245,7 +253,8 @@
          现在宽高共用同一个 pad。 */
       /* ★★ 小目标:pad = 0 —— 框【严格贴合】目标的矩形,一点都不外扩。
          用户连着三轮说"偏大",那就干脆不加:框和按钮四条边重合。 */
-      var pad = small ? 0 : Math.min(PAD, Math.max(4, Math.min(r.width, r.height) * 0.16));
+      /* ★ 小目标给 4px:严丝合缝太紧(用户:"应该略大一点点"),10% 又偏大。 */
+      var pad = small ? 4 : Math.min(PAD, Math.max(4, Math.min(r.width, r.height) * 0.16));
       tw = r.width + pad * 2;
       th = r.height + pad * 2;
     }

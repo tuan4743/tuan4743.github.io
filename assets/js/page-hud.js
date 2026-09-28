@@ -261,7 +261,11 @@
     function publishPenCursor() {
         var on = null;
         for (var i = 0; i < pens.length; i++) if (pens[i].classList.contains("is-on")) on = pens[i];
-        if (!on || !window.__mcPenCfg) { window.__mcPenCfg = null; return; }
+        /* ★★★ 这里原来写的是 if (!on || !window.__mcPenCfg) —— 鸡生蛋:
+           __mcPenCfg 一开始就是 undefined,于是永远判定"没有配置"、永远置 null,
+           笔的鼠标形态一次都没生效(用户:"把我说的笔的那三个改动加一下")。
+           正确条件只看"有没有选中笔"。 */
+        if (!on) { window.__mcPenCfg = null; return; }
         var name = on.getAttribute("data-hud-pen");
         var size = parseFloat(penSizes[name]);
         if (!isFinite(size)) size = 8;

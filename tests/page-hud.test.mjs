@@ -655,9 +655,11 @@ ok('★★★ 磁力光标认得 HUD 里的元素,但【不吃 LOGO】', (() => 
   const need = ['".hud-act"', '".hud-nav__item"', '".hud-search input"', '".hud-pen__btn"', '".hud-pen__swatch"'];
   return need.every((sel) => mcJs.includes(sel)) && !mcJs.includes('".hud-logo"');
 })(), '白名单兜底只认 button:下载/GitHub/导航是 <a>、搜索框是 <input>;LOGO 用户点名不要吸');
-ok('★★ 吸附框外扩按目标尺寸(10%,最小 3px;大目标仍 10px 封顶)',
-  /small \? 0 : Math\.min\(PAD/.test(mcJs) && /var PAD = 10;/.test(mcJs),
-  '两轮都报"吸附框偏大偏左":固定 PAD=10 把矮按钮撑成大框');
+ok('★★ 锁定的小目标:框比按钮【略大 4px】(严丝合缝太紧,10% 又偏大)', (() => {
+  const mc = fs.readFileSync(`${BH}/assets/js/magnetic-cursor.js`, 'utf8');
+  return /var pad = small \? 4 : Math\.min\(PAD/.test(mc) && /var PAD = 10;/.test(mc) &&
+    /small = Math\.min\(r\.width, r\.height\) < 90/.test(mc);
+})(), '用户:"锁定跟实际框严丝合缝,应该略大一点点"');
 ok('★★ 每支笔带一排颜色点(5 色 × 2 支(橡皮没有颜色)),展开时才出现', (() => {
   return (hudTplCode.match(/hud-pen__swatch/g) || []).length === 10 &&
     /data-hud-pen-color="marker"/.test(hudTplCode) &&
