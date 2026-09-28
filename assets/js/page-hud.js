@@ -31,8 +31,11 @@
          ③ 水平向右到 x=30                  ④ 屏幕 45° 往右上,到 y=6
          ⑤ 水平向右到 x=8                   ⑥ 屏幕 45° 往右下,到 x=5  ← y₁
          ⑦ 垂直向下,到 y = 100 − y₁         ⑧ 屏幕 45° 往左下,到 x=8
-         ⑨ 水平向右到 x=25                  ⑩ 屏幕 60° 往左下,到下边框 y=100
-       返回:{ path: 给 SVG 的 d(x_svg = 100 − x),user: 用户坐标下的顶点 }
+         ⑨ 水平向右到 x=35                  ⑩ 屏幕 60° 往左下,到下边框 y=100
+       ★ ⑨ 原来是 25,第四刀之后改成 35:底带要塞下三支笔 + 展开出来的尺寸滑条,
+         25% 的宽度在 1236px 的窗口上不够,笔会顶出框外(用户报的"笔顶出去了")。
+       返回:{ path: 给 SVG 的 d(x_svg = 100 − x),fill: 闭合版(给底板用),
+              user: 用户坐标下的顶点 }
        ------------------------------------------------------------ */
     function gFrame(w, h) {
         var k = h / w;                       /* 视口的高/宽比 */
@@ -48,14 +51,17 @@
         y1 = p6[1];
         var p7 = [5, 100 - y1];                /* ⑦ 用户自己给的关系式 */
         var p8 = [8, p7[1] + 3 / k];           /* ⑧ 45°:Δx=3 ⇒ Δy = 3/k(恒等于 94) */
-        var p9 = [25, p8[1]];                  /* ⑨ */
+        var p9 = [35, p8[1]];                  /* ⑨ */
         var p10 = [p9[0] + (6 * k) / T60, 100];/* ⑩ 60°:Δy=6 ⇒ Δx = 6k/√3 */
 
         var user = [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10];
         var d = user.map(function (p, i) {
             return (i ? "L" : "M") + round(100 - p[0]) + " " + round(p[1]);
         }).join(" ");
-        return { path: d, user: user, k: k, y1: y1 };
+        /* 底板用的闭合折线:沿页底往右 → 沿页右缘往上 → 回到起点。
+           不闭合成"首尾直连"那条直线(那样会把大半个页面斜着切掉)。 */
+        var fill = d + " L100 100 L100 0 Z";
+        return { path: d, fill: fill, user: user, k: k, y1: y1 };
     }
 
     function round(v) {
@@ -78,8 +84,12 @@
         var h = window.innerHeight || document.documentElement.clientHeight || 0;
         if (!w || !h) return;
         var g = gFrame(w, h);
-        var paths = root.querySelectorAll(".page-hud__frame path");
+        var paths = root.querySelectorAll(".hud-halo, .hud-line, .hud-run");
         for (var i = 0; i < paths.length; i++) paths[i].setAttribute("d", g.path);
+        /* 底板:同一圈轮廓的【闭合版】—— 它把框里那一块盖住,
+           正文滚过去时不会从框里透出来(用户要的"覆盖效果")。 */
+        var fill = root.querySelector(".hud-fill");
+        if (fill) fill.setAttribute("d", g.fill);
         root.setAttribute("data-hud-frame", g.path);
         if (window.__hudFrame) window.__hudFrame.last = g;
     }

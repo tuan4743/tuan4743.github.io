@@ -21,8 +21,9 @@
      ============================================================ */}}
 {{- /* 参考折线 = gFrame(1920, 1080) 的输出(16:9);真值由 page-hud.js 按实际视口重算。
        ★ 想手改?改 assets/js/page-hud.js 的 gFrame(),别改这里 ——
-         测试会把两边各算一遍再比,不一致立刻红。 */ -}}
-{{- $frame := "M55 0 L57.9228 9 L70 9 L71.6875 6 L92 6 L95 11.3333 L95 88.6667 L92 94 L75 94 L73.0514 100" -}}
+         测试会把两边各算一遍再比,不一致立刻红。
+       ★ ⑨ 是 35(不是最初的 25):底带要装下三支笔 + 展开的尺寸滑条。 */ -}}
+{{- $frame := "M55 0 L57.9228 9 L70 9 L71.6875 6 L92 6 L95 11.3333 L95 88.6667 L92 94 L65 94 L63.0514 100" -}}
 {{- $current := . -}}
 <div class="page-hud" id="page-hud" data-hud-page="{{ $current.RelPermalink }}" data-hud-frame="{{ $frame }}">
     {{/* ★ viewBox="0 0 100 100" 就是用户的坐标制式(一个单位 = 一页的 1%);
@@ -30,8 +31,12 @@
          ★★ d 会被 page-hud.js 按【真实视口】重算(45°/60° 是屏幕角度,
             斜线的水平位移跟长宽比有关)。
          ★ 三条线都 vector-effect:non-scaling-stroke:线宽【和虚线节拍】都按
-           屏幕像素算,不被 viewBox 的拉伸带跑 —— 所以 --hud-dash 能和 CD 页逐字相同。 */}}
+           屏幕像素算,不被 viewBox 的拉伸带跑 —— 所以 --hud-dash 能和 CD 页逐字相同。
+         ★★ .hud-fill 是【底板】:同一圈轮廓的闭合版(沿页底 → 页右缘 → 回到起点),
+            把框里那一块盖住 —— 用户原话:"这个框应该能遮住底下(让底下不显示,
+            不然像现在这样很奇怪)"。盖多少由 CSS 的 --hud-cover 一个数决定。 */}}
     <svg class="page-hud__frame" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <path class="hud-fill" d="{{ $frame }} L100 100 L100 0 Z"></path>
         <path class="hud-halo" d="{{ $frame }}"></path>
         <path class="hud-line" d="{{ $frame }}"></path>
         <path class="hud-run" d="{{ $frame }}"></path>

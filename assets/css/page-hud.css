@@ -54,6 +54,13 @@
     --hud-run-total: 3200;
     --hud-glow: 0;                        /* 0~1:留给"阅读进度"(以后) */
 
+    /* ═══════ 1b. 底板(覆盖效果)═══════
+       用户原话:"这个框应该能遮住底下(让底下不显示,不然像现在这样很奇怪)"。
+       ★ 框里原来是【透】的:正文卡片滑到框后那些横臂、底带的位置就透出来了。
+       ★ 盖多少只由这一个数决定:0.92 几乎全遮(还留一点星云的呼吸),
+         想要完全不透就写 1,想回到以前(全透)就写 0。 */
+    --hud-cover: rgba(3, 3, 8, 0.92);
+
     /* ═══════ 2. 边框围出来那几个区(数都要和折线对得上)═══════ */
     --hud-col: 5vw;                       /* 竖栏宽 = 折线竖段的 x(= 5) */
     --hud-pad: clamp(8px, 0.7vw, 14px);   /* 贴边留白 */
@@ -62,16 +69,16 @@
     --hud-ledge: 30%;                     /* 深段右端 x */
     --hud-notch: 12%;                     /* 竖段起点 y(= 折线的 11.33 再留一点) */
     --hud-band: 94%;                      /* 底带顶边 y */
-    --hud-band-x: 25%;                    /* 底带往左伸到 x */
+    --hud-band-x: 35%;                    /* 底带往左伸到 x(⑨ 从 25 拓到 35:要塞下三支笔 + 展开的滑条) */
     --hud-ink-dim: rgba(234, 243, 255, 0.62);
     --hud-line-soft: rgba(234, 243, 255, 0.22);
     --hud-line-on: rgba(234, 243, 255, 0.6);
 
     /* ═══════ 3. 控件 ═══════ */
-    --hud-ctl-fs: 9px;                    /* 标签字号(9 的倍数,和 CD 页一致) */
-    --hud-ctl-ls: 0.18em;
-    --hud-val-fs: 10px;
-    --hud-fader-len: clamp(58px, 8vh, 86px);   /* 竖滑条长度 */
+    --hud-ctl-fs: 11px;                   /* 标签字号(用户:"右下角的文字稍微加一点字号") */
+    --hud-ctl-ls: 0.16em;
+    --hud-val-fs: 12px;
+    --hud-fader-len: clamp(72px, 11vh, 118px); /* 竖滑条长度(用户:"这个滑条可以长一点点") */
     --hud-rail-w: 5px;
     --hud-rail: rgba(234, 243, 255, 0.22);
     --hud-thumb: 20px;
@@ -114,6 +121,15 @@
     pointer-events: none;
 }
 
+/* ★★ 底板:同一圈轮廓的闭合版,把框里那一块盖住(用户要的"覆盖效果")。
+   它必须在【所有其它东西之前】画(标记里就是第一个 path),否则会盖住控件 ——
+   SVG 内部按文档顺序绘制,而这一支 SVG 是 .page-hud 的第一个子元素。 */
+.hud-fill {
+    fill: var(--hud-cover);
+    stroke: none;
+    pointer-events: none;
+}
+
 .hud-halo,
 .hud-line,
 .hud-run {
@@ -150,16 +166,19 @@
 }
 
 /* ═══════ 改造 2:凸起里的 LOGO ═══════
-   ★ 放大到 3~4 倍(用户:"字体可以大三倍到四倍")。
-   ★ 位置:文字块【贴住凸起的最左端】—— right 从 42% 起,往右排。
-     上限由那条 60° 斜线决定:它在页顶只到 x≈43(16:9 下),所以右边缘不能越过 42%。 */
+   ★★ 位置:文字的【左边缘】落在 x=42%(凸起的内侧边),往右排。
+      —— 上一版写的是 right:42%,那是"右边缘在 42%",文字于是往【左】(x 更大)
+         长出去,正好穿过那条 60° 斜线、还被视口左缘切掉(用户:"位置和大小不对")。
+      CSS 里要让"左边缘落在距右缘 42% 处",就是 left: calc(100% - 42%) = left: 58%。
+   ★ 字号:上限由那条斜线定死 —— 可用宽度只有 x 28(搜索框左缘)到 x 43(斜线)
+     那 15%,所以 1920 下最多约 38px(原来 13~19px,现在约两倍多)。 */
 .hud-logo {
     position: absolute;
-    right: 42%;
-    top: 0.6%;
+    left: 58%;
+    top: 0.9%;
     pointer-events: auto;
-    font-size: clamp(26px, 3vw, 58px);
-    letter-spacing: 0.1em;
+    font-size: clamp(18px, 1.95vw, 38px);
+    letter-spacing: 0.08em;
     line-height: 1.05;
     color: #f4f8ff;
     text-decoration: none;
@@ -327,14 +346,15 @@
 }
 
 /* ═══════ 改造 5:竖栏里的五个导航 ═══════
-   从"凹下去的地方"(竖段起点 y≈11.33)开始,依次往下。
-   ★ 用户:"字体图标可以大一点,总体往下撑一撑。现在太小气了" ⇒
-     图标 15→22px、名字 10~12→12~16px、每项内边距和项间距一起加大,
-     整列自然从凹点一直撑到右下三件套上面。 */
+   ★★ 用户第五轮(第二次):"把右侧的导航栏从上对齐改成居中吧,
+      就是中间的那个归档的中间刚好在页面居中的位置"。
+      ⇒ 整列在视口里【垂直居中】:五项的中间那项(归档)正好落在页面中线。
+      上下各留出多少由内容自己撑,不再从凹点(top)开始往下排。 */
 .hud-nav {
     position: absolute;
     right: 0;
-    top: var(--hud-notch);
+    top: 50%;
+    transform: translateY(-50%);
     width: var(--hud-col);
     display: flex;
     flex-direction: column;
@@ -568,16 +588,16 @@
 .hud-pen__btn {
     display: inline-flex;
     align-items: center;
-    gap: 0.4em;
+    gap: 0.35em;
     height: var(--hud-btn-h);
-    padding: 0 0.7em;
+    padding: 0 0.5em;                     /* ★ 收窄一点:三支笔 + 展开的滑条要挤进底带 */
     border: 1px solid var(--hud-line-soft);
     border-radius: 5px;
     background: rgba(234, 243, 255, 0.04);
     color: var(--hud-ink-dim);
     font-family: var(--hud-font);
-    font-size: var(--hud-ctl-fs);
-    letter-spacing: var(--hud-ctl-ls);
+    font-size: 10px;
+    letter-spacing: 0.1em;
     white-space: nowrap;
     cursor: pointer;
     transition: color 0.16s ease, background-color 0.16s ease, border-color 0.16s ease;
@@ -612,14 +632,14 @@
 }
 
 .hud-pen.is-on .hud-pen__size {
-    width: clamp(110px, 9vw, 168px);
+    width: clamp(80px, 5.5vw, 120px);      /* ★ 收窄:底带只有 x 7~35 那 28% */
     opacity: 1;
 }
 
 .hud-pen__dot {
     flex: 0 0 auto;
-    width: 22px;
-    height: 22px;
+    width: 18px;
+    height: 18px;
     display: inline-flex;
     align-items: center;
     justify-content: center;

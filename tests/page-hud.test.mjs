@@ -120,8 +120,8 @@ ok('★★ ⑦ 竖段:到 100 − y₁(用户自己给的关系式),而且 x 不
 ok('★★ ⑧ 第六段屏幕上正好 45°(往左下),到横坐标 8',
   Math.abs(angOf(6, 7, REF_W, REF_H) - 45) < 1e-9 && Math.abs(U[7][0] - 8) < 1e-9,
   angOf(6, 7, REF_W, REF_H).toFixed(6) + '°');
-ok('★ ⑨ 第七段水平,到横坐标 25',
-  Math.abs(U[8][1] - U[7][1]) < 1e-9 && Math.abs(U[8][0] - 25) < 1e-9);
+ok('★ ⑨ 第七段水平,到横坐标 35(第五轮从 25 拓到 35:底带要塞下三支笔 + 展开的滑条)',
+  Math.abs(U[8][1] - U[7][1]) < 1e-9 && Math.abs(U[8][0] - 35) < 1e-9);
 ok('★★ ⑩ 最后一段屏幕上正好 60°,落到下边框(y=100)',
   Math.abs(angOf(8, 9, REF_W, REF_H) - 60) < 1e-9 && Math.abs(U[9][1] - 100) < 1e-9,
   angOf(8, 9, REF_W, REF_H).toFixed(6) + '°');
@@ -154,18 +154,21 @@ ok('★★★ 构建产物里那份参考折线也一致(模板 → 产物这一
   (tech.match(/data-hud-frame=(?:"([^"]*)"|([^\s>]+))/) || [, '', '']).slice(1).includes(frameSrc),
   '产物里 data-hud-frame 是根节点上的那份 16:9 参考值,页面一跑会被 JS 覆盖成真值');
 ok('★★★ 写 d 的时候【只认边框那支 SVG 里的 path】—— 这一条是拿血换来的',
-  /\.page-hud__frame path/.test(hudJs) && /paths\[i\]\.setAttribute\("d", g\.path\)/.test(hudJs),
+  /\.hud-halo, \.hud-line, \.hud-run/.test(hudJs) && /paths\[i\]\.setAttribute\("d", g\.path\)/.test(hudJs) &&
+  /querySelector\("\.hud-fill"\)/.test(hudJs),
   '第一版写的是 root.querySelectorAll("path"):导航/按钮里用 <path> 画的图标全被改成了折线,整只消失,看着像"素材丢了"');
 /* ★★★ 行为断言:拿一个假 DOM 跑 drawFrame,看它到底动了哪些 path。
    只查选择器字符串是不够的 —— 当初那个 bug 的选择器"看着"也没问题。 */
-ok('★★★ 行为:drawFrame 只给【边框里的 3 条 path】写 d,图标 path 一根都不碰', (() => {
+ok('★★★ 行为:drawFrame 只给【边框那 3 条 path】写 d、给【底板】写闭合 d,图标一根都不碰', (() => {
   const mkPath = (name) => ({ name, d: 'icon-original', setAttribute(k, v) { if (k === 'd') this.d = v; } });
   const frame = [mkPath('halo'), mkPath('line'), mkPath('run')];
   const icons = [mkPath('icon-home'), mkPath('icon-md'), mkPath('icon-gh'), mkPath('icon-wx')];
+  const fill = mkPath('fill');
   const root = {
     attrs: {},
     setAttribute(k, v) { this.attrs[k] = v; },
-    querySelectorAll(sel) { return sel === '.page-hud__frame path' ? frame : []; }
+    querySelector(sel) { return sel === '.hud-fill' ? fill : null; },
+    querySelectorAll(sel) { return sel === '.hud-halo, .hud-line, .hud-run' ? frame : []; }
   };
   const doc = {
     getElementById: (id) => (id === 'page-hud' ? root : null),
@@ -174,10 +177,12 @@ ok('★★★ 行为:drawFrame 只给【边框里的 3 条 path】写 d,图标 p
   };
   const win = { innerWidth: 1920, innerHeight: 1080, addEventListener() { } };
   new Function('window', 'document', hudJsSrc)(win, doc);
-  const drew = frame.every((f) => f.d === win.__hudFrame.last.path);
+  const g = win.__hudFrame.last;
+  const drew = frame.every((f) => f.d === g.path);
+  const filled = fill.d === g.fill && /L100 100 L100 0 Z$/.test(fill.d);
   const untouched = icons.every((i) => i.d === 'icon-original');
-  return drew && untouched;
-})(), '图标 path 的 d 一旦被改,就成了"素材丢了"的假象');
+  return drew && filled && untouched;
+})(), '图标 path 的 d 一旦被改,就成了"素材丢了"的假象;底板要的是【闭合】那一版');
 ok('★ 视口变化时会重算(resize + rAF 收口,拖窗口不会每像素都算)',
   /addEventListener\("resize"/.test(hudJs) && /requestAnimationFrame/.test(hudJs));
 /* ★ 边框竖段那一列 = CSS 里给控件留的那一列:改了一个忘了另一个就会骑到正文上 */
@@ -278,11 +283,17 @@ ok('★★★ 顶部那条【主题顶栏】仍然没有渲染(用户上一轮�
   !/partialCached "header\.html"/.test(baseofCode) &&
   /class="logo"/.test(headerTpl) && fs.existsSync(`${BH}/layouts/_partials/header.html`),
   '标记还在 layouts/_partials/header.html,要回来只需去掉 baseof 里那行注释');
-ok('★★ 改造 2:凸起里是 LOGO「Tuagfey Blog」,放大到 3~4 倍、贴住凸起左端',
+ok('★★ 改造 2:凸起里是 LOGO,【左边缘】落在 x=42% 往右排(不能再往左,否则顶穿 60° 斜线)',
   cls('hud-logo').test(tech) && />Tuagfey Blog</.test(tech) &&
-  /\.hud-logo\s*\{[^}]*right:\s*42%/.test(cssCode) &&
-  /\.hud-logo\s*\{[^}]*font-size:\s*clamp\(26px,\s*3vw,\s*58px\)/.test(cssCode),
-  '★ 上限钉在 x=42%:再往左(数值更大)就会被那条 60° 斜线(顶部只到 x≈43)顶穿');
+  /\.hud-logo\s*\{[^}]*left:\s*58%/.test(cssCode) &&
+  !/\.hud-logo\s*\{[^}]*right:/.test(cssCode) &&
+  /\.hud-logo\s*\{[^}]*font-size:\s*clamp\(18px,\s*1\.95vw,\s*38px\)/.test(cssCode),
+  '★ 上一版写 right:42% 是"右边缘在 42%",文字往左长出去、穿过斜线还被视口左缘切掉(用户:"位置和大小不对")');
+ok('★★ 字号上限由可用宽度定死:x 28(搜索框左缘)到 x 43(斜线)那 15%',
+  (() => {
+    const max = /font-size:\s*clamp\(18px,\s*1\.95vw,\s*(\d+)px\)/.exec(css) || [];
+    return Number(max[1] || 0) <= 40;
+  })(), '1920 宽下 15% = 288px,"Tuagfey Blog" 在 38px 字号下约 250px ✓');
 ok('★★ 改造 3:收窄段是搜索栏,而且用的是【顶栏原来那套标记】',
   /class="hud-search[^"]*"[^>]*id="header-search"[^>]*data-search/.test(hudTplCode) &&
   /id="header-search-input"/.test(hudTplCode) && /id="header-search-results"/.test(hudTplCode) &&
@@ -339,12 +350,14 @@ ok('★ WeChat 按钮:二维码点出来(藏着的图,不在首屏白下载)',
   /id="?hud-wechat"?/.test(tech) && /id="?hud-qr"?/.test(tech) && /others\/wechat\.jpg/.test(hudTplCode) &&
   /hud-qr\[hidden\]\s*\{\s*display:\s*none/.test(cssCode) &&
   fs.existsSync(`${BH}/static/others/wechat.jpg`));
-ok('★★ 改造 5:竖栏里五个导航,从"凹下去的地方"起', (() => {
-  const ids = [...tech.matchAll(/data-hud-nav="?([\w-]+)"?/g)].map((m) => m[1]);
-  return ids.join(',') === 'home,tech,archives,guestbook,about' &&
-    /\.hud-nav\s*\{[^}]*top:\s*var\(--hud-notch\)/.test(cssCode) &&
-    /--hud-notch:\s*12%/.test(css);
-})(), '折线的凹点是 y≈11.33%');
+ok('★★★ 改造 5(第五轮第二次):导航整列【垂直居中】—— 中间那项(归档)正好在页面中线',
+  (() => {
+    const ids = [...tech.matchAll(/data-hud-nav="?([\w-]+)"?/g)].map((m) => m[1]);
+    return ids.join(',') === 'home,tech,archives,guestbook,about' &&
+      /\.hud-nav\s*\{[^}]*top:\s*50%/.test(cssCode) &&
+      /\.hud-nav\s*\{[^}]*transform:\s*translateY\(-50%\)/.test(cssCode) &&
+      !/\.hud-nav\s*\{[^}]*top:\s*var\(--hud-notch\)/.test(cssCode);
+  })(), '用户:"把右侧的导航栏从上对齐改成居中吧,就是中间的那个归档的中间刚好在页面居中的位置"');
 ok('★ 当前页那一项有 is-current + aria-current="page"',
   /\bis-current\b/.test(tagOf(tech, 'tech')) && /aria-current="?page/.test(tagOf(tech, 'tech')) &&
   !/\bis-current\b/.test(tagOf(tech, 'home')) &&
@@ -451,6 +464,22 @@ ok('★ 兜底脚本在没有正式组件时会自己接手(同一个最小 DOM,
     const h = searchHarness();
     return !!h.win.CDSearch;   /* search.js 自己会挂;下面的断言看"没挂时"的分支 */
   })() && /var input = document\.getElementById\("header-search-input"\)/.test(noC(rd(`${BH}/assets/js/header-search.js`))));
+/* ---------- ⑤c 覆盖效果:框里要有底板,不然正文会从框里透出来 ---------- */
+ok('★★★ 底板存在,而且是【闭合】的那一版轮廓(沿页底 → 页右缘 → 回到起点)',
+  /class="?hud-fill/.test(tech) && /\.hud-fill\s*\{[^}]*fill:\s*var\(--hud-cover\)/.test(cssCode) &&
+  /L100 100 L100 0 Z/.test(hudTplCode) &&
+  /var fill = d \+ " L100 100 L100 0 Z"/.test(hudJs),
+  '★ 不能靠"最后一个点直连回起点"来闭合 —— 那会把大半个页面斜着切掉');
+ok('★★ 盖多少只由一个数决定(--hud-cover),而且默认接近全遮',
+  (() => {
+    const m = /--hud-cover:\s*rgba\([^)]*?([\d.]+)\s*\)/.exec(css);
+    return !!m && Number(m[1]) >= 0.85;
+  })(), '用户:"这个框应该能遮住底下(让底下不显示,不然像现在这样很奇怪)"');
+ok('★★ 底板画在【最前面】(标记里是第一个 path),否则会把控件一起盖住',
+  hudTplCode.indexOf('class="hud-fill"') < hudTplCode.indexOf('class="hud-halo"') &&
+  hudTplCode.indexOf('class="hud-fill"') < hudTplCode.indexOf('class="hud-acts"'),
+  '★ SVG 内部按文档顺序绘制,而这支 SVG 是 .page-hud 的第一个子元素');
+
 /* ---------- ⑥ 改造 6:右下三件套(两滑条并排 + 明暗长按钮) ---------- */
 const cnt = (h, re) => (h.match(re) || []).length;
 ok('★★ #theme-toggle 在博客页【正好一个】—— 主题 footer 那句没有判空,少了会 TypeError',
@@ -481,6 +510,10 @@ ok('★ 配色滑条:0~360,一个', /id="?palette-hue"?/.test(tech) &&
 ok('★★ 三件套【不是弹出面板】(用户:"不是展开,是右下角那三个控件本身就长这样")',
   !/palette-panel/.test(tech) && !/volume-panel/.test(tech) && !/palette-panel/.test(hudTplCode),
   '老的两块悬停面板是从 nav-switches 来的,这一页根本不该有');
+ok('★★ 右下角:文字加大(9/10px → 11/12px)、滑条加长(58~86 → 72~118)',
+  /--hud-ctl-fs:\s*11px/.test(css) && /--hud-val-fs:\s*12px/.test(css) &&
+  /--hud-fader-len:\s*clamp\(72px,\s*11vh,\s*118px\)/.test(css),
+  '用户:"右下角的文字其实可以稍微加一点字号,然后这个滑条可以长一点点"');
 ok('★ 滑条是竖的(和 CD 页两根推子同一个做法:横着写再转 -90°)',
   /\.hud-range\s*\{[^}]*transform:\s*rotate\(-90deg\)/.test(cssCode));
 ok('★ 滑条头是圆钮(--hud-thumb 走变量,不是浏览器默认方块)',
