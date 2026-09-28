@@ -283,16 +283,6 @@ ok('★★★ 顶部那条【主题顶栏】仍然没有渲染(用户上一轮�
   !/partialCached "header\.html"/.test(baseofCode) &&
   /class="logo"/.test(headerTpl) && fs.existsSync(`${BH}/layouts/_partials/header.html`),
   '标记还在 layouts/_partials/header.html,要回来只需去掉 baseof 里那行注释');
-ok('★★★ LOGO 的位置与字号是【三个接口变量】(用户:"这条给我一个接口,改字体大小和位置")', (() => {
-    const size = /--hud-logo-size:\s*clamp\((\d+)px,\s*([\d.]+)vw,\s*(\d+)px\)/.exec(css);
-    return cls('hud-logo').test(tech) && />Tuagfey Blog</.test(tech) &&
-      !!size && Number(size[1]) >= 16 && Number(size[3]) >= 32 &&
-      /--hud-logo-x:\s*\d+%/.test(css) && /--hud-logo-y:\s*[\d.]+%/.test(css) &&
-      /\.hud-logo\s*\{[^}]*left:\s*var\(--hud-logo-x\)/.test(cssCode) &&
-      /\.hud-logo\s*\{[^}]*top:\s*var\(--hud-logo-y\)/.test(cssCode) &&
-      /\.hud-logo\s*\{[^}]*font-size:\s*var\(--hud-logo-size\)/.test(cssCode) &&
-      !/\.hud-logo\s*\{[^}]*right:/.test(cssCode);
-  })(), '★ right 那一版是"右边缘在 42%",文字往左长出去、穿过斜线还被视口左缘切掉');
 ok('★★ 改造 3:收窄段是搜索栏,而且用的是【顶栏原来那套标记】',
   /class="hud-search[^"]*"[^>]*id="header-search"[^>]*data-search/.test(hudTplCode) &&
   /id="header-search-input"/.test(hudTplCode) && /id="header-search-results"/.test(hudTplCode) &&
@@ -332,13 +322,6 @@ ok('★★ 按钮比原来(26~34px)大不少,但【高】必须压进顶带:clam
     return !!m && !!hm && Number(m[1]) >= 42 && Number(hm[3]) >= 60 &&
       Number(hm[2]) + 0.4 <= 6;
   })(), '★ 用户:"下载还是顶出去了" —— 四象限的第一行越过了 y=6% 那条沿;高 ≤5vh + top 0.4% 才装得下');
-ok('★★ 底带宽度是【一个接口】:--hud-band-x 同时管折线 ⑨ 和三支笔那一行的宽度',
-  /--hud-band-x:\s*35%/.test(css) &&
-  /function gFrame\(w, h, bandX\)/.test(hudJs) &&
-  /var bx = isFinite\(parseFloat\(bandX\)\)/.test(hudJs) &&
-  /getPropertyValue\("--hud-band-x"\)/.test(hudJs) &&
-  /\.hud-pens\s*\{[^}]*width:\s*calc\(var\(--hud-band-x\) - 7%\)/.test(cssCode),
-  '用户在找"把 x 从 25 扩到 30"这个数 —— 现在它就在 CSS 第一屏');
 ok('★★★ 导出按钮指向 Hugo【真生成】的那份 .md(不是前端拼的)',
   /data-hud-act="md" href="\{\{ \$md \}\}" download/.test(hudTplCode) &&
   /data-hud-act=md href=[^\s>]*index\.md/.test(post) &&
@@ -655,16 +638,46 @@ ok('★ 三支笔【只做外观与交互】,没有偷偷去改正文(还没有�
 
 /* ---------- ⑪ 磁力光标:HUD 里的元素也要认(第五轮反馈 4/5) ---------- */
 const mcJs = fs.readFileSync(`${BH}/assets/js/magnetic-cursor.js`, 'utf8');
-ok('★★★ 磁力光标要认得 HUD 里的元素(用户:"搜索框、下载、Github、以及导航页"移上去不吸附)',
-  ['".hud-act"', '".hud-nav__item"', '".hud-search input"', '".hud-pen__btn"', '".hud-logo"']
-    .every((sel) => mcJs.includes(sel)),
-  '★ 白名单那条兜底只认 button:HUD 里下载/GitHub/导航是 <a>、搜索框是 <input>,一个都不匹配');
-ok('★★ 吸附框的外扩改成按目标尺寸走(用户:"三个笔,吸附的框和实际的框偏移比较大")',
-  /var pad = Math\.min\(PAD, Math\.max\(4, Math\.min\(r\.width, r\.height\) \* 0\.22\)\)/.test(mcJs),
-  '固定 PAD=10 会把一个高 30px 的按钮撑成 50px 的框,看着就是"框和按钮不重合"');
 ok('★ 大目标的外扩还是 10px 封顶(别把卡片之类的框也缩小了)',
   /Math\.min\(PAD,/.test(mcJs) && /var PAD = 10;/.test(mcJs));
 
+/* ---------- ⑦b 第七轮:接口 + 磁力光标 + 笔色 ---------- */
+ok('★★★ LOGO 是三个接口变量(size / x / y),而且是 span:不跳转、不吸附', (() => {
+  const size = /--hud-logo-size:\s*clamp\((\d+)px,\s*([\d.]+)vw,\s*(\d+)px\)/.exec(css);
+  return !!size && Number(size[1]) >= 16 && Number(size[3]) >= 32 &&
+    /--hud-logo-x:\s*[\d.]+%/.test(css) && /--hud-logo-y:\s*[\d.]+%/.test(css) &&
+    /\.hud-logo\s*\{[^}]*left:\s*var\(--hud-logo-x\)/.test(cssCode) &&
+    /\.hud-logo\s*\{[^}]*top:\s*var\(--hud-logo-y\)/.test(cssCode) &&
+    /\.hud-logo\s*\{[^}]*font-size:\s*var\(--hud-logo-size\)/.test(cssCode) &&
+    /\.hud-logo\s*\{[^}]*pointer-events:\s*none/.test(cssCode) &&
+    !/\.hud-logo\s*\{[^}]*right:/.test(cssCode) &&
+    /<span class="hud-logo">/.test(hudTplCode) && !/<a[^>]*hud-logo/.test(hudTplCode) &&
+    /class="?hud-logo/.test(tech) && />Tuagfey Blog</.test(tech);
+})(), '用户:"给我一个接口改字体大小和位置" + "它只是个 LOGO,不需要吸附,也不需要跳转首页"');
+ok('★★ 底带宽度是一个接口:--hud-band-x 同时管折线 ⑨ 和笔那一行(第七轮 35 → 30)',
+  /--hud-band-x:\s*30%/.test(css) && /function gFrame\(w, h, bandX\)/.test(hudJs) &&
+  /getPropertyValue\("--hud-band-x"\)/.test(hudJs) &&
+  /\.hud-pens\s*\{[^}]*width:\s*calc\(var\(--hud-band-x\) - 7%\)/.test(cssCode));
+ok('★★★ 磁力光标认得 HUD 里的元素,但【不吃 LOGO】', (() => {
+  const need = ['".hud-act"', '".hud-nav__item"', '".hud-search input"', '".hud-pen__btn"', '".hud-pen__swatch"'];
+  return need.every((sel) => mcJs.includes(sel)) && !mcJs.includes('".hud-logo"');
+})(), '白名单兜底只认 button:下载/GitHub/导航是 <a>、搜索框是 <input>;LOGO 用户点名不要吸');
+ok('★★ 吸附框外扩按目标尺寸(10%,最小 3px;大目标仍 10px 封顶)',
+  /Math\.max\(3, Math\.min\(r\.width, r\.height\) \* 0\.10\)/.test(mcJs) && /var PAD = 10;/.test(mcJs),
+  '两轮都报"吸附框偏大偏左":固定 PAD=10 把矮按钮撑成大框');
+ok('★★ 每支笔带一排颜色点(5 色 × 3 支),展开时才出现', (() => {
+  return (hudTplCode.match(/hud-pen__swatch/g) || []).length === 15 &&
+    /data-hud-pen-color="marker"/.test(hudTplCode) &&
+    /\.hud-pen__colors\s*\{[^}]*display:\s*none/.test(cssCode) &&
+    /\.hud-pen\.is-on \.hud-pen__colors\s*\{[^}]*display:\s*inline-flex/.test(cssCode);
+})(), '用户:"笔应该还要加一个调节颜色的滑块,或者几个颜色的选项"');
+ok('★★ 笔色存 localStorage,预览球跟着变色',
+  /PEN_COLOR = "hud-pen-color"/.test(hudJs) && /setPenColor/.test(hudJs) &&
+  /background:\s*var\(--pen-color/.test(cssCode));
+ok('★★ 展开时名字收成图标:底带 23% 宽要装下"三支笔 + 大小 + 颜色"',
+  /\.hud-pen\.is-on \.hud-pen__name\s*\{\s*display:\s*none/.test(cssCode) &&
+  /\.hud-pen__btn\s*\{[^}]*font-size:\s*11px/.test(cssCode),
+  '用户:"这三个按钮的字号大一点点" + 新加颜色控件 ⇒ 只能靠收起名字腾地方');
 /* ---------- 出结果 ---------- */
 let pass = 0;
 for (const [p, n, i] of rows) { if (p) pass++; console.log('  ' + (p ? '✓' : '✗') + ' ' + n + (i ? '   [' + i + ']' : '')); }

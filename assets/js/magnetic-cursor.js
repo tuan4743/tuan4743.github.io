@@ -61,7 +61,8 @@
        而 HUD 里下载/GitHub 是 <a>、导航项是 <a>、搜索框是 <input> —— 一个都不匹配。
        明暗和三支笔之所以会吸,只是因为它们恰好是 <button>。 */
     ".hud-act", ".hud-nav__item", ".hud-search input", ".hud-search__clear",
-    ".hud-pen__btn", ".hud-pen__range", ".hud-logo",
+    /* ★ .hud-logo 不在这里:用户明确说"它只是个 LOGO,不需要吸附"。 */
+    ".hud-pen__btn", ".hud-pen__range", ".hud-pen__swatch",
     /* ★ 排除第五张盘的碎片:.frost-shard 也是 <button>,但它只有 18~37px,
        磁吸(MAGNET=0.12)会把画出来的光标整个拉到碎片中心、并且把中心点藏起来 ——
        用户看到的是"光标和实际化霜的位置对不上"(真实指针在化霜,画出来的光标跑了)。
@@ -175,7 +176,10 @@
       /* ★★ 外扩按目标尺寸走(用户第五轮:"下面的三个笔,吸附的框和实际的框偏移比较大")。
          原来是固定 PAD=10 ⇒ 一个高 30px 的按钮被撑成 50px 的框,看着就是"框和按钮不重合"。
          现在小目标按 22% 外扩(最小 4px),大目标照样 10px 封顶。 */
-      var pad = Math.min(PAD, Math.max(4, Math.min(r.width, r.height) * 0.22));
+      /* ★ 再收一档:用户第七轮又说"吸附框还是有偏差,基本都是有点偏大+偏左"。
+         22% 对 64px 的方按钮仍是 14px(被 PAD 封到 10)⇒ 框比按钮大 20px。
+         现在小目标按 10% 走(64px ⇒ 6.4px),最小 3px —— 框基本贴着按钮。 */
+      var pad = Math.min(PAD, Math.max(3, Math.min(r.width, r.height) * 0.10));
       tw = r.width + pad * 2;
       th = r.height + Math.min(PAD, Math.max(4, Math.min(r.width, r.height) * 0.22)) * 2;
     }

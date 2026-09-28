@@ -251,6 +251,41 @@
         input.addEventListener("click", function (e) { e.stopPropagation(); });
     });
 
+    /* ---- 笔色(用户第七轮:"笔应该还要加一个调节颜色的滑块,或者几个颜色的选项")----
+       选了"几个颜色的选项":五颗圆点。颜色和大小一样存 localStorage,
+       而且写进那支笔的 --pen-color —— 预览球跟着变色,不然就是个"点了没反应"的控件。 */
+    var PEN_COLOR = "hud-pen-color";
+    var penColors = {};
+    try { penColors = JSON.parse(store.get(PEN_COLOR) || "{}") || {}; } catch (e) { penColors = {}; }
+
+    function paintPenColor(name, color) {
+        var el = document.querySelector('[data-hud-pen="' + name + '"]');
+        if (!el) return;
+        el.style.setProperty("--pen-color", color);
+        var dots = el.querySelectorAll(".hud-pen__swatch");
+        for (var i = 0; i < dots.length; i++) {
+            dots[i].classList.toggle("is-on", dots[i].getAttribute("data-pen-c") === color);
+        }
+    }
+
+    function setPenColor(name, color) {
+        penColors[name] = color;
+        store.set(PEN_COLOR, JSON.stringify(penColors));
+        paintPenColor(name, color);
+    }
+
+    [].slice.call(document.querySelectorAll(".hud-pen__swatch")).forEach(function (dot) {
+        var name = dot.getAttribute("data-hud-pen-color");
+        var m = /--pen-c:\s*([^;"]+)/.exec(dot.getAttribute("style") || "");
+        var color = m ? m[1].trim() : "#eaf3ff";
+        dot.setAttribute("data-pen-c", color);
+        dot.addEventListener("click", function (e) {
+            e.stopPropagation();
+            setPenColor(name, color);
+        });
+        if (penColors[name] === color) paintPenColor(name, color);
+    });
+
     function activatePen(name) {
         pens.forEach(function (p) {
             var on = p.getAttribute("data-hud-pen") === name;
@@ -272,6 +307,7 @@
     });
     /* 刷新后不自动展开:工具默认是收着的(要用了才展开,免得挡住底带) */
     activatePen("");
+    Object.keys(penColors).forEach(function (n) { paintPenColor(n, penColors[n]); });
 
     /* ---------------- 微信二维码 ---------------- */
     var wxBtn = byId("hud-wechat");

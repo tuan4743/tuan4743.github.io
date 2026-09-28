@@ -69,7 +69,9 @@
     --hud-ledge: 30%;                     /* 深段右端 x */
     --hud-notch: 12%;                     /* 竖段起点 y(= 折线的 11.33 再留一点) */
     --hud-band: 94%;                      /* 底带顶边 y */
-    --hud-band-x: 35%;                    /* 底带往左伸到 x(⑨ 从 25 拓到 35:要塞下三支笔 + 展开的滑条) */
+    /* 底带往左伸到 x(⑨)。用户第七轮:"底部的边框正好多了一点" ⇒ 35 → 30。
+       ★ 这是【一个数管三处】:折线 ⑨、三支笔那一行的宽度、以及笔展开时给控件留的余地。 */
+    --hud-band-x: 30%;
     --hud-ink-dim: rgba(234, 243, 255, 0.62);
 
     /* ═══════ 2b. LOGO 的接口(用户:"这条给我一个接口,改字体大小和位置")═══════
@@ -80,9 +82,9 @@
          --hud-logo-y     文字上边缘距页面顶部的百分比
        ★ 上限的由来:能用的横向空间是 x 28(搜索框左缘)到 x 43(那条 60° 斜线),
          也就是 15% 页宽 —— 1920 下约 288px,"Tuagfey Blog" 在 38px 字号下约 250px。 */
-    --hud-logo-size: clamp(20px, 2.1vw, 40px);
-    --hud-logo-x: 60%;
-    --hud-logo-y: 1.1%;
+    --hud-logo-size: clamp(20px, 2.0vw, 40px);
+    --hud-logo-x: 56.8%;
+    --hud-logo-y: 2.4%;
     --hud-line-soft: rgba(234, 243, 255, 0.22);
     --hud-line-on: rgba(234, 243, 255, 0.6);
 
@@ -188,13 +190,13 @@
     position: absolute;
     left: var(--hud-logo-x);
     top: var(--hud-logo-y);
-    pointer-events: auto;
+    pointer-events: none;      /* ★ 纯装饰:不吃鼠标,也不参与磁吸 */
     font-size: var(--hud-logo-size);
     letter-spacing: 0.08em;
     line-height: 1.05;
     color: #f4f8ff;
-    text-decoration: none;
     white-space: nowrap;
+    user-select: none;
     text-shadow: 0 0 24px rgba(160, 235, 255, 0.3);
 }
 
@@ -611,11 +613,18 @@
     background: rgba(234, 243, 255, 0.04);
     color: var(--hud-ink-dim);
     font-family: var(--hud-font);
-    font-size: 10px;
-    letter-spacing: 0.1em;
+    font-size: 11px;                      /* ★ 用户:"这三个按钮的字号大一点点" */
+    letter-spacing: 0.08em;
     white-space: nowrap;
     cursor: pointer;
     transition: color 0.16s ease, background-color 0.16s ease, border-color 0.16s ease;
+}
+
+/* ★★ 展开时把名字收起来(只留图标):底带只有 x 7~30 那 23% 宽,
+   要同时装下"三支笔 + 大小滑条 + 一排颜色点",名字是唯一能让出来的地方。
+   鼠标悬停还有 title 提示,不至于不知道是哪支。 */
+.hud-pen.is-on .hud-pen__name {
+    display: none;
 }
 
 .hud-pen__btn:hover {
@@ -647,8 +656,42 @@
 }
 
 .hud-pen.is-on .hud-pen__size {
-    width: clamp(80px, 5.5vw, 120px);      /* ★ 收窄:底带只有 x 7~35 那 28% */
+    width: clamp(74px, 4.6vw, 96px);       /* ★ 收窄:底带只有 x 7~30 那 23% */
     opacity: 1;
+}
+
+/* ═══════ 笔的颜色(用户:"笔应该还要加一个调节颜色的滑块,或者几个颜色的选项")═══════
+   选了"几个颜色的选项":五颗小圆点,展开时才出现。滑块 + 圆点都在同一段里,
+   所以它们是跟着那支笔一起展开/收起的。 */
+.hud-pen__colors {
+    display: none;
+    align-items: center;
+    gap: 4px;
+}
+
+.hud-pen.is-on .hud-pen__colors {
+    display: inline-flex;
+}
+
+.hud-pen__swatch {
+    width: 13px;
+    height: 13px;
+    padding: 0;
+    border: 1px solid rgba(234, 243, 255, 0.35);
+    border-radius: 50%;
+    background: var(--pen-c, #eaf3ff);
+    cursor: pointer;
+    transition: transform 0.14s ease, border-color 0.14s ease;
+}
+
+.hud-pen__swatch:hover {
+    transform: scale(1.18);
+    border-color: rgba(234, 243, 255, 0.85);
+}
+
+.hud-pen__swatch.is-on {
+    border-color: #ffffff;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--pen-c) 60%, transparent);
 }
 
 .hud-pen__dot {
@@ -668,8 +711,8 @@
     width: calc(2px + var(--pen-size, 8) * 0.7px);
     height: calc(2px + var(--pen-size, 8) * 0.7px);
     border-radius: 50%;
-    background: var(--hud-ink);
-    opacity: 0.85;
+    background: var(--pen-color, var(--hud-ink));   /* ★ 预览球用当前笔色 */
+    opacity: 0.9;
 }
 
 .hud-pen__range {
