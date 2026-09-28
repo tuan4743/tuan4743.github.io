@@ -82,29 +82,43 @@ ok('extend_footer 挂了 hud-toc.js', /hud-toc\.js/.test(rd(`${BH}/layouts/parti
 ok('产物里两个资源都带上指纹', /hud-toc\.[0-9a-f]{20,}\.css/.test(post) && /hud-toc\.[0-9a-f]{20,}\.js/.test(post));
 
 /* ============================================================
-   ② 样式:位置必须钉在"内容页和侧边栏的中间"
+   ② 样式:位置规则(具体数值由 JS 量出来 → 见 ③g)
    ============================================================ */
-const num = (v) => parseFloat(String(v).replace('%', ''));
-const barX = num((css.match(/--hud-toc-bar-x:\s*([\d.]+%)/) || [, '0'])[1]);
-const tocX = num((css.match(/--hud-toc-x:\s*([\d.]+%)/) || [, '0'])[1]);
-/* 正文:--main-width 720px 居中 ⇒ x 31.3~68.7(1920 下);竖栏 x 89~95 */
-ok('★ 进度条落在正文右缘之外(x > 69)', barX > 69 && barX < 78, `bar-x=${barX}%`);
-ok('★ 目录面板在进度条右边', tocX > barX, `toc-x=${tocX}% > bar-x=${barX}%`);
-ok('目录面板左缘不出正文右缘', tocX >= 69, `${tocX}%`);
-ok('面板宽度封顶,不会顶进竖栏(150~220px,竖栏在 89%)',
-  /--hud-toc-panel-w:\s*clamp\(150px,\s*11\.5vw,\s*220px\)/.test(css));
-ok('窄屏整块收掉(≤1400px)', /@media \(max-width: 1400px\)[\s\S]{0,80}\.hud-toc\s*\{\s*display:\s*none/.test(css));
+/* ★★★ 用户第二轮:"这个位置明显就不对啊,遮住了内容页" —— 原因就是位置写成了
+   视口百分比,而正文是 720px 居中、右缘百分比随窗口宽度变(1920 ⇒ 68.7%,
+   1416 ⇒ 70.4%)。现在位置只能由 JS 量(正文右缘 + 竖栏左缘)后写成 px。 */
+ok('★ 位置变量一律是 px 口径(不掺百分比)',
+  /--hud-toc-cx:\s*70vw/.test(css) &&
+  /--hud-toc-lane:\s*calc\(70vw \+ 12px\)/.test(css) &&
+  /--hud-toc-x:\s*calc\(70vw \+ 30px\)/.test(css),
+  '百分比会和 px 在 calc 里混算错(见 CSS 注释)');
+ok('★ JS 写进去的也是 px(不是百分比)',
+  /setProperty\("--hud-toc-lane",\s*bar \+ "px"\)/.test(js) &&
+  /setProperty\("--hud-toc-x",\s*left \+ "px"\)/.test(js) &&
+  !/setProperty\("--hud-toc-x",\s*pct\(/.test(js));
+ok('面板宽度由变量驱动(可大可小)',
+  /\.hud-toc__panel\s*\{[^}]*width:\s*var\(--hud-toc-panel-w\)/.test(css));
+ok('缝太窄时整块收掉(.is-tight)',
+  /\.hud-toc\.is-tight\s*\{\s*display:\s*none/.test(css) && /MIN_W/.test(js));
 ok('整块默认不吃鼠标事件(和 HUD 一个规矩)',
   /\.hud-toc\s*\{[^}]*pointer-events:\s*none/.test(css) &&
   /\.hud-toc__box\s*\{[^}]*pointer-events:\s*auto/.test(css));
 
-/* 收起靠 max-width → 0(不是 display:none,那样没有过渡) */
-ok('★ 收起是 max-width 收到 0 + 透明(有动画)',
-  /\.hud-toc\.is-collapsed \.hud-toc__panel\s*\{[\s\S]{0,120}?max-width:\s*0/.test(css) &&
-  /max-width 0\.34s/.test(css));
-ok('收起的页签贴在面板右缘(row-reverse)',
-  /\.hud-toc__box\s*\{[\s\S]{0,300}?flex-direction:\s*row-reverse/.test(css));
-ok('收起后箭头翻转 180°', /\.hud-toc\.is-collapsed \.hud-toc__toggle svg\s*\{[\s\S]{0,80}?rotate\(180deg\)/.test(css));
+/* ★ 用户第四条:"这个右滑的收起页我其实本意是想给导航栏的" ⇒ 目录的页签停用 */
+ok('★ 目录的收起页签已停用(hidden),标记留着给导航栏复用',
+  /class="hud-toc__toggle"[^>]*\bhidden\b/.test(tpl) &&
+  /\.hud-toc__toggle\s*\{[^}]*display:\s*none/.test(css) &&
+  /\.hud-toc__toggle:not\(\[hidden\]\)/.test(css));
+ok('模块也认 hidden(停用后不再初始化 aria)',
+  /if \(toggle && !toggle\.hidden\)/.test(js));
+
+/* ★ 用户第二、三条:整体太小 ⇒ 字号放大一档 */
+ok('★ 目录字号放大(默认 ≥13px,上限 ≥20px,步进按钮 ≥20px)',
+  /--toc-fs:\s*13\.5px/.test(css) &&
+  /FS_MAX\s*=\s*22/.test(js) &&
+  /\.hud-toc__step\s*\{[^}]*width:\s*22px/.test(css));
+ok('字体大小/字距仍然可调并存 localStorage',
+  /localStorage\.setItem\(KEY/.test(js) && /localStorage\.getItem\(KEY/.test(js));
 
 /* ============================================================
    ③ 运行时:拿真模块 + 假 DOM 跑一遍
@@ -175,6 +189,10 @@ function fakeDom() {
 
   const list = mk('nav');
   const panel = mk('div'), toggle = mk('button'), prog = mk('div'), thumb = mk('span'), sizeVal = mk('span');
+  /* ★ 生产环境里这个页签是 hidden 的(用户要把"收起"给导航栏用)⇒ 模块不绑事件。
+     测试里把它标成"没隐藏",好把"收起/展开"这套逻辑本身继续钉住 ——
+     导航栏那一版会直接复用同一段代码。 */
+  toggle.hidden = false;
   const root = mk('div');
   root._q = { '.hud-toc__prog': prog, '.hud-toc__prog-thumb': thumb, '.hud-toc__list': list };
   root._qa = { '.hud-toc__item': items };
@@ -186,6 +204,11 @@ function fakeDom() {
      所以"正文从文档 y=1200 开始"在这里写成 rect.top = 1200 − pageYOffset。
      第一版我直接往 rect.top 里写文档坐标,进度就整整齐齐差了 0.5 —— 假 DOM 骗人。 */
   main._rect = { left: 600, top: 200, right: 1320, bottom: 1174 };
+
+  /* 竖栏(导航):布局靠它的左缘算"缝有多宽"。给它一个真值,
+     否则 --hud-toc-panel-w 会拿到兜底宽度,位置断言就假了。 */
+  const navEl = mk('nav');
+  navEl._rect = { left: 1470, top: 300, right: 1700, bottom: 700 };
 
   const heads = {};
   const secTopDoc = { s1: 600, s2: 1300, s3: 2000 };   /* 三个小节在文档里的位置 */
@@ -201,6 +224,9 @@ function fakeDom() {
   });
 
   const doc = {
+    /* ★ documentElement.clientWidth 是【视口宽、不含滚动条】——
+       布局计算全按它算(和真浏览器一个口径);少给一个就会直接崩。 */
+    documentElement: { clientWidth: 1700, clientHeight: 1000, classList: { add() {}, remove() {}, contains: () => false } },
     /* ★ 正文标题走 id 属性(真浏览器里就是 id="s1");目录内部的几个固定 id 直接给。 */
     getElementById: (id) => {
       if (id === 'hud-toc') return root;
@@ -209,7 +235,11 @@ function fakeDom() {
       if (id === 'hud-toc-size-val') return sizeVal;
       return secIds.indexOf(id) >= 0 ? heads[id] : null;
     },
-    querySelector: (s) => (s.indexOf('main') === 0 ? main : null),
+    querySelector: (s) => {
+      if (s.indexOf('main') === 0) return main;
+      if (s.indexOf('.hud-nav') === 0) return navEl;   /* 布局要量它的左缘 */
+      return null;
+    },
     body: main,
     addEventListener() {}
   };
@@ -374,21 +404,67 @@ function pressOn(rootEl, target) {
 {
   const env = fakeDom();
   const api = boot(env);
-  ok('默认字号 12px / 字距 0.04em',
-    env.root.style.getPropertyValue('--toc-fs') === '12px' &&
-    env.root.style.getPropertyValue('--toc-ls') === '0.04em',
+  ok('默认字号 13.5px / 字距 0.03em(用户:"字体也比较小" ⇒ 放大过)',
+    env.root.style.getPropertyValue('--toc-fs') === '13.5px' &&
+    env.root.style.getPropertyValue('--toc-ls') === '0.03em',
     env.root.style.getPropertyValue('--toc-fs') + ' / ' + env.root.style.getPropertyValue('--toc-ls'));
   pressOn(env.root, env.buttons.sizeUp); pressOn(env.root, env.buttons.sizeUp);
   pressOn(env.root, env.buttons.trackUp);
-  ok('★ 字号 +2 ⇒ 14px', env.root.style.getPropertyValue('--toc-fs') === '14px', env.root.style.getPropertyValue('--toc-fs'));
-  ok('★ 字距 +1 ⇒ 0.05em', env.root.style.getPropertyValue('--toc-ls') === '0.05em', env.root.style.getPropertyValue('--toc-ls'));
-  ok('字号写进了 localStorage', /"fs":14/.test(env.store['hud-toc-type'] || ''), env.store['hud-toc-type']);
-  for (let i = 0; i < 20; i++) pressOn(env.root, env.buttons.sizeUp);
-  ok('★ 字号有上限(不越界)', env.root.style.getPropertyValue('--toc-fs') === '17px', env.root.style.getPropertyValue('--toc-fs'));
-  for (let i = 0; i < 30; i++) pressOn(env.root, env.buttons.sizeDown);
-  ok('★ 字号有下限(不越界)', env.root.style.getPropertyValue('--toc-fs') === '11px', env.root.style.getPropertyValue('--toc-fs'));
-  for (let i = 0; i < 30; i++) pressOn(env.root, env.buttons.trackDown);
+  ok('★ 字号 +2 ⇒ 15.5px', env.root.style.getPropertyValue('--toc-fs') === '15.5px', env.root.style.getPropertyValue('--toc-fs'));
+  ok('★ 字距 +1 ⇒ 0.04em', env.root.style.getPropertyValue('--toc-ls') === '0.04em', env.root.style.getPropertyValue('--toc-ls'));
+  ok('字号写进了 localStorage', /"fs":15\.5/.test(env.store['hud-toc-type'] || ''), env.store['hud-toc-type']);
+  for (let i = 0; i < 30; i++) pressOn(env.root, env.buttons.sizeUp);
+  ok('★ 字号有上限 22px(不越界)', env.root.style.getPropertyValue('--toc-fs') === '22px', env.root.style.getPropertyValue('--toc-fs'));
+  for (let i = 0; i < 40; i++) pressOn(env.root, env.buttons.sizeDown);
+  ok('★ 字号有下限 12px(不越界)', env.root.style.getPropertyValue('--toc-fs') === '12px', env.root.style.getPropertyValue('--toc-fs'));
+  for (let i = 0; i < 40; i++) pressOn(env.root, env.buttons.trackDown);
   ok('★ 字距下限是 0em(不会变负)', env.root.style.getPropertyValue('--toc-ls') === '0.00em', env.root.style.getPropertyValue('--toc-ls'));
+}
+
+/* ---- ③g 位置:量出来的三个数必须"面板永远不压导航"(用户第一个问题) ----
+   ★ 这一组是【不依赖浏览器】的那道保险:真浏览器里我用 CDP 扫了 9 档宽度
+     (2560/1920/1700/1600/1500/1416/1366/1280/1180)确认零重叠,
+     但那要靠手动跑;这里把同一条不变量钉进测试,以后改坏了立刻红。 */
+{
+  const env = fakeDom();
+  const api = boot(env);
+  const lay = () => api.layout();
+
+  /* 默认夹具:正文右缘 1320、竖栏左缘 1470 ⇒ 缝 = 1470-6-(1320+30) = 114px < 168 ⇒ 收掉 */
+  ok('★ 缝太窄时整块收掉(is-tight)', api.tight() === true, JSON.stringify(lay()));
+
+  /* 缝够宽的情况:竖栏挪到 1600 ⇒ 缝 244px */
+  env.doc.querySelector = (s) => (s.indexOf('.hud-nav') === 0 ? { getBoundingClientRect: () => ({ left: 1600, right: 1700, top: 0, bottom: 0 }) } : env.main);
+  api.relayout();
+  ok('★ 缝够宽就显示出来', api.tight() === false, JSON.stringify(lay()));
+  ok('★ 进度条 = 正文右缘 + 12', env.root.style.getPropertyValue('--hud-toc-lane') === '1332px',
+    env.root.style.getPropertyValue('--hud-toc-lane'));
+  ok('★ 面板左缘 = 进度条 + 18', env.root.style.getPropertyValue('--hud-toc-x') === '1350px',
+    env.root.style.getPropertyValue('--hud-toc-x'));
+  ok('★ 面板宽 = 一直撑到竖栏左边留 6px', env.root.style.getPropertyValue('--hud-toc-panel-w') === '244px',
+    env.root.style.getPropertyValue('--hud-toc-panel-w'));
+  ok('★ 面板右缘 ≤ 竖栏左缘(绝不压导航)',
+    parseFloat(env.root.style.getPropertyValue('--hud-toc-x')) + parseFloat(env.root.style.getPropertyValue('--hud-toc-panel-w')) <= 1600);
+
+  /* ★★ 回归:同一个视口宽下,正文/竖栏的位置后来变了,必须重算 ——
+     以前的守卫是"视口没变就跳过",于是旧的宽度一直留着,
+     实测就让面板压住导航 7px。 */
+  env.doc.querySelector = (s) => (s.indexOf('.hud-nav') === 0 ? { getBoundingClientRect: () => ({ left: 1520, right: 1700, top: 0, bottom: 0 }) } : env.main);
+  api.relayout();
+  ok('★ 竖栏左移后重新量(不会被"视口没变"挡住)',
+    env.root.style.getPropertyValue('--hud-toc-panel-w') === '164px',
+    env.root.style.getPropertyValue('--hud-toc-panel-w'));
+  /* 164 < MIN_W(168) ⇒ 应该收掉 */
+  ok('★ 重算后缝不够就收掉', api.tight() === true, JSON.stringify(lay()));
+
+  /* 正文右缘也变了(字体加载完变宽) */
+  env.main._rect = { left: 600, top: 200, right: 1280, bottom: 1174 };
+  env.doc.querySelector = (s) => (s.indexOf('.hud-nav') === 0 ? { getBoundingClientRect: () => ({ left: 1600, right: 1700, top: 0, bottom: 0 }) } : env.main);
+  api.relayout();
+  ok('★ 正文右缘变了也跟着重算', api.tight() === false &&
+    env.root.style.getPropertyValue('--hud-toc-lane') === '1292px' &&
+    env.root.style.getPropertyValue('--hud-toc-panel-w') === '284px',
+    env.root.style.getPropertyValue('--hud-toc-lane') + ' / ' + env.root.style.getPropertyValue('--hud-toc-panel-w'));
 }
 
 /* ---- ③e 读回上次存的字号 ---- */

@@ -30,10 +30,69 @@
      标题带、页脚、上下篇导航都不该算进"这篇文章读了多少"。 */
   var main = document.querySelector("main.main") || document.querySelector("main") || document.body;
 
+  /* ============================================================
+     ① 位置:量出来,不要猜
+     ─────────────────────────────────────────────────────────────
+     用户第二轮:"这个位置明显就不对啊,遮住了内容页"。
+     真原因:正文是 --main-width(720px)【居中】的,它的右缘在视口里的
+     百分比随窗口宽度变(1920 宽 ⇒ 68.7%,1416 宽 ⇒ 70.4%),而竖栏永远在
+     右边 5vw —— 中间那条缝不但窄,还在移动。我第一版把面板左缘写死 73%,
+     窗口一窄就压到正文上去了。
+     ⇒ 读三个真实数值:正文右缘、竖栏左缘、视口宽,然后:
+          进度条   = 正文右缘 + 12px
+          面板左缘 = 进度条 + 18px
+          面板宽   = 一直撑到竖栏左边(留 6px)
+        缝太窄(<168px)就整块不显示 —— 宁可没有,也不能压住正文。
+     ============================================================ */
+  var GAP_BAR = 12;      /* 进度条离正文右缘 */
+  var GAP_PANEL = 18;    /* 面板离进度条 */
+  var GAP_NAV = 6;       /* 面板离竖栏 */
+  var MIN_W = 168;       /* 比这窄就别显示了 */
+  var MAX_W = 400;       /* 太宽也难看(宽屏上缝会很大) */
+  var lastSig = "";     /* 上一次真正写下去的几何签名 */
+  var last = null;      /* 量到的中间值,排障出口用 */
+
+  function layout() {
+    var vw = document.documentElement.clientWidth;
+    var mr = main.getBoundingClientRect().right;
+    var nav = document.querySelector(".hud-nav");
+    var navLeft = nav ? nav.getBoundingClientRect().left : vw * 0.94;
+    var bar = mr + GAP_BAR;
+    var left = bar + GAP_PANEL;
+    var gap = Math.round(navLeft - GAP_NAV - left);    /* 这条缝真正能用的宽 */
+    var w = Math.min(MAX_W, gap);
+    last = { vw: vw, mr: Math.round(mr), navLeft: Math.round(navLeft), left: Math.round(left), gap: gap, w: w };
+
+    /* ★★ 守卫【不能】只看"宽度有没有变":同一个宽度下几何可能已经变了
+       (1700 宽时 345px 可以对应 left=1264 也可以对应 left=1277,
+        后者就会把面板右缘压到导航上)—— 所以按【三个数的签名】比。
+       也【不能】写成"视口没变就整个跳过":视口没变、正文右缘和竖栏左缘变了
+       (字体/图标加载完)同样要重算,否则旧值一直留着。 */
+    root.classList.toggle("is-tight", !(w >= MIN_W));
+    var sig = [Math.round(vw), Math.round(mr), Math.round(navLeft)].join("|");
+    if (sig !== lastSig) {
+      /* ★ 单位只用 px,不掺百分比:left: calc(73.294% - 74.353% + 18px)
+         我以为是 18px − 18px = 0,浏览器算出来是 +13.375px
+         (百分比和像素在 calc 里不通用)。三个 x 全部用相对视口的 px 写死。
+         ★ 即使缝太窄(面板已经隐藏)也照样写:留着一组过期数字,
+           排查的时候会看到"CSS 说 244px、实际是别的",白费一轮。 */
+      root.style.setProperty("--hud-toc-cx", mr + "px");
+      root.style.setProperty("--hud-toc-lane", bar + "px");
+      root.style.setProperty("--hud-toc-x", left + "px");
+      root.style.setProperty("--hud-toc-panel-w", w + "px");
+      lastSig = sig;
+    }
+  }
+  layout();
+  /* ★ 再量两次:第一次跑在字体/图标就位之前,数值不是最终的 ——
+     宽度一旦写错就会一直留着,所以必须重算。 */
+  requestAnimationFrame(function () { layout(); });
+  setTimeout(function () { layout(); }, 300);
+
   /* ---------- ④ 字号 / 字距(存 localStorage)---------- */
-  var FS_MIN = 11, FS_MAX = 17, LS_MIN = 0, LS_MAX = 12;   /* 字距存 0~12,用的时候 /100 当 em */
+  var FS_MIN = 12, FS_MAX = 22, LS_MIN = 0, LS_MAX = 16;   /* 字距存 0~16,用时 /100 当 em */
   var KEY = "hud-toc-type";
-  var fs = 12, ls = 4;
+  var fs = 13.5, ls = 3;
   try {
     var saved = JSON.parse(localStorage.getItem(KEY) || "null");
     if (saved && typeof saved.fs === "number" && typeof saved.ls === "number") {
@@ -62,7 +121,10 @@
     applyType();
   });
 
-  /* ---------- ③ 收起 / 展开 ---------- */
+  /* ---------- ③ 收起 / 展开(暂留给导航栏,见下)----------
+     ★★★ 用户第二轮第四条:"这个右滑的收起页我其实本意是想给导航栏的,
+     收起导航栏可以让用户更专注。" ⇒ 目录这块的页签先停用(hud-toc.html 里
+     给它加了 hidden),但代码留着 —— 导航栏那版直接复用这一套。 */
   function setOpen(on) {
     root.classList.toggle("is-collapsed", !on);
     if (toggle) {
@@ -70,13 +132,11 @@
       toggle.title = on ? "收起目录" : "展开目录";
     }
   }
-  if (toggle) {
+  if (toggle && !toggle.hidden) {
     toggle.addEventListener("click", function () {
       setOpen(root.classList.contains("is-collapsed"));
     });
-    /* ★ 真 bug(测试逮到的):以前只在【点击之后】才写 aria-expanded / title,
-       刚打开页面时这两个都是空的 —— 屏幕阅读器读不出这块能收起来,
-       鼠标悬停也没有提示。进页面就先按"当前是展开的"写一次。 */
+    /* 进页面就先按"当前是展开的"写一次 aria-expanded / title */
     setOpen(!root.classList.contains("is-collapsed"));
   }
 
@@ -124,8 +184,24 @@
     if (!raf) raf = requestAnimationFrame(paint);
   }
 
+  function onResize() {
+    layout();
+    onScroll();
+  }
+
   window.addEventListener("scroll", onScroll, { passive: true });
-  window.addEventListener("resize", onScroll);
+  window.addEventListener("resize", onResize);
+  /* 正文/导航的宽度会因为字体加载、图片撑开、窗口缩放而变 ⇒ 都要重量一次。
+     ★ 必须有这一条:启动时 layout() 是在字体和图标还没就位的时候跑的,
+       那时量出来的缝不是最终的(实测 1700 宽下按旧值排版,面板右缘压住导航 7px)。 */
+  if (window.ResizeObserver) {
+    try {
+      var ro = new ResizeObserver(function () { layout(); });
+      if (main) ro.observe(main);
+      var navEl = document.querySelector(".hud-nav");
+      if (navEl) ro.observe(navEl);
+    } catch (e) {}
+  }
 
   /* 点条目:平滑滚过去(尊重用户的"减少动效")*/
   var reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -146,6 +222,14 @@
     items: items.length, p: function () { return measure(); },
     fs: function () { return fs; }, ls: function () { return ls; },
     collapsed: function () { return root.classList.contains("is-collapsed"); },
+    tight: function () { return root.classList.contains("is-tight"); },
+    layout: function () { return last; },
+    relayout: function () { layout(); return last; },
+    /* 位置是量出来的,所以要能一眼看到量了啥(验收用) */
+    box: function () {
+      var r = root.getBoundingClientRect();
+      return { left: Math.round(r.left), width: Math.round(r.width), vw: document.documentElement.clientWidth };
+    },
     active: function () { return activeId; }
   };
 })();

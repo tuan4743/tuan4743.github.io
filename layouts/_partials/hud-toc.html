@@ -39,13 +39,12 @@
         <span class="hud-toc__prog-thumb"></span>
     </div>
 
-    {{/* ★ 面板和"收起"页签装在同一个盒子里的原因:
-        flex + row-reverse ⇒ 页签永远贴在【面板右缘】。
-        收起来时面板的 max-width 收到 0,页签就跟着滑到最左(= 原面板右缘的位置),
-        正好是手绘图上「收起 >」站的那一格。 */}}
+    {{/* ★★★ 用户第二轮第四条:"这个右滑的收起页我其实本意是想给导航栏的,
+       收起导航栏可以让用户更专注。" ⇒ 这一页签【先停用】(hidden),
+       目录不再需要它。标记和样式都留着,等做导航栏收起时直接搬过去。 */}}
     <div class="hud-toc__box">
         <button class="hud-toc__toggle" type="button" id="hud-toc-toggle" aria-expanded="true" aria-controls="hud-toc"
-            title="收起目录">
+            title="收起目录" hidden>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                 stroke-linejoin="round" aria-hidden="true">
                 <polyline points="9 6 15 12 9 18"></polyline>
