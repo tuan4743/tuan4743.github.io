@@ -279,6 +279,11 @@ ok('★★★ 威胁之后【真的关】:黑幕 + reload,而且黑幕要盖住�
 ok('★★ 关完要给个交代:回来接一句、计数归零(不然回来它装没事人)',
   /echo-blackout/.test(echoJs) && /那玩意儿重启要三十秒/.test(echoJs) &&
   /set\("echo-poke:" \+ location\.pathname, "0"\)/.test(echoJs));
+/* ★★ 用户第九轮:新页面里浏览器不许自动出声(要一次点击),所以进站那句要换成
+   "歌停在 m:ss,点一下就行" —— 比让它静悄悄躺着强。 */
+ok('★★ 歌还停着的时候,进站那句换成「歌停在 m:ss,点一下就行」',
+  /歌停在/.test(echoJs) && /点一下就行/.test(echoJs) &&
+  /__hudLeft\.music/.test(echoJs) && /m\.wantResume && m\.paused/.test(echoJs));
 
 /* ---------- ⑥ 背景必须是"钉在视口的最底层" ----------
    用户报过一次:"你直接把它固定在了滑动界面内,不仅挡住了主页面,

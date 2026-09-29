@@ -65,6 +65,98 @@
   audioEl.style.display = "none";
   root.appendChild(audioEl);
 
+  /* ---------- 播放状态:跨页面【接着放】(用户第九轮)----------
+     用户:"音乐播放器在刷新网页或者进入新文章时也会刷新,歌曲就断了。能修吗?"
+
+     ★★ 先把能修到哪一步说清楚:网页一导航,当前文档就被销毁,<audio> 跟着没 ——
+        浏览器层面【没有"跨页面继续播"这回事】。要真正一秒不断,得把整站改成
+        前端路由(只换 <main>,把 HUD/目录/笔/边框那一整套改成可重入的),
+        那是另一次大改;而刷新(F5)连那个也救不了。
+        所以这里做的是【接着放】:把 歌 + 秒数 + 在不在播 存下来,新页面一加载
+        就从"按真实时间该到的那一秒"续上,而不是从头开始。
+     ★ 顺手修掉一个真 bug:musicPick 原来是 var musicPick = 0 —— 每加载一次归零,
+        于是选中的歌每翻一页就跳回第一首。现在跟着一起存。
+     ★ 存 sessionStorage(按标签页):localStorage 会让"昨天听了一半的歌"
+        在明天打开首页时自己响起来 —— 那不叫续播,那叫吓人。 */
+  var PST = "hud-music-state";
+  var pendingSeek = 0;
+  var lastSave = 0;
+  var wantResume = false;
+
+  function saveState(force) {
+    var s = musicData.songs[musicPick];
+    if (!s || !audioEl.getAttribute("src")) return;
+    var now = Date.now();
+    if (!force && now - lastSave < 900) return;      /* timeupdate 很密,节流一下 */
+    lastSave = now;
+    try {
+      sessionStorage.setItem(PST, JSON.stringify({
+        id: String(s.id),
+        t: audioEl.currentTime || 0,
+        playing: !audioEl.paused && !audioEl.ended,
+        at: now
+      }));
+    } catch (e) { }
+  }
+
+  var retryArmed = false;
+  function tryPlay() {
+    var p = audioEl.play();
+    if (p && p.catch) p.catch(function () {
+      /* ★ 自动播放被挡(浏览器要"用户与本文档交互过"):留到第一次交互再试一次。
+         位置已经摆好了,所以那一按是"接着放",不是"从头放"。
+         ★★ 实测:哪怕用户【上一页】点过播放,新文档照样被拒(NotAllowedError),
+            所以这条几乎每次导航都会走到 —— 它是主路径,不是兜底。 */
+      if (!wantResume || retryArmed) return;
+      retryArmed = true;
+      var once = function () {
+        document.removeEventListener("pointerdown", once, true);
+        document.removeEventListener("keydown", once, true);
+        retryArmed = false;
+        if (!wantResume || !audioEl.paused) return;
+        tryPlay();
+      };
+      document.addEventListener("pointerdown", once, true);
+      document.addEventListener("keydown", once, true);
+    });
+  }
+
+  function restoreState() {
+    if (!musicData.songs.length) return;
+    var st = null;
+    try { st = JSON.parse(sessionStorage.getItem(PST) || "null"); } catch (e) { }
+    if (!st || !st.id) return;
+    var i = -1;
+    for (var k = 0; k < musicData.songs.length; k++) {
+      if (String(musicData.songs[k].id) === String(st.id)) i = k;
+    }
+    if (i < 0) return;
+    musicPick = i;                                   /* 选中的歌也回来了 */
+    var s = musicData.songs[i];
+    if (!s.direct) return;                           /* 没直链的走嵌入式播放器,续不了 */
+    if (!st.playing) {                               /* 上次是暂停的:只把选择恢复 */
+      audioEl.dataset.song = String(s.id);
+      return;
+    }
+    audioEl.preload = "auto";                        /* 要接着放就别再"按需加载"了 */
+    audioEl.dataset.song = String(s.id);
+    audioEl.src = "//music.163.com/song/media/outer/url?id=" + s.id + ".mp3";
+    /* 按真实时间往前推:页面加载花掉的那一两秒也算进去,别把歌倒回去。
+       封顶 2.5 秒 —— 万一这次加载特别慢,宁可少跳一点也不要把人吓一跳。 */
+    pendingSeek = (st.t || 0) + Math.min(2.5, Math.max(0, (Date.now() - (st.at || Date.now())) / 1000));
+    wantResume = true;
+    try { audioEl.load(); } catch (e) { }
+    /* 保底:有些情况下 loadedmetadata 来得慢。★ 判据里必须有 !pendingSeek ——
+       seek 已经生效时 pendingSeek 已被清成 0,这里再写一次会把歌打回开头
+       (实测:12.39 秒被这个定时器打回 0)。 */
+    setTimeout(function () {
+      if (!wantResume || !audioEl.paused || !pendingSeek) return;
+      try { audioEl.currentTime = pendingSeek; } catch (e) { }
+      pendingSeek = 0;
+      tryPlay();
+    }, 2500);
+  }
+
   /* ---------- ① 几何:一条公共的横线 + 纵向展开 ----------
      ★★★ 用户第二轮第 1 条:"我想做成那种纵向展开的,就是原本都是在一个位置的横线,
           然后纵向展开,关闭就收拢,现在看着各个面版的位置都不一样。"
@@ -455,6 +547,25 @@
   }
   bindAudioOnce();
 
+  /* ---------- 把"接着放"接起来 ----------
+     · loadedmetadata 才设 currentTime(设早了会被忽略),设完再开播;
+     · play/pause/ended 强制存一次(这三个是"状态变了",不能等节流);
+     · timeupdate 走节流(它每秒好几次);
+     · pagehide 是导航/刷新前最后能抓到的时机 —— 用它把当前秒数钉住。 */
+  audioEl.addEventListener("loadedmetadata", function () {
+    if (pendingSeek) {
+      try { audioEl.currentTime = pendingSeek; } catch (e) { }
+      pendingSeek = 0;
+    }
+    if (wantResume) tryPlay();
+  });
+  audioEl.addEventListener("play", function () { wantResume = false; saveState(true); });
+  audioEl.addEventListener("pause", function () { saveState(true); });
+  audioEl.addEventListener("ended", function () { saveState(true); });
+  audioEl.addEventListener("timeupdate", function () { saveState(false); });
+  window.addEventListener("pagehide", function () { saveState(true); });
+  restoreState();
+
   function musicFrame(src, h) {
     /* ★ 不带 referrerpolicy:网易云的嵌入式播放器是认 referer 的,
        把 referer 抹掉反而可能被它拒(标准嵌入代码里也没有这一条)。 */
@@ -611,6 +722,17 @@
     relayout: function () { layout(); return last; },
     hex: hexPoints,
     openKey: open,
-    close: close
+    close: close,
+    /* 音乐:面板里选的是第几首、播到哪、存了什么(验收"接着放"用) */
+    music: function () {
+      var s = musicData.songs[musicPick] || {};
+      var raw = null;
+      try { raw = JSON.parse(sessionStorage.getItem(PST) || "null"); } catch (e) { }
+      return {
+        pick: musicPick, id: s.id ? String(s.id) : null, direct: !!s.direct,
+        t: audioEl.currentTime || 0, paused: audioEl.paused,
+        wantResume: wantResume, saved: raw
+      };
+    }
   };
 })();

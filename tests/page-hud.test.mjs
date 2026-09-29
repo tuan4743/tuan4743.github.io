@@ -571,6 +571,38 @@ ok('★★★ 没直链的那首自动退回嵌入式播放器,并写明"音量�
   /音量用它自己的/.test(leftJs) &&
   !/referrerpolicy/.test(leftJs),
   '网易云的 iframe 是跨域的:没有 API 能改它的音量 —— 这一点只能说实话');
+
+/* ---------- 跨页面"接着放"(用户第九轮)----------
+   用户:"音乐播放器在刷新网页或者进入新文章时也会刷新,歌曲就断了。能修吗?"
+   ★★ 先把边界钉在注释里:网页一导航,文档就销毁,<audio> 跟着没 ——
+      浏览器层面没有"跨页面继续播";而且实测【哪怕上一页点过播放】,新文档里
+      play() 照样被拒(NotAllowedError,需要"与本文档交互过")。
+      所以做的是"接着放":歌 + 秒数 + 在不在播 存 sessionStorage,
+      新页面从该到的那一秒续上,任意一次点击就接着放。 */
+ok('★★★ 播放状态跨页面存下来(sessionStorage,不是 localStorage)',
+  /hud-music-state/.test(leftJs) && /sessionStorage\.setItem\(PST/.test(leftJs) &&
+  /sessionStorage\.getItem\(PST/.test(leftJs) && !/localStorage\.setItem\(PST/.test(leftJs),
+  'localStorage 会让"昨天听了一半的歌"明天打开首页自己响起来 —— 那不是续播,是吓人');
+ok('★★★ 顺手修掉的那个真 bug:选中的歌不再每页跳回第一首',
+  /musicPick = i;/.test(leftJs) && /var musicPick = 0;/.test(leftJs),
+  'musicPick 原来是每次加载都归零 —— 翻一页就回到第一首');
+ok('★★★ 续播要按【真实时间】往前推,而且封顶 2.5 秒',
+  /pendingSeek = \(st\.t \|\| 0\) \+ Math\.min\(2\.5/.test(leftJs),
+  '加载花掉的一两秒算进去;万一很慢,宁可少跳一点也不要把人吓一跳');
+ok('★★★ 保底定时器的判据里必须有 !pendingSeek(不然会把歌打回开头)',
+  /if \(!wantResume \|\| !audioEl\.paused \|\| !pendingSeek\) return;/.test(leftJs),
+  '实测踩过:seek 已生效时再写一次 currentTime,12.39 秒被打回 0');
+ok('★★★ 自动播放被挡是【主路径】不是兜底:等第一次交互接着放',
+  /if \(!wantResume \|\| retryArmed\) return;/.test(leftJs) &&
+  /document\.addEventListener\("pointerdown", once, true\)/.test(leftJs) &&
+  /document\.addEventListener\("keydown", once, true\)/.test(leftJs) &&
+  /retryArmed = false;/.test(leftJs),
+  '实测:哪怕上一页点过播放,新文档里 play() 仍被拒 ⇒ 这条几乎每次导航都会走到');
+ok('★★★ 存/续的时机都接上了(pagehide 抓最后一秒)',
+  /addEventListener\("loadedmetadata"/.test(leftJs) &&
+  /addEventListener\("pagehide"/.test(leftJs) &&
+  /addEventListener\("timeupdate", function \(\) \{ saveState\(false\)/.test(leftJs) &&
+  /addEventListener\("play", function \(\) \{ wantResume = false; saveState\(true\)/.test(leftJs));
 ok('★★★ 播放器是【常驻】的 ⇒ 切别的模块、收起面板,歌都不断',
   /var audioEl = document\.createElement\("audio"\)/.test(leftJs) &&
   /root\.appendChild\(audioEl\)/.test(leftJs) &&

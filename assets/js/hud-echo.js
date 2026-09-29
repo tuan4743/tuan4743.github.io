@@ -196,13 +196,20 @@
   }
 
   /* 触发一:进站。晚一点再说 —— 页面刚出来时别跟别的东西抢注意力。
-     ★ 如果刚被它关过一次(上一轮强制重载留下的记号),就接一句 ——
-       不然用户会觉得"黑屏完回来,它装没事人"。这一句走 show,绕过所有闸门。 */
+     ★ 两种情况要说【别的】,不能说"回来了":
+       · 刚被它关过一次(上一轮强制重载留下的记号)—— 不然用户觉得它装没事人;
+       · 歌还停在上次那一秒(浏览器不许新页面自动出声,得等一次点击)——
+         这句话顺便把"怎么让它接着放"说清楚了,比让它静悄悄躺着强。 */
   setTimeout(function () {
     var boAt = Number(get("echo-blackout", "0"));
     if (boAt && Date.now() - boAt < 25000) {
       set("echo-blackout", "0");
       return void show("……回来了。那玩意儿重启要三十秒。");
+    }
+    var m = window.__hudLeft && window.__hudLeft.music ? window.__hudLeft.music() : null;
+    if (m && m.wantResume && m.paused && m.t > 1) {
+      var s = Math.floor(m.t), mm = Math.floor(s / 60), ss = s % 60;
+      return void show("……歌停在 " + mm + ":" + (ss < 10 ? "0" : "") + ss + "。想接着听,点一下就行。");
     }
     say("arrive");
   }, 1900);
