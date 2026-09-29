@@ -44,7 +44,10 @@
 
     position: fixed;
     left: min(76px, max(20px, calc(3.6vw - 20px)));
-    top: 50%;
+    /* ★ 第二十一轮:左下角 UHD 上线之后,胶囊不能再待在【竖直正中】——
+       那正好压在左缘第一枚模块按钮(番茄钟,占 y 50.8~63.3)上。
+       提到带子上端收口(y=42)之上,离它最近的那枚按钮还有一段距离。 */
+    top: 34%;
     width: var(--hud-timer-w);
     height: var(--hud-timer-h);
     transform: translateY(-50%);

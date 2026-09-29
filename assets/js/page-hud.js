@@ -69,75 +69,103 @@
     }
 
     /* ------------------------------------------------------------
-       左下角 UHD:左边一条带凸起的竖线 + 下边一条带凸起的横线
+       左下角 UHD:一个 L 面板(左支 + 下支),四个凸起的梯形按钮 + 左下角三角形按钮
        ------------------------------------------------------------
-       用户逐轮澄清(四轮才说全):
-         · "从左侧开始到下侧结束"
-         · "左上角哪有线,从左侧就收到左边框了" ⇒ 上面那头在左缘收掉,不封到页顶
-         · "从中段开始,实际就是我说的,左侧跟下侧对称分布"
-         · "图是我随手画的示意,根本不是工程测量" ⇒ 数字由我定,留成旋钮
-       ★★ 对称是【算出来的】,不是两边各写一遍:下边那条 = 左边那条沿
-          对角线 x=y 翻转(y 当 x 用)。所以两侧的凸起在位置上天然一一对应,
-          以后改左边的间距,下边跟着一起变,不会走散。
-       旋钮:
-         HUD_RAIL   基线离页左缘/页底多远(%)
-         HUD_BUMP_W 凸起往里伸多少(%)
-         HUD_BUMP_H 每个凸起的跨距(高/宽,%)
-         HUD_FROM   从哪一段开始(左=y、下=x)
-         HUD_STEP   两个凸起之间的步距(%)
-         HUD_N      每侧几个凸起
+       用户原话:"左下角也搞一个 UHD,放几个模块……实现和右边一样,是先用 SVG 画出边框,
+                 再往边框上塞按钮,框都是不规则多边形框。"
+       后来又定死了一条流程:"你先别直接做,先在一个正方形中给画好了再上" ——
+       所以这一支的形是在【正方形坐标空间】里定的(设计稿:left-band-square.html):
+         · 走向:从页左缘 (100,42) 收口 → 沿左缘往下 → 两道凸起的梯形按钮
+           (凸到 x=94,平顶 7.5,斜肩 30°)→ 到 y=91 拐角,45° 斜切 7 →
+           下支 = 左支沿【对角线 x=y】的精确镜像(倒序)→ 页底 (42,100) 收口。
+         · 四个凸起【就是】四枚按钮的形:外侧一直贴到页面边缘,两条斜边是凸起
+           那两条斜肩的平行延长线(用户:"按钮的底部应该是贴近页面边缘的")。
+         · 左下角那记 45° 斜切和页角之间放一枚等腰直角三角形按钮
+           (用户:"给一个小空间放一个等腰三角形按钮就够了")。
+
+       ★★ 和右支最大的不同:这一支的几何【不随视口变】。
+          右支的角度是"屏幕角度"(换长宽比要重算顶点);这一支是在正方形里定的,
+          百分比就是百分比 —— 上到 16:9 页面就是把它横向拉开(斜肩看着变成 18°)。
+          这是用户点头过的对照图里那一版,不是笔误。
+       ★★ 对称同样是【算出来的】:下支 = 左支沿对角线 x=y 的镜像,倒序。
+          所以四个按钮大小天然一模一样,以后只改左边,下边跟着变。
+
+       旋钮(改这几个数就够;改完测试会告诉你模板里那份参考值要同步):
+         LB.RAIL     基线离页左缘 / 页底多远(%)
+         LB.TIP      凸起伸出到离页左缘多少(%)= 按钮的进深
+         LB.FLAT     凸起平顶的长度(= 按钮的内边长)
+         LB.CUT      左下角 45° 斜切的边长(%)
+         LB.Y0       上端在左缘收口的那一点
+         LB.GAP      三段留白(上、中、下)的长度 —— 钉住它,按钮加长时往上端要空间
+         LB.INSET    按钮面往里收多少(留出那条边)
+         LB.FACE_OUT 按钮外缘离页面边缘多远(0.3 ≈ 贴着)
+         LB.TRI / LB.TRI_INSET  左下角三角按钮的两条直角边 / 它离页角多远
+       返回:{ path, fill, user, faces, facePts, tri, triPts, centers }
        ------------------------------------------------------------ */
-    var HUD_RAIL = 2, HUD_BUMP_W = 4, HUD_BUMP_H = 11;
-    /* ★ 每侧【两道】(用户:"凸起数量每侧两道,突起大小两侧对称"):
-       两道落在 42~53 和 71~82,中间留 18% 空隙铺满左/下这两段。
-       步距 = 29%(不是 15:那是三道时的间距)。
-       ★ "两侧对称"是【算出来的】:下边那条 = 左边那条沿左下对角线翻,
-         所以两道的位置、大小天然相同,不存在"一边大一边小"。 */
-    var HUD_FROM = 42, HUD_STEP = 29, HUD_N = 2;
+    var T30LB = Math.tan(Math.PI / 6);
+    var LB = {
+        RAIL: 2, TIP: 6, FLAT: 7.5, CUT: 7, Y0: 42, GAP: 7.8691,
+        INSET: 0.5, FACE_OUT: 0.3, TRI: 9, TRI_INSET: 0.7
+    };
 
-    /* ------------------------------------------------------------
-       左下角 UHD:【凸出来的梯形模块】—— 两道
-       ------------------------------------------------------------
-       用户四点意见:"角度不对,位置不对,不对称,大小不对" ⇒ 逐条落:
-         角度 → 斜肩 45°(屏幕角);45° 屏幕角 ⇒ 纵增量 = 横增量 × k
-                (之前用 20.6°,看着像波浪不像梯形)
-         大小 → 伸出来 5%、上下跨 12%(够放一个模块按钮)
-         位置 → 两道等距排在下半段(脊线 56~68 与 74~86),离页底留 8%
-         对称 → 下边那条 = 左边那条沿【左下对角线 x+y=100】的精确镜像
-       ★ 三个旋钮:HUD_RAIL(基线)、HUD_DEEP(伸出到哪)、HUD_SEG(每道多高)
-       ------------------------------------------------------------ */
-    var HUD_RAIL = 2, HUD_DEEP = 7, HUD_SEG = 12, HUD_GAP = 6, HUD_TOP = 56;
+    function gFrameLB() {
+        var R = LB.RAIL, TIP = LB.TIP, FLAT = LB.FLAT, C = LB.CUT;
+        var flank = (TIP - R) * T30LB;           /* 30° 斜肩:Δy = Δx·tan30 */
+        var cutY = 100 - R - C;                  /* 斜切起点(终点是它关于对角线的镜像) */
+        var mir = function (p) { return [100 - p[1], 100 - p[0]]; };
 
+        var half = [], mods = [];                /* 左支:页左缘 → 左下角 */
+        var y = LB.Y0;
+        half.push([0, y]);
+        y += R * T30LB;  half.push([R, y]);      /* 收口那记 30° 斜肩 */
+        y += LB.GAP;     half.push([R, y]);      /* 上端留白(要落点,不然斜肩从半空开始) */
+        for (var i = 0; i < 2; i++) {
+            var yTop = y + flank;
+            half.push([TIP, yTop], [TIP, yTop + FLAT], [R, yTop + FLAT + flank]);
+            mods.push({ top: yTop, bot: yTop + FLAT });
+            y = yTop + FLAT + flank;
+            if (!i) { y += LB.GAP; half.push([R, y]); }
+        }
+        half.push([R, cutY]);
 
+        var pts = half.slice();
+        pts.push(mir([R, cutY]));                /* 45° 斜切 */
+        for (var j = half.length - 2; j >= 0; j--) pts.push(mir(half[j]));
 
-    /* 下边那条 = 左边那条沿左下对角线(x+y=100)翻:(x,y) → (100−y, 100−x) */
+        var d = pts.map(function (p, k) {
+            return (k ? "L" : "M") + round(p[0]) + " " + round(p[1]);
+        }).join(" ");
+        var poly = function (f) {
+            return f.map(function (p) { return round(p[0]) + "," + round(p[1]); }).join(" ");
+        };
 
+        /* 四枚按钮面:梯形,和凸起同一条边 —— 外侧贴到页面边缘,斜边是斜肩的平行延长线 */
+        var xOut = LB.FACE_OUT, xIn = TIP - LB.INSET, run = (xIn - xOut) * T30LB;
+        var left = mods.map(function (m) {
+            return [[xOut, m.top + LB.INSET - run], [xIn, m.top + LB.INSET],
+                    [xIn, m.bot - LB.INSET], [xOut, m.bot - LB.INSET + run]];
+        });
+        /* 顺序:左支上、左支下、下支近角(= 左支下那道的镜像)、下支远角 */
+        var faces = left.concat([
+            left[1].slice().reverse().map(mir),
+            left[0].slice().reverse().map(mir)
+        ]);
+        /* 左下角那枚等腰直角三角形:直角贴着页角,斜边平行于上面那记斜切 */
+        var k = LB.TRI_INSET;
+        var tri = [[k, 100 - k], [k, 100 - k - LB.TRI], [k + LB.TRI, 100 - k]];
 
-
-    /* ★★ 下边那条 = 左边那条沿【左下对角线】翻。屏幕坐标里那条对角线是
-       x + y = 100 ⇒ 翻法 (x, y) → (100−y, 100−x)。
-       ★ 别写成 [y, x]:那是关于 x=y 翻,会把左边那条翻到【顶边】上去
-         (2,42) → (42,2),画出来是"上边一条线" —— 本轮真踩了。
-       验算:基线 x=2 → y=98(离页底 2%);凸起伸到 x=6 → y=94(往上 4%)。 */
-
-
-    /* ------------------------------------------------------------
-       左下角 UHD:一个 L 面板(左支 + 下支),每侧两道等腰梯形模块
-       ------------------------------------------------------------
-       ★★★ 子代理 A 逐点验算出的根因:45° 屏幕角的公式是
-             Δy% = Δx% × (W/H) = Δx% × 1.7778
-           我原来写成 Δx% × 0.5625(倒数)⇒ 本该 45° 的斜肩成了 17.56°,
-           而且两道斜边【同向倾斜】= 剪切过的平行四边形,不是等腰梯形。
-           用户那句"凸出来的梯形模块,角度不对"说的就是这个。
-       ★ 这两道模块的竖边是 5%(用户原话"往下纵坐标5"),
-         两平行边 12% 与 23% ⇒ 底差/高 ≈ 0.98 ⇒ 标准等腰梯形。
-       ★ 下支 = 左支沿左下对角线 x+y=100 的精确镜像(子代理 A 验过 8 点偏差 0)。
-       ------------------------------------------------------------ */
-
-
-
-    /* 下支 = 左支沿左下对角线(x+y=100)反射 + 倒序(不倒序方向会反) */
-
+        var center = function (f) {
+            var cx = 0, cy = 0;
+            f.forEach(function (p) { cx += p[0]; cy += p[1]; });
+            return [cx / f.length, cy / f.length];
+        };
+        return {
+            path: d, fill: d + " L0 100 Z", user: pts,
+            faces: faces, facePts: faces.map(poly),
+            tri: tri, triPts: poly(tri),
+            centers: faces.map(center)
+        };
+    }
 
     function round(v) {
         return Math.round(v * 1e4) / 1e4;
@@ -177,11 +205,33 @@
         var fill = root.querySelector(".hud-fill");
         if (fill) fill.setAttribute("d", g.fill);
         root.setAttribute("data-hud-frame", g.path);
-        if (window.__hudFrame) window.__hudFrame.last = g;
+
+        /* 左下角那一支:同样的 4 层画法 + 五枚按钮面(四个梯形 + 左下角一个三角)。
+           ★ 它不随视口变(形是在正方形空间里定的),但照样每次重算一遍写进去 ——
+             这样"页面上的真值"永远等于 gFrameLB() 的输出,模板里那份只是没 JS 时的参考。 */
+        var band = gFrameLB();
+        var svgLB = root.querySelector(".page-hud__band");
+        if (svgLB) {
+            var qs = svgLB.querySelectorAll("path");
+            var dsb = [band.fill, band.path, band.path, band.path];
+            for (var m = 0; m < qs.length && m < dsb.length; m++) qs[m].setAttribute("d", dsb[m]);
+            var pg = svgLB.querySelectorAll("polygon");
+            var pgs = band.facePts.concat([band.triPts]);
+            for (var q = 0; q < pg.length && q < pgs.length; q++) pg[q].setAttribute("points", pgs[q]);
+        }
+        root.setAttribute("data-hud-band", band.path);
+        /* 五枚按钮的"座位中心"(设计坐标 %):HTML 那层按钮把图标/名字钉在这里 */
+        if (root.style && root.style.setProperty) {
+            for (var s = 0; s < band.centers.length; s++) {
+                root.style.setProperty("--hud-lb-" + s + "-x", round(band.centers[s][0]) + "%");
+                root.style.setProperty("--hud-lb-" + s + "-y", round(band.centers[s][1]) + "%");
+            }
+        }
+        if (window.__hudFrame) { window.__hudFrame.last = g; window.__hudFrame.lastLB = band; }
     }
 
     if (typeof window !== "undefined") {
-        window.__hudFrame = { gFrame: gFrame, draw: drawFrame, T60: T60 };
+        window.__hudFrame = { gFrame: gFrame, gFrameLB: gFrameLB, draw: drawFrame, T60: T60 };
     }
 
     /* ------------------------------------------------------------

@@ -66,3 +66,15 @@
 {{- $u := . | fingerprint "sha256" }}
 <link rel="stylesheet" href="{{ $u.RelPermalink }}">
 {{- end }}
+
+{{- /* ---------- 左下角 UHD:框上那几枚按钮的样式 ----------
+     ★ 和上面几块同一个套路:自己的文件、自己的指纹、排在 page-hud.css 之后
+       (它吃 --hud-font / --hud-cover / --mc-color 这几个变量)。
+     ★ 框本身和"按钮的形"不在这里:那是 .page-hud__band 那支 SVG
+       (4 层 + 5 个 polygon,样式在 page-hud.css 里)。这里只管能按的那一层
+       —— 每颗按钮铺满整层,靠 clip-path 收成同一个多边形的形状。
+     ★ 同样放在 if not .IsHome 外面:首页没有那个 DOM,这几 KB 不会被解析。 */ -}}
+{{- with resources.Get "css/hud-left.css" }}
+{{- $u := . | fingerprint "sha256" }}
+<link rel="stylesheet" href="{{ $u.RelPermalink }}">
+{{- end }}

@@ -79,4 +79,13 @@
 {{- $u := . | fingerprint "sha256" }}
 <script defer src="{{ $u.RelPermalink }}"></script>
 {{- end }}
+{{- /* 左下角 UHD 的按钮(框和按钮的形在 page-hud.html 那支 .page-hud__band 上)。
+     ★ 必须排在 page-hud.js 之后:按钮里图标/名字的位置读它写下的 --hud-lb-*
+       (defer 按文档顺序执行,谁在前谁先跑)。
+     ★ 也排在 hud-timer.js 之后:番茄钟那个模块是把 #hud-timer 整个搬进面板,
+       计时器自己的逻辑要先就位。 */ -}}
+{{- with resources.Get "js/hud-left.js" }}
+{{- $u := . | fingerprint "sha256" }}
+<script defer src="{{ $u.RelPermalink }}"></script>
+{{- end }}
 {{- end }}

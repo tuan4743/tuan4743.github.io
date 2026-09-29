@@ -1,0 +1,112 @@
+{{/* ============================================================
+     左下角 UHD —— 框上那几枚按钮(四个梯形模块 + 左下角一个三角形)
+     ─────────────────────────────────────────────────────────────
+     用户:"左下角也搞一个 UHD,放几个模块,比如番茄钟,音乐播放器,时钟和日历,草稿纸,
+           最左下角留的位置先留一个正方形的模块位置。"
+     用户:"实现和右边一样,是先用 SVG 画出边框,再往边框上塞按钮。"
+     用户:"按钮也是梯形的,所以不需要考虑能不能塞进的问题,按钮贴着凸起的边边。"
+     用户:"这个按钮的底部应该是贴近页面边缘的。"
+     用户:"给一个小空间放一个等腰三角形按钮就够了。"
+
+     ★★ 形不在这个文件里,也不在 CSS 里"另写一遍":形 = page-hud.html 里那 5 个
+        <polygon>(.hud-face),它跟着框一起被长宽比拉伸。
+        这里这五颗 <button> 是【能按的那一层】:铺满整层 + clip-path 用同一组点,
+        所以点击/悬停的范围和画出来的形逐点相同;里面那颗图标/名字钉在
+        --hud-lb-N-x/y(= 那个多边形的重心,由 page-hud.js 算出来写上去)。
+     ★ 为什么不让 SVG 里的 polygon 自己接事件:SVG 里的文字会被 viewBox 拉变形,
+       图标/名字放 HTML 这层才不会被压扁。
+     ★ 同时只开一个面板(JS 管);面板里的内容见 assets/js/hud-left.js。
+     ============================================================ */}}
+<div class="hud-left" id="hud-left" data-hud-left>
+    {{/* ---- 左支两道(上 → 下)---- */}}
+    <button class="hud-left__mod" type="button" data-hud-mod="timer" data-hud-lb="0" aria-pressed="false"
+        title="番茄钟">
+        <span class="hud-left__face">
+            <span class="hud-left__ico" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="13" r="8"></circle>
+                    <path d="M12 9v4l2.5 2"></path>
+                    <path d="M9 2h6"></path>
+                </svg>
+            </span>
+            <span class="hud-left__name">番茄钟</span>
+        </span>
+    </button>
+    <button class="hud-left__mod" type="button" data-hud-mod="music" data-hud-lb="1" aria-pressed="false"
+        title="音乐播放器">
+        <span class="hud-left__face">
+            <span class="hud-left__ico" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 18V6l10-2v12"></path>
+                    <circle cx="6.5" cy="18" r="2.5"></circle>
+                    <circle cx="16.5" cy="16" r="2.5"></circle>
+                </svg>
+            </span>
+            <span class="hud-left__name">音乐</span>
+        </span>
+    </button>
+
+    {{/* ---- 下支两道(左下角 → 往右)---- */}}
+    <button class="hud-left__mod" type="button" data-hud-mod="time" data-hud-lb="2" aria-pressed="false"
+        title="时钟与日历">
+        <span class="hud-left__face">
+            <span class="hud-left__ico" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <path d="M12 7v5l3.5 2"></path>
+                </svg>
+            </span>
+            <span class="hud-left__name">时钟</span>
+        </span>
+    </button>
+    <button class="hud-left__mod" type="button" data-hud-mod="note" data-hud-lb="3" aria-pressed="false"
+        title="草稿纸">
+        <span class="hud-left__face">
+            <span class="hud-left__ico" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 3.5h9l5 5v12H5z"></path>
+                    <path d="M14 3.5v5h5"></path>
+                    <path d="M8.5 13h7M8.5 16.5h5"></path>
+                </svg>
+            </span>
+            <span class="hud-left__name">草稿</span>
+        </span>
+    </button>
+
+    {{/* ---- 左下角那枚等腰直角三角形(用户:"最左下角留一个正方形的模块位置" →
+            后来定成"给一个小空间放一个等腰三角形按钮就够了")。先占位,里面放什么没定。 ---- */}}
+    <button class="hud-left__mod hud-left__mod--tri" type="button" data-hud-mod="slot" data-hud-lb="4"
+        aria-pressed="false" title="左下角空位">
+        <span class="hud-left__face">
+            <span class="hud-left__ico" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 19V8l9 11z"></path>
+                    <path d="M17 5h2v2"></path>
+                </svg>
+            </span>
+            <span class="hud-left__name">空位</span>
+        </span>
+    </button>
+
+    {{/* 面板:点某个模块时在这里渲染。宽度由 JS 量出来(--hud-left-panel-w) */}}
+    <section class="hud-left__panel" id="hud-left-panel" hidden aria-live="polite">
+        <span class="hud-left__deco" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+        <header class="hud-left__head">
+            <span class="hud-left__title" id="hud-left-title">番茄钟</span>
+            <span class="hud-left__en" id="hud-left-en">FOCUS</span>
+            <button class="hud-left__close" type="button" id="hud-left-close" aria-label="收起面板" title="收起">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                </svg>
+            </button>
+        </header>
+        <div class="hud-left__body" id="hud-left-body"></div>
+    </section>
+</div>

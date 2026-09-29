@@ -24,8 +24,16 @@
          测试会把两边各算一遍再比,不一致立刻红。
        ★ ⑨ 是 35(不是最初的 25):底带要装下三支笔 + 展开的尺寸滑条。 */ -}}
 {{- $frame := "M55 0 L57.9228 9 L70 9 L71.6875 6 L92 6 L95 11.3333 L95 88.6667 L92 94 L65 94 L63.0514 100" -}}
+{{- /* ★★ 左下角那个 L 面板的参考折线 = gFrameLB() 的输出。
+       它的形是在【正方形坐标空间】里定的(设计稿 left-band-square.html),不含视口参数:
+       百分比就是百分比 —— 上到 16:9 页面就是横向拉开,顶点【不随视口重算】(和右支相反)。
+       ★ 想手改?改 assets/js/page-hud.js 的 LB 那几个旋钮,别改这里 ——
+         测试会把两边各算一遍再比,不一致立刻红。
+       ★ 走向:页左缘 (100,42) 收口 → 沿左缘往下 → 两道凸起的梯形按钮(平顶 7.5、斜肩 30°)
+         → y=91 拐角 45° 斜切 7 → 下支(= 左支沿对角线 x=y 的镜像,倒序)→ 页底 (42,100)。 */ -}}
+{{- $band := "M0 42 L2 43.1547 L2 51.0238 L6 53.3332 L6 60.8332 L2 63.1426 L2 71.0117 L6 73.3211 L6 80.8211 L2 83.1305 L2 91 L9 98 L16.8695 98 L19.1789 94 L26.6789 94 L28.9883 98 L36.8574 98 L39.1668 94 L46.6668 94 L48.9762 98 L56.8453 98 L58 100" -}}
 {{- $current := . -}}
-<div class="page-hud" id="page-hud" data-hud-page="{{ $current.RelPermalink }}" data-hud-frame="{{ $frame }}">
+<div class="page-hud" id="page-hud" data-hud-page="{{ $current.RelPermalink }}" data-hud-frame="{{ $frame }}" data-hud-band="{{ $band }}">
     {{/* ★ viewBox="0 0 100 100" 就是用户的坐标制式(一个单位 = 一页的 1%);
          preserveAspectRatio="none" 把它拉满视口 ⇒ 坐标即百分比。
          ★★ d 会被 page-hud.js 按【真实视口】重算(45°/60° 是屏幕角度,
@@ -57,9 +65,37 @@
     </svg>
 
 
-    {{/* 下边沿那两道凸起:同一支 SVG 的画法(viewBox 0~100 + preserveAspectRatio=none)。
-         ★ 和左边那支分开画:两条折线的走向完全不同(一条竖着走、一条横着走),
-           拼成一条路径只会更难改。 */}}
+    {{/* ============================================================
+         左下角 UHD 的边框 + 五枚按钮面 —— 一个 L 面板(左支 + 下支)
+         ─────────────────────────────────────────────────────────────
+         用户:"左下角也搞一个 UHD……完成左侧 UHD,实现和右边一样,是先用 SVG 画出边框,
+               再往边框上塞按钮,框都是不规则多边形框。"
+         ★ 所以顺序就是:先这一支 SVG(框 + 按钮的形),再 hud-left.html(能按的按钮)。
+         ★ 画法和右边那支一样:viewBox 0 0 100 100 + preserveAspectRatio=none +
+           4 层(底板 / halo / 虚线 / 跑马灯),线宽与虚线节拍靠 non-scaling-stroke。
+         ★★ 五枚按钮面就是这里这 5 个 polygon(四个梯形 + 左下角一个三角形):
+            它们和凸起共用同一条边 —— 外侧贴到页面边缘,两条斜边是斜肩的平行延长线
+            (用户:"按钮也是梯形的……按钮贴着凸起的边边" + "按钮的底部应该贴近页面边缘")。
+            放在 SVG 里 = 跟着框一起被长宽比拉伸,永远不会和框走散。
+            HTML 那层(带 clip-path 的按钮)只负责点击/悬停/图标,形和这里逐点相同。
+         ★ 底板收口只走页缘:d + " L0 100 Z" ⇒ 从末点(页底 x=58)沿【页底】往左到左下角,
+           再沿【页左缘】回到起点。两条都是页缘,不穿正文(和右边那条同理)。 */}}
+    <svg class="page-hud__band" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <path class="hud-fill hud-band-fill" d="{{ $band }} L0 100 Z"></path>
+        <polygon class="hud-face hud-face--0 is-on" points="0.3,50.831 5.5,53.8332 5.5,60.3332 0.3,63.3354"></polygon>
+        <polygon class="hud-face hud-face--1" points="0.3,70.8189 5.5,73.8211 5.5,80.3211 0.3,83.3233"></polygon>
+        <polygon class="hud-face hud-face--2" points="16.6767,99.7 19.6789,94.5 26.1789,94.5 29.1811,99.7"></polygon>
+        <polygon class="hud-face hud-face--3" points="36.6646,99.7 39.6668,94.5 46.1668,94.5 49.169,99.7"></polygon>
+        <polygon class="hud-face hud-face--4" points="0.7,99.3 0.7,90.3 9.7,99.3"></polygon>
+        <path class="hud-halo hud-band-halo" d="{{ $band }}"></path>
+        <path class="hud-line hud-band-line" d="{{ $band }}"></path>
+        <path class="hud-run hud-band-run" d="{{ $band }}"></path>
+    </svg>
+
+    {{/* 框画好了,往框上塞按钮:四枚梯形模块 + 左下角那枚等腰直角三角形。
+         它们的位置/形状【不是写死的百分比】—— 形在 SVG 里(上面那 5 个 polygon),
+         能按的那层在 hud-left.html,靠 clip-path 和上面逐点相同。 */}}
+    {{ partial "hud-left.html" $current }}
 
     {{/* ============================================================
          侧边目录(进度条 + 面板 + 收起)—— 用户:"加一个侧边目录,

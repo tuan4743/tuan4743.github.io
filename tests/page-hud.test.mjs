@@ -51,6 +51,10 @@ const baseof = rd(`${BH}/layouts/baseof.html`);
 const headerTpl = noC(rd(`${BH}/layouts/_partials/header.html`));
 const hudJs = noC(rd(`${BH}/assets/js/page-hud.js`));
 const palJs = noC(rd(`${BH}/assets/js/hud-palette.js`));
+/* 左下角 UHD 那三件(按钮的标记 / 样式 / 逻辑) */
+const leftTpl = noC(rd(`${BH}/layouts/_partials/hud-left.html`));
+const leftCss = noC(rd(`${BH}/assets/css/hud-left.css`));
+const leftJs = noC(rd(`${BH}/assets/js/hud-left.js`));
 const holo = noC(rd(`${BH}/assets/css/holo.css`));
 /* ★ 最小化产物里属性【没有引号】(class=page-hud),带引号的写法一个都匹配不到。 */
 const cls = (name) => new RegExp('class="?' + name + '(?![\\w-])');
@@ -85,12 +89,9 @@ const hudJsSrc = rd(`${BH}/assets/js/page-hud.js`);
 const win = {};
 new Function('window', 'document', hudJsSrc)(win, undefined);   /* document=undefined ⇒ 只导函数 */
 const gFrame = win.__hudFrame && win.__hudFrame.gFrame;
-/* ★ 第二十轮:左下角 UHD 的折线 = gFrame 的整条镜像。这里一并取出它的纯函数,
-   下面要用它和"镜像"两边各算一遍再比(和右支那条防漂断言同一个套路)。 */
-const gFrameLeftFn = win.__hudFrame && win.__hudFrame.gFrameLeft;
-const gFrameBottomFn = win.__hudFrame && win.__hudFrame.gFrameBottom;
-const gFrameLeft = (w, h) => (gFrameLeftFn ? gFrameLeftFn(w, h) : { user: [], path: '' });
-const gFrameBottom = (w, h) => (gFrameBottomFn ? gFrameBottomFn(w, h) : { user: [], path: '' });
+/* ★ 第二十一轮:左下角那支(一个 L 面板)的纯函数。它【不吃视口参数】——
+   形是在正方形坐标空间里定的,上到页面上就是横向拉开(见 LB 那一段断言)。 */
+const gFrameLB = win.__hudFrame && win.__hudFrame.gFrameLB;
 ok('★★ 几何函数 gFrame(w,h) 能在没有 DOM 的环境里单独跑(测试靠它验真值)',
   typeof gFrame === 'function');
 const REF_W = 1920, REF_H = 1080;
@@ -166,8 +167,9 @@ ok('★★★ 写 d 的时候【只认边框那支 SVG 里的 path】—— 这�
   '第一版写的是 root.querySelectorAll("path"):导航/按钮里用 <path> 画的图标全被改成了折线,整只消失,看着像"素材丢了"');
 /* ★★★ 行为断言:拿一个假 DOM 跑 drawFrame,看它到底动了哪些 path。
    只查选择器字符串是不够的 —— 当初那个 bug 的选择器"看着"也没问题。
-   ★ 2026-09-29:左下角 UHD 已按用户要求整块删除 ⇒ 现在只有右侧那一支、4 条 path:
-     [0] hud-fill(底板,吃 g.fill)[1..3] halo/line/run(吃 g.path)。 */
+   ★ 2026-09-29:左下角 UHD 整块删过一轮;第二十一轮按用户新给的形做了回来 ⇒
+     两支 SVG、各 4 条 path:右支 [0] hud-fill(吃 g.fill)[1..3] halo/line/run;
+     左支一样,外加 5 个 polygon(按钮的形)+ 5 个 CSS 变量(按钮的位置)。 */
 ok('★★★ 行为:drawFrame 给右侧那支的 4 条 path 分别写 d(fill 吃 g.fill、其余吃 g.path),图标一根都不碰', (() => {
   const mkPath = (name) => ({ name, d: 'icon-original', setAttribute(k, v) { if (k === 'd') this.d = v; } });
   const frame = [mkPath('fill'), mkPath('halo'), mkPath('line'), mkPath('run')];
@@ -196,6 +198,37 @@ ok('★★★ 行为:drawFrame 给右侧那支的 4 条 path 分别写 d(fill �
   const untouched = icons.every((i) => i.d === 'icon-original');
   return fillOk && lineOk && untouched;
 })(), '图标 path 的 d 一旦被改,就成了"素材丢了"的假象;底板吃的是 g.fill(闭合版),不是 g.path');
+/* ★★★ 左支的行为断言:4 条 d + 5 个 polygon(按钮的形)+ 5 组位置变量都要写进去 ——
+   "形在 SVG、位置在变量、能按的那层靠 clip-path 对齐"是这一轮的核心分工。 */
+ok('★★★ 行为:drawFrame 给左下角那支写 4 条 d + 5 个 polygon + 5 组位置变量', (() => {
+  const mkPath = (name) => ({ name, d: 'x', setAttribute(k, v) { if (k === 'd') this.d = v; } });
+  const mkPoly = (name) => ({ name, pts: 'x', setAttribute(k, v) { if (k === 'points') this.pts = v; } });
+  const frame = [mkPath('fill'), mkPath('halo'), mkPath('line'), mkPath('run')];
+  const polys = [mkPoly('f0'), mkPoly('f1'), mkPoly('f2'), mkPoly('f3'), mkPoly('tri')];
+  const svgLB = { querySelectorAll: (sel) => (sel === 'path' ? frame : (sel === 'polygon' ? polys : [])) };
+  const vars = {};
+  const root = {
+    attrs: {},
+    style: { setProperty(k, v) { vars[k] = v; } },
+    setAttribute(k, v) { this.attrs[k] = v; },
+    querySelector(sel) { return sel === '.page-hud__band' ? svgLB : null; },
+    querySelectorAll() { return []; }
+  };
+  const doc = {
+    getElementById: (id) => (id === 'page-hud' ? root : null),
+    documentElement: { clientWidth: 1600, clientHeight: 900 },
+    querySelectorAll: () => []
+  };
+  const win = { innerWidth: 1600, innerHeight: 900, addEventListener() { } };
+  new Function('window', 'document', hudJsSrc)(win, doc);
+  const lb = win.__hudFrame.lastLB;
+  const dOk = frame[0].d === lb.fill && frame.slice(1).every((f) => f.d === lb.path);
+  const pOk = polys.map((p) => p.pts).join('|') === lb.facePts.concat([lb.triPts]).join('|');
+  const vOk = [0, 1, 2, 3].every((i) =>
+    vars['--hud-lb-' + i + '-x'] === Math.round(lb.centers[i][0] * 1e4) / 1e4 + '%' &&
+    vars['--hud-lb-' + i + '-y'] === Math.round(lb.centers[i][1] * 1e4) / 1e4 + '%');
+  return dOk && pOk && vOk;
+})(), '形画在 SVG 里、位置写成 CSS 变量 —— HTML 那层按钮(带 clip-path)照这两个来');
 ok('★ 视口变化时会重算(resize + rAF 收口,拖窗口不会每像素都算)',
   /addEventListener\("resize"/.test(hudJs) && /requestAnimationFrame/.test(hudJs));
 /* ★ 边框竖段那一列 = CSS 里给控件留的那一列:改了一个忘了另一个就会骑到正文上 */
@@ -241,29 +274,150 @@ ok('★★★ 把产物里那条 minify 过的 d 解析回顶点,和参考折线
   builtUser.length === ref.user.length &&
   builtUser.every(([x, y], k) => Math.abs(x - ref.user[k][0]) < 1e-3 && Math.abs(y - ref.user[k][1]) < 1e-3),
   builtUser.map(([x, y]) => '(' + x.toFixed(3) + ',' + y.toFixed(3) + ')').join(' '));
-/* ★★ 第二十轮补:右边那支是三条(halo/line/run),左下角那支【两条】——
-   跑马灯暂时不放左边:它要横跨两条折线才好看,等按钮那一刀再说。
-   所以这里要【分 SVG 数】,不能再对整份模板数 path(第一版就是这么红的)。 */
-ok('★★★ 边框只有【一支】SVG(用户:"为什么你要做两个单独的框?")',
-  (hudTplCode.match(/<svg class="page-hud__frame[\s\S]*?<\/svg>/g) || []).length === 1);
+/* ★★ 第二十一轮:左下角 UHD 重新做成一整块 L 面板,所以现在是【两支】SVG:
+   右支 .page-hud__frame(按屏幕角度、运行时重算)+ 左支 .page-hud__band
+   (在正方形坐标空间里定的形,顶点不随视口变)。用户点名的顺序是
+   "先用 SVG 画出边框,再往边框上塞按钮"。 */
+ok('★★★ 边框是【两支】SVG:右支 + 左下角那支(每支都只有 4 条 path)',
+  (hudTplCode.match(/<svg class="page-hud__frame[\s\S]*?<\/svg>/g) || []).length === 1 &&
+  (hudTplCode.match(/<svg class="page-hud__band[\s\S]*?<\/svg>/g) || []).length === 1,
+  '第一版踩过的坑:别对整份模板数 path —— 必须分 SVG 数');
 /* ============================================================
-   ★★★ 左下角 UHD:右侧折线的【竖直中线镜像】,和右边共用一支 SVG
+   ★★★ 左下角 UHD —— 一个 L 面板(左支 + 下支)+ 四个梯形按钮 + 左下角三角按钮
    ─────────────────────────────────────────────────────────────
-   用户三条:"跟右侧 UHD 实现一样。风格、走线方式一样。为什么你要做两个单独的框?"
-   /"两侧对称,你对称到哪了?" /"位置,你自己看看这位置好看吗?"
-   这里钉的就是这三条,以及我修掉的那个真 bug:
-
-   ★★★ gFrame().user 是【用户坐标】(x 从右往左数)。gFrameLeft 必须
-     ① 先 100−x 换成屏幕坐标,② 再 100−x 镜像 —— 两步。我上一版只写了一次,
-     等于"镜像做了两遍 + 漏了坐标换算",左支被翻到右边 x 55~95 那一段、
-     和右支重叠。症状就是用户说的"左侧对称到哪了"—— 左边根本没有线。
+   用户这一轮的流程:"你先别直接做,先在一个正方形中给画好了再上" ⇒
+   形是在【正方形坐标空间】里定的(设计稿 left-band-square.html),所以:
+     · 五条斜肩在坐标空间里是 30°、拐角斜切是 45°(正方形里才是真角度);
+     · 顶点【不随视口重算】(和右支的"屏幕角度"正相反 —— 这是有意的);
+     · 下支 = 左支沿【对角线 x=y】的精确镜像(倒序),四个按钮天然一模一样。
    ============================================================ */
-const leftRef = gFrameLeft(1920, 1080);
-const frameLeftSrc = (hudTpl.match(/\$frameLeft := "([^"]+)"/) || [, ''])[1];
-const lxs = leftRef.user.map((q) => q[0]);
-ok('★★★ 左支落在页左半边(x 5~45),不是翻到右边和右支重叠',
-  Math.max(...lxs) <= 46 && Math.min(...lxs) >= 4,
-  '左支 x 范围 ' + Math.min(...lxs) + '~' + Math.max(...lxs));
+const lbRef = gFrameLB();
+const lbSrc = (hudTpl.match(/\$band := "([^"]+)"/) || [, ''])[1];
+const lbU = lbRef.user;
+ok('★★★ 几何函数 gFrameLB() 能在没有 DOM 的环境里单独跑', typeof gFrameLB === 'function');
+ok('★★★ 模板里的参考折线 == gFrameLB() 的输出(两边各算一遍再比,逐字相同)',
+  !!lbSrc && lbSrc === lbRef.path, '模板: ' + lbSrc + '\n     函数: ' + lbRef.path);
+ok('★★★ 构建产物里那份参考折线也一致(模板 → 产物这一段没被改写)',
+  (tech.match(/data-hud-band=(?:"([^"]*)"|([^\s>]+))/) || [, '', '']).slice(1).includes(lbSrc),
+  '产物里 data-hud-band 是根节点上的那份参考值,页面一跑会被 JS 覆盖成同一个值');
+ok('★★ 22 个顶点', lbU.length === 22, '实际 ' + lbU.length);
+/* 坐标空间里的角度:正方形里 30° / 45° 就是看到的 30° / 45° */
+const cAng = (i, j) => {
+  const dx = Math.abs(lbU[j][0] - lbU[i][0]), dy = Math.abs(lbU[j][1] - lbU[i][1]);
+  return (Math.atan2(dy, dx) * 180) / Math.PI;
+};
+const lbFlanks = [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]];
+ok('★★★ 五条斜肩在坐标空间里都是 30°(用户:"水平方向成30°";形是在正方形里定的)',
+  lbFlanks.every(([a, b]) => Math.abs(cAng(a, b) - 30) < 1e-6),
+  lbFlanks.map(([a, b]) => a + '→' + b + ':' + cAng(a, b).toFixed(4) + '°').join(' '));
+ok('★★★ 左下角那记斜切是【坐标空间】45°(Δx = Δy = 7)',
+  Math.abs(cAng(10, 11) - 45) < 1e-9 &&
+  Math.abs(Math.abs(lbU[11][0] - lbU[10][0]) - Math.abs(lbU[11][1] - lbU[10][1])) < 1e-9,
+  cAng(10, 11).toFixed(4) + '°,x ' + lbU[10][0].toFixed(4) + '→' + lbU[11][0].toFixed(4) +
+  ',y ' + lbU[10][1].toFixed(4) + '→' + lbU[11][1].toFixed(4));
+ok('★★★ 下支 = 左支沿对角线 x=y 的精确镜像(22 点逐点,偏差 0)',
+  lbU.every((p, k) => {
+    const m = lbU[21 - k];
+    /* ★ 折线是 SVG 坐标(x 从左往右)—— 镜像在这里是 (x,y) → (100−y, 100−x),
+       不是用户坐标那套 [y, x](上一轮就是在这儿把自己判红的)。 */
+    return Math.abs(100 - m[1] - p[0]) < 1e-9 && Math.abs(100 - m[0] - p[1]) < 1e-9;
+  }),
+  '第 k 点 ↔ 第 (21−k) 点关于对角线 x=y 的镜像');
+ok('★★ 起点落在【页左缘】、终点落在【页底】(用户:"从左侧开始到下侧结束")',
+  Math.abs(lbU[0][0]) < 1e-9 && Math.abs(lbU[0][1] - 42) < 1e-9 &&
+  Math.abs(lbU[21][1] - 100) < 1e-9 && Math.abs(lbU[21][0] - 58) < 1e-9,
+  '(' + lbU[0] + ') → (' + lbU[21] + ')');
+ok('★★★ 形【不随视口变】—— 这一支和右支正相反(有意的)',
+  gFrameLB().path === gFrameLB(1600, 900).path && gFrameLB().path === gFrameLB(2560, 1440).path,
+  '右支按屏幕角度算、换长宽比要重算;左支是在正方形空间里定的,百分比就是百分比');
+/* 三段留白等长:这是"按钮加长时往上端要空间、不挤间距"那一条的判据 */
+const lbRuns = [];
+for (let k = 0; k < 2; k++) lbRuns.push(Math.abs(lbU[[2, 6][k]][1] - lbU[[1, 5][k]][1]));
+lbRuns.push(Math.abs(lbU[10][1] - lbU[9][1]));
+ok('★★ 三段留白(上/中/下)等长 ⇒ 按钮加长时不会互相挤近',
+  Math.max(...lbRuns) - Math.min(...lbRuns) < 1e-3, lbRuns.map((v) => v.toFixed(4)).join(' / '));
+/* 五枚按钮面:四个梯形 + 左下角一个三角形 */
+ok('★★★ 五枚按钮面:四个梯形(各 4 点)+ 左下角一个三角形(3 点)',
+  lbRef.faces.length === 4 && lbRef.faces.every((f) => f.length === 4) && lbRef.tri.length === 3);
+ok('★★★ 模板里那 5 个 polygon == gFrameLB() 算出来的 5 个形(逐点)',
+  (hudTplCode.match(/<polygon class="hud-face[^"]*" points="([^"]+)"/g) || [])
+    .map((s) => (s.match(/points="([^"]+)"/) || [, ''])[1])
+    .join('|') === lbRef.facePts.concat([lbRef.triPts]).join('|'),
+  lbRef.facePts.concat([lbRef.triPts]).join(' | '));
+ok('★★★ 每枚按钮的【外缘贴到页面边缘】(用户:"按钮的底部应该是贴近页面边缘的")',
+  lbRef.faces.slice(0, 2).every((f) => f.every((p) => Math.abs(p[0] - 0.3) < 1e-9 || Math.abs(p[0] - 5.5) < 1e-9)) &&
+  lbRef.faces.slice(2).every((f) => f.every((p) => Math.abs(p[1] - 99.7) < 1e-9 || Math.abs(p[1] - 94.5) < 1e-9)) &&
+  lbRef.tri.every((p) => Math.abs(p[0] - 0.7) < 1e-9 || Math.abs(p[1] - 99.3) < 1e-9),
+  '左支那两枚贴左缘(x=0.3)、下支那两枚贴页底(y=99.7)、三角贴页角(x=0.7 / y=99.3)');
+ok('★★ 按钮面那两条斜边和框的斜肩【平行】(左支 30°、下支 60° —— 60° 是对角线镜像该有的样子)',
+  (() => {
+    const a = (f) => {
+      const dx = Math.abs(f[1][0] - f[0][0]), dy = Math.abs(f[1][1] - f[0][1]);
+      return (Math.atan2(dy, dx) * 180) / Math.PI;
+    };
+    /* 容差 1e-3:多边形顶点是 round 到 4 位小数的,角度会差 ~4e-4 度 */
+    return lbRef.faces.slice(0, 2).every((f) => Math.abs(a(f) - 30) < 1e-3) &&
+      lbRef.faces.slice(2).every((f) => Math.abs(a(f) - 60) < 1e-3) &&
+      Math.abs((Math.atan2(Math.abs(lbRef.tri[2][1] - lbRef.tri[1][1]),
+        Math.abs(lbRef.tri[2][0] - lbRef.tri[1][0])) * 180) / Math.PI - 45) < 1e-3;
+  })(),
+  '用户:"按钮贴着凸起的边边" —— 两条斜边就是斜肩的平行延长线;三角那条斜边平行于 45° 斜切');
+ok('★★ 按钮面都在框的范围内(没戳出视口)', lbRef.faces.concat([lbRef.tri])
+  .every((f) => f.every((p) => p[0] >= 0 && p[0] <= 100 && p[1] >= 0 && p[1] <= 100)));
+/* 底板收口:和右支一个道理 —— 只走页缘 */
+ok('★★★ 左下角那支的底板 = 折线 + " L0 100 Z"(收口只走页缘,不穿正文)',
+  lbRef.fill === lbRef.path + ' L0 100 Z' &&
+  /class="hud-fill hud-band-fill" d="\{\{ \$band \}\} L0 100 Z"/.test(hudTplCode),
+  '从末点(页底 x=58)沿页底往左到左下角 → 再沿页左缘回到起点');
+ok('★★★ 产物里那支 SVG 也是 4 层 + 5 个 polygon,而且 polygon 画在 halo/虚线【之前】',
+  (() => {
+    const svg = (tech.match(/<svg class="page-hud__band"[\s\S]*?<\/svg>/) || [''])[0];
+    const polys = svg.match(/<polygon/g) || [];
+    return polys.length === 5 && svg.indexOf('<polygon') < svg.indexOf('hud-halo') &&
+      ['hud-fill', 'hud-halo', 'hud-line', 'hud-run'].every((k) => svg.includes('hud-band-' + k.split('-')[1]));
+  })(), '用户点名的顺序:先画框(和按钮的形),再塞能按的按钮');
+ok('★★ CSS 里 .page-hud__band 和 .page-hud__frame 共用定位(.hud-face 那条也定义了)',
+  /\.page-hud__frame,\s*\.page-hud__band\s*\{[^}]*position:\s*absolute/.test(cssCode) &&
+  /\.hud-face\s*\{[^}]*vector-effect:\s*non-scaling-stroke/.test(cssCode),
+  '按钮的形和框画在同一支 SVG 里 ⇒ 跟着框一起被长宽比拉伸,不会走散');
+/* ---------- 能按的那一层:hud-left.html / .css / .js ---------- */
+ok('★★★ 五颗按钮:四个模块 + 左下角那枚三角形(用户:"给一个小空间放一个等腰三角形按钮就够了")',
+  (leftTpl.match(/data-hud-mod="/g) || []).length === 5 &&
+  ['timer', 'music', 'time', 'note', 'slot'].every((k) => leftTpl.includes('data-hud-mod="' + k + '"')) &&
+  /class="hud-left__mod hud-left__mod--tri"[^>]*data-hud-mod="slot"/.test(leftTpl),
+  '四个凸起 + 左下角那个角,一共五枚');
+/* ★★★ "点击范围和画出来的形必须逐点相同"的静态判据:
+   CSS 里 clip-path 的兜底值、SVG 里的 polygon、gFrameLB() 的输出 —— 三处同一组数。 */
+const clipOf = (n) => {
+  const m = new RegExp('clip-path:\\s*var\\(--hud-lb-clip-' + n + ',\\s*polygon\\(([^)]*)\\)\\)').exec(leftCss);
+  return m ? m[1].split(',').map((s) => s.replace(/%/g, '').trim().split(/\s+/).map(Number)).flat() : null;
+};
+ok('★★★ 每颗按钮的 clip-path(兜底值)== gFrameLB() 算出来的那个多边形(逐点)',
+  [0, 1, 2, 3, 4].every((i) => {
+    const clip = clipOf(i);
+    const want = (i < 4 ? lbRef.faces[i] : lbRef.tri).flat();
+    return clip && clip.length === want.length && clip.every((v, k) => Math.abs(v - want[k]) < 1e-4);
+  }),
+  [0, 1, 2, 3, 4].map((i) => i + ':' + (clipOf(i) || []).join('/')).join('  '));
+ok('★★★ 按钮是【铺满整层】的(inset:0)⇒ clip-path 里的 % 和框的坐标同源',
+  /\.hud-left__mod\s*\{[^}]*inset:\s*0/.test(leftCss) && /\.hud-left__mod\s*\{[^}]*clip-path:/.test(leftCss),
+  '不这么写,clip-path 的百分比会按按钮自己的小盒子算,和框对不上');
+ok('★★ 图标/名字钉在 --hud-lb-N-x/-y 上(JS 写的重心),那层自己不收事件',
+  /\.hud-left__face\s*\{[^}]*left:\s*var\(--hud-lb-0-x/.test(leftCss) &&
+  /\.hud-left__face\s*\{[^}]*pointer-events:\s*none/.test(leftCss) &&
+  /data-hud-lb="2"\]\s*\.hud-left__face\s*\{\s*left:\s*var\(--hud-lb-2-x/.test(leftCss));
+ok('★★ 面板贴着量出来的那块图标定位(不能量按钮本身 —— 铺满整层的按钮,rect 是整个视口)',
+  /\.hud-left__face'\)/.test(leftJs) &&
+  !/querySelector\('\[data-hud-mod="' \+ current \+ '"\]'\)\.getBoundingClientRect/.test(leftJs));
+ok('★★ 五个模块都有内容(含左下角那枚占位),不会"按了没反应"',
+  ['timer:', 'music:', 'time:', 'note:', 'slot:'].every((k) => leftJs.includes(k)) && /左下角空位/.test(leftJs));
+ok('★★ 加载顺序:hud-left.js 排在 page-hud.js 与 hud-timer.js 之后',
+  extFoot.indexOf('js/hud-left.js') > extFoot.indexOf('js/page-hud.js') &&
+  extFoot.indexOf('js/hud-left.js') > extFoot.indexOf('js/hud-timer.js') &&
+  extHead.indexOf('css/hud-left.css') > extHead.indexOf('css/page-hud.css'));
+ok('★ 番茄钟胶囊让开了第一枚按钮(它原来钉在竖直正中,正好压在上面)',
+  /\.hud-timer\s*\{[^}]*top:\s*34%/.test(noC(rd(`${BH}/assets/css/hud-timer.css`))),
+  '带子上端收口在 y=42,第一枚按钮从 y=50.8 开始');
 ok('★★★ 三个类在 CSS 里都有规则,而且都 vector-effect: non-scaling-stroke',
   ['hud-halo', 'hud-line', 'hud-run'].every((k) => new RegExp('\\.' + k + '\\s*[,{]').test(cssCode)) &&
   /\.hud-halo,\s*\.hud-line,\s*\.hud-run\s*\{[^}]*vector-effect:\s*non-scaling-stroke/.test(cssCode),

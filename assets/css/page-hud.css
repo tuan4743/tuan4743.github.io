@@ -125,7 +125,12 @@
      d 只能运行时算(assets/js/page-hud.js 的 gFrame);模板里是 16:9 参考值。
    ★ 三条线都 vector-effect:non-scaling-stroke —— 线宽【和虚线节拍】都按屏幕
      像素算,不被拉伸带跑(svgwg#323),所以 --hud-dash 能和 CD 页逐字相同。 */
-.page-hud__frame {
+/* ★★ 第二支 .page-hud__band = 左下角那个 L 面板:同样的 4 层、同一套类名。
+   用户点名的顺序就是"先用 SVG 画出边框,再往边框上塞按钮"。
+   ★ 它和右支有一处【有意的】不同:它的形是在正方形坐标空间里定的
+     (设计稿 left-band-square.html),所以 d 是常量、不随视口重算。 */
+.page-hud__frame,
+.page-hud__band {
     position: absolute;
     inset: 0;
     width: 100%;
@@ -133,6 +138,17 @@
     display: block;
     overflow: visible;
     pointer-events: none;
+}
+
+/* ★★ 左下角那五枚按钮的【形】:四个梯形 + 一个直角三角形,和凸起共用同一条边。
+   画在框那支 SVG 里 ⇒ 跟着框一起被长宽比拉伸,永远不会和框走散。
+   能按的那一层在 hud-left.css(.hud-left__mod 用同一个多边形的 clip-path)。
+   ★ 必须在 halo/虚线【之前】画:那圈虚线压在最上面(标记里的顺序也是这个)。 */
+.hud-face {
+    fill: rgba(234, 243, 255, 0.05);
+    stroke: rgba(234, 243, 255, 0.3);
+    stroke-width: 1px;
+    vector-effect: non-scaling-stroke;
 }
 
 /* ★★ 底板:同一圈轮廓的闭合版,把框里那一块盖住(用户要的"覆盖效果")。
