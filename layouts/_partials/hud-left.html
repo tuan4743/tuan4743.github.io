@@ -19,14 +19,26 @@
      ============================================================ */}}
 {{/* 音乐 = 网易云的嵌入式播放器:用户"音乐播放器其实并非本地曲目,想要做成嵌入式
      播放器链接网易云音乐。这样对全屏阅览的用户就算是有用了。"
-     ★ 地址从站点参数来(hugo.toml 的 params.hudMusicEmbed),没有就显示一句怎么填 ——
-       免得把某个歌单写死在模板里。 */}}
+     第二轮又给了一串歌单 ID("歌单:先加这么多")。
+     ★ 数据从站点参数来(hugo.toml 的 params.hudMusicEmbed / hudMusicPlaylists):
+       单曲嵌入地址优先;没有就用歌单列表(带名字),面板里可以一个个点着换。
+     ★★ 用 <script type="application/json"> 传结构化数据,不用塞进 data-* 属性 ——
+        属性里要转义引号,歌单名字里什么字符都可能有。 */}}
 {{- $music := site.Params.hudMusicEmbed | default "" -}}
-<div class="hud-left" id="hud-left" data-hud-left data-hud-music="{{ $music }}">
+{{- $lists := site.Params.hudMusicPlaylists | default slice -}}
+{{/* ★★ 必须过一道 safeJS:Go 模板的上下文转义认得 <script>,会把 {{ }} 的输出
+     当成"一个 JS 字符串"再包一层引号(实测拿到的就是 "{\"embed\":...}" 这种),
+     于是 JSON.parse 出来还是个字符串。safeJS 才是"这段就是代码,原样输出"。 */}}
+<script type="application/json" id="hud-music-data">{{ dict "embed" $music "lists" $lists | jsonify | safeJS }}</script>
+<div class="hud-left" id="hud-left" data-hud-left>
     {{/* ---- 左支两道(上 → 下)---- */}}
     <button class="hud-left__mod" type="button" data-hud-mod="timer" data-hud-lb="0" aria-pressed="false"
         title="番茄钟">
         <span class="hud-left__face">
+            {{/* ★ 收起之后怎么展示(第二轮第 4 条 / 第三轮):进度圈【套在时钟图标外面】,
+                 刚好够一圈(用户:"我想要不套到番茄钟那个时钟图标的外面吧,刚好够")。
+                 进度和"在不在跑"由 hud-timer.js 写进 :root 的
+                 --hud-tomato-p / --hud-tomato-run —— 跨脚本只传变量,不互相戳 DOM。 */}}
             <span class="hud-left__ico" aria-hidden="true">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                     stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -34,17 +46,18 @@
                     <path d="M12 9v4l2.5 2"></path>
                     <path d="M9 2h6"></path>
                 </svg>
+                <span class="hud-mod__ring"></span>
             </span>
             <span class="hud-left__name">番茄钟</span>
         </span>
-        {{/* ★ 收起之后怎么展示(用户第二轮第 4 条):按钮上一个小进度圈。
-             进度和"在不在跑"由 hud-timer.js 写进 :root 的
-             --hud-tomato-p / --hud-tomato-run —— 跨脚本只传变量,不互相戳 DOM。 */}}
-        <span class="hud-mod__ring" aria-hidden="true"></span>
     </button>
     <button class="hud-left__mod" type="button" data-hud-mod="music" data-hud-lb="1" aria-pressed="false"
         title="音乐播放器">
         <span class="hud-left__face">
+            {{/* ★ 音乐收起后的展示:图标下面一小排音频可视化(三根跳动的柱),和图标同一条中线。
+                 ★★ 说实话:网易云那个播放器是跨域的 iframe,读不到它的音频数据 ⇒
+                    这三根柱是【装饰性动画】,不是真实电平(真电平要等有自己的音源)。
+                    面板打开时跳得快一点,收起时慢慢呼吸 —— 让人知道"这儿有播放器"。 */}}
             <span class="hud-left__ico" aria-hidden="true">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                     stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -52,14 +65,10 @@
                     <circle cx="6.5" cy="18" r="2.5"></circle>
                     <circle cx="16.5" cy="16" r="2.5"></circle>
                 </svg>
+                <span class="hud-mod__bars"><i></i><i></i><i></i></span>
             </span>
             <span class="hud-left__name">音乐</span>
         </span>
-        {{/* ★ 音乐收起后的展示:按钮边缘一小条音频可视化(三根跳动的柱)。
-             ★★ 说实话:网易云那个播放器是跨域的 iframe,读不到它的音频数据 ⇒
-                这三根柱是【装饰性动画】,不是真实电平(真电平要等有自己的音源)。
-                面板打开时跳得快一点,收起时慢慢呼吸 —— 让人知道"这儿有播放器"。 */}}
-        <span class="hud-mod__bars" aria-hidden="true"><i></i><i></i><i></i></span>
     </button>
 
     {{/* ---- 下支两道(左下角 → 往右)---- */}}

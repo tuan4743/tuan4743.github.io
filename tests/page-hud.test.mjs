@@ -478,14 +478,22 @@ ok('★★★ 面板【等宽】+ 固定左缘 + 从一条公共横线纵向展�
   !/var left = Math\.round\(\(r && r\.right/.test(leftJs) &&
   /var LINE_Y = 88;/.test(leftJs) &&
   /function layoutSlit\(left, w\)/.test(leftJs) &&
-  /function unfold\(targetH\)/.test(leftJs) &&
-  !/panel\.style\.height/.test(leftJs.replace(/panel\.style\.height = (h|animTarget|"auto"|"0px"|ph)/g, '')),
+  /function unfold\(targetH, durMs\)/.test(leftJs) &&
+  !/panel\.style\.height/.test(leftJs.replace(/panel\.style\.height = (h|animTarget|"0px"|ph)/g, '')),
   '用户第二轮:"我想做成那种纵向展开的,就是原本都是在一个位置的横线,然后纵向展开,' +
   '关闭就收拢,现在看着各个面版的位置都不一样"');
-ok('★★★ 展开/收拢是【高度动画】,而且每帧重画框(两刀全程都是 45°)',
-  /unfold\(ph\)/.test(leftJs) && /drawFrame\(w, h\);/.test(leftJs) &&
-  /var h = from \* \(1 - e\);/.test(leftJs) && /anim = requestAnimationFrame\(step\)/.test(leftJs),
-  '★ 不能用 CSS scaleY 去演:那会把切角一起压扁,45° 就不是 45° 了');
+ok('★★★ 展开/收拢是【高度动画】,每帧重画框 + 每帧重钉底边(两刀全程 45°,而且向下收)',
+  /unfold\(ph, 460\)/.test(leftJs) && /unfold\(0, 380\)/.test(leftJs) &&
+  /drawFrame\(w, h\);/.test(leftJs) &&
+  /panel\.style\.top = Math\.round\(lineTop - h\) \+ "px";/.test(leftJs) &&
+  /easeInOutCubic|k < 0\.5 \? 4 \* k \* k \* k/.test(leftJs),
+  '用户第三轮:"收起时应该向下收而不是向上收" —— 只改高度 = 顶边不动、底边往上抬,' +
+  '看起来就是向上收;每帧重钉底边才是往那条横线收');
+ok('★★★ 量内容高度【不动面板自己的 height】,动画中也不写 top(那两下都是肉眼可见的抖)',
+  /var ph = Math\.min\(\(inner && inner\.offsetHeight\)/.test(leftJs) &&
+  !/panel\.style\.height = "auto"/.test(leftJs) &&
+  /if \(!anim\) panel\.style\.top/.test(leftJs),
+  '实测抓到过 323→269→323 和 底边 469/792/792 两种跳变');
 ok('★★ 收起态就是那条横线(高度 0,内容 opacity 0)',
   /\.hud-proj\s*\{[^}]*height:\s*0/.test(leftCss) &&
   /\.hud-proj\s*\{[^}]*overflow:\s*hidden/.test(leftCss) &&
@@ -497,15 +505,32 @@ ok('★★★ 卡片右上角那颗"×"删掉了(用户:"这个×没啥用")',
 ok('★★ 投影光束:从模块那一点连到面板(把"从哪投出来的"说清楚)',
   /class="hud-proj__beam"/.test(leftTpl) && /function drawBeam\(/.test(leftJs) &&
   /line\.setAttribute\("x1"/.test(leftJs) && /\.hud-proj__beam line\s*\{[^}]*stroke-dasharray/.test(leftCss));
-ok('★★★ 音乐 = 网易云的嵌入式播放器(不是本地曲目),地址从站点参数来',
-  /data-hud-music="\{\{ \$music \}\}"/.test(leftTpl) &&
-  /site\.Params\.hudMusicEmbed/.test(leftTpl) &&
-  /hudMusicEmbed = ""/.test(rd(`${BH}/hugo.toml`)) &&
-  /outchain\/player\?type=2&id=/.test(rd(`${BH}/hugo.toml`)) &&
-  /hud-left__music/.test(leftJs) && /<iframe/.test(leftJs),
-  '用户:"音乐播放器其实并非本地曲目,想要做成嵌入式播放器链接网易云音乐"');
-ok('★★ 没填地址时给出"怎么填"的说明(不是空白面板)',
-  /hudMusicEmbed<\/code>/.test(leftJs) && /outchain\/player\?type=2&id=歌曲ID/.test(leftJs));
+ok('★★★ 音乐 = 网易云的嵌入式播放器 + 用户给的歌单列表(不是本地曲目)',
+  /id="hud-music-data"/.test(leftTpl) &&
+  /jsonify \| safeJS/.test(leftTpl) &&
+  /site\.Params\.hudMusicPlaylists/.test(leftTpl) &&
+  /hudMusicPlaylists = \[/.test(rd(`${BH}/hugo.toml`)) &&
+  (rd(`${BH}/hugo.toml`).match(/\{ id = "\d+", name =/g) || []).length >= 10 &&
+  /outchain\/player\?type=0&id=/.test(leftJs) &&
+  /data-hud-plist/.test(leftJs) && /\.hud-plist__row/.test(leftCss),
+  '用户:"音乐播放器其实并非本地曲目,想要做成嵌入式播放器链接网易云音乐" + "歌单:先加这么多"');
+ok('★★★ 歌单数据用 <script type="application/json"> 传,而且【过了 safeJS】',
+  /<script type="application\/json" id="hud-music-data">\{\{ dict[^}]*jsonify \| safeJS \}\}<\/script>/.test(leftTpl),
+  '★ Go 模板的上下文转义认得 <script>,不过 safeJS 会把 JSON 再包一层引号 ' +
+  '(实测拿到 "{\\"embed\\":...}",JSON.parse 出来还是字符串)');
+ok('★★ 歌单列表有名字、能点着换(不是只列 ID)',
+  /hud-plist__name/.test(leftJs) && /hud-plist__meta/.test(leftJs) &&
+  /musicPick = Number\(row\.getAttribute\("data-hud-plist"\)\)/.test(leftJs) &&
+  /\.hud-plist__row\.is-on/.test(leftCss));
+ok('★★★ 收起之后怎么展示:番茄钟 = 时钟图标外面套一圈进度;音乐 = 图标下面一排柱;时钟不做',
+  /class="hud-left__ico"[\s\S]*?class="hud-mod__ring"/.test(leftTpl) &&
+  /class="hud-left__ico"[\s\S]*?class="hud-mod__bars"/.test(leftTpl) &&
+  /\.hud-mod__ring\s*\{[^}]*inset:\s*-3px/.test(leftCss) &&
+  /\.hud-mod__bars\s*\{[^}]*left:\s*50%/.test(leftCss) &&
+  /\.hud-mod__bars\s*\{[^}]*translateX\(-50%\)/.test(leftCss) &&
+  !/hud-mod__bars/.test(leftTpl.split('data-hud-mod="time"')[1] || ""),
+  '用户第三轮:"套到番茄钟那个时钟图标的外面吧,刚好够" + "音乐那个小标有点小歪"' +
+  '(两个都挂进 .hud-left__ico 这个 17×17 的框 ⇒ 天然对齐)');
 ok('★★★ 磁力光标认这几枚按钮(用户:"这几个按钮现在还不能被锁定框锁定")',
   /"\.hud-left__mod"/.test(fs.readFileSync(`${BH}/assets/js/magnetic-cursor.js`, 'utf8')) &&
   /\.hud-left__mod\s*\{[^}]*clip-path:/.test(leftCss),

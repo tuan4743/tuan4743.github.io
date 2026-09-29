@@ -38,6 +38,14 @@
   var timerHome = timerEl ? timerEl.parentNode : null;
   var timerWasMin = null;
   var musicEmbed = root.getAttribute("data-hud-music") || "";
+  /* 歌单数据走 <script type="application/json">,不塞 data-* 属性(名字里什么字符都有) */
+  var musicData = { embed: "", lists: [] };
+  try {
+    var raw = document.getElementById("hud-music-data");
+    if (raw && raw.textContent) musicData = JSON.parse(raw.textContent) || musicData;
+  } catch (e) { }
+  if (!musicData.embed) musicData.embed = musicEmbed;
+  var musicPick = 0;      /* 面板里选中的是第几个歌单 */
 
   /* ---------- ① 几何:一条公共的横线 + 纵向展开 ----------
      ★★★ 用户第二轮第 1 条:"我想做成那种纵向展开的,就是原本都是在一个位置的横线,
@@ -69,19 +77,22 @@
   /* 把面板从当前高度动画到 animTarget —— 每帧重画框 + 重新钉底边,
      所以两刀一直是 45°,而且看起来是【从那条横线往上长】。
      ★ 演到一半如果内容又量高了(日历画出来、iframe 加载完),只改 animTarget,
-       不要硬跳 —— 上一版就是在这儿把动画掐死的。 */
+       不要硬跳 —— 上一版就是在这儿把动画掐死的。
+     ★★ 收拢时也要【重钉底边】:只改高度的话元素是"顶边不动、底边往上抬",
+        看起来就是"向上收";钉住底边之后才是往那条横线【向下收】(用户第三轮)。 */
   var animTarget = 0;
-  function unfold(targetH) {
+  function unfold(targetH, durMs) {
     var w = parseFloat(panel.style.width) || panel.offsetWidth || 320;
     var lineTop = last ? last.line : Math.round(LINE_Y / 100 * document.documentElement.clientHeight);
     var from = panel.offsetHeight;
-    var t0 = 0, dur = 200;
+    var t0 = 0, dur = durMs || 460;
     animTarget = targetH;
     if (anim) cancelAnimationFrame(anim);
     var step = function (ts) {
       if (!t0) t0 = ts;
       var k = Math.min(1, (ts - t0) / dur);
-      var e = 1 - Math.pow(1 - k, 3);              /* easeOutCubic */
+      /* easeInOutCubic:两头慢、中间快 —— 展开的"流畅感"就靠这条曲线 */
+      var e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
       var h = from + (animTarget - from) * e;
       panel.style.height = h + "px";
       panel.style.top = Math.round(lineTop - h) + "px";   /* ★ 底边钉在那条线上 */
@@ -92,6 +103,7 @@
         panel.style.top = Math.round(lineTop - animTarget) + "px";
         drawFrame(w, animTarget);
         anim = 0;
+        panel.classList.add("is-still");                  /* 停稳了才挂阴影(性能) */
       }
     };
     anim = requestAnimationFrame(step);
@@ -119,20 +131,25 @@
     var host = root.querySelector('[data-hud-mod="' + current + '"] .hud-left__face');
     var r = host && host.getBoundingClientRect ? host.getBoundingClientRect() : null;
 
-    /* 量内容高度:临时放开高度(番茄钟那类 display:none 的,open() 里已经先搬进面板了) */
-    panel.style.height = "auto";
+    /* ★★ 量内容高度【不要去动面板自己的 height】(先设 auto 再读再写回去 =
+       动画中间插一帧满高 ⇒ 肉眼就是"抖一下",实测抓到 323→269→323 这种跳变)。
+       内容那层是 flex:0 0 auto,它天生就是自然高度,直接读它。 */
     var maxH = lineTop - 12;
-    var ph = Math.min(panel.offsetHeight || 240, maxH);
+    var ph = Math.min((inner && inner.offsetHeight) || panel.offsetHeight || 240, maxH);
     if (animate) {
       panel.style.height = "0px";
-      unfold(ph);
+      panel.style.top = Math.round(lineTop) + "px";   /* ★ 从 0 高开始:底边先落在那条线上 */
+      unfold(ph, 460);                    /* ★ 展开慢一点、两头慢中间快 */
     } else if (anim) {
       animTarget = ph;                    /* 演到一半内容量高了:改目标,别硬跳 */
     } else {
       panel.style.height = ph + "px";
       drawFrame(w, ph);
     }
-    panel.style.top = Math.round(lineTop - ph) + "px";
+    /* ★ 动画在跑的时候【不要】去写 top:那是动画每一帧在管的事(它按当前高度钉底边)。
+       这里再写一次 = 把面板先挪到"最终位置"、高度还没长上去 ⇒ 肉眼就是抖一下
+       (实测抓到 底边 469/792/792 —— 第一帧被顶掉了)。 */
+    if (!anim) panel.style.top = Math.round(lineTop - ph) + "px";
     drawBeam(r, left, Math.round(lineTop - ph), w, ph, vh);
     last.ph = ph;
   }
@@ -225,22 +242,50 @@
     timerHome.appendChild(timerEl);
   }
 
-  /* ---- 音乐:网易云的嵌入式播放器 ---- */
+  /* ---- 音乐:网易云的嵌入式播放器 ----
+     用户第三轮给了一串歌单 ID("歌单:先加这么多")⇒ 面板 = 播放器 + 一个歌单列表,
+     点哪一行就换成那一个。数据在 hugo.toml 的 params.hudMusicPlaylists。 */
   function renderMusic() {
-    if (!musicEmbed) {
-      body.innerHTML = '<p class="hud-left__todo">还没接播放器。<br>' +
-        '在 <code>hugo.toml</code> 里加一行 <code>hudMusicEmbed</code>,填网易云的嵌入地址:<br>' +
-        '<code>//music.163.com/outchain/player?type=2&id=歌曲ID&auto=0&height=66</code><br>' +
-        '(歌单把 type 改成 0,height 改大一点。)填完这里就是一个能直接播的播放器。</p>';
+    /* ① 手填的单曲/整条嵌入地址优先 */
+    if (musicData.embed) {
+      var m0 = /height=(\d+)/.exec(musicData.embed);
+      var h0 = m0 ? Math.max(66, Math.min(460, Number(m0[1]) + 20)) : 86;
+      body.innerHTML = musicFrame(musicData.embed, h0);
       return;
     }
-    var h = 86;
-    var m = /height=(\d+)/.exec(musicEmbed);
-    if (m) h = Math.max(66, Math.min(460, Number(m[1]) + 20));
-    body.innerHTML = '<iframe class="hud-left__music" src="' + musicEmbed.replace(/"/g, "&quot;") +
-      '" height="' + h + '" frameborder="no" border="0" marginwidth="0" marginheight="0" ' +
-      'scrolling="no" allow="autoplay" referrerpolicy="no-referrer" ' +
-      'title="网易云音乐"></iframe>';
+    /* ② 歌单列表 */
+    var lists = musicData.lists || [];
+    if (!lists.length) {
+      body.innerHTML = '<p class="hud-left__todo">还没接播放器。<br>' +
+        '在 <code>hugo.toml</code> 里给 <code>hudMusicPlaylists</code> 填网易云的歌单 ID,<br>' +
+        '或者给 <code>hudMusicEmbed</code> 填一条单曲嵌入地址:<br>' +
+        '<code>//music.163.com/outchain/player?type=2&id=歌曲ID&auto=0&height=66</code></p>';
+      return;
+    }
+    if (musicPick >= lists.length) musicPick = 0;
+    var cur = lists[musicPick] || {};
+    var rows = lists.map(function (p, i) {
+      var n = p.count === 0 ? "空" : (p.count == null ? "" : p.count + " 首");
+      return '<button type="button" class="hud-plist__row' + (i === musicPick ? " is-on" : "") +
+        '" data-hud-plist="' + i + '" aria-pressed="' + (i === musicPick) + '">' +
+        '<span class="hud-plist__name">' + esc(p.name || ("歌单 " + (i + 1))) + '</span>' +
+        '<span class="hud-plist__meta">' + esc(n) + " · " + esc(String(p.id || "")) + '</span></button>';
+    }).join("");
+    body.innerHTML = musicFrame("//music.163.com/outchain/player?type=0&id=" + cur.id + "&auto=0&height=430", 450) +
+      '<p class="hud-plist__hint">歌单(按你给的顺序,共 ' + lists.length + ' 个):</p>' +
+      '<div class="hud-plist">' + rows + '</div>';
+  }
+
+  function musicFrame(src, h) {
+    /* ★ 不带 referrerpolicy:网易云的嵌入式播放器是认 referer 的,
+       把 referer 抹掉反而可能被它拒(标准嵌入代码里也没有这一条)。 */
+    return '<iframe class="hud-left__music" src="' + esc(src) + '" height="' + h +
+      '" frameborder="no" border="0" marginwidth="0" marginheight="0" scrolling="no" ' +
+      'allow="autoplay" title="网易云音乐"></iframe>';
+  }
+
+  function esc(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
 
   function open(key) {
@@ -258,10 +303,11 @@
       b.setAttribute("aria-pressed", on ? "true" : "false");
     });
     panel.hidden = false;                 /* 先露出来 */
+    panel.classList.remove("is-still");   /* 展开过程中不挂阴影(每帧改高度时最费) */
     /* ★★ 顺序:先把内容渲染完(startModule 会画日历/时钟),再量高度演展开 ——
        上一版先量后渲染,量到的是"日历还没画出来"的矮高度,展开到一半就定住了。 */
     startModule(key);
-    layout(true);                         /* ★ 传 true:从 0 长到内容高度 */
+    layout(true);                         /* ★ 传 true:从 0 长到内容高度(慢一点,460ms) */
     panel.classList.add("is-open");
     /* 图/字体/iframe 到位后再对齐一次(这次不演动画,直接定高) */
     requestAnimationFrame(function () { layout(false); });
@@ -274,21 +320,17 @@
     stopModule();
     mods.forEach(function (b) { b.classList.remove("is-on"); b.setAttribute("aria-pressed", "false"); });
     panel.classList.remove("is-open");
-    /* ★ 收拢:高度动画回 0(每帧重画框,两刀一直是 45°),演完再 hidden */
-    var w = parseFloat(panel.style.width) || panel.offsetWidth || 320;
-    var from = panel.offsetHeight, t0 = 0, dur = 180;
-    if (anim) cancelAnimationFrame(anim);
-    var step = function (ts) {
-      if (!t0) t0 = ts;
-      var k = Math.min(1, (ts - t0) / dur);
-      var e = 1 - Math.pow(1 - k, 3);
-      var h = from * (1 - e);
-      panel.style.height = h + "px";
-      drawFrame(w, h);
-      if (k < 1) anim = requestAnimationFrame(step);
-      else { anim = 0; panel.hidden = true; }
+    /* ★ 收拢:也走 unfold —— 它会【每帧重钉底边】,
+       所以是"向上长出来的那一截,原路往下收回那条横线"(用户第三轮:
+       "收起时应该向下收而不是向上收")。 */
+    unfold(0, 380);
+    /* 演完再 hidden:unfold 结束时高度就是 0,这里等它一拍 */
+    var wait = function () {
+      if (anim) { setTimeout(wait, 60); return; }
+      panel.hidden = true;
+      panel.classList.remove("is-still");
     };
-    anim = requestAnimationFrame(step);
+    setTimeout(wait, 60);
   }
 
   function startModule(key) {
@@ -355,10 +397,21 @@
 
   body.addEventListener("click", function (e) {
     var b = e.target.closest ? e.target.closest("[data-cal]") : null;
-    if (!b || !calMonth) return;
-    e.preventDefault();
-    calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + Number(b.getAttribute("data-cal")), 1);
-    renderCalendar();
+    if (b && calMonth) {
+      e.preventDefault();
+      calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + Number(b.getAttribute("data-cal")), 1);
+      renderCalendar();
+      return;
+    }
+    /* 歌单列表:点一行就换成那个歌单 */
+    var row = e.target.closest ? e.target.closest("[data-hud-plist]") : null;
+    if (row) {
+      e.preventDefault();
+      musicPick = Number(row.getAttribute("data-hud-plist")) || 0;
+      renderMusic();
+      layout(false);
+      return;
+    }
   });
 
   document.addEventListener("keydown", function (e) { if (e.key === "Escape" && current) close(); });
