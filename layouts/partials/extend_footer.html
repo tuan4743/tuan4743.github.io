@@ -96,4 +96,12 @@
 {{- $u := . | fingerprint "sha256" }}
 <script defer src="{{ $u.RelPermalink }}"></script>
 {{- end }}
+{{- /* ECHO:左上角那个三角形的副摄像头 + 它右边的对话框。
+     ★ 排在最后:它只【看】别人(点 HUD、拿笔),不要求别人先就位;
+       放在末尾可以让前面几个模块先把 DOM 上的开关状态摆好,
+       免得页面一加载就误判成"刚拿了笔"。 */ -}}
+{{- with resources.Get "js/hud-echo.js" }}
+{{- $u := . | fingerprint "sha256" }}
+<script defer src="{{ $u.RelPermalink }}"></script>
+{{- end }}
 {{- end }}

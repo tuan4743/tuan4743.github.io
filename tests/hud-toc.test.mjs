@@ -84,14 +84,18 @@ ok('★ 字号/字距各有自己的行标签(不再共用一个"正文")',
 ok('★ 两行各有自己的读数元素(id 不同)',
   /id=hud-toc-size-val/.test(sPost) && /id=hud-toc-track-val/.test(sPost) &&
   !/hud-toc__size-val[^>]*id=hud-toc-size-val[^>]*hud-toc-track/.test(sPost));
-/* ★★ 用户第五轮之后从截图上发现的第二个毛病:面板在 1416 的窗口上只有 190px,
-   而我把读数那一列写成了定宽 50px —— "0.003" 放不下,浏览器【按字符】折行,
-   屏幕上是一列竖着的 "0 . 0 0 3"。
-   ⇒ 读数列必须是 auto;标签列可以定宽(它只有两个字)。 */
-ok('★ 读数那一列不能定宽(定宽会把 "0.003" 折成一列竖字)',
-  /grid-template-columns:\s*26px auto auto/.test(css) &&
+/* ★★★ 用户第六轮:"右侧目录栏那两个按钮组件排布不对"。
+   原因:列数写成了 3(26px auto auto),而这一组有 8 个子元素
+   (2 标签 + 4 按钮 + 2 读数)⇒ 排成五行:字号 / − + / 字距 / 17px − / + 0。
+   列数必须等于"每行的元素数" = 4。
+   ★ 这算一次教训:下面这条断言原来把 `26px auto auto` 当成正确值钉住了 ——
+     测试把 bug 一起保下来了。所以这里改成【先数元素、再核列数】。 */
+ok('★★★ 字号/字距那组:8 个元素按每行 4 格排成 2 行(写 3 列会排成 5 行)',
+  (tplCode.match(/class="hud-toc__(?:size-lab|step|size-val)"/g) || []).length === 8 &&
+  /grid-template-columns:\s*26px auto auto auto/.test(css) &&
   !/grid-template-columns:\s*[^;]*\b\d+px\s+auto\s+\d+px/.test(css),
-  '两行:标签 26px + 按钮 auto + 读数 auto');
+  '子元素 ' + (tplCode.match(/class="hud-toc__(?:size-lab|step|size-val)"/g) || []).length +
+  ' 个,列数 ' + (((/grid-template-columns:\s*([^;]+)/.exec(css) || [])[1]) || '?').trim());
 ok('★ 面板最小宽 176(够放"字距 [−][+] 0.003"一整行)',
   /MIN_W = 176/.test(js), 'MIN_W');
 

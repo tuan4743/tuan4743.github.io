@@ -170,6 +170,48 @@ ok('★ 风格仍然是 HUD(扫描线漂移 + 角上节点呼吸)',
   /@keyframes pn-sweep/.test(shellCode) && /@keyframes pn-pulse/.test(shellCode) &&
   /\.pn-scan path\s*\{/.test(shellCode));
 
+/* ---------- ⑤b ECHO:那个三角形的副摄像头 + 它右边的对话框(用户第七轮)----------
+   用户:"看到左上角那个SVG画出的三角了吗?……那个就是 ECHO 的副摄像头
+        (主摄像头就是平板本体)。……那个三角里面的光点做出摄像头探头,放大,
+        往右下角移一点。会跟着鼠标移动。"
+   用户:"我想的是在它的右侧加一个小小的对话框就足够了,正好缺点东西。
+        在进行某些交互时有反应。(触发别太密集,搞得跟一个描述框一样)" */
+const echoJs = rd(`${BH}/assets/js/hud-echo.js`);
+ok('★★★ 角上那个光点已经换成镜头(旧的 pn-core / pn-ring 一个不剩)',
+  /class="pn-eye" id="pn-eye"/.test(nodeHtml) && /id="pn-pupil"/.test(nodeHtml) &&
+  /class="pn-eye__case"/.test(nodeHtml) && /class="pn-eye__iris"/.test(nodeHtml) &&
+  !/pn-core|pn-ring/.test(nodeHtml),
+  '外圈 / 虹膜 / 瞳孔 / 高光');
+ok('★★★ 镜头往右下挪了、也放大了(原来在 20,20 半径 7)',
+  (() => {
+    const m = /class="pn-eye__case"\s+cx="(\d+)"\s+cy="(\d+)"\s+r="([\d.]+)"/.exec(nodeHtml);
+    if (!m) return false;
+    return +m[1] === +m[2] && +m[1] > 40 && +m[3] >= 12;
+  })(),
+  ((/class="pn-eye__case"[^>]*/.exec(nodeHtml) || [])[0] || '?').trim());
+ok('★★★ 眼睛跟鼠标,而且中心是【按节点方框的比例反推】的 —— 不能读镜头自己的 rect(会自己追自己)',
+  /node\.getBoundingClientRect\(\)/.test(echoJs) &&
+  !/eye\.getBoundingClientRect\(\)/.test(echoJs) &&
+  /pointermove/.test(echoJs) && /prefers-reduced-motion/.test(echoJs),
+  '系统开了"减少动态效果"就整个不追');
+ok('★★ 对话框挂在三角形右侧,而且和 .proj-node 共用同一个宽度算式(改一处就得改两处)',
+  (() => {
+    const a = /(?:^|[^.\w-])\.proj-node\s*\{[^}]*width:\s*(clamp\([^)]*\))/.exec(shellCode);
+    const b = /\.echo-say\s*\{[^}]*left:\s*calc\((clamp\([^)]*\))/.exec(shellCode);
+    return !!a && !!b && a[1].replace(/\s/g, '') === b[1].replace(/\s/g, '');
+  })());
+ok('★★★ 触发很稀:每个触发一个会话只响一次 + 全局冷却(不变成碎嘴的描述框)',
+  /sessionStorage/.test(echoJs) && /COOL\s*=\s*\d{4,}/.test(echoJs) &&
+  /echo-said/.test(echoJs) && /echo-last/.test(echoJs));
+ok('★ 台词写在 JS 里、不在模板里;ECHO 的语气是老朋友那一路',
+  /arrive:/.test(echoJs) && /archive:/.test(echoJs) && /LINES/.test(echoJs) &&
+  /回来了|醒了|又是你/.test(echoJs) && !/echo-say__text[^>]*>.*[\u4e00-\u9fa5]/.test(nodeHtml));
+ok('★ 首页那份不显示对话框(它跟着平板在视口外,不需要说话)',
+  /^\.echo-say\s*\{\s*display:\s*none/m.test(shellCode) &&
+  /:root\[data-theme\]\.shell-page \.echo-say\s*\{[^}]*display:\s*flex/.test(shellCode));
+ok('★ 脚本挂上了(排在最后:它只【看】别人,不要求别人先就位)',
+  /resources\.Get "js\/hud-echo\.js"/.test(rd(`${BH}/layouts/partials/extend_footer.html`)));
+
 /* ---------- ⑥ 背景必须是"钉在视口的最底层" ----------
    用户报过一次:"你直接把它固定在了滑动界面内,不仅挡住了主页面,
    滚轮一滚还跟着走"。根因:这份标记是在 <footer> 里渲染的(主题的 footer.html

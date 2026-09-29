@@ -214,16 +214,31 @@
     stroke-linecap: round;
 }
 
-.pn-ring {
-    stroke: rgba(34, 211, 238, 0.8);
+/* ── ECHO 的【副摄像头】(用户第七轮)─────────────────────────────
+   原来是"角上的节点":pn-ring(呼吸环)+ pn-core(亮芯),钉在直角顶点上。
+   现在是镜头 —— 外圈 / 虹膜 / 瞳孔 / 高光,位置挪到三角形内侧(markup 里 cx=cy=56)。
+   ★ 呼吸只在虹膜和瞳孔上做;镜头本身的【位移】由 hud-echo.js 每帧写 transform,
+     两件事各管各的,别在这里写 transform(会被 JS 覆盖掉)。 */
+.pn-eye__case {
+    fill: rgba(6, 10, 18, 0.7);
+    stroke: rgba(160, 235, 255, 0.5);
+    stroke-width: 1.1;
+}
+
+.pn-eye__iris {
+    fill: rgba(34, 211, 238, 0.16);
+    stroke: rgba(34, 211, 238, 0.85);
     stroke-width: 1;
-    fill: none;
     animation: pn-pulse 3.4s ease-in-out infinite;
 }
 
-.pn-core {
+.pn-eye__pupil {
     fill: #eaf3ff;
     animation: pn-core 3.4s ease-in-out infinite;
+}
+
+.pn-eye__glint {
+    fill: rgba(234, 243, 255, 0.8);
 }
 
 @keyframes pn-pulse {
@@ -234,6 +249,55 @@
 @keyframes pn-core {
     0%, 100% { opacity: 0.72; }
     50% { opacity: 1; }
+}
+
+/* ── ECHO 的对话框 ─────────────────────────────────────────────
+   用户:"我想的是在它的右侧加一个小小的对话框就足够了,正好缺点东西。
+        在进行某些交互时有反应。(触发别太密集,搞得跟一个描述框一样)"
+   ★ left 那个 clamp 和 .proj-node 的 width 是【同一组数】——
+     两处必须一起改(测试会把两个数抓出来比)。
+   ★ top 70px:让开顶栏(顶栏约 60px 高),落在左侧那片空白里。
+   ★ 只在博客页出现:首页那份节点还在屏幕外(跟着平板滑进来),不需要说话。
+   ★ 显隐【只用 .is-on 一个类】,不用 hidden 属性 —— 否则 [hidden]{display:none}
+     特异性比 ":root[data-theme].shell-page .echo-say" 低,压不住,话会一直挂着。 */
+.echo-say {
+    display: none;
+}
+
+:root[data-theme].shell-page .echo-say {
+    position: fixed;
+    left: calc(clamp(88px, 9vw, 132px) + 6px);
+    top: 70px;
+    z-index: 60;                       /* 压着正文,但远低于 HUD(200)与磁力光标(9999) */
+    max-width: 178px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 7px 10px 8px;
+    border: 1px solid rgba(160, 235, 255, 0.26);
+    border-radius: 2px 11px 11px 11px;  /* 左上角是尖的:指着那个摄像头 */
+    background: rgba(6, 10, 18, 0.84);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    color: rgba(234, 243, 255, 0.92);
+    font-size: 12px;
+    line-height: 1.55;
+    letter-spacing: 0.01em;
+    opacity: 0;
+    transform: translateX(-5px);
+    transition: opacity 0.22s ease, transform 0.22s ease;
+    pointer-events: none;              /* 只是个气泡,别挡住底下的东西 */
+}
+
+:root[data-theme].shell-page .echo-say.is-on {
+    opacity: 1;
+    transform: none;
+}
+
+.echo-say__who {
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    color: rgba(34, 211, 238, 0.85);
 }
 
 /* 顺着斜边的法向往外漂一点点(22.5° 那条法线方向)*/
@@ -314,9 +378,11 @@ body.page-out {
 @media (prefers-reduced-motion: reduce) {
     .cosmos-nebula,
     .cosmos-grid,
-    .pn-ring,
-    .pn-core,
+    .pn-eye__iris,
+    .pn-eye__pupil,
     .pn-scan path {
         animation: none !important;
     }
+    /* 镜头也别追鼠标了(hud-echo.js 会读这个查询,自己停掉) */
+    .echo-say { transition: none; }
 }

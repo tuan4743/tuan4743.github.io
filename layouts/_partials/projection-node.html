@@ -43,8 +43,40 @@
         <path class="pn-leg" d="M0 0 H160" />
         <path class="pn-leg" d="M0 0 V160" />
         <path class="pn-edge" d="M160 0 L0 160" />
-        {{/* 角上的节点:亮芯 + 呼吸环 */}}
-        <circle class="pn-ring" cx="20" cy="20" r="7" />
-        <circle class="pn-core" cx="20" cy="20" r="2.6" />
+        {{/* ── ECHO 的【副摄像头】(用户第七轮)─────────────────────────
+            用户:"看到左上角那个SVG画出的三角了吗?……那个就是 ECHO 的副摄像头
+                  (主摄像头就是平板本体)。……那个三角里面的光点做出摄像头探头,
+                  放大,往右下角移一点。会跟着鼠标移动。"
+            ★ 原来这里只是"角上的节点":亮芯 + 呼吸环,钉在直角顶点 (20,20)。
+              现在它是【镜头】:挪到三角形内侧 (56,56)(顺着对角线往右下),
+              尺寸放大一圈(外圈 15 / 虹膜 8.4 / 瞳孔 3.9)。
+            ★★ 位移由 assets/js/hud-echo.js 写:整只镜头朝鼠标方向偏最多 6 个单位,
+              瞳孔再多偏 3(视差)—— 看起来像摄像头在跟着人转。
+              JS 是按【节点方框的比例】反推中心,不是读 getBoundingClientRect,
+              否则自己动一次、量一次,会自己追自己(反馈漂移)。
+            ★ 分组 id 给 JS 用;改结构记得同步 hud-echo.js 的选择器。 */}}
+        <g class="pn-eye" id="pn-eye">
+            <circle class="pn-eye__case" cx="56" cy="56" r="15" />
+            <circle class="pn-eye__iris" cx="56" cy="56" r="8.4" />
+            <g id="pn-pupil">
+                <circle class="pn-eye__pupil" cx="56" cy="56" r="3.9" />
+                <circle class="pn-eye__glint" cx="52.5" cy="52.5" r="1.7" />
+            </g>
+        </g>
     </svg>
+</div>
+
+{{/* ── ECHO 的对话框(用户:"我想的是在它的右侧加一个小小的对话框就足够了,
+    正好缺点东西。在进行某些交互时有反应。(触发别太密集,搞得跟一个描述框一样)")
+    ★ 单独一层、不放在 .proj-node 里面:那个节点在博客页上是 z-index:-1
+      (它会跑到顶栏和 logo 后面,这是刻意的),话可不能也跟着看不见。
+    ★ 只在博客页出现(:root[data-theme].shell-page 那条);首页那份节点还在屏幕外,
+      它不需要说话。
+    ★ 显隐只用 .is-on 一个类,【不用 hidden 属性】—— 否则 [hidden]{display:none}
+      和 shell-page 那条 display:flex 会打架(前者特异性低,压不住)。
+    ★ 话在 assets/js/hud-echo.js 里;每个触发一个会话只响一次 + 全局冷却,
+      所以整场下来最多五六句,不会变成一个碎嘴的描述框。 */}}
+<div class="echo-say" id="echo-say">
+    <span class="echo-say__who">ECHO</span>
+    <span class="echo-say__text" id="echo-say-text"></span>
 </div>

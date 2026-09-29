@@ -331,13 +331,17 @@
 .hud-toc__size {
     flex: 0 0 auto;
     display: grid;
-    /* ★★ 第二列【不能定宽】—— 第一版写的是 30px auto 50px,在 1416 的窗口上
-       面板只有 190px,50px 那一列放不下 "0.003"(5 字符 ≈ 52px)⇒ 浏览器把
-       它【按字符】折行,每个字符一行竖着排(用户会看到一列竖着的 "0 . 0 0 3")。
-       改成 auto:读数有多宽就占多宽,两行仍然各自成列(标签列定宽 26px,
-       两行的按钮自然对齐);真放不下时靠 .hud-toc__list 那种思路不适用,
-       所以另外把面板最小宽从 168 提到 176(见 hud-toc.js 的 MIN_W)。 */
-    grid-template-columns: 26px auto auto;
+    /* ★★★ 每行【四】格:标签 / 减 / 加 / 读数。
+       这里原来写的是 `26px auto auto` —— 三列。可这一组一共 8 个子元素
+       (2 个标签 + 4 个按钮 + 2 个读数),三列会排成五行:
+           字号 / − + / 字距 / 17px − / + 0
+       (CDP 拿 getBoundingClientRect 按 y 分组量过,就是这样。)
+       用户:"右侧目录栏那两个按钮组件排布不对" —— 就是这个。
+       ⇒ 列数必须等于"每行的元素数"= 4。
+       ★ 后三列都不能定宽:第二、三列是按钮(auto),第四列是读数(auto)。
+         读数那列曾经写死过 50px,结果 "0.003"(≈52px)放不下,
+         浏览器【按字符】折行,屏幕上是一列竖着的 "0 . 0 0 3"(1416 窗口实测)。 */
+    grid-template-columns: 26px auto auto auto;
     align-items: center;
     justify-content: start;
     gap: 6px 5px;
