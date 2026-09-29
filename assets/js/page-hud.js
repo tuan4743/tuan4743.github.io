@@ -68,6 +68,41 @@
         return { path: d, fill: fill, user: user, k: k, y1: y1 };
     }
 
+    /* ------------------------------------------------------------
+       左下角 UHD 的折线 = 右侧那条【整条镜像】
+       (用户:"整体 UHD 对称,因此模块大小相同,左侧和下侧的 UHD 对称")
+       ------------------------------------------------------------
+       变换只有两件事:
+         ① x' = 100 − x(关于竖直中线翻)
+         ② 顶点顺序【倒过来】—— 不翻顺序的话起点/终点换了头:右侧是"从顶边
+            走到页底",镜像后成了"从页底走到顶边",折线形状一样,但跑马灯和
+            "挂在路径上的按钮"全会错位。
+       ★★ 底边收口用 63.0514(右侧那条 d 的终点),不是镜像出来的 36.9486:
+          右侧底板写的是 d + "L100 100 L100 0 Z",它沿页底从 63.0514 盖到 100;
+          左边镜像过来是 0 盖到 36.9486 ⇒ 中间 26% 是空的,看着像底板断了一截。
+          接上之后两条带子在页底首尾相接。对折线本身没有影响(那一段贴着页底 y=100)。
+       ★ 其余顶点全是纯镜像,不额外调整 —— 一调整左右就不对称了。
+       ------------------------------------------------------------ */
+    function gFrameLeft(w, h, bandX) {
+        var g = gFrame(w, h, bandX);
+        /* ★★ 顺序很重要,别跳步:先把右侧顶点换成【屏幕坐标】,再镜像、再倒序。
+           我第一版是"先在用户坐标里镜像、最后再 100−x 转屏幕",等于把镜像
+           做了两遍又漏了一次转换 —— 收口那点变成 (36.95, 0),折线最后一段从
+           页底一路斜穿回左上角。形状类的东西,坐标系只能有一个口径。 */
+        var scr = g.user.map(function (p) { return [100 - p[0], p[1]]; });   /* 右侧 d 的点 */
+        var pts = scr.map(function (p) { return [100 - p[0], p[1]]; }).reverse();
+        var meet = scr[scr.length - 1][0];                    /* 右侧底边收口 x = 63.0514 */
+        /* ★★ 是 push 不是替换:镜像倒序之后末尾那个点正是【顶部凸起】的顶点
+           (45,0),替换掉它等于把这一整个凸起削平 —— 上一版就是这么错的,
+           表现是"左上角少了一块、折线从页底斜着连到 (45,0)"。
+           追加之后左支比右支多一个点(收口点没有镜像对应物),比对时要注意。 */
+        pts.push([meet, 100]);                                /* 追加收口点 ⇒ 页底连成一条 */
+        var d = pts.map(function (p, i) {
+            return (i ? "L" : "M") + round(p[0]) + " " + round(p[1]);
+        }).join(" ");
+        return { path: d, fill: d + " L0 100 L0 0 Z", user: pts, k: g.k, meet: meet };
+    }
+
     function round(v) {
         return Math.round(v * 1e4) / 1e4;
     }
@@ -102,10 +137,28 @@
         if (fill) fill.setAttribute("d", g.fill);
         root.setAttribute("data-hud-frame", g.path);
         if (window.__hudFrame) window.__hudFrame.last = g;
+
+        /* ---------- 左下角 UHD(第一刀:只画形状)----------
+           ★ 左支 SVG 是【独立的一支】(.page-hud__frame--left),不是把右侧折线拼长:
+             两条线共用同一套 0~100 百分比坐标,分开画最简单,也不会互相改写 d。
+           ★ 选择器必须限定在左支 SVG 里 —— 上面那条注释里的坑:写成
+             root.querySelectorAll("path") 会把所有图标里的 path 一起改掉。
+           ★ 拿不到这支 SVG 就安静跳过(旧产物/别的页面可能还没有它)。 */
+        var leftRoot = root.querySelector(".page-hud__frame--left");
+        if (leftRoot) {
+            var gl = gFrameLeft(w, h, bandX);
+            var lps = leftRoot.querySelectorAll(".hud-halo, .hud-line, .hud-run");
+            for (var j = 0; j < lps.length; j++) lps[j].setAttribute("d", gl.path);
+            var lfill = leftRoot.querySelector(".hud-fill");
+            if (lfill) lfill.setAttribute("d", gl.fill);
+            leftRoot.setAttribute("data-hud-frame-left", gl.path);
+            g.left = gl;
+        }
+        if (window.__hudFrame) window.__hudFrame.last = g;
     }
 
     if (typeof window !== "undefined") {
-        window.__hudFrame = { gFrame: gFrame, draw: drawFrame, T60: T60 };
+        window.__hudFrame = { gFrame: gFrame, gFrameLeft: gFrameLeft, draw: drawFrame, T60: T60 };
     }
 
     /* ------------------------------------------------------------

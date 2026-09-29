@@ -85,6 +85,10 @@ const hudJsSrc = rd(`${BH}/assets/js/page-hud.js`);
 const win = {};
 new Function('window', 'document', hudJsSrc)(win, undefined);   /* document=undefined ⇒ 只导函数 */
 const gFrame = win.__hudFrame && win.__hudFrame.gFrame;
+/* ★ 第二十轮:左下角 UHD 的折线 = gFrame 的整条镜像。这里一并取出它的纯函数,
+   下面要用它和"镜像"两边各算一遍再比(和右支那条防漂断言同一个套路)。 */
+const gFrameLeftFn = win.__hudFrame && win.__hudFrame.gFrameLeft;
+const gFrameLeft = (w, h) => (gFrameLeftFn ? gFrameLeftFn(w, h) : { user: [], path: '' });
 ok('★★ 几何函数 gFrame(w,h) 能在没有 DOM 的环境里单独跑(测试靠它验真值)',
   typeof gFrame === 'function');
 const REF_W = 1920, REF_H = 1080;
@@ -228,9 +232,51 @@ ok('★★★ 把产物里那条 minify 过的 d 解析回顶点,和参考折线
   builtUser.length === ref.user.length &&
   builtUser.every(([x, y], k) => Math.abs(x - ref.user[k][0]) < 1e-3 && Math.abs(y - ref.user[k][1]) < 1e-3),
   builtUser.map(([x, y]) => '(' + x.toFixed(3) + ',' + y.toFixed(3) + ')').join(' '));
+/* ★★ 第二十轮补:右边那支是三条(halo/line/run),左下角那支【两条】——
+   跑马灯暂时不放左边:它要横跨两条折线才好看,等按钮那一刀再说。
+   所以这里要【分 SVG 数】,不能再对整份模板数 path(第一版就是这么红的)。 */
+const tplFrameSvgs = hudTplCode.split('class="page-hud__frame');
 ok('★ 边框在标记里是【三条 path】(halo / line / run;短刺这一刀没画)',
-  (hudTplCode.match(/<path class="hud-(halo|line|run)"/g) || []).length === 3);
-ok('★★ 三个类在 CSS 里都有规则,而且都 vector-effect: non-scaling-stroke',
+  tplFrameSvgs.length === 3 &&
+  (tplFrameSvgs[1].match(/<path class="hud-(halo|line|run)"/g) || []).length === 3,
+  '右支 ' + ((tplFrameSvgs[1] || '').match(/<path class="hud-(halo|line|run)"/g) || []).length + ' 条');
+ok('★ 左下角那一支是【两条 path】(halo / line,暂时没有跑马灯)',
+  (tplFrameSvgs[2].match(/<path class="hud-(halo|line|run)"/g) || []).length === 2 &&
+  !/hud-run/.test(tplFrameSvgs[2]));
+ok('★ 左下角那一支和右支一样挂在 .page-hud__frame 那套坐标制式上',
+  /viewBox="0 0 100 100"/.test(tplFrameSvgs[2]) && /preserveAspectRatio="?none/.test(tplFrameSvgs[2]));
+/* ★★ 左支的顶点必须是右支的【整条镜像】:x' = 100 − x,而且顺序反过来。
+   纯函数比对(和右支那条"模板 vs 函数"一个套路,只是这里是"左函数 vs 镜像"):
+   ★ 左支比右支多【一个】点:末尾那个收口点(为了让页底两条带子接上),
+     它没有镜像对应物,所以比对时跳过。
+   ★ 模板里那份 $frameLeft 也必须等于 gFrameLeft(1920,1080) 的输出。 */
+const frameLeftSrc = (hudTpl.match(/\$frameLeft := "([^"]+)"/) || [, ''])[1];
+ok('★★★ 模板里的左支参考折线 == gFrameLeft(1920,1080) 的输出',
+  !!frameLeftSrc && frameLeftSrc === gFrameLeft(1920, 1080).path,
+  '模板: ' + frameLeftSrc + '\n     函数: ' + gFrameLeft(1920, 1080).path);
+ok('★★ 左支 = 右支的镜像(逐点 x\'=100−x,顺序相反;只有末尾多一个收口点)', (() => {
+  const R = ref.user.map(([x, y]) => [100 - x, y]);          /* 右侧的屏幕坐标 */
+  const L = gFrameLeft(1920, 1080).user;                     /* 左侧的屏幕坐标 */
+  if (L.length !== R.length + 1) return false;
+  const body = L.slice(0, L.length - 1);
+  for (let i = 0; i < R.length; i++) {
+    const mirror = [100 - R[i][0], R[i][1]];
+    const got = body[body.length - 1 - i];
+    if (Math.abs(got[0] - mirror[0]) > 1e-3 || Math.abs(got[1] - mirror[1]) > 1e-3) return false;
+  }
+  return true;
+})(), '左 ' + gFrameLeft(1920, 1080).user.map((p) => '(' + p[0].toFixed(2) + ',' + p[1].toFixed(2) + ')').join(' '));
+ok('★★ 页底两条带子接得上(左支收口点 = 右支最后一点的 x)', (() => {
+  const g = gFrame(1920, 1080);
+  const L = gFrameLeft(1920, 1080);
+  /* ★ 两边都要换成【屏幕坐标】再比:gFrameLeft().user 里存的是屏幕百分比,
+     而"右支的收口 x"要先做一次 100−x(用户坐标 → 屏幕)。上一版忘了这一步,
+     拿 36.95 和 63.05 比,报出来是"接不上",其实是坐标系不同。 */
+  const meetScreen = 100 - g.user[g.user.length - 1][0];
+  const last = L.user[L.user.length - 1];
+  return Math.abs(last[0] - meetScreen) < 1e-3 && Math.abs(last[1] - 100) < 1e-3;
+})(), '右支收口(屏幕 x) = ' + (100 - gFrame(1920, 1080).user[9][0]).toFixed(4));
+ok('★★★ 三个类在 CSS 里都有规则,而且都 vector-effect: non-scaling-stroke',
   ['hud-halo', 'hud-line', 'hud-run'].every((k) => new RegExp('\\.' + k + '\\s*[,{]').test(cssCode)) &&
   /\.hud-halo,\s*\.hud-line,\s*\.hud-run\s*\{[^}]*vector-effect:\s*non-scaling-stroke/.test(cssCode),
   '★ 这一条不只是"线宽不变粗":non-scaling-stroke 让 dash* 也按【屏幕像素】算,' +
