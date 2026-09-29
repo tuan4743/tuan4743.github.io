@@ -186,8 +186,9 @@
     50% { transform: scaleY(1); }
 }
 
-/* 面板开着的时候跳得明显一点 */
-.hud-left__mod.is-on .hud-mod__bars i {
+/* 面板开着的时候跳得明显一点;正在播的时候也跳起来(哪怕面板收着) */
+.hud-left__mod.is-on .hud-mod__bars i,
+.hud-left__mod.is-playing .hud-mod__bars i {
     opacity: 1;
     animation-duration: 0.7s;
 }

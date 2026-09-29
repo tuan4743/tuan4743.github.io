@@ -463,12 +463,21 @@
   }
 
   /* ---------- 事件 ---------- */
-  window.addEventListener("mousemove", function (e) {
+  /* ★★★ 跟手这件事必须挂在 pointermove 上(第七轮用户反馈:
+     "这个笔在按下的时候这个磁吸光标不会跟着移动啊……不能跟随问题有点大")。
+     根因在规范里:落笔那层 canvas 在 pointerdown 上 preventDefault(不这么做就会开始
+     选字/拖图),而 Pointer Events 规定 —— pointerdown 的默认行为一旦被取消,
+     浏览器就【不再派发兼容的 mousemove/mousedown/mouseup】。
+     所以整段按住的拖动里,mousemove 一次都不来 ⇒ 光标冻在按下那一刻。
+     pointermove 不受这条影响,永远会来;mousemove 留着当兜底。 */
+  var follow = function (e) {
     mx = e.clientX; my = e.clientY;
     if (fx < -900) { fx = mx; fy = my; }
     fadeTo = 1;
     if (!raf) raf = requestAnimationFrame(tick);
-  }, { passive: true });
+  };
+  window.addEventListener("pointermove", follow, { passive: true });
+  window.addEventListener("mousemove", follow, { passive: true });
 
   document.addEventListener("mouseover", function (e) {
     var t = e.target && e.target.closest ? e.target.closest(SELECTOR) : null;

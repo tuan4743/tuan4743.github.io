@@ -47,6 +47,16 @@
   if (!musicData.embed) musicData.embed = musicEmbed;
   var musicPick = 0;      /* 面板里选中的是第几首 */
 
+  /* ★★★ 播放器是【常驻】的(用户第六轮:"这个音乐在后台播放时,点其他模块,音乐会关掉"):
+     面板内容每次都会被重画,<audio> 要是挂在面板里,一切模块就被销毁 ⇒ 歌就断了。
+     所以它挂在 .hud-left 上,谁都不动它;面板那层只是它的"遥控器"。
+     (display:none 不影响播放,音频元素照播。) */
+  var audioEl = document.createElement("audio");
+  audioEl.id = "hud-player-audio";
+  audioEl.preload = "none";
+  audioEl.style.display = "none";
+  root.appendChild(audioEl);
+
   /* ---------- ① 几何:一条公共的横线 + 纵向展开 ----------
      ★★★ 用户第二轮第 1 条:"我想做成那种纵向展开的,就是原本都是在一个位置的横线,
           然后纵向展开,关闭就收拢,现在看着各个面版的位置都不一样。"
@@ -260,6 +270,7 @@
   function renderMusic() {
     /* ① 手填的单曲/整条嵌入地址优先 */
     if (musicData.embed) {
+      pauseAudio();
       var m0 = /height=(\d+)/.exec(musicData.embed);
       var h0 = m0 ? Math.max(66, Math.min(460, Number(m0[1]) + 20)) : 86;
       body.innerHTML = musicFrame(musicData.embed, h0);
@@ -268,6 +279,7 @@
     /* ② 歌曲列表 */
     var songs = musicData.songs || [];
     if (!songs.length) {
+      pauseAudio();
       body.innerHTML = '<p class="hud-left__todo">还没接播放器。<br>' +
         '在 <code>hugo.toml</code> 里给 <code>hudMusicSongs</code> 填网易云的歌曲 ID,<br>' +
         '或者给 <code>hudMusicEmbed</code> 填一条嵌入地址:<br>' +
@@ -276,6 +288,16 @@
     }
     if (musicPick >= songs.length) musicPick = 0;
     var cur = songs[musicPick] || {};
+    /* ★ 换歌才动 src:同一首就不碰它(否则每次开面板都会从头开始) */
+    if (audioEl.dataset.song !== String(cur.id)) {
+      audioEl.dataset.song = String(cur.id);
+      if (cur.direct) {
+        audioEl.src = "//music.163.com/song/media/outer/url?id=" + cur.id + ".mp3";
+      } else {
+        pauseAudio();
+        audioEl.removeAttribute("src");
+      }
+    }
     var rows = songs.map(function (s, i) {
       return '<button type="button" class="hud-plist__row' + (i === musicPick ? " is-on" : "") +
         '" data-hud-song="' + i + '" aria-pressed="' + (i === musicPick) + '">' +
@@ -286,6 +308,14 @@
       '<p class="hud-plist__hint">歌单</p>' +
       '<div class="hud-plist">' + rows + '</div>';
     wireAudio();
+  }
+
+  function pauseAudio() {
+    try { audioEl.pause(); } catch (e) { }
+    var btn = document.getElementById("hud-player-btn");
+    if (btn) btn.classList.remove("is-playing");
+    var m = document.querySelector('[data-hud-pen], [data-hud-mod="music"]');
+    if (m) m.classList.remove("is-playing");
   }
 
   /* ★★★ 音量(用户第五轮:"不能通过右下角那个音量滑块控制音量大小"):
@@ -305,9 +335,7 @@
         '<span>' + esc(s.artist || "") + '</span></div>' +
         '<span class="hud-player__time" id="hud-player-time">0:00</span>' +
         '<span class="hud-player__track"><i id="hud-player-fill"></i></span>' +
-        '</div>' +
-        '<audio id="hud-player-audio" preload="none" src="//music.163.com/song/media/outer/url?id=' +
-        esc(s.id) + '.mp3"></audio>';
+        '</div>';
     }
     return musicFrame("//music.163.com/outchain/player?type=2&id=" + s.id + "&auto=0&height=66", 86) +
       '<p class="hud-plist__note">这首网易云只给嵌入式播放器(没有直链)⇒ 音量用它自己的。</p>';
@@ -322,45 +350,69 @@
   }
 
   function wireAudio() {
-    var a = document.getElementById("hud-player-audio");
-    if (!a) return;
-    applyVolume(a);
-    window.addEventListener("hud-volume", function (e) {
-      var v = e && e.detail;
-      if (a && isFinite(v)) { try { a.volume = Math.min(1, Math.max(0, v)); } catch (err) { } }
-    });
+    /* ★ 绑的是那颗【常驻】的 audioEl(不是面板里的节点)—— 面板重画不影响播放 */
+    var a = audioEl;
     var btn = document.getElementById("hud-player-btn");
     var fill = document.getElementById("hud-player-fill");
     var timeEl = document.getElementById("hud-player-time");
-    var fmt = function (sec) {
-      if (!isFinite(sec)) return "0:00";
-      var m = Math.floor(sec / 60), r = Math.floor(sec % 60);
-      return m + ":" + (r < 10 ? "0" : "") + r;
+    var musicBtn = document.querySelector('[data-hud-mod="music"]');
+    var paint = function () {
+      if (fill) fill.style.width = (a.duration ? (a.currentTime / a.duration * 100) : 0) + "%";
+      if (timeEl) timeEl.textContent = fmtTime(a.currentTime);
     };
+    window.__hudAudio = { el: a, paint: paint };
+    applyVolume(a);
+    paint();
     if (btn) {
+      btn.classList.toggle("is-playing", !a.paused);
       btn.addEventListener("click", function () {
         if (a.paused) { var p = a.play(); if (p && p.catch) p.catch(function () { }); }
         else a.pause();
       });
     }
-    a.addEventListener("play", function () { if (btn) btn.classList.add("is-playing"); });
-    a.addEventListener("pause", function () { if (btn) btn.classList.remove("is-playing"); });
-    a.addEventListener("ended", function () { if (btn) btn.classList.remove("is-playing"); });
+  }
+
+  function fmtTime(sec) {
+    if (!isFinite(sec)) return "0:00";
+    var m = Math.floor(sec / 60), r = Math.floor(sec % 60);
+    return m + ":" + (r < 10 ? "0" : "") + r;
+  }
+
+  /* 播放状态:面板里的按钮 + 模块按钮上的那排柱,两处一起亮 */
+  function bindAudioOnce() {
+    var a = audioEl;
+    applyVolume(a);
+    window.addEventListener("hud-volume", function (e) {
+      var v = e && e.detail;
+      if (a && isFinite(v)) { try { a.volume = Math.min(1, Math.max(0, v)); } catch (err) { } }
+    });
+    var setState = function (playing) {
+      var m = document.querySelector('[data-hud-mod="music"]');
+      if (m) m.classList.toggle("is-playing", playing);
+      var btn = document.getElementById("hud-player-btn");
+      if (btn) btn.classList.toggle("is-playing", playing);
+    };
+    a.addEventListener("play", function () { setState(true); });
+    a.addEventListener("pause", function () { setState(false); });
+    a.addEventListener("ended", function () { setState(false); });
     a.addEventListener("timeupdate", function () {
-      if (fill) fill.style.width = (a.duration ? (a.currentTime / a.duration * 100) : 0) + "%";
-      if (timeEl) timeEl.textContent = fmt(a.currentTime);
+      var f = document.getElementById("hud-player-fill");
+      var t = document.getElementById("hud-player-time");
+      if (f) f.style.width = (a.duration ? (a.currentTime / a.duration * 100) : 0) + "%";
+      if (t) t.textContent = fmtTime(a.currentTime);
     });
     /* ★ 直链不通(版权/VIP)⇒ 就地把这首换成网易云的嵌入式播放器,别留一块按不动的 UI */
     a.addEventListener("error", function () {
+      if (!a.getAttribute("src")) return;
       var s = (musicData.songs || [])[musicPick];
-      if (!s) return;
+      if (!s || current !== "music") return;
       var holder = body.querySelector(".hud-player");
       if (holder) holder.outerHTML = musicFrame(
         "//music.163.com/outchain/player?type=2&id=" + s.id + "&auto=0&height=66", 86) +
         '<p class="hud-plist__note">这首没有直链(网易云只给嵌入式播放器)⇒ 音量用它自己的。</p>';
-      a.remove();
     });
   }
+  bindAudioOnce();
 
   function musicFrame(src, h) {
     /* ★ 不带 referrerpolicy:网易云的嵌入式播放器是认 referer 的,

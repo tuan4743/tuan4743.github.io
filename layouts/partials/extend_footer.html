@@ -88,4 +88,12 @@
 {{- $u := . | fingerprint "sha256" }}
 <script defer src="{{ $u.RelPermalink }}"></script>
 {{- end }}
+{{- /* 三支笔【落笔】的那一层(画布 + 笔画)。用户:"把右下角那两只笔一个橡皮实现了."
+     ★ 独立文件:笔的【外观与交互】还在 page-hud.js,这里只管画。
+     ★ 排在 page-hud.js 之后:它读那三支笔的 --pen-color / 滑条值,也读 .is-on 判断
+       现在选的是哪支(选笔的开关在 page-hud.js 里)。 */ -}}
+{{- with resources.Get "js/hud-pens.js" }}
+{{- $u := . | fingerprint "sha256" }}
+<script defer src="{{ $u.RelPermalink }}"></script>
+{{- end }}
 {{- end }}

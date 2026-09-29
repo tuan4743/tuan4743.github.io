@@ -550,6 +550,14 @@ ok('★★★ 没直链的那首自动退回嵌入式播放器,并写明"音量�
   /音量用它自己的/.test(leftJs) &&
   !/referrerpolicy/.test(leftJs),
   '网易云的 iframe 是跨域的:没有 API 能改它的音量 —— 这一点只能说实话');
+ok('★★★ 播放器是【常驻】的 ⇒ 切别的模块、收起面板,歌都不断',
+  /var audioEl = document\.createElement\("audio"\)/.test(leftJs) &&
+  /root\.appendChild\(audioEl\)/.test(leftJs) &&
+  /if \(audioEl\.dataset\.song !== String\(cur\.id\)\)/.test(leftJs) &&
+  !/body\.appendChild\(audioEl\)/.test(leftJs) &&
+  /\.hud-left__mod\.is-playing \.hud-mod__bars i/.test(leftCss),
+  '用户第六轮:"这个音乐在后台播放时,点其他模块,音乐会关掉" —— ' +
+  '根因是 <audio> 挂在面板里,面板一重画就被销毁;现在它挂在 .hud-left 上');
 ok('★★★ 收起之后怎么展示:番茄钟 = 时钟图标外面套一圈进度;音乐 = 图标下面一排柱;时钟不做',
   /class="hud-left__ico"[\s\S]*?class="hud-mod__ring"/.test(leftTpl) &&
   /class="hud-left__ico"[\s\S]*?class="hud-mod__bars"/.test(leftTpl) &&
@@ -970,11 +978,49 @@ ok('★ 目录面板 / 进度条 / 左侧番茄钟与播放器 / 首页平板:�
   !/目录|进度条/.test(hudTplCode) &&
   !/intro-page|tablet/.test(hudTplCode),
   '下一刀:目录面板 + 收起 + 字号/字距 + 进度条');
-ok('★ 三支笔【只做外观与交互】,没有偷偷去改正文(还没有落笔的画布)',
-  !/document\.addEventListener\("pointerdown"/.test(hudJs) &&
-  !/createElement\("canvas"\)/.test(hudJs) &&
-  !/md-content/.test(hudJs),
-  '用户当时选的是"先只做外观";真正能画是后面的事');
+/* ★★★ 第七轮:三支笔【真的能画】了(用户:"把右下角那两只笔一个橡皮实现了.一直拖到现在.")
+   —— 落笔那一层单独一个文件 hud-pens.js:一套覆盖正文的 canvas + 矢量笔画。
+   ★ page-hud.js 仍然只管"选笔/滑条/色点/光标形态",所以下面这两条依旧成立。 */
+ok('★ page-hud.js 里仍然没有画布(落笔那一层是独立文件,各管一摊)',
+  !/createElement\("canvas"\)/.test(hudJs) && !/md-content/.test(hudJs));
+const pensJs = noC(rd(`${BH}/assets/js/hud-pens.js`));
+ok('★★★ 三支笔真的能画:画布 + 矢量笔画 + 三种笔性',
+  /createElement\("canvas"\)/.test(pensJs) &&
+  /strokes = \[\]/.test(pensJs) &&
+  /name === "marker"[\s\S]{0,80}alpha: 0\.3/.test(pensJs) &&          /* 荧光笔:半透明 */
+  /name === "eraser"[\s\S]{0,80}destination-out/.test(pensJs) &&      /* 橡皮:真的擦 */
+  /pointerdown/.test(pensJs) && /pointermove/.test(pensJs) &&
+  /getContext\("2d"\)/.test(pensJs),
+  '用户:"把右下角那两只笔一个橡皮实现了"');
+ok('★★★ 没选笔时画布【不吃指针】(正文照常选中/点链接);选了笔才接管',
+  /canvas\.style\.pointerEvents = pen \? "auto" : "none"/.test(pensJs) &&
+  /syncMode/.test(pensJs) &&
+  /document\.addEventListener\("click"/.test(pensJs),
+  '整层吃点击是第五轮踩过的坑(正文点不动了)');
+ok('★★ 画布钉在正文那一块上(文档坐标 ⇒ 画的线跟着内容滚,不会跑)',
+  /main\.getBoundingClientRect\(\)/.test(pensJs) &&
+  /pageYOffset \|\| document\.documentElement\.scrollTop/.test(pensJs) &&
+  /canvas\.style\.left = box\.x \+ "px"/.test(pensJs) &&
+  /dpr = \(box\.w \* box\.h > 3\.2e6\) \? 1/.test(pensJs),
+  '长文章自动降到 1 倍,别为了清晰把内存吃光');
+ok('★★ 换窗口/重排能重画(笔画是矢量的),右键清空且有提示',
+  /function redraw\(\)/.test(pensJs) && /addEventListener\("contextmenu"/.test(pensJs) &&
+  /已清空 /.test(pensJs) && /hud-toast/.test(pensJs));
+ok('★★ 加载顺序:hud-pens.js 排在 page-hud.js 之后(要读那三支笔的状态)',
+  extFoot.indexOf('js/hud-pens.js') > extFoot.indexOf('js/page-hud.js'));
+/* ★★★ 第七轮第二刀:按住拖动时磁吸光标必须跟着走。
+   根因在规范里:落笔那层在 pointerdown 上 preventDefault(不这么做就会开始选字/拖图),
+   而 Pointer Events 规定 pointerdown 的默认行为一被取消,浏览器就【不再派发兼容的
+   mousemove】⇒ 整段按住拖动里 mousemove 一次都不来,光标冻在按下那一刻。
+   ⇒ 跟手必须挂在 pointermove 上(mousemove 留作兜底)。 */
+ok('★★★ 磁吸光标跟的是 pointermove(否则按住画线时光标不动)', (() => {
+  /* ★ 这里直接读文件:mcJs 在下面才声明(const 有暂时性死区,提前用会直接抛) */
+  const mc = fs.readFileSync(`${BH}/assets/js/magnetic-cursor.js`, 'utf8');
+  return /window\.addEventListener\("pointermove", follow/.test(mc) &&
+    /window\.addEventListener\("mousemove", follow/.test(mc) &&
+    /if \(!raf\) raf = requestAnimationFrame\(tick\)/.test(mc);
+})(),
+  '用户:"这个笔在按下的时候这个磁吸光标不会跟着移动啊……不能跟随问题有点大"');
 
 /* ---------- ⑪ 磁力光标:HUD 里的元素也要认(第五轮反馈 4/5) ---------- */
 const mcJs = fs.readFileSync(`${BH}/assets/js/magnetic-cursor.js`, 'utf8');
