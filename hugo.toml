@@ -48,29 +48,33 @@ paginate = 10
   hudMusicEmbed = ""
   # ★★ 歌曲列表(用户给的 25 个 ID —— 是【歌曲】不是歌单,播放器用 type=2)。
   #    name / artist 是 2026-09-29 用公开接口抓的一次快照,只为在面板里认得出是哪首。
+  #    ★ direct:这首有没有【可播放直链】(music.163.com/song/media/outer/url)。
+  #      有 ⇒ 面板用原生 <audio> 播,右下角那条音量滑条就能真的控制它;
+  #      没有(网易云只给 VIP/版权限制的那些)⇒ 退回网易云的嵌入式播放器,音量用它自己的。
+  #      这一列是 2026-09-29 实测的(24 首里 10 首有直链);哪天网易云改了,重测一遍就是。
   #    ★ 5223391377 查不到(可能不是单曲),先注释在最下面。
   hudMusicSongs = [
     { id = "2031005346", name = "Eat Your Young", artist = "Hozier" },
-    { id = "36664350", name = "I Can", artist = "Steven Cooper" },
-    { id = "26281760", name = "My Father's Son", artist = "Joe Cocker" },
+    { id = "36664350", name = "I Can", artist = "Steven Cooper", direct = true },
+    { id = "26281760", name = "My Father's Son", artist = "Joe Cocker", direct = true },
     { id = "2013900062", name = "Cold (Live)", artist = "Jonathan Roy/Kim Richardson" },
-    { id = "1424155127", name = "Keeping Me Alive (Acoustic)", artist = "Jonathan Roy" },
-    { id = "2075035816", name = "ストックホルムオフィス", artist = "可不" },
-    { id = "3394036706", name = "洛阳纸", artist = "许嵩" },
-    { id = "3342981041", name = "铁花飞", artist = "Mili/塞壬唱片-MSR" },
+    { id = "1424155127", name = "Keeping Me Alive (Acoustic)", artist = "Jonathan Roy", direct = true },
+    { id = "2075035816", name = "ストックホルムオフィス", artist = "可不", direct = true },
+    { id = "3394036706", name = "洛阳纸", artist = "许嵩", direct = true },
+    { id = "3342981041", name = "铁花飞", artist = "Mili/塞壬唱片-MSR", direct = true },
     { id = "450222764", name = "Dreamy Noise", artist = "ゆうかなで" },
-    { id = "3374216186", name = "山雾", artist = "安扬August" },
+    { id = "3374216186", name = "山雾", artist = "安扬August", direct = true },
     { id = "3365242576", name = "假贵族", artist = "门尼" },
-    { id = "3402170281", name = "抽离雨", artist = "安扬August" },
+    { id = "3402170281", name = "抽离雨", artist = "安扬August", direct = true },
     { id = "2625426770", name = "抑人", artist = "银河快递/门尼" },
-    { id = "2082329069", name = "罗曼蒂克乌托邦", artist = "门尼" },
+    { id = "2082329069", name = "罗曼蒂克乌托邦", artist = "门尼", direct = true },
     { id = "2088128876", name = "Problematic", artist = "BoyWithUke" },
     { id = "2739720981", name = "Terrified", artist = "BoyWithUke" },
     { id = "2718590745", name = "MOVE MOVE", artist = "a子" },
     { id = "2609393672", name = "How I Learned To Love The Bomb", artist = "Glass Animals" },
     { id = "1944896413", name = "Understand", artist = "BoyWithUke" },
     { id = "2693307042", name = "World At My Feet", artist = "Victor Ray" },
-    { id = "509531185", name = "Why Baby Why", artist = "MyKey" },
+    { id = "509531185", name = "Why Baby Why", artist = "MyKey", direct = true },
     { id = "1382838382", name = "飛行艇", artist = "King Gnu" },
     { id = "29389381", name = "In Chains", artist = "Shaman's Harvest" },
     { id = "27646687", name = "玫瑰花的葬礼", artist = "许嵩" },

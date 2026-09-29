@@ -529,6 +529,27 @@ ok('★★ 歌曲列表有歌名 + 歌手、能点着换(不是只列 ID)',
   /hud-plist__name/.test(leftJs) && /hud-plist__meta/.test(leftJs) &&
   /musicPick = Number\(row\.getAttribute\("data-hud-song"\)\)/.test(leftJs) &&
   /\.hud-plist__row\.is-on/.test(leftCss));
+ok('★ 提示语只有「歌单」两个字(用户:"把后面的(你给的 24 首,点一首就换):删掉")',
+  /<p class="hud-plist__hint">歌单<\/p>/.test(leftJs) && !/点一首就换/.test(leftJs));
+/* ★★★ 音量:用户第五轮"不能通过右下角那个音量滑块控制音量大小"
+   —— 跨域 iframe 里那个播放器外面碰不到,所以有直链的歌走我们自己的 <audio>,
+      音量归右下角那条滑块管(它写 cd-audio-vol + 派发 hud-volume)。 */
+ok('★★★ 有直链的歌用原生 <audio> 播 ⇒ 右下角音量滑块真的能控住它',
+  /hud-player-audio/.test(leftJs) &&
+  /song\/media\/outer\/url\?id=/.test(leftJs) &&
+  /window\.addEventListener\("hud-volume"/.test(leftJs) &&
+  /localStorage\.getItem\("cd-audio-vol"\)/.test(leftJs) &&
+  /a\.volume = Math\.min\(1, Math\.max\(0, v\)\)/.test(leftJs) &&
+  (rd(`${BH}/hugo.toml`).match(/direct = true/g) || []).length >= 10 &&
+  /\.hud-player__btn/.test(leftCss) && /\.hud-player__track/.test(leftCss),
+  '直链是 2026-09-29 实测的:24 首里 10 首有(其余是版权/VIP 限制)');
+ok('★★★ 没直链的那首自动退回嵌入式播放器,并写明"音量用它自己的"(不装作能控)',
+  /function playerFor\(s\)/.test(leftJs) &&
+  /if \(s\.direct\)/.test(leftJs) &&
+  /addEventListener\("error"/.test(leftJs) &&
+  /音量用它自己的/.test(leftJs) &&
+  !/referrerpolicy/.test(leftJs),
+  '网易云的 iframe 是跨域的:没有 API 能改它的音量 —— 这一点只能说实话');
 ok('★★★ 收起之后怎么展示:番茄钟 = 时钟图标外面套一圈进度;音乐 = 图标下面一排柱;时钟不做',
   /class="hud-left__ico"[\s\S]*?class="hud-mod__ring"/.test(leftTpl) &&
   /class="hud-left__ico"[\s\S]*?class="hud-mod__bars"/.test(leftTpl) &&

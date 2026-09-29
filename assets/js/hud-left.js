@@ -282,9 +282,84 @@
         '<span class="hud-plist__name">' + esc(s.name || ("歌曲 " + (i + 1))) + '</span>' +
         '<span class="hud-plist__meta">' + esc(s.artist || "") + '</span></button>';
     }).join("");
-    body.innerHTML = musicFrame("//music.163.com/outchain/player?type=2&id=" + cur.id + "&auto=0&height=66", 86) +
-      '<p class="hud-plist__hint">歌单(你给的 ' + songs.length + ' 首,点一首就换):</p>' +
+    body.innerHTML = playerFor(cur) +
+      '<p class="hud-plist__hint">歌单</p>' +
       '<div class="hud-plist">' + rows + '</div>';
+    wireAudio();
+  }
+
+  /* ★★★ 音量(用户第五轮:"不能通过右下角那个音量滑块控制音量大小"):
+     —— 网易云的【跨域 iframe】里那个播放器,外面一行 JS 都碰不到它 ✗
+        (浏览器同源策略,没有 API 能改它的音量)。
+     —— 所以:有直链的歌用【我们自己的 <audio>】播 ⇒ 音量就归右下角那条滑块管了
+        (它写的是 cd-audio-vol,同时会派发 hud-volume 事件,见 page-hud.js);
+        没直链的(网易云只给 VIP/版权限制的)才退回嵌入式播放器,
+        并且在那块面板上写清楚"音量用它自己的" —— 不装作能控。 */
+  function playerFor(s) {
+    if (s.direct) {
+      return '<div class="hud-player">' +
+        '<button class="hud-player__btn" type="button" id="hud-player-btn" aria-label="播放或暂停">' +
+        '<svg viewBox="0 0 24 24" aria-hidden="true">' +
+        '<path class="hud-player__icon" d="M8 5v14l11-7z"></path></svg></button>' +
+        '<div class="hud-player__meta"><b>' + esc(s.name || "") + '</b>' +
+        '<span>' + esc(s.artist || "") + '</span></div>' +
+        '<span class="hud-player__time" id="hud-player-time">0:00</span>' +
+        '<span class="hud-player__track"><i id="hud-player-fill"></i></span>' +
+        '</div>' +
+        '<audio id="hud-player-audio" preload="none" src="//music.163.com/song/media/outer/url?id=' +
+        esc(s.id) + '.mp3"></audio>';
+    }
+    return musicFrame("//music.163.com/outchain/player?type=2&id=" + s.id + "&auto=0&height=66", 86) +
+      '<p class="hud-plist__note">这首网易云只给嵌入式播放器(没有直链)⇒ 音量用它自己的。</p>';
+  }
+
+  /* 音量:开局读一次、之后跟着右下角那条滑块的事件走 */
+  function applyVolume(a) {
+    var v = NaN;
+    try { v = parseFloat(localStorage.getItem("cd-audio-vol")); } catch (e) { }
+    if (!isFinite(v)) v = 0.5;
+    try { a.volume = Math.min(1, Math.max(0, v)); } catch (e) { }
+  }
+
+  function wireAudio() {
+    var a = document.getElementById("hud-player-audio");
+    if (!a) return;
+    applyVolume(a);
+    window.addEventListener("hud-volume", function (e) {
+      var v = e && e.detail;
+      if (a && isFinite(v)) { try { a.volume = Math.min(1, Math.max(0, v)); } catch (err) { } }
+    });
+    var btn = document.getElementById("hud-player-btn");
+    var fill = document.getElementById("hud-player-fill");
+    var timeEl = document.getElementById("hud-player-time");
+    var fmt = function (sec) {
+      if (!isFinite(sec)) return "0:00";
+      var m = Math.floor(sec / 60), r = Math.floor(sec % 60);
+      return m + ":" + (r < 10 ? "0" : "") + r;
+    };
+    if (btn) {
+      btn.addEventListener("click", function () {
+        if (a.paused) { var p = a.play(); if (p && p.catch) p.catch(function () { }); }
+        else a.pause();
+      });
+    }
+    a.addEventListener("play", function () { if (btn) btn.classList.add("is-playing"); });
+    a.addEventListener("pause", function () { if (btn) btn.classList.remove("is-playing"); });
+    a.addEventListener("ended", function () { if (btn) btn.classList.remove("is-playing"); });
+    a.addEventListener("timeupdate", function () {
+      if (fill) fill.style.width = (a.duration ? (a.currentTime / a.duration * 100) : 0) + "%";
+      if (timeEl) timeEl.textContent = fmt(a.currentTime);
+    });
+    /* ★ 直链不通(版权/VIP)⇒ 就地把这首换成网易云的嵌入式播放器,别留一块按不动的 UI */
+    a.addEventListener("error", function () {
+      var s = (musicData.songs || [])[musicPick];
+      if (!s) return;
+      var holder = body.querySelector(".hud-player");
+      if (holder) holder.outerHTML = musicFrame(
+        "//music.163.com/outchain/player?type=2&id=" + s.id + "&auto=0&height=66", 86) +
+        '<p class="hud-plist__note">这首没有直链(网易云只给嵌入式播放器)⇒ 音量用它自己的。</p>';
+      a.remove();
+    });
   }
 
   function musicFrame(src, h) {
