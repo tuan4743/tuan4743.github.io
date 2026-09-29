@@ -1,24 +1,19 @@
 /* ============================================================
-   左下角 UHD —— 框上那几枚按钮 + 滑出来的面板
+   左下角 UHD —— 框上那几枚按钮 + 点出来的"全息投影"面板
    ─────────────────────────────────────────────────────────────
-   用户:"左下角也搞一个 UHD……完成左侧 UHD,实现和右边一样,是先用 SVG 画出边框,
-         再往边框上塞按钮,框都是不规则多边形框。"
-   用户:"按钮也是梯形的,所以不需要考虑能不能塞进的问题,按钮贴着凸起的边边。"
-   用户:"这个按钮的底部应该是贴近页面边缘的。"
+   用户:"完成左侧UHD,实现和右边一样,是先用 SVG 画出边框,再往边框上塞按钮。"
+   用户:"按钮也是梯形的……按钮贴着凸起的边边" + "按钮的底部应该是贴近页面边缘的。"
+   用户:"我功能页并不是想脱离这个面板,而是想做成那种全息投影,点一下模块,
+         投影出这个面版,再点一下收回。面版其实想做成等宽但根据模块自适应高度的,
+         整体也是先画 SVG 风格的框,左下角和右上角两个 45° 切角就够了。"
 
    ★ 框和"按钮的形"都在 page-hud.html 那支 .page-hud__band 里(4 层 + 5 个 polygon)。
-     这个文件只管【能按的那一层】+ 面板。
-   ★★ 每颗按钮和框【同一个正方形】:钉在左下角、边长 = 视口高度(100vh × 100vh),
-      靠 clip-path 收成那个多边形的形状 —— 这样 % 两个方向同单位,
-      点击范围和画出来的形逐点相同:
-        · 形 = --hud-lb-clip-N(默认值和 page-hud.html 那 5 个 polygon 逐点相同,
-          JS 起来后会按 gFrameLB() 覆写一遍)
-        · 图标/名字钉在 --hud-lb-N-x / -y(= 多边形重心,JS 写)
-      ★★ 为什么不能铺满整层:那是 16:9 的盒子,横向 % 的单位比纵向大一倍,
-         整个形会被拉扁(斜肩 30°→18°、斜切 45°→29.4°,按钮位置也跟着跑)——
-         用户原话:"你直接迁移到网页里面就变位置了,因为网页比例不是一个正方形。"
-      为什么不让 SVG 里那个 polygon 自己接事件:SVG 里的 <text> 会被 viewBox 拉变形。
-   ★ 下面是没跑 JS 时的兜底值(就是设计稿批准的那一组),不是第二套真值。
+   ★★ 每颗按钮的盒子 = 那个梯形的【外接矩形】(用 vh 写:整支钉在边长 = 视口高度的
+      正方形里,1 个设计单位就是 1vh),里面再用 clip-path 收成梯形的形状。
+      ★★★ 为什么盒子要等于外接矩形,而不是"铺满整层 + 全局 %":
+        铺满整层的话 getBoundingClientRect() 返回的是整个视口 ⇒
+        磁力光标的锁定框会变成一个巨大的方框(用户:"这几个按钮还不能被锁定框锁定")。
+      下面这些数是没跑 JS 时的兜底值,和 gFrameLB() 的输出逐点相同(tests 会比对)。
    ============================================================ */
 
 .hud-left {
@@ -29,16 +24,13 @@
     font-family: var(--hud-font);
 }
 
-/* ---------------- 按钮:形 = clip-path,内容 = 一个居中的小方块 ---------------- */
-/* ★★★ 每颗按钮和框【同一个正方形】:钉在左下角、边长 = 视口高度。
-   这样 clip-path / 图标位置里的 % 和设计稿的坐标逐点相同 ——
-   不能铺满整层(那是 16:9 的盒子,横向 % 的单位比纵向大一倍,整个形会被拉扁)。 */
+/* ---------------- 按钮:盒子 = 梯形外接矩形,形 = clip-path ---------------- */
 .hud-left__mod {
     position: absolute;
-    left: 0;
-    bottom: 0;
-    width: 100vh;
-    height: 100vh;
+    left: 0.3vh;
+    top: 50.831vh;
+    width: 5.2vh;
+    height: 12.5044vh;
     margin: 0;
     padding: 0;
     border: 0;
@@ -49,25 +41,41 @@
     letter-spacing: 0.06em;
     cursor: pointer;
     pointer-events: auto;
-    clip-path: var(--hud-lb-clip-0, polygon(0.3% 50.831%, 5.5% 53.8332%, 5.5% 60.3332%, 0.3% 63.3354%));
+    clip-path: polygon(0% 0%, 100% 24.0092%, 100% 75.9908%, 0% 100%);
+    -webkit-clip-path: polygon(0% 0%, 100% 24.0092%, 100% 75.9908%, 0% 100%);
     transition: background-color 0.16s ease, color 0.16s ease;
 }
 
 .hud-left__mod[data-hud-lb="1"] {
-    clip-path: var(--hud-lb-clip-1, polygon(0.3% 70.8189%, 5.5% 73.8211%, 5.5% 80.3211%, 0.3% 83.3233%));
+    top: 70.8189vh;
 }
 
 .hud-left__mod[data-hud-lb="2"] {
-    clip-path: var(--hud-lb-clip-2, polygon(16.6767% 99.7%, 19.6789% 94.5%, 26.1789% 94.5%, 29.1811% 99.7%));
+    left: 16.6767vh;
+    top: 94.5vh;
+    width: 12.5044vh;
+    height: 5.2vh;
+    clip-path: polygon(0% 100%, 24.0092% 0%, 75.9908% 0%, 100% 100%);
+    -webkit-clip-path: polygon(0% 100%, 24.0092% 0%, 75.9908% 0%, 100% 100%);
 }
 
 .hud-left__mod[data-hud-lb="3"] {
-    clip-path: var(--hud-lb-clip-3, polygon(36.6646% 99.7%, 39.6668% 94.5%, 46.1668% 94.5%, 49.169% 99.7%));
+    left: 36.6646vh;
+    top: 94.5vh;
+    width: 12.5044vh;
+    height: 5.2vh;
+    clip-path: polygon(0% 100%, 24.0092% 0%, 75.9908% 0%, 100% 100%);
+    -webkit-clip-path: polygon(0% 100%, 24.0092% 0%, 75.9908% 0%, 100% 100%);
 }
 
 /* 左下角那枚等腰直角三角形:直角贴着页角 */
 .hud-left__mod--tri {
-    clip-path: var(--hud-lb-clip-4, polygon(0.7% 99.3%, 0.7% 90.3%, 9.7% 99.3%));
+    left: 0.7vh;
+    top: 90.3vh;
+    width: 9vh;
+    height: 9vh;
+    clip-path: polygon(0% 100%, 0% 0%, 100% 100%);
+    -webkit-clip-path: polygon(0% 100%, 0% 0%, 100% 100%);
 }
 
 .hud-left__mod:hover,
@@ -82,24 +90,24 @@
     color: #ffffff;
 }
 
-/* 图标 + 名字:钉在这个多边形的重心上 */
+/* 图标 + 名字:钉在这个盒子的中心(JS 会按 gFrameLB() 再写一遍) */
 .hud-left__face {
     position: absolute;
-    left: var(--hud-lb-0-x, 2.9%);
-    top: var(--hud-lb-0-y, 57.0832%);
+    left: 50%;
+    top: 50%;
     transform: translate(-50%, -50%);
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 3px;
     white-space: nowrap;
-    pointer-events: none;                /* 事件归那颗铺满正方形的按钮 */
+    pointer-events: none;                /* 事件归外面那颗按钮 */
 }
 
-.hud-left__mod[data-hud-lb="1"] .hud-left__face { left: var(--hud-lb-1-x, 2.9%); top: var(--hud-lb-1-y, 77.0711%); }
-.hud-left__mod[data-hud-lb="2"] .hud-left__face { left: var(--hud-lb-2-x, 22.9289%); top: var(--hud-lb-2-y, 97.1%); }
-.hud-left__mod[data-hud-lb="3"] .hud-left__face { left: var(--hud-lb-3-x, 42.9168%); top: var(--hud-lb-3-y, 97.1%); }
-.hud-left__mod[data-hud-lb="4"] .hud-left__face { left: 3.7%; top: 96.4%; }
+.hud-left__mod--tri .hud-left__face {
+    left: 33.3333%;
+    top: 66.6667%;
+}
 
 .hud-left__ico svg {
     width: 17px;
@@ -113,82 +121,99 @@
     flex-direction: column-reverse;
 }
 
-/* ---------------- 面板(从框上滑出来) ---------------- */
-.hud-left__panel {
+/* ============================================================
+   全息投影面板
+   ─────────────────────────────────────────────────────────────
+   ★ 框是【先画 SVG】:一个六边形 —— 左下角和右上角各切一刀 45°(用户点名的两刀)。
+     ★★ 切角必须是【屏幕上的真 45°】⇒ 不能用一个被拉伸的 viewBox:
+        JS 每次量完面板就把 viewBox 设成它的实际像素尺寸,多边形也用像素坐标写,
+        所以 45° 在任何面板高度下都是 45°。
+   ★ 体是深空色 + 一点辉光 + 极淡的扫描线(全息那层质感),内容压在最上面。
+   ============================================================ */
+.hud-proj {
     position: absolute;
-    left: var(--hud-left-panel-x, 8%);
-    top: var(--hud-left-panel-y, 40%);
-    width: var(--hud-left-panel-w, 260px);
-    max-height: min(62vh, 520px);
+    left: 0;
+    top: 0;
+    width: 320px;
     display: flex;
     flex-direction: column;
-    border: 1px solid var(--hud-left-line, rgba(234, 243, 255, 0.22));
-    border-radius: 9px;
-    background: var(--hud-cover, rgba(6, 10, 18, 0.9));
-    -webkit-backdrop-filter: blur(6px);
-    backdrop-filter: blur(6px);
-    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.32);
     pointer-events: auto;
-    overflow: hidden;
-    animation: hud-left-in 0.16s ease;
+    animation: hud-proj-in 0.18s ease-out;
+    filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.45));
 }
 
-.hud-left__panel[hidden] {
+.hud-proj[hidden] {
     display: none;
 }
 
-@keyframes hud-left-in {
-    from { opacity: 0; transform: translateX(-8px); }
+@keyframes hud-proj-in {
+    from { opacity: 0; transform: translateX(-14px) scale(0.985); }
     to { opacity: 1; transform: none; }
 }
 
-/* 四角直角括号:和目录面板、笔那排、番茄钟同一套装饰 */
-.hud-left__deco {
+.hud-proj__frame {
     position: absolute;
-    inset: 4px;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    overflow: visible;
     pointer-events: none;
 }
 
-.hud-left__deco i {
-    position: absolute;
-    width: 11px;
-    height: 11px;
-    border: 1px solid var(--mc-color, rgb(34, 211, 238));
-    opacity: 0.45;
+.hud-proj__body { fill: var(--hud-cover, rgba(6, 10, 18, 0.9)); }
+
+.hud-proj__scan {
+    opacity: 0.5;
+    fill: url(#hud-proj-scan);
 }
 
-.hud-left__deco i:nth-child(1) { left: 0; top: 0; border-width: 1px 0 0 1px; }
-.hud-left__deco i:nth-child(2) { right: 0; top: 0; border-width: 1px 1px 0 0; }
-.hud-left__deco i:nth-child(3) { right: 0; bottom: 0; border-width: 0 1px 1px 0; }
-.hud-left__deco i:nth-child(4) { left: 0; bottom: 0; border-width: 0 0 1px 1px; }
+.hud-proj__line {
+    fill: none;
+    stroke: color-mix(in srgb, var(--mc-color, rgb(34, 211, 238)) 60%, rgba(234, 243, 255, 0.5));
+    stroke-width: 1px;
+    vector-effect: non-scaling-stroke;
+}
 
-.hud-left__head {
+/* 内容:同一圈切角(JS 把 --hud-proj-clip 写成像素版的多边形,免得字压到切角外面) */
+.hud-proj__inner {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    clip-path: var(--hud-proj-clip, none);
+    -webkit-clip-path: var(--hud-proj-clip, none);
+}
+
+.hud-proj__head {
     flex: 0 0 auto;
     display: flex;
     align-items: baseline;
     gap: 9px;
-    padding: 11px 13px 9px;
-    border-bottom: 1px solid rgba(234, 243, 255, 0.22);
+    padding: 11px 30px 9px 14px;         /* 右边多留一点:右上角是切角 */
+    border-bottom: 1px solid rgba(234, 243, 255, 0.16);
 }
 
-.hud-left__title {
+.hud-proj__title {
     font-family: "Pixel CN", var(--hud-font);
-    font-size: 18px;
+    font-size: 17px;
     letter-spacing: 0.08em;
     white-space: nowrap;
 }
 
-.hud-left__en {
+.hud-proj__en {
     font-size: 10px;
     letter-spacing: 0.24em;
-    color: rgba(234, 243, 255, 0.62);
+    color: rgba(234, 243, 255, 0.55);
     text-transform: uppercase;
 }
 
-.hud-left__close {
-    margin-left: auto;
-    width: 22px;
-    height: 22px;
+.hud-proj__close {
+    position: absolute;
+    right: 7px;
+    top: 7px;
+    width: 20px;
+    height: 20px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -198,30 +223,54 @@
     background: rgba(234, 243, 255, 0.06);
     color: var(--hud-ink, #eaf3ff);
     cursor: pointer;
+    pointer-events: auto;
     transition: background-color 0.16s ease, border-color 0.16s ease;
 }
 
-.hud-left__close:hover {
+.hud-proj__close:hover {
     background: rgba(234, 243, 255, 0.18);
     border-color: rgba(234, 243, 255, 0.6);
 }
 
-.hud-left__close svg {
-    width: 13px;
-    height: 13px;
+.hud-proj__close svg {
+    width: 12px;
+    height: 12px;
     display: block;
 }
 
-.hud-left__body {
+.hud-proj__body {
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
-    padding: 11px 13px 13px;
+    padding: 11px 14px 14px;
     scrollbar-width: none;
 }
 
-.hud-left__body::-webkit-scrollbar { width: 0; height: 0; }
+.hud-proj__body::-webkit-scrollbar { width: 0; height: 0; }
+
+/* 投影的光束:从模块那一点连到面板(JS 写两端的坐标) */
+.hud-proj__beam {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    overflow: visible;
+    pointer-events: none;
+}
+
+.hud-proj__beam line {
+    stroke: color-mix(in srgb, var(--mc-color, rgb(34, 211, 238)) 70%, transparent);
+    stroke-width: 1px;
+    stroke-dasharray: 3 4;
+    opacity: 0.55;
+    vector-effect: non-scaling-stroke;
+}
+
+.hud-proj__beam circle {
+    fill: color-mix(in srgb, var(--mc-color, rgb(34, 211, 238)) 80%, transparent);
+}
 
 /* ---------------- 各模块的内容 ---------------- */
 .hud-left__todo {
@@ -229,6 +278,12 @@
     font-size: 12px;
     line-height: 1.7;
     color: rgba(234, 243, 255, 0.62);
+}
+
+.hud-left__todo code {
+    color: var(--hud-ink, #eaf3ff);
+    font-family: var(--hud-font);
+    word-break: break-all;
 }
 
 .hud-left__clock {
@@ -295,7 +350,7 @@
 
 .hud-left__note {
     width: 100%;
-    min-height: 190px;
+    min-height: 170px;
     padding: 8px 9px;
     border: 1px solid rgba(234, 243, 255, 0.22);
     border-radius: 7px;
@@ -310,6 +365,16 @@
 .hud-left__note:focus {
     outline: none;
     border-color: rgba(234, 243, 255, 0.6);
+}
+
+/* 网易云那类嵌入式播放器:它自己带皮,给它一条干净的槽位 */
+.hud-left__music {
+    display: block;
+    width: 100%;
+    border: 0;
+    border-radius: 6px;
+    background: rgba(6, 10, 18, 0.6);
+    overflow: hidden;
 }
 
 /* ---------------- 番茄钟被搬进面板时的样子 ----------------
@@ -331,5 +396,5 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .hud-left__panel { animation: none; }
+    .hud-proj { animation: none; }
 }

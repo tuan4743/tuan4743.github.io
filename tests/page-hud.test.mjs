@@ -198,21 +198,25 @@ ok('★★★ 行为:drawFrame 给右侧那支的 4 条 path 分别写 d(fill �
   const untouched = icons.every((i) => i.d === 'icon-original');
   return fillOk && lineOk && untouched;
 })(), '图标 path 的 d 一旦被改,就成了"素材丢了"的假象;底板吃的是 g.fill(闭合版),不是 g.path');
-/* ★★★ 左支的行为断言:4 条 d + 5 个 polygon(按钮的形)+ 5 组位置变量都要写进去 ——
-   "形在 SVG、位置在变量、能按的那层靠 clip-path 对齐"是这一轮的核心分工。 */
-ok('★★★ 行为:drawFrame 给左下角那支写 4 条 d + 5 个 polygon + 5 组位置变量', (() => {
+/* ★★★ 左支的行为断言:4 条 d + 5 个 polygon(按钮的形)都要写进去,而且
+   五枚按钮的【盒子 / 形 / 图标位置】要照 gFrameLB().boxes 写到元素 style 上。
+   ★★ 盒子 = 那个梯形的外接矩形:这样 getBoundingClientRect() 量到的就是按钮本身,
+      磁力光标的锁定框才贴得住(用户:"这几个按钮现在还不能被锁定框锁定")。 */
+ok('★★★ 行为:drawFrame 给左下角那支写 4 条 d + 5 个 polygon + 按 boxes 摆好五枚按钮', (() => {
   const mkPath = (name) => ({ name, d: 'x', setAttribute(k, v) { if (k === 'd') this.d = v; } });
   const mkPoly = (name) => ({ name, pts: 'x', setAttribute(k, v) { if (k === 'points') this.pts = v; } });
   const frame = [mkPath('fill'), mkPath('halo'), mkPath('line'), mkPath('run')];
   const polys = [mkPoly('f0'), mkPoly('f1'), mkPoly('f2'), mkPoly('f3'), mkPoly('tri')];
   const svgLB = { querySelectorAll: (sel) => (sel === 'path' ? frame : (sel === 'polygon' ? polys : [])) };
-  const vars = {};
+  const btns = [0, 1, 2, 3, 4].map((i) => {
+    const face = { style: {} };
+    return { i, style: {}, querySelector: (s) => (s === '.hud-left__face' ? face : null), face };
+  });
   const root = {
     attrs: {},
-    style: { setProperty(k, v) { vars[k] = v; } },
     setAttribute(k, v) { this.attrs[k] = v; },
     querySelector(sel) { return sel === '.page-hud__band' ? svgLB : null; },
-    querySelectorAll() { return []; }
+    querySelectorAll(sel) { return sel === '[data-hud-lb]' ? btns : []; }
   };
   const doc = {
     getElementById: (id) => (id === 'page-hud' ? root : null),
@@ -224,11 +228,15 @@ ok('★★★ 行为:drawFrame 给左下角那支写 4 条 d + 5 个 polygon + 5
   const lb = win.__hudFrame.lastLB;
   const dOk = frame[0].d === lb.fill && frame.slice(1).every((f) => f.d === lb.path);
   const pOk = polys.map((p) => p.pts).join('|') === lb.facePts.concat([lb.triPts]).join('|');
-  const vOk = [0, 1, 2, 3].every((i) =>
-    vars['--hud-lb-' + i + '-x'] === Math.round(lb.centers[i][0] * 1e4) / 1e4 + '%' &&
-    vars['--hud-lb-' + i + '-y'] === Math.round(lb.centers[i][1] * 1e4) / 1e4 + '%');
-  return dOk && pOk && vOk;
-})(), '形画在 SVG 里、位置写成 CSS 变量 —— HTML 那层按钮(带 clip-path)照这两个来');
+  const bOk = btns.every((b, i) => {
+    const want = lb.boxes[i];
+    return b.style.left === want.x + 'vh' && b.style.top === want.y + 'vh' &&
+      b.style.width === want.w + 'vh' && b.style.height === want.h + 'vh' &&
+      b.style.clipPath === want.clip &&
+      b.face.style.left === want.fx + '%' && b.face.style.top === want.fy + '%';
+  });
+  return dOk && pOk && bOk;
+})(), '形在 SVG 里、盒子和 clip-path 写在按钮 style 上 —— 单位是 vh(1 个设计单位 = 1vh)');
 ok('★ 视口变化时会重算(resize + rAF 收口,拖窗口不会每像素都算)',
   /addEventListener\("resize"/.test(hudJs) && /requestAnimationFrame/.test(hudJs));
 /* ★ 边框竖段那一列 = CSS 里给控件留的那一列:改了一个忘了另一个就会骑到正文上 */
@@ -389,7 +397,15 @@ ok('★★★ 五颗按钮:四个模块 + 左下角那枚三角形(用户:"给�
 /* ★★★ "点击范围和画出来的形必须逐点相同"的静态判据:
    CSS 里 clip-path 的兜底值、SVG 里的 polygon、gFrameLB() 的输出 —— 三处同一组数。 */
 const clipOf = (n) => {
-  const m = new RegExp('clip-path:\\s*var\\(--hud-lb-clip-' + n + ',\\s*polygon\\(([^)]*)\\)\\)').exec(leftCss);
+  /* 0 用基类那条;1 和 0 同形(不单独写);2/3 按 data-hud-lb;4 是那枚三角(--tri) */
+  const rules = [
+    /\.hud-left__mod\s*\{[^}]*clip-path:\s*polygon\(([^)]*)\)/,
+    /\.hud-left__mod\s*\{[^}]*clip-path:\s*polygon\(([^)]*)\)/,
+    /\[data-hud-lb="2"\]\s*\{[^}]*clip-path:\s*polygon\(([^)]*)\)/,
+    /\[data-hud-lb="3"\]\s*\{[^}]*clip-path:\s*polygon\(([^)]*)\)/,
+    /\.hud-left__mod--tri\s*\{[^}]*clip-path:\s*polygon\(([^)]*)\)/
+  ];
+  const m = rules[n] && rules[n].exec(leftCss);
   return m ? m[1].split(',').map((s) => s.replace(/%/g, '').trim().split(/\s+/).map(Number)).flat() : null;
 };
 ok('★★★ 左下角那支钉在【正方形】里(边长 = 视口高度),不是铺满 16:9 的视口', (() => {
@@ -401,25 +417,39 @@ ok('★★★ 左下角那支钉在【正方形】里(边长 = 视口高度),不
 })(),
   '用户:"你直接迁移到网页里面就变位置了,因为网页比例不是一个正方形" —— ' +
   '铺满视口会把横向拉长 16/9 倍:斜肩 30°→18°、斜切 45°→29.4°,按钮位置也跟着跑');
-ok('★★★ 五颗按钮和框【同一个正方形】(否则 clip-path 的 % 换算单位不一致,形会被拉扁)',
-  [0, 1, 2, 3, 4].every((i) => {
-    const m = new RegExp('\\.hud-left__mod(?:--tri)?[^{]*\\{[^}]*clip-path:[^;]*--hud-lb-clip-' + i).exec(leftCss);
-    return !!m;
+ok('★★★ 五枚按钮的盒子 = 那个梯形的【外接矩形】,单位是 vh(这样锁定框贴得住)', (() => {
+  const want = [
+    { left: '0.3vh', top: '50.831vh', w: '5.2vh', h: '12.5044vh' },
+    { left: '0.3vh', top: '70.8189vh', w: '5.2vh', h: '12.5044vh' },
+    { left: '16.6767vh', top: '94.5vh', w: '12.5044vh', h: '5.2vh' },
+    { left: '36.6646vh', top: '94.5vh', w: '12.5044vh', h: '5.2vh' },
+    { left: '0.7vh', top: '90.3vh', w: '9vh', h: '9vh' }
+  ];
+  return want.every((w, i) => {
+    const bx = lbRef.boxes[i];
+    return bx.x + 'vh' === w.left && bx.y + 'vh' === w.top &&
+      bx.w + 'vh' === w.w && bx.h + 'vh' === w.h;
   }) &&
-  /\.hud-left__mod\s*\{[^}]*width:\s*100vh/.test(leftCss) &&
-  /\.hud-left__mod\s*\{[^}]*height:\s*100vh/.test(leftCss) &&
-  /\.hud-left__mod\s*\{[^}]*bottom:\s*0/.test(leftCss));
-ok('★★ CSS 里那五颗按钮的 clip-path 兜底值 == gFrameLB() 算出来的形(逐点)',
+    /\.hud-left__mod\s*\{[^}]*width:\s*5\.2vh/.test(leftCss) &&
+    /\[data-hud-lb="2"\]\s*\{[^}]*left:\s*16\.6767vh/.test(leftCss) &&
+    /\.hud-left__mod--tri\s*\{[^}]*width:\s*9vh/.test(leftCss);
+})(),
+  '用户:"这几个按钮现在还不能被锁定框锁定" —— 铺满整层的按钮,getBoundingClientRect() 是整个视口,' +
+  '锁定框会变成一个巨大的方框;盒子收成外接矩形才对得上');
+ok('★★ CSS 里那五颗按钮的 clip-path 兜底值 == gFrameLB() 算出来的盒内局部多边形(逐点)',
   [0, 1, 2, 3, 4].every((i) => {
     const clip = clipOf(i);
-    const want = (i < 4 ? lbRef.faces[i] : lbRef.tri).flat();
-    return clip && clip.length === want.length && clip.every((v, k) => Math.abs(v - want[k]) < 1e-4);
+    const want = lbRef.boxes[i].clip.replace('polygon(', '').replace(')', '')
+      .split(',').map((s) => s.trim().split(/\s+/).map((v) => Number(v.replace('%', '')))).flat();
+    return clip && clip.length === want.length && clip.every((v, k) => Math.abs(v - want[k]) < 1e-3);
   }),
   [0, 1, 2, 3, 4].map((i) => i + ':' + (clipOf(i) || []).join('/')).join('  '));
-ok('★★ 图标/名字钉在 --hud-lb-N-x/-y 上(JS 写的重心),那层自己不收事件',
-  /\.hud-left__face\s*\{[^}]*left:\s*var\(--hud-lb-0-x/.test(leftCss) &&
+ok('★★ 图标/名字钉在盒子的中心(JS 按 boxes 的 fx/fy 再写一遍),那层自己不收事件',
+  /\.hud-left__face\s*\{[^}]*left:\s*50%/.test(leftCss) &&
   /\.hud-left__face\s*\{[^}]*pointer-events:\s*none/.test(leftCss) &&
-  /data-hud-lb="2"\]\s*\.hud-left__face\s*\{\s*left:\s*var\(--hud-lb-2-x/.test(leftCss));
+  /\.hud-left__mod--tri\s+\.hud-left__face\s*\{\s*left:\s*33\.3333%/.test(leftCss) &&
+  /inner\.style\.left = bx\.fx/.test(leftJs.replace(/\s+/g, ' ')) === false &&
+  /fc\.style\.left = bx\.fx/.test(hudJs));
 ok('★★ 面板贴着量出来的那块图标定位(不能量按钮本身 —— 铺满整层的按钮,rect 是整个视口)',
   /\.hud-left__face'\)/.test(leftJs) &&
   !/querySelector\('\[data-hud-mod="' \+ current \+ '"\]'\)\.getBoundingClientRect/.test(leftJs));
@@ -432,6 +462,42 @@ ok('★★ 加载顺序:hud-left.js 排在 page-hud.js 与 hud-timer.js 之后',
 ok('★ 番茄钟胶囊让开了第一枚按钮(它原来钉在竖直正中,正好压在上面)',
   /\.hud-timer\s*\{[^}]*top:\s*34%/.test(noC(rd(`${BH}/assets/css/hud-timer.css`))),
   '带子上端收口在 y=42,第一枚按钮从 y=50.8 开始');
+/* ---------- 全息投影面板(用户第二轮的三条)---------- */
+ok('★★★ 面板是【先画 SVG 框】:六边形,左下 + 右上各一刀 45°(用户点名的那两刀)',
+  /function hexPoints\(w, h\)/.test(leftJs) &&
+  /\[0, 0\], \[w - c, 0\], \[w, c\], \[w, h\], \[c, h\], \[0, h - c\]/.test(leftJs) &&
+  (leftTpl.match(/class="hud-proj__frame"[\s\S]*?<\/svg>/) || [''])[0].match(/<polygon/g).length === 3,
+  '用户:"整体也是先画 SVG 风格的框,左下角和右上角两个 45° 切角就够了"');
+ok('★★★ 切角是【屏幕上的真 45°】⇒ viewBox 每次设成面板的实际像素尺寸(不用被拉伸的 viewBox)',
+  /frame\.setAttribute\("viewBox", "0 0 " \+ w \+ " " \+ h\)/.test(leftJs) &&
+  /preserveAspectRatio="none"/.test(leftTpl) && /CUT = 18/.test(leftJs),
+  '被拉伸的 viewBox 里,45° 会随面板高度变角度 —— 用户上一轮刚抓过这个');
+ok('★★★ 面板【等宽】、高度自适应;左缘固定(不跟着模块跑)',
+  /function bandRight\(\)/.test(leftJs) &&
+  /var left = bandRight\(\) \+ GAP \+ 2;/.test(leftJs) &&
+  !/var left = Math\.round\(\(r && r\.right/.test(leftJs) &&
+  /panel\.style\.width = w \+ "px"/.test(leftJs) && !/panel\.style\.height/.test(leftJs),
+  '用户:"面版其实想做成等宽但根据模块自适应高度的"');
+ok('★★★ 页底那几枚的面板投在它们【上面】(不然盖住按钮就点不回去了)',
+  /r\.top > vh \* 0\.7/.test(leftJs) && /top = r\.top - ph - GAP - 6/.test(leftJs),
+  '用户:"点一下模块,投影出这个面版,再点一下收回" —— 点得回去才行');
+ok('★★ 投影光束:从模块那一点连到面板(把"从哪投出来的"说清楚)',
+  /class="hud-proj__beam"/.test(leftTpl) && /function drawBeam\(/.test(leftJs) &&
+  /line\.setAttribute\("x1"/.test(leftJs) && /\.hud-proj__beam line\s*\{[^}]*stroke-dasharray/.test(leftCss));
+ok('★★★ 音乐 = 网易云的嵌入式播放器(不是本地曲目),地址从站点参数来',
+  /data-hud-music="\{\{ \$music \}\}"/.test(leftTpl) &&
+  /site\.Params\.hudMusicEmbed/.test(leftTpl) &&
+  /hudMusicEmbed = ""/.test(rd(`${BH}/hugo.toml`)) &&
+  /outchain\/player\?type=2&id=/.test(rd(`${BH}/hugo.toml`)) &&
+  /hud-left__music/.test(leftJs) && /<iframe/.test(leftJs),
+  '用户:"音乐播放器其实并非本地曲目,想要做成嵌入式播放器链接网易云音乐"');
+ok('★★ 没填地址时给出"怎么填"的说明(不是空白面板)',
+  /hudMusicEmbed<\/code>/.test(leftJs) && /outchain\/player\?type=2&id=歌曲ID/.test(leftJs));
+ok('★★★ 磁力光标认这几枚按钮(用户:"这几个按钮现在还不能被锁定框锁定")',
+  /"\.hud-left__mod"/.test(fs.readFileSync(`${BH}/assets/js/magnetic-cursor.js`, 'utf8')) &&
+  /"\.hud-proj__close"/.test(fs.readFileSync(`${BH}/assets/js/magnetic-cursor.js`, 'utf8')) &&
+  /\.hud-left__mod\s*\{[^}]*clip-path:/.test(leftCss),
+  '★ 光认类名不够:盒子必须等于那个梯形的外接矩形,否则锁定框会是整个视口');
 ok('★★★ 三个类在 CSS 里都有规则,而且都 vector-effect: non-scaling-stroke',
   ['hud-halo', 'hud-line', 'hud-run'].every((k) => new RegExp('\\.' + k + '\\s*[,{]').test(cssCode)) &&
   /\.hud-halo,\s*\.hud-line,\s*\.hud-run\s*\{[^}]*vector-effect:\s*non-scaling-stroke/.test(cssCode),

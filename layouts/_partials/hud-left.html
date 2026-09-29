@@ -17,7 +17,12 @@
        图标/名字放 HTML 这层才不会被压扁。
      ★ 同时只开一个面板(JS 管);面板里的内容见 assets/js/hud-left.js。
      ============================================================ */}}
-<div class="hud-left" id="hud-left" data-hud-left>
+{{/* 音乐 = 网易云的嵌入式播放器:用户"音乐播放器其实并非本地曲目,想要做成嵌入式
+     播放器链接网易云音乐。这样对全屏阅览的用户就算是有用了。"
+     ★ 地址从站点参数来(hugo.toml 的 params.hudMusicEmbed),没有就显示一句怎么填 ——
+       免得把某个歌单写死在模板里。 */}}
+{{- $music := site.Params.hudMusicEmbed | default "" -}}
+<div class="hud-left" id="hud-left" data-hud-left data-hud-music="{{ $music }}">
     {{/* ---- 左支两道(上 → 下)---- */}}
     <button class="hud-left__mod" type="button" data-hud-mod="timer" data-hud-lb="0" aria-pressed="false"
         title="番茄钟">
@@ -93,20 +98,45 @@
         </span>
     </button>
 
-    {{/* 面板:点某个模块时在这里渲染。宽度由 JS 量出来(--hud-left-panel-w) */}}
-    <section class="hud-left__panel" id="hud-left-panel" hidden aria-live="polite">
-        <span class="hud-left__deco" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
-        <header class="hud-left__head">
-            <span class="hud-left__title" id="hud-left-title">番茄钟</span>
-            <span class="hud-left__en" id="hud-left-en">FOCUS</span>
-            <button class="hud-left__close" type="button" id="hud-left-close" aria-label="收起面板" title="收起">
+    {{/* ============================================================
+         全息投影面板:点一下模块投出来,再点一下收回(同时只开一个)
+         ─────────────────────────────────────────────────────────────
+         用户:"我功能页并不是想脱离这个面板,而是想做成那种全息投影,点一下模块,
+               投影出这个面版,再点一下收回。面版其实想做成等宽但根据模块自适应高度的,
+               整体也是先画 SVG 风格的框,左下角和右上角两个 45° 切角就够了。"
+         ★ 先画框:一个六边形 —— 左下角、右上角各切一刀 45°。
+           ★★ 切角是【屏幕上的真 45°】⇒ 不用被拉伸的 viewBox:
+              hud-left.js 每次量完面板就把 viewBox 设成实际像素尺寸,多边形用像素坐标写。
+         ★ 等宽:所有模块共用同一个宽度(JS 一次算好);高度 = 内容自适应。
+         ★ 那条虚线光束 + 端点圆点也是 JS 写的:把"从哪个模块投出来的"连起来。 */}}
+    <section class="hud-proj" id="hud-left-panel" hidden aria-live="polite">
+        <svg class="hud-proj__frame" viewBox="0 0 320 220" preserveAspectRatio="none" aria-hidden="true">
+            <defs>
+                <pattern id="hud-proj-scan" patternUnits="userSpaceOnUse" width="4" height="4">
+                    <rect width="4" height="1" fill="rgba(234,243,255,0.05)"></rect>
+                </pattern>
+            </defs>
+            <polygon class="hud-proj__body" points="0,0 302,0 320,18 320,220 18,220 0,202"></polygon>
+            <polygon class="hud-proj__scan" points="0,0 302,0 320,18 320,220 18,220 0,202"></polygon>
+            <polygon class="hud-proj__line" points="0,0 302,0 320,18 320,220 18,220 0,202"></polygon>
+        </svg>
+        <svg class="hud-proj__beam" viewBox="0 0 1600 900" preserveAspectRatio="none" aria-hidden="true">
+            <line x1="0" y1="0" x2="0" y2="0"></line>
+            <circle cx="0" cy="0" r="2.5"></circle>
+        </svg>
+        <div class="hud-proj__inner">
+            <header class="hud-proj__head">
+                <span class="hud-proj__title" id="hud-left-title">番茄钟</span>
+                <span class="hud-proj__en" id="hud-left-en">FOCUS</span>
+            </header>
+            <button class="hud-proj__close" type="button" id="hud-left-close" aria-label="收回面板" title="收回">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                     stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
                     <line x1="6" y1="6" x2="18" y2="18"></line>
                     <line x1="18" y1="6" x2="6" y2="18"></line>
                 </svg>
             </button>
-        </header>
-        <div class="hud-left__body" id="hud-left-body"></div>
+            <div class="hud-proj__body" id="hud-left-body"></div>
+        </div>
     </section>
 </div>

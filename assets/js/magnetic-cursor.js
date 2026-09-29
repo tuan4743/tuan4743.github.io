@@ -61,6 +61,12 @@
        而 HUD 里下载/GitHub 是 <a>、导航项是 <a>、搜索框是 <input> —— 一个都不匹配。
        明暗和三支笔之所以会吸,只是因为它们恰好是 <button>。 */
     ".hud-act", ".hud-nav__item", ".hud-search input", ".hud-search__clear",
+    /* ★★ 左下角那个 UHD 上的按钮(用户:"这几个按钮现在还不能被锁定框锁定")。
+       ★ 它们不是普通方块:盒子 = 那个梯形的【外接矩形】,形靠 clip-path 收出来
+         (page-hud.js 的 gFrameLB().boxes 写的)—— 所以 getBoundingClientRect()
+         量到的正好是那枚按钮的框,锁定框贴得住。
+       ★ 面板上的收起键也一起(它和 HUD 里别的关闭键同一套语言)。 */
+    ".hud-left__mod", ".hud-proj__close",
     /* ★ .hud-logo 不在这里:用户明确说"它只是个 LOGO,不需要吸附"。 */
     ".hud-pen__btn", ".hud-pen__range", ".hud-pen__swatch",
     /* ★ 排除第五张盘的碎片:.frost-shard 也是 <button>,但它只有 18~37px,

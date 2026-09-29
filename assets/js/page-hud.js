@@ -159,11 +159,31 @@
             f.forEach(function (p) { cx += p[0]; cy += p[1]; });
             return [cx / f.length, cy / f.length];
         };
+        /* ★★★ 五枚按钮的【盒子】:每枚 = 那个梯形的外接矩形,里面再用 clip-path 收成梯形的形状。
+           为什么不用"铺满整层 + 全局百分比的 clip-path":
+             那样 getBoundingClientRect() 返回的是【整个视口】,
+             磁力光标的锁定框会变成一个巨大的方框(用户:"这几个按钮现在还不能被锁定框锁定")。
+           盒子 = 外接矩形 ⇒ 锁定框正好贴着那枚按钮,而形还是那个梯形。
+           单位:设计单位(= vh)—— 整支钉在一个边长 = 视口高度的正方形里,1 个单位就是 1vh。 */
+        var boxes = faces.concat([tri]).map(function (f) {
+            var xs = f.map(function (p) { return p[0]; }), ys = f.map(function (p) { return p[1]; });
+            var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs);
+            var y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
+            var w = x1 - x0, h = y1 - y0;
+            var c = center(f);
+            return {
+                x: round(x0), y: round(y0), w: round(w), h: round(h),
+                clip: "polygon(" + f.map(function (p) {
+                    return round((p[0] - x0) / w * 100) + "% " + round((p[1] - y0) / h * 100) + "%";
+                }).join(", ") + ")",
+                fx: round((c[0] - x0) / w * 100), fy: round((c[1] - y0) / h * 100)
+            };
+        });
         return {
             path: d, fill: d + " L0 100 Z", user: pts,
             faces: faces, facePts: faces.map(poly),
             tri: tri, triPts: poly(tri),
-            centers: faces.map(center)
+            centers: faces.map(center), boxes: boxes
         };
     }
 
@@ -220,12 +240,21 @@
             for (var q = 0; q < pg.length && q < pgs.length; q++) pg[q].setAttribute("points", pgs[q]);
         }
         root.setAttribute("data-hud-band", band.path);
-        /* 五枚按钮的"座位中心"(设计坐标 %):HTML 那层按钮把图标/名字钉在这里 */
-        if (root.style && root.style.setProperty) {
-            for (var s = 0; s < band.centers.length; s++) {
-                root.style.setProperty("--hud-lb-" + s + "-x", round(band.centers[s][0]) + "%");
-                root.style.setProperty("--hud-lb-" + s + "-y", round(band.centers[s][1]) + "%");
-            }
+        /* 五枚按钮:位置 / 大小 / 形 也写一遍(和 CSS 里那份兜底值同源,测试逐点对账)。
+           ★ 单位用 vh:整支钉在边长 = 视口高度的正方形里,1 个设计单位就是 1vh。
+           ★ 盒子是梯形的外接矩形 ⇒ 磁力光标的锁定框贴得住(见 gFrameLB 的 boxes)。 */
+        var btns = root.querySelectorAll("[data-hud-lb]");
+        for (var b = 0; b < btns.length && b < band.boxes.length; b++) {
+            var bx = band.boxes[b], el = btns[b];
+            if (!el.style) continue;
+            el.style.left = bx.x + "vh";
+            el.style.top = bx.y + "vh";
+            el.style.width = bx.w + "vh";
+            el.style.height = bx.h + "vh";
+            el.style.clipPath = bx.clip;
+            if (el.style.webkitClipPath !== undefined) el.style.webkitClipPath = bx.clip;
+            var fc = el.querySelector ? el.querySelector(".hud-left__face") : null;
+            if (fc && fc.style) { fc.style.left = bx.fx + "%"; fc.style.top = bx.fy + "%"; }
         }
         if (window.__hudFrame) { window.__hudFrame.last = g; window.__hudFrame.lastLB = band; }
     }

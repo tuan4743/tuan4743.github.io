@@ -42,6 +42,11 @@ paginate = 10
 [params]
   env = "production"
   title = "Tuagfey Blog"
+  # ★ 左下角 UHD 里"音乐"那枚按钮投出来的播放器:网易云的嵌入式地址(留空则显示怎么填)。
+  #   单曲:  hudMusicEmbed = "//music.163.com/outchain/player?type=2&id=歌曲ID&auto=0&height=66"
+  #   歌单:  hudMusicEmbed = "//music.163.com/outchain/player?type=0&id=歌单ID&auto=0&height=430"
+  #   (auto=1 是打开页面就自动播 —— 一般留给用户自己点,所以填 0。)
+  hudMusicEmbed = ""
   description = "Tuagfey 的个人博客 —— 记录技术、生活与思考"
   keywords = ["Blog", "Portfolio", "PaperMod", "tuagfey"]
   author = "tuan4743"
