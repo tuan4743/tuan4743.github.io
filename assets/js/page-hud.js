@@ -96,33 +96,48 @@
     var HUD_FROM = 42, HUD_STEP = 29, HUD_N = 2;
 
     /* ------------------------------------------------------------
-       左下角 UHD 的折线 = 右侧那条关于【竖直中线】的镜像
+       左下角 UHD:【凸出来的梯形模块】—— 两道
        ------------------------------------------------------------
-       用户:"跟右侧 UHD 实现一样。风格、走线方式一样。为什么你要做两个单独的框?
-             两侧对称,你对称到哪了?"
-       ⇒ 不是第二支 SVG,而是同一条折线 x' = 100 − x、顶点顺序倒过来。
-         走线语言(60°/45° 折角台阶、5% 竖栏、底部那条带子)完全一致。
-       ★★ 我前几版错在三处,记这儿免得再犯:
-          ① 做成了【两支独立 SVG】(右一支、左一支)—— 应该合进同一支;
-          ② 自造了一套"梯形凸起"的走线,和右侧的折角台阶不是一套语言;
-          ③ 对称轴选成"左下对角线",形状于是是自创的、跟右侧毫无关系。
-       ★ 顺序必须倒:不倒的话起点/终点换头,跑马灯和挂在路径上的按钮都会错位。
+       用户四点意见:"角度不对,位置不对,不对称,大小不对" ⇒ 逐条落:
+         角度 → 斜肩 45°(屏幕角);45° 屏幕角 ⇒ 纵增量 = 横增量 × k
+                (之前用 20.6°,看着像波浪不像梯形)
+         大小 → 伸出来 5%、上下跨 12%(够放一个模块按钮)
+         位置 → 两道等距排在下半段(脊线 56~68 与 74~86),离页底留 8%
+         对称 → 下边那条 = 左边那条沿【左下对角线 x+y=100】的精确镜像
+       ★ 三个旋钮:HUD_RAIL(基线)、HUD_DEEP(伸出到哪)、HUD_SEG(每道多高)
        ------------------------------------------------------------ */
-    function gFrameLeft(w, h, bandX) {
-        var g = gFrame(w, h, bandX);
-        /* ★★★ 两步,少一步都不行:
-             ① 先 100−q[0]:把【用户坐标】换成【屏幕坐标】
-                (gFrame().user 里 x 是从右往左数的 —— 这是本文件反复强调的口径)
-             ② 再 100−q[0]:关于竖直中线镜像
-           ★ 我上一版只写了一次(直接拿 user 镜像)⇒ 等于镜像做了两遍又漏了换算,
-             左支被翻到了右边 x 55~95 那一段,和右支叠在一起。
-             症状就是用户说的"两侧对称,你对称到哪了?"—— 左边根本没有线。
-           ★ 顺序也要倒过来:不倒的话起点/终点换头,跑马灯和路径上的按钮会错位。 */
-        var scr = g.user.map(function (q) { return [100 - q[0], q[1]]; });
-        var p = scr.map(function (q) { return [100 - q[0], q[1]]; }).reverse();
-        var d = p.map(function (q, i) { return (i ? "L" : "M") + round(q[0]) + " " + round(q[1]); }).join(" ");
-        return { path: d, fill: d + " L0 100 L0 0 Z", user: p, k: g.k };
-    }
+    var HUD_RAIL = 2, HUD_DEEP = 7, HUD_SEG = 12, HUD_GAP = 6, HUD_TOP = 56;
+
+
+
+    /* 下边那条 = 左边那条沿左下对角线(x+y=100)翻:(x,y) → (100−y, 100−x) */
+
+
+
+    /* ★★ 下边那条 = 左边那条沿【左下对角线】翻。屏幕坐标里那条对角线是
+       x + y = 100 ⇒ 翻法 (x, y) → (100−y, 100−x)。
+       ★ 别写成 [y, x]:那是关于 x=y 翻,会把左边那条翻到【顶边】上去
+         (2,42) → (42,2),画出来是"上边一条线" —— 本轮真踩了。
+       验算:基线 x=2 → y=98(离页底 2%);凸起伸到 x=6 → y=94(往上 4%)。 */
+
+
+    /* ------------------------------------------------------------
+       左下角 UHD:一个 L 面板(左支 + 下支),每侧两道等腰梯形模块
+       ------------------------------------------------------------
+       ★★★ 子代理 A 逐点验算出的根因:45° 屏幕角的公式是
+             Δy% = Δx% × (W/H) = Δx% × 1.7778
+           我原来写成 Δx% × 0.5625(倒数)⇒ 本该 45° 的斜肩成了 17.56°,
+           而且两道斜边【同向倾斜】= 剪切过的平行四边形,不是等腰梯形。
+           用户那句"凸出来的梯形模块,角度不对"说的就是这个。
+       ★ 这两道模块的竖边是 5%(用户原话"往下纵坐标5"),
+         两平行边 12% 与 23% ⇒ 底差/高 ≈ 0.98 ⇒ 标准等腰梯形。
+       ★ 下支 = 左支沿左下对角线 x+y=100 的精确镜像(子代理 A 验过 8 点偏差 0)。
+       ------------------------------------------------------------ */
+
+
+
+    /* 下支 = 左支沿左下对角线(x+y=100)反射 + 倒序(不倒序方向会反) */
+
 
     function round(v) {
         return Math.round(v * 1e4) / 1e4;
@@ -150,53 +165,23 @@
             bandX = parseFloat(String(cs).replace("%", ""));
         } catch (e) { }
         var g = gFrame(w, h, bandX);
-        var gl = gFrameLeft(w, h, bandX);
-        /* ★★ 一支 SVG、五条 path,顺序固定:
-             0 halo(右) 1 line(右) 2 run(右) 3 halo(左) 4 line(左)
-           ⇒ 前三条吃右支的 d,后两条吃左支的 d。
-           ★ 选择器【必须】限定在这支 SVG 里 —— 老坑:写成 root.querySelectorAll("path")
-             会把所有图标里的 path 一起改掉(图标整只消失)。 */
+        /* ★ 左下角 UHD 已按用户要求【整块删除】(2026-09-29)。
+           原来这里会再算一条 gFrameLeft/gFrameBottom 写进另两支 SVG,
+           现在只保留右侧这一支的三条 path。 */
         var svg = root.querySelector(".page-hud__frame");
         if (svg) {
             var ps = svg.querySelectorAll("path");
-            var ds = [g.path, g.path, g.path, gl.path, gl.path];
+            var ds = [g.fill, g.path, g.path, g.path];
             for (var i = 0; i < ps.length && i < ds.length; i++) ps[i].setAttribute("d", ds[i]);
-            svg.setAttribute("data-hud-frame-left", gl.path);
         }
-        g.left = gl;
+        var fill = root.querySelector(".hud-fill");
+        if (fill) fill.setAttribute("d", g.fill);
         root.setAttribute("data-hud-frame", g.path);
-        if (window.__hudFrame) window.__hudFrame.last = g;
-
-        /* ---------- 左下角 UHD(第一刀:只画形状)----------
-           ★ 左支 SVG 是【独立的一支】(.page-hud__frame--left),不是把右侧折线拼长:
-             两条线共用同一套 0~100 百分比坐标,分开画最简单,也不会互相改写 d。
-           ★ 选择器必须限定在左支 SVG 里 —— 上面那条注释里的坑:写成
-             root.querySelectorAll("path") 会把所有图标里的 path 一起改掉。
-           ★ 拿不到这支 SVG 就安静跳过(旧产物/别的页面可能还没有它)。 */
-        var leftRoot = root.querySelector(".page-hud__frame--left");
-        if (leftRoot) {
-            var gl = gFrameLeft(w, h, bandX);
-            var lps = leftRoot.querySelectorAll(".hud-halo, .hud-line, .hud-run");
-            for (var j = 0; j < lps.length; j++) lps[j].setAttribute("d", gl.path);
-            var lfill = leftRoot.querySelector(".hud-fill");
-            if (lfill) lfill.setAttribute("d", gl.fill);
-            leftRoot.setAttribute("data-hud-frame-left", gl.path);
-            g.left = gl;
-        }
-        /* 下边沿那两道凸起(同一套坐标、同一套画法) */
-        var botRoot = root.querySelector(".page-hud__frame--bottom");
-        if (botRoot) {
-            var gb = gFrameBottom(w, h, bandX);
-            var bps = botRoot.querySelectorAll(".hud-halo, .hud-line, .hud-run");
-            for (var m = 0; m < bps.length; m++) bps[m].setAttribute("d", gb.path);
-            botRoot.setAttribute("data-hud-frame-bottom", gb.path);
-            g.bottom = gb;
-        }
         if (window.__hudFrame) window.__hudFrame.last = g;
     }
 
     if (typeof window !== "undefined") {
-        window.__hudFrame = { gFrame: gFrame, gFrameLeft: gFrameLeft, draw: drawFrame, T60: T60 };
+        window.__hudFrame = { gFrame: gFrame, draw: drawFrame, T60: T60 };
     }
 
     /* ------------------------------------------------------------

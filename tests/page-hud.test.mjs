@@ -165,10 +165,12 @@ ok('★★★ 写 d 的时候【只认边框那支 SVG 里的 path】—— 这�
   !/root\.querySelectorAll\("path"\)/.test(hudJs),
   '第一版写的是 root.querySelectorAll("path"):导航/按钮里用 <path> 画的图标全被改成了折线,整只消失,看着像"素材丢了"');
 /* ★★★ 行为断言:拿一个假 DOM 跑 drawFrame,看它到底动了哪些 path。
-   只查选择器字符串是不够的 —— 当初那个 bug 的选择器"看着"也没问题。 */
-ok('★★★ 行为:drawFrame 给【边框那 5 条 path】分别写 d(前三条右支、后两条左支),图标一根都不碰', (() => {
+   只查选择器字符串是不够的 —— 当初那个 bug 的选择器"看着"也没问题。
+   ★ 2026-09-29:左下角 UHD 已按用户要求整块删除 ⇒ 现在只有右侧那一支、4 条 path:
+     [0] hud-fill(底板,吃 g.fill)[1..3] halo/line/run(吃 g.path)。 */
+ok('★★★ 行为:drawFrame 给右侧那支的 4 条 path 分别写 d(fill 吃 g.fill、其余吃 g.path),图标一根都不碰', (() => {
   const mkPath = (name) => ({ name, d: 'icon-original', setAttribute(k, v) { if (k === 'd') this.d = v; } });
-  const frame = [mkPath('halo-r'), mkPath('line-r'), mkPath('run-r'), mkPath('halo-l'), mkPath('line-l')];
+  const frame = [mkPath('fill'), mkPath('halo'), mkPath('line'), mkPath('run')];
   const icons = [mkPath('icon-home'), mkPath('icon-md'), mkPath('icon-gh'), mkPath('icon-wx')];
   const svg = {
     attrs: {},
@@ -189,11 +191,11 @@ ok('★★★ 行为:drawFrame 给【边框那 5 条 path】分别写 d(前三�
   const win = { innerWidth: 1920, innerHeight: 1080, addEventListener() { } };
   new Function('window', 'document', hudJsSrc)(win, doc);
   const g = win.__hudFrame.last;
-  const rightOk = frame.slice(0, 3).every((f) => f.d === g.path);
-  const leftOk = frame.slice(3).every((f) => f.d === g.left.path);
+  const fillOk = frame[0].d === g.fill;
+  const lineOk = frame.slice(1).every((f) => f.d === g.path);
   const untouched = icons.every((i) => i.d === 'icon-original');
-  return rightOk && leftOk && untouched;
-})(), '图标 path 的 d 一旦被改,就成了"素材丢了"的假象;而且五条 path 各吃各的 d');
+  return fillOk && lineOk && untouched;
+})(), '图标 path 的 d 一旦被改,就成了"素材丢了"的假象;底板吃的是 g.fill(闭合版),不是 g.path');
 ok('★ 视口变化时会重算(resize + rAF 收口,拖窗口不会每像素都算)',
   /addEventListener\("resize"/.test(hudJs) && /requestAnimationFrame/.test(hudJs));
 /* ★ 边框竖段那一列 = CSS 里给控件留的那一列:改了一个忘了另一个就会骑到正文上 */
@@ -244,8 +246,6 @@ ok('★★★ 把产物里那条 minify 过的 d 解析回顶点,和参考折线
    所以这里要【分 SVG 数】,不能再对整份模板数 path(第一版就是这么红的)。 */
 ok('★★★ 边框只有【一支】SVG(用户:"为什么你要做两个单独的框?")',
   (hudTplCode.match(/<svg class="page-hud__frame[\s\S]*?<\/svg>/g) || []).length === 1);
-ok('★ 这一支里有【五条 path】:右支三条(halo/line/run)+ 左支两条(halo/line)',
-  (hudTplCode.match(/<path class="hud-(halo|line|run)"/g) || []).length === 5);
 /* ============================================================
    ★★★ 左下角 UHD:右侧折线的【竖直中线镜像】,和右边共用一支 SVG
    ─────────────────────────────────────────────────────────────
@@ -260,26 +260,10 @@ ok('★ 这一支里有【五条 path】:右支三条(halo/line/run)+ 左支两�
    ============================================================ */
 const leftRef = gFrameLeft(1920, 1080);
 const frameLeftSrc = (hudTpl.match(/\$frameLeft := "([^"]+)"/) || [, ''])[1];
-ok('★★★ 模板里的左支参考折线 == gFrameLeft(1920,1080) 的输出',
-  !!frameLeftSrc && frameLeftSrc === leftRef.path,
-  '模板: ' + frameLeftSrc + '\n     函数: ' + leftRef.path);
 const lxs = leftRef.user.map((q) => q[0]);
 ok('★★★ 左支落在页左半边(x 5~45),不是翻到右边和右支重叠',
   Math.max(...lxs) <= 46 && Math.min(...lxs) >= 4,
   '左支 x 范围 ' + Math.min(...lxs) + '~' + Math.max(...lxs));
-ok('★★★ 左支逐点 == 右支的竖直中线镜像(顺序相反,0 容差)',
-  ref.user.length === leftRef.user.length &&
-  ref.user.every(([x, y], i) => {
-    const scr = [100 - x, y];                 /* 右支该点的屏幕坐标 */
-    const mirror = [100 - scr[0], scr[1]];    /* 关于竖直中线镜像 */
-    const got = leftRef.user[leftRef.user.length - 1 - i];
-    return Math.abs(got[0] - mirror[0]) < 1e-3 && Math.abs(got[1] - mirror[1]) < 1e-3;
-  }));
-ok('★★ 左支那两条 path 共用同一个 d 变量($frameLeft),不是各写一份坐标',
-  (hudTplCode.match(/d="\{\{ \$frameLeft \}\}"/g) || []).length === 2);
-ok('★★ drawFrame 按【path 序号】分别写 d(前三条右支、后两条左支)',
-  /var ds = \[g\.path, g\.path, g\.path, gl\.path, gl\.path\]/.test(hudJs) &&
-  /svg\.querySelectorAll\("path"\)/.test(hudJs));
 ok('★★★ 三个类在 CSS 里都有规则,而且都 vector-effect: non-scaling-stroke',
   ['hud-halo', 'hud-line', 'hud-run'].every((k) => new RegExp('\\.' + k + '\\s*[,{]').test(cssCode)) &&
   /\.hud-halo,\s*\.hud-line,\s*\.hud-run\s*\{[^}]*vector-effect:\s*non-scaling-stroke/.test(cssCode),
@@ -506,11 +490,11 @@ ok('★ 兜底脚本在没有正式组件时会自己接手(同一个最小 DOM,
    得换一种收口方式(沿描边连线、或直接给整层一个背景色)。
    ⇒ 这里钉的是"撤掉是【故意】的,而且恢复所需的两半都还在":
      CSS 的 .hud-fill 规则 + JS 里给底板写 d 的那段。 */
-ok('★★★ 底板(.hud-fill)整条撤掉了 —— 老收口会把半个页面涂黑',
-  !/class="?hud-fill/.test(tech) &&
-  !/L100 100 L100 0 Z/.test(hudTplCode) &&
+ok('★★★ 底板(.hud-fill)在,而且收口【只走页缘】(不穿正文)',
+  /class="hud-fill" d="\{\{ \$frame \}\} L100 100 L100 0 Z"/.test(hudTplCode) &&
   /\.hud-fill\s*\{[^}]*fill:\s*var\(--hud-cover\)/.test(cssCode),
-  '★ 老写法 (55,0) → (100,100) 那条斜线就是用户截图里的大三角;CSS 规则留着,要恢复只改标记');
+  '★ 用户:"为什么原本右侧面板的不透明背景防重叠?" —— 底板就是防重叠的那一层;' +
+  '收口 (100,0)→Z 走的是页顶,不穿正文(当初误判成"斜切正文"才删掉的)');
 ok('★★ 盖多少只由一个数决定(--hud-cover),而且默认接近全遮',
   (() => {
     const m = /--hud-cover:\s*rgba\([^)]*?([\d.]+)\s*\)/.exec(css);
