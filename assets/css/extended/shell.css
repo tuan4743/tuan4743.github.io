@@ -234,7 +234,7 @@
 
 .pn-eye__pupil {
     fill: #eaf3ff;
-    animation: pn-core 3.4s ease-in-out infinite;
+    animation: pn-eye-glow 3.4s ease-in-out infinite;
 }
 
 .pn-eye__glint {
@@ -246,7 +246,9 @@
     50% { opacity: 1; }
 }
 
-@keyframes pn-core {
+/* ★ 这里原来叫 pn-core —— 那是上一版"角上光点"的类名,
+   类删了名字还留着,排查的时候会被它骗(它就是骗了我一次)。改成跟着瞳孔走。 */
+@keyframes pn-eye-glow {
     0%, 100% { opacity: 0.72; }
     50% { opacity: 1; }
 }
