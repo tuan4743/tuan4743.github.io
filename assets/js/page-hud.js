@@ -69,56 +69,52 @@
     }
 
     /* ------------------------------------------------------------
-       左下角 UHD:左侧两道 + 下边两道【梯形】凸起
+       左下角 UHD:左边一条带凸起的竖线 + 下边一条带凸起的横线
        ------------------------------------------------------------
-       用户三轮描述合起来才完整:
-         · "从(100,60)开始,水平方向成30°往右下移到 x=98 …… 往下纵坐标 5,
-            再水平方向 30° 往左下收"          ⇒ 斜肩 30°(屏幕上),纵跨 5%
-         · "竖线在浅处(x=98),凸起伸向深处(x=94)" ⇒ 基线 RAIL、凸起再深 BUMP_W
-         · "梯形是左侧两个,下侧两个,沿左下轴线对称" ⇒ 左两道 + 下两道
-       ★★ 斜肩 30° 是【屏幕角】,所以它在坐标制式里的斜率跟视口长宽比有关 ——
-          横向固定 2%,纵向 2% 在 16:9 下正好是 29.36°。窗口一变形角度跟着变,
-          和右侧那条折线一个规矩(45°/60° 也是这么算的)。
-       ★ 四个模块同一尺寸(进深 BUMP_W、跨 BH)⇒ "模块大小相同"。
-       ★ 两个旋钮:HUD_RAIL(基线离页缘)、HUD_BUMP_W(凸起往里伸多少)。
+       用户逐轮澄清(四轮才说全):
+         · "从左侧开始到下侧结束"
+         · "左上角哪有线,从左侧就收到左边框了" ⇒ 上面那头在左缘收掉,不封到页顶
+         · "从中段开始,实际就是我说的,左侧跟下侧对称分布"
+         · "图是我随手画的示意,根本不是工程测量" ⇒ 数字由我定,留成旋钮
+       ★★ 对称是【算出来的】,不是两边各写一遍:下边那条 = 左边那条沿
+          对角线 x=y 翻转(y 当 x 用)。所以两侧的凸起在位置上天然一一对应,
+          以后改左边的间距,下边跟着一起变,不会走散。
+       旋钮:
+         HUD_RAIL   基线离页左缘/页底多远(%)
+         HUD_BUMP_W 凸起往里伸多少(%)
+         HUD_BUMP_H 每个凸起的跨距(高/宽,%)
+         HUD_FROM   从哪一段开始(左=y、下=x)
+         HUD_STEP   两个凸起之间的步距(%)
+         HUD_N      每侧几个凸起
        ------------------------------------------------------------ */
-    var HUD_RAIL = 2;
-    var HUD_BUMP_W = 3;
-    var HUD_BUMP_BH = 5.3333;      /* 每段凸起的总跨距(高/宽) */
-    var HUD_BUMP_RISE = 2;         /* 斜肩占的那一段 */
-    /* 两处凸起的位置:和右支那两道同一组数 ⇒ 左右/上下看着对称 */
-    var HUD_SPANS = [[6, 6 + 5.3333], [94 - 5.3333, 94]];
+    var HUD_RAIL = 2, HUD_BUMP_W = 4, HUD_BUMP_H = 11;
+    var HUD_FROM = 42, HUD_STEP = 15, HUD_N = 3;
 
     function gFrameLeft(w, h, bandX) {
         var b = HUD_RAIL + HUD_BUMP_W;
-        var flat = HUD_BUMP_BH - 2 * HUD_BUMP_RISE;
-        var p = [[HUD_RAIL, 0]];
-        for (var i = 0; i < HUD_SPANS.length; i++) {
-            var a = HUD_SPANS[i][0];
+        var p = [[HUD_RAIL, HUD_FROM]];
+        for (var i = 0; i < HUD_N; i++) {
+            var a = HUD_FROM + i * HUD_STEP;
             p.push([HUD_RAIL, a]);
-            p.push([b, a + HUD_BUMP_RISE]);
-            p.push([b, a + HUD_BUMP_RISE + flat]);
-            p.push([HUD_RAIL, a + HUD_BUMP_RISE + flat + HUD_BUMP_RISE]);
+            p.push([b, a + HUD_BUMP_H * 0.25]);
+            p.push([b, a + HUD_BUMP_H * 0.75]);
+            p.push([HUD_RAIL, a + HUD_BUMP_H]);
         }
         p.push([HUD_RAIL, 100]);
         var d = p.map(function (q, i) { return (i ? "L" : "M") + round(q[0]) + " " + round(q[1]); }).join(" ");
         return { path: d, fill: d + " L0 100 L0 0 Z", user: p, k: h / w };
     }
 
+    /* ★★ 下边那条 = 左边那条沿【左下对角线】翻。屏幕坐标里那条对角线是
+       x + y = 100 ⇒ 翻法 (x, y) → (100−y, 100−x)。
+       ★ 别写成 [y, x]:那是关于 x=y 翻,会把左边那条翻到【顶边】上去
+         (2,42) → (42,2),画出来是"上边一条线" —— 本轮真踩了。
+       验算:基线 x=2 → y=98(离页底 2%);凸起伸到 x=6 → y=94(往上 4%)。 */
     function gFrameBottom(w, h, bandX) {
-        var yb = 100 - HUD_RAIL, yd = 100 - HUD_RAIL - HUD_BUMP_W;
-        var flat = HUD_BUMP_BH - 2 * HUD_BUMP_RISE;
-        var p = [];
-        for (var i = 0; i < HUD_SPANS.length; i++) {
-            var a = HUD_SPANS[i][0], z = HUD_SPANS[i][1];
-            p.push([a, yb]);
-            p.push([a + HUD_BUMP_RISE, yd]);
-            p.push([a + HUD_BUMP_RISE + flat, yd]);
-            p.push([a + HUD_BUMP_RISE + flat + HUD_BUMP_RISE, yb]);
-            p.push([z, yb]);
-        }
+        var g = gFrameLeft(w, h, bandX);
+        var p = g.user.map(function (q) { return [100 - q[1], 100 - q[0]]; });
         var d = p.map(function (q, i) { return (i ? "L" : "M") + round(q[0]) + " " + round(q[1]); }).join(" ");
-        return { path: d, fill: d + " L0 100 L0 0 Z", user: p, k: h / w };
+        return { path: d, fill: d + " L0 100 L0 0 Z", user: p, k: g.k };
     }
 
     function round(v) {
