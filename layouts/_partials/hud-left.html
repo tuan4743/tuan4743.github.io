@@ -30,6 +30,27 @@
      当成"一个 JS 字符串"再包一层引号(实测拿到的就是 "{\"embed\":...}" 这种),
      于是 JSON.parse 出来还是个字符串。safeJS 才是"这段就是代码,原样输出"。 */}}
 <script type="application/json" id="hud-music-data">{{ dict "embed" $music "songs" $songs | jsonify | safeJS }}</script>
+{{/* ★★ 世界观数据库的目录 —— 面板里那份清单。
+      真值在 content/world/(由 scripts/sync-world.mjs 从 static/world/碎片/ 编译出来),
+      Hugo 在构建时把它压成 JSON 塞进来,所以【加一份碎片,面板里自动多一行】,
+      不用改这里、也不用改 JS。
+      ★ 只带面板要用的六个字段;正文一个字都不进这份 JSON。
+      ★ 同样必须过 safeJS(理由见上面音乐那段)。 */}}
+{{- $worldHome := "" -}}
+{{- $worldItems := slice -}}
+{{- with site.GetPage "/world" -}}
+    {{- $worldHome = .RelPermalink -}}
+    {{- range .RegularPages.ByWeight -}}
+        {{- $a := .Params.archive | default dict -}}
+        {{- $worldItems = $worldItems | append (dict
+            "no" ($a.no | default "")
+            "title" .Title
+            "url" .RelPermalink
+            "time" ($a.time | default "")
+            "act" ($a.act | default "")) -}}
+    {{- end -}}
+{{- end -}}
+<script type="application/json" id="hud-world-data">{{ dict "home" $worldHome "items" $worldItems | jsonify | safeJS }}</script>
 <div class="hud-left" id="hud-left" data-hud-left>
     {{/* ---- 左支两道(上 → 下)---- */}}
     <button class="hud-left__mod" type="button" data-hud-mod="timer" data-hud-lb="0" aria-pressed="false"
@@ -101,18 +122,21 @@
     </button>
 
     {{/* ---- 左下角那枚等腰直角三角形(用户:"最左下角留一个正方形的模块位置" →
-            后来定成"给一个小空间放一个等腰三角形按钮就够了")。先占位,里面放什么没定。 ---- */}}
-    <button class="hud-left__mod hud-left__mod--tri" type="button" data-hud-mod="slot" data-hud-lb="4"
-        aria-pressed="false" title="左下角空位">
+            后来定成"给一个小空间放一个等腰三角形按钮就够了")。
+            ★ 第四轮:内容定了 —— 这是【世界观数据库】的入口。
+              点开,全息面板投出 48 份回收档案的目录,点一条进正文页(/world/NN/)。 ---- */}}
+    <button class="hud-left__mod hud-left__mod--tri" type="button" data-hud-mod="world" data-hud-lb="4"
+        aria-pressed="false" title="世界观数据库">
         <span class="hud-left__face">
             <span class="hud-left__ico" aria-hidden="true">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                     stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M5 19V8l9 11z"></path>
-                    <path d="M17 5h2v2"></path>
+                    <path d="M12 3 21 7.6 12 12.2 3 7.6z"></path>
+                    <path d="M4.6 11.6 12 15.5l7.4-3.9"></path>
+                    <path d="M4.6 15.8 12 19.7l7.4-3.9"></path>
                 </svg>
             </span>
-            <span class="hud-left__name">空位</span>
+            <span class="hud-left__name">档案</span>
         </span>
     </button>
 

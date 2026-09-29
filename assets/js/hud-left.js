@@ -47,6 +47,14 @@
   if (!musicData.embed) musicData.embed = musicEmbed;
   var musicPick = 0;      /* 面板里选中的是第几首 */
 
+  /* 世界观数据库的目录:Hugo 构建设好塞进来的(见 hud-left.html)。
+     加一份碎片,这里就自动多一行 —— JS 里没有半条硬编码的目录。 */
+  var worldData = { home: "", items: [] };
+  try {
+    var wraw = document.getElementById("hud-world-data");
+    if (wraw && wraw.textContent) worldData = JSON.parse(wraw.textContent) || worldData;
+  } catch (e) { }
+
   /* ★★★ 播放器是【常驻】的(用户第六轮:"这个音乐在后台播放时,点其他模块,音乐会关掉"):
      面板内容每次都会被重画,<audio> 要是挂在面板里,一切模块就被销毁 ⇒ 歌就断了。
      所以它挂在 .hud-left 上,谁都不动它;面板那层只是它的"遥控器"。
@@ -228,11 +236,7 @@
       html: '<textarea class="hud-left__note" id="hud-left-note" spellcheck="false" ' +
         'placeholder="随手记点东西…(自动存本机)"></textarea>'
     },
-    slot: {
-      name: "左下角空位", en: "SLOT",
-      html: '<p class="hud-left__todo">这个角先空着。<br>' +
-        '形状已经定死是等腰直角三角形(两条直角边贴着页缘),里面放什么你说。</p>'
-    }
+    world: { name: "世界观数据库", en: "ARCHIVE", world: true }
   };
 
   var current = null;
@@ -308,6 +312,43 @@
       '<p class="hud-plist__hint">歌单</p>' +
       '<div class="hud-plist">' + rows + '</div>';
     wireAudio();
+  }
+
+  /* ---- 世界观数据库:目录(一行一份,按幕分组) ----
+     ★ 这里【不写死任何条目】:worldData 是 Hugo 构建时从 content/world/ 生成的。
+     ★ 行就是 <a href>,点了直接进正文页 —— 面板不用管路由。
+     ★ 一个滚动盒子装完全部(不是每幕一个),否则面板里会出现 6 条滚动条。 */
+  function renderWorld() {
+    var items = (worldData && worldData.items) || [];
+    if (!items.length) {
+      body.innerHTML = '<p class="hud-left__todo">数据库是空的。<br>' +
+        '跑一次 <code>node scripts/sync-world.mjs</code>,<br>' +
+        '它会把 <code>static/world/碎片/</code> 编成 <code>content/world/</code>。</p>';
+      return;
+    }
+    var acts = [], byAct = {};
+    items.forEach(function (it) {
+      var a = it.act || "未归类";
+      if (!byAct[a]) { byAct[a] = []; acts.push(a); }
+      byAct[a].push(it);
+    });
+    var out = "";
+    if (worldData.home) {
+      out += '<a class="hud-cat__home" href="' + esc(worldData.home) + '">' +
+        '<b>世界观数据库</b><span>' + items.length + ' 份回收档案 · 六幕</span></a>';
+    }
+    out += '<div class="hud-cat">';
+    acts.forEach(function (a) {
+      out += '<p class="hud-cat__act">' + esc(a) + '</p>';
+      byAct[a].forEach(function (it) {
+        out += '<a class="hud-cat__row" href="' + esc(it.url) + '" title="' + esc(it.title) + '">' +
+          '<span class="hud-cat__no">' + esc(it.no) + '</span>' +
+          '<span class="hud-cat__name">' + esc(it.title) + '</span>' +
+          '<span class="hud-cat__time">' + esc(it.time || "") + '</span></a>';
+      });
+    });
+    body.innerHTML = out + '</div>' +
+      '<p class="hud-cat__foot">点一条 → 进正文页</p>';
   }
 
   function pauseAudio() {
@@ -434,6 +475,7 @@
     if (enEl) enEl.textContent = MODS[key].en;
     if (MODS[key].host === "timer") hostTimer();
     else if (MODS[key].music) renderMusic();
+    else if (MODS[key].world) renderWorld();
     else body.innerHTML = MODS[key].html || "";
     mods.forEach(function (b) {
       var on = b.getAttribute("data-hud-mod") === key;

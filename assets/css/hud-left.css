@@ -607,6 +607,127 @@
     font-variant-numeric: tabular-nums;
 }
 
+/* ---------------- 世界观数据库:面板里那份目录 ----------------
+   ★ 行是 <a>(点了进正文页),不是 <button> —— 但长得和上面歌单那排一路货,
+     免得同一块面板里出现两种"能点的东西"。
+   ★ 48 条 + 6 个幕标题一次装进来,靠【一个】滚动盒子兜住:
+     盒子自己有上限,所以面板高度是个常数,不会长到顶住左上角那个投影节点。
+     (和 .hud-plist 同一个理由,见那一行的注释。) */
+.hud-cat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: min(46vh, 360px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+}
+
+.hud-cat::-webkit-scrollbar { width: 0; height: 0; }
+
+/* 顶栏:面板里唯一一处通往 /world/(整库首页)的门 */
+.hud-cat__home {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin-bottom: 9px;
+    padding: 7px 9px;
+    border: 1px solid color-mix(in srgb, var(--mc-color, rgb(34, 211, 238)) 42%, transparent);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--mc-color, rgb(34, 211, 238)) 10%, transparent);
+    color: var(--hud-ink, #eaf3ff);
+    font-family: var(--hud-font);
+    text-decoration: none;
+    transition: background-color 0.14s ease, border-color 0.14s ease;
+}
+
+.hud-cat__home:hover {
+    background: color-mix(in srgb, var(--mc-color, rgb(34, 211, 238)) 20%, transparent);
+    border-color: color-mix(in srgb, var(--mc-color, rgb(34, 211, 238)) 70%, transparent);
+}
+
+.hud-cat__home b {
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+}
+
+.hud-cat__home span {
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    color: rgba(234, 243, 255, 0.5);
+}
+
+/* 幕标题吸在滚动盒子顶上 —— 滚到中间也得知道这一串属于哪一幕 */
+.hud-cat__act {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    margin: 6px 0 2px;
+    padding: 3px 8px;
+    background: rgba(7, 11, 19, 0.92);
+    color: color-mix(in srgb, var(--mc-color, rgb(34, 211, 238)) 78%, white);
+    font-family: var(--hud-font);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+}
+
+.hud-cat__row {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+    padding: 5px 8px;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    background: rgba(234, 243, 255, 0.04);
+    color: rgba(234, 243, 255, 0.62);
+    font-family: var(--hud-font);
+    font-size: 12px;
+    text-decoration: none;
+    transition: background-color 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+
+.hud-cat__row:hover {
+    border-color: color-mix(in srgb, var(--mc-color, rgb(34, 211, 238)) 55%, transparent);
+    background: rgba(234, 243, 255, 0.14);
+    color: var(--hud-ink, #eaf3ff);
+}
+
+.hud-cat__no {
+    flex: 0 0 auto;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    opacity: 0.5;
+    font-variant-numeric: tabular-nums;
+}
+
+.hud-cat__name {
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.hud-cat__time {
+    flex: 0 0 auto;
+    max-width: 44%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 9px;
+    opacity: 0.5;
+    font-variant-numeric: tabular-nums;
+}
+
+.hud-cat__foot {
+    margin: 7px 0 0;
+    font-family: var(--hud-font);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    color: rgba(234, 243, 255, 0.4);
+}
+
 /* ---------------- 番茄钟被搬进面板时的样子 ----------------
    ★ 它本来是 position:fixed 钉在左栏的定宽块(hud-timer.css);
      进面板就得回到文档流里,不然会飘在页面上。逻辑一行都不用改 ——

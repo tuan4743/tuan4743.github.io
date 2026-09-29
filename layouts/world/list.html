@@ -1,0 +1,48 @@
+{{- /* ============================================================
+       /world/ —— 世界观数据库的分区页
+      ─────────────────────────────────────────────────────────────
+      就是 PaperMod 的 list.html,但【砍掉了自动条目列表】:
+      48 份碎片不适合按 10 条一页翻,而且目录已经由
+      content/world/_index.md 自己列出来了(见 scripts/sync-world.mjs)。
+
+      ★ 为什么不干脆给每份碎片挂 _build.list = never:
+        那会把它们从所有页面集合里摘掉,连带 .NextInSection / .PrevInSection
+        也没了 —— 碎片页底部那条"上一份 / 下一份"就断了。留着更好用。
+      ★ 这里是 section 的模板查找位(layouts/world/list.html),只影响 /world/,
+        不动 /posts/ 和 /tech/。
+      ============================================================ */}}
+{{- define "main" }}
+
+<header class="page-header">
+  {{- partial "breadcrumbs.html" . }}
+  <h1>
+    {{ .Title }}
+    {{- if .Param "ShowRssButtonInSectionTermList" }}
+    {{- with .OutputFormats.Get "rss" }}
+    <a href="{{ .RelPermalink }}" title="RSS" aria-label="RSS">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" height="23">
+        <path d="M4 11a9 9 0 0 1 9 9" />
+        <path d="M4 4a16 16 0 0 1 16 16" />
+        <circle cx="5" cy="19" r="1" />
+      </svg>
+    </a>
+    {{- end }}
+    {{- end }}
+  </h1>
+  {{- if .Description }}
+  <div class="post-description">
+    {{ .Description | markdownify }}
+  </div>
+  {{- end }}
+</header>
+
+{{- if .Content }}
+<div class="post-content md-content">
+  {{- if not (.Param "disableAnchoredHeadings") }}
+  {{- partial "anchored_headings.html" .Content -}}
+  {{- else }}{{ .Content }}{{ end }}
+</div>
+{{- end }}
+
+{{- end }}{{/* end main */}}

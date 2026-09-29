@@ -391,9 +391,9 @@ ok('★★ .hud-face 那条规则在(按钮的形和框同支 SVG,一起缩放,�
 /* ---------- 能按的那一层:hud-left.html / .css / .js ---------- */
 ok('★★★ 五颗按钮:四个模块 + 左下角那枚三角形(用户:"给一个小空间放一个等腰三角形按钮就够了")',
   (leftTpl.match(/data-hud-mod="/g) || []).length === 5 &&
-  ['timer', 'music', 'time', 'note', 'slot'].every((k) => leftTpl.includes('data-hud-mod="' + k + '"')) &&
-  /class="hud-left__mod hud-left__mod--tri"[^>]*data-hud-mod="slot"/.test(leftTpl),
-  '四个凸起 + 左下角那个角,一共五枚');
+  ['timer', 'music', 'time', 'note', 'world'].every((k) => leftTpl.includes('data-hud-mod="' + k + '"')) &&
+  /class="hud-left__mod hud-left__mod--tri"[^>]*data-hud-mod="world"/.test(leftTpl),
+  '四个凸起 + 左下角那个角,一共五枚(第四轮:角落里那枚 = 世界观数据库)');
 /* ★★★ "点击范围和画出来的形必须逐点相同"的静态判据:
    CSS 里 clip-path 的兜底值、SVG 里的 polygon、gFrameLB() 的输出 —— 三处同一组数。 */
 const clipOf = (n) => {
@@ -453,8 +453,29 @@ ok('★★ 图标/名字钉在盒子的中心(JS 按 boxes 的 fx/fy 再写一�
 ok('★★ 面板贴着量出来的那块图标定位(不能量按钮本身 —— 铺满整层的按钮,rect 是整个视口)',
   /\.hud-left__face'\)/.test(leftJs) &&
   !/querySelector\('\[data-hud-mod="' \+ current \+ '"\]'\)\.getBoundingClientRect/.test(leftJs));
-ok('★★ 五个模块都有内容(含左下角那枚占位),不会"按了没反应"',
-  ['timer:', 'music:', 'time:', 'note:', 'slot:'].every((k) => leftJs.includes(k)) && /左下角空位/.test(leftJs));
+ok('★★ 五个模块都有内容(含左下角那枚),不会"按了没反应"',
+  ['timer:', 'music:', 'time:', 'note:', 'world:'].every((k) => leftJs.includes(k)) && /世界观数据库/.test(leftJs));
+
+/* ---------- 第四轮:左下角那枚三角形 = 世界观数据库 ---------- */
+ok('★★★ 目录数据由 Hugo 构建时从 content/world/ 生成(JS 里不许硬编码条目)',
+  /id="hud-world-data"/.test(leftTpl) &&
+  /site\.GetPage "\/world"/.test(leftTpl) &&
+  /\.RegularPages\.ByWeight/.test(leftTpl) &&
+  /\| jsonify \| safeJS/.test(leftTpl.slice(leftTpl.indexOf('hud-world-data') - 400)) &&
+  !/world\/\d\d\//.test(leftJs),
+  '加一份碎片 → 面板自动多一行;写死在 JS 里就等于每次都得改两处');
+ok('★★★ 面板里那 48 行是 <a href>,点了直接进正文页',
+  /class="hud-cat__row" href="/.test(leftJs) &&
+  /esc\(it\.url\)/.test(leftJs) &&
+  /hud-cat__home/.test(leftJs),
+  '面板不管路由,交给浏览器');
+ok('★★ 目录按"幕"分组,而且只有一个滚动盒子(不然面板里会挂 6 条滚动条)',
+  /byAct\[/.test(leftJs) && /hud-cat__act/.test(leftJs) &&
+  (leftJs.match(/class="hud-cat"/g) || []).length === 1);
+ok('★★ 目录盒子自己有高度上限(否则 48 行会把面板顶到左上角那个投影节点上)',
+  /\.hud-cat\s*\{[^}]*max-height:\s*min\(46vh,\s*360px\)/.test(leftCss) &&
+  /\.hud-cat\s*\{[^}]*overflow-y:\s*auto/.test(leftCss) &&
+  /\.hud-cat__act\s*\{[^}]*position:\s*sticky/.test(leftCss));
 ok('★★ 加载顺序:hud-left.js 排在 page-hud.js 与 hud-timer.js 之后',
   extFoot.indexOf('js/hud-left.js') > extFoot.indexOf('js/page-hud.js') &&
   extFoot.indexOf('js/hud-left.js') > extFoot.indexOf('js/hud-timer.js') &&

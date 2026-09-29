@@ -15,6 +15,19 @@ paginate = 10
   disableXML = true
   minifyOutput = true
 
+# ============================================================
+# ★★ static/world/ 是【世界观设定的工作区】:设定.txt + 手写碎片 + 索引 + 合集。
+#    它不发布 —— 那里面是"答案",/world/ 上那 48 份碎片才是题面;
+#    把合集原样挂到公网上,顺序就白打乱了。
+#    正式内容由 scripts/sync-world.mjs 从 static/world/碎片/ 编译到 content/world/。
+#    ★ 只加这一条 mount:其余默认挂载(content/、static/、assets/…)照旧 ——
+#      构建后要抽查 static 下的 favicon.svg / planet/*.webp 还在不在。
+# ============================================================
+[[module.mounts]]
+  source = "static"
+  target = "static"
+  excludeFiles = ["world/**"]
+
 [outputs]
   home = ["HTML", "RSS", "JSON"]
   # ★ 每个页面额外生成一份 markdown(public/<页面路径>/index.md)。
