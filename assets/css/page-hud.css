@@ -127,14 +127,27 @@
      像素算,不被拉伸带跑(svgwg#323),所以 --hud-dash 能和 CD 页逐字相同。 */
 /* ★★ 第二支 .page-hud__band = 左下角那个 L 面板:同样的 4 层、同一套类名。
    用户点名的顺序就是"先用 SVG 画出边框,再往边框上塞按钮"。
-   ★ 它和右支有一处【有意的】不同:它的形是在正方形坐标空间里定的
-     (设计稿 left-band-square.html),所以 d 是常量、不随视口重算。 */
-.page-hud__frame,
-.page-hud__band {
+   ★★★ 它【不能】像右支那样铺满整个视口 —— 它的形是在正方形里定的:
+     100×100 铺满 16:9 会把横向拉长 16/9 倍,斜肩从 30° 变成 18°、斜切从 45° 变成 29.4°,
+     连按钮都跟着跑(用户:"你直接迁移到网页里面就变位置了,因为网页比例不是一个正方形")。
+     ⇒ 钉在【左下角一个边长 = 视口高度的正方形】里:两个方向同单位,形一模一样。
+     ★ 右支正相反:它的角度是"屏幕角度",铺满视口才对。 */
+.page-hud__frame {
     position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
+    display: block;
+    overflow: visible;
+    pointer-events: none;
+}
+
+.page-hud__band {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 100vh;                        /* = 视口高度 ⇒ 正方形,和设计稿同一套比例 */
+    height: 100vh;
     display: block;
     overflow: visible;
     pointer-events: none;

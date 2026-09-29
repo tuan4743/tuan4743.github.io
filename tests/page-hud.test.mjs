@@ -376,10 +376,10 @@ ok('★★★ 产物里那支 SVG 也是 4 层 + 5 个 polygon,而且 polygon �
     return polys.length === 5 && svg.indexOf('<polygon') < svg.indexOf('hud-halo') &&
       ['hud-fill', 'hud-halo', 'hud-line', 'hud-run'].every((k) => svg.includes('hud-band-' + k.split('-')[1]));
   })(), '用户点名的顺序:先画框(和按钮的形),再塞能按的按钮');
-ok('★★ CSS 里 .page-hud__band 和 .page-hud__frame 共用定位(.hud-face 那条也定义了)',
-  /\.page-hud__frame,\s*\.page-hud__band\s*\{[^}]*position:\s*absolute/.test(cssCode) &&
-  /\.hud-face\s*\{[^}]*vector-effect:\s*non-scaling-stroke/.test(cssCode),
-  '按钮的形和框画在同一支 SVG 里 ⇒ 跟着框一起被长宽比拉伸,不会走散');
+ok('★★ .hud-face 那条规则在(按钮的形和框同支 SVG,一起缩放,不会走散)',
+  /\.hud-face\s*\{[^}]*vector-effect:\s*non-scaling-stroke/.test(cssCode) &&
+  /\.hud-face\s*\{[^}]*stroke-width:\s*1px/.test(cssCode),
+  '形画在框那支 SVG 里 ⇒ 和框同一个盒子、同一套变换');
 /* ---------- 能按的那一层:hud-left.html / .css / .js ---------- */
 ok('★★★ 五颗按钮:四个模块 + 左下角那枚三角形(用户:"给一个小空间放一个等腰三角形按钮就够了")',
   (leftTpl.match(/data-hud-mod="/g) || []).length === 5 &&
@@ -392,16 +392,30 @@ const clipOf = (n) => {
   const m = new RegExp('clip-path:\\s*var\\(--hud-lb-clip-' + n + ',\\s*polygon\\(([^)]*)\\)\\)').exec(leftCss);
   return m ? m[1].split(',').map((s) => s.replace(/%/g, '').trim().split(/\s+/).map(Number)).flat() : null;
 };
-ok('★★★ 每颗按钮的 clip-path(兜底值)== gFrameLB() 算出来的那个多边形(逐点)',
+ok('★★★ 左下角那支钉在【正方形】里(边长 = 视口高度),不是铺满 16:9 的视口', (() => {
+  const band = /\.page-hud__band\s*\{([^}]*)\}/.exec(cssCode);
+  const c = band ? band[1].replace(/\s+/g, ' ') : '';
+  return /left:\s*0/.test(c) && /bottom:\s*0/.test(c) &&
+    /width:\s*100vh/.test(c) && /height:\s*100vh/.test(c) &&
+    !/inset:\s*0/.test(c) && !/preserveAspectRatio/.test(''); /* 形由盒子保证,不靠 viewBox 拉伸 */
+})(),
+  '用户:"你直接迁移到网页里面就变位置了,因为网页比例不是一个正方形" —— ' +
+  '铺满视口会把横向拉长 16/9 倍:斜肩 30°→18°、斜切 45°→29.4°,按钮位置也跟着跑');
+ok('★★★ 五颗按钮和框【同一个正方形】(否则 clip-path 的 % 换算单位不一致,形会被拉扁)',
+  [0, 1, 2, 3, 4].every((i) => {
+    const m = new RegExp('\\.hud-left__mod(?:--tri)?[^{]*\\{[^}]*clip-path:[^;]*--hud-lb-clip-' + i).exec(leftCss);
+    return !!m;
+  }) &&
+  /\.hud-left__mod\s*\{[^}]*width:\s*100vh/.test(leftCss) &&
+  /\.hud-left__mod\s*\{[^}]*height:\s*100vh/.test(leftCss) &&
+  /\.hud-left__mod\s*\{[^}]*bottom:\s*0/.test(leftCss));
+ok('★★ CSS 里那五颗按钮的 clip-path 兜底值 == gFrameLB() 算出来的形(逐点)',
   [0, 1, 2, 3, 4].every((i) => {
     const clip = clipOf(i);
     const want = (i < 4 ? lbRef.faces[i] : lbRef.tri).flat();
     return clip && clip.length === want.length && clip.every((v, k) => Math.abs(v - want[k]) < 1e-4);
   }),
   [0, 1, 2, 3, 4].map((i) => i + ':' + (clipOf(i) || []).join('/')).join('  '));
-ok('★★★ 按钮是【铺满整层】的(inset:0)⇒ clip-path 里的 % 和框的坐标同源',
-  /\.hud-left__mod\s*\{[^}]*inset:\s*0/.test(leftCss) && /\.hud-left__mod\s*\{[^}]*clip-path:/.test(leftCss),
-  '不这么写,clip-path 的百分比会按按钮自己的小盒子算,和框对不上');
 ok('★★ 图标/名字钉在 --hud-lb-N-x/-y 上(JS 写的重心),那层自己不收事件',
   /\.hud-left__face\s*\{[^}]*left:\s*var\(--hud-lb-0-x/.test(leftCss) &&
   /\.hud-left__face\s*\{[^}]*pointer-events:\s*none/.test(leftCss) &&
