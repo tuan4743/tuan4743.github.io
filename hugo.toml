@@ -42,43 +42,40 @@ paginate = 10
 [params]
   env = "production"
   title = "Tuagfey Blog"
-  # ★ 左下角 UHD 里"音乐"那枚按钮投出来的播放器:网易云的嵌入式地址(留空则用下面的歌单)。
+  # ★ 左下角 UHD 里"音乐"那枚按钮投出来的播放器:网易云的嵌入式地址(留空则用下面的歌曲列表)。
   #   单曲:  hudMusicEmbed = "//music.163.com/outchain/player?type=2&id=歌曲ID&auto=0&height=66"
   #   (auto=1 是打开页面就自动播 —— 一般留给用户自己点,所以填 0。)
   hudMusicEmbed = ""
-  # ★★ 歌单(用户给的 25 个 ID)。name / count 是 2026-09-29 用公开接口抓的一次快照,
-  #    只为了让面板里认得出是哪个;歌单改名了不用管,想刷新重抓一遍就是。
-  #    count = 0 的多半是"我喜欢的音乐"这类需要登录的歌单 ⇒ 面板里照样列出来,
-  #    但播放器可能是空的(网易云的嵌入式播放器读不到别人的私密歌单)。
-  #    ★ 另外 9 个 ID 接口直接返回 404(歌单被删或转私密了),先注释在最下面 ——
-  #      你确认还在的话把它们取消注释就能用。
-  hudMusicPlaylists = [
-    { id = "2031005346", name = "我喜欢的音乐", count = 0 },
-    { id = "36664350", name = "矮油", count = 51 },
-    { id = "26281760", name = "我喜欢的音乐", count = 0 },
-    { id = "2013900062", name = "纯音乐", count = 2 },
-    { id = "2075035816", name = "↣", count = 13 },
-    { id = "2082329069", name = "周晓武1901喜欢的音乐", count = 245 },
-    { id = "2088128876", name = "每日歌曲推荐(2018.02.05)", count = 27 },
-    { id = "2739720981", name = "我喜欢的音乐", count = 0 },
-    { id = "2718590745", name = "苦行僧傅彧喜欢的音乐", count = 2 },
-    { id = "2609393672", name = "伤感情歌", count = 19 },
-    { id = "2693307042", name = "我喜欢的音乐", count = 0 },
-    { id = "509531185", name = "我喜欢的音乐", count = 0 },
-    { id = "29389381", name = "Xcica喜欢的音乐", count = 1 },
-    { id = "5223391377", name = "反方向的钟", count = 629 },
-    { id = "27646687", name = "我喜欢的音乐", count = 1 },
-    { id = "450222764", name = "我喜欢的音乐", count = 0 },
-    # ★ 这 9 个 ID 公开接口 404(歌单没了或转私密),先留着不启用:
-    # { id = "1424155127" },
-    # { id = "3394036706" },
-    # { id = "3342981041" },
-    # { id = "3374216186" },
-    # { id = "3365242576" },
-    # { id = "3402170281" },
-    # { id = "2625426770" },
-    # { id = "1944896413" },
-    # { id = "1382838382" },
+  # ★★ 歌曲列表(用户给的 25 个 ID —— 是【歌曲】不是歌单,播放器用 type=2)。
+  #    name / artist 是 2026-09-29 用公开接口抓的一次快照,只为在面板里认得出是哪首。
+  #    ★ 5223391377 查不到(可能不是单曲),先注释在最下面。
+  hudMusicSongs = [
+    { id = "2031005346", name = "Eat Your Young", artist = "Hozier" },
+    { id = "36664350", name = "I Can", artist = "Steven Cooper" },
+    { id = "26281760", name = "My Father's Son", artist = "Joe Cocker" },
+    { id = "2013900062", name = "Cold (Live)", artist = "Jonathan Roy/Kim Richardson" },
+    { id = "1424155127", name = "Keeping Me Alive (Acoustic)", artist = "Jonathan Roy" },
+    { id = "2075035816", name = "ストックホルムオフィス", artist = "可不" },
+    { id = "3394036706", name = "洛阳纸", artist = "许嵩" },
+    { id = "3342981041", name = "铁花飞", artist = "Mili/塞壬唱片-MSR" },
+    { id = "450222764", name = "Dreamy Noise", artist = "ゆうかなで" },
+    { id = "3374216186", name = "山雾", artist = "安扬August" },
+    { id = "3365242576", name = "假贵族", artist = "门尼" },
+    { id = "3402170281", name = "抽离雨", artist = "安扬August" },
+    { id = "2625426770", name = "抑人", artist = "银河快递/门尼" },
+    { id = "2082329069", name = "罗曼蒂克乌托邦", artist = "门尼" },
+    { id = "2088128876", name = "Problematic", artist = "BoyWithUke" },
+    { id = "2739720981", name = "Terrified", artist = "BoyWithUke" },
+    { id = "2718590745", name = "MOVE MOVE", artist = "a子" },
+    { id = "2609393672", name = "How I Learned To Love The Bomb", artist = "Glass Animals" },
+    { id = "1944896413", name = "Understand", artist = "BoyWithUke" },
+    { id = "2693307042", name = "World At My Feet", artist = "Victor Ray" },
+    { id = "509531185", name = "Why Baby Why", artist = "MyKey" },
+    { id = "1382838382", name = "飛行艇", artist = "King Gnu" },
+    { id = "29389381", name = "In Chains", artist = "Shaman's Harvest" },
+    { id = "27646687", name = "玫瑰花的葬礼", artist = "许嵩" },
+    # ★ 这个 ID 单曲接口查不到(可能不是单曲),先留着不启用:
+    # { id = "5223391377" },
   ]
   description = "Tuagfey 的个人博客 —— 记录技术、生活与思考"
   keywords = ["Blog", "Portfolio", "PaperMod", "tuagfey"]

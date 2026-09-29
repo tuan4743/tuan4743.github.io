@@ -38,14 +38,14 @@
   var timerHome = timerEl ? timerEl.parentNode : null;
   var timerWasMin = null;
   var musicEmbed = root.getAttribute("data-hud-music") || "";
-  /* 歌单数据走 <script type="application/json">,不塞 data-* 属性(名字里什么字符都有) */
-  var musicData = { embed: "", lists: [] };
+  /* 歌曲数据走 <script type="application/json">,不塞 data-* 属性(歌名里什么字符都有) */
+  var musicData = { embed: "", songs: [] };
   try {
     var raw = document.getElementById("hud-music-data");
     if (raw && raw.textContent) musicData = JSON.parse(raw.textContent) || musicData;
   } catch (e) { }
   if (!musicData.embed) musicData.embed = musicEmbed;
-  var musicPick = 0;      /* 面板里选中的是第几个歌单 */
+  var musicPick = 0;      /* 面板里选中的是第几首 */
 
   /* ---------- ① 几何:一条公共的横线 + 纵向展开 ----------
      ★★★ 用户第二轮第 1 条:"我想做成那种纵向展开的,就是原本都是在一个位置的横线,
@@ -63,6 +63,16 @@
   function bandRight() {
     /* 带子(含凸起)伸到哪儿:设计稿里凸起伸到 6 个单位,1 个单位 = 1vh */
     return Math.round(0.06 * document.documentElement.clientHeight);
+  }
+
+  /* ★★★ 左上角那个【投影节点】(等腰直角三角形,.proj-node,钉在视口左上角)不能让面板压住 ——
+     用户第三轮:"这个音乐播放器展开真有点大了,把左上角那个三角投影点给挡住了。"
+     ⇒ 面板能长到多高,由它的下缘决定(拿不到就当 0)。 */
+  function projBottom() {
+    var n = document.querySelector(".proj-node");
+    if (!n || !n.getBoundingClientRect) return 0;
+    var r = n.getBoundingClientRect();
+    return r && r.height ? Math.round(r.bottom) + 12 : 0;
   }
 
   /* 那条横线:位置固定,和哪个模块被点无关 */
@@ -133,8 +143,9 @@
 
     /* ★★ 量内容高度【不要去动面板自己的 height】(先设 auto 再读再写回去 =
        动画中间插一帧满高 ⇒ 肉眼就是"抖一下",实测抓到 323→269→323 这种跳变)。
-       内容那层是 flex:0 0 auto,它天生就是自然高度,直接读它。 */
-    var maxH = lineTop - 12;
+       内容那层是 flex:0 0 auto,它天生就是自然高度,直接读它。
+       ★ 上限同时受两件事约束:那条横线,以及左上角投影节点的下缘。 */
+    var maxH = Math.max(200, lineTop - projBottom() - 12);
     var ph = Math.min((inner && inner.offsetHeight) || panel.offsetHeight || 240, maxH);
     if (animate) {
       panel.style.height = "0px";
@@ -243,8 +254,9 @@
   }
 
   /* ---- 音乐:网易云的嵌入式播放器 ----
-     用户第三轮给了一串歌单 ID("歌单:先加这么多")⇒ 面板 = 播放器 + 一个歌单列表,
-     点哪一行就换成那一个。数据在 hugo.toml 的 params.hudMusicPlaylists。 */
+     ★★ 用户给的 25 个 ID 是【歌曲】不是歌单(上一轮我按歌单做,type 用错了)⇒
+        播放器走 type=2 的单曲嵌入(只要 86px 高,面板也就不会长到挡住投影节点)。
+     数据在 hugo.toml 的 params.hudMusicSongs。 */
   function renderMusic() {
     /* ① 手填的单曲/整条嵌入地址优先 */
     if (musicData.embed) {
@@ -253,26 +265,25 @@
       body.innerHTML = musicFrame(musicData.embed, h0);
       return;
     }
-    /* ② 歌单列表 */
-    var lists = musicData.lists || [];
-    if (!lists.length) {
+    /* ② 歌曲列表 */
+    var songs = musicData.songs || [];
+    if (!songs.length) {
       body.innerHTML = '<p class="hud-left__todo">还没接播放器。<br>' +
-        '在 <code>hugo.toml</code> 里给 <code>hudMusicPlaylists</code> 填网易云的歌单 ID,<br>' +
-        '或者给 <code>hudMusicEmbed</code> 填一条单曲嵌入地址:<br>' +
+        '在 <code>hugo.toml</code> 里给 <code>hudMusicSongs</code> 填网易云的歌曲 ID,<br>' +
+        '或者给 <code>hudMusicEmbed</code> 填一条嵌入地址:<br>' +
         '<code>//music.163.com/outchain/player?type=2&id=歌曲ID&auto=0&height=66</code></p>';
       return;
     }
-    if (musicPick >= lists.length) musicPick = 0;
-    var cur = lists[musicPick] || {};
-    var rows = lists.map(function (p, i) {
-      var n = p.count === 0 ? "空" : (p.count == null ? "" : p.count + " 首");
+    if (musicPick >= songs.length) musicPick = 0;
+    var cur = songs[musicPick] || {};
+    var rows = songs.map(function (s, i) {
       return '<button type="button" class="hud-plist__row' + (i === musicPick ? " is-on" : "") +
-        '" data-hud-plist="' + i + '" aria-pressed="' + (i === musicPick) + '">' +
-        '<span class="hud-plist__name">' + esc(p.name || ("歌单 " + (i + 1))) + '</span>' +
-        '<span class="hud-plist__meta">' + esc(n) + " · " + esc(String(p.id || "")) + '</span></button>';
+        '" data-hud-song="' + i + '" aria-pressed="' + (i === musicPick) + '">' +
+        '<span class="hud-plist__name">' + esc(s.name || ("歌曲 " + (i + 1))) + '</span>' +
+        '<span class="hud-plist__meta">' + esc(s.artist || "") + '</span></button>';
     }).join("");
-    body.innerHTML = musicFrame("//music.163.com/outchain/player?type=0&id=" + cur.id + "&auto=0&height=430", 450) +
-      '<p class="hud-plist__hint">歌单(按你给的顺序,共 ' + lists.length + ' 个):</p>' +
+    body.innerHTML = musicFrame("//music.163.com/outchain/player?type=2&id=" + cur.id + "&auto=0&height=66", 86) +
+      '<p class="hud-plist__hint">歌单(你给的 ' + songs.length + ' 首,点一首就换):</p>' +
       '<div class="hud-plist">' + rows + '</div>';
   }
 
@@ -403,11 +414,11 @@
       renderCalendar();
       return;
     }
-    /* 歌单列表:点一行就换成那个歌单 */
-    var row = e.target.closest ? e.target.closest("[data-hud-plist]") : null;
+    /* 歌单列表:点一行就换成那一首 */
+    var row = e.target.closest ? e.target.closest("[data-hud-song]") : null;
     if (row) {
       e.preventDefault();
-      musicPick = Number(row.getAttribute("data-hud-plist")) || 0;
+      musicPick = Number(row.getAttribute("data-hud-song")) || 0;
       renderMusic();
       layout(false);
       return;

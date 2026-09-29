@@ -458,7 +458,7 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
-    max-height: 168px;
+    max-height: 190px;                    /* 面板高度受它约束:别长到顶住左上角的投影节点 */
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-width: none;

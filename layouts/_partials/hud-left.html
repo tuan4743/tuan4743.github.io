@@ -19,17 +19,17 @@
      ============================================================ */}}
 {{/* 音乐 = 网易云的嵌入式播放器:用户"音乐播放器其实并非本地曲目,想要做成嵌入式
      播放器链接网易云音乐。这样对全屏阅览的用户就算是有用了。"
-     第二轮又给了一串歌单 ID("歌单:先加这么多")。
-     ★ 数据从站点参数来(hugo.toml 的 params.hudMusicEmbed / hudMusicPlaylists):
-       单曲嵌入地址优先;没有就用歌单列表(带名字),面板里可以一个个点着换。
+     随后给了一串 ID —— ★ 是【歌曲】ID 不是歌单(用 type=2 嵌单曲)。
+     ★ 数据从站点参数来(hugo.toml 的 params.hudMusicEmbed / hudMusicSongs):
+       单曲嵌入地址优先;没有就用歌曲列表(带歌名 + 歌手),面板里一个个点着换。
      ★★ 用 <script type="application/json"> 传结构化数据,不用塞进 data-* 属性 ——
-        属性里要转义引号,歌单名字里什么字符都可能有。 */}}
+        属性里要转义引号,歌名里什么字符都可能有。 */}}
 {{- $music := site.Params.hudMusicEmbed | default "" -}}
-{{- $lists := site.Params.hudMusicPlaylists | default slice -}}
+{{- $songs := site.Params.hudMusicSongs | default slice -}}
 {{/* ★★ 必须过一道 safeJS:Go 模板的上下文转义认得 <script>,会把 {{ }} 的输出
      当成"一个 JS 字符串"再包一层引号(实测拿到的就是 "{\"embed\":...}" 这种),
      于是 JSON.parse 出来还是个字符串。safeJS 才是"这段就是代码,原样输出"。 */}}
-<script type="application/json" id="hud-music-data">{{ dict "embed" $music "lists" $lists | jsonify | safeJS }}</script>
+<script type="application/json" id="hud-music-data">{{ dict "embed" $music "songs" $songs | jsonify | safeJS }}</script>
 <div class="hud-left" id="hud-left" data-hud-left>
     {{/* ---- 左支两道(上 → 下)---- */}}
     <button class="hud-left__mod" type="button" data-hud-mod="timer" data-hud-lb="0" aria-pressed="false"

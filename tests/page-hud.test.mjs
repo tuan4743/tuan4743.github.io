@@ -505,22 +505,29 @@ ok('★★★ 卡片右上角那颗"×"删掉了(用户:"这个×没啥用")',
 ok('★★ 投影光束:从模块那一点连到面板(把"从哪投出来的"说清楚)',
   /class="hud-proj__beam"/.test(leftTpl) && /function drawBeam\(/.test(leftJs) &&
   /line\.setAttribute\("x1"/.test(leftJs) && /\.hud-proj__beam line\s*\{[^}]*stroke-dasharray/.test(leftCss));
-ok('★★★ 音乐 = 网易云的嵌入式播放器 + 用户给的歌单列表(不是本地曲目)',
+ok('★★★ 音乐 = 网易云的嵌入式播放器 + 用户给的【歌曲】列表(type=2 单曲,不是歌单)',
   /id="hud-music-data"/.test(leftTpl) &&
   /jsonify \| safeJS/.test(leftTpl) &&
-  /site\.Params\.hudMusicPlaylists/.test(leftTpl) &&
-  /hudMusicPlaylists = \[/.test(rd(`${BH}/hugo.toml`)) &&
-  (rd(`${BH}/hugo.toml`).match(/\{ id = "\d+", name =/g) || []).length >= 10 &&
-  /outchain\/player\?type=0&id=/.test(leftJs) &&
-  /data-hud-plist/.test(leftJs) && /\.hud-plist__row/.test(leftCss),
-  '用户:"音乐播放器其实并非本地曲目,想要做成嵌入式播放器链接网易云音乐" + "歌单:先加这么多"');
+  /site\.Params\.hudMusicSongs/.test(leftTpl) &&
+  /hudMusicSongs = \[/.test(rd(`${BH}/hugo.toml`)) &&
+  (rd(`${BH}/hugo.toml`).match(/\{ id = "\d+", name = .+, artist = /g) || []).length >= 20 &&
+  /outchain\/player\?type=2&id=/.test(leftJs) &&
+  !/type=0&id=/.test(leftJs) &&
+  /data-hud-song/.test(leftJs) && /\.hud-plist__row/.test(leftCss),
+  '用户:"音乐播放器其实并非本地曲目,想要做成嵌入式播放器链接网易云音乐" + ' +
+  '"不是,我给的是歌曲id,不是歌单id"(上一轮我把 type 写成 0 了)');
+ok('★★★ 面板高度不许顶到左上角那个投影节点(.proj-node)',
+  /function projBottom\(\)/.test(leftJs) &&
+  /var maxH = Math\.max\(200, lineTop - projBottom\(\) - 12\)/.test(leftJs) &&
+  /\.hud-plist\s*\{[^}]*max-height/.test(leftCss),
+  '用户:"这个音乐播放器展开真有点大了,把左上角那个三角投影点给挡住了"');
 ok('★★★ 歌单数据用 <script type="application/json"> 传,而且【过了 safeJS】',
   /<script type="application\/json" id="hud-music-data">\{\{ dict[^}]*jsonify \| safeJS \}\}<\/script>/.test(leftTpl),
   '★ Go 模板的上下文转义认得 <script>,不过 safeJS 会把 JSON 再包一层引号 ' +
   '(实测拿到 "{\\"embed\\":...}",JSON.parse 出来还是字符串)');
-ok('★★ 歌单列表有名字、能点着换(不是只列 ID)',
+ok('★★ 歌曲列表有歌名 + 歌手、能点着换(不是只列 ID)',
   /hud-plist__name/.test(leftJs) && /hud-plist__meta/.test(leftJs) &&
-  /musicPick = Number\(row\.getAttribute\("data-hud-plist"\)\)/.test(leftJs) &&
+  /musicPick = Number\(row\.getAttribute\("data-hud-song"\)\)/.test(leftJs) &&
   /\.hud-plist__row\.is-on/.test(leftCss));
 ok('★★★ 收起之后怎么展示:番茄钟 = 时钟图标外面套一圈进度;音乐 = 图标下面一排柱;时钟不做',
   /class="hud-left__ico"[\s\S]*?class="hud-mod__ring"/.test(leftTpl) &&
