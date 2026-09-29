@@ -671,6 +671,33 @@ function pressOn(rootEl, target) {
   ok('★ 列表页上点胶囊真的改到了正文字号',
     env.doc.documentElement.style.getPropertyValue('--article-fs') === '18px',
     env.doc.documentElement.style.getPropertyValue('--article-fs'));
+
+  /* ★★★ 它不能再一个人留在左上角 —— 要站到"目录本来该在的位置"上。
+     用户:"如果没有目录,那么目录里面的字体大小调节模块就会单独跑到左上角,
+     比如六十年这一篇"(那一篇没有小标题 ⇒ hud-toc.html 整块不渲染)。 */
+  env.doc.querySelector = (s) => (s.indexOf('.hud-nav') === 0
+    ? { getBoundingClientRect: () => ({ left: 1600, right: 1700, top: 0, bottom: 0 }) } : env.main);
+  api.relayout();
+  const laneLeft = Math.round(env.main._rect.right + 12 + 18);   /* 正文右缘 + GAP_BAR + GAP_PANEL */
+  ok('★★★ 没有目录时,胶囊站到目录的位置上(不再一个人留在左上角)',
+    env.typePillEl.classList.contains('hud-type--lane') &&
+    env.typePillEl.style.left === laneLeft + 'px' && /px$/.test(String(env.typePillEl.style.top)),
+    'lane=' + env.typePillEl.classList.contains('hud-type--lane') +
+    ' left=' + env.typePillEl.style.left + ' top=' + env.typePillEl.style.top +
+    '(期望 left=' + laneLeft + 'px)');
+
+  /* 缝不够宽(胶囊 218px 站不进去)⇒ 老老实实退回左栏那套,别硬塞着压正文 */
+  env.doc.querySelector = (s) => (s.indexOf('.hud-nav') === 0
+    ? { getBoundingClientRect: () => ({ left: 1480, right: 1700, top: 0, bottom: 0 }) } : env.main);
+  api.relayout();
+  ok('★★ 缝太窄就退回左栏(不硬塞着压住正文)',
+    !env.typePillEl.classList.contains('hud-type--lane') && !env.typePillEl.style.left,
+    'lane=' + env.typePillEl.classList.contains('hud-type--lane') + ' left=' + env.typePillEl.style.left);
+
+  ok('★★ 两个位置共用同一套量法(laneBox 只写一遍)+ 那个类有样式',
+    (js.match(/function laneBox\(/g) || []).length === 1 && /PILL_W/.test(js) &&
+    /\.hud-type--lane\s*\{/.test(noC(rd(`${BH}/assets/css/page-hud.css`))),
+    '.hud-type--lane 的样式跟着基类放在 page-hud.css 里');
 }
 
 /* ---------------- 输出 ---------------- */

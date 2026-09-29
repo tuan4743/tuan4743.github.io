@@ -16,17 +16,16 @@ paginate = 10
   minifyOutput = true
 
 # ============================================================
-# ★★ static/world/ 是【世界观设定的工作区】:设定.txt + 手写碎片 + 索引 + 合集。
-#    它不发布 —— 那里面是"答案",/world/ 上那 48 份碎片才是题面;
-#    把合集原样挂到公网上,顺序就白打乱了。
-#    正式内容由 scripts/sync-world.mjs 从 static/world/碎片/ 编译到 content/world/。
-#    ★ 只加这一条 mount:其余默认挂载(content/、static/、assets/…)照旧 ——
-#      构建后要抽查 static 下的 favicon.svg / planet/*.webp 还在不在。
+# ★★ 世界观设定的工作区【不在 static/ 下面】,而在仓库根的 tuagfey-blog/world/。
+#    理由:那里放的是"答案"(设定原文、审阅索引、按时间排好的合集),不能发布。
+#    而 Hugo 只把 content/、static/、assets/、layouts/… 这些【组件目录】当东西,
+#    根目录下一个叫 world/ 的普通文件夹它根本不看 ——
+#    于是"不发布"这件事不用任何配置,也就没有以后升级把排除项弄丢的风险。
+#    (试过 static/world + module.mounts:excludeFiles 在 0.153 已弃用,
+#     换成 files 之后在 static 挂载上几种写法都会把整条挂载清空 ——
+#     favicon / planet / assets 一起没了,所以放弃那条路。)
+#    正式内容由 scripts/sync-world.mjs 从 world/碎片/ 编译到 content/world/。
 # ============================================================
-[[module.mounts]]
-  source = "static"
-  target = "static"
-  excludeFiles = ["world/**"]
 
 [outputs]
   home = ["HTML", "RSS", "JSON"]

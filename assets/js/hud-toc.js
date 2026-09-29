@@ -81,16 +81,13 @@
   var lastSig = "";     /* 上一次真正写下去的几何签名 */
   var last = null;      /* 量到的中间值,排障出口用 */
 
-  function layout() {
-    /* ★ 这一页没有目录 DOM(列表页/首页,或者标题太少没渲染)⇒ 没有几何可量,
-       备用胶囊直接顶上,然后收工。不写这个 early return 的话下面
-       root.classList 会抛错(而这一版之前是"整块 return 掉",胶囊也跟着没了)。 */
-    if (!root) {
-      if (typePill) typePill.hidden = false;
-      return;
-    }
+  /* ---------- 右侧那条缝:目录和"备用胶囊"共用同一套量法 ----------
+     ★ 抽出来是因为【没有目录的页面】也得量一次:那枚字号胶囊不能一个人
+       留在左上角(用户:"如果没有目录,那么目录里面的字体大小调节模块就会
+       单独跑到左上角,比如六十年这一篇"),它要站到目录本来该在的位置上。
+       两处各写一遍迟早会走散,所以只留这一个函数。 */
+  function laneBox(vh) {
     var vw = document.documentElement.clientWidth;
-    var vh = document.documentElement.clientHeight;
     var mr = main.getBoundingClientRect().right;
     var nav = document.querySelector(".hud-nav");
     var navLeft = nav ? nav.getBoundingClientRect().left : vw * 0.94;
@@ -99,8 +96,40 @@
     var gap = Math.round(navLeft - GAP_NAV - left);    /* 这条缝真正能用的宽 */
     var w = Math.min(MAX_W, gap);
     var boxH = Math.round(Math.max(H_MIN, Math.min(w * H_RATIO, vh * H_MAX_VH)));   /* 盒子总高 */
+    /* 垂直中心:盒子高 boxH,让它落在 [top, top+boxH] 正中 —— 顶带上沿(6%)以下、
+       底带(94%)以上取中点。同时给上下留 0.5% 余量,别贴到折线上。 */
+    var center = Math.max(0.06 + boxH / vh / 2 + 0.005, Math.min(0.94 - boxH / vh / 2 - 0.005, 0.5));
+    return { vw: vw, mr: Math.round(mr), navLeft: Math.round(navLeft), bar: bar, left: left,
+             gap: gap, w: w, boxH: boxH, top: (center - boxH / vh / 2) * vh };
+  }
+
+  /* 胶囊在 lane 模式下的实测宽(CDP 量的:176px,见 page-hud.css 的 .hud-type--lane
+     —— 那边专门收小了一号,原尺寸是 218px)。留 4px 余量。
+     缝比它窄就站不进去 ⇒ 退回左栏那套位置,别硬塞着压住正文。 */
+  var PILL_W = 180;
+  function placePill(lb) {
+    if (!typePill) return;
+    var lane = !!lb && lb.gap >= PILL_W;
+    typePill.classList.toggle("hud-type--lane", lane);
+    typePill.style.left = lane ? Math.round(lb.left) + "px" : "";
+    typePill.style.top = lane ? Math.round(lb.top) + "px" : "";
+  }
+
+  function layout() {
+    /* ★ 这一页没有目录 DOM(列表页/首页,或者标题太少没渲染)⇒ 没有目录几何,
+       但【那条缝照样得量】:备用胶囊要站到目录本来该在的位置上。
+       不写这个 early return 的话下面 root.classList 会抛错。 */
+    if (!root) {
+      placePill(laneBox(document.documentElement.clientHeight));
+      if (typePill) typePill.hidden = false;
+      return;
+    }
+    var vh = document.documentElement.clientHeight;
+    var lb = laneBox(vh);
+    var vw = lb.vw, mr = lb.mr, navLeft = lb.navLeft, bar = lb.bar, left = lb.left;
+    var gap = lb.gap, w = lb.w, boxH = lb.boxH;
     var panelH = boxH - TOP_H - TOP_GAP - BOX_PAD;                                  /* 面板自己的高 */
-    last = { vw: vw, vh: vh, mr: Math.round(mr), navLeft: Math.round(navLeft), left: Math.round(left),
+    last = { vw: vw, vh: vh, mr: mr, navLeft: navLeft, left: Math.round(left),
              gap: gap, w: w, boxH: boxH, panelH: panelH };
 
     /* ★★ 守卫【不能】只看"宽度有没有变":同一个宽度下几何可能已经变了
@@ -123,6 +152,9 @@
          为什么不用 JS 判:视口宽是个纯 CSS 事实,写在这里要多一个常量、
          还要跟 CSS 里的媒体查询对齐,两个数早晚会走散。 */
     if (typePill) typePill.hidden = (tocUsable && w >= MIN_W);
+    /* ★ 它顶上来了就把位置也摆对:缝够宽 ⇒ 站到目录的位置上;
+       缝不够宽 ⇒ placePill 自己会退回左栏那套(CSS 里那两行)。 */
+    placePill(lb);
     var sig = [Math.round(vw), Math.round(vh), Math.round(mr), Math.round(navLeft)].join("|");
     if (sig !== lastSig) {
       /* ★ 单位只用 px,不掺百分比:left: calc(73.294% - 74.353% + 18px)
@@ -136,10 +168,9 @@
       root.style.setProperty("--hud-toc-panel-w", w + "px");
       root.style.setProperty("--hud-toc-h", boxH + "px");
       root.style.setProperty("--hud-toc-panel-h", panelH + "px");
-      /* 垂直中心:盒子高 boxH,让它落在 [top, top+boxH] 正中 —— 顶带上沿(6%)以下、
-         底带(94%)以上取中点。同时给上下留 0.5% 余量,别贴到折线上。 */
-      var center = Math.max(0.06 + boxH / vh / 2 + 0.005, Math.min(0.94 - boxH / vh / 2 - 0.005, 0.5));
-      root.style.setProperty("--hud-toc-y", ((center - boxH / vh / 2) * 100).toFixed(3) + "%");
+      /* 垂直位置直接用 laneBox 那个数 —— 和"备用胶囊站哪"共用同一个值,
+         这样目录在不在,那一块的顶边都在同一条水平线上。 */
+      root.style.setProperty("--hud-toc-y", ((lb.top / vh) * 100).toFixed(3) + "%");
       lastSig = sig;
     }
   }

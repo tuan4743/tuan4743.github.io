@@ -2,7 +2,9 @@
 /* ============================================================
    世界观数据库 · 同步脚本
    ─────────────────────────────────────────────────────────────
-   单一真值 = static/world/碎片/*.md(手写稿,顺带给人读的)
+   单一真值 = world/碎片/*.md(手写稿,顺带给人读的)
+              ★ 这个文件夹【在仓库根】,不在 static/ 下面 ——
+                它不发布(详见 hugo.toml 顶部那段说明)。
    本脚本把它编译成 content/world/*.md(Hugo 页面):
 
      · H1            -> front matter 的 title
@@ -13,14 +15,14 @@
    <!-- WORLD-CATALOG:BEGIN --> / END 之间),别的地方一个字不动。
 
    用法:  node scripts/sync-world.mjs
-   ★ 改文案请改 static/world/碎片/,改完重跑本脚本 —— 别直接改 content/world/。
+   ★ 改文案请改 world/碎片/,改完重跑本脚本 —— 别直接改 content/world/。
    ============================================================ */
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const SRC = path.join(ROOT, "static", "world", "碎片");
+const SRC = path.join(ROOT, "world", "碎片");
 const OUT = path.join(ROOT, "content", "world");
 const INDEX = path.join(OUT, "_index.md");
 
