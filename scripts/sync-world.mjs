@@ -23,8 +23,24 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = path.join(ROOT, "world", "碎片");
+const HINTS = path.join(ROOT, "world", "提示.md");
 const OUT = path.join(ROOT, "content", "world");
 const INDEX = path.join(OUT, "_index.md");
+
+/* ---------- ECHO 的提示(world/提示.md)----------
+   格式:| 编号 | 提示 |
+   用途:写进每一页的 archive.hint,再由 page-hud.html 交给 hud-echo.js ——
+   读者在档案页上一直戳左上角那个摄像头,ECHO 会不情愿地把这一句吐出来。
+   ★ 这个文件不在 content/ 里,所以提示本身不会被当成正文发出去。 */
+function readHints() {
+  const map = {};
+  if (!fs.existsSync(HINTS)) return map;
+  for (const line of fs.readFileSync(HINTS, "utf8").replace(/\r\n/g, "\n").split("\n")) {
+    const m = /^\s*\|\s*(\d{2})\s*\|\s*(.+?)\s*\|\s*$/.exec(line);
+    if (m) map[m[1]] = m[2];
+  }
+  return map;
+}
 
 /* 幕 —— 编号落在哪一段,归属哪一幕。目录(/world/)和 HUD 面板都按这个分组。 */
 const ACTS = [
@@ -68,6 +84,7 @@ function yamlStr(s) {
 /* ---------------- 1. 编译每一份碎片 ---------------- */
 fs.mkdirSync(OUT, { recursive: true });
 const files = fs.readdirSync(SRC).filter((f) => f.endsWith(".md")).sort();
+const hints = readHints();
 const rows = [];
 
 for (const f of files) {
@@ -105,6 +122,7 @@ for (const f of files) {
     "  carrier: " + yamlStr(carrier),
     "  integrity: " + yamlStr(integrity),
     "  eid: " + yamlStr(eid),
+    "  hint: " + yamlStr(hints[no] || ""),      /* ECHO 戳摄像头时吐的那一句 */
     "---",
     "",
   ].join("\n");
@@ -141,6 +159,8 @@ idx = idx.replace(/共 \d+ 份碎片/g, "共 " + rows.length + " 份碎片");
 fs.writeFileSync(INDEX, idx, "utf8");
 
 console.log("同步完成:" + rows.length + " 份 → " + path.relative(ROOT, OUT));
+const withHint = rows.filter((r) => hints[r.no]).length;
+console.log("  提示 " + withHint + "/" + rows.length + " 份(来自 world/提示.md)");
 for (const act of ACTS) {
   const n = rows.filter((r) => r.act.name === act.name).length;
   console.log("  " + act.name.padEnd(24, " ") + n + " 份");

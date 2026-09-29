@@ -33,7 +33,15 @@
          → y=91 拐角 45° 斜切 7 → 下支(= 左支沿对角线 x=y 的镜像,倒序)→ 页底 (42,100)。 */ -}}
 {{- $band := "M0 42 L2 43.1547 L2 51.0238 L6 53.3332 L6 60.8332 L2 63.1426 L2 71.0117 L6 73.3211 L6 80.8211 L2 83.1305 L2 91 L9 98 L16.8695 98 L19.1789 94 L26.6789 94 L28.9883 98 L36.8574 98 L39.1668 94 L46.6668 94 L48.9762 98 L56.8453 98 L58 100" -}}
 {{- $current := . -}}
-<div class="page-hud" id="page-hud" data-hud-page="{{ $current.RelPermalink }}" data-hud-frame="{{ $frame }}" data-hud-band="{{ $band }}">
+{{- /* ★★ ECHO 的提示:来自 world/提示.md(经 scripts/sync-world.mjs 写进 archive.hint)。
+       ★ 为什么放在这里而不是 projection-node.html:那个 partial 是从
+         extend_footer.html 调的,而主题用 partialCached 把整个 footer 按
+         【Layout + Kind】缓存 —— 按页面变的东西放进去会被第一页的值写死
+         (baseof.html 顶上那段就是在讲这个坑,右侧 HUD 当初就是这么搬出来的)。
+         page-hud.html 是 baseof 直接渲染的,没进缓存,安全。 */ -}}
+{{- $echoHint := "" -}}
+{{- with $current.Params.archive }}{{ $echoHint = .hint | default "" }}{{ end -}}
+<div class="page-hud" id="page-hud" data-hud-page="{{ $current.RelPermalink }}" data-echo-hint="{{ $echoHint }}" data-hud-frame="{{ $frame }}" data-hud-band="{{ $band }}">
     {{/* ★ viewBox="0 0 100 100" 就是用户的坐标制式(一个单位 = 一页的 1%);
          preserveAspectRatio="none" 把它拉满视口 ⇒ 坐标即百分比。
          ★★ d 会被 page-hud.js 按【真实视口】重算(45°/60° 是屏幕角度,

@@ -212,6 +212,44 @@ ok('★ 首页那份不显示对话框(它跟着平板在视口外,不需要说�
 ok('★ 脚本挂上了(排在最后:它只【看】别人,不要求别人先就位)',
   /resources\.Get "js\/hud-echo\.js"/.test(rd(`${BH}/layouts/partials/extend_footer.html`)));
 
+/* ---------- ⑤c ECHO 的四个特殊互动(用户第八轮)----------
+   用户:"可以写一些特殊互动,比如番茄钟一轮结束/没结束就暂停,笔形态时鼠标移到
+        ECHO 上,读世界观档案里的某篇具体文章时一直点摄像头它会不情愿的给一点点提示。" */
+ok('★★★ 摄像头有个【热区】—— .proj-node 自己是 pointer-events:none + z-index:-1,收不到鼠标',
+  /id="echo-hot"/.test(nodeHtml) &&
+  /:root\[data-theme\]\.shell-page \.echo-hot\s*\{[^}]*position:\s*fixed/.test(shellCode) &&
+  /:root\[data-theme\]\.shell-page \.echo-hot\s*\{[^}]*display:\s*block/.test(shellCode),
+  '★ display:block 不能漏 —— 基础规则是 display:none,漏了就是个 0×0 的隐形元素(实测踩过)');
+ok('★★ 热区位置 = 节点宽的 1/3(镜头中心 56/168),和 .proj-node 的 width 同一组数',
+  (() => {
+    const w = /(?:^|[^.\w-])\.proj-node\s*\{[^}]*width:\s*(clamp\([^)]*\))/.exec(shellCode);
+    const h = /\.echo-hot\s*\{[^}]*left:\s*calc\((clamp\([^)]*\))\s*\/\s*3/.exec(shellCode);
+    return !!w && !!h && w[1].replace(/\s/g, '') === h[1].replace(/\s/g, '');
+  })());
+ok('★★★ 番茄钟靠【盯 :root 的两个变量】,不去改 hud-timer.js',
+  /--hud-tomato-run/.test(echoJs) && /--hud-tomato-p/.test(echoJs) &&
+  /MutationObserver/.test(echoJs) && /attributeFilter:\s*\["style"\]/.test(echoJs));
+ok('★★ 跑完 / 没跑完是两句话;归零(重置)不吭声 —— 那是重来,不是放弃',
+  /p >= 0\.999/.test(echoJs) && /p > 0\.0005/.test(echoJs) &&
+  /done:/.test(echoJs) && /giveUp:/.test(echoJs),
+  '阈值 0.0005:重置写 0.0000,跑一秒也有 0.0007');
+ok('★★★ 笔激活时鼠标扫过镜头有反应,而且带 force(刚拿笔就扫过来正是最自然的时机)',
+  /pointerenter/.test(echoJs) && /\[data-hud-pen\]\.is-on/.test(echoJs) &&
+  /hoverPen:\s*\{\s*cool:\s*\d+,\s*force:\s*true\s*\}/.test(echoJs));
+ok('★★★ 一直戳摄像头:第 3 下才给提示,计数【按页面】存(换一篇重新数)',
+  /function poke\(/.test(echoJs) && /echo-poke:" \+ location\.pathname/.test(echoJs) &&
+  /n === 1/.test(echoJs) && /n === 3/.test(echoJs) && /700/.test(echoJs),
+  '不受全局冷却管 —— 不然连点四下要等一分多钟,那就不叫"一直戳"了');
+ok('★★★ 提示的来源链:world/提示.md → archive.hint → data-echo-hint',
+  /提示\.md/.test(rd(`${BH}/scripts/sync-world.mjs`)) &&
+  /hints\[no\]/.test(rd(`${BH}/scripts/sync-world.mjs`)) &&
+  /data-echo-hint="\{\{ \$echoHint \}\}"/.test(rd(`${BH}/layouts/_partials/page-hud.html`)));
+ok('★★ 提示【不能】放在被 partialCached 缓存过的 footer 链里(会串页)',
+  !/echoHint|archive\.hint/.test(rd(`${BH}/layouts/partials/extend_footer.html`)),
+  '主题按 Layout + Kind 缓存整个 footer —— 按页面变的东西进去就被第一页写死');
+ok('★ 提示一共 48 条,一篇一条',
+  (rd(`${BH}/world/提示.md`).match(/^\s*\|\s*\d{2}\s*\|/gm) || []).length === 48);
+
 /* ---------- ⑥ 背景必须是"钉在视口的最底层" ----------
    用户报过一次:"你直接把它固定在了滑动界面内,不仅挡住了主页面,
    滚轮一滚还跟着走"。根因:这份标记是在 <footer> 里渲染的(主题的 footer.html
