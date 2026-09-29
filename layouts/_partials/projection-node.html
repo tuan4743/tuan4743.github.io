@@ -88,3 +88,14 @@
       镜头中心在节点方框的 56/168 = 1/3 处,热区是围着它的一个 44px 圆。
     ★ 用途两件:笔激活时鼠标扫过来 → ECHO 有反应;一直点它 → 不情愿地给一句提示。 */}}
 <span class="echo-hot" id="echo-hot" aria-hidden="true"></span>
+
+{{/* ECHO 真的把"带宽共识协议"关掉时盖的那一层黑屏。
+    ★ 用户第八轮:"接着点就会真的黑屏然后重进网站"。
+      流程:hud-echo.js 把这一层淡进来 → 停 1.6 秒让人看清那行字 → location.reload()。
+    ★ 它【不受 shell-page 限制】(哪一页都可能被关);基础规则不写 display,
+      靠 [hidden] 关着 —— 那条特异性比 .echo-black 高,不会被 display:flex 顶掉。 */}}
+<div class="echo-black" id="echo-black" hidden aria-hidden="true">
+    <span class="echo-black__code">带宽共识协议 · 已断开</span>
+    <span class="echo-black__who">ECHO</span>
+    <span class="echo-black__note">正在重新接入……</span>
+</div>

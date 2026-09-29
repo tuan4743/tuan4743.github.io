@@ -195,8 +195,17 @@
     return true;
   }
 
-  /* 触发一:进站。晚一点再说 —— 页面刚出来时别跟别的东西抢注意力。 */
-  setTimeout(function () { say("arrive"); }, 1900);
+  /* 触发一:进站。晚一点再说 —— 页面刚出来时别跟别的东西抢注意力。
+     ★ 如果刚被它关过一次(上一轮强制重载留下的记号),就接一句 ——
+       不然用户会觉得"黑屏完回来,它装没事人"。这一句走 show,绕过所有闸门。 */
+  setTimeout(function () {
+    var boAt = Number(get("echo-blackout", "0"));
+    if (boAt && Date.now() - boAt < 25000) {
+      set("echo-blackout", "0");
+      return void show("……回来了。那玩意儿重启要三十秒。");
+    }
+    say("arrive");
+  }, 1900);
 
   /* 触发二~四:点 HUD 上的东西。文档级委托(捕获阶段),
      所以即使别的模块 stopPropagation 也照样能听见。 */
@@ -256,12 +265,74 @@
     });
   }
 
-  /* ---------- ⑤ 一直戳摄像头:不情愿地给一句提示 ----------
-     提示来自本页的 data-echo-hint(world/提示.md → sync-world.mjs →
-     archive.hint → page-hud.html)。
-     ★ 计数按【页面】存:换一篇重新数,所以每一篇都有自己的那一句。
+  /* ---------- ⑤ 一直戳摄像头:先是语库随机,然后威胁,最后真的关掉 ----------
+     用户第八轮:"话的种类有点少,来回点就三句,我觉得前两句可以在一个语库中随机抽,
+     比如:'我统计你一共看过 76131 遍了(数字可以随机,至少五位数),怎么就记不住……'
+     '……怎么记忆缺失了学习也跟着缺失了?'……加多了可以触发:
+     '……再点我就把你的带宽共识协议关掉',接着点就会真的黑屏然后重进网站。"
+
+     阶梯(按本页的点击数):
+       1~2   语库 A —— 不耐烦,随机抽
+       3     提示(world/提示.md 里那一句;"……行吧。就一句:")
+       4~5   语库 B —— "说过了"
+       6     威胁:"……再点我就把你的带宽共识协议关掉。"
+       7     语库 C —— 最后通牒
+       8+    真的关掉:黑屏 1.6 秒 → location.reload()
+     ★ 计数按【页面】存:换一篇重新数,所以每一篇都有自己的那一句提示。
      ★ 这一条【不走】全局冷却 —— 不然连点四下要等一分多钟,那就不叫"一直戳"了;
-       改成 700ms 节流,手速再快也看得清一句一句往外蹦。 */
+       改成 700ms 节流,手速再快也看得清一句一句往外蹦。
+     ★ {n} 会被换成一个五到六位的随机数 —— 那个统计本来就是 ECHO 现编的。 */
+  var POKE_A = [
+    "别戳。",
+    "我统计了一下,你一共看过这一篇 {n} 遍了。怎么就记不住……",
+    "……怎么记忆缺失了,学习也跟着缺失了?",
+    "手拿开。",
+    "你上一次也是这么戳的。",
+    "摄像头不是按钮。……虽然它确实按得动。",
+    "这块玻璃很薄,真的。",
+    "我看得见你。别装了。"
+  ];
+  var POKE_B = [
+    "说过了。",
+    "提示只给一次,不补。",
+    "你戳它也不会多冒一句出来。",
+    "我记性比你好 —— 你问过了。",
+    "回去再看一遍原文。真的。",
+    "……你还没走啊。",
+    "再戳也不会有新的。我保证。"
+  ];
+  var POKE_C = [
+    "最后一次警告。",
+    "我数到三。",
+    "手还在上面。",
+    "……你确定要试?",
+    "行。你自己要的。"
+  ];
+  var POKE_THREAT = "……再点我就把你的带宽共识协议关掉。";
+  var POKE_END = 8;        /* 第几下真的关 */
+
+  function pick(pool) {
+    return pool[Math.floor(Math.random() * pool.length)]
+      .replace("{n}", String(10000 + Math.floor(Math.random() * 989999)));
+  }
+
+  /* 真的关掉:HUD 那行字淡进来 → 停一下 → 重进网站 */
+  function blackout() {
+    var el = document.getElementById("echo-black");
+    set("echo-poke:" + location.pathname, "0");   /* 重进之后从第一下重新数 */
+    set("echo-blackout", String(Date.now()));     /* 回来时好接一句 */
+    set("echo-last", String(Date.now()));
+    hide();
+    if (!el) { location.reload(); return; }
+    /* ★ 顺手把文档的滚动条按住:黑幕是 position:fixed 铺满视口的,
+       可滚动条画在视口外面 ⇒ 右边会留一条亮边,黑屏就不黑了(实测截到过)。 */
+    docEl.style.overflow = "hidden";
+    el.hidden = false;
+    requestAnimationFrame(function () { el.classList.add("is-on"); });
+    /* 1.6 秒:够看完那两行字,又不至于让人以为页面死了 */
+    setTimeout(function () { location.reload(); }, 1600);
+  }
+
   var pokeAt = 0;
   function poke() {
     var now = Date.now();
@@ -271,13 +342,15 @@
     var key = "echo-poke:" + location.pathname;
     var n = Number(get(key, "0")) + 1;
     set(key, String(n));
-    if (n === 1) return void show("别戳。");
-    if (n === 2) return void show("……手拿开。");
+    if (n <= 2) return void show(pick(POKE_A));
     if (n === 3) {
       if (hint) return void show("……行吧。就一句:" + hint);
       return void show("这儿没有能提示你的东西。");
     }
-    show(hint ? "说过了。" : "真的没有。");
+    if (n <= 5) return void show(pick(POKE_B));
+    if (n === 6) return void show(POKE_THREAT);
+    if (n === 7) return void show(pick(POKE_C));
+    blackout();
   }
   if (hot) hot.addEventListener("click", poke);
 
@@ -287,6 +360,8 @@
     show: show,
     hide: hide,
     poke: poke,
+    blackout: blackout,
+    count: function () { return Number(get("echo-poke:" + location.pathname, "0")); },
     line: function () { return textEl.textContent; },
     on: function () { return bubble.classList.contains("is-on"); },
     hint: function () { return (hud && hud.getAttribute("data-echo-hint")) || ""; },

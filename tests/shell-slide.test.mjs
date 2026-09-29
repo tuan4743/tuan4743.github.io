@@ -236,9 +236,9 @@ ok('★★ 跑完 / 没跑完是两句话;归零(重置)不吭声 —— 那是�
 ok('★★★ 笔激活时鼠标扫过镜头有反应,而且带 force(刚拿笔就扫过来正是最自然的时机)',
   /pointerenter/.test(echoJs) && /\[data-hud-pen\]\.is-on/.test(echoJs) &&
   /hoverPen:\s*\{\s*cool:\s*\d+,\s*force:\s*true\s*\}/.test(echoJs));
-ok('★★★ 一直戳摄像头:第 3 下才给提示,计数【按页面】存(换一篇重新数)',
-  /function poke\(/.test(echoJs) && /echo-poke:" \+ location\.pathname/.test(echoJs) &&
-  /n === 1/.test(echoJs) && /n === 3/.test(echoJs) && /700/.test(echoJs),
+ok('★★★ 计数【按页面】存(换一篇重新数)+ 700ms 节流,不受全局冷却管',
+  /echo-poke:" \+ location\.pathname/.test(echoJs) &&
+  /if \(now - pokeAt < 700\) return;/.test(echoJs),
   '不受全局冷却管 —— 不然连点四下要等一分多钟,那就不叫"一直戳"了');
 ok('★★★ 提示的来源链:world/提示.md → archive.hint → data-echo-hint',
   /提示\.md/.test(rd(`${BH}/scripts/sync-world.mjs`)) &&
@@ -249,6 +249,36 @@ ok('★★ 提示【不能】放在被 partialCached 缓存过的 footer 链里(
   '主题按 Layout + Kind 缓存整个 footer —— 按页面变的东西进去就被第一页写死');
 ok('★ 提示一共 48 条,一篇一条',
   (rd(`${BH}/world/提示.md`).match(/^\s*\|\s*\d{2}\s*\|/gm) || []).length === 48);
+
+/* ---------- ⑤d 戳摄像头是一条【阶梯】:语库随机 → 提示 → 威胁 → 真的关掉 ----------
+   用户第八轮:"话的种类有点少,来回点就三句,我觉得前两句可以在一个语库中随机抽……
+   '……再点我就把你的带宽共识协议关掉',接着点就会真的黑屏然后重进网站。" */
+const pool = (name) => {
+  const m = new RegExp("var " + name + " = \\[([\\s\\S]*?)\\];").exec(echoJs);
+  return m ? (m[1].match(/"[^"]*"/g) || []).length : 0;
+};
+ok('★★★ 三个语库都够大(A ≥ 6 / B ≥ 5 / C ≥ 4)',
+  pool("POKE_A") >= 6 && pool("POKE_B") >= 5 && pool("POKE_C") >= 4,
+  "A=" + pool("POKE_A") + " B=" + pool("POKE_B") + " C=" + pool("POKE_C"));
+ok('★★ 统计那句里的数字是【五到六位随机数】', (() => {
+  const m = /我统计了一下[\s\S]{0,40}?\{n\}/.exec(echoJs);
+  return !!m && /10000 \+ Math\.floor\(Math\.random\(\) \* 989999\)/.test(echoJs);
+})());
+ok('★★★ 阶梯的每一档都接对了(1~2 语库 / 3 提示 / 4~5 语库 / 6 威胁 / 7 通牒 / 8 关掉)',
+  /n <= 2/.test(echoJs) && /n === 3/.test(echoJs) && /n <= 5/.test(echoJs) &&
+  /n === 6/.test(echoJs) && /n === 7/.test(echoJs) &&
+  /POKE_THREAT/.test(echoJs) && /POKE_END = 8/.test(echoJs) && /blackout\(\)/.test(echoJs));
+ok('★★★ 威胁之后【真的关】:黑幕 + reload,而且黑幕要盖住滚动条',
+  /带宽共识协议关掉/.test(echoJs) && /location\.reload\(\)/.test(echoJs) &&
+  /style\.overflow = "hidden"/.test(echoJs) &&
+  /id="echo-black"/.test(nodeHtml) &&
+  /\.echo-black\s*\{[^}]*position:\s*fixed/.test(shellCode) &&
+  /\.echo-black\s*\{[^}]*inset:\s*0/.test(shellCode) &&
+  /\.echo-black\[hidden\]\s*\{\s*display:\s*none/.test(shellCode),
+  '黑幕用 [hidden] 关着 —— 那条特异性比 .echo-black 高,不会被 display:flex 顶掉');
+ok('★★ 关完要给个交代:回来接一句、计数归零(不然回来它装没事人)',
+  /echo-blackout/.test(echoJs) && /那玩意儿重启要三十秒/.test(echoJs) &&
+  /set\("echo-poke:" \+ location\.pathname, "0"\)/.test(echoJs));
 
 /* ---------- ⑥ 背景必须是"钉在视口的最底层" ----------
    用户报过一次:"你直接把它固定在了滑动界面内,不仅挡住了主页面,
