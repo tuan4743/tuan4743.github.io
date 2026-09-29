@@ -31,8 +31,6 @@
   var toggleBtn = document.getElementById("hud-timer-toggle");
   var resetBtn = document.getElementById("hud-timer-reset");
   var minBtn = document.getElementById("hud-timer-min");
-  var pill = document.getElementById("hud-timer-pill");
-  var pillTime = document.getElementById("hud-timer-pill-time");
   var metaEl = document.getElementById("hud-timer-meta");
   var presetBox = document.getElementById("hud-timer-presets");
   if (!timeEl) return;
@@ -176,10 +174,20 @@
     if (txt !== lastText) {
       lastText = txt;
       timeEl.textContent = txt;
-      if (pillTime) pillTime.textContent = txt;
     }
     var p = Math.min(1, Math.max(0, elapsed() / totalMs()));
     if (arc) arc.style.setProperty("--hud-timer-p", p.toFixed(4));
+    /* ★★ 收起之后怎么展示这个组件(用户第二轮第 4 条):
+       胶囊已经删了,改成在左下角那枚【番茄钟模块按钮】上画一个小进度圈。
+       跨脚本传值走 CSS 变量,不去戳别人的 DOM:
+         --hud-tomato-p    进度 0~1
+         --hud-tomato-run  1 = 正在跑(圈是亮的),0 = 停着(圈是暗的)
+       (按钮在 .page-hud 里,写在 :root 上就顺着层叠下去了。) */
+    var docEl = document.documentElement;
+    if (docEl && docEl.style) {
+      docEl.style.setProperty("--hud-tomato-p", p.toFixed(4));
+      docEl.style.setProperty("--hud-tomato-run", st.running ? "1" : "0");
+    }
     if (stateEl) {
       stateEl.textContent = st.ended ? MODES[st.phase].label + " / 已完成"
         : st.running ? MODES[st.phase].label + " / 计时中"
@@ -272,7 +280,8 @@
   }
 
   if (minBtn) minBtn.addEventListener("click", function () { setMin(true); });
-  if (pill) pill.addEventListener("click", function () { setMin(false); });
+  /* ★ 原来这里绑的是"收起态胶囊"的点击(点它展开)。胶囊已删 —— 用户第二轮第 3 条:
+     "原本的番茄钟按钮没删"。现在展开/收起由左下角那枚模块按钮管(hud-left.js)。 */
 
   /* ---------- 控件 ---------- */
   var mainBtn = toggleBtn || ringBtn;     /* 没给"开始"按钮时,表盘自己也能按 */
@@ -355,6 +364,10 @@
       };
     },
     start: start, pause: pause, reset: reset, finish: finish,
-    setMin: setMin, render: render
+    setMin: setMin, render: render,
+    /* ★ 第二轮:胶囊删掉之后,展开卡片这一侧由左下角那枚模块按钮调进来
+       (hud-left.js 先把它搬进面板、再调 expand())。 */
+    expand: function () { setMin(false); },
+    collapse: function () { setMin(true); }
   };
 })();

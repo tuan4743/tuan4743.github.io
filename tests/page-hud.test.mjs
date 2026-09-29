@@ -472,15 +472,28 @@ ok('★★★ 切角是【屏幕上的真 45°】⇒ viewBox 每次设成面板�
   /frame\.setAttribute\("viewBox", "0 0 " \+ w \+ " " \+ h\)/.test(leftJs) &&
   /preserveAspectRatio="none"/.test(leftTpl) && /CUT = 18/.test(leftJs),
   '被拉伸的 viewBox 里,45° 会随面板高度变角度 —— 用户上一轮刚抓过这个');
-ok('★★★ 面板【等宽】、高度自适应;左缘固定(不跟着模块跑)',
+ok('★★★ 面板【等宽】+ 固定左缘 + 从一条公共横线纵向展开(位置不跟模块跑)',
   /function bandRight\(\)/.test(leftJs) &&
   /var left = bandRight\(\) \+ GAP \+ 2;/.test(leftJs) &&
   !/var left = Math\.round\(\(r && r\.right/.test(leftJs) &&
-  /panel\.style\.width = w \+ "px"/.test(leftJs) && !/panel\.style\.height/.test(leftJs),
-  '用户:"面版其实想做成等宽但根据模块自适应高度的"');
-ok('★★★ 页底那几枚的面板投在它们【上面】(不然盖住按钮就点不回去了)',
-  /r\.top > vh \* 0\.7/.test(leftJs) && /top = r\.top - ph - GAP - 6/.test(leftJs),
-  '用户:"点一下模块,投影出这个面版,再点一下收回" —— 点得回去才行');
+  /var LINE_Y = 88;/.test(leftJs) &&
+  /function layoutSlit\(left, w\)/.test(leftJs) &&
+  /function unfold\(targetH\)/.test(leftJs) &&
+  !/panel\.style\.height/.test(leftJs.replace(/panel\.style\.height = (h|animTarget|"auto"|"0px"|ph)/g, '')),
+  '用户第二轮:"我想做成那种纵向展开的,就是原本都是在一个位置的横线,然后纵向展开,' +
+  '关闭就收拢,现在看着各个面版的位置都不一样"');
+ok('★★★ 展开/收拢是【高度动画】,而且每帧重画框(两刀全程都是 45°)',
+  /unfold\(ph\)/.test(leftJs) && /drawFrame\(w, h\);/.test(leftJs) &&
+  /var h = from \* \(1 - e\);/.test(leftJs) && /anim = requestAnimationFrame\(step\)/.test(leftJs),
+  '★ 不能用 CSS scaleY 去演:那会把切角一起压扁,45° 就不是 45° 了');
+ok('★★ 收起态就是那条横线(高度 0,内容 opacity 0)',
+  /\.hud-proj\s*\{[^}]*height:\s*0/.test(leftCss) &&
+  /\.hud-proj\s*\{[^}]*overflow:\s*hidden/.test(leftCss) &&
+  /\.hud-proj\.is-open \.hud-proj__inner\s*\{\s*opacity:\s*1/.test(leftCss));
+ok('★★★ 卡片右上角那颗"×"删掉了(用户:"这个×没啥用")',
+  !leftTpl.includes('hud-proj__close') && !leftCss.includes('hud-proj__close') &&
+  !leftJs.includes('hud-left-close') && !/hud-proj__close/.test(rd(`${BH}/assets/js/magnetic-cursor.js`)),
+  '收回 = 再点一次那枚模块按钮(或 Esc)');
 ok('★★ 投影光束:从模块那一点连到面板(把"从哪投出来的"说清楚)',
   /class="hud-proj__beam"/.test(leftTpl) && /function drawBeam\(/.test(leftJs) &&
   /line\.setAttribute\("x1"/.test(leftJs) && /\.hud-proj__beam line\s*\{[^}]*stroke-dasharray/.test(leftCss));
@@ -495,9 +508,15 @@ ok('★★ 没填地址时给出"怎么填"的说明(不是空白面板)',
   /hudMusicEmbed<\/code>/.test(leftJs) && /outchain\/player\?type=2&id=歌曲ID/.test(leftJs));
 ok('★★★ 磁力光标认这几枚按钮(用户:"这几个按钮现在还不能被锁定框锁定")',
   /"\.hud-left__mod"/.test(fs.readFileSync(`${BH}/assets/js/magnetic-cursor.js`, 'utf8')) &&
-  /"\.hud-proj__close"/.test(fs.readFileSync(`${BH}/assets/js/magnetic-cursor.js`, 'utf8')) &&
   /\.hud-left__mod\s*\{[^}]*clip-path:/.test(leftCss),
   '★ 光认类名不够:盒子必须等于那个梯形的外接矩形,否则锁定框会是整个视口');
+ok('★★★ 收起之后怎么展示:番茄钟 = 按钮上一个小进度圈;音乐 = 按钮边缘一小条可视化;时钟不做',
+  /class="hud-mod__ring"/.test(leftTpl) &&
+  /class="hud-mod__bars"/.test(leftTpl) &&
+  /\.hud-mod__ring\s*\{[^}]*conic-gradient/.test(leftCss) &&
+  /\.hud-mod__bars i\s*\{[^}]*animation:/.test(leftCss) &&
+  /--hud-tomato-p/.test(fs.readFileSync(`${BH}/assets/js/hud-timer.js`, 'utf8')),
+  '用户:"考虑一下某些组件收起后怎么展示……时钟不太必要"');
 ok('★★★ 三个类在 CSS 里都有规则,而且都 vector-effect: non-scaling-stroke',
   ['hud-halo', 'hud-line', 'hud-run'].every((k) => new RegExp('\\.' + k + '\\s*[,{]').test(cssCode)) &&
   /\.hud-halo,\s*\.hud-line,\s*\.hud-run\s*\{[^}]*vector-effect:\s*non-scaling-stroke/.test(cssCode),

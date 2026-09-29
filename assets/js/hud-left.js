@@ -30,7 +30,6 @@
   var beam = root.querySelector(".hud-proj__beam");
   var titleEl = document.getElementById("hud-left-title");
   var enEl = document.getElementById("hud-left-en");
-  var closeBtn = document.getElementById("hud-left-close");
   var mods = [].slice.call(root.querySelectorAll("[data-hud-mod]"));
   if (!panel || !body || !titleEl) return;
 
@@ -40,51 +39,102 @@
   var timerWasMin = null;
   var musicEmbed = root.getAttribute("data-hud-music") || "";
 
-  /* ---------- ① 几何:等宽 + 高度自适应 ---------- */
+  /* ---------- ① 几何:一条公共的横线 + 纵向展开 ----------
+     ★★★ 用户第二轮第 1 条:"我想做成那种纵向展开的,就是原本都是在一个位置的横线,
+          然后纵向展开,关闭就收拢,现在看着各个面版的位置都不一样。"
+          ⇒ 所有模块共用【同一条横线】(带子上方),面板从这条线往上长;
+            位置不再跟着模块跑(等宽 + 等高线 + 只在竖直方向展开)。 */
   var GAP = 12;          /* 模块 → 面板 的缝 */
   var MIN_W = 200;       /* 比这窄就只留按钮、不弹面板 */
   var MAX_W = 360;
   var CUT = 18;          /* 两个 45° 切角的边长(px) */
+  var LINE_Y = 88;       /* 那条横线的高度(设计单位 = vh;带子下支的按钮从 89.5 起) */
   var last = null;
+  var anim = 0;
 
   function bandRight() {
     /* 带子(含凸起)伸到哪儿:设计稿里凸起伸到 6 个单位,1 个单位 = 1vh */
     return Math.round(0.06 * document.documentElement.clientHeight);
   }
 
-  function layout() {
-    if (!current) return;
+  /* 那条横线:位置固定,和哪个模块被点无关 */
+  function layoutSlit(left, w) {
+    var slit = document.getElementById("hud-left-slit");
+    if (!slit) return;
+    slit.style.left = left + "px";
+    slit.style.width = w + "px";
+    slit.style.top = Math.round(LINE_Y / 100 * document.documentElement.clientHeight) + "px";
+  }
+
+  /* 把面板从当前高度动画到 animTarget —— 每帧重画框 + 重新钉底边,
+     所以两刀一直是 45°,而且看起来是【从那条横线往上长】。
+     ★ 演到一半如果内容又量高了(日历画出来、iframe 加载完),只改 animTarget,
+       不要硬跳 —— 上一版就是在这儿把动画掐死的。 */
+  var animTarget = 0;
+  function unfold(targetH) {
+    var w = parseFloat(panel.style.width) || panel.offsetWidth || 320;
+    var lineTop = last ? last.line : Math.round(LINE_Y / 100 * document.documentElement.clientHeight);
+    var from = panel.offsetHeight;
+    var t0 = 0, dur = 200;
+    animTarget = targetH;
+    if (anim) cancelAnimationFrame(anim);
+    var step = function (ts) {
+      if (!t0) t0 = ts;
+      var k = Math.min(1, (ts - t0) / dur);
+      var e = 1 - Math.pow(1 - k, 3);              /* easeOutCubic */
+      var h = from + (animTarget - from) * e;
+      panel.style.height = h + "px";
+      panel.style.top = Math.round(lineTop - h) + "px";   /* ★ 底边钉在那条线上 */
+      drawFrame(w, h);
+      if (k < 1) anim = requestAnimationFrame(step);
+      else {
+        panel.style.height = animTarget + "px";
+        panel.style.top = Math.round(lineTop - animTarget) + "px";
+        drawFrame(w, animTarget);
+        anim = 0;
+      }
+    };
+    anim = requestAnimationFrame(step);
+  }
+
+  function layout(animate) {
     var vw = document.documentElement.clientWidth;
     var vh = document.documentElement.clientHeight;
-    var host = root.querySelector('[data-hud-mod="' + current + '"] .hud-left__face');
-    var r = host && host.getBoundingClientRect ? host.getBoundingClientRect() : null;
     var mainLeft = main.getBoundingClientRect().left;
 
-    /* ★ 等宽:所有模块共用同一个左缘与宽度(不跟着模块跑)——
-       左缘 = 带子伸出的地方 + 缝;宽度 = 到正文左缘为止(封顶 MAX_W) */
+    /* ★ 等宽 + 固定左缘:所有模块共用同一条横线、同一个宽度。
+       ★★ 这段必须在"有没有开面板"之前算 —— 那条横线是【idle 也要在】的收起态,
+          上一版把它放在 if (!current) return 后面,于是没开面板时横线是 0 宽(实测抓到的)。 */
     var left = bandRight() + GAP + 2;
     var w = Math.round(Math.min(MAX_W, Math.max(MIN_W, mainLeft - left - GAP)));
+    var lineTop = Math.round(LINE_Y / 100 * vh);
     root.style.setProperty("--hud-left-panel-x", left + "px");
     root.style.setProperty("--hud-left-panel-w", w + "px");
-
-    /* 先摆好位置与宽度,再量高度(高度是内容决定的) */
     panel.style.left = left + "px";
     panel.style.width = w + "px";
+    layoutSlit(left, w);
+    last = { vw: vw, vh: vh, left: left, w: w, ph: 0, line: lineTop, cut: CUT };
+    if (!current) return;
 
-    var ph = panel.offsetHeight || 240;
-    var top;
-    if (r && r.top > vh * 0.7) {
-      /* 页底那几枚:面板投在它们【上面】(盖住按钮就点不回去了) */
-      top = r.top - ph - GAP - 6;
+    var host = root.querySelector('[data-hud-mod="' + current + '"] .hud-left__face');
+    var r = host && host.getBoundingClientRect ? host.getBoundingClientRect() : null;
+
+    /* 量内容高度:临时放开高度(番茄钟那类 display:none 的,open() 里已经先搬进面板了) */
+    panel.style.height = "auto";
+    var maxH = lineTop - 12;
+    var ph = Math.min(panel.offsetHeight || 240, maxH);
+    if (animate) {
+      panel.style.height = "0px";
+      unfold(ph);
+    } else if (anim) {
+      animTarget = ph;                    /* 演到一半内容量高了:改目标,别硬跳 */
     } else {
-      top = r ? r.top + r.height / 2 - ph / 2 : vh * 0.4;
+      panel.style.height = ph + "px";
+      drawFrame(w, ph);
     }
-    top = Math.max(10, Math.min(top, vh - ph - 10));
-    panel.style.top = Math.round(top) + "px";
-
-    drawFrame(w, ph);
-    drawBeam(r, left, Math.round(top), w, ph, vh);
-    last = { vw: vw, vh: vh, left: left, w: w, top: Math.round(top), ph: ph, cut: CUT };
+    panel.style.top = Math.round(lineTop - ph) + "px";
+    drawBeam(r, left, Math.round(lineTop - ph), w, ph, vh);
+    last.ph = ph;
   }
 
   /* ---------- ② 框:六边形(左下 + 右上两个 45° 切角) ---------- */
@@ -115,9 +165,9 @@
     var vw = document.documentElement.clientWidth;
     beam.setAttribute("viewBox", "0 0 " + vw + " " + vh);
     var bx = r.x + r.width / 2, by = r.y + r.height / 2;
-    /* 连到面板最近的那个角:面板在模块上面就接下缘,否则接左缘 */
-    var px = top > by ? left + 10 : left;
-    var py = top > by ? top + ph : Math.max(top + 8, Math.min(by, top + ph - 8));
+    /* 连到面板左缘上离模块最近的那一点(面板已经从那条横线往上展开) */
+    var px = left;
+    var py = Math.min(top + ph - 8, Math.max(top + 8, by));
     var line = beam.querySelector("line"), dot = beam.querySelector("circle");
     if (line) {
       line.setAttribute("x1", Math.round(bx)); line.setAttribute("y1", Math.round(by));
@@ -160,14 +210,18 @@
     if (timerWasMin === null) timerWasMin = timerEl.classList.contains("is-min");
     body.innerHTML = "";
     timerEl.classList.add("hud-timer--inpanel");
-    timerEl.classList.remove("is-min");        /* 面板里就展开着(收起键已藏) */
+    /* ★ 顺序不能反:先搬进面板、再摘 is-min(摘之前它 display:none,offsetHeight 是 0),
+       最后才让 layout() 去量高度。 */
     body.appendChild(timerEl);
+    if (window.__hudTomato && window.__hudTomato.expand) window.__hudTomato.expand();
+    else timerEl.classList.remove("is-min");
   }
 
   function unhostTimer() {
     if (!timerEl || !timerHome || timerEl.parentNode !== body) return;
     timerEl.classList.remove("hud-timer--inpanel");
-    if (timerWasMin) timerEl.classList.add("is-min");
+    if (window.__hudTomato && window.__hudTomato.collapse) window.__hudTomato.collapse();
+    else if (timerWasMin) timerEl.classList.add("is-min");
     timerHome.appendChild(timerEl);
   }
 
@@ -191,6 +245,7 @@
 
   function open(key) {
     if (!MODS[key]) return;
+    if (anim) { cancelAnimationFrame(anim); anim = 0; }   /* 收起演一半就再点开:停掉那一段 */
     current = key;
     titleEl.textContent = MODS[key].name;
     if (enEl) enEl.textContent = MODS[key].en;
@@ -202,19 +257,38 @@
       b.classList.toggle("is-on", on);
       b.setAttribute("aria-pressed", on ? "true" : "false");
     });
-    panel.hidden = false;
-    layout();
-    /* 高度是内容撑的 ⇒ 图/字体到位后再量一次,免得第一帧量到错的 */
-    requestAnimationFrame(layout);
+    panel.hidden = false;                 /* 先露出来 */
+    /* ★★ 顺序:先把内容渲染完(startModule 会画日历/时钟),再量高度演展开 ——
+       上一版先量后渲染,量到的是"日历还没画出来"的矮高度,展开到一半就定住了。 */
     startModule(key);
+    layout(true);                         /* ★ 传 true:从 0 长到内容高度 */
+    panel.classList.add("is-open");
+    /* 图/字体/iframe 到位后再对齐一次(这次不演动画,直接定高) */
+    requestAnimationFrame(function () { layout(false); });
   }
 
   function close() {
-    current = null;
+    if (!current) return;
+    current = null;                        /* 先落状态:再点同一枚就是"重新投出来" */
     unhostTimer();
-    panel.hidden = true;
-    mods.forEach(function (b) { b.classList.remove("is-on"); b.setAttribute("aria-pressed", "false"); });
     stopModule();
+    mods.forEach(function (b) { b.classList.remove("is-on"); b.setAttribute("aria-pressed", "false"); });
+    panel.classList.remove("is-open");
+    /* ★ 收拢:高度动画回 0(每帧重画框,两刀一直是 45°),演完再 hidden */
+    var w = parseFloat(panel.style.width) || panel.offsetWidth || 320;
+    var from = panel.offsetHeight, t0 = 0, dur = 180;
+    if (anim) cancelAnimationFrame(anim);
+    var step = function (ts) {
+      if (!t0) t0 = ts;
+      var k = Math.min(1, (ts - t0) / dur);
+      var e = 1 - Math.pow(1 - k, 3);
+      var h = from * (1 - e);
+      panel.style.height = h + "px";
+      drawFrame(w, h);
+      if (k < 1) anim = requestAnimationFrame(step);
+      else { anim = 0; panel.hidden = true; }
+    };
+    anim = requestAnimationFrame(step);
   }
 
   function startModule(key) {
@@ -287,13 +361,14 @@
     renderCalendar();
   });
 
-  if (closeBtn) closeBtn.addEventListener("click", close);
   document.addEventListener("keydown", function (e) { if (e.key === "Escape" && current) close(); });
 
-  window.addEventListener("resize", layout);
+  window.addEventListener("resize", function () { layout(false); });
   if (window.ResizeObserver) {
-    try { new ResizeObserver(function () { if (current) layout(); }).observe(main); } catch (e) { }
+    try { new ResizeObserver(function () { layout(false); }).observe(main); } catch (e) { }
   }
+  /* ★ 开页面就把那条横线摆好(idle 时它是可见的收起态) */
+  layout(false);
 
   /* 排障出口 */
   window.__hudLeft = {

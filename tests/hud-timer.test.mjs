@@ -46,7 +46,8 @@ const jsCode = noC(js);
 ok('博客页有番茄钟 DOM 块', sPost.includes('<div class=hud-timer'));
 ok('★ 默认就是收起态(class 里带 is-min)',
   /<div class=hud-timer is-min/.test(sPost),
-  '用户要的是"可收起",但第一眼要能看到时间 ⇒ 收起成胶囊,不是整块消失');
+  '★ 第二轮:收起态从"悬浮胶囊"改成"整块不显示" —— 番茄钟的入口是左下角那枚模块按钮,' +
+  '收起后"还在跑"由按钮上的小进度圈表示(见 page-hud.test.mjs 那几条)');
 for (const [name, needle] of [
   ['表盘按钮', 'id=hud-timer-ring'],
   ['进度弧', 'id=hud-timer-arc'],
@@ -55,14 +56,16 @@ for (const [name, needle] of [
   ['开始/暂停', 'id=hud-timer-toggle'],
   ['重置', 'id=hud-timer-reset'],
   ['收起按钮', 'id=hud-timer-min'],
-  ['收起后的胶囊', 'id=hud-timer-pill'],
-  ['胶囊上的时间', 'id=hud-timer-pill-time'],
   ['今日计数', 'id=hud-timer-meta'],
   ['两个模式', 'data-hud-timer-phase=break'],
   ['四个时长档', 'data-hud-timer-min=45']
 ]) {
   ok(`产物里有「${name}」`, sPost.includes(needle));
 }
+ok('★★★ 那枚悬浮胶囊【已经删掉】(用户:"原本的番茄钟按钮没删")',
+  !sPost.includes('hud-timer-pill') && !tpl.includes('hud-timer__pill') &&
+  !/pill/.test(css) && !/pill/i.test(js),
+  '胶囊的 DOM / 样式 / 逻辑三处都要清干净,留一处就是"没删"');
 ok('★ 每页只有一台番茄钟(不能出现两份 DOM)',
   (sPost.match(/\bid=hud-timer(?![-\w])/g) || []).length === 1,
   '第一版用 \\b 收尾 ⇒ 每个 id=hud-timer-xxx(表盘/胶囊/读数…)都被算成一台,数出 13:'
@@ -79,14 +82,13 @@ ok('模板里只有一处番茄钟标记',
 /* ============================================================
    ② 样式:两种形态、不吃事件、窄屏收掉
    ============================================================ */
-ok('★ 收起/展开由 .is-min 一把切(不是两套 DOM)',
-  /\.hud-timer\.is-min \.hud-timer__shell\s*\{[^}]*opacity:\s*0/.test(css) &&
-  /\.hud-timer\.is-min \.hud-timer__pill\s*\{[^}]*opacity:\s*1/.test(css));
-ok('★ 收起时高度交给胶囊(auto,不留一片看不见的占位)',
-  /\.hud-timer\.is-min\s*\{[^}]*height:\s*auto/.test(css));
-ok('胶囊默认不吃鼠标事件(收起态才开)',
-  /\.hud-timer__pill\s*\{[^}]*pointer-events:\s*none/.test(css) &&
-  /\.hud-timer\.is-min \.hud-timer__pill\s*\{[^}]*pointer-events:\s*auto/.test(css));
+ok('★ 收起/展开由 .is-min 一把切(不是两套 DOM):收起 = 整块 display:none',
+  /\.hud-timer\.is-min\s*\{\s*display:\s*none/.test(css) &&
+  /\.hud-timer\.is-min \.hud-timer__shell\s*\{[^}]*opacity:\s*0/.test(css),
+  '★ 第二轮:卡片只在被投影进面板时露面(hud-left.js 搬进去时摘掉 is-min),' +
+  '其余时间不显示 —— 所以 offsetHeight 是 0,搬进面板的顺序不能反');
+ok('★ 收起时不留一片看不见的占位(高度不占地方)',
+  /\.hud-timer\.is-min\s*\{\s*display:\s*none/.test(css));
 ok('整层默认不吃事件、卡片自己开 auto(和 HUD 一个规矩)',
   /\.hud-timer\s*\{[^}]*pointer-events:\s*none/.test(css) &&
   /\.hud-timer__shell\s*\{[^}]*pointer-events:\s*auto/.test(css));
@@ -95,16 +97,18 @@ ok('★ 进度弧用变量驱动(--hud-timer-p 一个数一个真相)',
 ok('弧从 12 点方向起(rotate -90deg + transform-box)',
   /\.hud-timer__arc\s*\{[^}]*transform:\s*rotate\(-90deg\)/.test(css) &&
   /transform-box:\s*view-box/.test(css));
-ok('★ 计时中小灯会呼吸(收起后"还在跑"看得见)',
-  /\.hud-timer\.is-min\.is-run \.hud-timer__dot\s*\{[^}]*animation:/.test(css) &&
-  /@keyframes hud-timer-breath/.test(css));
+ok('★★★ 收起后"还在跑"看得见:进度写进 :root 的 --hud-tomato-p / -run(模块按钮上那个圈读它)',
+  /setProperty\("--hud-tomato-p"/.test(js) && /setProperty\("--hud-tomato-run"/.test(js) &&
+  /\.hud-mod__ring\s*\{[\s\S]*?conic-gradient[\s\S]*?var\(--hud-tomato-p/.test(
+    fs.readFileSync(`${BH}/assets/css/hud-left.css`, 'utf8')),
+  '跨脚本只传 CSS 变量,不去戳别人的 DOM');
 ok('窄屏整块收掉(1180 以下会压正文)',
   /@media \(max-width:\s*1180px\)\s*\{\s*\.hud-timer\s*\{\s*display:\s*none/.test(css));
 ok('矮屏把卡片压矮(不顶到顶带/底带)',
   /@media \(max-height:\s*760px\)/.test(css));
 ok('减动效偏好被尊重',
   /@media \(prefers-reduced-motion:\s*reduce\)/.test(css) &&
-  /\.hud-timer\.is-min\.is-run \.hud-timer__dot\s*\{\s*animation:\s*none/.test(css));
+  /\.hud-timer__shell,\s*\.hud-timer__arc\s*\{\s*transition:\s*none/.test(css));
 
 /* ============================================================
    ③ 运行时:假 DOM + 假时钟
@@ -171,11 +175,18 @@ function fakeDom(opts) {
     '[data-hud-timer-phase]': modes
   };
 
+  /* documentElement 要带 style:第二轮起番茄钟会往 :root 写
+     --hud-tomato-p / --hud-tomato-run(给左下角那枚模块按钮上的小进度圈用) */
+  const rootStyle = {
+    _v: {},
+    setProperty(k, v) { this._v[k] = String(v); },
+    getPropertyValue(k) { return this._v[k] || ''; }
+  };
   const doc = {
     hidden: false,
     getElementById: (id) => (id === 'hud-timer' ? root : (ids[id] || null)),
     addEventListener() {},
-    documentElement: { clientWidth: 1440, clientHeight: 900 }
+    documentElement: { clientWidth: 1440, clientHeight: 900, style: rootStyle }
   };
 
   /* ---- 可控时钟 ----
@@ -303,9 +314,11 @@ function boot(env) {
   ok('★ 环形进度 = 已过时间 / 总时长(0.04)',
     Math.abs(Number(env.el('hud-timer-arc').style.getPropertyValue('--hud-timer-p')) - 0.04) < 1e-6,
     env.el('hud-timer-arc').style.getPropertyValue('--hud-timer-p'));
-  ok('胶囊上的时间和卡片上的一致(收起时看的就是它)',
-    env.el('hud-timer-pill-time').textContent === '24:00',
-    env.el('hud-timer-pill-time').textContent);
+  ok('★★ 同一份进度也写给了 :root 的 --hud-tomato-p(按钮上那个小圈读的就是它)',
+    Math.abs(Number(env.doc.documentElement.style.getPropertyValue('--hud-tomato-p')) - 0.04) < 1e-6 &&
+    env.doc.documentElement.style.getPropertyValue('--hud-tomato-run') === '1',
+    env.doc.documentElement.style.getPropertyValue('--hud-tomato-p') + ' / run=' +
+    env.doc.documentElement.style.getPropertyValue('--hud-tomato-run'));
 
   /* ★★ 最关键的一条:标签页被后台节流 10 分钟(心跳一次都没跑),
      切回来第一帧就必须是对的 —— 这正是"按墙钟算"换来的好处。 */
@@ -405,8 +418,10 @@ function boot(env) {
     env.el('hud-timer-min').getAttribute('aria-expanded') === 'false');
   ok('收起状态被记住(下次打开还是收起的)',
     env.store['hud-tomato-min'] === '1', String(env.store['hud-tomato-min']));
-  env.click(env.el('hud-timer-pill'));
-  ok('★ 点胶囊:展开(aaria-expanded=true、类名去掉)',
+  /* ★ 第二轮:胶囊没了 —— 展开回到卡片这一侧仍然要有路子(hud-left.js 会摘 is-min),
+     这里直接走 api.expand()(模块按钮调的就是它) */
+  api.expand();
+  ok('★ 展开(aaria-expanded=true、类名去掉)',
     !env.root.classList.contains('is-min') &&
     env.el('hud-timer-min').getAttribute('aria-expanded') === 'true');
   env.click(env.el('hud-timer-min'));

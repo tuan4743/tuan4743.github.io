@@ -282,11 +282,10 @@
             </div>
         </div>
 
-        <button class="hud-timer__pill" id="hud-timer-pill" type="button" aria-label="展开番茄钟" title="展开番茄钟">
-            <span class="hud-timer__dot" aria-hidden="true"></span>
-            <span class="hud-timer__pill-time" id="hud-timer-pill-time">25:00</span>
-            <span class="hud-timer__pill-hint">番茄钟</span>
-        </button>
+        {{/* ★★ 原来这里有一枚"收起态胶囊"(25:00 番茄钟)。
+            用户第二轮:"原本的番茄钟按钮没删" —— 删掉。
+            番茄钟现在的家是左下角 UHD 的模块按钮:收起时不飘一个胶囊出来,
+            改成在那枚按钮上显示一个小进度圈(见 hud-left.css 的 .hud-mod__ring)。 */}}
     </div>
 
     {{/* ⑥b 正文字号 / 字距的【备用位置】—— 用户第五轮之后从 CDP 扫描里发现的:

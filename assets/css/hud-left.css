@@ -121,34 +121,122 @@
     flex-direction: column-reverse;
 }
 
+/* ---------------- 收起之后的展示(用户第二轮第 4 条)----------------
+   "考虑一下某些组件收起后怎么展示,比如番茄钟,可以在按钮旁边展示一个小进度圈,
+    音乐播放器可以在按钮的边缘做一个小的音频可视化,时钟不太必要。" */
+.hud-mod__ring,
+.hud-mod__bars {
+    position: absolute;
+    pointer-events: none;
+}
+
+/* 番茄钟:按钮内侧(贴页缘那一边)一个小进度圈 —— 圆心空着,不挡图标 */
+.hud-mod__ring {
+    left: 26%;
+    top: 13%;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background:
+        conic-gradient(color-mix(in srgb, var(--mc-color, rgb(34, 211, 238)) 85%, white) calc(var(--hud-tomato-p, 0) * 360deg),
+            rgba(234, 243, 255, 0.16) 0);
+    -webkit-mask: radial-gradient(circle, transparent 54%, #000 56%);
+    mask: radial-gradient(circle, transparent 54%, #000 56%);
+    opacity: 0.55;
+    transition: opacity 0.2s ease;
+}
+
+/* 正在跑:圈亮起来(这是"计时还在走"唯一的提示 —— 胶囊已经删了)*/
+[style*="--hud-tomato-run: 1"] .hud-mod__ring,
+:root[style*="--hud-tomato-run: 1"] .hud-mod__ring {
+    opacity: 1;
+}
+
+/* 音乐:按钮边缘三根跳动的柱。
+   ★ 装饰性动画:网易云是跨域 iframe,读不到真实电平(注释里也写了)。 */
+.hud-mod__bars {
+    left: 24%;
+    bottom: 12%;
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 12px;
+}
+
+.hud-mod__bars i {
+    width: 2px;
+    height: 40%;
+    border-radius: 1px;
+    background: color-mix(in srgb, var(--mc-color, rgb(34, 211, 238)) 70%, transparent);
+    opacity: 0.5;
+    animation: hud-mod-bars 1.6s ease-in-out infinite;
+}
+
+.hud-mod__bars i:nth-child(2) {
+    animation-delay: 0.25s;
+    height: 80%;
+}
+
+.hud-mod__bars i:nth-child(3) {
+    animation-delay: 0.5s;
+    height: 55%;
+}
+
+@keyframes hud-mod-bars {
+    0%, 100% { transform: scaleY(0.45); }
+    50% { transform: scaleY(1); }
+}
+
+/* 面板开着的时候跳得明显一点 */
+.hud-left__mod.is-on .hud-mod__bars i {
+    opacity: 1;
+    animation-duration: 0.7s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .hud-mod__bars i {
+        animation: none;
+        transform: none;
+    }
+}
+
 /* ============================================================
-   全息投影面板
+   全息投影面板(纵向展开)
    ─────────────────────────────────────────────────────────────
    ★ 框是【先画 SVG】:一个六边形 —— 左下角和右上角各切一刀 45°(用户点名的两刀)。
      ★★ 切角必须是【屏幕上的真 45°】⇒ 不能用一个被拉伸的 viewBox:
-        JS 每次量完面板就把 viewBox 设成它的实际像素尺寸,多边形也用像素坐标写,
-        所以 45° 在任何面板高度下都是 45°。
-   ★ 体是深空色 + 一点辉光 + 极淡的扫描线(全息那层质感),内容压在最上面。
+        JS 每次量完面板就把 viewBox 设成它的实际像素尺寸,多边形也用像素坐标写。
+   ★★★ 纵向展开:面板的高度由 JS 从 0 动画到内容高度(每帧重画框,所以两刀
+        在展开过程中一直是 45°),关闭时收拢回那条横线。
    ============================================================ */
+
+/* 收起态 = 一条横线(所有模块共用同一条,位置不跟着模块跑) */
+.hud-proj__slit {
+    position: absolute;
+    height: 2px;
+    border-radius: 1px;
+    background: linear-gradient(90deg,
+            transparent, color-mix(in srgb, var(--mc-color, rgb(34, 211, 238)) 70%, transparent) 12%,
+            color-mix(in srgb, var(--mc-color, rgb(34, 211, 238)) 70%, transparent) 88%, transparent);
+    opacity: 0.5;
+    pointer-events: none;
+}
+
 .hud-proj {
     position: absolute;
     left: 0;
     top: 0;
     width: 320px;
+    height: 0;
+    overflow: hidden;                     /* ★ 展开过程中内容被裁,不是被压扁 */
     display: flex;
     flex-direction: column;
     pointer-events: auto;
-    animation: hud-proj-in 0.18s ease-out;
     filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.45));
 }
 
 .hud-proj[hidden] {
     display: none;
-}
-
-@keyframes hud-proj-in {
-    from { opacity: 0; transform: translateX(-14px) scale(0.985); }
-    to { opacity: 1; transform: none; }
 }
 
 .hud-proj__frame {
@@ -178,19 +266,23 @@
 /* 内容:同一圈切角(JS 把 --hud-proj-clip 写成像素版的多边形,免得字压到切角外面) */
 .hud-proj__inner {
     position: relative;
+    flex: 0 0 auto;
     display: flex;
     flex-direction: column;
-    min-height: 0;
     clip-path: var(--hud-proj-clip, none);
     -webkit-clip-path: var(--hud-proj-clip, none);
+    opacity: 0;
+    transition: opacity 0.14s ease;
 }
+
+.hud-proj.is-open .hud-proj__inner { opacity: 1; }
 
 .hud-proj__head {
     flex: 0 0 auto;
     display: flex;
     align-items: baseline;
     gap: 9px;
-    padding: 11px 30px 9px 14px;         /* 右边多留一点:右上角是切角 */
+    padding: 11px 14px 9px;               /* 右上角是切角,但那一刀在标题右边,留白够 */
     border-bottom: 1px solid rgba(234, 243, 255, 0.16);
 }
 
@@ -208,35 +300,8 @@
     text-transform: uppercase;
 }
 
-.hud-proj__close {
-    position: absolute;
-    right: 7px;
-    top: 7px;
-    width: 20px;
-    height: 20px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    border: 1px solid rgba(234, 243, 255, 0.22);
-    border-radius: 5px;
-    background: rgba(234, 243, 255, 0.06);
-    color: var(--hud-ink, #eaf3ff);
-    cursor: pointer;
-    pointer-events: auto;
-    transition: background-color 0.16s ease, border-color 0.16s ease;
-}
-
-.hud-proj__close:hover {
-    background: rgba(234, 243, 255, 0.18);
-    border-color: rgba(234, 243, 255, 0.6);
-}
-
-.hud-proj__close svg {
-    width: 12px;
-    height: 12px;
-    display: block;
-}
+/* ★ 这里原来有一颗"×"收回键 —— 用户第二轮第 2 条:"卡片右上角有一个×啊,这个×没啥用"。
+   删掉。收回 = 再点一次那枚模块按钮(或者 Esc)。 */
 
 .hud-proj__body {
     flex: 1 1 auto;

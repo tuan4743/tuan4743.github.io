@@ -66,7 +66,7 @@
          (page-hud.js 的 gFrameLB().boxes 写的)—— 所以 getBoundingClientRect()
          量到的正好是那枚按钮的框,锁定框贴得住。
        ★ 面板上的收起键也一起(它和 HUD 里别的关闭键同一套语言)。 */
-    ".hud-left__mod", ".hud-proj__close",
+    ".hud-left__mod",
     /* ★ .hud-logo 不在这里:用户明确说"它只是个 LOGO,不需要吸附"。 */
     ".hud-pen__btn", ".hud-pen__range", ".hud-pen__swatch",
     /* ★ 排除第五张盘的碎片:.frost-shard 也是 <button>,但它只有 18~37px,

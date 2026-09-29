@@ -8,8 +8,11 @@
        找不到 DOM 就静默退出。这一块同样只在 .page-hud 存在时才有意义。
 
    ★ 两种形态(用户点名的"可收起"):
-       展开  .hud-timer(默认)      → 整张卡片
-       收起  .hud-timer.is-min      → 只留左上角一枚小胶囊(时间 + 状态点)
+       展开  .hud-timer(默认)      → 整张卡片(只在被投影进面板时露面)
+       收起  .hud-timer.is-min      → 整块不显示
+     ★★ 第二轮改动:原来收起态是一枚悬浮胶囊(25:00 番茄钟),用户说
+        "原本的番茄钟按钮没删" ⇒ 删掉。收起之后"还在跑"改在左下角那枚
+        模块按钮上显示一个小进度圈(:root 的 --hud-tomato-p / -run)。
      切换【全部在 CSS 里】按 .is-min 走,JS 只切类名和文字 ——
      免得像目录那块一样"布局一半在 JS、一半在 CSS",调一个数要改两个地方。
 
@@ -344,77 +347,19 @@
     font-variant-numeric: tabular-nums;
 }
 
-/* ---------------- 收起态:左上角那枚小胶囊 ---------------- */
-.hud-timer__pill {
-    /* ★ 只有它自己按内容宽(absolute 元素默认 shrink-to-fit,但父级是
-       width:var(--hud-timer-w) 的固定宽块,不写这句在某些浏览器里会被拉满)——
-       胶囊该跟着"25:00 番茄钟"这几个字走,不该跟着卡片宽走。 */
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: fit-content;
-    height: 34px;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 0 12px;
-    border: 1px solid var(--hud-timer-line);
-    border-radius: 17px;
-    background: var(--hud-cover, rgba(6, 10, 18, 0.86));
-    -webkit-backdrop-filter: blur(6px);
-    backdrop-filter: blur(6px);
-    color: var(--hud-timer-ink);
-    font-family: var(--hud-font);
-    cursor: pointer;
-    opacity: 0;
-    transform: translateX(-8px);
-    pointer-events: none;
-    transition: opacity 0.16s ease, transform 0.16s ease, border-color 0.16s ease;
+/* ---------------- 收起态:不飘胶囊了 ----------------
+   ★★ 用户第二轮第 3 条:"原本的番茄钟按钮没删" —— 那枚悬浮胶囊删掉。
+      番茄钟现在的入口是左下角 UHD 的模块按钮;收起之后"还在跑"这件事
+      改成在那枚按钮上画一个小进度圈(见 hud-left.css 的 .hud-mod__ring,
+      进度由本文件 render() 写进 :root 的 --hud-tomato-p / --hud-tomato-run)。
+   ★ 所以 is-min 现在就是"整块不显示":卡片只在被投影到面板里时才露面
+      (hud-left.js 会把它搬进面板并摘掉 is-min)。
+   ★ 注意:display:none 的元素 offsetHeight 是 0 —— hud-left.js 是先搬进面板、
+      摘掉 is-min,再量高度的,顺序不能反。 */
+.hud-timer.is-min {
+    display: none;
 }
 
-.hud-timer.is-min .hud-timer__pill {
-    opacity: 1;
-    transform: none;
-    pointer-events: auto;
-}
-
-.hud-timer__pill:hover {
-    border-color: var(--hud-timer-on);
-}
-
-.hud-timer__dot {
-    width: 7px;
-    height: 7px;
-    flex: 0 0 auto;
-    border-radius: 50%;
-    background: rgba(234, 243, 255, 0.35);
-    box-shadow: none;
-    transition: background-color 0.16s ease, box-shadow 0.16s ease;
-}
-
-/* 计时中:小灯亮起来并呼吸 —— 收起之后"还在跑"这件事要看得见 */
-.hud-timer.is-min.is-run .hud-timer__dot {
-    background: var(--hud-timer-cy);
-    box-shadow: 0 0 8px 2px color-mix(in srgb, var(--hud-timer-cy) 60%, transparent);
-    animation: hud-timer-breath 1.8s ease-in-out infinite;
-}
-
-@keyframes hud-timer-breath {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.35; }
-}
-
-.hud-timer__pill-time {
-    font-size: 15px;
-    letter-spacing: 0.06em;
-    font-variant-numeric: tabular-nums;
-}
-
-.hud-timer__pill-hint {
-    font-size: 11px;
-    letter-spacing: 0.14em;
-    color: var(--hud-timer-dim);
-}
 
 /* ---------------- 窄屏:整块收掉 ----------------
    1180 以下正文左缘已经压到 x≈300px,而卡片右缘约 328px ⇒ 开始咬了。
@@ -508,12 +453,7 @@
 
 @media (prefers-reduced-motion: reduce) {
     .hud-timer__shell,
-    .hud-timer__pill,
     .hud-timer__arc {
         transition: none;
-    }
-
-    .hud-timer.is-min.is-run .hud-timer__dot {
-        animation: none;
     }
 }

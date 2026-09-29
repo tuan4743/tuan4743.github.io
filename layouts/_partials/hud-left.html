@@ -37,6 +37,10 @@
             </span>
             <span class="hud-left__name">番茄钟</span>
         </span>
+        {{/* ★ 收起之后怎么展示(用户第二轮第 4 条):按钮上一个小进度圈。
+             进度和"在不在跑"由 hud-timer.js 写进 :root 的
+             --hud-tomato-p / --hud-tomato-run —— 跨脚本只传变量,不互相戳 DOM。 */}}
+        <span class="hud-mod__ring" aria-hidden="true"></span>
     </button>
     <button class="hud-left__mod" type="button" data-hud-mod="music" data-hud-lb="1" aria-pressed="false"
         title="音乐播放器">
@@ -51,6 +55,11 @@
             </span>
             <span class="hud-left__name">音乐</span>
         </span>
+        {{/* ★ 音乐收起后的展示:按钮边缘一小条音频可视化(三根跳动的柱)。
+             ★★ 说实话:网易云那个播放器是跨域的 iframe,读不到它的音频数据 ⇒
+                这三根柱是【装饰性动画】,不是真实电平(真电平要等有自己的音源)。
+                面板打开时跳得快一点,收起时慢慢呼吸 —— 让人知道"这儿有播放器"。 */}}
+        <span class="hud-mod__bars" aria-hidden="true"><i></i><i></i><i></i></span>
     </button>
 
     {{/* ---- 下支两道(左下角 → 往右)---- */}}
@@ -104,11 +113,19 @@
          用户:"我功能页并不是想脱离这个面板,而是想做成那种全息投影,点一下模块,
                投影出这个面版,再点一下收回。面版其实想做成等宽但根据模块自适应高度的,
                整体也是先画 SVG 风格的框,左下角和右上角两个 45° 切角就够了。"
+         用户第二轮:"我想做成那种纵向展开的,就是原本都是在一个位置的横线,
+               然后纵向展开,关闭就收拢,现在看着各个面版的位置都不一样。"
          ★ 先画框:一个六边形 —— 左下角、右上角各切一刀 45°。
            ★★ 切角是【屏幕上的真 45°】⇒ 不用被拉伸的 viewBox:
               hud-left.js 每次量完面板就把 viewBox 设成实际像素尺寸,多边形用像素坐标写。
-         ★ 等宽:所有模块共用同一个宽度(JS 一次算好);高度 = 内容自适应。
-         ★ 那条虚线光束 + 端点圆点也是 JS 写的:把"从哪个模块投出来的"连起来。 */}}
+         ★ 等宽 + 高度自适应。
+         ★★★ 纵向展开:所有模块共用【同一条横线】(那条 #hud-left-slit,
+             钉在页面左下、带子上方),面板就从这条线往上长出来;
+              关闭时收拢回这条线。位置不再跟着模块跑(用户第二轮第 1 条)。
+         ★ 那条虚线光束 + 端点圆点也是 JS 写的:把"从哪个模块投出来的"连起来。
+         ★ 没有 ×(用户第二轮第 2 条:"卡片右上角有一个×啊,这个×没啥用")——
+           收回靠再点一次那枚模块按钮,Esc 也行。 */}}
+    <span class="hud-proj__slit" id="hud-left-slit" aria-hidden="true"></span>
     <section class="hud-proj" id="hud-left-panel" hidden aria-live="polite">
         <svg class="hud-proj__frame" viewBox="0 0 320 220" preserveAspectRatio="none" aria-hidden="true">
             <defs>
@@ -129,13 +146,6 @@
                 <span class="hud-proj__title" id="hud-left-title">番茄钟</span>
                 <span class="hud-proj__en" id="hud-left-en">FOCUS</span>
             </header>
-            <button class="hud-proj__close" type="button" id="hud-left-close" aria-label="收回面板" title="收回">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                    stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                </svg>
-            </button>
             <div class="hud-proj__body" id="hud-left-body"></div>
         </div>
     </section>
