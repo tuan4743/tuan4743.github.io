@@ -59,7 +59,7 @@ paginate = 10
     { id = "26281760", name = "My Father's Son", artist = "Joe Cocker", direct = true },
     { id = "2013900062", name = "Cold (Live)", artist = "Jonathan Roy/Kim Richardson" },
     { id = "1424155127", name = "Keeping Me Alive (Acoustic)", artist = "Jonathan Roy", direct = true },
-    { id = "2075035816", name = "ストックホルムオフィス", artist = "可不", direct = true },
+    { id = "2080019955", name = "ストックホルムオフィス", artist = "クラム/可不", direct = true },
     { id = "3394036706", name = "洛阳纸", artist = "许嵩", direct = true },
     { id = "3342981041", name = "铁花飞", artist = "Mili/塞壬唱片-MSR", direct = true },
     { id = "450222764", name = "Dreamy Noise", artist = "ゆうかなで" },
