@@ -160,21 +160,26 @@ ok('★★★ 构建产物里那份参考折线也一致(模板 → 产物这一
   (tech.match(/data-hud-frame=(?:"([^"]*)"|([^\s>]+))/) || [, '', '']).slice(1).includes(frameSrc),
   '产物里 data-hud-frame 是根节点上的那份 16:9 参考值,页面一跑会被 JS 覆盖成真值');
 ok('★★★ 写 d 的时候【只认边框那支 SVG 里的 path】—— 这一条是拿血换来的',
-  /\.hud-halo, \.hud-line, \.hud-run/.test(hudJs) && /paths\[i\]\.setAttribute\("d", g\.path\)/.test(hudJs) &&
-  /querySelector\("\.hud-fill"\)/.test(hudJs),
+  /root\.querySelector\("\.page-hud__frame"\)/.test(hudJs) &&
+  /svg\.querySelectorAll\("path"\)/.test(hudJs) &&
+  !/root\.querySelectorAll\("path"\)/.test(hudJs),
   '第一版写的是 root.querySelectorAll("path"):导航/按钮里用 <path> 画的图标全被改成了折线,整只消失,看着像"素材丢了"');
 /* ★★★ 行为断言:拿一个假 DOM 跑 drawFrame,看它到底动了哪些 path。
    只查选择器字符串是不够的 —— 当初那个 bug 的选择器"看着"也没问题。 */
-ok('★★★ 行为:drawFrame 只给【边框那 3 条 path】写 d、给【底板】写闭合 d,图标一根都不碰', (() => {
+ok('★★★ 行为:drawFrame 给【边框那 5 条 path】分别写 d(前三条右支、后两条左支),图标一根都不碰', (() => {
   const mkPath = (name) => ({ name, d: 'icon-original', setAttribute(k, v) { if (k === 'd') this.d = v; } });
-  const frame = [mkPath('halo'), mkPath('line'), mkPath('run')];
+  const frame = [mkPath('halo-r'), mkPath('line-r'), mkPath('run-r'), mkPath('halo-l'), mkPath('line-l')];
   const icons = [mkPath('icon-home'), mkPath('icon-md'), mkPath('icon-gh'), mkPath('icon-wx')];
-  const fill = mkPath('fill');
+  const svg = {
+    attrs: {},
+    setAttribute(k, v) { this.attrs[k] = v; },
+    querySelectorAll: (sel) => (sel === 'path' ? frame : [])
+  };
   const root = {
     attrs: {},
     setAttribute(k, v) { this.attrs[k] = v; },
-    querySelector(sel) { return sel === '.hud-fill' ? fill : null; },
-    querySelectorAll(sel) { return sel === '.hud-halo, .hud-line, .hud-run' ? frame : []; }
+    querySelector(sel) { return sel === '.page-hud__frame' ? svg : null; },
+    querySelectorAll() { return icons; }        /* 若有人写 root.querySelectorAll("path") 就会命中这些 */
   };
   const doc = {
     getElementById: (id) => (id === 'page-hud' ? root : null),
@@ -184,11 +189,11 @@ ok('★★★ 行为:drawFrame 只给【边框那 3 条 path】写 d、给【底
   const win = { innerWidth: 1920, innerHeight: 1080, addEventListener() { } };
   new Function('window', 'document', hudJsSrc)(win, doc);
   const g = win.__hudFrame.last;
-  const drew = frame.every((f) => f.d === g.path);
-  const filled = fill.d === g.fill && /L100 100 L100 0 Z$/.test(fill.d);
+  const rightOk = frame.slice(0, 3).every((f) => f.d === g.path);
+  const leftOk = frame.slice(3).every((f) => f.d === g.left.path);
   const untouched = icons.every((i) => i.d === 'icon-original');
-  return drew && filled && untouched;
-})(), '图标 path 的 d 一旦被改,就成了"素材丢了"的假象;底板要的是【闭合】那一版');
+  return rightOk && leftOk && untouched;
+})(), '图标 path 的 d 一旦被改,就成了"素材丢了"的假象;而且五条 path 各吃各的 d');
 ok('★ 视口变化时会重算(resize + rAF 收口,拖窗口不会每像素都算)',
   /addEventListener\("resize"/.test(hudJs) && /requestAnimationFrame/.test(hudJs));
 /* ★ 边框竖段那一列 = CSS 里给控件留的那一列:改了一个忘了另一个就会骑到正文上 */
@@ -237,79 +242,44 @@ ok('★★★ 把产物里那条 minify 过的 d 解析回顶点,和参考折线
 /* ★★ 第二十轮补:右边那支是三条(halo/line/run),左下角那支【两条】——
    跑马灯暂时不放左边:它要横跨两条折线才好看,等按钮那一刀再说。
    所以这里要【分 SVG 数】,不能再对整份模板数 path(第一版就是这么红的)。 */
-const tplFrameSvgs = hudTplCode.split('class="page-hud__frame');   /* [前置, 右, 左, 下] */
-ok('★ 边框在标记里是【三条 path】(halo / line / run;短刺这一刀没画)',
-  tplFrameSvgs.length === 4 &&
-  (tplFrameSvgs[1].match(/<path class="hud-(halo|line|run)"/g) || []).length === 3,
-  '右支 ' + ((tplFrameSvgs[1] || '').match(/<path class="hud-(halo|line|run)"/g) || []).length + ' 条');
-ok('★ 左下角/下边那两支各是【两条 path】(halo / line,暂时没有跑马灯)',
-  (tplFrameSvgs[2].match(/<path class="hud-(halo|line|run)"/g) || []).length === 2 &&
-  (tplFrameSvgs[3].match(/<path class="hud-(halo|line|run)"/g) || []).length === 2 &&
-  !/hud-run/.test(tplFrameSvgs[2]) && !/hud-run/.test(tplFrameSvgs[3]));
-ok('★ 左支/下支和右支一样挂在 .page-hud__frame 那套坐标制式上',
-  /viewBox="0 0 100 100"/.test(tplFrameSvgs[2]) && /preserveAspectRatio="?none/.test(tplFrameSvgs[2]) &&
-  /viewBox="0 0 100 100"/.test(tplFrameSvgs[3]) && /preserveAspectRatio="?none/.test(tplFrameSvgs[3]));
+ok('★★★ 边框只有【一支】SVG(用户:"为什么你要做两个单独的框?")',
+  (hudTplCode.match(/<svg class="page-hud__frame[\s\S]*?<\/svg>/g) || []).length === 1);
+ok('★ 这一支里有【五条 path】:右支三条(halo/line/run)+ 左支两条(halo/line)',
+  (hudTplCode.match(/<path class="hud-(halo|line|run)"/g) || []).length === 5);
 /* ============================================================
-   ★★ 左下角 UHD 的形状(第五刀定稿):一个 L —— 左侧一条带凸起的竖线 +
-   下侧一条带凸起的横线,两条沿【左下对角线 x+y=100】互为镜像。
+   ★★★ 左下角 UHD:右侧折线的【竖直中线镜像】,和右边共用一支 SVG
    ─────────────────────────────────────────────────────────────
-   用户四轮才说全:"从左侧开始到下侧结束" / "左上角哪有线,从左侧就收到左边框了"
-   / "从中段开始,左侧跟下侧对称分布" / "凸起数量每侧两道,突起大小两侧对称"。
-   这里钉的是【能从上头那几句话推出来的性质】,不是"我当时那么写的":
-     · 左支是竖的(x 只有 2 和 6 两个值),下支是横的(y 只有 94 和 98)
-     · 两支各有【两道】凸起,而且位置/大小一一对应(沿对角线镜像)
-     · 两支都从 42% 开始(中段),都到页缘那一侧结束
-     · 下支 = 左支的对角镜像(改左边,下边跟着变)
+   用户三条:"跟右侧 UHD 实现一样。风格、走线方式一样。为什么你要做两个单独的框?"
+   /"两侧对称,你对称到哪了?" /"位置,你自己看看这位置好看吗?"
+   这里钉的就是这三条,以及我修掉的那个真 bug:
+
+   ★★★ gFrame().user 是【用户坐标】(x 从右往左数)。gFrameLeft 必须
+     ① 先 100−x 换成屏幕坐标,② 再 100−x 镜像 —— 两步。我上一版只写了一次,
+     等于"镜像做了两遍 + 漏了坐标换算",左支被翻到右边 x 55~95 那一段、
+     和右支重叠。症状就是用户说的"左侧对称到哪了"—— 左边根本没有线。
    ============================================================ */
 const leftRef = gFrameLeft(1920, 1080);
-const botRef = gFrameBottom(1920, 1080);
 const frameLeftSrc = (hudTpl.match(/\$frameLeft := "([^"]+)"/) || [, ''])[1];
-const frameBottomSrc = (hudTpl.match(/\$frameBottom := "([^"]+)"/) || [, ''])[1];
 ok('★★★ 模板里的左支参考折线 == gFrameLeft(1920,1080) 的输出',
   !!frameLeftSrc && frameLeftSrc === leftRef.path,
   '模板: ' + frameLeftSrc + '\n     函数: ' + leftRef.path);
-ok('★★★ 模板里的下支参考折线 == gFrameBottom(1920,1080) 的输出',
-  !!frameBottomSrc && frameBottomSrc === botRef.path,
-  '模板: ' + frameBottomSrc + '\n     函数: ' + botRef.path);
-
-const lx = [...new Set(leftRef.user.map((q) => q[0]))].sort((a, b) => a - b);
-const by = [...new Set(botRef.user.map((q) => q[1]))].sort((a, b) => a - b);
-ok('★★ 左支是【竖】的(只在 x=2 与 x=6 两根竖线上);下支是【横】的(y=94 与 y=98)',
-  lx.length === 2 && lx[0] === 2 && lx[1] === 6 &&
-  by.length === 2 && by[0] === 94 && by[1] === 98,
-  '左 x: ' + lx.join(',') + ' / 下 y: ' + by.join(','));
-
-/* 两道凸起:凸起顶点那一列/那一行上,应该正好有 4 个点(两道 × 上下两条边) */
-const bumpTopL = leftRef.user.filter((q) => q[0] === 6).map((q) => q[1]);
-const bumpTopB = botRef.user.filter((q) => q[1] === 94).map((q) => q[0]);
-ok('★★★ 每侧【两道】凸起(用户:"凸起数量每侧两道")',
-  bumpTopL.length === 4 && bumpTopB.length === 4,
-  '左支凸起顶点的 y: ' + bumpTopL.join(',') + ' / 下支的 x: ' + bumpTopB.join(','));
-
-/* 两侧对称:下支的每个点 = 左支对应点沿 x+y=100 的镜像 */
-ok('★★★ 下支 = 左支沿【左下对角线 x+y=100】的镜像(逐点,0 容差)',
-  leftRef.user.length === botRef.user.length &&
-  leftRef.user.every(([x, y], i) => {
-    const m = [100 - y, 100 - x];
-    return Math.abs(m[0] - botRef.user[i][0]) < 1e-3 && Math.abs(m[1] - botRef.user[i][1]) < 1e-3;
-  }),
-  '★ 别写成 [y, x](那是关于 x=y 翻,会把左支翻到顶边上去)—— 本轮真踩了');
-
-/* 都从中段开始、都到页缘结束 */
-ok('★★ 两支都从【中段】开始,都不封到页顶/页右',
-  /* ★ 左支从 y=42 起;下支是它的对角镜像 ⇒ 起点落成 (58,98) —— 它是"下边那条的
-     靠右那一头"。两支的【另一端】才是页缘:左支 y=100(页底)、下支 x=0(页左缘)。
-     所以"不封口"要这样验:左支不含 y<42 的点;两支合起来不碰到页顶(y=0)。 */
-  leftRef.user[0][1] === 42 &&
-  !leftRef.user.some((q) => q[1] < 42) &&
-  !leftRef.user.some((q) => q[1] === 0) &&
-  Math.min(...botRef.user.map((q) => q[0])) === 0 &&
-  leftRef.user[leftRef.user.length - 1][1] === 100,
-  '左支 (2,42) 起、(2,100) 止;下支镜像过来的那一头在 (58,98)');
-ok('★★ 左支落到页底、下支延伸到页左缘(两头都在页缘收掉)',
-  leftRef.user[leftRef.user.length - 1][1] === 100 &&
-  Math.min(...botRef.user.map((q) => q[0])) === 0,
-  '左支终点 y=100、下支最左 x=0');
+const lxs = leftRef.user.map((q) => q[0]);
+ok('★★★ 左支落在页左半边(x 5~45),不是翻到右边和右支重叠',
+  Math.max(...lxs) <= 46 && Math.min(...lxs) >= 4,
+  '左支 x 范围 ' + Math.min(...lxs) + '~' + Math.max(...lxs));
+ok('★★★ 左支逐点 == 右支的竖直中线镜像(顺序相反,0 容差)',
+  ref.user.length === leftRef.user.length &&
+  ref.user.every(([x, y], i) => {
+    const scr = [100 - x, y];                 /* 右支该点的屏幕坐标 */
+    const mirror = [100 - scr[0], scr[1]];    /* 关于竖直中线镜像 */
+    const got = leftRef.user[leftRef.user.length - 1 - i];
+    return Math.abs(got[0] - mirror[0]) < 1e-3 && Math.abs(got[1] - mirror[1]) < 1e-3;
+  }));
+ok('★★ 左支那两条 path 共用同一个 d 变量($frameLeft),不是各写一份坐标',
+  (hudTplCode.match(/d="\{\{ \$frameLeft \}\}"/g) || []).length === 2);
+ok('★★ drawFrame 按【path 序号】分别写 d(前三条右支、后两条左支)',
+  /var ds = \[g\.path, g\.path, g\.path, gl\.path, gl\.path\]/.test(hudJs) &&
+  /svg\.querySelectorAll\("path"\)/.test(hudJs));
 ok('★★★ 三个类在 CSS 里都有规则,而且都 vector-effect: non-scaling-stroke',
   ['hud-halo', 'hud-line', 'hud-run'].every((k) => new RegExp('\\.' + k + '\\s*[,{]').test(cssCode)) &&
   /\.hud-halo,\s*\.hud-line,\s*\.hud-run\s*\{[^}]*vector-effect:\s*non-scaling-stroke/.test(cssCode),
@@ -536,13 +506,11 @@ ok('★ 兜底脚本在没有正式组件时会自己接手(同一个最小 DOM,
    得换一种收口方式(沿描边连线、或直接给整层一个背景色)。
    ⇒ 这里钉的是"撤掉是【故意】的,而且恢复所需的两半都还在":
      CSS 的 .hud-fill 规则 + JS 里给底板写 d 的那段。 */
-ok('★★★ 底板是【故意】撤掉的(老的收口会涂黑半个页面),但恢复所需的两半都还在',
+ok('★★★ 底板(.hud-fill)整条撤掉了 —— 老收口会把半个页面涂黑',
   !/class="?hud-fill/.test(tech) &&
-  /\.hud-fill\s*\{[^}]*fill:\s*var\(--hud-cover\)/.test(cssCode) &&
-  /var fill = root\.querySelector\("\.hud-fill"\)/.test(hudJs) &&
-  /if \(fill\) fill\.setAttribute\("d", g\.fill\)/.test(hudJs) &&
-  !/L100 100 L100 0 Z/.test(hudTplCode),
-  '★ 老写法 (55,0) → (100,100) 那条斜线就是用户截图里的大三角');
+  !/L100 100 L100 0 Z/.test(hudTplCode) &&
+  /\.hud-fill\s*\{[^}]*fill:\s*var\(--hud-cover\)/.test(cssCode),
+  '★ 老写法 (55,0) → (100,100) 那条斜线就是用户截图里的大三角;CSS 规则留着,要恢复只改标记');
 ok('★★ 盖多少只由一个数决定(--hud-cover),而且默认接近全遮',
   (() => {
     const m = /--hud-cover:\s*rgba\([^)]*?([\d.]+)\s*\)/.exec(css);
