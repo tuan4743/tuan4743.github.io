@@ -249,59 +249,67 @@ ok('★ 左下角/下边那两支各是【两条 path】(halo / line,暂时没�
 ok('★ 左支/下支和右支一样挂在 .page-hud__frame 那套坐标制式上',
   /viewBox="0 0 100 100"/.test(tplFrameSvgs[2]) && /preserveAspectRatio="?none/.test(tplFrameSvgs[2]) &&
   /viewBox="0 0 100 100"/.test(tplFrameSvgs[3]) && /preserveAspectRatio="?none/.test(tplFrameSvgs[3]));
-/* ★★ 左下角 UHD 的形状(第四刀):【基线竖线 + 四个梯形凸起】
-   ★★★ 这里钉的是"用户三轮描述合起来能推出的形状",不是"我当时那么写的":
-     基线 2%(离页左缘)、凸起伸到 5%(深 3%)、每段跨 5.3333%、
-     斜肩占 2%(⇒ 屏幕上 atan2(3k, 2))、两处凸起在 6~11.3333 和 88.6667~94。
-   ★ 第一版是"右支整条镜像"(错在构造方式),第二版凸起只有 0.97% 高
-     (把 Δx 和 Δy 搞混),第三版画成了矩形 —— 这三版的坑都记在 tests/README 里。 */
+/* ============================================================
+   ★★ 左下角 UHD 的形状(第五刀定稿):一个 L —— 左侧一条带凸起的竖线 +
+   下侧一条带凸起的横线,两条沿【左下对角线 x+y=100】互为镜像。
+   ─────────────────────────────────────────────────────────────
+   用户四轮才说全:"从左侧开始到下侧结束" / "左上角哪有线,从左侧就收到左边框了"
+   / "从中段开始,左侧跟下侧对称分布" / "凸起数量每侧两道,突起大小两侧对称"。
+   这里钉的是【能从上头那几句话推出来的性质】,不是"我当时那么写的":
+     · 左支是竖的(x 只有 2 和 6 两个值),下支是横的(y 只有 94 和 98)
+     · 两支各有【两道】凸起,而且位置/大小一一对应(沿对角线镜像)
+     · 两支都从 42% 开始(中段),都到页缘那一侧结束
+     · 下支 = 左支的对角镜像(改左边,下边跟着变)
+   ============================================================ */
 const leftRef = gFrameLeft(1920, 1080);
 const botRef = gFrameBottom(1920, 1080);
 const frameLeftSrc = (hudTpl.match(/\$frameLeft := "([^"]+)"/) || [, ''])[1];
+const frameBottomSrc = (hudTpl.match(/\$frameBottom := "([^"]+)"/) || [, ''])[1];
 ok('★★★ 模板里的左支参考折线 == gFrameLeft(1920,1080) 的输出',
   !!frameLeftSrc && frameLeftSrc === leftRef.path,
   '模板: ' + frameLeftSrc + '\n     函数: ' + leftRef.path);
-const frameBottomSrc = (hudTpl.match(/\$frameBottom := "([^"]+)"/) || [, ''])[1];
 ok('★★★ 模板里的下支参考折线 == gFrameBottom(1920,1080) 的输出',
   !!frameBottomSrc && frameBottomSrc === botRef.path,
   '模板: ' + frameBottomSrc + '\n     函数: ' + botRef.path);
 
 const lx = [...new Set(leftRef.user.map((q) => q[0]))].sort((a, b) => a - b);
-ok('★★ 左支只在两根竖线上走(基线 x=2 / 凸起顶 x=5)',
-  lx.length === 2 && Math.abs(lx[0] - 2) < 1e-9 && Math.abs(lx[1] - 5) < 1e-9, lx.join(','));
 const by = [...new Set(botRef.user.map((q) => q[1]))].sort((a, b) => a - b);
-ok('★★ 下支只在两根横线上走(凸起顶 y=95 / 基线 y=98)',
-  by.length === 2 && Math.abs(by[0] - 95) < 1e-9 && Math.abs(by[1] - 98) < 1e-9, by.join(','));
-ok('★★ 四个凸起尺寸一致(左两道 = 下两道)',
-  (() => {
-    const spans = (pts, deep, axis) => pts.filter((q) => Math.abs((axis === 'x' ? q[0] : q[1]) - deep) < 1e-9)
-      .map((q) => (axis === 'x' ? q[1] : q[0])).sort((a, b) => a - b);
-    const a = spans(leftRef.user, 5, 'x'), b = spans(botRef.user, 95, 'y');
-    return a.length === 4 && b.length === 4 &&
-      a.every((v, i) => Math.abs(v - b[i]) < 1e-9);
-  })(), '左 ' + leftRef.user.filter((q) => q[0] === 5).map((q) => q[1]).join('/'));
-ok('★★ 斜肩角度和右侧那条折线同一套算法(按屏幕角算,随视口长宽比变)',
-  (() => {
-    /* ★★ 两处我自己踩的坑,都在这两行里:
-       ① 斜肩是【点1→点2】,不是点0→点1 —— 点0→点1 是那根竖直基线(算出来 90°),
-          拿它去比"斜肩角度"永远不可能对;
-       ② atan2 是 (纵向, 横向),我第一版写反了(把横的当纵的),
-          于是 20.56° 被算成 40.16°。 */
-    const ang = (g, w, h) => Math.atan2((g.user[2][1] - g.user[1][1]) * (h / w), g.user[2][0] - g.user[1][0]) * 180 / Math.PI;
-    /* 斜肩的横向是 RAIL→RAIL+BUMP_W(2 → 5,差 3%),纵向是 RISE(2%)。
-       屏幕上 atan2(3k, 2):16:9 ⇒ 20.56°,16:10 ⇒ 22.62° —— 随长宽比变,
-       这正是"按屏幕角算"的意思(右侧那条折线同一个规矩)。 */
-    const a1 = ang(gFrameLeft(1920, 1080), 1920, 1080);
-    const a2 = ang(gFrameLeft(1440, 900), 1440, 900);
-    /* ★ 期望值也要按同一口径算:横向 3%(RAIL→RAIL+BUMP_W = 2→5),
-       纵向 2%(RISE),屏幕角 = atan2(纵向像素, 横向像素)。
-       第一版这里写成了 atan2(3k, 2) —— 横纵又反了一次,期望值 40.16° 而真值 20.56°。 */
-    const want1 = Math.atan2(2 * (1080 / 1920), 3) * 180 / Math.PI;
-    const want2 = Math.atan2(2 * (900 / 1440), 3) * 180 / Math.PI;
-    return Math.abs(a1 - want1) < 1e-6 && Math.abs(a2 - want2) < 1e-6 && Math.abs(a1 - a2) > 1;
-  })(), '16:9 下 ' + (Math.atan2(2 * (1080 / 1920), 3) * 180 / Math.PI).toFixed(2) + '°');
-ok('★ 下支的凸起朝上(伸进画面里,不是往页底外伸)',
-  botRef.user.some((q) => Math.abs(q[1] - 95) < 1e-9) && Math.min(...botRef.user.map((q) => q[1])) === 95);
+ok('★★ 左支是【竖】的(只在 x=2 与 x=6 两根竖线上);下支是【横】的(y=94 与 y=98)',
+  lx.length === 2 && lx[0] === 2 && lx[1] === 6 &&
+  by.length === 2 && by[0] === 94 && by[1] === 98,
+  '左 x: ' + lx.join(',') + ' / 下 y: ' + by.join(','));
+
+/* 两道凸起:凸起顶点那一列/那一行上,应该正好有 4 个点(两道 × 上下两条边) */
+const bumpTopL = leftRef.user.filter((q) => q[0] === 6).map((q) => q[1]);
+const bumpTopB = botRef.user.filter((q) => q[1] === 94).map((q) => q[0]);
+ok('★★★ 每侧【两道】凸起(用户:"凸起数量每侧两道")',
+  bumpTopL.length === 4 && bumpTopB.length === 4,
+  '左支凸起顶点的 y: ' + bumpTopL.join(',') + ' / 下支的 x: ' + bumpTopB.join(','));
+
+/* 两侧对称:下支的每个点 = 左支对应点沿 x+y=100 的镜像 */
+ok('★★★ 下支 = 左支沿【左下对角线 x+y=100】的镜像(逐点,0 容差)',
+  leftRef.user.length === botRef.user.length &&
+  leftRef.user.every(([x, y], i) => {
+    const m = [100 - y, 100 - x];
+    return Math.abs(m[0] - botRef.user[i][0]) < 1e-3 && Math.abs(m[1] - botRef.user[i][1]) < 1e-3;
+  }),
+  '★ 别写成 [y, x](那是关于 x=y 翻,会把左支翻到顶边上去)—— 本轮真踩了');
+
+/* 都从中段开始、都到页缘结束 */
+ok('★★ 两支都从【中段】开始,都不封到页顶/页右',
+  /* ★ 左支从 y=42 起;下支是它的对角镜像 ⇒ 起点落成 (58,98) —— 它是"下边那条的
+     靠右那一头"。两支的【另一端】才是页缘:左支 y=100(页底)、下支 x=0(页左缘)。
+     所以"不封口"要这样验:左支不含 y<42 的点;两支合起来不碰到页顶(y=0)。 */
+  leftRef.user[0][1] === 42 &&
+  !leftRef.user.some((q) => q[1] < 42) &&
+  !leftRef.user.some((q) => q[1] === 0) &&
+  Math.min(...botRef.user.map((q) => q[0])) === 0 &&
+  leftRef.user[leftRef.user.length - 1][1] === 100,
+  '左支 (2,42) 起、(2,100) 止;下支镜像过来的那一头在 (58,98)');
+ok('★★ 左支落到页底、下支延伸到页左缘(两头都在页缘收掉)',
+  leftRef.user[leftRef.user.length - 1][1] === 100 &&
+  Math.min(...botRef.user.map((q) => q[0])) === 0,
+  '左支终点 y=100、下支最左 x=0');
 ok('★★★ 三个类在 CSS 里都有规则,而且都 vector-effect: non-scaling-stroke',
   ['hud-halo', 'hud-line', 'hud-run'].every((k) => new RegExp('\\.' + k + '\\s*[,{]').test(cssCode)) &&
   /\.hud-halo,\s*\.hud-line,\s*\.hud-run\s*\{[^}]*vector-effect:\s*non-scaling-stroke/.test(cssCode),
