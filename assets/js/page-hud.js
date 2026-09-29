@@ -69,38 +69,56 @@
     }
 
     /* ------------------------------------------------------------
-       左下角 UHD 的折线 = 右侧那条【整条镜像】
-       (用户:"整体 UHD 对称,因此模块大小相同,左侧和下侧的 UHD 对称")
+       左下角 UHD:左侧两道 + 下边两道【梯形】凸起
        ------------------------------------------------------------
-       变换只有两件事:
-         ① x' = 100 − x(关于竖直中线翻)
-         ② 顶点顺序【倒过来】—— 不翻顺序的话起点/终点换了头:右侧是"从顶边
-            走到页底",镜像后成了"从页底走到顶边",折线形状一样,但跑马灯和
-            "挂在路径上的按钮"全会错位。
-       ★★ 底边收口用 63.0514(右侧那条 d 的终点),不是镜像出来的 36.9486:
-          右侧底板写的是 d + "L100 100 L100 0 Z",它沿页底从 63.0514 盖到 100;
-          左边镜像过来是 0 盖到 36.9486 ⇒ 中间 26% 是空的,看着像底板断了一截。
-          接上之后两条带子在页底首尾相接。对折线本身没有影响(那一段贴着页底 y=100)。
-       ★ 其余顶点全是纯镜像,不额外调整 —— 一调整左右就不对称了。
+       用户三轮描述合起来才完整:
+         · "从(100,60)开始,水平方向成30°往右下移到 x=98 …… 往下纵坐标 5,
+            再水平方向 30° 往左下收"          ⇒ 斜肩 30°(屏幕上),纵跨 5%
+         · "竖线在浅处(x=98),凸起伸向深处(x=94)" ⇒ 基线 RAIL、凸起再深 BUMP_W
+         · "梯形是左侧两个,下侧两个,沿左下轴线对称" ⇒ 左两道 + 下两道
+       ★★ 斜肩 30° 是【屏幕角】,所以它在坐标制式里的斜率跟视口长宽比有关 ——
+          横向固定 2%,纵向 2% 在 16:9 下正好是 29.36°。窗口一变形角度跟着变,
+          和右侧那条折线一个规矩(45°/60° 也是这么算的)。
+       ★ 四个模块同一尺寸(进深 BUMP_W、跨 BH)⇒ "模块大小相同"。
+       ★ 两个旋钮:HUD_RAIL(基线离页缘)、HUD_BUMP_W(凸起往里伸多少)。
        ------------------------------------------------------------ */
+    var HUD_RAIL = 2;
+    var HUD_BUMP_W = 3;
+    var HUD_BUMP_BH = 5.3333;      /* 每段凸起的总跨距(高/宽) */
+    var HUD_BUMP_RISE = 2;         /* 斜肩占的那一段 */
+    /* 两处凸起的位置:和右支那两道同一组数 ⇒ 左右/上下看着对称 */
+    var HUD_SPANS = [[6, 6 + 5.3333], [94 - 5.3333, 94]];
+
     function gFrameLeft(w, h, bandX) {
-        var g = gFrame(w, h, bandX);
-        /* ★★ 顺序很重要,别跳步:先把右侧顶点换成【屏幕坐标】,再镜像、再倒序。
-           我第一版是"先在用户坐标里镜像、最后再 100−x 转屏幕",等于把镜像
-           做了两遍又漏了一次转换 —— 收口那点变成 (36.95, 0),折线最后一段从
-           页底一路斜穿回左上角。形状类的东西,坐标系只能有一个口径。 */
-        var scr = g.user.map(function (p) { return [100 - p[0], p[1]]; });   /* 右侧 d 的点 */
-        var pts = scr.map(function (p) { return [100 - p[0], p[1]]; }).reverse();
-        var meet = scr[scr.length - 1][0];                    /* 右侧底边收口 x = 63.0514 */
-        /* ★★ 是 push 不是替换:镜像倒序之后末尾那个点正是【顶部凸起】的顶点
-           (45,0),替换掉它等于把这一整个凸起削平 —— 上一版就是这么错的,
-           表现是"左上角少了一块、折线从页底斜着连到 (45,0)"。
-           追加之后左支比右支多一个点(收口点没有镜像对应物),比对时要注意。 */
-        pts.push([meet, 100]);                                /* 追加收口点 ⇒ 页底连成一条 */
-        var d = pts.map(function (p, i) {
-            return (i ? "L" : "M") + round(p[0]) + " " + round(p[1]);
-        }).join(" ");
-        return { path: d, fill: d + " L0 100 L0 0 Z", user: pts, k: g.k, meet: meet };
+        var b = HUD_RAIL + HUD_BUMP_W;
+        var flat = HUD_BUMP_BH - 2 * HUD_BUMP_RISE;
+        var p = [[HUD_RAIL, 0]];
+        for (var i = 0; i < HUD_SPANS.length; i++) {
+            var a = HUD_SPANS[i][0];
+            p.push([HUD_RAIL, a]);
+            p.push([b, a + HUD_BUMP_RISE]);
+            p.push([b, a + HUD_BUMP_RISE + flat]);
+            p.push([HUD_RAIL, a + HUD_BUMP_RISE + flat + HUD_BUMP_RISE]);
+        }
+        p.push([HUD_RAIL, 100]);
+        var d = p.map(function (q, i) { return (i ? "L" : "M") + round(q[0]) + " " + round(q[1]); }).join(" ");
+        return { path: d, fill: d + " L0 100 L0 0 Z", user: p, k: h / w };
+    }
+
+    function gFrameBottom(w, h, bandX) {
+        var yb = 100 - HUD_RAIL, yd = 100 - HUD_RAIL - HUD_BUMP_W;
+        var flat = HUD_BUMP_BH - 2 * HUD_BUMP_RISE;
+        var p = [];
+        for (var i = 0; i < HUD_SPANS.length; i++) {
+            var a = HUD_SPANS[i][0], z = HUD_SPANS[i][1];
+            p.push([a, yb]);
+            p.push([a + HUD_BUMP_RISE, yd]);
+            p.push([a + HUD_BUMP_RISE + flat, yd]);
+            p.push([a + HUD_BUMP_RISE + flat + HUD_BUMP_RISE, yb]);
+            p.push([z, yb]);
+        }
+        var d = p.map(function (q, i) { return (i ? "L" : "M") + round(q[0]) + " " + round(q[1]); }).join(" ");
+        return { path: d, fill: d + " L0 100 L0 0 Z", user: p, k: h / w };
     }
 
     function round(v) {
@@ -133,6 +151,9 @@
         for (var i = 0; i < paths.length; i++) paths[i].setAttribute("d", g.path);
         /* 底板:同一圈轮廓的【闭合版】—— 它把框里那一块盖住,
            正文滚过去时不会从框里透出来(用户要的"覆盖效果")。 */
+        /* ★ 底板(.hud-fill)暂时从标记里撤掉了,这里保留取值逻辑但加判空 ——
+           哪天要恢复,标记里加回那条 path 就行(它的收口方式要重新设计,
+           见 page-hud.html 里那段注释:老写法会把整个右半边涂黑)。 */
         var fill = root.querySelector(".hud-fill");
         if (fill) fill.setAttribute("d", g.fill);
         root.setAttribute("data-hud-frame", g.path);
@@ -154,11 +175,20 @@
             leftRoot.setAttribute("data-hud-frame-left", gl.path);
             g.left = gl;
         }
+        /* 下边沿那两道凸起(同一套坐标、同一套画法) */
+        var botRoot = root.querySelector(".page-hud__frame--bottom");
+        if (botRoot) {
+            var gb = gFrameBottom(w, h, bandX);
+            var bps = botRoot.querySelectorAll(".hud-halo, .hud-line, .hud-run");
+            for (var m = 0; m < bps.length; m++) bps[m].setAttribute("d", gb.path);
+            botRoot.setAttribute("data-hud-frame-bottom", gb.path);
+            g.bottom = gb;
+        }
         if (window.__hudFrame) window.__hudFrame.last = g;
     }
 
     if (typeof window !== "undefined") {
-        window.__hudFrame = { gFrame: gFrame, gFrameLeft: gFrameLeft, draw: drawFrame, T60: T60 };
+        window.__hudFrame = { gFrame: gFrame, gFrameLeft: gFrameLeft, gFrameBottom: gFrameBottom, draw: drawFrame, T60: T60 };
     }
 
     /* ------------------------------------------------------------

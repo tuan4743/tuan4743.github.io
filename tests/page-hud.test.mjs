@@ -88,7 +88,9 @@ const gFrame = win.__hudFrame && win.__hudFrame.gFrame;
 /* ★ 第二十轮:左下角 UHD 的折线 = gFrame 的整条镜像。这里一并取出它的纯函数,
    下面要用它和"镜像"两边各算一遍再比(和右支那条防漂断言同一个套路)。 */
 const gFrameLeftFn = win.__hudFrame && win.__hudFrame.gFrameLeft;
+const gFrameBottomFn = win.__hudFrame && win.__hudFrame.gFrameBottom;
 const gFrameLeft = (w, h) => (gFrameLeftFn ? gFrameLeftFn(w, h) : { user: [], path: '' });
+const gFrameBottom = (w, h) => (gFrameBottomFn ? gFrameBottomFn(w, h) : { user: [], path: '' });
 ok('★★ 几何函数 gFrame(w,h) 能在没有 DOM 的环境里单独跑(测试靠它验真值)',
   typeof gFrame === 'function');
 const REF_W = 1920, REF_H = 1080;
@@ -235,47 +237,71 @@ ok('★★★ 把产物里那条 minify 过的 d 解析回顶点,和参考折线
 /* ★★ 第二十轮补:右边那支是三条(halo/line/run),左下角那支【两条】——
    跑马灯暂时不放左边:它要横跨两条折线才好看,等按钮那一刀再说。
    所以这里要【分 SVG 数】,不能再对整份模板数 path(第一版就是这么红的)。 */
-const tplFrameSvgs = hudTplCode.split('class="page-hud__frame');
+const tplFrameSvgs = hudTplCode.split('class="page-hud__frame');   /* [前置, 右, 左, 下] */
 ok('★ 边框在标记里是【三条 path】(halo / line / run;短刺这一刀没画)',
-  tplFrameSvgs.length === 3 &&
+  tplFrameSvgs.length === 4 &&
   (tplFrameSvgs[1].match(/<path class="hud-(halo|line|run)"/g) || []).length === 3,
   '右支 ' + ((tplFrameSvgs[1] || '').match(/<path class="hud-(halo|line|run)"/g) || []).length + ' 条');
-ok('★ 左下角那一支是【两条 path】(halo / line,暂时没有跑马灯)',
+ok('★ 左下角/下边那两支各是【两条 path】(halo / line,暂时没有跑马灯)',
   (tplFrameSvgs[2].match(/<path class="hud-(halo|line|run)"/g) || []).length === 2 &&
-  !/hud-run/.test(tplFrameSvgs[2]));
-ok('★ 左下角那一支和右支一样挂在 .page-hud__frame 那套坐标制式上',
-  /viewBox="0 0 100 100"/.test(tplFrameSvgs[2]) && /preserveAspectRatio="?none/.test(tplFrameSvgs[2]));
-/* ★★ 左支的顶点必须是右支的【整条镜像】:x' = 100 − x,而且顺序反过来。
-   纯函数比对(和右支那条"模板 vs 函数"一个套路,只是这里是"左函数 vs 镜像"):
-   ★ 左支比右支多【一个】点:末尾那个收口点(为了让页底两条带子接上),
-     它没有镜像对应物,所以比对时跳过。
-   ★ 模板里那份 $frameLeft 也必须等于 gFrameLeft(1920,1080) 的输出。 */
+  (tplFrameSvgs[3].match(/<path class="hud-(halo|line|run)"/g) || []).length === 2 &&
+  !/hud-run/.test(tplFrameSvgs[2]) && !/hud-run/.test(tplFrameSvgs[3]));
+ok('★ 左支/下支和右支一样挂在 .page-hud__frame 那套坐标制式上',
+  /viewBox="0 0 100 100"/.test(tplFrameSvgs[2]) && /preserveAspectRatio="?none/.test(tplFrameSvgs[2]) &&
+  /viewBox="0 0 100 100"/.test(tplFrameSvgs[3]) && /preserveAspectRatio="?none/.test(tplFrameSvgs[3]));
+/* ★★ 左下角 UHD 的形状(第四刀):【基线竖线 + 四个梯形凸起】
+   ★★★ 这里钉的是"用户三轮描述合起来能推出的形状",不是"我当时那么写的":
+     基线 2%(离页左缘)、凸起伸到 5%(深 3%)、每段跨 5.3333%、
+     斜肩占 2%(⇒ 屏幕上 atan2(3k, 2))、两处凸起在 6~11.3333 和 88.6667~94。
+   ★ 第一版是"右支整条镜像"(错在构造方式),第二版凸起只有 0.97% 高
+     (把 Δx 和 Δy 搞混),第三版画成了矩形 —— 这三版的坑都记在 tests/README 里。 */
+const leftRef = gFrameLeft(1920, 1080);
+const botRef = gFrameBottom(1920, 1080);
 const frameLeftSrc = (hudTpl.match(/\$frameLeft := "([^"]+)"/) || [, ''])[1];
 ok('★★★ 模板里的左支参考折线 == gFrameLeft(1920,1080) 的输出',
-  !!frameLeftSrc && frameLeftSrc === gFrameLeft(1920, 1080).path,
-  '模板: ' + frameLeftSrc + '\n     函数: ' + gFrameLeft(1920, 1080).path);
-ok('★★ 左支 = 右支的镜像(逐点 x\'=100−x,顺序相反;只有末尾多一个收口点)', (() => {
-  const R = ref.user.map(([x, y]) => [100 - x, y]);          /* 右侧的屏幕坐标 */
-  const L = gFrameLeft(1920, 1080).user;                     /* 左侧的屏幕坐标 */
-  if (L.length !== R.length + 1) return false;
-  const body = L.slice(0, L.length - 1);
-  for (let i = 0; i < R.length; i++) {
-    const mirror = [100 - R[i][0], R[i][1]];
-    const got = body[body.length - 1 - i];
-    if (Math.abs(got[0] - mirror[0]) > 1e-3 || Math.abs(got[1] - mirror[1]) > 1e-3) return false;
-  }
-  return true;
-})(), '左 ' + gFrameLeft(1920, 1080).user.map((p) => '(' + p[0].toFixed(2) + ',' + p[1].toFixed(2) + ')').join(' '));
-ok('★★ 页底两条带子接得上(左支收口点 = 右支最后一点的 x)', (() => {
-  const g = gFrame(1920, 1080);
-  const L = gFrameLeft(1920, 1080);
-  /* ★ 两边都要换成【屏幕坐标】再比:gFrameLeft().user 里存的是屏幕百分比,
-     而"右支的收口 x"要先做一次 100−x(用户坐标 → 屏幕)。上一版忘了这一步,
-     拿 36.95 和 63.05 比,报出来是"接不上",其实是坐标系不同。 */
-  const meetScreen = 100 - g.user[g.user.length - 1][0];
-  const last = L.user[L.user.length - 1];
-  return Math.abs(last[0] - meetScreen) < 1e-3 && Math.abs(last[1] - 100) < 1e-3;
-})(), '右支收口(屏幕 x) = ' + (100 - gFrame(1920, 1080).user[9][0]).toFixed(4));
+  !!frameLeftSrc && frameLeftSrc === leftRef.path,
+  '模板: ' + frameLeftSrc + '\n     函数: ' + leftRef.path);
+const frameBottomSrc = (hudTpl.match(/\$frameBottom := "([^"]+)"/) || [, ''])[1];
+ok('★★★ 模板里的下支参考折线 == gFrameBottom(1920,1080) 的输出',
+  !!frameBottomSrc && frameBottomSrc === botRef.path,
+  '模板: ' + frameBottomSrc + '\n     函数: ' + botRef.path);
+
+const lx = [...new Set(leftRef.user.map((q) => q[0]))].sort((a, b) => a - b);
+ok('★★ 左支只在两根竖线上走(基线 x=2 / 凸起顶 x=5)',
+  lx.length === 2 && Math.abs(lx[0] - 2) < 1e-9 && Math.abs(lx[1] - 5) < 1e-9, lx.join(','));
+const by = [...new Set(botRef.user.map((q) => q[1]))].sort((a, b) => a - b);
+ok('★★ 下支只在两根横线上走(凸起顶 y=95 / 基线 y=98)',
+  by.length === 2 && Math.abs(by[0] - 95) < 1e-9 && Math.abs(by[1] - 98) < 1e-9, by.join(','));
+ok('★★ 四个凸起尺寸一致(左两道 = 下两道)',
+  (() => {
+    const spans = (pts, deep, axis) => pts.filter((q) => Math.abs((axis === 'x' ? q[0] : q[1]) - deep) < 1e-9)
+      .map((q) => (axis === 'x' ? q[1] : q[0])).sort((a, b) => a - b);
+    const a = spans(leftRef.user, 5, 'x'), b = spans(botRef.user, 95, 'y');
+    return a.length === 4 && b.length === 4 &&
+      a.every((v, i) => Math.abs(v - b[i]) < 1e-9);
+  })(), '左 ' + leftRef.user.filter((q) => q[0] === 5).map((q) => q[1]).join('/'));
+ok('★★ 斜肩角度和右侧那条折线同一套算法(按屏幕角算,随视口长宽比变)',
+  (() => {
+    /* ★★ 两处我自己踩的坑,都在这两行里:
+       ① 斜肩是【点1→点2】,不是点0→点1 —— 点0→点1 是那根竖直基线(算出来 90°),
+          拿它去比"斜肩角度"永远不可能对;
+       ② atan2 是 (纵向, 横向),我第一版写反了(把横的当纵的),
+          于是 20.56° 被算成 40.16°。 */
+    const ang = (g, w, h) => Math.atan2((g.user[2][1] - g.user[1][1]) * (h / w), g.user[2][0] - g.user[1][0]) * 180 / Math.PI;
+    /* 斜肩的横向是 RAIL→RAIL+BUMP_W(2 → 5,差 3%),纵向是 RISE(2%)。
+       屏幕上 atan2(3k, 2):16:9 ⇒ 20.56°,16:10 ⇒ 22.62° —— 随长宽比变,
+       这正是"按屏幕角算"的意思(右侧那条折线同一个规矩)。 */
+    const a1 = ang(gFrameLeft(1920, 1080), 1920, 1080);
+    const a2 = ang(gFrameLeft(1440, 900), 1440, 900);
+    /* ★ 期望值也要按同一口径算:横向 3%(RAIL→RAIL+BUMP_W = 2→5),
+       纵向 2%(RISE),屏幕角 = atan2(纵向像素, 横向像素)。
+       第一版这里写成了 atan2(3k, 2) —— 横纵又反了一次,期望值 40.16° 而真值 20.56°。 */
+    const want1 = Math.atan2(2 * (1080 / 1920), 3) * 180 / Math.PI;
+    const want2 = Math.atan2(2 * (900 / 1440), 3) * 180 / Math.PI;
+    return Math.abs(a1 - want1) < 1e-6 && Math.abs(a2 - want2) < 1e-6 && Math.abs(a1 - a2) > 1;
+  })(), '16:9 下 ' + (Math.atan2(2 * (1080 / 1920), 3) * 180 / Math.PI).toFixed(2) + '°');
+ok('★ 下支的凸起朝上(伸进画面里,不是往页底外伸)',
+  botRef.user.some((q) => Math.abs(q[1] - 95) < 1e-9) && Math.min(...botRef.user.map((q) => q[1])) === 95);
 ok('★★★ 三个类在 CSS 里都有规则,而且都 vector-effect: non-scaling-stroke',
   ['hud-halo', 'hud-line', 'hud-run'].every((k) => new RegExp('\\.' + k + '\\s*[,{]').test(cssCode)) &&
   /\.hud-halo,\s*\.hud-line,\s*\.hud-run\s*\{[^}]*vector-effect:\s*non-scaling-stroke/.test(cssCode),
@@ -494,12 +520,21 @@ ok('★ 兜底脚本在没有正式组件时会自己接手(同一个最小 DOM,
     const h = searchHarness();
     return !!h.win.CDSearch;   /* search.js 自己会挂;下面的断言看"没挂时"的分支 */
   })() && /var input = document\.getElementById\("header-search-input"\)/.test(noC(rd(`${BH}/assets/js/header-search.js`))));
-/* ---------- ⑤c 覆盖效果:框里要有底板,不然正文会从框里透出来 ---------- */
-ok('★★★ 底板存在,而且是【闭合】的那一版轮廓(沿页底 → 页右缘 → 回到起点)',
-  /class="?hud-fill/.test(tech) && /\.hud-fill\s*\{[^}]*fill:\s*var\(--hud-cover\)/.test(cssCode) &&
-  /L100 100 L100 0 Z/.test(hudTplCode) &&
-  /var fill = d \+ " L100 100 L100 0 Z"/.test(hudJs),
-  '★ 不能靠"最后一个点直连回起点"来闭合 —— 那会把大半个页面斜着切掉');
+/* ---------- ⑤c 覆盖效果:底板这一刀【故意撤掉】了 ----------
+   ★★★ 用户截图报的那个"大三角"就是底板干的:老的收口写法是
+     d + " L100 100 L100 0 Z" —— 从折线起点 (55,0) 斜着连回右下角,
+     等于把【整个右半边】都涂成暗色,露出一条斜边切过正文。
+   撤掉之后框架只剩折线(用户才能看清形状);要恢复"遮住底下"的效果,
+   得换一种收口方式(沿描边连线、或直接给整层一个背景色)。
+   ⇒ 这里钉的是"撤掉是【故意】的,而且恢复所需的两半都还在":
+     CSS 的 .hud-fill 规则 + JS 里给底板写 d 的那段。 */
+ok('★★★ 底板是【故意】撤掉的(老的收口会涂黑半个页面),但恢复所需的两半都还在',
+  !/class="?hud-fill/.test(tech) &&
+  /\.hud-fill\s*\{[^}]*fill:\s*var\(--hud-cover\)/.test(cssCode) &&
+  /var fill = root\.querySelector\("\.hud-fill"\)/.test(hudJs) &&
+  /if \(fill\) fill\.setAttribute\("d", g\.fill\)/.test(hudJs) &&
+  !/L100 100 L100 0 Z/.test(hudTplCode),
+  '★ 老写法 (55,0) → (100,100) 那条斜线就是用户截图里的大三角');
 ok('★★ 盖多少只由一个数决定(--hud-cover),而且默认接近全遮',
   (() => {
     const m = /--hud-cover:\s*rgba\([^)]*?([\d.]+)\s*\)/.exec(css);
