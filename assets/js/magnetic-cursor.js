@@ -216,6 +216,27 @@
   var THICK = parseFloat(cssVar("--mc-thick", "1px")) || 1;
 
   var target = null;
+  /* ★★★ window.__mcScript:【剧本模式】—— 首页引导用。
+     背景:引导要的是"扫描框磁吸到某个部件上,而且【停在那个部件的框上】"。
+     光靠派发合成 mousemove/mouseover 是不够的:
+       · 合成 mouseover 确实能设上 target,但边框尺寸是 tick 里用
+         SIZE_EASE 平滑逼近的,而且外扩按"目标尺寸的 16%"算 ——
+         小按钮上框比按钮大一圈、大区域上又几乎看不出来;
+       · 更要命的是,引导要的是"吸附到这一整块区域"(比如整个平板、
+         CD 轮盘那一带),而那里根本没有对应的 DOM 元素可以 mouseover。
+     ⇒ 给剧本一个直接的覆盖:{x, y, w, h} 就是框最终该在的矩形,
+       设上之后 tick 不再自己算位置/尺寸,直接把框画在那儿;
+       同时给 target 留一个占位对象,让"锁定态"的观感(停止抖动)照旧成立。
+     ★ 它【只覆盖位置与尺寸】,不动颜色、角线长短、外发光那些美术参数 ——
+       用户要的是"沿用锁定框的美术",不是另一套。 */
+  function scriptBox() {
+    var s = window.__mcScript;
+    if (!s) return null;
+    if (typeof s.x !== "number" || typeof s.y !== "number") return null;
+    return s;
+  }
+
+  var target = null;
   var mx = -999, my = -999;        /* 鼠标真实坐标(中心点用,严格贴手)*/
   var fx = -999, fy = -999;        /* 框体坐标(平滑)*/
   var fw = SIZE, fh = SIZE;        /* 框体尺寸(平滑)*/
@@ -305,9 +326,13 @@
        配置由 page-hud.js 写进 window.__mcPenCfg(它知道当前选了哪支笔、多大)。 */
 
     /* ---- 目标点与尺寸:磁吸时贴向目标中心 ---- */
+    var sb = scriptBox();
     var tx = mx, ty = my, tw = SIZE, th = SIZE;
     var small = false;
-    if (target && target.isConnected) {
+    if (sb) {
+      /* 剧本模式:位置/尺寸就是剧本给的那个矩形,不走磁吸也不走缓动 */
+      tx = sb.x; ty = sb.y; tw = sb.w; th = sb.h;
+    } else if (target && target.isConnected) {
       var r = target.getBoundingClientRect();
       var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
       /* ★★ 小目标【不做磁吸偏移】(用户第八轮:"吸附框的位置还是不对啊,就是偏左,
@@ -344,12 +369,16 @@
 
     /* ---- 平滑收敛(帧率无关)----
        ★★ 这里【保持缓动】:用户明确说过"瞬时吸附绝对不要改,给我改回去"。
-          曾经试过"小目标一帧到位",被否掉了 —— 手感的连续性比"看起来准"重要。 */
-    var k = 1 - Math.pow(1 - SMOOTH, dt * 60);
+          曾经试过"小目标一帧到位",被否掉了 —— 手感的连续性比"看起来准"重要。
+       ★ 剧本模式(引导)用 0.20:约 150ms 收敛。
+         为什么比手玩快:剧本的矩形是【每一帧重新量】的(机器在平移、
+         玻璃在贴合),收敛太慢就永远追不上目标 —— 而用户要的是
+         "磁吸上去、然后稳稳贴住",不是"框在后面慢慢飘"。 */
+    var k = 1 - Math.pow(1 - (sb ? 0.20 : SMOOTH), dt * 60);
     var px = fx, py = fy;
     fx += (tx - fx) * k;
     fy += (ty - fy) * k;
-    var ks = 1 - Math.pow(1 - SIZE_EASE, dt * 60);
+    var ks = 1 - Math.pow(1 - (sb ? 0.20 : SIZE_EASE), dt * 60);
     fw += (tw - fw) * ks;
     fh += (th - fh) * ks;
 
@@ -365,12 +394,15 @@
     var lean = 0;
     var spinScale = (typeof window.__mcSpinScale === "number" && isFinite(window.__mcSpinScale))
       ? window.__mcSpinScale : 1;
-    if (!target && ROT_MAX > 0 && !reduced) {
+    /* ★ 剧本模式下"锁定"由剧本说了算(它可能瞄的是一个没有 DOM 的区域):
+       这时不来自转、也不吃速度倾斜,框转正停稳 —— 就是"磁吸住了"的样子。 */
+    var lockedNow = !!sb || !!target;
+    if (!lockedNow && ROT_MAX > 0 && !reduced) {
       var vx = (fx - px) / dt;
       lean = Math.max(-ROT_MAX, Math.min(ROT_MAX, -vx / VEL_DIV));
     }
-    if (!reduced) spinAngle += SPIN * dt * spinScale * (target ? SPIN_SLOW : 1);
-    var targetRot = target ? 0 : spinAngle + lean;
+    if (!reduced) spinAngle += SPIN * dt * spinScale * (lockedNow ? SPIN_SLOW : 1);
+    var targetRot = lockedNow ? 0 : spinAngle + lean;
     rot += angleDelta(targetRot, rot) * (1 - Math.pow(1 - ROT_EASE, dt * 60));
 
     /* ---- ③ 微抖动:两个不同频率的正弦叠加(平滑慢漂,不是每帧乱跳)----
@@ -378,7 +410,7 @@
          没锁定时它让框显得"活着",但锁定之后它仍然把框推着漂几个像素 ——
          大按钮上看不出来,HUD 里 60px 的导航项上就是【恒定的偏移】。
          ⇒ 锁定(有 target)时不再抖动,框严格压在目标上。 */
-    if (!reduced && !target) {
+    if (!reduced && !lockedNow) {
       var tt = now / 1000;
       jx = JITTER * 0.5 * (Math.sin(tt * DRIFT[0] * 6.283 + DRIFT_PH[0]) + 0.6 * Math.sin(tt * DRIFT[1] * 6.283 + DRIFT_PH[1]));
       jy = JITTER * 0.5 * (Math.sin(tt * DRIFT[1] * 6.283 + DRIFT_PH[1] + 1.7) + 0.6 * Math.sin(tt * DRIFT[0] * 6.283 + DRIFT_PH[0] + 0.9));
@@ -417,7 +449,8 @@
     /* ---- 画框 ---- */
     var bx = fx + jx, by = fy + jy;
     var arm = Math.min(ARM_MAX, Math.max(8, Math.min(fw, fh) * ARM));
-    var locked = !!target;
+    /* ★ 剧本模式也算"锁定":亮度满格、中心点让位给框体(和磁吸到元素上一致) */
+    var locked = !!sb || !!target;
     var alpha = (locked ? 1 : 0.82) * fade;
 
     ctx.save();

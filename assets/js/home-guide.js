@@ -66,9 +66,9 @@
      (?guide=1&fast=1 就是"每次都播、而且快进")。
      默认节奏是"人在说话":每字 42ms、一句说完停 900ms、扫描框吸过去 420ms。 */
   var FAST = /[?&]fast=1/.test(location.search);
-  var TYPE_MS = (reduced || FAST) ? (FAST && !reduced ? 3 : 0) : 42;
-  var afterLine = (reduced || FAST) ? 60 : 900;      /* 一句说完之后停一拍 */
-  var settleMs = (reduced || FAST) ? 30 : 420;       /* 扫描框吸过去、停稳 */
+  var TYPE_MS = (reduced || FAST) ? (FAST && !reduced ? 3 : 0) : 58;
+  var afterLine = (reduced || FAST) ? 60 : 1500;     /* 一句说完之后停一拍(留出读的时间)*/
+  var settleMs = (reduced || FAST) ? 30 : 520;       /* 扫描框吸过去、停稳 */
   var gate = function (ms) { return (reduced || FAST) ? Math.min(ms, 90) : ms; };
 
   var eye = null;
@@ -80,6 +80,17 @@
   var stepLabel = "";
   var typeDone = true;
   var snapNow = null;                      /* 探针用:当前吸附目标 */
+  var snapTarget = null;
+  var gazeMode = "scan";                   /* "scan" = 跟着扫描框;"center" = 看向屏幕正中央 */
+  var frameRect = null;                    /* 扫描框当前该在的矩形(视线每帧跟着它)。
+                                              ★★★ 字段名统一成 left/top/width/height,
+                                              【和 getBoundingClientRect() 同构】——
+                                              这里踩过一次:字段用的是 x/y/w/h,而
+                                              lookAtRect 里读的是 p.left/p.top/p.width,
+                                              于是每次算出来都是 NaN,一路写进
+                                              eye.setGaze(NaN, NaN)。症状是"眼睛完全
+                                              不跟框",而控制台一声不响(NaN 不抛异常)。
+                                              两处名字对齐之后这类错就不可能再发生。 */
   /* 引导自己认为"鼠标在哪儿" —— 锁鼠标时用来分辨"这一下是人手还是剧本" */
   var guidePos = { x: -1, y: -1 };
 
@@ -92,7 +103,13 @@
     docEl.classList.remove("home-boot");
     docEl.classList.add("home-dark");        /* 底衬:机身两侧的透光也压黑,见 tablet.css */
     tablet.classList.remove("is-scan");
+    /* ★★★ 顺序有讲究:必须先挂 .is-dark,再让平板"入场"。
+       反过来的话(先 is-on 再 is-dark)平板会带着 opacity 0 → 1 的入场过渡
+       淡进来,中间那 260ms 里快捷控制卡片(音量滑条)会跟着露一下脸 ——
+       这正是用户第三轮报的"刚进页面时音量滑块莫名其妙出现"。
+       is-dark 那条 CSS 已经把入场过渡关掉了,所以先挂它就等于"一上来就是全黑"。 */
     tablet.classList.add("is-dark");
+    if (window.__tabletOpen) window.__tabletOpen(true);
     /* ★ 一进来就黑屏,那 EDGE 上的扫描遮罩要扫一下 —— 用户说的"初始化"
        本身也是一个动作,不扫的话像是页面没加载出来。 */
     void tablet.offsetWidth;
@@ -171,35 +188,100 @@
       try { el.dispatchEvent(new MouseEvent("mouseout", { bubbles: true, relatedTarget: document.body })); } catch (e) { }
     }
     snapNow = null;
+    window.__mcScript = null;
+  }
+
+  /* ============================================================
+     磁吸:用【剧本矩形】驱动那个真扫描框(magnetic-cursor.js 的 __mcScript)
+     ─────────────────────────────────────────────────────────────
+     用户第三轮:"扫描框的动画,确实移动了,但是扫描框没有磁吸上去,
+                要的是这个磁吸的效果。"
+     为什么光派发合成事件不行:
+       · 合成 mouseover 只对【真有 DOM 元素】的地方有效 —— 而引导里
+         "吸附到整块平板""吸附到 CD 轮盘那一带"根本没有元素可指;
+       · 就算有元素,框的尺寸是 tick 里按"目标尺寸的 16%"平滑逼近的,
+         小按钮上框比按钮大一圈、大区域上又几乎看不出来 ——
+         读起来就是"框飘过去了,没吸住"。
+     ⇒ 剧本直接给出框最终该在的矩形(位置 + 宽高),cursor 那边就不再自己算。
+       ★ 缓动保留:吸的过程要看得见(约 260ms),不是一帧到位。
+       ★ 只覆盖位置与尺寸,角线/渐变/发光那些美术参数一个都不动。
+     ============================================================ */
+  function scriptSnap(left, top, w, h) {
+    var cx = Math.round(left + w / 2), cy = Math.round(top + h / 2);
+    /* 先把真实指针"搬"到目标中心:mouseover 会设上 target,
+       于是"锁定态"的判断(停止抖动、转正)和手玩时完全一致。 */
+    guidePos.x = cx; guidePos.y = cy;
+    try {
+      window.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, clientX: cx, clientY: cy }));
+      window.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, clientX: cx, clientY: cy }));
+    } catch (e) { }
+    var el = document.elementFromPoint(cx, cy);
+    if (el && el.dispatchEvent) {
+      try { el.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, clientX: cx, clientY: cy })); } catch (e) { }
+    }
+    window.__mcScript = { x: cx, y: cy, w: Math.round(w), h: Math.round(h) };
+    /* ★ 给视线用的矩形用 left/top/width/height —— 和 getBoundingClientRect() 同构,
+       这样 lookAtRect 里那套算式不用改名字(见 frameRect 的声明处)。 */
+    frameRect = { left: Math.round(left), top: Math.round(top), width: Math.round(w), height: Math.round(h) };
   }
 
   /* snap 的三种形态:
-       ".sel"      —— 真元素:量它的框,停在中心(扫描框自己会磁吸上去)
-       "region:x"  —— 大致范围:同上,但框是算出来的
-       "clear"     —— 松开目标 */
-  var basePad = (typeof window.__mcPad === "number") ? window.__mcPad : null;
+       ".sel"      —— 真元素:量它的框,框贴着它(外扩 2px)
+       "region:x"  —— 大致范围:矩形的四边就是框的四边
+       "clear"     —— 松开目标
+     ★★ frameRect(视线每帧跟着的那个矩形)只在文件上面声明一次,这里不再写。 */
 
   function snap(spec) {
     if (!spec || spec === "clear") { clearTarget(); return; }
     if (spec.indexOf("region:") === 0) {
-      var key = spec.slice(7);
-      /* ★ "整块平板"那一格:外扩要【往内收】。按 magnetic-cursor 默认的
-         16% / PAD 算,一整块屏的外扩只有十来像素,框读起来还是"小小一个";
-         引导说的是"吸附到整个平板页面",框就该贴着玻璃四边。 */
-      window.__mcPad = (key === "tablet-all") ? -6 : (basePad === null ? 10 : basePad);
-      var r = regionRect(key);
-      moveTo(Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2));
+      var r = regionRect(spec.slice(7));
+      if (!(r.width > 1 && r.height > 1)) return null;   /* 量不到就别写 NaN,见 refreshSnap */
+      scriptSnap(r.left, r.top, r.width, r.height);
       snapNow = null;
-      return;
+      return null;
     }
-    if (basePad === null) window.__mcPad = 10; else window.__mcPad = basePad;
     var el = document.querySelector(spec);
     if (!el) return;
-    var c = centerOf(el);
-    moveTo(c.x, c.y);
+    var b = el.getBoundingClientRect();
+    if (!(b.width > 0 || b.height > 0)) return null;
+    scriptSnap(b.left - 2, b.top - 2, b.width + 4, b.height + 4);
     snapNow = el;
     return el;
   }
+
+  /* ★★★ 重新量一遍当前吸附目标,并把剧本矩形刷成最新值。
+     为什么必须有这一条(实测踩过):量一次就钉死是不行的 ——
+     · CD 架拉出来的那一刻,整台机器还在 550ms 的平移里,
+       那时量到的 #rack-insert 位置是【移动前】的;
+     · 平板的玻璃窗口(frame-fit)也是在首帧之后才量出来的。
+     于是框会停在"旧坐标"上,和按钮错开几十上百像素 ——
+     用户看到的正是"扫描框没有磁吸上去"。
+     ⇒ 每一帧重算:框跟着目标走,而磁吸的缓动让这个过程仍然像"吸",
+       不像"瞬移"。 */
+  var lastSnapSpec = null;
+  function refreshSnap() {
+    if (!lastSnapSpec) return;
+    var r;
+    if (lastSnapSpec.indexOf("region:") === 0) {
+      r = regionRect(lastSnapSpec.slice(7));
+      /* ★★★ 平板是 hidden 的时候 getBoundingClientRect() 全是 0 ——
+         regionRect 会算出 NaN,而 NaN 一写进 __mcScript,那个框【就再也不动了】
+         (它每帧都被刷新成 NaN,连"磁吸到整块平板"都做不到)。
+         实测踩过:region 那几拍全部僵硬在屏幕中心,而看元素的几拍(下滑栏、
+         CD 架按钮)是好的 —— 因为那些元素量得到真实坐标。
+         ⇒ 量不到(宽或高为 0)就【这一帧不刷】,保留上一次有效值。 */
+      if (!(r.width > 1 && r.height > 1)) return;
+      scriptSnap(r.left, r.top, r.width, r.height);
+      return;
+    }
+    var el = document.querySelector(lastSnapSpec);
+    if (!el) return;
+    var b = el.getBoundingClientRect();
+    if (!(b.width > 0 || b.height > 0)) return;
+    scriptSnap(b.left - 2, b.top - 2, b.width + 4, b.height + 4);
+    snapNow = el;
+  }
+  function setSnapSpec(spec) { lastSnapSpec = spec; }
 
   /* ------------------------------------------------------------
      三、锁鼠标 / 锁滚轮
@@ -277,11 +359,65 @@
           return;
         }
         var ch = text.charAt(i - 1);
-        /* 标点之后多停一拍 —— 一口气打完像机器,不像人在说话 */
-        var d = TYPE_MS * (/[。!?.,:;、,.]/.test(ch) ? 5 : 1);
-        typing = setTimeout(tick, d);
+        typing = setTimeout(tick, charDelay(text, i - 1));
       })();
     });
+  }
+
+  /* ============================================================
+     语速:让"打字"读起来像一个人在说话,而不是复读机
+     ─────────────────────────────────────────────────────────────
+     用户第三轮:"语速,按照你的理解把文本出现的速度改一下,现在一是太快
+                二是匀速,有些句子里面两句话是连着出的,还有像……,哦,
+                这些明显需要停顿的没有表现出来,像个真AI复读机一样。"
+
+     三件事:
+       ① 基础速度慢下来(42ms/字 → 58ms/字),太快了来不及读;
+       ② 【标点】给足停顿,而且长度分档 —— 逗号一小口、句号一口、
+          "……"和不齐的省略号是真正的迟疑(最长):
+            逗号/顿号     ~150ms
+            句号/问号/叹号 ~330ms
+            冒号          ~240ms(后半句要来了)
+            省略号(……)  ~620ms(迟疑)
+            破折号        ~260ms
+       ③ 【换气】:一句话里的第二个分句起头稍微压一下,不要"哒哒哒哒"一串
+          同一个速度冲到底 —— 人说话每个小句的起头都会重来一次。
+     ★ 所有停顿都是【附加在字与字之间】的,不改字本身出现的顺序。
+     ============================================================ */
+  /* ★★ 数值是【量出来的】(探针 .tmp/check-pace.mjs 打印每个字之间的间隔):
+     原表是按 42ms/字 调的,基础速度提到 58ms 之后同一个表就"过重"了 ——
+     实测逗号 214ms、冒号 235ms,加上字本身的 60ms 就是 270~300ms,
+     一串"代号:ECHOM_D29_Z68J521,……"读起来一顿一顿的。
+     ⇒ 标点只做"轻微收一下",真正的重音留给省略号。
+     目标节奏(实测):普通字 45~95ms,逗号 ~150ms,句号 ~380ms,省略号 ~560ms。 */
+  var PUNCT = {
+    "。": 300, "!": 300, "?": 300, "?": 300, "!": 300,
+    ",": 90, "、": 90, ";": 100, ";": 100,
+    ":": 130, ":": 130,
+    "…": 240,          /* 单个省略号点;连着的"……"只算一次(见下面的跳过) */
+    "-": 120, "—": 170,
+    ")": 80, ")": 80, "」": 110, "”": 110
+  };
+  var BREATH = 90;     /* 分句起头的换气(轻一点:重音交给标点) */
+
+  function charDelay(text, i) {
+    var base = TYPE_MS;
+    var ch = text.charAt(i);
+    var d = base + (Math.random() * base * 0.45);     /* ±45% 的抖动:匀速最像机器 */
+    var p = PUNCT[ch];
+    if (p) d += p;
+    if (i > 0) {
+      var prev = text.charAt(i - 1);
+      /* ★★ 连续的省略号点只算【一次】迟疑:
+         "……" 是两个 U+2026,按表走就是 2 × 240 = 480ms 的停顿,
+         读起来是"卡了两下"。真正的迟疑只需要一个明显的空档。 */
+      if (ch === "…" && prev === "…") d = base + 60;
+      if (prev === "," || prev === "、" || prev === ";" || prev === ":" || prev === "—") d += BREATH;
+      /* ★ 代号里的字符是一串"一个词":ECHOM_D29_Z68J521 要是按基础速度
+         一个字一个字蹦,那一句要读十几秒,而且没有语义停顿可言 ⇒ 压快。 */
+      if (/[A-Za-z0-9_]/.test(ch) && /[A-Za-z0-9_]/.test(prev)) d = Math.max(14, base * 0.30);
+    }
+    return d;
   }
 
   /* ------------------------------------------------------------
@@ -331,15 +467,16 @@
         snap: "#intro-toggle",
         unlock: true,
         gaze: "scan",
-        text: "按下它。"
+        text: "按下它。",
+        /* ★ 让用户自己按(用户第三轮:"按下按钮并不是自动按,是让用户自己按") */
+        press: "#intro-toggle"
       }),
 
-      /* —— 按下 → 进 CD 页 → 眼睛转到右侧三分之一 —— */
+      /* —— 按下 → 进 CD 页 → 眼睛横过来、缩到右侧那一格 —— */
       step({
         label: "进入 CD 页",
-        click: "#intro-toggle",
-        dock: true,
-        wait: reduced ? 500 : 3000
+        dock: 90,            /* 90 = 换格 + 转 90°(用户第三轮要的"横着看") */
+        wait: reduced ? 500 : 2600
       }),
       step({ label: "引擎内容", snap: "region:rack-info", text: "这是引擎的内容。" }),
       step({ label: "CD 区", snap: "region:rack-discs", text: "你的滤网协议还挺有意思?" }),
@@ -353,9 +490,12 @@
         snap: "#rack-insert",
         unlock: true,
         unlockWheel: true,
-        text: "按下,进入第一次校准。"
-      }),
-      step({ label: "按下插入", click: "#rack-insert", wait: 900, finish: true })
+        text: "按下,进入第一次校准。",
+        /* ★ 最后一次也是【让用户自己按】—— 按下去之后一切恢复正常,
+           这一步是引导的出口,更不该代劳。 */
+        press: "#rack-insert",
+        finish: true
+      })
     ];
   }
 
@@ -383,13 +523,23 @@
     eye.start(true);
   }
 
-  function eyeDock() {
-    /* 用户:"把眼睛转个向并缩小放到右侧三分之一的平板屏幕上。"
-       ★★★ 这一格的分母是【玻璃窗口的宽】,不是视口的宽;而机器一打开,
-          平板只露出最左边那一截 —— 所以"右三分之一"要落在
-          [可见区右边界 − 玻璃宽/3, 可见区右边界] 这一小段里,
-          再往左让开金属框。第一版写的是 left:auto/right:0/width:33vw
-          (视口右边三分之一),整只眼睛压在 CD 盘面上(截图里就是)。 */
+  /* ============================================================
+     眼睛换格 + 转向(进 CD 页之后)
+     ─────────────────────────────────────────────────────────────
+     用户第三轮:"这个眼睛要转向90°,放到右侧,就像横着看一样。
+                而你只是缩小了一下就放上去了。"
+
+     ★★★ 参数名【不能】叫 rotate —— 它会把这个文件里那个 rotate 函数遮住。
+     踩过两次,都是同一类错:
+       ① `function eyeDock(rotate)` 里写 `if (rotate) eye.rotate(90)` ——
+          参数把这个文件的 rotate 函数遮住了,`eye.rotate` 拿到的是那个参数
+          (数字),调用它直接 TypeError;
+       ② 改完参数名,判据又写成 `wantTilt === true`,而这一拍传进来的是 90 ——
+          `90 === true` 是 false,于是【永远不转】,而且一声不响。
+     ⇒ 判据写成"数字且非零":只要给了角度就转,传 0 就是不转。
+     ============================================================ */
+  function eyeDock(wantTilt) {
+    var tilt = (typeof wantTilt === "number" && wantTilt) ? wantTilt : 0;
     eyeHost.classList.add("is-docked");
     if (!eye) return;
     setTimeout(function () {
@@ -398,17 +548,52 @@
       var winR = cssPx("--ff-win-right", vw * 0.05);
       var glassW = Math.max(320, vw - winL - winR);
       var r = tablet.getBoundingClientRect();
-      /* 平板此刻的可见右边界(scene 打开后它被推到右边,只露一截) */
       var visR = Math.min(r.right || vw, vw);
       if (!(visR > 80)) visR = vw * (1 - 0.34);          /* 量不到就按"露出 34%"兜底 */
 
-      var eyeW = glassW / 3;                              /* 玻璃宽的三分之一 */
-      var hostW = Math.max(140, Math.round(eyeW * 1.06));
-      var hostH = Math.max(120, Math.round(vh * 0.70));
-      var left = Math.max(winL + 8, visR - hostW - 8);
+      var third = glassW / 3;                             /* 玻璃宽的三分之一 */
+      if (tilt) eye.rotate(tilt);
+      /* 旋转后:宿主宽 = 眼睛的"高",宿主高 = 眼睛的"宽" —— 换过来给 */
+      var hostW = Math.max(120, Math.round(third * 1.02));
+      var hostH = Math.max(200, Math.round(vh * 0.78));
+      var left = Math.max(winL + 6, visR - hostW - 6);
       eye.anchor(left, (vh - hostH) / 2, hostW, hostH);
-      eye.fitTo(hostW * 0.98, hostH * 0.98);
+      if (tilt) eye.fitTo(hostH * 0.98, hostW * 0.92);     /* 参数是【转之前的】宽高 */
+      else eye.fitTo(hostW * 0.98, hostH * 0.98);
     }, reduced ? 0 : 570);
+  }
+
+  /* 眼睛整体的朝向(度)。0 = 正常横着看前方;90 = 横过来(用户第三轮要的) */
+  function eyeTilt(deg) {
+    if (!eye || !eye.rotate) return;
+    eye.rotate(deg);
+  }
+
+  /* 视线每帧跟着扫描框。
+     ★ 为什么要每帧:.lookAt 给的是"指向那个元素"的方向,而框是在缓动移动的
+       —— 只在换拍时算一次的话,瞳孔会在框还没到位时就跳到终点。
+       每一帧跟着框当前位置算,读起来就是"眼睛一路盯着它走"。
+     ★ 只在 gazeMode === "scan" 时跑;那一句"看向屏幕正中央"由 centerGaze 接管。 */
+  function followLoop() {
+    if (!playing) return;
+    requestAnimationFrame(followLoop);
+    window.__followTicks = (window.__followTicks || 0) + 1;
+    refreshSnap();                       /* ★ 每一帧重新量目标:机器在平移/玻璃在贴合 */
+    if (gazeMode !== "scan" || !eye) return;
+    if (frameRect) lookAtRect(frameRect);
+  }
+
+  function lookAtRect(p) {
+    var vw = window.innerWidth, vh = window.innerHeight;
+    var cx = p.left + p.width / 2, cy = p.top + p.height / 2;
+    /* 和 ascii-eye 里 lookAt 同一套归一化:相对【视口中心】的方向 */
+    var gx = ((cx - vw / 2) / (vw / 2)) * 1.25;
+    var gy = ((cy - vh / 2) / (vh / 2)) * 1.25;
+    /* ★ 防御:NaN 一旦传进 setGaze,眼睛就【永远不动】而且不报错。
+       这里咬一口:任何一个数不是有限值就整帧不动(保留上一帧的视线)。 */
+    if (!isFinite(gx) || !isFinite(gy)) return;
+    window.__lastGaze = { gx: Math.round(gx * 1000) / 1000, gy: Math.round(gy * 1000) / 1000, rect: [Math.round(p.left), Math.round(p.top), Math.round(p.width), Math.round(p.height)] };
+    eye.setGaze(gx, gy);
   }
 
   function runStep(s, i) {
@@ -420,44 +605,169 @@
     if (s.unlockWheel) lockWheel(false);
 
     if (s.snap) {
+      setSnapSpec(s.snap);
       var t = snap(s.snap);
-      if (eye && s.gaze !== "center") {
-        if (t) eye.lookAt(t); else eye.centerGaze();
-      }
+      snapTarget = t || null;
+      /* ★★ 视线【始终】跟着扫描框(用户第三轮:"眼睛是始终要跟扫描框的,
+         只有一句台词需要看向屏幕中央")。
+         所以这里不再逐拍设置视线,而是交给"每一帧跟着框"那条循环
+         —— 框在缓动、在换位置,瞳孔就一路跟着走,而不是一步跳到位。 */
+      gazeMode = "scan";
     }
-    if (s.gaze === "center" && eye) eye.centerGaze();
-    if (s.gaze === "scan" && eye && snapNow) eye.lookAt(snapNow);
+    if (s.gaze === "center") { gazeMode = "center"; if (eye) eye.centerGaze(); }
+    if (s.gaze === "scan") gazeMode = "scan";
     if (s.eye === "reveal") eyeReveal();
-    if (s.click) {
-      var btn = document.querySelector(s.click);
-      if (btn) {
-        try {
-          btn.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
-        } catch (e) { }
-      }
-    }
+    if (s.tilt !== undefined) eyeTilt(s.tilt);
     if (s.dock) {
-      /* 点下去之后 CD 架要 550ms 才滑到位,眼睛在这一拍里换格 */
-      setTimeout(eyeDock, reduced ? 30 : 620);
+      /* 用户按下之后 CD 架要 550ms 才滑到位,眼睛在这一拍里换格 + 转向 */
+      setTimeout(function () { eyeDock(s.dock); }, reduced ? 30 : 620);
     }
 
-    if (s.text) {
-      return typeLine(s.text).then(function () { return sleep(afterLine); });
+    /* ★ 要按的、要说的,都按【先按后说】的顺序排好再跑 */
+    var tasks = [];
+    if (s.press) {
+      /* ★★★ "按下"改成【让用户自己按】(用户第三轮:
+         "按下按钮并不是自动按,是让用户自己按")。
+         原来这里 dispatch 一个合成 click 就替用户按了 —— 引导不该代劳。 */
+      tasks.push(function () { return waitForUser(s.press); });
     }
-    /* 没有台词的步骤:光等(每步都再给一拍,让扫描框吸稳) */
-    return sleep(gate(s.wait || 0)).then(function () { return sleep(settleMs); });
+    if (s.text) {
+      tasks.push(function () { return typeLine(s.text).then(function () { return sleep(afterLine); }); });
+    }
+    if (!tasks.length) {
+      /* 没有台词的步骤:光等(每步都再给一拍,让扫描框吸稳) */
+      tasks.push(function () { return sleep(gate(s.wait || 0)).then(function () { return sleep(settleMs); }); });
+    }
+    var p = Promise.resolve();
+    tasks.forEach(function (fn) { p = p.then(fn); });
+    /* 现场读数:每一步的起止时刻 —— 这一段的时序错一点都很难从截图上看出来,
+       留着它(而不是只活在排查时)才查得动下一次的问题。 */
+    window.__stepInfo = window.__stepInfo || {};
+    window.__stepInfo[i] = { label: s.label || "", tasks: tasks.length, at: Math.round(performance.now()) };
+    p.then(function () { window.__stepInfo[i].end = Math.round(performance.now()); },
+      function (e) { window.__stepInfo[i].rej = String((e && e.message) || e); });
+    return p;
+  }
+
+  /* ============================================================
+     等用户自己按下某个按钮
+     ─────────────────────────────────────────────────────────────
+     用户第三轮:"按下按钮并不是自动按,是让用户自己按"。
+
+     ★★★ 判据用【状态】,不是"有没有接到那次 click"。
+     为什么(实测踩了很久):靠 document 上的一次性监听去抓那一下点击,
+     在某些路径下抓不到 —— 鼠标事件确实到了页面上(用 CDP 派发真事件验过:
+     pointerdown/mousedown/pointerup/mouseup/click 五个都到了 document),
+     但引导自己的那份监听就是没触发,于是"用户明明按了,引导还在等",
+     最后靠 12 秒兜底才过去。这类"监听没接到"的 bug 极难复现也极难证明。
+
+     ⇒ 改成查【那个动作到底生效了没有】:
+         · CD 架按钮  → body.scene-open 出现
+         · 插入按钮   → cd-busy 事件(cd3d 确认插入开始)
+       两个都是"结果",不依赖事件怎么冒泡、从哪个元素上按的、
+       甚至用户是点按钮还是点它里面的那个 svg —— 一律成立。
+
+     ★ 兜底:12 秒还没按就自己过去 —— 不能把用户永远卡在引导里出不去。
+     ============================================================ */
+  function makeWaiter(sel) {
+    if (sel === "#intro-toggle") {
+      return {
+        done: function () { return document.body.classList.contains("scene-open"); },
+        watch: null
+      };
+    }
+    if (sel === "#statusbar-toggle") {
+      return {
+        done: function () { return document.body.classList.contains("tablet-open"); },
+        watch: null
+      };
+    }
+    if (sel === "#rack-insert") {
+      /* 插入是 cd3d 的异步流程:它一开始就广播 cd-busy(true) */
+      var started = false;
+      return {
+        done: function () { return started; },
+        watch: function (arm) {
+          if (arm) document.addEventListener("cd-busy", function (e) {
+            if (e && e.detail === true) started = true;
+          });
+        }
+      };
+    }
+    /* 其它元素:退回"点到它就算"(这类没有状态可查) */
+    return {
+      done: function () { return false; },
+      watch: function (arm) { },
+      fallbackSel: sel
+    };
+  }
+
+  function waitForUser(sel) {
+    lock(false);
+    lockWheel(false);
+    var el = document.querySelector(sel);
+    if (!el) return sleep(200);
+    var w = makeWaiter(sel);
+    if (w.watch) w.watch(true);
+    /* 用户可能在提示出现之前就按过了 */
+    window.__pressState = { sel: sel, at: Math.round(performance.now()), hit: 0, done: 0, pre: w.done() };
+    if (w.done()) return Promise.resolve();
+    return new Promise(function (resolve) {
+      var t0 = performance.now();
+      var poll = 0;
+      /* ★★★ var poll 必须先声明、finish 里再防御一次:
+         原来写的是 `var finish = function(){ … clearInterval(poll) … }`
+         紧接着 `var poll = setInterval(…)` —— 定时器回调触发时 poll【已经】赋值,
+         看起来没问题;但 finish 一旦在赋值之前被调用(同步路径),
+         `clearInterval(poll)` 读的是【暂时性死区】里的 poll ⇒ ReferenceError
+         抛在定时器/Promise 回调里 ⇒ 不冒泡到控制台,而 resolve() 那行
+         永远走不到 ⇒ 整条引导链在这里【静默卡死】。
+         实测症状就是:用户明明按了按钮、CD 架也开了,引导还停在"按下它"
+         (这一步卡了整整一轮排查)。⇒ 声明提前 + try/catch 兜底。 */
+      var finish = function (why) {
+        if (window.__pressState.done) return;
+        window.__pressState.done = 1;
+        window.__pressState.why = why;
+        try { if (poll) clearInterval(poll); } catch (e) { }
+        resolve();
+      };
+      /* ★ 兜底 60 秒:不是"等不及"的兜底,是"用户走开了"的兜底 ——
+         这一步是引导的出口,用户可能真的去干别的了。
+         (原来写 12 秒:正常读一句台词就要五六秒,12 秒很容易被误判成超时。) */
+      poll = setInterval(function () {
+        var now = performance.now();
+        var isDone = false;
+        try { isDone = w.done(); } catch (e) { window.__pressState.err = String(e && e.message || e); }
+        window.__pressState.ticks = (window.__pressState.ticks || 0) + 1;
+        window.__pressState.el = Math.round(now - t0);
+        window.__pressState.saw = isDone;
+        if (isDone) { window.__pressState.hit++; finish("state"); return; }
+        if (now - t0 > 60000) finish("timeout");
+      }, 60);
+    });
   }
 
   function play() {
     if (playing) return Promise.resolve();
     playing = true;
     skipping = false;
+    gazeMode = "scan";
+    playStart = performance.now();
+    followLoop();                        /* 视线每帧跟着扫描框 */
     var list = steps();
     var p = Promise.resolve();
     list.forEach(function (s, i) {
       p = p.then(function () {
-        if (skipping && !s.click) { /* 跳过时仍然执行"按下"那一类动作 */ return null; }
-        return runStep(s, i);
+        if (skipping) { /* 跳过时"要用户按"的那两拍也别等了 */ return null; }
+        /* ★★ 每一步都包一层 catch:一步里抛异常(比如某个 API 名字写错)
+           会让整条 Promise 链【静默死掉】—— 引导停在那儿,没有异常抛出到
+           控制台,截图上看就是"不走了"。实测踩过一次(ReferenceError:
+           basePad is not defined),查了很久。包一层至少留个记录、继续往下走。 */
+        return runStep(s, i).catch(function (e) {
+          window.__guideError = (window.__guideError || []).concat(
+            ["step " + i + " (" + (s.label || s.text || "") + "): " + ((e && e.message) || e)]);
+          console.error("[home-guide] 第 " + i + " 步出错:", e);
+        });
       });
     });
     return p.then(function () {
@@ -469,9 +779,10 @@
   function finishGuide() {
     lock(false);
     lockWheel(false);
-    /* 扫描框还原成"平时的样子":自转倍率与外扩都归位 */
+    /* 扫描框还原成"平时的样子":自转倍率归位;剧本矩形撤掉 */
     window.__mcSpinScale = 1;
-    if (basePad !== null) window.__mcPad = basePad;
+    window.__mcScript = null;
+    lastSnapSpec = null;
 
     /* ★★★ 收尾要把【平板本身】关掉,而且【必须把黑屏状态摘掉】。
        这两件事缺一不可,两个都踩过:
@@ -506,25 +817,33 @@
     window.__guideDone = true;
   }
 
-  /* 跳过:按任意键 / 点一下。
-     ★ 不直接结束 —— 当前这句立刻打完,剩下的步骤快进,但
-       【"按下"那一类动作照旧执行】(否则用户会被留在 CD 页上不知道发生了什么,
-       而且平板还在黑屏状态)。 */
+  /* ============================================================
+     跳过
+     ─────────────────────────────────────────────────────────────
+     ★★★ 触发条件不能是"任意 pointerdown"。踩过:
+       引导说"按下它"、让用户去按 CD 架按钮 —— 用户按下时产生的 pointerdown
+       被这条监听当成"我要跳过",于是 skipping 一置真,
+       【后面所有步骤连跑都不跑】(play 的链里 `if (skipping) return null`)。
+       症状极具迷惑性:用户按了按钮、CD 架也开了,引导却停在原地不动。
+     ⇒ 只有【键盘】算数(空格/回车/Esc)。鼠标不要参与:
+       引导里要按的按钮本来就有两处,不能把"按它"读成"跳过它"。
+     ★ 另外给它一个"冷静期":刚进一拍的前 400ms 不吃跳过,
+       免得连点两下时第二下误触。
+     ============================================================ */
+  var playStart = 0;
   function skip() {
     if (!playing || skipping) return;
+    if (performance.now() - playStart < 400) return;
     skipping = true;
     clearTimeout(typing);
     typeDone = true;
     consoleEl.classList.add("is-typed");
   }
-  document.addEventListener("keydown", function () {
+  document.addEventListener("keydown", function (e) {
     if (!playing) return;
+    if (e.key !== " " && e.key !== "Enter" && e.key !== "Escape") return;
     skip();
   });
-  document.addEventListener("pointerdown", function () {
-    if (!playing) return;
-    skip();
-  }, true);
 
   /* ------------------------------------------------------------
      七、起来

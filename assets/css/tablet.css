@@ -586,18 +586,46 @@ html.home-dark .tablet-backdrop { display: block; }
 html.home-dark,
 html.home-dark body { background: #000; }
 
-/* ② 平板黑屏。★ 不写 transition:它和 .is-on 的 opactiy 过渡会打架,
-   黑屏是"开机就黑",不该有淡入(淡入时会看到底下 CD 页一秒)。 */
+/* ② 平板黑屏。
+   ★★★ 用户第三轮:"刚进入页面时,这个音量滑块会莫名其妙出现在屏幕上。"
+   逐帧量出来的真因(探针 .tmp/why-volume.mjs):
+     t=3701ms  tablet 类 = "is-on"          opacity 正在 0 → 1 的过渡中
+     t=3755ms  tablet 类 = "is-on is-dark is-scan"
+     那一刻平板的 opacity 只有 0.047 —— 也就是说【它是"半透明地"出现的】,
+     于是里面的快捷控制卡片(音量滑条)在还没变黑之前,先跟着淡入露了一下脸。
+   根因是两条过渡撞在一起:
+     · .tablet 自己有一条 opacity .26s 的入场过渡(平板主界面的转场,要留);
+     · 开机是"先让平板出现,再挂 .is-dark",中间那 260ms 就是漏光窗口。
+   ⇒ 黑屏态【取消入场过渡】:它是"开机就黑",不该有淡入;
+     而且黑屏这一刻 opacity 直接就是 1,没有中间值可以漏。 */
 .tablet.is-dark {
     background: #000;
     opacity: 1;
     transform: none;
     color: transparent;
+    transition: none;
 }
 
-/* 黑屏期间平板自己的内容一律不画(也顺手不接收指针) */
-.tablet.is-dark > *:not(.home-eye):not(.home-console) {
-    visibility: hidden;
+/* 黑屏期间平板自己的内容一律不画(也顺手不接收指针)。
+   ★★★ 这里【必须】用后代选择器,不能只写 `> *`。
+   CSS 的 visibility 是"子元素可以【反向覆盖】祖先"的:hidden 的祖先里,
+   只要有一个后代自己写着 visibility:visible,它就照样显示。
+   而这个平板上正好有这么一条 —— tablet.css 里把 .tablet__controls 里的
+   .volume-panel 从"悬停弹出"改成了【常驻】,写的就是 visibility:visible。
+   于是:黑屏时平板主体被隐藏了,那条音量滑块却自己顶出来(用户第三轮报的
+   "刚进页面时音量滑块莫名其妙出现")。实测踩过两次,第一次只改成 `> *` 没管用。
+   ⇒ 写成后代选择器 + !important:黑屏期间一个后代都不许反向覆盖;
+     只有引导层两个元素用 id 点名放行。 */
+.tablet.is-dark,
+.tablet.is-dark * {
+    visibility: hidden !important;
+}
+
+.tablet.is-dark #home-eye,
+.tablet.is-dark #home-eye *,
+.tablet.is-dark #home-console,
+.tablet.is-dark #home-console * {
+    visibility: visible !important;
 }
 
 /* ③ 扫描遮罩:一道竖向亮带从平板左侧扫到右侧,扫完自己撤掉 */

@@ -215,6 +215,21 @@
     var hasPointer = false;
     var forceGaze = opt.gaze === "fixed";   /* true = 不跟鼠标,只认 setGaze */
 
+    /* ★★★ rotate(deg):把整只眼睛转过去(用户第三轮:
+       "这个眼睛要转向90°,放到右侧,就像横着看一样")。
+       转的是【宿主 + 里面那只 <pre>】这一整块,不是换一套几何 ——
+       眼睛还是同一只眼睛,只是被转了 90°。
+       ★ transform-origin 放中心:转完仍然以宿主中心为家,
+         anchor() 给的 left/top 不用跟着改。 */
+    var tilt = 0;
+    function rotate(deg) {
+      tilt = +deg || 0;
+      var host = pre.parentNode;
+      if (!host) return;
+      host.style.transformOrigin = "50% 50%";
+      host.style.transform = tilt ? "rotate(" + tilt + "deg)" : "";
+    }
+
     function fromPointer(e) {
       if (forceGaze) return;
       var w = window.innerWidth, h = window.innerHeight;
@@ -372,7 +387,12 @@
         tx = Math.max(-1, Math.min(1, tx));
         ty = Math.max(-1, Math.min(1, ty));
       }
-      var kk = blinkOff ? 1 : 0.09;
+      /* ★★★ 收敛速度分两种:
+         · 跟鼠标:0.09/帧 —— 慢一点才像"眼睛跟着看",起步就冲过去很假;
+         · 引导钉住的视线(gaze:'fixed'):0.20/帧 —— 引导说"看向这里"时,
+           瞳孔要在半秒内到位。0.09 太慢:实测给了 800ms 还没走到,
+           用户看到的是"眼睛没跟上来"(第三轮报的"跟人"问题里就有这一半)。 */
+      var kk = blinkOff ? 1 : (forceGaze ? 0.20 : 0.09);
       gz.x += (tx - gz.x) * kk;
       gz.y += (ty - gz.y) * kk;
 
@@ -580,6 +600,7 @@
       resize: measure,
       fitTo: fitTo,
       anchor: anchor,
+      rotate: rotate,
       setGaze: setGaze,
       lookAt: lookAt,
       centerGaze: centerGaze,

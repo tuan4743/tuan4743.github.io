@@ -164,6 +164,27 @@ ok('★★★ 首页那只眼睛【不跟真实鼠标】,只认剧本给的视�
 ok('★★★ 宠物级细节:视线自漂不能把引导钉住的视线带跑',
   /if \(!hasPointer && opt\.drift !== false\)/.test(eyeJs),
   'opt.drift=false 时必须一点都不漂,否则"瞳孔转向屏幕正中央"那一拍会自己往边上跑');
+ok('★★★ 视线每帧跟着框时,矩形字段名必须和读取处一致(写成 x/w 会一路 NaN)',
+  /frameRect = \{ left: Math\.round\(left\), top: Math\.round\(top\), width: Math\.round\(w\), height: Math\.round\(h\) \};/.test(guideJs) &&
+  /var cx = p\.left \+ p\.width \/ 2, cy = p\.top \+ p\.height \/ 2;/.test(guideJs),
+  '★★ 踩过:frameRect 用 x/y/w/h,而 lookAtRect 读 p.left/p.top ⇒ 每次算出来都是 NaN,' +
+  '一路写进 setGaze(NaN, NaN)。症状是"眼睛完全不跟框",而控制台一声不响(NaN 不抛异常)');
+ok('★★★ NaN 不许进 setGaze(它是"眼睛不动"的静默元凶)',
+  /if \(!isFinite\(gx\) \|\| !isFinite\(gy\)\) return;/.test(guideJs),
+  '任何一条算式退化成 NaN,这里就整帧不动、保留上一帧 —— 比传 NaN 强得多');
+ok('★★★ 量不到目标时不许把剧本矩形刷成 null/NaN',
+  /if \(!\(r\.width > 1 && r\.height > 1\)\) return;/.test(guideJs) &&
+  /if \(!\(b\.width > 0 \|\| b\.height > 0\)\) return;/.test(guideJs),
+  '★★ 平板是 hidden 时 getBoundingClientRect() 全是 0,regionRect 会算出 NaN ——' +
+  '用户说的"磁吸到整块平板"那几拍就永远僵在屏幕中心(实测踩过)');
+ok('★★★ 黑屏时隐藏后代要能压住"反向覆盖"(visibility 是子元素可以顶开祖先的)',
+  /\.tablet\.is-dark,\s*\n?\.tablet\.is-dark \* \{\s*\n?\s*visibility: hidden !important;/.test(tcss) &&
+  /\.tablet\.is-dark #home-eye,[\s\S]{0,140}?visibility: visible !important;/.test(tcss),
+  '★★ 用户第三轮:"刚进入页面时这个音量滑块会莫名其妙出现在屏幕上" ——' +
+  '平板上 .volume-panel 被改成常驻时写的就是 visibility:visible,只隐藏祖先压不住它');
+ok('★★★ 黑屏态要关掉入场过渡(0→1 的淡入过程里内容会先露出来)',
+  /\.tablet\.is-dark \{[\s\S]{0,260}?transition: none;/.test(tcss),
+  '★ 实测:挂上 .is-dark 那一刻 opacity 只有 0.047,快捷控制卡片跟着淡入露了一下脸');
 
 /* ---------- ④ 扫描框:用【真的】那个,靠合成事件驱动 ---------- */
 ok('★★★ 扫描框是【真的那个】,靠派发合成事件驱动(不是另画一个假框)',
@@ -184,9 +205,23 @@ ok('★ "锁住鼠标"= 整页不接收真实指针',
 ok('★★ 锁定期间扫描框要"停稳"(自转倍率压下来)',
   /window\.__mcSpinScale = 0\.\d+/.test(guideJs) && /__mcSpinScale/.test(mcJs),
   '以 24°/s 自转的小方块读起来像个转动图标,不像锁定框');
-ok('★★ "整块平板"那一格的外扩要往内收',
-  /window\.__mcPad = \(key === "tablet-all"\) \? -?\d+ :/.test(guideJs) && /__mcPad/.test(mcJs),
-  '用户说的是"吸附到整个平板页面",框就该贴着玻璃四边,而不是小小一个');
+ok('★★★ 扫描框的"吸附"用【剧本矩形】驱动,不是只把指针挪过去',
+  /window\.__mcScript = \{ x: cx, y: cy, w: Math\.round\(w\), h: Math\.round\(h\) \};/.test(guideJs) &&
+  /function scriptBox\(\)/.test(mcJs) &&
+  /var sb = scriptBox\(\);/.test(mcJs) &&
+  /tx = sb\.x; ty = sb\.y; tw = sb\.w; th = sb\.h;/.test(mcJs),
+  '用户第三轮:"扫描框的动画,确实移动了,但是扫描框没有磁吸上去,要的是这个磁吸的效果" ——' +
+  '只派发合成事件的话,目标没有 DOM 元素可指(整块平板/CD 轮盘那一带),框也吸不到位');
+ok('★★★ 吸附矩形要【每一帧重新量】(机器在平移、玻璃在贴合)',
+  /function refreshSnap\(\)/.test(guideJs) &&
+  /refreshSnap\(\);/.test(guideJs) &&
+  /function setSnapSpec\(spec\) \{ lastSnapSpec = spec; \}/.test(guideJs),
+  '★ 量一次就钉死是不行的:CD 架拉出来时整台机器还在 550ms 的平移里,' +
+  '那时量到的按钮位置是移动前的 —— 框会停在旧坐标上,看着就是"没吸上去"');
+ok('★★★ 框要停在目标的【矩形】上,不是落在中心的一个小方块',
+  /scriptSnap\(b\.left - 2, b\.top - 2, b\.width \+ 4, b\.height \+ 4\)/.test(guideJs) &&
+  /scriptSnap\(r\.left, r\.top, r\.width, r\.height\)/.test(guideJs),
+  '沿用的还是锁定框那一套美术(角线/白心/青晕),只是位置与尺寸由剧本给');
 
 /* ---------- ⑤ 台词:逐字打出,而且一句不改 ---------- */
 const LINES = [
@@ -209,13 +244,30 @@ const LINES = [
 const missing = LINES.filter((L) => !guideJs.includes(L));
 ok(`★★★ 十五句台词一字不改(${LINES.length - missing.length}/${LINES.length})`,
   missing.length === 0, missing.length ? '缺:' + missing.join(' / ') : '');
-ok('★★★ 台词是【逐字打出】的,不是整句蹦出来',
+ok('★★★ 台词是【逐字打出】的,而且每个字的间隔不是常数',
   /function typeLine\(text, forceInstant\)/.test(guideJs) &&
   /lineEl\.textContent = text\.slice\(0, i\);/.test(guideJs) &&
-  /typing = setTimeout\(tick, d\);/.test(guideJs),
-  '用户:"对话逐字打出"');
-ok('★ 标点之后多停一拍(一口气打完像机器,不像人在说话)',
-  guideJs.includes("[。!?.,:;、,.]") && /test\(ch\) \? 5 : 1/.test(guideJs));
+  /typing = setTimeout\(tick, charDelay\(text, i - 1\)\);/.test(guideJs) &&
+  /function charDelay\(text, i\)/.test(guideJs) &&
+  /Math\.random\(\) \* base \* 0\.45/.test(guideJs),
+  '用户:"对话逐字打出";第三轮又要求"不要匀速" —— 所以带 ±45% 抖动');
+ok('★★★ 标点分档停顿:句号/问号 > 省略号 > 逗号 > 普通字',
+  (function () {
+    var m = /var PUNCT = \{([\s\S]*?)\};/.exec(guideJs);
+    if (!m) return false;
+    var body = m[1];
+    var num = function (k) { var r = new RegExp('"' + k + '":\\s*(\\d+)').exec(body); return r ? Number(r[1]) : -1; };
+    var ju = num("。"), dou = num(","), mao = num(":"), dian = num("…");
+    return ju > 200 && dou > 40 && dou < 160 && mao > 60 && mao < 200 && dian > 150;
+  })(),
+  '用户第三轮:"还有像……,哦,这些明显需要停顿的没有表现出来" —— 句号要落得下来,逗号只轻轻收一下(不能一顿一顿)');
+ok('★★ 连续的省略号点只算【一次】迟疑',
+  /if \(ch === "…" && prev === "…"\) d = base \+ 60;/.test(guideJs),
+  '…… 是两个 U+2026,按表走就是两次停顿 —— 读起来像卡了两下,不像迟疑');
+ok('★★ 代号里的英数字母要连成一串读(ECHOM_D29_Z68J521 不是一个字一个字蹦)',
+  guideJs.includes("[A-Za-z0-9_]") &&
+  /d = Math\.max\(\d+, base \* 0\.\d+\);/.test(guideJs),
+  '那一串按基础速度一个字一个字蹦要读十几秒,而且没有语义停顿可言');
 ok('★★★ 台词是直接浮在平板上的,【没有对话框】',
   !/\.home-console \{[\s\S]{0,600}?background: linear-gradient/.test(tcss) &&
   !/\.home-console \{[\s\S]{0,600}?border-left:/.test(tcss) &&
@@ -233,6 +285,11 @@ ok('★★ 台词层不能挡住扫描框要落的按钮',
   rule(tcss, ".home-console").includes("pointer-events: none"),
   '它只是字幕 —— 挡住插入按钮的话,引导最后那一下按不下去');
 
+ok('★★★ 视线【始终】跟着扫描框(只有一句看向正中央)',
+  /gaze: "center"/.test(guideJs) && /gazeMode = "scan"/.test(guideJs) &&
+  /function followLoop\(\)/.test(guideJs) && /lookAtRect\(frameRect\)/.test(guideJs),
+  '用户第三轮:"眼睛是始终要跟扫描框的,只有一句台词需要看向屏幕中央"');
+
 /* ---------- ⑥ 顺序:照着用户给的那一串 ---------- */
 const ORDER = [
   ['睁眼', 'eye: "reveal"'],
@@ -240,12 +297,12 @@ const ORDER = [
   ['下滑栏', 'snap: "#statusbar-toggle"'],
   ['CD 架按钮', 'snap: "#intro-toggle"'],
   ['瞳孔转正中央', 'gaze: "center"'],
-  ['按下它', 'unlock: true'],
-  ['进入 CD 页', 'click: "#intro-toggle"'],
+  ['按下它(用户按)', 'press: "#intro-toggle"'],
+  ['进入 CD 页', 'dock: 90'],
   ['引擎内容', 'snap: "region:rack-info"'],
   ['CD 区', 'snap: "region:rack-discs"'],
   ['插入按钮', 'snap: "#rack-insert"'],
-  ['按下插入', 'click: "#rack-insert"']
+  ['按下插入(用户按)', 'press: "#rack-insert"']
 ];
 const positions = ORDER.map(([n, frag]) => [n, guideRaw.indexOf(frag)]);
 const wrongOrder = positions.filter(([, i]) => i < 0);
@@ -258,14 +315,26 @@ ok('★★★ 步骤之间必须【串行】(每一步返回 Promise,链条一�
   /p = p\.then\(function \(\) \{/.test(guideJs) &&
   /return typeLine\(s\.text\)\.then\(function \(\) \{ return sleep\(afterLine\); \}\);/.test(guideJs),
   '并行跑的话台词会互相盖掉,而且"扫到哪儿说到哪儿"的对应关系就没了');
-ok('★★★ 眼睛在进 CD 页之后要【换格并缩小】到右侧三分之一',
-  /dock: true/.test(guideJs) && /function eyeDock\(\)/.test(guideJs) &&
-  /eye\.anchor\(left, \(vh - hostH\) \/ 2, hostW, hostH\)/.test(guideJs) &&
-  /eye\.fitTo\(hostW \* 0\.98, hostH \* 0\.98\)/.test(guideJs),
-  '用户:"由于进入CD页,此时平板就展示了三分之一,所以要把眼睛转个向并缩小放到右侧三分之一的平板屏幕上"');
+ok('★★★ 眼睛在进 CD 页之后要【转向 90°】并缩到右侧那一格',
+  /dock: 90/.test(guideRaw) && /function eyeDock\(wantTilt\)/.test(guideJs) &&
+  /if \(tilt\) eye\.rotate\(tilt\)/.test(guideJs) &&
+  /eye\.anchor\(left, \(vh - hostH\) \/ 2, hostW, hostH\)/.test(guideJs),
+  '用户第三轮:"你没有理解我的意思,这个眼睛要转向90°,放到右侧,就像横着看一样。' +
+  '而你只是缩小了一下就放上去了"');
+ok('★★★ 判据不能写成 === true(传进来的是 90,=== true 恒假 ⇒ 一声不响地不转)',
+  /var tilt = \(typeof wantTilt === "number" && wantTilt\) \? wantTilt : 0;/.test(guideJs) &&
+  !/wantTilt === true/.test(guideJs),
+  '★ 这是同一个坑的第二次:第一次是参数名 rotate 遮住了 rotate() 函数,' +
+  '第二次是判据写成 === true —— 两次都是"不报错,就是不转"');
+ok('★★ 参数名不能叫 rotate(会遮住这个文件里的 rotate 函数)',
+  !/function eyeDock\(rotate\)/.test(guideJs) && /function eyeDock\(wantTilt\)/.test(guideJs),
+  '遮住之后 eye.rotate 拿到的是那个数字参数,调用它直接 TypeError,' +
+  '而异常落在 Promise 链里,表现是"引导停在那一拍不动"');
 ok('★★★ 那一格的分母是【玻璃的宽】,不是视口的宽',
-  /cssPx\("--ff-win-left"/.test(guideJs) && /var glassW = Math\.max\(320, vw - winL - winR\)/.test(guideJs) &&
-  /var eyeW = glassW \/ 3;/.test(guideJs) && /visR - hostW - 8/.test(guideJs),
+  /cssPx\("--ff-win-left"/.test(guideJs) &&
+  /var glassW = Math\.max\(320, vw - winL - winR\)/.test(guideJs) &&
+  /var third = glassW \/ 3;/.test(guideJs) &&
+  /var left = Math\.max\(winL \+ \d+, visR - hostW - \d+\)/.test(guideJs),
   '★★ 第一版写 left:auto/right:0/width:33vw(视口右边三分之一)⇒ 整只眼睛压在 CD 盘面上(截图里就是)');
 ok('★★ 眼睛宿主的位置必须用视口坐标显式给(不能靠 left:auto/right:0)',
   /function anchor\(left, top, width, height\)/.test(eyeJs) &&
@@ -279,6 +348,23 @@ ok('★★★ 上侧下滑栏与 CD 架按钮:锁住鼠标(不允许按下)',
 ok('★★★ "按下它"那一拍要【解锁】(允许按下)',
   /unlock: true/.test(guideJs) && /if \(s\.unlock\) lock\(false\);/.test(guideJs),
   '用户:"按下它(解锁鼠标,允许按下按钮)"');
+ok('★★★ "按下"要【让用户自己按】,不是引导代按',
+  /press: "#intro-toggle"/.test(guideRaw) && /press: "#rack-insert"/.test(guideRaw) &&
+  /function waitForUser\(sel\)/.test(guideJs) &&
+  !/click: "#intro-toggle"/.test(guideRaw) && !/click: "#rack-insert"/.test(guideRaw) &&
+  !/dispatchEvent\(new MouseEvent\("click"/.test(guideJs),
+  '用户第三轮:"按下按钮并不是自动按,是让用户自己按" —— 引导里不该再有替用户按的代码');
+ok('★★★ 等用户按的判据是【状态】,不是"有没有接到那次 click"',
+  /function makeWaiter\(sel\)/.test(guideJs) &&
+  /document\.body\.classList\.contains\("scene-open"\)/.test(guideJs) &&
+  /document\.addEventListener\("cd-busy"/.test(guideJs),
+  '★★ 靠 document 上的一次性监听抓那一下点击实测抓不到(鼠标事件确实到了页面,' +
+  '引导的监听就是没触发),于是"用户明明按了,引导还在等"。改成查结果:CD 架开没开。');
+ok('★★ 跳过不能用【鼠标】触发(那会把"按它"读成"跳过它")',
+  !/document\.addEventListener\("pointerdown", function \(\) \{\s*\n\s*if \(!playing\) return;\s*\n\s*skip\(\);/.test(guideJs) &&
+  /e\.key !== " " && e\.key !== "Enter" && e\.key !== "Escape"/.test(guideJs),
+  '★★★ 踩过:用户按 CD 架按钮时产生的 pointerdown 被当成"我要跳过",' +
+  'skipping 一置真,后面所有步骤连跑都不跑 —— 症状是"按了按钮,引导停在原地"');
 ok('★★★ CD 区域那一拍要【锁滚轮】,下一拍才解',
   /lockWheel: true/.test(guideJs) && /unlockWheel: true/.test(guideJs) &&
   /if \(s\.wheelLock\) lockWheel\(true\);/.test(guideJs) && /if \(s\.unlockWheel\) lockWheel\(false\);/.test(guideJs) &&
@@ -300,9 +386,9 @@ ok('★★★ 收尾必须把平板的黑屏状态摘掉(藏着也会被下次�
   /tablet\.classList\.remove\("is-dark"\);\s*\n\s*if \(window\.__tabletOpen\) window\.__tabletOpen\(false\);/.test(guideJs),
   '★★ 踩过:平板收起了、但 .is-dark 没摘 —— hidden 后面看不出来,' +
   '可引导走完之后从 CD 页再点开平板,看到的是一块【黑屏】(实测:tablet is-dark is-on,主屏不显示)');
-ok('★★★ 鼠标锁与滚轮锁都要解开,自转倍率/外扩都要还原',
+ok('★★★ 鼠标锁与滚轮锁都要解开,剧本矩形与自转倍率都要还原',
   /lock\(false\);/.test(guideJs) && /lockWheel\(false\);/.test(guideJs) &&
-  /window\.__mcSpinScale = 1;/.test(guideJs) && /window\.__mcPad = basePad;/.test(guideJs),
+  /window\.__mcSpinScale = 1;/.test(guideJs) && /window\.__mcScript = null;/.test(guideJs),
   '用户:"按下后就正常了,所有动画结束"');
 ok('★★★ 眼睛要连内容一起清掉(只 stop() 会留下半屏字符)',
   /eye\.stop\(\); eyePre\.textContent = "";/.test(guideJs),
@@ -322,8 +408,8 @@ ok('★★★ 引导【每次进来都播】,不再往 localStorage 写"播过�
   /function shouldPlay\(\) \{ return true; \}/.test(guideJs) &&
   !/localStorage\.setItem\(KEY/.test(guideJs),
   '★ 探针污染过用户的浏览器状态;想跳过的人按任意键即可(skip 那条路照旧在)');
-ok('★ 可以跳过(按任意键 / 点一下),而且跳过后"按下"那一类动作照旧执行',
-  /function skip\(\)/.test(guideJs) && /if \(skipping && !s\.click\)/.test(guideJs),
+ok('★ 可以跳过(键盘),而且跳过之后不再等"要用户按"的那两拍',
+  /function skip\(\)/.test(guideJs) && /if \(skipping\) \{/.test(guideJs),
   '直接结束的话用户会被留在 CD 页上不知道发生了什么,而且平板还在黑屏状态');
 ok('★ 留了排障出口(这一段的时序错一点都很难从截图上看出来)',
   /window\.__guide = function \(\)/.test(guideJs) && /window\.__homeEyeApi = eye;/.test(guideJs));
