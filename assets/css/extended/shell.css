@@ -419,6 +419,21 @@ body.page-out {
     overflow: hidden;
 }
 
+/* ---------- 三之二、引导换场:摘 .page-out 的那一帧不许有"回程" ----------
+   ★★★ 用户第七轮:"动画过程按下进入CD页的按钮,会往左滑,然后突然往右滑又回去,
+     这个往右滑进入数据库是bug"。
+   为什么会有回程:.page-out 把整台机器推到 -100vw,而"到位"就是把这个类摘掉 ——
+   一摘,那三样东西(.scene / .tablet / .statusbar-toggle)就带着各自的 0.55s
+   过渡从 -100vw 滑回原位,看起来就是"又往右滑回去",而且方向正好和
+   "去右边的页面"那条过场一样(所以用户读成"进数据库")。
+   ⇒ 引导摘 .page-out 之前先挂上 html.guide-cut 把过渡按住,让它【瞬间】归位。
+     只在那一帧生效(home-guide.js 的 cutBack 里加/删,中间强制一次 reflow)。 */
+html.guide-cut .scene,
+html.guide-cut .tablet,
+html.guide-cut .statusbar-toggle {
+    transition: none !important;
+}
+
 /* ---------- 四、右边的那些页面(第一批:先给它们"同一个样式") ----------
    ★★ 用户澄清过一次,别再做错:
       · 【底层背景】不跟深浅主题走 —— 永远是同一片星云

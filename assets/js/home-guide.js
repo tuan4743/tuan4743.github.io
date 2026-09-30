@@ -673,7 +673,7 @@
     var glassW = Math.max(320, vw - winL - winR);
     var r = tablet.getBoundingClientRect();
     var visR = Math.min(r.right || vw, vw);
-    if (!(visR > 80)) visR = vw * (1 - 0.34);             /* 量不到就按"露出 34%"兜底 */
+    if (!(visR > 80)) visR = vw - 12;                     /* 量不到就按"右缘贴着视口"兜底 */
     var third = glassW / 3;
     /* ★ 转 90° 之后【宽高互换】,所以"能不能放下"要按【转完的占位】算:
        转完的宽 = 转之前的高,转完的高 = 转之前的宽。
@@ -688,14 +688,85 @@
                  转完的【宽】正好 ≈ 0.70 × 格宽,两侧各留 ~15% 余量。
             宿主格 = (L, L×0.56):转完占位 = (L×0.56, L),落在那一格正中。 */
     if (eye.rotate) eye.rotate(DOCK_TILT);
-    var L = Math.max(220, Math.round(Math.min(vh * 0.62, third * 1.5)));
+    var strip = stripBox(vw, visR);
+    /* L(转完的"长")还要能装进可见条带:转完占的宽 ≈ 0.51×L ⇒ L ≤ 条带宽 × 1.8 */
+    var L = Math.max(220, Math.round(Math.min(vh * 0.62, third * 1.5, strip.w * 1.8)));
     var hostW = L;                                       /* 转之前:宽 */
     var hostH = Math.max(120, Math.round(L * 0.56));     /* 转之前:高 */
-    var cx = Math.min(visR - 12, winL + glassW - 12) - third / 2;   /* 那一格的中心 */
+    var cx = stripCenterX(strip, hostW);
     eye.anchor(cx - hostW / 2, (vh - hostH) / 2, hostW, hostH);
     /* fitTo(boxW, boxH):boxW 定字号+列数(= 画出来的宽,也就是转完的高);
        boxH 只管行数、而且按 86% 落地,所以要把宿主高除回去。 */
     eye.fitTo(hostW, hostH / 0.86);
+  }
+
+  /* ★★★ 用户第七轮:"把侧边显示的眼睛往右边移一点点"。
+     原来按【frame-fit 窗口】的右边三分之一居中 —— 那一格是 [1040, 1520],
+     中心 1280;而平板真正露出来的玻璃是另一块(机身左边那条黑边比 --ff-win-left
+     宽得多)。实测 1600×900:
+       CD 架占 [0, 1056](--rack-w = 66vw),平板露出的条带 = [1056, 1600],
+       其中左边约 23% 是机身黑边、右边约 3%:玻璃 ≈ [1180, 1585],中心 1382。
+       眼睛却摆在 1261 —— 贴着玻璃左缘,右边空一大片(截图里一眼就能看出来)。
+     ⇒ 位置改成按【可见条带】算:
+          眼心 = 条带左 + 条带宽 × 0.60
+        0.60 是量出来的玻璃中心(条带左边 23% 是机身、右边 3%),不是拍的。 */
+  function stripLeftX(vw) {
+    /* ① 首选:CD 架自己的盒子(宿主在 .scene 里,量它最准)。
+       ★ 只在"真的贴住左缘、宽度占了大半屏"时才认 —— page-out 那段时间
+         整台机器在 -100vw,这时量到的是离屏值,必须退回 CSS 变量。 */
+    var rack = document.querySelector(".rack");
+    if (rack) {
+      var r = rack.getBoundingClientRect();
+      if (r.left <= 1 && r.right > vw * 0.2 && r.right < vw * 0.9) return r.right;
+    }
+    /* ② 退回 --rack-w(注意是 66vw 这种【带单位】的值,不能直接 parseFloat) */
+    return cssLen("--rack-w", vw * 0.66);
+  }
+
+  /* 把带单位的 CSS 变量换算成 px。
+     ★ 踩过:用 cssPx() 那种 parseFloat 读 --rack-w: 66vw 会得到 66,
+       眼睛就被算到屏幕最左边去了(实测 ink 中心 986 而不是 1382)。 */
+  function cssLen(name, dflt) {
+    var box = document.createElement("div");
+    box.style.cssText = "position:absolute;left:-9999px;top:0;height:0;pointer-events:none;width:var(" + name + ")";
+    (document.body || docEl).appendChild(box);
+    var w = box.getBoundingClientRect().width;
+    if (box.parentNode) box.parentNode.removeChild(box);
+    return isFinite(w) && w > 1 ? w : dflt;
+  }
+
+  function stripBox(vw, visR) {
+    /* 上界给 0.86 而不是 0.5:窄屏时 --rack-w 会变成 84vw,条带本来就窄,
+       再按 0.5 夹一下就把眼睛推到屏幕中间去了(实测踩过)。 */
+    var l = Math.max(0, Math.min(stripLeftX(vw), vw * 0.86));
+    var r = Math.max(l + 120, Math.min(visR || vw, vw));
+    return { l: l, r: r, w: r - l };
+  }
+
+  function stripCenterX(strip, hostW) {
+    var cx = strip.l + strip.w * 0.60;
+    /* 窄屏兜底:条带比眼睛还窄时,至少把整只眼睛压进条带里(转完占的宽 ≈ 0.56×宿主宽) */
+    var half = hostW * 0.56 / 2;
+    return Math.max(strip.l + 6 + half, Math.min(cx, strip.r - 6 - half));
+  }
+
+  /* ★★★ 用户第七轮:"动画过程按下进入CD页的按钮,会往左滑,然后突然往右滑又回去,
+     这个往右滑进入数据库是bug"。
+     根因:左滑是引导自己挂的 .page-out(.scene 平移 -100vw);而"到位"是【把
+     .page-out 摘掉】—— 一摘,.scene 就带着那条 0.55s 过渡从 -100vw 滑回
+     scene-open 的位置(CD 架那一格),用户看到的就是"又往右滑回去"
+     (而且方向正好和"去右边的页面"那条过场一样,所以他读成"进数据库")。
+     ⇒ 摘 .page-out 之前先把过渡按住(html.guide-cut),让归位【瞬间】完成:
+       左滑是一次性的离场,不该有回程。 */
+  function cutBack() {
+    try {
+      docEl.classList.add("guide-cut");
+      docEl.classList.remove("page-slide");
+      document.body.classList.remove("page-out");
+      void docEl.offsetWidth;            /* 强制重算样式:让"归位"落在同一帧 */
+    } finally {
+      docEl.classList.remove("guide-cut");   /* 万一上面抛了,也不能把过渡永久按住 */
+    }
   }
 
   function runDock() {
@@ -707,7 +778,9 @@
       document.body.classList.add("page-out");
       return sleep(reduced ? 120 : 700);
     }).then(function () {
-      /* ③ 滑完 → 换格 + 转向(此刻眼睛闭着,所以看得到"它转过去了") */
+      /* ③ 滑完 → 【瞬间】归位到 CD 页(没有回程滑行,见 cutBack),
+            然后换格 + 转向(此刻眼睛闭着,所以看得到"它转过去了") */
+      cutBack();
       dockIntoBox();
       return sleep(reduced ? 40 : 620);                   /* 等旋转的 0.55s 过渡落地 */
     }).then(function () {
@@ -726,8 +799,6 @@
       if (eye.openNow) eye.openNow();
       dockIntoBox();
       eyeHost.classList.add("is-on");
-      docEl.classList.remove("page-slide");
-      document.body.classList.remove("page-out");
       return sleep(reduced ? 60 : 380);
     });
   }

@@ -44,6 +44,8 @@ const cd3dJs = noC(rd(`${BH}/assets/js/cd3d.js`));
 const tabletJs = noC(rd(`${BH}/assets/js/tablet.js`));
 const mcJs = noC(rd(`${BH}/assets/js/magnetic-cursor.js`));
 const tcss = noC(rd(`${BH}/assets/css/tablet.css`));
+/* 引导换场那几条过渡写在 extended/shell.css(page-out 那一节)里 */
+const tcssShell = noC(rd(`${BH}/assets/css/extended/shell.css`));
 const icss = noC(rd(`${BH}/assets/css/intro.css`));
 const hugo = rd(`${BH}/hugo.toml`);
 const builtHome = rd(`${WS}/.tmp/t1/home/index.html`);
@@ -385,7 +387,7 @@ ok('★★★ 那一格的分母是【玻璃的宽】,不是视口的宽',
    转完占位 666×490 —— 那一格只有 480 宽,眼睛横过来就顶出去了。
    现在的公式:转完的"长"L ≤ min(屏高 62%, 那一格 × 1.5)。 */
 ok('★★★ 转向 90° 之后眼睛要【缩小】(用户第七轮:"不然放不下")',
-  /var L = Math\.max\(220, Math\.round\(Math\.min\(vh \* 0\.62, third \* 1\.5\)\)\);/.test(guideJs) &&
+  /var L = Math\.max\(220, Math\.round\(Math\.min\(vh \* 0\.62, third \* 1\.5, strip\.w \* 1\.8\)\)\);/.test(guideJs) &&
   /var hostW = L;/.test(guideJs) &&
   /var hostH = Math\.max\(120, Math\.round\(L \* 0\.56\)\);/.test(guideJs) &&
   !/third \* 1\.02/.test(guideJs) && !/vh \* 0\.74/.test(guideJs),
@@ -422,6 +424,52 @@ ok('★★ 闭眼靠"盯 class 的 observer",轮询只做兜底(定时器会被�
 ok('★★ 左滑不再有 setTimeout(runDock, 380) 那种"发呆"',
   /runDock\(\);\s*\n\s*\}/.test(guideJs) && !/setTimeout\(runDock/.test(guideJs),
   '第七轮:"否则跟不上左滑的速度"');
+
+/* ============================================================
+   ★★★ 第八轮(用户逐字):
+     "1.把侧边显示的眼睛往右边移一点点.
+      2.动画过程按下进入CD页的按钮,会往左滑,然后突然往右滑又回去,
+        这个往右滑进入数据库是bug"
+   ============================================================ */
+/* ① 眼睛的位置:原来按【frame-fit 窗口的右边三分之一】居中 ⇒ 实测 1261,
+   而平板真正露出来的玻璃中心是 1382(机身左边那条黑边比 --ff-win-left 宽得多),
+   眼睛贴着玻璃左缘。现在按【CD 架露出来的那一条】算。 */
+ok('★★★ 侧边那只眼睛按【可见条带】定位(用户第八轮:"往右边移一点点")',
+  /function stripLeftX\(vw\)/.test(guideJs) &&
+  /document\.querySelector\("\.rack"\)/.test(guideJs) &&
+  /var strip = stripBox\(vw, visR\);/.test(guideJs) &&
+  /var cx = stripCenterX\(strip, hostW\);/.test(guideJs) &&
+  /var cx = strip\.l \+ strip\.w \* 0\.60;/.test(guideJs),
+  '实测 1600×900:眼心 1261 → 1382(= 玻璃 [1180,1585] 的中心)');
+ok('★★★ 带单位的 CSS 变量不许直接 parseFloat(--rack-w 是 66vw,不是 66px)',
+  /function cssLen\(name, dflt\)/.test(guideJs) &&
+  /box\.style\.cssText = "position:absolute;left:-9999px;[\s\S]{0,80}?width:var\(" \+ name \+ "\)"/.test(guideJs) &&
+  !/cssPx\("--rack-w"/.test(guideJs),
+  '踩过:parseFloat("66vw") = 66 ⇒ 眼睛被算到屏幕最左边(实测 ink 中心 986)');
+ok('★★ 量不到 CD 架时退回 --rack-w;窄屏时把眼睛压回条带里',
+  /if \(r\.left <= 1 && r\.right > vw \* 0\.2 && r\.right < vw \* 0\.9\) return r\.right;/.test(guideJs) &&
+  /Math\.min\(stripLeftX\(vw\), vw \* 0\.86\)/.test(guideJs) &&
+  /Math\.min\(vh \* 0\.62, third \* 1\.5, strip\.w \* 1\.8\)/.test(guideJs),
+  '★ 0.5 那个夹子会把 66vw 的架子夹成半个屏(实测眼心 1280),所以上界给 0.86');
+
+/* ② 归位不许有回程:摘 .page-out 之前先用 .guide-cut 把过渡按住。
+   实测(逐帧 + 过渡事件):左滑 -1600 之后,摘除的那一帧直接变 1056,
+   而且 .scene 上【没有再起过 transform 过渡】。 */
+ok('★★★ 摘 .page-out 时不许有"回程滑行"(用户第八轮:"突然往右滑又回去")',
+  /function cutBack\(\)/.test(guideJs) &&
+  /docEl\.classList\.add\("guide-cut"\)/.test(guideJs) &&
+  /document\.body\.classList\.remove\("page-out"\)/.test(guideJs) &&
+  /void docEl\.offsetWidth;/.test(guideJs) &&
+  /finally \{[\s\S]{0,120}?docEl\.classList\.remove\("guide-cut"\)/.test(guideJs),
+  '左滑是一次性的离场:归位必须瞬间完成,不能带着 0.55s 过渡滑回去');
+ok('★★★ 换场那一下把过渡按住(三样东西同起同落,少一样就穿帮)',
+  /html\.guide-cut \.scene,/.test(tcssShell) &&
+  /html\.guide-cut \.tablet,/.test(tcssShell) &&
+  /html\.guide-cut \.statusbar-toggle \{[\s\S]{0,80}?transition: none !important;/.test(tcssShell),
+  '.scene / .tablet / .statusbar-toggle —— 三条过渡都要按住(和 page-out 里那三条一一对应)');
+ok('★★ 归位发生在【转动/睁眼之前】(用户看到的是"已经在 CD 页上了")',
+  /cutBack\(\);[\s\S]{0,80}?dockIntoBox\(\);/.test(guideJs),
+  '先归位再换格:否则眼睛会在"还没滑到位"的格子上睁眼');
 
 /* ③ 左滑之后那几句话换一档语速。
    开头那四句是"第一次见面,一字一句交代清楚"(58ms/字);
