@@ -26,8 +26,62 @@
 (function () {
   "use strict";
 
+  /* ============================================================
+     ★★★ 先自检:眼睛那个模块到底加载了没有?
+     ─────────────────────────────────────────────────────────────
+     踩过两次同一件事:模板里明明挂着 ascii-eye.js,而实际发出去的页面里
+     【少了一个 <script>】(一次是 Hugo 的 JS 压缩把内联脚本写坏,
+     一次是 dev server 资源缓存陈旧),结果 —— 这一屏什么都没有:
+     眼睛是 JS 逐格画的、问句和选项默认 opacity:0 等 is-in,
+     任何一环没跑到,用户看到的就是【纯黑一片】,而且控制台一声不响。
+
+     ⇒ 这里做两件事:
+       ① 等一下再试:模块是 defer 的,但万一它排在后面(dash 顺序被打乱、
+          或者被别的脚本插了一脚),轮询 2 秒内等到就继续;
+       ② 真等不到就【自己去加载一次】(地址写在 <pre> 的 data-eye-src 上),
+          并在页面上留一行可见的提示 —— 宁可难看,也不能让用户对着一片黑猜。
+     ============================================================ */
   var eyeEl = document.getElementById("start-eye");
-  if (!eyeEl || !window.AsciiEye) return;
+  if (!eyeEl) return;
+
+  function boot() {
+    if (!window.AsciiEye) return false;
+    wire();
+    return true;
+  }
+
+  function warn(msg) {
+    try { console.error("[start] " + msg); } catch (e) { }
+    var pre = document.getElementById("start-eye");
+    if (!pre || !pre.parentNode) return;
+    if (document.getElementById("start-boot-warn")) return;
+    var p = document.createElement("p");
+    p.id = "start-boot-warn";
+    p.style.cssText = "margin:1.2em 0 0;font:12px/1.7 ui-monospace,Menlo,Consolas,monospace;"
+      + "letter-spacing:.14em;color:rgba(255,255,255,.55);text-align:center";
+    p.textContent = "// 视觉模块未就绪 —— " + msg;
+    pre.parentNode.appendChild(p);
+  }
+
+  function bootstrap(tries) {
+    if (boot()) return;
+    if (tries <= 0) {
+      var src = eyeEl.getAttribute("data-eye-src");
+      if (!src) { warn("拿不到 ascii-eye.js 的地址"); return; }
+      var s = document.createElement("script");
+      s.src = src;
+      s.onload = function () { if (!boot()) warn("模块加载了但没挂上 window.AsciiEye"); };
+      s.onerror = function () { warn("ascii-eye.js 取不到(" + src + ")"); };
+      document.head.appendChild(s);
+      /* 自己补加载之后仍然给一次机会 */
+      setTimeout(function () { if (!boot()) warn("轮询超时"); }, 400);
+      return;
+    }
+    setTimeout(function () { bootstrap(tries - 1); }, 60);
+  }
+  bootstrap(30);
+
+function wire() {
 
   var reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -141,4 +195,6 @@
       eye: api ? api.state() : null
     };
   };
+}
+
 })();

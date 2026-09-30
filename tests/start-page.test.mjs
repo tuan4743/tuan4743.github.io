@@ -42,6 +42,9 @@ const startCss = noC(startTpl);
      这两个脚本必须是【外部 + defer】,写回内联会踩两个坑(见下面那两条)。 */
 const eyeJs = noC(rd(`${BH}/assets/js/ascii-eye.js`));
 const wireJs = noC(rd(`${BH}/assets/js/start-wire.js`));
+/* ★ 接线脚本去注释的版本:自检那一段注释里也出现了 data-eye-src 之类的字眼,
+   断言要看的是【代码】,不是注释(踩过:注释里的字把断言弄成假绿)。 */
+const cleanWire = rd(`${BH}/assets/js/start-wire.js`).replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 const startJs = eyeJs + '\n' + wireJs;
 const builtRoot = rd(`${WS}/.tmp/t1/index.html`);
 const builtStart = rd(`${WS}/.tmp/t1/start/index.html`);
@@ -150,6 +153,33 @@ ok('★★★ 渲染循环外面包了 try/catch(rAF 里抛异常是静默的)',
   /function frameSafe\(now\)/.test(eyeJs) && /window\.__eyeError = String/.test(eyeJs) &&
   /requestAnimationFrame\(frameSafe\)/.test(eyeJs) && !/requestAnimationFrame\(frame\);/.test(eyeJs),
   'rAF 回调抛异常时控制台可能一声不响,表现只是"眼睛不动" —— 这个出口就是为那种时候留的');
+/* ★★★ 这一条防的是【这一页什么都不显示】。
+   这一屏上每一样东西都要等 JS:眼睛是 JS 逐格画的,问句和选项默认 opacity:0。
+   只要发出去的 HTML 里少一个 <script>(踩过两次:一次是压缩器把内联脚本写坏,
+   一次是 dev server 资源缓存陈旧),用户看到的就是纯黑一片,而且控制台一声不响。 */
+ok('★★★ 接线脚本要能【自己把缺失的模块补回来】,并把话说出来',
+  /function bootstrap\(tries\)/.test(cleanWire) &&
+  /eyeEl\.getAttribute\("data-eye-src"\)/.test(cleanWire) &&
+  /document\.head\.appendChild\(s\)/.test(cleanWire) &&
+  /function warn\(msg\)/.test(cleanWire) &&
+  /id = "start-boot-warn"/.test(cleanWire),
+  '实测:把 ascii-eye 的 <script> 从响应里摘掉,这一套能自己补加载并让整页正常跑起来');
+ok('★★★ 模块地址要写在 <pre> 上(data-eye-src),接线脚本才有得补',
+  /data-eye-src="\{\{ \(\. \| fingerprint "sha256"\)\.RelPermalink \}\}"/.test(startTpl) &&
+  /data-eye-src=\S*\/js\/ascii-eye\.[0-9a-f]+\.js/.test(builtStart),
+  '不写它的话,接线脚本只知道"模块没来",却不知道该去哪儿取');
+ok('★★★ 眼睛的 <pre> 里要有一段【不依赖 JS】的静态占位',
+  /<pre class="start-eye"[\s\S]{0,300}?>\{\{ `[\s\S]{200,}?` \| safeHTML \}\}<\/pre>/.test(startTpl),
+  '★ 必须 | safeHTML:Hugo 默认把原始字符串里的 + 转义成 &#43;,' +
+  '而 ASCII 画里到处都是 +,一转义整只眼睛就花了(踩过)');
+ok('★★ 静态占位要是纯 ASCII(它和运行时画的是同一种东西)',
+  (() => {
+    const m = /<pre class="start-eye"[\s\S]*?>\{\{ `([\s\S]*?)`/.exec(startTpl);
+    if (!m) return false;
+    const body = m[1];
+    return /^[\x20-\x7e\n]*$/.test(body) && body.split('\n').length >= 8;
+  })(),
+  '占位只是"JS 没来时的样子",不能是图片或花哨的 CSS —— 那反而会变成第二套美术');
 
 /* ---------- ④b 用户第二轮的四条:光标 / 眼眶 / 竖瞳 / 出场顺序 ---------- */
 ok('★★★ 这一页挂上了磁力光标脚本(否则整页没有鼠标指针)',
