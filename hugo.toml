@@ -14,6 +14,24 @@ paginate = 10
 [minify]
   disableXML = true
   minifyOutput = true
+  # ★★★ 内联 <script> 的 JS 压缩【必须关掉】—— 它会把内联脚本写坏。
+  #    实测(Hugo 0.165.0,layouts/start/list.html 那段接线脚本):
+  #      我写的:  (function () {
+  #                  var eyeEl = document.getElementById('start-eye');
+  #                  if (!eyeEl || !window.AsciiEye) return;
+  #                  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  #                  …
+  #                })();
+  #      它压成:  (function(){if(o=document.getElementById("start-eye"),!o||!window.AsciiEye)return;
+  #                  var o,s=window.matchMedia(…)…
+  #    两个毛病:① 声明被【挪到使用之后】(严格模式/模块里直接 SyntaxError);
+  #              ② 它把内层函数的局部变量和这个外层 IIFE 的变量压成了【同一个名字】o,
+  #                 于是 create(eyeEl, …) 拿到的是一个布尔值 —— 眼睛建不起来,
+  #                 而控制台一声不响(没有异常,只是什么都不发生),排查代价极大。
+  #    ⇒ 关掉 JS 压缩:HTML/CSS 照旧压。代价是每个内联脚本多几百字节,
+  #      换来的是"写什么就是什么";外部 JS 本来就走 fingerprint 资源管线,
+  #      不受这条影响。
+  disableJS = true
 
 # ============================================================
 # ★★ 世界观设定的工作区【不在 static/ 下面】,而在仓库根的 tuagfey-blog/world/。

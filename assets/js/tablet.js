@@ -168,10 +168,22 @@
   (function init() {
     var saved = null;
     try { saved = localStorage.getItem(KEY); } catch (e) { }
-    /* 记忆:默认关(进来先看 CD)。用户按开之后,刷新仍然是开的。 */
-    setOpen(saved === "1", true);
+    /* 记忆:默认关(进来先看 CD)。用户按开之后,刷新仍然是开的。
+       ★★ 但首页开机那一次【不认这条记忆】:
+          用户第二轮要求"进入首页的初始化……直接停在平板上,此时平板是黑屏"——
+          刷新就是重新初始化,不能因为上次开着就跳过开机(那会直接看到主屏)。
+          CD 架那条路上用户按开的记忆不受影响。 */
+    var homePage = document.body.classList.contains("home-page");
+    setOpen(!homePage && saved === "1", true);
     initBattery();
   })();
+
+  /* ★★ 首页开机要自己开平板(而且是"黑屏待机"那一次),所以给它一个口子。
+     immediate = true:这一下不是用户按的,不抢焦点(抢了会平白画出一个焦点框)。 */
+  window.__tabletOpen = function (on) {
+    setOpen(on !== false, true);
+    return open;
+  };
 
   /* 现场读数 —— 和 __frostMark / __frostAurora 同一个用意:
      这个环境没有浏览器,留一个能一眼问出答案的口子。 */

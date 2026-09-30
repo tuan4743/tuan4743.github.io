@@ -1034,6 +1034,98 @@
     setOpen(true);                       /* 视角左移,CD 架滑出(内部会调度光驱弹出) */
   }
 
+  /* ============================================================
+     ★★★ 首页的初始化【不再进 CD 页】,而是停在"一块黑着屏的平板上"
+     ─────────────────────────────────────────────────────────────
+     用户第二轮:"2.进入首页的初始化从进入CD页转为直接停在平板上,此时平板是黑屏。
+                 3.然后把启动页的眼睛移植过去,触发动画和对话……"
+     ⇒ startIntro() 那条路(视角左移 + 拉出 CD 架 + 屏幕黑掉)整个不走,
+       改成:黑屏 → 打开平板 → 把控制权交给 assets/js/home-guide.js。
+
+     ★ 加载页要等到【音乐也解码完】才收(用户:"我发现这个加载动画考虑的需要加载的
+       东西不够,导致正式进入后有些东西还是没有加载完成(比如音乐,CD模型)")。
+       所以真正收口的不是 onReady,而是这里(3D + 音乐都好了才调)。
+
+     ★ 谁来调:tryInit3D 的 onReady。它已经报过 100% 了,这里只负责
+       "把剩下的加载项补齐 → 收加载页 → 开机"。
+     ============================================================ */
+  function readMusicList() {
+    var out = [];
+    try {
+      if (window.GD_SONGS) {
+        Object.keys(window.GD_SONGS).forEach(function (k) {
+          var u = String(window.GD_SONGS[k] || "");
+          if (u && out.indexOf(u) < 0) out.push(u);
+        });
+      }
+    } catch (e) { }
+    return out;
+  }
+
+  /* 音乐预载:第一首【解码】(插盘那一刻要立刻能响),其余只把字节拉进 HTTP 缓存。
+     ★ 解码要用 OfflineAudioContext,必须等用户有一次交互之后才在有些浏览器上放行 ——
+       所以这里只"尽力而为",失败不算错(真正播放时会再解一次)。 */
+  function preloadMusic(onStep) {
+    var list = readMusicList();
+    if (!list.length) return Promise.resolve();
+    var audio = (cd3dApi && cd3dApi.audio) || window.__cdAudio;
+    var first = list[0], rest = list.slice(1);
+
+    var p1 = Promise.resolve();
+    if (audio && audio.music && audio.music.load) {
+      p1 = Promise.resolve(audio.music.load(first)).catch(function () { return null; });
+    } else {
+      p1 = fetch(first, { cache: "force-cache" }).catch(function () { });
+    }
+    p1 = p1.then(function () { if (onStep) onStep(4); });
+
+    var p2 = Promise.all(rest.map(function (u) {
+      return fetch(u, { cache: "force-cache" })
+        .then(function (r) { return r.arrayBuffer(); })
+        .then(function () { if (onStep) onStep(6 / Math.max(1, rest.length)); })
+        .catch(function () { return null; });
+    }));
+
+    /* ★ 8 秒硬上限:某首歌文件缺失/网络极慢时不能把用户永远按在加载页上。
+       (超时就当它加载完了 —— 真正播的时候再缺也一样是缺。) */
+    return Promise.race([
+      Promise.all([p1, p2]),
+      wait(8000)
+    ]).catch(function () { });
+  }
+
+  /* 收起加载页 → 黑屏 → 打开平板(黑着) → 交给引导脚本 */
+  function homeBoot() {
+    var mark = setProgress;
+    mark(100, "校准完成");
+    /* ★ 黑屏:CD 架没开也先把屏幕压黑 —— "初始化 = 停在一块黑着屏的平板上"。
+       这一层是 .screen-static.is-black,和平板自己的 is-dark 是两层保险:
+       平板那一层由引导脚本挂(它要负责收黑),这一层让"加载页刚收掉、
+       引导还没起来"的那几十毫秒也是黑的。 */
+    if (staticWrap) { staticWrap.classList.remove("is-full"); staticWrap.classList.add("is-on"); staticWrap.classList.add("is-black"); }
+    /* 平板打开(而且【不】记忆:这次是开机,不是用户按的) */
+    if (window.__tabletOpen) window.__tabletOpen(true);
+    else body.classList.add("tablet-open");
+    hideLoader();
+    window.__introReady = false;
+    /* 下一帧再把控制权交出去:让浏览器先把黑屏画出来 */
+    requestAnimationFrame(function () {
+      if (typeof window.__homeBoot === "function") window.__homeBoot();
+      else console.warn("[home] 引导脚本没就绪(assets/js/home-guide.js)");
+    });
+  }
+
+  /* 首页那一份模板才有的开机入口;**其余页面不走这里** */
+  var IS_HOME = body.classList.contains("home-page");
+
+  function beginSite(onReady) {
+    if (!IS_HOME) { startIntro(); return; }
+    /* 加载项还差"音乐":把它报进加载页,报完才开机 */
+    var got = 0;
+    preloadMusic(function (d) { got += d; setProgress(Math.min(99, 90 + got), "载入情感引擎"); })
+      .then(function () { onReady(); });
+  }
+
   /* ---------- Three.js 懒加载(资产缺失/无WebGL/减少动效 → DOM 降级) ---------- */
   var cd3dApi = null;
   var cd3dTried = false;
@@ -1043,12 +1135,12 @@
     cd3dTried = true;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       console.info("[cd3d] 跳过:系统开启了减少动效,继续使用 DOM 轮盘");
-      startIntro();
+      beginSite(homeBoot);
       return;
     }
     if (!window.WebGLRenderingContext) {
       console.info("[cd3d] 跳过:浏览器不支持 WebGL,继续使用 DOM 轮盘");
-      startIntro();
+      beginSite(homeBoot);
       return;
     }
 
@@ -1068,8 +1160,11 @@
             document.documentElement.classList.add("has-cd-fx");
             repaintRack();
             console.info("[cd3d] 3D 模式已激活");
-            setProgress(100, "加载完成");
-            startIntro();            /* 隐藏加载页 → 打开 CD 架 → 光驱弹出 */
+            setProgress(90, "挂载 CD 模板");
+            /* ★ 收口交给 beginSite:首页还要等音乐(用户:"加载动画考虑的需要
+               加载的东西不够…… 比如音乐,CD模型"),其余页面照旧直接进 CD 界面。
+               startIntro() / homeBoot() 只有这一个调用点。 */
+            beginSite(homeBoot);
           },
           onCdClick: function (key) {
             var i = cdOrder.indexOf(key);
@@ -1086,13 +1181,13 @@
         }).then(function (api) {
           if (!api) {
             console.warn("[cd3d] 未能初始化(资产缺失/加载失败),继续使用 DOM 轮盘");
-            startIntro();           /* 降级:直接进入 CD 界面,不播光驱动画 */
+            beginSite(homeBoot);    /* 降级:首页照样停黑屏平板,只是没有 3D 轮盘 */
           }
         });
       })
       .catch(function (e) {
         console.warn("[cd3d] 模块加载失败:", e && e.message);
-        startIntro();
+        beginSite(homeBoot);
       });
   }
 
@@ -1117,12 +1212,12 @@
     layout();
   }
 
-  /* 先加载 3D(显示加载页),就绪后再进入 CD 界面;失败/超时则降级 */
+  /* 先加载 3D(显示加载页),就绪后再开机;失败/超时则降级 */
   tryInit3D();
   setTimeout(function () {
     if (!loaderDone) {
       console.warn("[cd3d] 加载超时,进入降级模式");
-      startIntro();
+      beginSite(homeBoot);
     }
   }, 9000);
 

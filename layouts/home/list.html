@@ -85,6 +85,26 @@
 <link rel="stylesheet" href="{{ .RelPermalink }}">{{ end }}
 <script>/* 着色器网址带内容指纹:着色器一改网址就变,浏览器不会拿到旧版本 */
 window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}", snow: "{{ with $snowGlsl }}{{ .RelPermalink }}{{ end }}", aurora: "{{ with $auroraGlsl }}{{ .RelPermalink }}{{ end }}" };</script>
+{{/* ============================================================
+     ★★★ 开机黑幕:在首帧之前就把 CD 页藏掉
+     ─────────────────────────────────────────────────────────────
+     用户第二轮:"进入首页的初始化从进入CD页转为直接停在平板上,此时平板是黑屏。"
+     ⇒ 初始化【不再是"打开 CD 架"】,而是"停在一块黑着屏的平板上"。
+     但这一层黑只能等 JS 起来才点得亮,而 JS 是 defer 的(解析完才跑)——
+     中间那几百毫秒里页面会先画出 CD 页(五张盘 + 全息 UI),用户看到的就是
+     "先闪一下 CD 页再变黑"。所以这里在 <head> 里【同步】挂一个类,
+     由 CSS 把场景压掉;home-guide.js 接管之后自己把这个类摘掉。
+
+     ★ 它只管"首帧",不承担任何状态:摘掉之后就跟没存在过一样。
+     ★ 兜底:万一 JS 挂了(资源缺失/语法错误),6 秒后自动摘 ——
+       否则整页永远是黑的,连排查入口都没有。 */}}
+<script>
+    (function () {
+        var d = document.documentElement;
+        d.classList.add("home-boot");
+        setTimeout(function () { d.classList.remove("home-boot"); }, 6000);
+    })();
+</script>
 <script type="importmap">
     {
         "imports": {
@@ -120,12 +140,17 @@ window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}",
         })();
     </script>
 
-    <!-- 首次进入的加载页(3D 就绪前显示) -->
+    <!-- 首次进入的加载页(3D 就绪前显示)
+         ★★ 文案全部按【设定】走(用户第二轮:"把加载动画的字换了,Tuagfey-blog
+            改成人格修正启动中...,加载文字也要进行替换,比如'下载3D模型->加载情感引擎',
+            总之就是往设定上靠")。
+         进度标签不是写死在这里的:每一档由 cd3d.js / intro.js 边加载边报
+         (读取终端配置 → 加载渲染引擎 → 加载情感引擎 → 挂载 CD 模板 → 载入情感引擎)。 -->
     <div class="intro-loader" id="intro-loader">
         <div class="intro-loader-inner">
-            <span class="intro-loader-brand">TUAGFEY</span>
+            <span class="intro-loader-brand">人格修正启动中…</span>
             <div class="intro-loader-bar"><i id="intro-loader-fill"></i></div>
-            <span class="intro-loader-pct" id="intro-loader-pct">正在加载 3D 模型…</span>
+            <span class="intro-loader-pct" id="intro-loader-pct">正在校验锚点…</span>
         </div>
     </div>
     {{/* 背景:首页的"宇宙背景"就是 .intro-bg 这一层 —— 它【不跟着 .scene 滑】,
@@ -436,6 +461,12 @@ window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}",
     </svg>
 </button>
 
+{{- /* 开机黑屏的底衬。★ 它挂在 <body> 这一层、z-index 39(平板是 40):
+       平板玻璃是被贴图窗口裁出来的,机身两侧(左 3.6% / 右 5.5%)是半透明的,
+       底下没有东西的话【浅色主题会透出白色】—— 第一版截图里那两条白边就是它。
+       平时(平板主界面)平板的背景是深色渐变,所以一直没暴露过这个洞。 */ -}}
+<div class="tablet-backdrop" id="tablet-backdrop" aria-hidden="true"></div>
+
 <div class="tablet" id="tablet" data-tablet-home hidden aria-hidden="true" aria-label="平板主界面">
     <div class="tablet__glow" aria-hidden="true"></div>
 
@@ -543,6 +574,50 @@ window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}",
 
     <div class="tablet__hint">按 <kbd>Esc</kbd> 或再点顶缘的箭头回到 CD-05</div>
 </div>
+
+{{/* ============================================================
+     开机启动的【黑屏 + 引导层】(用户第二轮)
+     ─────────────────────────────────────────────────────────────
+     用户:"2.进入首页的初始化从进入CD页转为直接停在平板上,此时平板是黑屏。
+           3.然后把启动页的眼睛移植过去,触发动画和对话(对话逐字打出)……"
+
+     ★★ 三个东西,同住在平板这一层里(它们是"平板自己的画面",不是浮在整页上的
+        对话框 —— 后面还有一层扫描框要跟它们对齐):
+       · .home-eye      :ASCII 大眼睛的宿主格。开始时铺满整块屏(黑屏上睁眼),
+                          进了 CD 页之后收到右侧三分之一那一格(用户:"把眼睛转个向并
+                          缩小放到右侧三分之一的平板屏幕上")。
+       · .home-console  :ECHO 的台词 + 逐字打出的正文。左下角,避开了右侧的眼睛。
+       · .tablet.is-dark + .is-scan :黑屏 / 扫描遮罩,由 home-guide.js 开合。
+
+     ★★ 为什么宿主是一个【绝对定位的空 div】而不是直接给 <pre> 定位:
+        眼睛的 <pre> 由 ascii-eye.js 自己算宽高(列数 × 字宽),它在 flex 里居中;
+        宿主只负责"这块地方归眼睛",两者分开才不会互相改尺寸。 */}}
+<div class="home-eye" id="home-eye" aria-hidden="true">
+    <pre class="home-eye__pre" id="home-eye-pre" role="img" aria-label="ECHO 的光学传感器"></pre>
+</div>
+
+<div class="home-console" id="home-console" hidden aria-hidden="true">
+    <div class="home-console__doc">
+        <span class="home-console__who">ECHO</span>
+        <span class="home-console__id">ECHOM_D29_Z68J521</span>
+    </div>
+    <p class="home-console__line" id="home-console-line" aria-live="polite"></p>
+    <p class="home-console__tip">按任意键跳过</p>
+</div>
+
+{{/* ★ 眼睛本体在 assets/js/ascii-eye.js(和启动页【同一份】,不重写);
+     接线在 assets/js/home-guide.js。两者都必须是外部 + defer:
+     内联经典脚本在解析期执行,那时 defer 的模块还没跑(踩过)。
+     ★★ 注意:上面这些注释里【不能出现右花括号加斜杠】那种写法 ——
+        Hugo 的注释以它收尾,写进去会把后面整段模板变成纯文本(踩过一次)。 */}}
+{{- with resources.Get "js/ascii-eye.js" }}
+{{- $eyeJs := . | fingerprint "sha256" }}
+<script defer src="{{ $eyeJs.RelPermalink }}"></script>
+{{- end }}
+{{- with resources.Get "js/home-guide.js" }}
+{{- $guideJs := . | fingerprint "sha256" }}
+<script defer src="{{ $guideJs.RelPermalink }}"></script>
+{{- end }}
 
 </body>
 </html>

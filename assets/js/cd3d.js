@@ -14,7 +14,10 @@ export async function initCd3d(opts) {
   const report = (p, label) => {
     if (opts.onProgress) opts.onProgress(Math.max(0, Math.min(100, Math.round(p))), label || "");
   };
-  report(3, "读取配置");
+  /* ★★ 加载页上的每一档文案都是【设定口吻】的(用户第二轮:
+     "加载文字也要进行替换,比如'下载3D模型->加载情感引擎',总之就是往设定上靠")。
+     这一支报的是"总控修正终端"在给自己上电的过程 —— 别改回"加载中"那种大白话。 */
+  report(3, "读取终端配置");
 
   /* 1. 接口契约(失败时给出明确原因,不再静默降级) */
   let m;
@@ -135,14 +138,14 @@ export async function initCd3d(opts) {
   /* 4. 加载整机(带进度上报) */
   let gltf;
   try {
-    report(18, "下载 3D 模型");
+    report(18, "加载情感引擎");
     gltf = await new Promise((res, rej) =>
       new GLTFLoader().load(
         m.model,
         res,
         (xhr) => {
           if (xhr && xhr.total) {
-            report(18 + (xhr.loaded / xhr.total) * 70, "下载 3D 模型");
+            report(18 + (xhr.loaded / xhr.total) * 70, "加载情感引擎");
           } else if (xhr && xhr.loaded) {
             report(Math.min(88, 18 + (xhr.loaded / 2600000) * 70), "下载 3D 模型");
           }
@@ -156,7 +159,7 @@ export async function initCd3d(opts) {
     container.removeChild(renderer.domElement);
     return null;
   }
-  report(90, "组装场景");
+  report(90, "校准人格模板");
   const root = gltf.scene;
   root.updateMatrixWorld(true);
   scene.add(root);

@@ -333,6 +333,11 @@
          用户连着三轮说"偏大",那就干脆不加:框和按钮四条边重合。 */
       /* ★ 小目标给 4px:严丝合缝太紧(用户:"应该略大一点点"),10% 又偏大。 */
       var pad = small ? 4 : Math.min(PAD, Math.max(4, Math.min(r.width, r.height) * 0.16));
+      /* ★★ window.__mcPad:外扩量的显式覆盖(px)。首页引导要说"扫描框吸附到
+         整个平板页面" —— 那时框贴着一整块屏的四条边,按 16% / PAD=10 算出来的
+         外扩在小屏上几乎看不见,框读起来还是"小小一个"。引导脚本给它一个
+         负值(往内收),框就正好落在平板玻璃里面。 */
+      if (typeof window.__mcPad === "number" && isFinite(window.__mcPad)) pad = window.__mcPad;
       tw = r.width + pad * 2;
       th = r.height + pad * 2;
     }
@@ -348,13 +353,23 @@
     fw += (tw - fw) * ks;
     fh += (th - fh) * ks;
 
-    /* ---- 旋转:自转 + 速度倾斜;锁定时转正 ---- */
+    /* ---- 旋转:自转 + 速度倾斜;锁定时转正 ----
+       ★★ window.__mcSpinScale:自转速度的倍率(默认 1)。
+          首页引导要把框"停在"某个部件上给用户看,以 24°/s 自转的那个小方块
+          读起来像个转动的图标,不像"锁定框"。引导脚本把它压到 0.12,
+          框就安静下来了 —— 引导结束再把倍率还原。
+       ★★★ var lean 这一行【不能删】:它下面那个 if 只负责"要不要算",
+          而 targetRot 在 if【外面】读 lean。删掉声明的话整个 tick 每帧抛
+          ReferenceError: lean is not defined —— 画布上的扫描框从此一动不动,
+          而且报错全在 rAF 里,控制台不一定会显眼地提示(这个坑踩过一次)。 */
     var lean = 0;
+    var spinScale = (typeof window.__mcSpinScale === "number" && isFinite(window.__mcSpinScale))
+      ? window.__mcSpinScale : 1;
     if (!target && ROT_MAX > 0 && !reduced) {
       var vx = (fx - px) / dt;
       lean = Math.max(-ROT_MAX, Math.min(ROT_MAX, -vx / VEL_DIV));
     }
-    if (!reduced) spinAngle += SPIN * dt * (target ? SPIN_SLOW : 1);
+    if (!reduced) spinAngle += SPIN * dt * spinScale * (target ? SPIN_SLOW : 1);
     var targetRot = target ? 0 : spinAngle + lean;
     rot += angleDelta(targetRot, rot) * (1 - Math.pow(1 - ROT_EASE, dt * 60));
 

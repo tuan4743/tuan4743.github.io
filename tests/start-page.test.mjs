@@ -34,7 +34,15 @@ const rootTpl = rd(`${BH}/layouts/home.html`);
 const startTpl = rd(`${BH}/layouts/start/list.html`);
 const homeTpl = rd(`${BH}/layouts/home/list.html`);
 const startCss = noC(startTpl);
-const startJs = noC(startTpl.slice(startTpl.indexOf('<script>')));
+/* ★★★ 眼睛的代码【搬出了模板】,现在住在两个外部脚本里(第二轮改的):
+     · assets/js/ascii-eye.js —— 逐帧几何/瞳孔/数据流(首页也要同一只眼睛,
+       两处各写一份迟早会漂:这只眼睛的几何被来回修了七八轮);
+     · assets/js/start-wire.js —— 启动页自己的接线(出场时间线 + 按住确认)。
+   ⇒ 断言的"源码"就是这两个文件;但【链接方式】那几条仍然要看模板与构建产物 ——
+     这两个脚本必须是【外部 + defer】,写回内联会踩两个坑(见下面那两条)。 */
+const eyeJs = noC(rd(`${BH}/assets/js/ascii-eye.js`));
+const wireJs = noC(rd(`${BH}/assets/js/start-wire.js`));
+const startJs = eyeJs + '\n' + wireJs;
 const builtRoot = rd(`${WS}/.tmp/t1/index.html`);
 const builtStart = rd(`${WS}/.tmp/t1/start/index.html`);
 const builtHome = rd(`${WS}/.tmp/t1/home/index.html`);
@@ -91,13 +99,13 @@ ok('★★ 这一屏不加载站内其它外壳(干净)',
    构建产物被压缩过 —— 事件名保留(字符串),但函数名与变量名都改了。
    第一版把两者写在同一条里,于是这条永远红(模板过不了压缩后的那半条)。 */
 ok('★★★ 瞳孔跟鼠标:鼠标位置 → 归一化视线 → 平滑趋近',
-  /* 模板:结构与命名 */
-  /addEventListener\(\s*['"]mousemove['"]/.test(startJs) &&
-  /function fromPointer/.test(startJs) &&
-  /gz\.x \+= \(tx - gz\.x\) \* k/.test(startJs) &&
-  /* 构建产物:压缩后事件名还在,而且挂着同一个处理函数 */
-  /addEventListener\("?mousemove"?,/.test(builtStart) &&
-  /clientX/.test(builtStart) && /clientY/.test(builtStart),
+  /* ★ 眼睛搬进共用模块之后,"跟鼠标"这件事在 ascii-eye.js 里 ——
+     构建产物里已经没有这段内联脚本了,所以两半都看源码。
+     (原来那半看 builtStart,是因为它当时还是内联的。) */
+  /addEventListener\(\s*["']mousemove["']/.test(eyeJs) &&
+  /function fromPointer/.test(eyeJs) &&
+  /e\.clientX/.test(eyeJs) && /e\.clientY/.test(eyeJs) &&
+  /gz\.x \+= \(tx - gz\.x\) \* kk;/.test(eyeJs),
   '用户:"瞳孔跟人"');
 ok('★★★ 视线用【像素】算,不玩归一化',
   /EYE_HY = HALF_W \/ EYE_AR/.test(startJs) && /function lidAt\(px, open, up\)/.test(startJs),
@@ -117,6 +125,31 @@ ok('★★ 眼睛与"你好?"之间没有文本框,按钮是纯文字 + 下划�
 ok('★ 网格行数按眼睑峰值反推(带一个量出来的补偿系数)',
   /ROWS = Math\.max\(12, Math\.round\(EYE_HY \* LID_UP \* LID_FIT \* 2 \/ CELL_H \* 1\.\d+\)\)/.test(startJs),
   '不带补偿的话网格比开孔矮,最上/最下几行被切平 ⇒ 眼睛变成两头削平的椭圆(实测量到 3.27 而设定是 2.35)');
+
+/* ---------- ④a 第二轮:眼睛抽成共用模块(启动页 + 首页同一只)---------- */
+/* ★★★ 这一条是第二轮最值钱的一条:
+   首页也要这只眼睛,两处各写一份的话,这只被来回修了七八轮的几何迟早会漂 ——
+   而漂了看不出来(两页不会同时出现在一个屏幕上)。 */
+ok('★★★ 眼睛是【共用模块】,启动页和首页加载的是同一份',
+  /resources\.Get "js\/ascii-eye\.js"/.test(startTpl) &&
+  /resources\.Get "js\/ascii-eye\.js"/.test(homeTpl) &&
+  /window\.AsciiEye = \{ create: create/.test(eyeJs) &&
+  /ascii-eye\.[0-9a-f]+\.js/.test(builtStart) && /ascii-eye\.[0-9a-f]+\.js/.test(builtHome),
+  '两页各写一份 = 迟早漂,而且漂了看不出来');
+ok('★★★ 眼睛与接线的脚本必须是【外部 + defer】,不能是内联',
+  /<script defer src="\{\{ \$eye\.RelPermalink \}\}"><\/script>/.test(startTpl) &&
+  /<script defer src="\{\{ \$wire\.RelPermalink \}\}"><\/script>/.test(startTpl) &&
+  !/<script>\s*\(function \(\) \{\s*var eyeEl/.test(startTpl),
+  '★★ 内联经典脚本在解析期执行,而 defer 模块要等解析完才跑 ⇒ window.AsciiEye 还是 undefined,' +
+  '守卫静默退出:没有异常、没有日志,页面上就是一双不动的眼睛(踩过)');
+ok('★★★ 内联脚本的 JS 压缩必须关掉(hugo.toml)',
+  /disableJS\s*=\s*true/.test(rd(`${BH}/hugo.toml`)),
+  '★★ 压缩器会把内层函数的局部变量和外层 IIFE 的压成同一个名字:' +
+  'create(eyeEl, …) 拿到一个布尔值 ⇒ 眼睛建不起来,而且控制台一声不响(踩过)');
+ok('★★★ 渲染循环外面包了 try/catch(rAF 里抛异常是静默的)',
+  /function frameSafe\(now\)/.test(eyeJs) && /window\.__eyeError = String/.test(eyeJs) &&
+  /requestAnimationFrame\(frameSafe\)/.test(eyeJs) && !/requestAnimationFrame\(frame\);/.test(eyeJs),
+  'rAF 回调抛异常时控制台可能一声不响,表现只是"眼睛不动" —— 这个出口就是为那种时候留的');
 
 /* ---------- ④b 用户第二轮的四条:光标 / 眼眶 / 竖瞳 / 出场顺序 ---------- */
 ok('★★★ 这一页挂上了磁力光标脚本(否则整页没有鼠标指针)',
@@ -144,7 +177,7 @@ ok('★★★ 巩膜/虹膜/竖瞳三层落在【不同的字符档】上',
   /q = 0\.3[0-9];/.test(startJs) && /if \(sl\) q = 0\.1[0-9];/.test(startJs),
   '梯度只有 10 级,差一档 = 同一个字符 ⇒ 巩膜和虹膜糊成一片(踩过两次)');
 ok('★★ 出场是一条时间线:一线 → 抖动 → 猛地睁开 → 文字 → 选项',
-  /var PH = \{ BOOT: 0, JITTER: 1, OPEN: 2, IDLE: 3, CLOSING: 4 \}/.test(startJs) &&
+  /var PH = \{ BOOT: 0, JITTER: 1, OPEN: 2, IDLE: 3, CLOSING: 4/.test(startJs) &&
   /phase === PH\.BOOT/.test(startJs) && /phase === PH\.JITTER/.test(startJs) &&
   /phase === PH\.OPEN/.test(startJs) && /function onOpened\(\)/.test(startJs),
   '用户:"刚进入屏幕中央只有一条线,然后开始抖动突然猛地睁开,文字随后出现,过一点时间再出现两个选项"');
@@ -166,9 +199,12 @@ ok('★★★ 渲染循环里【不许】有镜像/左右复制',
   /for \(var c = 0; c <= w; c\+\+\) \{/.test(startJs),
   '残留镜像会把跟随视线的瞳孔复制成两个(实测:瞳孔出现在列 31..60 的两处)');
 ok('★★★ 每行必须补满到 COLS(否则 <pre> 宽度与坐标系不一致,眼睛整体偏)',
-  /if \(s\.length < COLS\) s \+= new Array\(COLS - s\.length \+ 1\)\.join\(' '\);/.test(startJs) &&
-  /pre\.style\.width = \(COLS \* CELL_W\) \+ 'px';/.test(startJs),
+  /if \(s\.length < COLS\) s \+= new Array\(COLS - s\.length \+ 1\)\.join\(" "\);/.test(startJs) &&
+  /pre\.style\.width = \(COLS \* CELL_W\) \+ "px";/.test(startJs),
   '实测:行只有 92 格而坐标系按 96 格算 ⇒ 眼睛偏左 2 格');
+ok('★★★ 不许 trim 行尾空格(它是"偏左"的另一个来源)',
+  !/s\.replace\(\/\\s\+\$\/, ?''\)/.test(startJs),
+  '一 trim 每行字符数就不定,<pre> 按实际宽度居中而坐标系按 COLS 算 ⇒ 画布比坐标系窄几格');
 
 /* ---------- ④d 背景数据流(用户:"向上移动的 ASCII 码线,模拟数据流")---------- */
 ok('★★ 背景有一层 ASCII 数据流,而且是【背景】(在内容之后、不吃点击)',
@@ -191,7 +227,7 @@ ok('★★ 数据流是【向上】滚动的竖线,不是静态装饰',
    ⇒ 断言:flowMeasure 里在 FL.streams 赋值【之后】才允许出现 flowDraw()。 */
 ok('★★★ flowMeasure 里必须先建 streams 再 flowDraw(顺序反了会抛异常,整段初始化被跳过)',
   (() => {
-    const fn = /function flowMeasure\(\)[\s\S]*?\n            \}/.exec(startJs);
+    const fn = /function flowMeasure\(\)[\s\S]*?\n    \}/.exec(startJs);
     if (!fn) return false;
     const body = fn[0];
     const iStreams = body.indexOf('FL.streams = []');
@@ -201,12 +237,12 @@ ok('★★★ flowMeasure 里必须先建 streams 再 flowDraw(顺序反了会�
   '实测症状:提前画 → undefined.on 抛错 → 建流代码不执行 → 屏幕上只剩测量串,看着像"只铺了左半边"');
 ok('★★ 数据流起飞前必须有内容(不能停在测量串上)',
   /flow\.textContent = probeTxt;/.test(startJs) &&
-  /if \(flow\) \{\s*flowMeasure\(\);\s*requestAnimationFrame\(flowTick\);/.test(startJs),
+  /flowMeasure\(\);\s*\n\s*requestAnimationFrame\(flowTick\);/.test(startJs),
   'flowMeasure 结尾自己会 flowDraw,启动时再挂上 rAF');
 /* ★★★ 字宽必须实测,而且要在设完 fontSize 之后量 —— 顺序反了量到的是回退字体 */
 ok('★★★ 列数按【实测字宽】算,且测量在设置字号之后',
   (() => {
-    const fn = /function flowMeasure\(\)[\s\S]*?\n            \}/.exec(startJs);
+    const fn = /function flowMeasure\(\)[\s\S]*?\n    \}/.exec(startJs);
     if (!fn) return false;
     const b = fn[0];
     return b.indexOf('flow.style.fontSize = fs') < b.indexOf('getBoundingClientRect().width') &&
@@ -219,14 +255,16 @@ ok('★★ 字体加载完要重量一次(否则量的是回退字体)',
 ok('★ 数据流按 ~12fps 跑(背景不该抢注意力,也省 CPU)',
   /if \(now - FL\.last < 80\) return;/.test(startJs));
 ok('★ 数据流尊重 prefers-reduced-motion(不跑动画)',
-  /var flowOff = REDUCED;/.test(startJs));
+  /var flowOff = !!opt\.reduced;/.test(startJs));
 ok('★★★ 离场:先缓缓闭眼,【闭到底】之后再跳',
   /phase = PH\.CLOSING/.test(startJs) &&
   /var T_CLOSE = \d+/.test(startJs) &&
   /openVal = 1 - \(1 - OPEN_LINE\) \* \(kc \* kc \* \(3 - 2 \* kc\)\)/.test(startJs) &&
-  /if \(kc >= 1\) \{ openVal = OPEN_LINE; closedDone = true; \}/.test(startJs) &&
-  /var ok = closedDone \|\| \(performance\.now\(\) - t0\) > \(T_CLOSE \+ \d+\)/.test(startJs),
-  '用户:"按住按钮读条完毕后,眼睛应该逐渐闭合,闭上之后再跳转" —— 跳转必须【轮询 closedDone】,不能只看定时器');
+  /if \(kc >= 1\) \{[\s\S]{0,80}?closedDone = true;/.test(startJs) &&
+  /* 跳转不能在"闭眼动画还没跑完"时发生:close(cb) 的回调 + 兜底定时器 */
+  /api\.close\(function \(\) \{ setTimeout\(function \(\) \{ window\.location\.href = href; \}, 260\); \}\)/.test(startJs) &&
+  /setTimeout\(function \(\) \{ window\.location\.href = href; \}, api\.T_CLOSE \+ 1600\)/.test(startJs),
+  '用户:"按住按钮读条完毕后,眼睛应该逐渐闭合,闭上之后再跳转" —— 跳转挂在闭合完成的回调上,不能只看定时器');
 ok('★★★ 裂缝要看得见:线的最小开度必须能占满一整行',
   /var OPEN_LINE = 0\.0[4-9]/.test(startJs) &&
   /openVal = OPEN_LINE;/.test(startJs) &&
@@ -240,17 +278,23 @@ ok('★★★ 两个选项都要按住,时长写在 DOM 上',
   '用户:"按选项可以做成需要按住一会时间"');
 ok('★★★ 松手 = 取消,不能让它跳走',
   /function cancelHold/.test(startJs) && /window\.addEventListener\(ev, cancelHold/.test(startJs) &&
-  /'pointerup', 'pointercancel', 'pointerleave', 'blur'/.test(startJs),
+  /\["pointerup", "pointercancel", "pointerleave", "blur"\]/.test(startJs),
   '"按住"这套交互一旦让 <a> 的默认跳转漏过去,300ms 松手也会跳 —— 实测踩到过');
 ok('★★★ 必须显式拦住 <a> 的默认跳转',
-  /document\.addEventListener\('click', function \(e\) \{[\s\S]{0,400}?e\.preventDefault\(\);/.test(startJs),
-  '光在 pointerdown 上 preventDefault 不够:pointerup 之后浏览器还会补一个 click,那就是 <a> 的默认行为');
+  /document\.addEventListener\("click", function \(e\) \{[\s\S]{0,260}?e\.preventDefault\(\);[\s\S]{0,80}?e\.stopImmediatePropagation\(\);[\s\S]{0,20}?\}, true\)/.test(startJs),
+  '光在 pointerdown 上 preventDefault 不够:pointerup 之后浏览器还会补一个 click,那就是 <a> 的默认行为' +
+  '(挂在捕获阶段,顺带把后面所有监听一起挡掉)');
+ok('★★★ 按住进度用独立的 rAF 跑(跟眼睛的渲染循环解耦)',
+  /function holdLoop\(now\)/.test(wireJs) &&
+  /requestAnimationFrame\(holdLoop\)/.test(wireJs) &&
+  /holdEl\.style\.setProperty\(["']--hold["']/.test(wireJs),
+  '眼睛一旦被 stop() 或出错停摆,读条不能跟着停 —— 否则用户按满 900ms 也不会跳');
 ok('★★★ 只有"你是谁?"会错乱;"别废话"正常按住',
-  /a\.getAttribute\('data-start-go'\) === 'who'/.test(startJs) && /glitch = 1/.test(startJs),
+  /a\.getAttribute\(["']data-start-go["']\) === ["']who["']/.test(wireJs) && /api\.glitch\(true\)/.test(wireJs),
   '用户:"按你是谁的时候,眼睛会出现极短的错乱,比如乱码,错位,变红等,模拟进行初始化过程。按别废话就没必要了"');
 ok('★★ 错乱是三样一起:乱码 + 错位 + 闪红',
-  /junkChar\(\)/.test(startJs) && /lines\[g\] = ' '\.repeat\(sh\)/.test(startJs) &&
-  /--start-glitch/.test(startJs) && /is-glitch/.test(startCss),
+  /junkChar\(\)/.test(startJs) && /lines\[g\] = " "\.repeat\(sh\)/.test(startJs) &&
+  /--eye-glitch/.test(startJs) && /is-glitch/.test(startCss),
   '乱码只换一部分格子(整屏换就成了雪花),错位是整行横移,闪红在红/黄/白之间交替');
 /* ★★★ 用户:"你这个左下角按钮的乱序的效果,范围是一个小方框,而且范围和频率有点大。"
    ⇒ 三个量都要压住:爆发间隔、乱码率、错位率。这一条防的是"以后又调回去"。 */
@@ -262,7 +306,7 @@ ok('★★★ 错乱要【克制】:爆发间隔 ≥ 200ms、乱码率 ≤ 5%、
   /if \(Math\.random\(\) < 0\.0[0-9]+\) \{\s*\n\s*var sh = 1/.test(startJs),
   '用户:"范围和频率有点大" —— 原来 60~190ms 一次、乱码 10%、错位 18%,观感是整屏在抖');
 ok('★ 键盘也能按住(Enter / Space)',
-  /e\.key === 'Enter' \|\| e\.key === ' '/.test(startJs));
+  /e\.key === ["']Enter["'] \|\| e\.key === ["'] ["']/.test(wireJs));
 
 /* ---------- ⑤ 一屏装得下 ---------- */
 /* 眼睛的像素高度由高度预算推出来,不是拍的:

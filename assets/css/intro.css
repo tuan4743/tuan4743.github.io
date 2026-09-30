@@ -890,7 +890,14 @@ body.cd3d-on .hub-cd {
     display: none;
 }
 
-/* ---------- 首次进入的加载页 ---------- */
+/* ---------- 首次进入的加载页 ----------
+   ★★ 用户第二轮:"把加载界面的白色背景改成黑色,字体可以调大一点。"
+      · 底色从 var(--theme) 换成写死的 #000 —— 不能跟主题走:
+        浅色主题下 --theme 是白的,那一屏就变成一大块白,和"总控修正终端
+        正在上电"这件事完全对不上(用户看到的正是白的)。
+      · 字号整档抬起来:品牌 1.05rem → clamp(1.3rem, 2.1vw, 2.1rem),
+        进度行 0.76rem → clamp(.92rem, 1.15vw, 1.15rem),进度条也加粗一点。
+      · 文案全部按设定走(人格修正启动中… / 加载情感引擎 …),见模板与 cd3d.js。 */
 .intro-loader {
     position: fixed;
     inset: 0;
@@ -898,7 +905,7 @@ body.cd3d-on .hub-cd {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--theme);
+    background: #000;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.45s ease;
@@ -918,24 +925,25 @@ body.cd3d-on .hub-cd {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 18px;
-    width: min(420px, 76vw);
+    gap: clamp(16px, 2.6vh, 28px);
+    width: min(560px, 78vw);
 }
 
 .intro-loader-brand {
     font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
-    font-size: 1.05rem;
-    letter-spacing: 0.42em;
-    color: var(--primary);
-    text-indent: 0.42em;
+    font-size: clamp(1.3rem, 2.1vw, 2.1rem);
+    letter-spacing: 0.34em;
+    text-indent: 0.34em;
+    color: #eaf3ff;
+    text-shadow: 0 0 18px rgba(127, 240, 255, 0.35);
 }
 
 .intro-loader-bar {
     position: relative;
     width: 100%;
-    height: 3px;
+    height: 4px;
     border-radius: 2px;
-    background: color-mix(in srgb, var(--primary) 14%, transparent);
+    background: rgba(127, 240, 255, 0.14);
     overflow: hidden;
 }
 
@@ -945,13 +953,14 @@ body.cd3d-on .hub-cd {
     height: 100%;
     border-radius: 2px;
     background: linear-gradient(90deg, var(--intro-accent), #8b5cf6);
+    box-shadow: 0 0 12px rgba(34, 211, 238, 0.5);
     transition: width 0.25s ease;
 }
 
 .intro-loader-pct {
-    font-size: 0.76rem;
-    letter-spacing: 0.18em;
-    color: var(--intro-dim);
+    font-size: clamp(0.92rem, 1.15vw, 1.15rem);
+    letter-spacing: 0.16em;
+    color: rgba(198, 220, 246, 0.72);
     font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
 }
 

@@ -257,9 +257,13 @@ ok('★★ 平板用覆盖轮廓,黑屏层仍用收过的那份(两者不能互�
   /html\.frame-fitted \.screen-static,\s*\n?html\.frame-fitted \.tablet \{[\s\S]*?clip-path: var\(--ff-clip\)/.test(icss),
   '平板:--ff-clip-cover · .screen-static:--ff-clip');
 
+/* ★★ 这两条的正则以前是 `[\s\S]*?` 一路吃到文件尾 —— 那等于"从这条规则往后
+   任何地方出现 position: absolute 就算失败"。第二轮在 tablet.css 末尾追加了
+   开机黑屏/引导那一节(里面本来就有绝对定位),这一条于是假红。
+   ⇒ 圈定在【这一条规则自己的一对大括号里】比较:`\{[^}]*\}`。 */
 ok('★ 搜索结果面板【在卡片里】(不再绝对定位挂到卡片下面)',
-  /\.tablet__search-results \{[\s\S]*?flex: 1 1 auto/.test(tcss) &&
-  !/\.tablet__search-results \{[\s\S]*?position: absolute/.test(tcss),
+  /\.tablet__search-results \{[^}]*flex: 1 1 auto/.test(tcss) &&
+  !/\.tablet__search-results \{[^}]*position: absolute/.test(tcss),
   '用户:"不太丝滑,展开后不是在卡片内的"');
 ok('★ 结果面板的入场用 animation(display 从 none 变可见时 transition 不会跑)',
   /@keyframes tabletSearchIn/.test(tcss) && /animation: tabletSearchIn/.test(tcss),
