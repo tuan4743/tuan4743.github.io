@@ -957,6 +957,20 @@ body.cd3d-on .hub-cd {
     transition: width 0.25s ease;
 }
 
+/* ★★ 96% 会停好几秒(模型最后那一段:拆模型 + 建场景),数字几乎不动 ——
+   实测线上就是"58 → 96 → 96 … 96 → 100",中间那五秒看着像卡住。
+   进度条自己没法证明"还在动",所以让已完成的那一截【呼吸】:
+   亮度来回走一点点,不抢眼,但一眼能看出进程活着。
+   它跟下面那行转动的小轮是两件事(一个管线,一个读数),不重复。 */
+.intro-loader.is-active .intro-loader-bar i {
+    animation: loader-breathe 1.5s ease-in-out infinite;
+}
+
+@keyframes loader-breathe {
+    0%, 100% { filter: brightness(1); }
+    50%      { filter: brightness(1.55); }
+}
+
 .intro-loader-pct {
     font-size: clamp(0.92rem, 1.15vw, 1.15rem);
     letter-spacing: 0.16em;

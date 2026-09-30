@@ -88,6 +88,15 @@ ok('★★★ 进度标题要显示"还没跑完的那一路",不是"数值最�
 ok('★★ 预载不能把用户永远按在加载页上(有硬上限)',
   /Promise\.race\(\[/.test(introJs) && /wait\(4000\)/.test(introJs),
   '某首歌缺失 / 网络极慢时也要放行 —— 否则用户卡在加载页出不去');
+ok('★★ 进度停在高位那几秒要看得出来"还在动"',
+  /\.intro-loader-sub \{/.test(icss) &&
+  /function startLoaderSub\(\)/.test(introJs) &&
+  /loaderSub\.textContent = spin \+ " " \+ bar/.test(introJs) &&
+  /@keyframes loader-breathe/.test(icss) &&
+  /\.intro-loader\.is-active \.intro-loader-bar i \{[\s\S]{0,80}?animation: loader-breathe/.test(icss),
+  '线上实测进度是"58 → 96 → 96 … 96 → 100",中间五秒数字几乎不动 ——' +
+  '一屏静止的字会被当成卡死(用户报的"动画完全没有加载"里就有这一层):' +
+  '所以加了转动的 ASCII 轮 + 进度条自己做呼吸');
 ok('★★★ 加载页文案全部按设定走',
   /人格修正启动中…/.test(homeTpl) && !/>TUAGFEY</.test(builtHome) &&
   /report\(18, "加载情感引擎"\)/.test(cd3dJs) &&
