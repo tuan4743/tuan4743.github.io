@@ -1117,6 +1117,50 @@
          "拆模型 / 建场景"的最后几档可能还没来得及报,这里给它一个确定的终点。 */
     setProgress(100, "校准人格模板", "model");
     setProgress(100, "载入情感引擎", "music");
+
+    /* ★★★ 用户第五轮:"加载页还是不完全,需要在加载页结束前必定完全加载出网页,
+       现在又出现了平板贴图不能及时出现的问题。"
+       ⇒ 收加载页之前先等【这一页真的画得出来】:
+         · 字体(document.fonts.ready)—— 不等它,首帧的字会先按回退字体排一遍,
+           平板的日期/电量/时钟都会跳一下;
+         · 贴图(背景图 + <img>)—— 平板外框、CD 封面这些都是图,
+           不等它们,用户就会看到"贴图没跟上";
+         · 两帧 rAF —— 保证布局与绘制都已经落过一版。
+       全部套在 2.5 秒硬上限里:慢网下也不能把用户永远按在黑屏前。 */
+    whenPainted(function () {
+      finishHomeBoot();
+    });
+  }
+
+  function whenPainted(done) {
+    var go = false;
+    var fire = function () { if (!go) { go = true; done(); } };
+    setTimeout(fire, 2500);                       /* 硬上限 */
+    var waits = [];
+    try {
+      if (document.fonts && document.fonts.ready) waits.push(document.fonts.ready);
+    } catch (e) { }
+    /* 页面上已有的 <img>:还没 decode 完的都等 */
+    try {
+      var imgs = document.images || [];
+      for (var i = 0; i < imgs.length; i++) {
+        var im = imgs[i];
+        if (im.complete) continue;
+        waits.push(new Promise(function (res) {
+          im.addEventListener("load", res, { once: true });
+          im.addEventListener("error", res, { once: true });
+        }));
+      }
+    } catch (e) { }
+    Promise.all(waits.map(function (p) { return Promise.resolve(p).catch(function () { }); }))
+      .then(function () {
+        /* 两帧:第一帧把布局+绘制落下来,第二帧确认它稳了 */
+        requestAnimationFrame(function () { requestAnimationFrame(fire); });
+      })
+      .catch(function () { fire(); });
+  }
+
+  function finishHomeBoot() {
     /* ★ 黑屏:CD 架没开也先把屏幕压黑 —— "初始化 = 停在一块黑着屏的平板上"。
        这一层是 .screen-static.is-black,和平板自己的 is-dark 是两层保险:
        平板那一层由引导脚本挂(它要负责收黑),这一层让"加载页刚收掉、
@@ -1133,6 +1177,7 @@
       if (window.__tabletOpen) window.__tabletOpen(true);
       else body.classList.add("tablet-open");
     }
+    /* ★ 加载页【最后】才收:上面那些都落定了,它一淡出就是"画好了的"那一版 */
     hideLoader();
     window.__introReady = false;
     /* 下一帧再把控制权交出去:让浏览器先把黑屏画出来 */

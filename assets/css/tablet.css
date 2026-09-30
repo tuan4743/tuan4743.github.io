@@ -797,6 +797,57 @@ html.guide-lock .magnetic-cursor-cv { opacity: .55 !important; }
     .home-console { transition-duration: .01ms; }
 }
 
+/* ★★ 顶缘那枚下滑栏(打开平板的入口)在【引导走到它之前】必须彻底藏起来。
+   用户第五轮:"貌似刚刚进入首页的时候,这个上滑栏默认是打开的,
+              导致能透过动画按按钮。"
+   ★★★ 为什么用 html.top-locked 而不是引导脚本挂的 .is-locked:
+     脚本要等 defer 才跑(约 2.7 秒),而"刚进首页"那一段正好在这之前 ——
+     实测 t=966/1085ms 时它的 pointer-events 还是 auto(看不见却点得到),
+     正是用户说的"透过动画按按钮"。所以把闸门放在 <head> 里那个
+     【同步挂上】的 top-locked 类上。
+     ★ 它和 home-dark / home-boot 分开是刻意的:那两条要活到开机动画结束,
+       而这一条只要活到"引导走到下滑栏"那一拍 —— 混用会导致
+       走到那一拍之后它仍然是锁着的(实测踩过)。
+   ★ 引导脚本走到那一拍时把 top-locked 摘掉。 */
+html.top-locked .statusbar-toggle,
+.statusbar-toggle.is-locked {
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+/* ★★ "该按这个"的高亮(用户第五轮:钉住的扫描框和真实指针不是一个位置,
+   所以要在目标上给一个不看框也能懂的提示)。
+   ★ 用【按钮自己的发光】,不画外圈:
+     顶缘那枚开关紧贴玻璃左缘,外圈(inset:-10px)有一半落在玻璃外面被剪掉 ——
+     实测只看得见半个弧。发光画在按钮自己的盒子里,一定完整。
+   ★ 用 outline 而不是 box-shadow:那枚按钮自己已经写了 box-shadow,
+     再加一条会互相覆盖;outline 跟它互不干扰,而且不占布局。 */
+.is-guide-pulse {
+    animation: guide-glow 1.15s ease-in-out infinite !important;
+}
+
+@keyframes guide-glow {
+    0%, 100% {
+        outline: 2px solid rgba(127, 240, 255, .35);
+        outline-offset: 2px;
+        filter: brightness(1);
+    }
+    50% {
+        outline: 2px solid rgba(127, 240, 255, 1);
+        outline-offset: 5px;
+        filter: brightness(1.85) drop-shadow(0 0 10px rgba(127, 240, 255, .8));
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .is-guide-pulse {
+        animation: none !important;
+        outline: 2px solid rgba(127, 240, 255, .9);
+        outline-offset: 3px;
+        filter: brightness(1.6);
+    }
+}
+
 /* ---------- 窄屏 / 矮屏 ---------- */
 @media (max-width: 900px), (max-height: 560px) {
     .tablet__time { font-size: clamp(1.8rem, 5vh, 2.6rem); }

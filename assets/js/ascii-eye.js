@@ -214,6 +214,14 @@
     var gz = { x: 0, y: 0 };       /* 当前(平滑用) */
     var hasPointer = false;
     var forceGaze = opt.gaze === "fixed";   /* true = 不跟鼠标,只认 setGaze */
+    /* ★★ 引导期间"谁说了算":
+       · freeLook=false(默认):脚本钉住的视线优先 —— 引导说看哪儿就看哪儿;
+       · freeLook=true:用户自己动了鼠标,于是【手优先】——
+         瞳孔跟着指针走,松手/停下之后由脚本重新接管(下一帧 setGaze)。
+       为什么要这一条:用户第三轮报"眼睛不能跟随自由移动的扫描框" ——
+       引导每帧都在重申目标视线,把真实鼠标的手势整个盖掉了。
+       ★ 判据由 magnetic-cursor 转达(它会告诉我们这一下是真人还是剧本)。 */
+    var freeLook = false, freeUntil = 0;
 
     /* ★★★ rotate(deg):把整只眼睛转过去(用户第三轮:
        "这个眼睛要转向90°,放到右侧,就像横着看一样")。
@@ -264,11 +272,25 @@
       tgt.x = Math.max(-1, Math.min(1, nx * 1.25));
       tgt.y = Math.max(-1, Math.min(1, ny * 1.25));
     }
-    /* 直接给归一化方向(引导脚本用) */
+    /* 直接给归一化方向(引导脚本用)*/
     function setGaze(x, y) {
+      /* ★ 用户刚动过手(600ms 内)→ 手优先,脚本先让一让 */
+      if (freeLook && performance.now() < freeUntil) return;
       hasPointer = false;
       tgt.x = Math.max(-1, Math.min(1, +x || 0));
       tgt.y = Math.max(-1, Math.min(1, +y || 0));
+    }
+
+    /* 真人移动指针(由 magnetic-cursor 转达;合成事件不会走到这里)——
+       直接更新视线目标,并在 600ms 内不许脚本覆盖。 */
+    function pointerLook(clientX, clientY) {
+      if (!forceGaze) return;
+      var w = window.innerWidth, h = window.innerHeight;
+      tgt.x = Math.max(-1, Math.min(1, ((clientX - w / 2) / (w / 2)) * 1.25));
+      tgt.y = Math.max(-1, Math.min(1, ((clientY - h / 2) / (h / 2)) * 1.25));
+      hasPointer = true;
+      freeLook = true;
+      freeUntil = performance.now() + 600;
     }
 
     /* ---------- 眨眼 ---------- */
@@ -602,6 +624,9 @@
       anchor: anchor,
       rotate: rotate,
       setGaze: setGaze,
+      /* 真人动鼠标:交给 magnetic-cursor 转达(它分得清真人与合成事件) */
+      onPointer: pointerLook,
+      freeLook: function (on) { freeLook = !!on; if (!on) freeUntil = 0; },
       lookAt: lookAt,
       centerGaze: centerGaze,
       glitch: function (on) { glitch = on ? 1 : 0; glitchNext = 0; if (!on) pre.classList.remove("is-glitch"); },

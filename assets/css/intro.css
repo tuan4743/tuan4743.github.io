@@ -911,6 +911,10 @@ body.cd3d-on .hub-cd {
     transition: opacity 0.45s ease;
 }
 
+/* ★ 加载页不只是"盖住",它也要【挡住】:
+   原来写了 pointer-events: auto —— 那一层在淡出(is-done)之后 opacity 已经是 0,
+   却仍然吃点击,于是"透过动画按按钮"这件事多了一个来源。
+   用户第五轮报的"能透过动画按按钮"里就有它(另一半是顶缘那枚下滑栏)。 */
 .intro-loader.is-active {
     opacity: 1;
     pointer-events: auto;

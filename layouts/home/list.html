@@ -102,6 +102,12 @@ window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}",
     (function () {
         var d = document.documentElement;
         d.classList.add("home-boot");
+        /* ★ 顶缘那枚开关从一开始就锁死(用户第五轮:"刚刚进入首页的时候
+           这个上滑栏默认是打开的,导致能透过动画按按钮")。
+           实测:它在 t≈1 秒时 opacity 已经是 0,而 pointer-events 还是 auto ——
+           "看不见却点得到"。闸门必须跟着 home-boot 一起【同步】挂上,
+           等 defer 脚本起来(2.7 秒)就太晚了。 */
+        d.classList.add("top-locked");
         setTimeout(function () { d.classList.remove("home-boot"); }, 6000);
     })();
 </script>

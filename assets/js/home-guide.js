@@ -103,6 +103,11 @@
     docEl.classList.remove("home-boot");
     docEl.classList.add("home-dark");        /* 底衬:机身两侧的透光也压黑,见 tablet.css */
     tablet.classList.remove("is-scan");
+    /* ★★ 顶缘那枚下滑栏先锁死(用户第五轮:"刚刚进入首页的时候这个上滑栏
+       默认是打开的,导致能透过动画按按钮")。
+       引导走到"下滑栏"那一拍才 unlockTop() 放它出来 —— 那一刻正好是
+       "现在该认识这个按钮了"。 */
+    lockTop(true);
     /* ★★★ 顺序有讲究:必须先挂 .is-dark,再让平板"入场"。
        反过来的话(先 is-on 再 is-dark)平板会带着 opacity 0 → 1 的入场过渡
        淡进来,中间那 260ms 里快捷控制卡片(音量滑条)会跟着露一下脸 ——
@@ -115,6 +120,17 @@
     void tablet.offsetWidth;
     tablet.classList.add("is-scan");
     setTimeout(function () { tablet.classList.remove("is-scan"); }, reduced ? 0 : 1600);
+  }
+
+  /* 顶缘那枚开关的显隐(见 tablet.css 里 top-locked 那段说明)。
+     ★ 摘的是 html 上的 top-locked:它在 <head> 里同步挂上,是"进页面那一刻
+       就锁死"的那道闸;走到"下滑栏"这一拍才轮到它开。 */
+  function lockTop(on) {
+    var t = document.getElementById("statusbar-toggle");
+    docEl.classList.toggle("top-locked", !!on);
+    if (!t) return;
+    t.classList.toggle("is-locked", !!on);
+    t.setAttribute("aria-hidden", on ? "true" : "false");
   }
 
   /* ★★ 引导走完之后还有一段【老流程】:按下插入 → setOpen(false) → 开机动画
@@ -451,6 +467,8 @@
         label: "下滑栏",
         snap: "#statusbar-toggle",
         lock: true,
+        /* ★ 走到这一拍才把它放出来(开机那一段它是被锁死的,见 blackout) */
+        unlockTop: true,
         text: "按下可以展开终端设置页,在设置页你可以前往核心数据库,或者对终端环境进行一些设置。"
       }),
 
@@ -464,18 +482,26 @@
       step({ gaze: "center", text: "这可是你的杰作。从里面你可以校准自己的人格。" }),
       step({
         label: "按下它",
-        snap: "#intro-toggle",
+        /* ★★★ 吸附的是 screen 左缘那枚【看得见的】按钮 .slot-toggle,
+           不是它的 id #intro-toggle。
+           踩过:写 #intro-toggle 时,脉冲光圈加到了 <section class="screen-slot">
+           里面的 <button> 上 —— 而那个位置上还盖着 .screen-frame(z-index 34)
+           与 .slot-seam,光圈被压在下面,用户根本看不见("该按哪个"的提示等于没有)。
+           而 .slot-toggle 自己就是那枚 34×52 的按钮,高亮它一定看得见。 */
+        snap: ".slot-toggle",
         unlock: true,
         gaze: "scan",
         text: "按下它。",
-        /* ★ 让用户自己按(用户第三轮:"按下按钮并不是自动按,是让用户自己按") */
-        press: "#intro-toggle"
+        /* ★ 让用户自己按(第三轮:"按下按钮并不是自动按,是让用户自己按") */
+        press: ".slot-toggle"
       }),
 
       /* —— 按下 → 进 CD 页 → 眼睛横过来、缩到右侧那一格 —— */
       step({
         label: "进入 CD 页",
-        dock: 90,            /* 90 = 换格 + 转 90°(用户第三轮要的"横着看") */
+        /* 值的真伪不重要(只看有没有):这一步走的是"闭眼 → 左滑 → 右侧重睁",
+           见 runDock。留 true 是为了读起来明确"这一拍要做换场"。 */
+        dock: true,
         wait: reduced ? 500 : 2600
       }),
       step({ label: "引擎内容", snap: "region:rack-info", text: "这是引擎的内容。" }),
@@ -517,56 +543,93 @@
     });
   }
 
+  /* 眼睛出场:黑屏上睁开(引导的第一步) */
   function eyeReveal() {
     if (!eye) return;
     eyeHost.classList.add("is-on");
     eye.start(true);
   }
 
-  /* ============================================================
-     眼睛换格 + 转向(进 CD 页之后)
-     ─────────────────────────────────────────────────────────────
-     用户第三轮:"这个眼睛要转向90°,放到右侧,就像横着看一样。
-                而你只是缩小了一下就放上去了。"
-
-     ★★★ 参数名【不能】叫 rotate —— 它会把这个文件里那个 rotate 函数遮住。
-     踩过两次,都是同一类错:
-       ① `function eyeDock(rotate)` 里写 `if (rotate) eye.rotate(90)` ——
-          参数把这个文件的 rotate 函数遮住了,`eye.rotate` 拿到的是那个参数
-          (数字),调用它直接 TypeError;
-       ② 改完参数名,判据又写成 `wantTilt === true`,而这一拍传进来的是 90 ——
-          `90 === true` 是 false,于是【永远不转】,而且一声不响。
-     ⇒ 判据写成"数字且非零":只要给了角度就转,传 0 就是不转。
-     ============================================================ */
-  function eyeDock(wantTilt) {
-    var tilt = (typeof wantTilt === "number" && wantTilt) ? wantTilt : 0;
-    eyeHost.classList.add("is-docked");
-    if (!eye) return;
-    setTimeout(function () {
-      var vw = window.innerWidth, vh = window.innerHeight;
-      var winL = cssPx("--ff-win-left", vw * 0.05);
-      var winR = cssPx("--ff-win-right", vw * 0.05);
-      var glassW = Math.max(320, vw - winL - winR);
-      var r = tablet.getBoundingClientRect();
-      var visR = Math.min(r.right || vw, vw);
-      if (!(visR > 80)) visR = vw * (1 - 0.34);          /* 量不到就按"露出 34%"兜底 */
-
-      var third = glassW / 3;                             /* 玻璃宽的三分之一 */
-      if (tilt) eye.rotate(tilt);
-      /* 旋转后:宿主宽 = 眼睛的"高",宿主高 = 眼睛的"宽" —— 换过来给 */
-      var hostW = Math.max(120, Math.round(third * 1.02));
-      var hostH = Math.max(200, Math.round(vh * 0.78));
-      var left = Math.max(winL + 6, visR - hostW - 6);
-      eye.anchor(left, (vh - hostH) / 2, hostW, hostH);
-      if (tilt) eye.fitTo(hostH * 0.98, hostW * 0.92);     /* 参数是【转之前的】宽高 */
-      else eye.fitTo(hostW * 0.98, hostH * 0.98);
-    }, reduced ? 0 : 570);
+  /* 高亮目标:让用户一眼看到"该按的是这个"。
+     ★ 为什么需要它(用户第五轮):"扫描框固定在按钮的时候,实际鼠标并不在这里,
+       所以根本就按不了。"
+       根因:引导把扫描框【钉】在按钮上,而真实指针在别处 —— 两者不是同一个位置。
+       钉着框却让用户去点,用户就会用真实指针去够,框又不动,自然按不到
+       (而且这一屏的原生光标被 cursor:none 藏起来了,看到的只有画出来的框)。
+       ⇒ 到"让用户自己按"这一拍:① 松开钉住的框(它自己会跟回真实指针),
+         ② 给目标加一个脉冲光圈 —— 提示"按这个",同时指针老老实实跟着手。 */
+  var pulseEl = null;
+  function pulseTarget(sel, on) {
+    if (pulseEl) { pulseEl.classList.remove("is-guide-pulse"); pulseEl = null; }
+    if (!on) return;
+    var el = document.querySelector(sel);
+    if (!el) return;
+    el.classList.add("is-guide-pulse");
+    pulseEl = el;
   }
 
-  /* 眼睛整体的朝向(度)。0 = 正常横着看前方;90 = 横过来(用户第三轮要的) */
-  function eyeTilt(deg) {
-    if (!eye || !eye.rotate) return;
-    eye.rotate(deg);
+  /* ============================================================
+     进 CD 页那一段的编排(用户第五轮重写)
+     ─────────────────────────────────────────────────────────────
+     用户原话:"按下左滑后,主屏幕的眼睛马上闭上,等到彻底滑过去后,
+              眼睛再在右侧睁开。而且这个右侧眼睛也有同样不跟鼠标的问题。"
+
+     ⇒ 三步,顺序不能乱:
+        ① 眼睛【马上闭上】(等它闭到底,约 780ms);
+        ② 机器左滑出去(给 body 挂 .page-out —— shell.css 里那条把 .scene
+           连同平板一起 translateX(-100vw) 的过场);
+        ③ 滑完之后,眼睛在"平板还能看见的那一格"里【重新睁开】。
+     ★ 去掉旋转:第五轮明确要的是"同一只眼睛换个位置继续跟鼠标",
+       而旋转 90° 之后"跟鼠标"在视觉上是反的(第三轮那条要求被这一条取代)。
+       朝向本来就由 setGaze 决定,与旋转无关 —— 去掉旋转不影响跟手。
+     ★ 换格时机器已经滑到位,所以 eyeDock 量到的是最终位置。
+     ============================================================ */
+  function closeEye() {
+    return new Promise(function (resolve) {
+      if (!eye) return resolve();
+      if (eye.freeLook) eye.freeLook(false);
+      var done = false;
+      var fin = function () { if (!done) { done = true; resolve(); } };
+      try { eye.close(fin); } catch (e) { fin(); }
+      setTimeout(fin, (eye.T_CLOSE || 780) + 400);        /* 兜底:闭眼动画万一没跑 */
+    });
+  }
+
+  function dockIntoBox() {
+    eyeHost.classList.add("is-docked");
+    var vw = window.innerWidth, vh = window.innerHeight;
+    var winL = cssPx("--ff-win-left", vw * 0.05);
+    var winR = cssPx("--ff-win-right", vw * 0.05);
+    var glassW = Math.max(320, vw - winL - winR);
+    var r = tablet.getBoundingClientRect();
+    var visR = Math.min(r.right || vw, vw);
+    if (!(visR > 80)) visR = vw * (1 - 0.34);             /* 量不到就按"露出 34%"兜底 */
+    var third = glassW / 3;
+    var hostW = Math.max(120, Math.round(third * 1.02));
+    var hostH = Math.max(200, Math.round(vh * 0.74));
+    var left = Math.max(winL + 6, visR - hostW - 6);
+    if (eye.rotate) eye.rotate(0);
+    eye.anchor(left, (vh - hostH) / 2, hostW, hostH);
+    eye.fitTo(hostW * 0.98, hostH * 0.98);
+  }
+
+  function runDock() {
+    closeEye().then(function () {
+      /* ② 左滑出去(和 page-slide.js 用的是同一条过渡) */
+      docEl.classList.add("page-slide");
+      document.body.classList.add("page-out");
+      return sleep(reduced ? 120 : 700);
+    }).then(function () {
+      /* ③ 滑完 → 换格 → 重新睁开 */
+      dockIntoBox();
+      return sleep(reduced ? 40 : 140);
+    }).then(function () {
+      eyeHost.classList.add("is-on");
+      if (eye.openNow) eye.openNow();                     /* 直接睁着,不再播一遍出场 */
+      docEl.classList.remove("page-slide");
+      document.body.classList.remove("page-out");
+      return sleep(reduced ? 60 : 380);
+    });
   }
 
   /* 视线每帧跟着扫描框。
@@ -601,6 +664,7 @@
     stepLabel = s.label || "";
     if (s.lock) lock(true);
     if (s.unlock) lock(false);
+    if (s.unlockTop) lockTop(false);
     if (s.wheelLock) lockWheel(true);
     if (s.unlockWheel) lockWheel(false);
 
@@ -617,10 +681,19 @@
     if (s.gaze === "center") { gazeMode = "center"; if (eye) eye.centerGaze(); }
     if (s.gaze === "scan") gazeMode = "scan";
     if (s.eye === "reveal") eyeReveal();
-    if (s.tilt !== undefined) eyeTilt(s.tilt);
+    /* ★★★ 提示高亮的时机:【等用户按的那一步开始时】亮 ——
+       不当成"拍子一开始"就亮。实测:一拍里"进入 CD 页"到台词打完要分两步
+       (先等按、再说话),把高亮挂在拍子开头会让它在台词出现前 60 秒就亮着,
+       用户根本对不上"这句话说的是哪个按钮"。
+       ⇒ 交给"等用户按"那一步的第一个任务,它和台词几乎同时发生。 */
     if (s.dock) {
-      /* 用户按下之后 CD 架要 550ms 才滑到位,眼睛在这一拍里换格 + 转向 */
-      setTimeout(function () { eyeDock(s.dock); }, reduced ? 30 : 620);
+      /* ★★★ 用户第五轮,重写了这一段的编排:
+         "按下左滑后,主屏幕的眼睛马上闭上,等到彻底滑过去后,
+          眼睛再在右侧睁开。而且这个右侧眼睛也有同样不跟鼠标的问题。"
+         ⇒ 不再是"缩小 + 转 90°",而是:闭眼 → 左滑 → 在新的位置重新睁眼。
+           眼睛的朝向也【不再旋转】—— 它就是同一只眼睛,换了个地方重新睁开,
+           这样才能继续跟扫描框(转 90° 的话"跟鼠标"这件事在视觉上是反的)。 */
+      setTimeout(runDock, reduced ? 30 : 380);
     }
 
     /* ★ 要按的、要说的,都按【先按后说】的顺序排好再跑 */
@@ -628,8 +701,19 @@
     if (s.press) {
       /* ★★★ "按下"改成【让用户自己按】(用户第三轮:
          "按下按钮并不是自动按,是让用户自己按")。
-         原来这里 dispatch 一个合成 click 就替用户按了 —— 引导不该代劳。 */
-      tasks.push(function () { return waitForUser(s.press); });
+         原来这里 dispatch 一个合成 click 就替用户按了 —— 引导不该代劳。
+         ★★ 这一步一开始就做两件事(和台词几乎同时):
+           · 松开钉住的扫描框(它自己会跟回真实指针);
+           · 给目标加高亮 —— 用户才知道该按哪儿。
+         踩过:把高亮挂在"拍子开头"时,它在台词出现前 60 秒就亮着了;
+         挂在"台词之后"时,用户读完话才亮、而且一按就灭 —— 两头都够不着。 */
+      tasks.push(function () {
+        window.__mcScript = null;
+        lastSnapSpec = null;
+        frameRect = null;
+        pulseTarget(s.press, true);
+        return waitForUser(s.press);
+      });
     }
     if (s.text) {
       tasks.push(function () { return typeLine(s.text).then(function () { return sleep(afterLine); }); });
@@ -670,7 +754,7 @@
      ★ 兜底:12 秒还没按就自己过去 —— 不能把用户永远卡在引导里出不去。
      ============================================================ */
   function makeWaiter(sel) {
-    if (sel === "#intro-toggle") {
+    if (sel === "#intro-toggle" || sel === ".slot-toggle") {
       return {
         done: function () { return document.body.classList.contains("scene-open"); },
         watch: null
@@ -703,6 +787,12 @@
   }
 
   function waitForUser(sel) {
+    /* ★★★ 用户第五轮:"扫描框固定在按钮的时候,实际鼠标并不在这里,所以根本就按不了。"
+       根因:引导把扫描框【钉】在按钮上,而真实指针在别处 —— 两者不是同一个位置。
+       这一屏的原生光标又被 cursor:none 藏起来了,用户看到的只有画出来的框,
+       于是他会去点"框所在的地方",而那一击根本没落在按钮上。
+       ⇒ 松框 + 脉冲高亮这两件事已经由 runStep 的 arm 在【一拍开始时】做了
+         (见那里"提示要在台词之前亮起来"的说明);这里只负责等状态。 */
     lock(false);
     lockWheel(false);
     var el = document.querySelector(sel);
@@ -729,6 +819,7 @@
         window.__pressState.done = 1;
         window.__pressState.why = why;
         try { if (poll) clearInterval(poll); } catch (e) { }
+        pulseTarget(sel, false);          /* 按完了,把高亮收掉 */
         resolve();
       };
       /* ★ 兜底 60 秒:不是"等不及"的兜底,是"用户走开了"的兜底 ——
@@ -737,11 +828,8 @@
       poll = setInterval(function () {
         var now = performance.now();
         var isDone = false;
-        try { isDone = w.done(); } catch (e) { window.__pressState.err = String(e && e.message || e); }
-        window.__pressState.ticks = (window.__pressState.ticks || 0) + 1;
-        window.__pressState.el = Math.round(now - t0);
-        window.__pressState.saw = isDone;
-        if (isDone) { window.__pressState.hit++; finish("state"); return; }
+        try { isDone = w.done(); } catch (e) { if (window.__pressState) window.__pressState.err = String(e && e.message || e); }
+        if (isDone) { finish("state"); return; }
         if (now - t0 > 60000) finish("timeout");
       }, 60);
     });
@@ -861,12 +949,22 @@
   function build() {
     if (!window.AsciiEye) return false;
     eye = window.AsciiEye.create(eyePre, {
-      /* ★ gaze:'fixed':首页的眼睛不跟真实鼠标 —— 它跟的是扫描框/剧情。
-         (用户要求的就是"瞳孔也要跟着移动",而"移动"是引导说了算的。) */
+      /* ★ gaze:'fixed':首页的眼睛不跟【页面上的鼠标事件】乱飘 ——
+         它听的是引导脚本 + 下面那条真人指针的转达。
+         (用户第三轮:"眼睛是始终要跟扫描框的";第五轮补:
+          "眼睛不能跟随自由移动的扫描框" —— 所以真人一动指针就交回给手。) */
       gaze: "fixed",
       drift: false,
       reduced: reduced
     });
+    /* ★★ 把"真人动了鼠标"这件事从 magnetic-cursor 转达给眼睛。
+       它那边分得清合成事件与真实事件(isTrusted),这里只负责转交 ——
+       引导自己派发的 pointermove 不会被当成"用户在动"。 */
+    window.__mcOnPointer = function (x, y, real) {
+      if (!real || !eye) return;
+      if (gazeMode !== "scan") return;
+      if (eye.onPointer) eye.onPointer(x, y);
+    };
     return !!eye;
   }
 

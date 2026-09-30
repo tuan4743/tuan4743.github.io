@@ -297,8 +297,8 @@ const ORDER = [
   ['下滑栏', 'snap: "#statusbar-toggle"'],
   ['CD 架按钮', 'snap: "#intro-toggle"'],
   ['瞳孔转正中央', 'gaze: "center"'],
-  ['按下它(用户按)', 'press: "#intro-toggle"'],
-  ['进入 CD 页', 'dock: 90'],
+  ['按下它(用户按)', 'press: ".slot-toggle"'],
+  ['进入 CD 页(闭眼→左滑→右侧重睁)', 'dock: true'],
   ['引擎内容', 'snap: "region:rack-info"'],
   ['CD 区', 'snap: "region:rack-discs"'],
   ['插入按钮', 'snap: "#rack-insert"'],
@@ -315,21 +315,30 @@ ok('★★★ 步骤之间必须【串行】(每一步返回 Promise,链条一�
   /p = p\.then\(function \(\) \{/.test(guideJs) &&
   /return typeLine\(s\.text\)\.then\(function \(\) \{ return sleep\(afterLine\); \}\);/.test(guideJs),
   '并行跑的话台词会互相盖掉,而且"扫到哪儿说到哪儿"的对应关系就没了');
-ok('★★★ 眼睛在进 CD 页之后要【转向 90°】并缩到右侧那一格',
-  /dock: 90/.test(guideRaw) && /function eyeDock\(wantTilt\)/.test(guideJs) &&
-  /if \(tilt\) eye\.rotate\(tilt\)/.test(guideJs) &&
-  /eye\.anchor\(left, \(vh - hostH\) \/ 2, hostW, hostH\)/.test(guideJs),
-  '用户第三轮:"你没有理解我的意思,这个眼睛要转向90°,放到右侧,就像横着看一样。' +
-  '而你只是缩小了一下就放上去了"');
-ok('★★★ 判据不能写成 === true(传进来的是 90,=== true 恒假 ⇒ 一声不响地不转)',
-  /var tilt = \(typeof wantTilt === "number" && wantTilt\) \? wantTilt : 0;/.test(guideJs) &&
-  !/wantTilt === true/.test(guideJs),
-  '★ 这是同一个坑的第二次:第一次是参数名 rotate 遮住了 rotate() 函数,' +
-  '第二次是判据写成 === true —— 两次都是"不报错,就是不转"');
-ok('★★ 参数名不能叫 rotate(会遮住这个文件里的 rotate 函数)',
-  !/function eyeDock\(rotate\)/.test(guideJs) && /function eyeDock\(wantTilt\)/.test(guideJs),
-  '遮住之后 eye.rotate 拿到的是那个数字参数,调用它直接 TypeError,' +
-  '而异常落在 Promise 链里,表现是"引导停在那一拍不动"');
+/* ★★★ 第五轮把这一段整个换掉了:
+   第三轮要"转 90° 横着看",第五轮改成"按下左滑后主屏的眼睛马上闭上,
+   等彻底滑过去后眼睛再在右侧睁开"。
+   ⇒ 现在钉的是【三步的顺序】,而不是转多少度。 */
+ok('★★★ 进 CD 页 = 闭眼 → 左滑 → 右侧重新睁眼(三步,顺序不能乱)',
+  /dock: true/.test(guideRaw) &&
+  /function closeEye\(\)/.test(guideJs) &&
+  /function dockIntoBox\(\)/.test(guideJs) &&
+  /function runDock\(\)/.test(guideJs) &&
+  /closeEye\(\)\.then\(function \(\) \{[\s\S]{0,200}?classList\.add\("page-out"\)/.test(guideJs) &&
+  /dockIntoBox\(\);[\s\S]{0,200}?eye\.openNow\(\)/.test(guideJs),
+  '用户第五轮:"按下左滑后,主屏幕的眼睛马上闭上,等到彻底滑过去后,眼睛再在右侧睁开"');
+ok('★★★ 左滑用的是 page-slide 那条过渡(不是自己另画一套)',
+  /docEl\.classList\.add\("page-slide"\)/.test(guideJs) &&
+  /document\.body\.classList\.add\("page-out"\)/.test(guideJs) &&
+  /document\.body\.classList\.remove\("page-out"\)/.test(guideJs),
+  '整块机器左移 100vw 的那条 CSS 在 shell.css 第三节 —— 复用同一条,过场才接得上');
+ok('★★★ 第五轮取消了旋转(转 90° 之后"跟鼠标"在视觉上是反的)',
+  /if \(eye\.rotate\) eye\.rotate\(0\);/.test(guideJs) &&
+  !/eye\.rotate\(90\)/.test(guideJs),
+  '用户第五轮明确要的是"同一只眼睛换个位置继续跟鼠标" —— 朝向由 setGaze 决定,与旋转无关');
+ok('★★ 闭眼要等它真的闭到底(不是拍一下就开始滑)',
+  /eye\.close\(fin\)/.test(guideJs) && /setTimeout\(fin, \(eye\.T_CLOSE \|\| 780\) \+ 400\)/.test(guideJs),
+  '闭眼动画 780ms;不等它跑完就滑,用户会看到"眼睛还睁着就飞走了"');
 ok('★★★ 那一格的分母是【玻璃的宽】,不是视口的宽',
   /cssPx\("--ff-win-left"/.test(guideJs) &&
   /var glassW = Math\.max\(320, vw - winL - winR\)/.test(guideJs) &&
@@ -349,11 +358,27 @@ ok('★★★ "按下它"那一拍要【解锁】(允许按下)',
   /unlock: true/.test(guideJs) && /if \(s\.unlock\) lock\(false\);/.test(guideJs),
   '用户:"按下它(解锁鼠标,允许按下按钮)"');
 ok('★★★ "按下"要【让用户自己按】,不是引导代按',
-  /press: "#intro-toggle"/.test(guideRaw) && /press: "#rack-insert"/.test(guideRaw) &&
+  /press: "\.slot-toggle"/.test(guideRaw) && /press: "#rack-insert"/.test(guideRaw) &&
   /function waitForUser\(sel\)/.test(guideJs) &&
   !/click: "#intro-toggle"/.test(guideRaw) && !/click: "#rack-insert"/.test(guideRaw) &&
   !/dispatchEvent\(new MouseEvent\("click"/.test(guideJs),
   '用户第三轮:"按下按钮并不是自动按,是让用户自己按" —— 引导里不该再有替用户按的代码');
+ok('★★★ 要按的目标必须用【看得见的那枚】选择器(.slot-toggle 而不是 #intro-toggle)',
+  /press: "\.slot-toggle"/.test(guideRaw) && /snap: "\.slot-toggle"/.test(guideRaw) &&
+  /sel === "\.slot-toggle"/.test(guideJs),
+  '★★ #intro-toggle 是 screen 右缘那个 <section class="screen-slot"> 里的按钮,' +
+  '它被 .screen-frame(z-index 34)与 .slot-seam 盖着 —— 在它身上加高亮等于没加(实测看不见)');
+ok('★★★ 等用户按时要给【不看扫描框也能看懂】的高亮',
+  /function pulseTarget\(sel, on\)/.test(guideJs) &&
+  /pulseTarget\(s\.press, true\)/.test(guideJs) &&
+  /pulseTarget\(sel, false\)/.test(guideJs) &&
+  /\.is-guide-pulse \{[\s\S]{0,160}?animation: guide-glow/.test(tcss),
+  '用户第五轮:"扫描框固定在按钮的时候,实际鼠标并不在这里,所以根本就按不了" ——' +
+  '现在松框 + 给目标发光,用户看得见自己的指针、也知道该按哪个');
+ok('★★ 高亮要用 outline + filter(那枚按钮自己已经写了 box-shadow,再加一条会互相覆盖)',
+  /@keyframes guide-glow \{[\s\S]{0,300}?outline: 2px solid/.test(tcss) &&
+  /filter: brightness/.test(tcss),
+  '而且 outline 不占布局 —— 按钮不会因为"该按了"而抖一下');
 ok('★★★ 等用户按的判据是【状态】,不是"有没有接到那次 click"',
   /function makeWaiter\(sel\)/.test(guideJs) &&
   /document\.body\.classList\.contains\("scene-open"\)/.test(guideJs) &&
@@ -386,6 +411,16 @@ ok('★★★ 收尾必须把平板的黑屏状态摘掉(藏着也会被下次�
   /tablet\.classList\.remove\("is-dark"\);\s*\n\s*if \(window\.__tabletOpen\) window\.__tabletOpen\(false\);/.test(guideJs),
   '★★ 踩过:平板收起了、但 .is-dark 没摘 —— hidden 后面看不出来,' +
   '可引导走完之后从 CD 页再点开平板,看到的是一块【黑屏】(实测:tablet is-dark is-on,主屏不显示)');
+ok('★★★ 顶缘那枚开关在"走到它之前"必须既看不见又点不到',
+  /d\.classList\.add\("top-locked"\)/.test(homeTpl) &&
+  /html\.top-locked \.statusbar-toggle,[\s\S]{0,80}?pointer-events: none !important;/.test(tcss) &&
+  /function lockTop\(on\)/.test(guideJs) && /unlockTop: true/.test(guideJs),
+  '★ 用户第五轮:"刚刚进入首页的时候这个上滑栏默认是打开的,导致能透过动画按按钮" ——' +
+  '实测它在 t≈1s 时 opacity 已经 0、而 pointer-events 还是 auto(看不见却点得到);' +
+  '闸门挂在 <head> 里同步加的 top-locked 上,等 defer 脚本(2.7s)就太晚了');
+ok('★★★ 加载页淡出之后不许再吃点击',
+  /\.intro-loader\.is-done \{[\s\S]{0,80}?pointer-events: none;/.test(icss),
+  '它 opacity:0 之后如果还留着 pointer-events:auto,就是"透过动画按按钮"的另一个来源');
 ok('★★★ 鼠标锁与滚轮锁都要解开,剧本矩形与自转倍率都要还原',
   /lock\(false\);/.test(guideJs) && /lockWheel\(false\);/.test(guideJs) &&
   /window\.__mcSpinScale = 1;/.test(guideJs) && /window\.__mcScript = null;/.test(guideJs),

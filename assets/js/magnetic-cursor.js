@@ -517,13 +517,31 @@
      选字/拖图),而 Pointer Events 规定 —— pointerdown 的默认行为一旦被取消,
      浏览器就【不再派发兼容的 mousemove/mousedown/mouseup】。
      所以整段按住的拖动里,mousemove 一次都不来 ⇒ 光标冻在按下那一刻。
-     pointermove 不受这条影响,永远会来;mousemove 留着当兜底。 */
+     pointermove 不受这条影响,永远会来;mousemove 留着当兜底。
+
+     ★★ 剧本模式的例外(首页引导):引导自己会往 window 上派发合成
+     pointermove 来"把指针搬过去"。那些事件不能算【用户在动鼠标】,
+     否则瞳孔会跟着剧本走而不是跟着人 —— 用户第三轮报的
+     "眼睛不能跟随自由移动的扫描框"就是这个:剧本每帧都在重申目标视线,
+     把真实鼠标的手势整个盖掉了。
+     ⇒ 合成事件的 isTrusted 是 false,据此区分:
+        · 真人移动 → 交给眼睛,让它自己跟手;
+        · 剧本搬动 → 不碰视线,只把指针摆好。 */
+  function isSynthetic(e) { return e && e.isTrusted === false; }
   var follow = function (e) {
     mx = e.clientX; my = e.clientY;
     if (fx < -900) { fx = mx; fy = my; }
     fadeTo = 1;
+    if (isSynthetic(e)) scriptedMove = true;
+    else scriptedMove = false;
+    if (window.__mcOnPointer) {
+      try { window.__mcOnPointer(mx, my, !isSynthetic(e)); } catch (err) { }
+    }
     if (!raf) raf = requestAnimationFrame(tick);
   };
+  /* 剧本模式由引导开关,这里只是一个给外面读的标记 */
+  var scriptedMove = false;
+  window.__mcIsScript = function () { return !!scriptBox(); };
   window.addEventListener("pointermove", follow, { passive: true });
   window.addEventListener("mousemove", follow, { passive: true });
 
