@@ -1122,9 +1122,17 @@
        平板那一层由引导脚本挂(它要负责收黑),这一层让"加载页刚收掉、
        引导还没起来"的那几十毫秒也是黑的。 */
     if (staticWrap) { staticWrap.classList.remove("is-full"); staticWrap.classList.add("is-on"); staticWrap.classList.add("is-black"); }
-    /* 平板打开(而且【不】记忆:这次是开机,不是用户按的) */
-    if (window.__tabletOpen) window.__tabletOpen(true);
-    else body.classList.add("tablet-open");
+    /* 平板打开(而且【不】记忆:这次是开机,不是用户按的)
+       ★ 顺序:先让引导脚本挂 .is-dark(它的 blackout 里做),再打开平板 ——
+         反过来的话平板会带着 opacity 0→1 的入场过渡淡进来,中间那 260ms
+         快捷控制卡片(音量滑条)会跟着露一下脸(用户第三轮报过这个小 bug)。
+       ⇒ 这里先开着,由引导脚本"先黑后亮"自己收口:它是唯一知道
+         "这一刻该不该全黑"的一方。 */
+    if (!window.__homeBoot) {
+      /* 引导脚本没就绪(降级):直接开,至少不是白屏 */
+      if (window.__tabletOpen) window.__tabletOpen(true);
+      else body.classList.add("tablet-open");
+    }
     hideLoader();
     window.__introReady = false;
     /* 下一帧再把控制权交出去:让浏览器先把黑屏画出来 */
