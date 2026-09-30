@@ -672,6 +672,44 @@ const missing = [...used].filter((v) => !defined.has(v));
 ok('★★ CSS 里用到的 --hud-* 变量全都有定义(拼错不会有任何报错,只会静默失效)',
   missing.length === 0, missing.join(', '));
 
+/* ---------- ⑤ 自适应缩放:--hud-s(用户第十轮)----------
+   用户:"有没有考虑页面自适应缩放?我看换到27寸屏幕大部分位置对的,小部分错位了
+   (比如单独放的字体字号按钮,跑到了屏幕正中央),小部分按钮大小没变,比如三个笔按钮"
+   病根:HUD 的【位置】全是百分比(跟着视口走),而【控件尺寸】是一堆写死的 px ——
+   大屏上框拉开了、字和按钮原地不动,比例就散了。 */
+const headExt = rd(`${BH}/layouts/partials/extend_head.html`);
+ok('★★★ 缩放因子在【首帧之前】就算出来(内联脚本,不是 defer 的 js)',
+  /d\.style\.setProperty\("--hud-s"/.test(headExt) &&
+  /Math\.min\(d\.clientWidth \/ 1600, d\.clientHeight \/ 900\)/.test(headExt) &&
+  /Math\.max\(0\.85, Math\.min\(1\.45, s\)\)/.test(headExt),
+  '放进 defer 的 page-hud.js 里,大屏上会先按 s=1 画一遍再跳一下');
+ok('★★★ 兜底值写在 :root 上,【不能】写进 .page-hud', (() => {
+  const root = /:root\s*\{[^}]*--hud-s:\s*1/.test(css);
+  const hud = /\.page-hud\s*\{[^}]*--hud-s:/.test(css);
+  return root && !hud;
+})(),
+  '★ 写在 .page-hud 里会把 html 上那个行内值整个遮掉(就近的声明赢),JS 白设 —— 实测踩过');
+ok('★★★ 基准是 1600×900 ⇒ 那里 s=1,布局像素级不变', (() => {
+  // 1600/1600 = 1,900/900 = 1 ⇒ min = 1 ⇒ 夹在 0.85~1.45 ⇒ 1
+  const m = /Math\.min\(d\.clientWidth \/ (\d+), d\.clientHeight \/ (\d+)\)/.exec(headExt);
+  return m && m[1] === "1600" && m[2] === "900";
+})());
+ok('★★ 那批写死 px 的控件真的接上了 --hud-s(抽查几个关键的)',
+  /--hud-ctl-fs:\s*calc\(11px \* var\(--hud-s/.test(css) &&
+  /--hud-btn-h:\s*clamp\(30px, calc\(32px \* var\(--hud-s/.test(css) &&
+  /\.hud-pen__btn\s*\{[^}]*font-size:\s*calc\(11px \* var\(--hud-s/.test(cssCode) &&
+  /\.hud-nav__icon svg\s*\{[^}]*calc\(22px \* var\(--hud-s/.test(cssCode) &&
+  /--toc-fs:\s*calc\(16px \* var\(--hud-s/.test(noC(rd(`${BH}/assets/css/hud-toc.css`))),
+  '控件尺寸一份、位置一份 —— 位置本来就是百分比,缺的是尺寸这一份');
+ok('★ 投影节点和 ECHO 气泡【故意】不缩放', (() => {
+  const shell = noC(rd(`${BH}/assets/css/extended/shell.css`));
+  const node = /\.proj-node\s*\{[^}]*width:\s*clamp\(\d+px,\s*[\d.]+vw,\s*\d+px\)/.exec(shell);
+  const bubble = /\.echo-say\s*\{[^}]*left:\s*calc\(clamp\(\d+px,\s*[\d.]+vw,\s*\d+px\)/.exec(shell);
+  return !!node && !!bubble && node[1] === bubble[1];
+})(),
+  '★ 首页那份节点是【跟着平板滑进来】的,而首页没有 --hud-s(内联脚本在 if not .IsHome 里)' +
+  ' —— 两份尺寸一旦不同,过场就会跳。所以它们保持同一个固定尺寸');
+
 /* ---------- ⑤ 改造 2/3/4/5:凸起里的 LOGO、收窄段的搜索、右上角三枚按钮、竖栏五个导航 ---------- */
 /* ★ baseof 里那行是被 Hugo 注释包起来的:剥掉注释后,"渲染"这件事必须消失。
    ★ 写这段注释时【不要把 Hugo 注释的收尾字符原样打出来】—— 它会提前关掉
@@ -749,8 +787,8 @@ ok('★ 当前页那一项有 is-current + aria-current="page"',
   /\bis-current\b/.test(tagOf(about, 'about')),
   '在 /tech/ 上:tech 是当前页;在 /about/ 上:about 是');
 ok('★★ 图标必须自己给尺寸,而且这一轮要放大(用户:"字体图标可以大一点")',
-  /\.hud-nav__icon svg\s*\{[^}]*width:\s*22px/.test(cssCode) &&
-  /\.hud-nav__icon svg\s*\{[^}]*height:\s*22px/.test(cssCode) &&
+  /\.hud-nav__icon svg\s*\{[^}]*width:\s*calc\(22px \* var\(--hud-s/.test(cssCode) &&
+  /\.hud-nav__icon svg\s*\{[^}]*height:\s*calc\(22px \* var\(--hud-s/.test(cssCode) &&
   /\.hud-nav__item\s*\{[^}]*font-size:\s*clamp\(12px/.test(cssCode),
   '不给尺寸的话 svg 会按 300×150 的固有尺寸铺开');
 ok('★★ 导航整列"往下撑一撑":项间距跟着视口高走',
@@ -903,13 +941,13 @@ ok('★★ 三件套【不是弹出面板】(用户:"不是展开,是右下角�
   !/palette-panel/.test(tech) && !/volume-panel/.test(tech) && !/palette-panel/.test(hudTplCode),
   '老的两块悬停面板是从 nav-switches 来的,这一页根本不该有');
 ok('★★ 右下角:文字加大(9/10px → 11/12px)、滑条加长(58~86 → 72~118)',
-  /--hud-ctl-fs:\s*11px/.test(css) && /--hud-val-fs:\s*12px/.test(css) &&
-  /--hud-fader-len:\s*clamp\(72px,\s*11vh,\s*118px\)/.test(css),
+  /--hud-ctl-fs:\s*calc\(11px \* var\(--hud-s/.test(css) && /--hud-val-fs:\s*calc\(12px \* var\(--hud-s/.test(css) &&
+  /--hud-fader-len:\s*clamp\(72px,\s*11vh,\s*calc\(118px \* var\(--hud-s/.test(css),
   '用户:"右下角的文字其实可以稍微加一点字号,然后这个滑条可以长一点点"');
 ok('★ 滑条是竖的(和 CD 页两根推子同一个做法:横着写再转 -90°)',
   /\.hud-range\s*\{[^}]*transform:\s*rotate\(-90deg\)/.test(cssCode));
 ok('★ 滑条头是圆钮(--hud-thumb 走变量,不是浏览器默认方块)',
-  /--hud-thumb:\s*\d+px/.test(css) && /::-webkit-slider-thumb\s*\{[^}]*border-radius:\s*50%/.test(cssCode));
+  /--hud-thumb:\s*calc\(20px \* var\(--hud-s/.test(css) && /::-webkit-slider-thumb\s*\{[^}]*border-radius:\s*50%/.test(cssCode));
 
 /* ---------- ⑥b 改造 7:底部横带里那三支笔 ---------- */
 ok('★★ 改造 5(第五轮):笔的横带最右侧从横坐标 7 起,把右下角让给两滑条 + 明暗长按钮',
@@ -1117,7 +1155,7 @@ ok('★★ 笔色存 localStorage,预览球跟着变色',
   /background:\s*var\(--pen-color/.test(cssCode));
 ok('★★ 展开时名字收成图标:底带 23% 宽要装下"三支笔 + 大小 + 颜色"',
   /\.hud-pen\.is-on \.hud-pen__name\s*\{\s*max-width:\s*0/.test(cssCode) &&
-  /\.hud-pen__btn\s*\{[^}]*font-size:\s*11px/.test(cssCode),
+  /\.hud-pen__btn\s*\{[^}]*font-size:\s*calc\(11px \* var\(--hud-s/.test(cssCode),
   '用户:"这三个按钮的字号大一点点" + 新加颜色控件 ⇒ 只能靠收起名字腾地方');
 ok('★★★ 画布的 CSS 盒子与后备缓冲必须是同一个盒子(滚动条那条真 bug)', (() => {
   const mc = fs.readFileSync(`${BH}/assets/js/magnetic-cursor.js`, 'utf8');

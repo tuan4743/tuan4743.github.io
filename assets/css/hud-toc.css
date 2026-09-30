@@ -36,7 +36,7 @@
 
     /* 目录自己的字号/字距:用户挑好的那组(第四轮:"字号16,字间距4我觉得很好看")
        ⇒ 固定,不再跟着按钮变 —— 按钮现在调的是【正文】。 */
-    --toc-fs: 16px;
+    --toc-fs: calc(16px * var(--hud-s, 1));
     --toc-ls: 0.04em;
 
     --hud-toc-ink: rgba(234, 243, 255, 0.92);
@@ -108,9 +108,9 @@
     position: absolute;
     left: 50%;
     top: calc(var(--hud-toc-p, 0) * 100%);
-    width: 7px;
-    height: 7px;
-    margin: -3.5px 0 0 -3.5px;
+    width: calc(7px * var(--hud-s, 1));
+    height: calc(7px * var(--hud-s, 1));
+    margin: calc(-3.5px * var(--hud-s, 1)) 0 0 calc(-3.5px * var(--hud-s, 1));
     border-radius: 50%;
     background: #eaf3ff;
     box-shadow: 0 0 8px 2px color-mix(in srgb, var(--hud-toc-cyan) 70%, transparent);
@@ -136,8 +136,8 @@
 /* 回到顶部:圆形,和主题原来那枚一个手感(线色/玻璃底/悬浮变青) */
 .hud-toc__top {
     flex: 0 0 auto;
-    width: 34px;
-    height: 34px;
+    width: calc(34px * var(--hud-s, 1));
+    height: calc(34px * var(--hud-s, 1));
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -166,8 +166,8 @@
 }
 
 .hud-toc__top svg {
-    width: 15px;
-    height: 15px;
+    width: calc(15px * var(--hud-s, 1));
+    height: calc(15px * var(--hud-s, 1));
     display: block;
 }
 
@@ -266,13 +266,13 @@
 
 .hud-toc__title {
     font-family: "Pixel CN", var(--hud-font);   /* 手绘图上"目录"就是像素字 */
-    font-size: 21px;
+    font-size: calc(21px * var(--hud-s, 1));
     letter-spacing: 0.08em;
     white-space: nowrap;
 }
 
 .hud-toc__en {
-    font-size: 11px;
+    font-size: calc(11px * var(--hud-s, 1));
     letter-spacing: 0.26em;
     color: var(--hud-toc-dim);
     text-transform: uppercase;
@@ -347,7 +347,7 @@
     gap: 6px 5px;
     padding: 9px 11px 10px;
     border-top: 1px solid var(--hud-toc-line);
-    font-size: 13px;
+    font-size: calc(13px * var(--hud-s, 1));
     white-space: nowrap;
     overflow: hidden;              /* 面板窄的时候宁可裁掉读数,也不让按钮挤出去 */
 }
@@ -362,8 +362,8 @@
    ★ 两行各 20px 之后整块高 67px(原来一行 42px);面板本身是 flex 列、
      列表 flex:1 1 auto,所以多出来的 25px 全部从列表里扣,面板总高不变。 */
 .hud-toc__step {
-    width: 20px;
-    height: 20px;
+    width: calc(20px * var(--hud-s, 1));
+    height: calc(20px * var(--hud-s, 1));
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -373,7 +373,7 @@
     background: rgba(234, 243, 255, 0.06);
     color: var(--hud-toc-ink);
     font-family: var(--hud-font);
-    font-size: 14px;
+    font-size: calc(14px * var(--hud-s, 1));
     line-height: 1;
     cursor: pointer;
     transition: background-color 0.16s ease, border-color 0.16s ease;
@@ -390,7 +390,7 @@
          既会折行又会把 "0.003" 截成 "0.0…",两头都不讨好;
          现在宁可让整行去顶 .hud-toc__size 的 overflow(面板窄时裁右边)。 */
     color: rgba(234, 243, 255, 0.62);
-    font-size: 12px;
+    font-size: calc(12px * var(--hud-s, 1));
     letter-spacing: 0.02em;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;

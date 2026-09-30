@@ -39,6 +39,23 @@
     font-display: swap;
 }
 
+/* ═══════ 0. 缩放因子 --hud-s(用户第十轮:27 寸上"小部分按钮大小没变")═══════
+   HUD 的【位置】全是百分比(跟着视口走),而【控件尺寸】原来是一堆写死的 px
+   —— 大屏上框拉开了、字和按钮还原地不动,比例就散了。
+   现在所有写死的尺寸都写成 calc(Npx * var(--hud-s, 1)):
+     · 基准 1600×900(这一整套一直是在这个尺寸上量的)⇒ 那里 s = 1,像素级不变;
+     · 取宽高两个比例的较小值,带鱼屏不会因为宽就撑爆;
+     · 夹在 0.85 ~ 1.45,小窗口不缩到点不着、超大屏不变玩具。
+   ★★ 真正的赋值在 layouts/partials/extend_head.html 里那段内联脚本:
+     它必须在【首帧之前】跑,放到 defer 的 page-hud.js 里大屏上会先按 s=1
+     画一遍再跳一下。
+   ★★★ 兜底值必须写在【:root】上,不能写进 .page-hud —— 写在 .page-hud 里
+     会把 html 上那个行内值整个遮掉(就近的声明赢),结果 JS 白设了:
+     实测所有控件纹丝不动,就是踩了这个。行内样式优先级高于 :root 规则,安全。 */
+:root {
+    --hud-s: 1;
+}
+
 .page-hud {
     /* ═══════ 1. 形状层(和 CD 页左侧 .holo 一一对应)═══════ */
     --hud-ink: #eaf3ff;                   /* 线色 / 文字色 */
@@ -63,7 +80,7 @@
 
     /* ═══════ 2. 边框围出来那几个区(数都要和折线对得上)═══════ */
     --hud-col: 5vw;                       /* 竖栏宽 = 折线竖段的 x(= 5) */
-    --hud-pad: clamp(8px, 0.7vw, 14px);   /* 贴边留白 */
+    --hud-pad: clamp(8px, 0.7vw, calc(14px * var(--hud-s, 1)));   /* 贴边留白 */
     --hud-top-a: 6%;                      /* 收窄段(浅):搜索栏所在的带 */
     --hud-top-b: 9%;                      /* 凸起(深):LOGO 所在的带 */
     --hud-ledge: 30%;                     /* 深段右端 x */
@@ -89,14 +106,14 @@
     --hud-line-on: rgba(234, 243, 255, 0.6);
 
     /* ═══════ 3. 控件 ═══════ */
-    --hud-ctl-fs: 11px;                   /* 标签字号(用户:"右下角的文字稍微加一点字号") */
+    --hud-ctl-fs: calc(11px * var(--hud-s, 1));                   /* 标签字号(用户:"右下角的文字稍微加一点字号") */
     --hud-ctl-ls: 0.16em;
-    --hud-val-fs: 12px;
-    --hud-fader-len: clamp(72px, 11vh, 118px); /* 竖滑条长度(用户:"这个滑条可以长一点点") */
-    --hud-rail-w: 5px;
+    --hud-val-fs: calc(12px * var(--hud-s, 1));
+    --hud-fader-len: clamp(72px, 11vh, calc(118px * var(--hud-s, 1))); /* 竖滑条长度(用户:"这个滑条可以长一点点") */
+    --hud-rail-w: calc(5px * var(--hud-s, 1));
     --hud-rail: rgba(234, 243, 255, 0.22);
-    --hud-thumb: 20px;
-    --hud-btn-h: clamp(30px, 3.6vh, 38px);     /* 按钮高 */
+    --hud-thumb: calc(20px * var(--hud-s, 1));
+    --hud-btn-h: clamp(30px, calc(32px * var(--hud-s, 1)), 56px);     /* 按钮高 */
 
     /* ═══════ 4. 字体 ═══════ */
     --hud-font: "Alpha Sector", "Pixel CN", "PingFang SC", "Microsoft YaHei",
@@ -239,21 +256,23 @@
     position: absolute;
     right: 9%;
     top: 1.4%;
-    width: min(19%, 320px);
+    /* ★ 宽度的上限也跟着 --hud-s 走:字号已经放大了,框还卡在 320px 的话
+       大屏上能看见的字反而变少(实测 2560 上字号 17.4px 塞在 320px 里)。 */
+    width: min(19%, calc(320px * var(--hud-s, 1)));
     pointer-events: auto;
 }
 
 /* 用 HUD 的语言重画搜索框(主题那套 .search-box 是给浅色卡片用的) */
 .hud-search .search-box input {
     width: 100%;
-    height: clamp(26px, 3vh, 34px);
+    height: clamp(26px, 3vh, calc(34px * var(--hud-s, 1)));
     padding: 0 2.2rem 0 2rem;      /* 右边给自画的 × 留位置 */
     border: 1px solid var(--hud-line-soft);
     border-radius: 4px;
     background: rgba(234, 243, 255, 0.04);
     color: var(--hud-ink);
     font-family: var(--hud-font);
-    font-size: 12px;
+    font-size: calc(12px * var(--hud-s, 1));
     letter-spacing: 0.06em;
 }
 
@@ -270,8 +289,8 @@
     right: 4px;
     top: 50%;
     transform: translateY(-50%);
-    width: 22px;
-    height: 22px;
+    width: calc(22px * var(--hud-s, 1));
+    height: calc(22px * var(--hud-s, 1));
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -293,8 +312,8 @@
 }
 
 .hud-search__clear svg {
-    width: 12px;
-    height: 12px;
+    width: calc(12px * var(--hud-s, 1));
+    height: calc(12px * var(--hud-s, 1));
     display: block;
 }
 
@@ -378,7 +397,7 @@
     background: rgba(8, 12, 22, 0.96);
     backdrop-filter: blur(8px);
     color: var(--hud-ink);
-    font-size: 11px;
+    font-size: calc(11px * var(--hud-s, 1));
     letter-spacing: 0.06em;
     white-space: nowrap;
     z-index: 2;
@@ -413,7 +432,7 @@
     gap: 4px;
     padding: 0.75em 0.2em;
     color: var(--hud-ink-dim);
-    font-size: clamp(12px, 0.86vw, 16px);
+    font-size: clamp(12px, 0.86vw, calc(16px * var(--hud-s, 1)));
     letter-spacing: 0.1em;
     text-decoration: none;
     border: 1px solid transparent;
@@ -438,16 +457,16 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 22px;
-    height: 22px;
+    width: calc(22px * var(--hud-s, 1));
+    height: calc(22px * var(--hud-s, 1));
     opacity: 0.95;
 }
 
 /* ★ 菜单项的 svg 自己没写 width/height(顶栏是靠 .menu .menu-icon 量的),
    这里不在 .menu 里 ⇒ 必须自己给尺寸,否则会按 300×150 的固有尺寸铺开。 */
 .hud-nav__icon svg {
-    width: 22px;
-    height: 22px;
+    width: calc(22px * var(--hud-s, 1));
+    height: calc(22px * var(--hud-s, 1));
     display: block;
 }
 
@@ -607,8 +626,8 @@
 }
 
 .hud-theme svg {
-    width: 14px;
-    height: 14px;
+    width: calc(14px * var(--hud-s, 1));
+    height: calc(14px * var(--hud-s, 1));
     display: block;
 }
 
@@ -646,7 +665,7 @@
     background: rgba(234, 243, 255, 0.04);
     color: var(--hud-ink-dim);
     font-family: var(--hud-font);
-    font-size: 11px;                      /* ★ 用户:"这三个按钮的字号大一点点" */
+    font-size: calc(11px * var(--hud-s, 1));  /* ★ 用户:"这三个按钮的字号大一点点" */
     letter-spacing: 0.08em;
     white-space: nowrap;
     cursor: pointer;
@@ -683,8 +702,8 @@
 }
 
 .hud-pen__ico svg {
-    width: 13px;
-    height: 13px;
+    width: calc(13px * var(--hud-s, 1));
+    height: calc(13px * var(--hud-s, 1));
     display: block;
 }
 
@@ -703,7 +722,7 @@
 }
 
 .hud-pen.is-on .hud-pen__tools {
-    width: clamp(170px, 11vw, 250px);
+    width: clamp(170px, 11vw, calc(250px * var(--hud-s, 1)));
     opacity: 1;
 }
 
@@ -735,8 +754,8 @@
    症状就是"颜色点没出现"(用户第八轮报的)。 */
 
 .hud-pen__swatch {
-    width: 13px;
-    height: 13px;
+    width: calc(13px * var(--hud-s, 1));
+    height: calc(13px * var(--hud-s, 1));
     padding: 0;
     border: 1px solid rgba(234, 243, 255, 0.35);
     border-radius: 50%;
@@ -757,8 +776,8 @@
 
 .hud-pen__dot {
     flex: 0 0 auto;
-    width: 18px;
-    height: 18px;
+    width: calc(18px * var(--hud-s, 1));
+    height: calc(18px * var(--hud-s, 1));
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -779,7 +798,7 @@
 .hud-pen__range {
     -webkit-appearance: none;
     appearance: none;
-    width: clamp(70px, 6vw, 120px);
+    width: clamp(70px, 6vw, calc(120px * var(--hud-s, 1)));
     height: 3px;
     margin: 0;
     background: var(--hud-rail);
@@ -791,8 +810,8 @@
 .hud-pen__range::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 14px;
-    height: 14px;
+    width: calc(14px * var(--hud-s, 1));
+    height: calc(14px * var(--hud-s, 1));
     border-radius: 50%;
     background: rgba(10, 14, 22, 0.88);
     border: 1.5px solid rgba(234, 243, 255, 0.85);
@@ -800,8 +819,8 @@
 }
 
 .hud-pen__range::-moz-range-thumb {
-    width: 14px;
-    height: 14px;
+    width: calc(14px * var(--hud-s, 1));
+    height: calc(14px * var(--hud-s, 1))
     border-radius: 50%;
     background: rgba(10, 14, 22, 0.88);
     border: 1.5px solid rgba(234, 243, 255, 0.85);
@@ -862,18 +881,18 @@
 }
 
 .hud-type--lane .hud-type__lab {
-    font-size: 10px;
+    font-size: calc(10px * var(--hud-s, 1));
 }
 
 .hud-type--lane .hud-type__step {
-    width: 16px;
-    height: 16px;
-    font-size: 11px;
+    width: calc(16px * var(--hud-s, 1));
+    height: calc(16px * var(--hud-s, 1));
+    font-size: calc(11px * var(--hud-s, 1));
 }
 
 .hud-type--lane .hud-type__val {
-    min-width: 18px;
-    font-size: 10px;
+    min-width: calc(18px * var(--hud-s, 1));
+    font-size: calc(10px * var(--hud-s, 1));
 }
 
 /* ★★ 再窄就没有它能站的地方了 —— 这个数是【量出来】的,不是算出来的:
@@ -892,15 +911,15 @@
 }
 
 .hud-type__lab {
-    font-size: 11px;
+    font-size: calc(11px * var(--hud-s, 1));
     letter-spacing: 0.04em;
     color: rgba(234, 243, 255, 0.68);
     white-space: nowrap;
 }
 
 .hud-type__step {
-    width: 18px;
-    height: 18px;
+    width: calc(18px * var(--hud-s, 1));
+    height: calc(18px * var(--hud-s, 1));
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -910,7 +929,7 @@
     background: rgba(234, 243, 255, 0.06);
     color: rgba(234, 243, 255, 0.92);
     font-family: var(--hud-font);
-    font-size: 12px;
+    font-size: calc(12px * var(--hud-s, 1));
     line-height: 1;
     cursor: pointer;
     transition: background-color 0.16s ease, border-color 0.16s ease;
@@ -922,8 +941,8 @@
 }
 
 .hud-type__val {
-    min-width: 26px;
-    font-size: 11px;
+    min-width: calc(26px * var(--hud-s, 1));
+    font-size: calc(11px * var(--hud-s, 1));
     color: rgba(234, 243, 255, 0.62);
     font-variant-numeric: tabular-nums;
     white-space: nowrap;

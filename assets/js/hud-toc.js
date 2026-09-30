@@ -69,7 +69,16 @@
                               "字号 [−][+] 19px / 字距 [−][+] 0.003" 两行里最长的一行
                               ≈ 26 + 5 + 22 + 5 + 22 + 5 + 42 + 内边距 22 = 171px,
                               168 会让读数折行(浏览器把 "0.003" 按字符竖着排)。 */
-  var MAX_W = 400;       /* 太宽也难看(宽屏上缝会很大) */
+  /* ★★ 上限也跟着缩放(用户第十轮):2560 上那条缝有 732px,面板还卡在 400px
+     就只剩一根窄条 —— 而里面的字已经按 --hud-s 放大了。
+     MIN_W 不缩放:它是"再窄就没法用"的物理下限,和屏幕大小无关。 */
+  var S = (function () {
+    try {
+      var v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--hud-s"));
+      return isFinite(v) && v > 0 ? v : 1;
+    } catch (e) { return 1; }
+  })();
+  var MAX_W = Math.round(400 * S);   /* 太宽也难看(宽屏上缝会很大) */
   /* 高度:先进 = 盒子总高(面板 + 下面那枚回到顶部),再由它算出面板高。
      ★ 用户第三轮:"怎么这个卡片没有居中对齐?" —— 面板和进度条的高度原来各用一个
        整页百分比,谁也没对齐谁;现在进度条高度直接取【面板高】这一个数,
@@ -103,15 +112,30 @@
              gap: gap, w: w, boxH: boxH, top: (center - boxH / vh / 2) * vh };
   }
 
-  /* 胶囊在 lane 模式下的实测宽(CDP 量的:176px,见 page-hud.css 的 .hud-type--lane
-     —— 那边专门收小了一号,原尺寸是 218px)。留 4px 余量。
-     缝比它窄就站不进去 ⇒ 退回左栏那套位置,别硬塞着压住正文。 */
+  /* 胶囊的实测宽(page-hud.css 的 .hud-type--lane 专门收小过一号:1600 基准上 176px)。
+     ★★ 现在它还要乘 --hud-s —— 大屏上整枚会等比放大,所以阈值【不能写死】,
+        要按"此刻真的多宽"判,否则大屏上它会从缝里挤出去压住竖栏。 */
   var PILL_W = 180;
+  function pillWidth() {
+    var w = typePill ? typePill.offsetWidth : 0;
+    if (w) return w;
+    var s = 1;
+    /* ★ 假 DOM(测试)里没有 getComputedStyle —— 兜住,别让整块布局炸掉 */
+    try { s = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--hud-s")) || 1; } catch (e) { }
+    return Math.round(PILL_W * s);
+  }
   function placePill(lb) {
     if (!typePill) return;
-    var lane = !!lb && lb.gap >= PILL_W;
+    var pw = pillWidth();
+    var lane = !!lb && lb.gap >= pw;
     typePill.classList.toggle("hud-type--lane", lane);
-    typePill.style.left = lane ? Math.round(lb.left) + "px" : "";
+    /* ★★ 用户第十轮:"比如单独放的字体字号按钮,跑到了屏幕正中央。"
+       病根:那条缝在 2560 上有 732px 宽,而胶囊原来钉在【正文右缘】那一侧 ⇒
+       它一个人浮在屏幕中段,离右边那一簇 HUD(竖栏、笔、明暗)很远。
+       ⇒ 改成贴【缝的右端】:缝的净宽 = navLeft − GAP_NAV − left,
+         所以右端 = lb.left + lb.gap;再往左让出它自己的宽,就是左缘。
+       这样屏幕多宽它都紧挨着竖栏 —— 归队。 */
+    typePill.style.left = lane ? Math.round(lb.left + lb.gap - pw) + "px" : "";
     typePill.style.top = lane ? Math.round(lb.top) + "px" : "";
   }
 
@@ -120,8 +144,9 @@
        但【那条缝照样得量】:备用胶囊要站到目录本来该在的位置上。
        不写这个 early return 的话下面 root.classList 会抛错。 */
     if (!root) {
-      placePill(laneBox(document.documentElement.clientHeight));
-      if (typePill) typePill.hidden = false;
+      var lb0 = laneBox(document.documentElement.clientHeight);
+      if (typePill) typePill.hidden = false;   /* ★ 先露出来再量宽,量完才摆得准 */
+      placePill(lb0);
       return;
     }
     var vh = document.documentElement.clientHeight;

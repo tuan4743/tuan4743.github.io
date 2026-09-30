@@ -138,8 +138,9 @@ ok('模块也认 hidden(停用后不再初始化 aria)',
 
 /* ★ 用户第四轮挑定:"目录页的字号16,字间距4我觉得很好看" ⇒ 目录固定这一组 */
 ok('★ 目录字号固定成用户挑的 16px / 0.04em(不再跟着按钮变)',
-  /--toc-fs:\s*16px/.test(css) && /--toc-ls:\s*0\.04em/.test(css) &&
-  /\.hud-toc__title\s*\{[^}]*font-size:\s*21px/.test(css));
+  /--toc-fs:\s*calc\(16px \* var\(--hud-s/.test(css) && /--toc-ls:\s*0\.04em/.test(css) &&
+  /\.hud-toc__title\s*\{[^}]*font-size:\s*calc\(21px \* var\(--hud-s/.test(css),
+  '16px/21px 是基准值(1600×900),现在再乘 --hud-s —— 大屏上跟着一起放大');
 ok('字体大小/字距可调并存 localStorage(现在存的是正文那组)',
   /localStorage\.setItem\(KEY/.test(js) && /localStorage\.getItem\(KEY/.test(js) &&
   /KEY = "content-type"/.test(js));
@@ -676,19 +677,25 @@ function pressOn(rootEl, target) {
     env.doc.documentElement.style.getPropertyValue('--article-fs') === '18px',
     env.doc.documentElement.style.getPropertyValue('--article-fs'));
 
-  /* ★★★ 它不能再一个人留在左上角 —— 要站到"目录本来该在的位置"上。
-     用户:"如果没有目录,那么目录里面的字体大小调节模块就会单独跑到左上角,
-     比如六十年这一篇"(那一篇没有小标题 ⇒ hud-toc.html 整块不渲染)。 */
+  /* ★★★ 它不能再一个人留在左上角,也【不能浮在屏幕中段】——
+     要贴着竖栏站。
+     用户第七轮:"如果没有目录,那么目录里面的字体大小调节模块就会单独跑到左上角,
+     比如六十年这一篇"(那一篇没有小标题 ⇒ hud-toc.html 整块不渲染)。
+     用户第十轮:"换到27寸屏幕……单独放的字体字号按钮,跑到了屏幕正中央。"
+     ⇒ 改成【贴缝的右端】:缝的净宽 = navLeft − GAP_NAV − left(这里 1600−6−1350 = 244),
+       胶囊左缘 = 缝右端 − 它自己的宽。屏幕多宽都紧挨着竖栏。 */
   env.doc.querySelector = (s) => (s.indexOf('.hud-nav') === 0
     ? { getBoundingClientRect: () => ({ left: 1600, right: 1700, top: 0, bottom: 0 }) } : env.main);
   api.relayout();
-  const laneLeft = Math.round(env.main._rect.right + 12 + 18);   /* 正文右缘 + GAP_BAR + GAP_PANEL */
-  ok('★★★ 没有目录时,胶囊站到目录的位置上(不再一个人留在左上角)',
+  const laneRight = 1600 - 6;          /* 竖栏左边 − GAP_NAV */
+  const pillW = 180;                   /* 假 DOM 量不出 offsetWidth ⇒ 走 PILL_W 兜底 */
+  ok('★★★ 没有目录时,胶囊【贴着竖栏】站(不浮在屏幕中段,也不在左上角)',
     env.typePillEl.classList.contains('hud-type--lane') &&
-    env.typePillEl.style.left === laneLeft + 'px' && /px$/.test(String(env.typePillEl.style.top)),
+    Number(String(env.typePillEl.style.left).replace('px', '')) + pillW === laneRight &&
+    /px$/.test(String(env.typePillEl.style.top)),
     'lane=' + env.typePillEl.classList.contains('hud-type--lane') +
     ' left=' + env.typePillEl.style.left + ' top=' + env.typePillEl.style.top +
-    '(期望 left=' + laneLeft + 'px)');
+    '(期望 left=' + (laneRight - pillW) + 'px,右缘正好贴 ' + laneRight + ')');
 
   /* 缝不够宽(胶囊 218px 站不进去)⇒ 老老实实退回左栏那套,别硬塞着压正文 */
   env.doc.querySelector = (s) => (s.indexOf('.hud-nav') === 0

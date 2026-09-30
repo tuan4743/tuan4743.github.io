@@ -20,6 +20,40 @@
 {{- if not .IsHome }}
 <script>document.documentElement.classList.add("shell-page");</script>
 
+{{- /* ---------- HUD 的缩放因子 --hud-s(用户第十轮)----------
+     用户:"有没有考虑页面自适应缩放?我看换到27寸屏幕大部分位置对的,小部分错位了
+     (比如单独放的字体字号按钮,跑到了屏幕正中央),小部分按钮大小没变,比如三个笔按钮"
+
+     ★ 病根:HUD 的【位置】全是百分比(跟着视口走),而【控件本身的尺寸】是一堆写死的
+       px(11px 字、65px 宽的笔、22px 图标、38px 按钮高…)。27 寸上框和栏都拉大了,
+       里面的字和按钮还原地不动 —— 于是又空又小,比例全乱。
+
+     ★ 做法:算一个纯数字的比例因子挂在 :root 上,CSS 里用 calc(11px * var(--hud-s,1)) 消费。
+       · 基准是 1600×900(这一整套一直是在这个尺寸上量的)⇒ 那里 s = 1,像素级不变;
+       · 取宽高两个比例的【较小值】:2560×1080 那种带鱼屏不会因为宽就撑爆;
+       · 上下都夹住(0.85 ~ 1.45):小窗口不许缩到点不着,超大屏也不许变成玩具。
+
+     ★★ 为什么用内联脚本:它必须在【首帧之前】就位。放到 defer 的 page-hud.js 里,
+       大屏上会先按 s=1 画一遍、几十毫秒后再跳一下 —— 那一下很明显。
+     ★ 为什么不用 CSS 算:CSS 没法把长度除以长度得出一个纯数字,calc() 做不到。 */ -}}
+<script>
+    (function () {
+        var d = document.documentElement;
+        function set() {
+            var s = Math.min(d.clientWidth / 1600, d.clientHeight / 900);
+            s = Math.max(0.85, Math.min(1.45, s));
+            d.style.setProperty("--hud-s", s.toFixed(3));
+        }
+        set();
+        /* 旋屏 / 拖窗口大小的时候跟着走(节流到一帧) */
+        var raf = 0;
+        window.addEventListener("resize", function () {
+            if (raf) return;
+            raf = requestAnimationFrame(function () { raf = 0; set(); });
+        });
+    })();
+</script>
+
 {{- /* ---------- 右侧 HUD(第二阶段第一刀)----------
      ★ 样式表在这里单独挂,不放 assets/css/extended/:
        extended 那个包是【全站】都会加载的,而这条 HUD 只有博客页有 ——
