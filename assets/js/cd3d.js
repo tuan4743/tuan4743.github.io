@@ -12,7 +12,10 @@ export async function initCd3d(opts) {
   const container = opts.container;
   if (!container) return null;
   const report = (p, label) => {
-    if (opts.onProgress) opts.onProgress(Math.max(0, Math.min(100, Math.round(p))), label || "");
+    /* ★ 3D 这一路封顶 96:剩下 4 个点由 intro.js 在"确实就绪"那一刻补上。
+       不封顶的话模型先跑完就把进度条顶到 100%,而音乐还在下 ——
+       屏幕上是"100% 但什么都不发生"(实测踩过)。 */
+    if (opts.onProgress) opts.onProgress(Math.max(0, Math.min(96, Math.round(p * 0.96))), label || "");
   };
   /* ★★ 加载页上的每一档文案都是【设定口吻】的(用户第二轮:
      "加载文字也要进行替换,比如'下载3D模型->加载情感引擎',总之就是往设定上靠")。

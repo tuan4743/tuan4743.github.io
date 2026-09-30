@@ -140,17 +140,21 @@ window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}",
         })();
     </script>
 
-    <!-- 首次进入的加载页(3D 就绪前显示)
+    <!-- 首次进入的加载页(3D / 音乐就绪前显示)
          ★★ 文案全部按【设定】走(用户第二轮:"把加载动画的字换了,Tuagfey-blog
             改成人格修正启动中...,加载文字也要进行替换,比如'下载3D模型->加载情感引擎',
             总之就是往设定上靠")。
          进度标签不是写死在这里的:每一档由 cd3d.js / intro.js 边加载边报
-         (读取终端配置 → 加载渲染引擎 → 加载情感引擎 → 挂载 CD 模板 → 载入情感引擎)。 -->
+         (读取终端配置 → 加载渲染引擎 → 加载情感引擎 → 挂载 CD 模板 → 载入情感引擎)。
+         ★★ 第三轮加的:进度行下面再挂一条"还在动"的辅助行 ——
+            模型有几 MB,慢网下要好几秒,一屏静止的字会被当成"卡死了"
+            (用户报的"动画完全没有加载"里就有这一层)。 -->
     <div class="intro-loader" id="intro-loader">
         <div class="intro-loader-inner">
             <span class="intro-loader-brand">人格修正启动中…</span>
             <div class="intro-loader-bar"><i id="intro-loader-fill"></i></div>
             <span class="intro-loader-pct" id="intro-loader-pct">正在校验锚点…</span>
+            <span class="intro-loader-sub" id="intro-loader-sub" aria-hidden="true"></span>
         </div>
     </div>
     {{/* 背景:首页的"宇宙背景"就是 .intro-bg 这一层 —— 它【不跟着 .scene 滑】,
@@ -602,7 +606,6 @@ window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}",
         <span class="home-console__id">ECHOM_D29_Z68J521</span>
     </div>
     <p class="home-console__line" id="home-console-line" aria-live="polite"></p>
-    <p class="home-console__tip">按任意键跳过</p>
 </div>
 
 {{/* ★ 眼睛本体在 assets/js/ascii-eye.js(和启动页【同一份】,不重写);

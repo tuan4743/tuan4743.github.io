@@ -473,15 +473,20 @@
     window.__mcSpinScale = 1;
     if (basePad !== null) window.__mcPad = basePad;
 
-    /* ★★★ 收尾要把【平板本身】关掉。
-       踩过:引导结束时只把眼睛和台词淡掉、把 .is-dark 摘了 —— 平板那一层
-       (z-index 40)还压在 CD 页上面,于是"按下插入"之后的开机动画放完,
-       用户看到的是一块【平板主屏】,而不是刚插进去的那张盘(截图里 14 号就是它)。
-       用户说的"按下后就正常了"里的"正常",指的就是回到平常那条路:
-       平板收起 → 盘页出来。
+    /* ★★★ 收尾要把【平板本身】关掉,而且【必须把黑屏状态摘掉】。
+       这两件事缺一不可,两个都踩过:
+        · 只把眼睛和台词淡掉、平板留在原地 ⇒ 平板那一层(z-index 40)压在 CD 页上面,
+          "按下插入"之后的开机动画放完,用户看到的是一块【平板主屏】,
+          而不是刚插进去的那张盘;
+        · 平板收起了、但 .is-dark 没摘 ⇒ 它藏在 hidden 后面看不出来,
+          可引导走完之后用户一旦从 CD 页再点开平板,看到的是【一块黑屏】
+          (实测复现:tablet is-dark is-on,主屏完全不显示)。
+          这跟"用户按过一次开之后,刷新仍然是开的"那条记忆是同一个坑:
+          藏起来的坏状态迟早会被下一次打开翻出来。
        ★ 放在这里(而不是等开机动画结束)是为了让平板的第一段 ——
          "从略微缩小 + 下移展开到位"(tablet.js 的 .36s 转场)—— 和
          setOpen(false) → 开机动画这段时间并行,不额外拖时间。 */
+    tablet.classList.remove("is-dark");
     if (window.__tabletOpen) window.__tabletOpen(false);
 
     eyeHost.classList.remove("is-on");
@@ -492,7 +497,10 @@
          淡出的半秒里会被看见(它有 is-docked 的内联尺寸,是实打实占位的)。 */
       if (eye) { eye.stop(); eyePre.textContent = ""; }
     }, 420);
-    try { localStorage.setItem(KEY, "1"); } catch (e) { }
+    /* ★ 不再往 localStorage 写"播过了":现在每次都播(见 shouldPlay)。
+       更要紧的是 —— 验证探针曾经把这个标记写进用户的浏览器,
+       于是用户打开线上站看到的是"眼睛挂了九秒就没了"(他报的"动画完全没有加载")。
+       探针不该有能力改动用户的持久状态。 */
     docEl.classList.remove("home-boot");
     watchBootEnd();
     window.__guideDone = true;
@@ -521,12 +529,15 @@
   /* ------------------------------------------------------------
      七、起来
      ------------------------------------------------------------ */
-  function shouldPlay() {
-    try {
-      if (/[?&]guide=1/.test(location.search)) return true;
-      return localStorage.getItem(KEY) !== "1";
-    } catch (e) { return true; }
-  }
+  /* ★★★ 默认【每次进来都播一遍】(2026-09-30 用户第三轮)。
+     原来写的是"播过一次就记住、回访不再播",两个理由把它废掉了:
+       ① 用户正在反复看这一段,每次都得先去清 localStorage 才能再看一次;
+       ② ★ 更要命的是:我自己的验证探针会往 tuagfey.com 这个域的 localStorage
+          写这个标记 —— 于是用户打开线上站,看到的是"眼睛挂了九秒就没了",
+          也就是他报的"动画完全没有加载"。探针污染了用户的浏览器状态,
+          这种设计本身就是错的。
+     ⇒ 想快速跳过的人有两条路:按任意键 / 点一下(见 skip),那已经够了。 */
+  function shouldPlay() { return true; }
 
   function build() {
     if (!window.AsciiEye) return false;
@@ -561,13 +572,19 @@
 
     if (!shouldPlay()) {
       /* 回访:不播引导,但也不让用户对着一块黑屏发愣 ——
-         把眼睛直接睁着放在屏幕中央,十秒后自己淡掉。 */
+         把眼睛直接睁着放在屏幕中央,十秒后自己淡掉。
+         ★★ 淡完之后【必须】把平板的黑屏状态摘掉(跟 finishGuide 同一个道理):
+            回访的人下一步就是点顶缘箭头开平板,留着 .is-dark 的话
+            他看到的是一块黑屏(实测复现过)。
+         ★ 这条分支现在是【死代码】(shouldPlay 恒为 true),但留着:
+           哪天要恢复"只播一次",把 shouldPlay 改回去就能用,不用重写这一段。 */
       eyeHost.classList.add("is-on");
       eye.openNow();
       consoleEl.hidden = true;
       setTimeout(function () {
         eyeHost.classList.remove("is-on");
-        setTimeout(function () { eye.stop(); }, 600);
+        tablet.classList.remove("is-dark");
+        setTimeout(function () { eye.stop(); eyePre.textContent = ""; }, 600);
       }, 9000);
       return;
     }

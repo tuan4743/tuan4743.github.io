@@ -990,24 +990,82 @@
   var loader = document.getElementById("intro-loader");
   var loaderFill = document.getElementById("intro-loader-fill");
   var loaderPct = document.getElementById("intro-loader-pct");
+  var loaderSub = document.getElementById("intro-loader-sub");
   var loaderDone = false;
   var loaderKick = setTimeout(function () {
     if (!loaderDone && loader) loader.classList.add("is-active");   /* 超过 250ms 才显示,避免闪现 */
   }, 250);
 
-  function setProgress(p, label) {
+  /* 辅助行:一个转动的 ASCII 轮 + 逐字刷出来的日志。
+     ★ 它唯一的职责是"证明还在动" —— 模型几 MB,慢网下这一段是好几个静止的秒。
+       所以它【不】承担任何进度语义,进度归上面的百分比。
+     ★ 轮子 12 格、日志逐字,节奏压到 240ms 一拍:够看出在动,又不抢上面的主文案。 */
+  var SPIN = "|/-\\";
+  var loaderBeat = 0, loaderTimer = 0;
+  function startLoaderSub() {
+    if (!loaderSub || loaderTimer) return;
+    var words = ["SCAN", "ALIGN", "TRACE", "LATCH", "MOUNT"];
+    loaderTimer = setInterval(function () {
+      if (loaderDone) { clearInterval(loaderTimer); loaderTimer = 0; return; }
+      var i = loaderBeat++;
+      var spin = SPIN.charAt(i % SPIN.length);
+      var w = words[Math.floor(i / 3) % words.length];
+      var bar = "";
+      for (var k = 0; k < 10; k++) bar += (k <= (i % 11)) ? "#" : ".";
+      loaderSub.textContent = spin + " " + bar + "  " + w;
+    }, 240);
+  }
+  startLoaderSub();
+
+  /* ★★★ 进度【分路】,不是"谁最后报谁说了算"。
+     踩过(用户第三轮报的"动画完全没有加载"里就有一层是它):
+     音乐预载和 3D 是两件并行的事,原来两边都往同一个宽度上写 ——
+     音乐先跑完报到 99%,模型那边一报 18%,进度条就【倒着走】(99% → 18%),
+     看起来就是"卡住了/重来了"。
+     ⇒ 每一路各自按 0~100 报,宽度取所有路的【最大值】:
+       路修好了数字只会前进;文案显示"当前往回报的那一路"干了什么
+       (按原始进度判断,所以模型从 0 开始跑时音乐那 100 不会一直霸着标题)。
+     ★ 用 max 而不是加权和:加权和要先知道"模型占总量的几成",
+       而模型多大、网多快事先都不知道 —— max 不需要这两个数。 */
+  var progSrc = {};
+  function resetProgress(id) { delete progSrc[id]; }
+  function setProgress(p, label, src) {
     if (loaderDone) return;
+    src = src || "main";
+    var v = Math.max(0, Math.min(100, p));
+    if (label) progSrc[src + ":label"] = label;
+    progSrc[src] = v;
     if (!loader || !loader.classList.contains("is-active")) {
       if (loader) loader.classList.add("is-active");
     }
-    if (loaderFill) loaderFill.style.width = Math.max(0, Math.min(100, p)) + "%";
-    if (loaderPct) loaderPct.textContent = (label ? label + " · " : "") + Math.min(100, Math.round(p)) + "%";
+    var best = 0, name = "";
+    var order = ["main", "model", "music"];
+    for (var s in progSrc) {
+      if (!progSrc.hasOwnProperty(s) || s.indexOf(":label") > 0) continue;
+      var val = progSrc[s];
+      if (val > best) best = val;
+      /* ★ 标题显示"【还没跑完】的第一条线"干了什么,不是"数值最大的那条"。
+         为什么:两条线并行,音乐先跑完 100% 之后模型才报到 60% ——
+         按数值挑会一直显示"载入情感引擎 100%"(看着像卡死),
+         按"还没完"挑就自然切到"加载情感引擎 · 60%"。 */
+      if (val < 100 && !name) name = progSrc[s + ":label"] || "";
+    }
+    if (!name) {
+      /* 都跑完了:显示最后动过的那条 */
+      for (var k = order.length - 1; k >= 0; k--) {
+        if (progSrc[order[k] + ":label"]) { name = progSrc[order[k] + ":label"]; break; }
+      }
+    }
+    if (loaderFill) loaderFill.style.width = best.toFixed(1) + "%";
+    if (loaderPct) loaderPct.textContent = (name ? name + " · " : "") + Math.round(best) + "%";
+    startLoaderSub();
   }
 
   function hideLoader() {
     if (loaderDone) return;
     loaderDone = true;
     clearTimeout(loaderKick);
+    if (loaderTimer) { clearInterval(loaderTimer); loaderTimer = 0; }
     if (loader) {
       loader.classList.remove("is-active");
       loader.classList.add("is-done");
@@ -1049,55 +1107,16 @@
      ★ 谁来调:tryInit3D 的 onReady。它已经报过 100% 了,这里只负责
        "把剩下的加载项补齐 → 收加载页 → 开机"。
      ============================================================ */
-  function readMusicList() {
-    var out = [];
-    try {
-      if (window.GD_SONGS) {
-        Object.keys(window.GD_SONGS).forEach(function (k) {
-          var u = String(window.GD_SONGS[k] || "");
-          if (u && out.indexOf(u) < 0) out.push(u);
-        });
-      }
-    } catch (e) { }
-    return out;
-  }
-
-  /* 音乐预载:第一首【解码】(插盘那一刻要立刻能响),其余只把字节拉进 HTTP 缓存。
-     ★ 解码要用 OfflineAudioContext,必须等用户有一次交互之后才在有些浏览器上放行 ——
-       所以这里只"尽力而为",失败不算错(真正播放时会再解一次)。 */
-  function preloadMusic(onStep) {
-    var list = readMusicList();
-    if (!list.length) return Promise.resolve();
-    var audio = (cd3dApi && cd3dApi.audio) || window.__cdAudio;
-    var first = list[0], rest = list.slice(1);
-
-    var p1 = Promise.resolve();
-    if (audio && audio.music && audio.music.load) {
-      p1 = Promise.resolve(audio.music.load(first)).catch(function () { return null; });
-    } else {
-      p1 = fetch(first, { cache: "force-cache" }).catch(function () { });
-    }
-    p1 = p1.then(function () { if (onStep) onStep(4); });
-
-    var p2 = Promise.all(rest.map(function (u) {
-      return fetch(u, { cache: "force-cache" })
-        .then(function (r) { return r.arrayBuffer(); })
-        .then(function () { if (onStep) onStep(6 / Math.max(1, rest.length)); })
-        .catch(function () { return null; });
-    }));
-
-    /* ★ 8 秒硬上限:某首歌文件缺失/网络极慢时不能把用户永远按在加载页上。
-       (超时就当它加载完了 —— 真正播的时候再缺也一样是缺。) */
-    return Promise.race([
-      Promise.all([p1, p2]),
-      wait(8000)
-    ]).catch(function () { });
-  }
 
   /* 收起加载页 → 黑屏 → 打开平板(黑着) → 交给引导脚本 */
   function homeBoot() {
-    var mark = setProgress;
-    mark(100, "校准完成");
+    /* ★ 两路都封顶在 100 以下,只有【真正就绪】那一刻才写 100 ——
+       不这么做的话:音乐那几首下的比模型快,进度条先被它顶到 100%,
+       而模型还在下,屏幕上是"100% 但什么都不发生"(实测踩过)。
+       ★ 为什么 homeBoot 里还要再写一次 model/music:模型那一路在
+         "拆模型 / 建场景"的最后几档可能还没来得及报,这里给它一个确定的终点。 */
+    setProgress(100, "校准人格模板", "model");
+    setProgress(100, "载入情感引擎", "music");
     /* ★ 黑屏:CD 架没开也先把屏幕压黑 —— "初始化 = 停在一块黑着屏的平板上"。
        这一层是 .screen-static.is-black,和平板自己的 is-dark 是两层保险:
        平板那一层由引导脚本挂(它要负责收黑),这一层让"加载页刚收掉、
@@ -1120,10 +1139,78 @@
 
   function beginSite(onReady) {
     if (!IS_HOME) { startIntro(); return; }
-    /* 加载项还差"音乐":把它报进加载页,报完才开机 */
-    var got = 0;
-    preloadMusic(function (d) { got += d; setProgress(Math.min(99, 90 + got), "载入情感引擎"); })
-      .then(function () { onReady(); });
+    /* 加载项还差"音乐":把它报进加载页,报完才开机。
+       ★ 音乐在页面一进来【就已经在下】(见文件末尾那句 startMusicPreload),
+         这里只是"等它" —— 两者并行,所以总时长是 max(模型, 音乐) 而不是相加。 */
+    var p = musicPreload || startMusicPreload();
+    p.then(function () {
+      setProgress(100, "校准完成", "music");
+      onReady();
+    });
+  }
+
+  /* 音乐预载:第一首【解码】(插盘那一刻要立刻能响),其余只把字节拉进 HTTP 缓存。
+     ★ 解码要用 OfflineAudioContext,必须等用户有一次交互之后才在有些浏览器上放行 ——
+       所以这里只"尽力而为",失败不算错(真正播放时会再解一次)。
+     ★ 它和 3D 是【并行】的:早一点发起,慢网下就少等一大截 ——
+       用户的抱怨"这个加载动画考虑的需要加载的东西不够"反过来也成立:
+       该并行的东西串起来等,就是白等。 */
+  var musicPreload = null;
+  function readMusicList() {
+    var out = [];
+    try {
+      if (window.GD_SONGS) {
+        Object.keys(window.GD_SONGS).forEach(function (k) {
+          var u = String(window.GD_SONGS[k] || "");
+          if (u && out.indexOf(u) < 0) out.push(u);
+        });
+      }
+    } catch (e) { }
+    return out;
+  }
+
+  function startMusicPreload() {
+    if (musicPreload) return musicPreload;
+    var list = readMusicList();
+    if (!list.length) { musicPreload = Promise.resolve(); return musicPreload; }
+
+    var audio = (cd3dApi && cd3dApi.audio) || window.__cdAudio;
+    var first = list[0], rest = list.slice(1);
+    var done = 0, span = 1 + rest.length;
+    /* ★ 音乐这一路报在 "music" 这条线上:它和模型并行,两条线各自的 0~100
+       由 setProgress 取最大值合成(见那里的说明)。 */
+    var beat = function () {
+      /* ★ 封顶 96:剩下 4 个点留给 homeBoot 那一句"确实就绪了"。
+         不封顶的话音乐先跑完就把进度条顶到 100%,而模型还在下 ——
+         屏幕上是"100% 但什么都不发生"(实测踩过)。 */
+      setProgress((++done / span) * 96, "载入情感引擎", "music");
+    };
+    /* ★★ 那几首是【并行】下的,谁先回来不确定 —— 实测进度条会一口气
+       从 19% 跳到 77%(三首同时到),看着像卡了一下又猛冲。
+       所以给"字节都到齐"单独一个台阶(60%):解码那一首再往上走,每一步都有交代。 */
+    var bytesDone = 0;
+    var bytesBeat = function () {
+      bytesDone++;
+      if (bytesDone >= rest.length) setProgress(60, "读取引擎数据", "music");
+    };
+
+    var p1 = (audio && audio.music && audio.music.load)
+      ? Promise.resolve(audio.music.load(first)).catch(function () { return null; })
+      : fetch(first, { cache: "force-cache" }).catch(function () { });
+    p1 = p1.then(function (buf) { beat(); return buf; });
+
+    var p2 = Promise.all(rest.map(function (u) {
+      return fetch(u, { cache: "force-cache" })
+        .then(function (r) { return r.arrayBuffer(); })
+        .then(function () { bytesBeat(); beat(); return null; })
+        .catch(function () { bytesBeat(); beat(); return null; });
+    }));
+
+    /* ★ 4 秒硬上限(原来是 8 秒):某首歌缺失/网络极慢时不能把用户永远按在加载页上。
+       第一首的那几 MB 在本地探测里 1~2 秒就下完了,4 秒留给慢网已经够宽。
+       (超时就当它加载完了 —— 真正播的时候再缺也一样是缺。) */
+    musicPreload = Promise.race([Promise.all([p1, p2]), wait(4000)]).catch(function () { });
+    return musicPreload;
   }
 
   /* ---------- Three.js 懒加载(资产缺失/无WebGL/减少动效 → DOM 降级) ---------- */
@@ -1213,6 +1300,9 @@
   }
 
   /* 先加载 3D(显示加载页),就绪后再开机;失败/超时则降级 */
+  /* ★ 音乐和 3D 【并行】下:慢网下这是省时间最实在的一处 ——
+     串起来等就是白等(用户的"加载动画考虑的东西不够"反过来也成立)。 */
+  startMusicPreload();
   tryInit3D();
   setTimeout(function () {
     if (!loaderDone) {

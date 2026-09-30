@@ -669,26 +669,31 @@ html.home-dark body { background: #000; }
 
 .home-eye__pre.is-glitch { color: var(--eye-glitch, #dfe6ee); }
 
-/* ⑤ ECHO 的台词区:左下角。
-   ★ 为什么是左下:眼睛在(或最后会去)右边,台词横跨整宽会压在眼睛上;
-     而 CD 页那一格(.rack-info-top)在左上,也不该被盖 —— 左下角是空着的。
+/* ⑤ ECHO 的台词:【直接浮在平板上】,没有对话框(用户第三轮)。
+   ★★ 用户原话:"对话其实不要对话框,就像启动页一样,对话文字是直接浮在平板上的"。
+      所以这里【不许】再出现边框 / 底色 / 圆角 / 左侧那根竖线 ——
+      和启动页那句"你好?"同一个处理:只有字,加一点辉光。
+   ★ 位置:左下角,而且【让开底部金属框】——
+     平板的玻璃是被贴图窗口裁出来的(下缘还有 ~8.5% 视口高是机身),
+     原来 bottom:0 直接顶到玻璃边上,字被机身边框切掉一半(截图里就是)。
+     现在用 --ff-win-bottom(frame-fit.js 写在 <html> 上)再加一档余量。
    ★ pointer-events:none:它只是字幕,不能挡住扫描框要落的那几个按钮。 */
 .home-console {
     position: absolute;
-    left: 0;
-    bottom: 0;
+    left: calc(var(--ff-win-left, 5vw) + clamp(10px, 1.4vw, 30px));
+    bottom: calc(var(--ff-win-bottom, 7.5vh) + clamp(12px, 2.2vh, 34px));
     z-index: 80;
-    width: min(46%, 520px);
-    margin: 0 0 clamp(10px, 2vh, 26px) clamp(10px, 1.6vw, 28px);
-    padding: clamp(10px, 1.5vh, 16px) clamp(12px, 1.4vw, 20px);
-    border-left: 2px solid rgba(127, 240, 255, .55);
-    border-radius: 2px 12px 12px 2px;
-    background: linear-gradient(100deg, rgba(4, 8, 16, .82), rgba(4, 8, 16, .42));
-    color: #eaf3ff;
+    width: min(52%, 620px);
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: #fff;
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    text-shadow: 0 0 10px rgba(255, 255, 255, .28), 0 2px 14px rgba(0, 0, 0, .8);
     pointer-events: none;
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(8px);
     transition: opacity .34s ease, transform .34s cubic-bezier(.2, .9, .25, 1);
 }
 
@@ -703,57 +708,47 @@ html.home-dark body { background: #000; }
     display: flex;
     align-items: baseline;
     gap: 10px;
-    margin-bottom: 6px;
-    font-size: clamp(.6rem, .72vw, .7rem);
-    letter-spacing: .22em;
-    color: rgba(127, 240, 255, .8);
+    margin-bottom: clamp(4px, .8vh, 9px);
+    font-size: clamp(.62rem, .74vw, .74rem);
+    letter-spacing: .28em;
+    color: rgba(127, 240, 255, .72);
+    text-shadow: 0 0 10px rgba(34, 211, 238, .35);
 }
 
 .home-console__id {
     letter-spacing: .08em;
-    color: rgba(198, 220, 246, .34);
+    color: rgba(198, 220, 246, .3);
 }
 
 .home-console__line {
     margin: 0;
-    font-size: clamp(.82rem, 1.02vw, 1.02rem);
-    line-height: 1.7;
-    letter-spacing: .02em;
-    min-height: 1.7em;               /* 空行也占位:逐字打出时不会跳 */
+    font-size: clamp(.92rem, 1.18vw, 1.22rem);
+    line-height: 1.85;
+    letter-spacing: .03em;
+    min-height: 1.85em;              /* 空行也占位:逐字打出时不会跳 */
     white-space: pre-wrap;
     word-break: break-word;
 }
 
-/* ★ 打字光标:跟着逐字打出的尾巴闪。呼吸节奏和终端那块一致。 */
+/* ★ 打字光标:跟着逐字打出的尾巴闪。和启动页那条底线是同一路数 ——
+   只加字,不加框。 */
 .home-console__line::after {
     content: "";
     display: inline-block;
-    width: .55em;
-    height: 1.02em;
-    margin-left: 2px;
-    vertical-align: -0.14em;
-    background: rgba(127, 240, 255, .85);
+    width: .5em;
+    height: 1.05em;
+    margin-left: 3px;
+    vertical-align: -0.16em;
+    background: rgba(255, 255, 255, .8);
     animation: tablet-caret 1.06s steps(1, end) infinite;
 }
 
-.home-console.is-typed .home-console__line::after { opacity: .3; }
+.home-console.is-typed .home-console__line::after { opacity: .28; }
 
 @keyframes tablet-caret {
     0%, 52% { opacity: 1; }
     53%, 100% { opacity: 0; }
 }
-
-/* 跳过提示:打完一句才淡出来 —— 打字过程中一直挂着会抢注意力 */
-.home-console__tip {
-    margin: 8px 0 0;
-    font-size: clamp(.58rem, .7vw, .68rem);
-    letter-spacing: .18em;
-    color: rgba(198, 220, 246, .3);
-    opacity: 0;
-    transition: opacity .3s ease;
-}
-
-.home-console.is-typed .home-console__tip { opacity: 1; }
 
 /* ⑥ 引导期间:整页不接收真实指针(用户:"锁住鼠标不允许按下")。
    ★ 为什么不是给单个按钮加 disabled:引导要锁的是"鼠标"这件事本身 ——

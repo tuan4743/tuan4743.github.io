@@ -964,6 +964,20 @@ body.cd3d-on .hub-cd {
     font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
 }
 
+/* 辅助行:一个转动的 ASCII 轮 + 一行滚动日志。
+   ★ 为什么要有它:模型有几 MB,慢网下这一段要好几秒 —— 一屏静止的字
+     会被当成"卡死了"(用户第三轮报的"动画完全没有加载"里就有这一层)。
+     它只是"还在动"的证明,不承担任何进度语义。 */
+.intro-loader-sub {
+    display: block;
+    min-height: 1.4em;
+    font-size: clamp(0.72rem, 0.86vw, 0.86rem);
+    letter-spacing: 0.2em;
+    color: rgba(127, 240, 255, 0.42);
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    white-space: pre;
+}
+
 /* ---------- 背景 ---------- */
 .intro-bg {
     position: fixed;

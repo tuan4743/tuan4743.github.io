@@ -63,16 +63,30 @@ const rule = (css, sel) => {
 ok('★★★ 加载页要等【音乐也解码完】才收口,不是 3D 一就绪就进',
   /beginSite\(homeBoot\)/.test(introJs) &&
   /function beginSite\(onReady\)/.test(introJs) &&
-  /function preloadMusic\(onStep\)/.test(introJs) &&
-  /preloadMusic\(function \(d\) \{[\s\S]{0,120}?\}\)\s*\n?\s*\.then\(function \(\) \{ onReady\(\); \}\)/.test(introJs) &&
+  /function startMusicPreload\(\)/.test(introJs) &&
+  /var p = musicPreload \|\| startMusicPreload\(\);/.test(introJs) &&
+  /p\.then\(function \(\) \{[\s\S]{0,120}?onReady\(\);/.test(introJs) &&
   !/setProgress\(100, "加载完成"\);\s*\n\s*startIntro\(\);/.test(introJs),
   '用户:"加载动画考虑的需要加载的东西不够,导致正式进入后有些东西还是没有加载完成(比如音乐,CD模型)"');
+ok('★★★ 音乐和 3D 必须【并行】下,不能串着等',
+  /startMusicPreload\(\);\s*\n\s*tryInit3D\(\);/.test(introJs),
+  '串起来等就是白等 —— 总时长该是 max(模型, 音乐),不是相加');
 ok('★★★ 加载项里真的把音乐读了一遍(第一首解码、其余进 HTTP 缓存)',
   /audio\.music\.load\(first\)/.test(introJs) && /fetch\(u, \{ cache: "force-cache" \}\)/.test(introJs) &&
   /window\.GD_SONGS/.test(introJs),
   '第一首必须【解码】:按下插入那一刻要立刻能响;其余只预取字节,不占内存');
+ok('★★★ 进度条不许【倒着走】(两路并行,各自封顶在 100 以下)',
+  /var progSrc = \{\};/.test(introJs) &&
+  /if \(val > best\) best = val;/.test(introJs) &&
+  /Math\.min\(96, Math\.round\(p \* 0\.96\)\)/.test(cd3dJs) &&
+  /\(\+\+done \/ span\) \* 96/.test(introJs),
+  '★★ 实测踩过:音乐先跑完报到 99%,模型那边一报 18%,进度条 99% → 18%;' +
+  '还有一次音乐先把条顶到 100%,而模型还在下 —— 屏幕上是"100% 但什么都不发生"');
+ok('★★★ 进度标题要显示"还没跑完的那一路",不是"数值最大的那一路"',
+  /if \(val < 100 && !name\) name = progSrc\[s \+ ":label"\]/.test(introJs),
+  '★ 按数值挑的话,音乐先到 100 就会一直显示"载入情感引擎 100%"(看着像卡死)');
 ok('★★ 预载不能把用户永远按在加载页上(有硬上限)',
-  /Promise\.race\(\[/.test(introJs) && /wait\(8000\)/.test(introJs),
+  /Promise\.race\(\[/.test(introJs) && /wait\(4000\)/.test(introJs),
   '某首歌缺失 / 网络极慢时也要放行 —— 否则用户卡在加载页出不去');
 ok('★★★ 加载页文案全部按设定走',
   /人格修正启动中…/.test(homeTpl) && !/>TUAGFEY</.test(builtHome) &&
@@ -193,6 +207,19 @@ ok('★★★ 台词是【逐字打出】的,不是整句蹦出来',
   '用户:"对话逐字打出"');
 ok('★ 标点之后多停一拍(一口气打完像机器,不像人在说话)',
   guideJs.includes("[。!?.,:;、,.]") && /test\(ch\) \? 5 : 1/.test(guideJs));
+ok('★★★ 台词是直接浮在平板上的,【没有对话框】',
+  !/\.home-console \{[\s\S]{0,600}?background: linear-gradient/.test(tcss) &&
+  !/\.home-console \{[\s\S]{0,600}?border-left:/.test(tcss) &&
+  rule(tcss, ".home-console").includes("background: none") &&
+  rule(tcss, ".home-console").includes("border: 0") &&
+  rule(tcss, ".home-console").includes("padding: 0") &&
+  /text-shadow: 0 0 10px rgba\(255, 255, 255/.test(rule(tcss, ".home-console")),
+  '用户第三轮:"对话其实不要对话框,就像启动页一样,对话文字是直接浮在平板上的"');
+ok('★★★ 台词要让开底部金属框(否则被机身边框切掉一半)',
+  /\.home-console \{[\s\S]{0,400}?bottom: calc\(var\(--ff-win-bottom/.test(tcss) &&
+  /\.home-console \{[\s\S]{0,400}?left: calc\(var\(--ff-win-left/.test(tcss),
+  '★ 平板的玻璃是贴图窗口裁出来的,下缘还有 ~8.5% 视口高是机身 ——' +
+  'bottom:0 会直接顶到玻璃边上(截图里字被切掉一半)');
 ok('★★ 台词层不能挡住扫描框要落的按钮',
   rule(tcss, ".home-console").includes("pointer-events: none"),
   '它只是字幕 —— 挡住插入按钮的话,引导最后那一下按不下去');
@@ -255,8 +282,15 @@ ok('★★ 滚轮锁必须挂在捕获阶段且 cancelable(否则拦不住 intro
 /* ---------- ⑧ 收尾:一切恢复正常 ---------- */
 ok('★★★ 收尾要把平板关掉(否则开机动画放完看到的是平板主屏)',
   /if \(window\.__tabletOpen\) window\.__tabletOpen\(false\);/.test(guideJs),
-  '★ 踩过:只把眼睛和台词淡掉、把 .is-dark 摘了 —— 平板那一层(z-index 40)还压在 CD 页上面,' +
+  '★ 踩过:只把眼睛和台词淡掉 —— 平板那一层(z-index 40)还压在 CD 页上面,' +
   '于是"按下插入"之后看到的是平板主屏,而不是刚插进去的那张盘');
+ok('★★★ 回访那条路也要把黑屏状态摘掉',
+  /if \(!shouldPlay\(\)\)[\s\S]{0,700}?tablet\.classList\.remove\("is-dark"\);/.test(guideJs),
+  '★ 回访的人下一步就是点顶缘箭头开平板 —— 留着 .is-dark 他看到的是一块黑屏(实测复现过)');
+ok('★★★ 收尾必须把平板的黑屏状态摘掉(藏着也会被下次打开翻出来)',
+  /tablet\.classList\.remove\("is-dark"\);\s*\n\s*if \(window\.__tabletOpen\) window\.__tabletOpen\(false\);/.test(guideJs),
+  '★★ 踩过:平板收起了、但 .is-dark 没摘 —— hidden 后面看不出来,' +
+  '可引导走完之后从 CD 页再点开平板,看到的是一块【黑屏】(实测:tablet is-dark is-on,主屏不显示)');
 ok('★★★ 鼠标锁与滚轮锁都要解开,自转倍率/外扩都要还原',
   /lock\(false\);/.test(guideJs) && /lockWheel\(false\);/.test(guideJs) &&
   /window\.__mcSpinScale = 1;/.test(guideJs) && /window\.__mcPad = basePad;/.test(guideJs),
@@ -269,12 +303,16 @@ ok('★★ 黑屏底衬要等开机动画把黑屏撤掉那一刻再收',
   /new MutationObserver\(function \(\) \{\s*\n\s*if \(staticWrap\.classList\.contains\("is-black"\)\) return;/.test(guideJs),
   '早收会看到机身两侧先亮起来(像屏幕边缘漏光)');
 
-/* ---------- ⑨ 只播一次 + 跳过 ---------- */
-ok('★★ 引导只在【第一次】进来时播,播完记住',
-  /var KEY = "home-guide-done";/.test(guideJs) &&
-  /localStorage\.setItem\(KEY, "1"\)/.test(guideJs) &&
-  /localStorage\.getItem\(KEY\) !== "1"/.test(guideJs),
-  '回访时每次重播会让人烦;但【黑屏平板】那一步照旧每次都有 —— 那是初始化,不是引导的一部分');
+/* ---------- ⑨ 每次都播 + 跳过 ---------- */
+/* ★★★ 这一条是用户第三轮报"动画完全没有加载"的真凶之一:
+   原来写的是"播过一次就记住、回访不再播",而【我自己的验证探针】
+   会往 tuagfey.com 这个域的 localStorage 写这个标记 ——
+   于是用户打开线上站,看到的是"眼睛挂了九秒就没了"。
+   探针不该有能力改用户的持久状态,所以这个机制整个废掉。 */
+ok('★★★ 引导【每次进来都播】,不再往 localStorage 写"播过了"',
+  /function shouldPlay\(\) \{ return true; \}/.test(guideJs) &&
+  !/localStorage\.setItem\(KEY/.test(guideJs),
+  '★ 探针污染过用户的浏览器状态;想跳过的人按任意键即可(skip 那条路照旧在)');
 ok('★ 可以跳过(按任意键 / 点一下),而且跳过后"按下"那一类动作照旧执行',
   /function skip\(\)/.test(guideJs) && /if \(skipping && !s\.click\)/.test(guideJs),
   '直接结束的话用户会被留在 CD 页上不知道发生了什么,而且平板还在黑屏状态');
