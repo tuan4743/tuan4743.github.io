@@ -67,8 +67,18 @@
      默认节奏是"人在说话":每字 42ms、一句说完停 900ms、扫描框吸过去 420ms。 */
   var FAST = /[?&]fast=1/.test(location.search);
   var TYPE_MS = (reduced || FAST) ? (FAST && !reduced ? 3 : 0) : 58;
+  /* ★★★ 进 CD 页之后那几句要【更快】。
+     用户第七轮:"左滑后那几句话的出字速度还是不对"。
+     左滑那段是一口气把四件事说完(引擎内容 / 滤网协议 / 锁滚轮 / 插入按钮),
+     按开头的 58ms/字 一句要读五六秒,四句下来二十多秒 —— 节奏拖垮了。
+     开头那几句是要"一字一句交代清楚"的(第一次见面),这里不一样:
+     用户在等着操作,话只是旁白 ⇒ 压到 34ms/字,并把句间停顿收到 700ms。 */
+  var TYPE_MS_FAST_TAIL = (reduced || FAST) ? (FAST && !reduced ? 3 : 0) : 34;
+  var typeMs = TYPE_MS;                    /* 当前生效的那一档(进 CD 页时切过去) */
   var afterLine = (reduced || FAST) ? 60 : 1500;     /* 一句说完之后停一拍(留出读的时间)*/
+  var afterLineTail = (reduced || FAST) ? 60 : 700;  /* 进 CD 页之后:旁白不必停那么久 */
   var settleMs = (reduced || FAST) ? 30 : 520;       /* 扫描框吸过去、停稳 */
+  var inCdPage = false;                    /* 左滑过去之后为真 */
   var gate = function (ms) { return (reduced || FAST) ? Math.min(ms, 90) : ms; };
 
   var eye = null;
@@ -78,6 +88,7 @@
   var wheelLocked = false;                 /* 锁滚轮 */
   var stepIndex = -1;
   var stepLabel = "";
+  var stepList = [];                       /* 当前这一遍的步骤表(runStep 要往后看一拍) */
   var typeDone = true;
   var snapNow = null;                      /* 探针用:当前吸附目标 */
   var snapTarget = null;
@@ -350,7 +361,7 @@
     consoleEl.classList.remove("is-typed");
     typeDone = false;
     if (!text) { typeDone = true; consoleEl.classList.add("is-typed"); return Promise.resolve(); }
-    if (TYPE_MS <= 0 || forceInstant) {
+    if (typeMs <= 0 || forceInstant) {
       lineEl.textContent = text;
       typeDone = true;
       consoleEl.classList.add("is-typed");
@@ -417,7 +428,9 @@
   var BREATH = 90;     /* 分句起头的换气(轻一点:重音交给标点) */
 
   function charDelay(text, i) {
-    var base = TYPE_MS;
+    /* ★ 用【当前生效的那一档】,不是常量 TYPE_MS ——
+       左滑进 CD 页之后 typeMs 换成 34ms/字(见 runDock)。 */
+    var base = typeMs;
     var ch = text.charAt(i);
     var d = base + (Math.random() * base * 0.45);     /* ±45% 的抖动:匀速最像机器 */
     var p = PUNCT[ch];
@@ -587,6 +600,60 @@
      ============================================================ */
   var DOCK_TILT = 90;                      /* 到位后转多少度(用户第三轮定的) */
 
+  /* ★★★ 用户第七轮:"按下进入CD页的按钮时,主眼睛应该立马闭合,否则跟不上左滑的速度。"
+     原编排的【闭眼】是从"引导走到下一步"才开始算的:
+       按下 → 这一拍还要把台词尾巴和 1.5s 停拍走完 → 下一步 runStep 里
+       setTimeout(380) → closeEye(780ms) → 才左滑。
+     从按下到眼睛开始闭,最长要一秒多;而平板那一下是【立刻】黑屏 + 左滑的,
+     用户看到的就是"屏幕都滑走了,眼睛还睁着"。
+     ⇒ 闭眼改成【挂在按钮按下的那一刻】,和引导走到哪一拍无关:
+       watchDockPress() 在"该用户按了"的那一拍开头就开始盯着 scene-open,
+       状态一变立刻闭眼;runDock 里只是【等这个已经在跑的闭眼】收口。
+     ★ 闭眼只做一次(记忆化):两条路径(按下就闭 / runDock 兜底闭)不会打架。 */
+  var dockClosing = null;
+  function beginDockClose() {
+    if (!dockClosing) {
+      /* 现场读数:谁在什么时刻把闭眼这件事点着的(带调用栈)*/
+      window.__dockCloseAt = { t: Math.round(performance.now()), stack: String((new Error()).stack || "").split("\n").slice(1, 4).join(" ← ") };
+      dockClosing = closeEye();
+    }
+    return dockClosing;
+  }
+
+  var dockWatchOn = false;
+  function watchDockPress() {
+    if (dockWatchOn) return;
+    dockWatchOn = true;
+    /* 现场读数:这一条链路上任何一处"没接上"都只能靠读时间戳查
+       (什么时候挂上的、轮询了几次、哪一刻命中的)。 */
+    window.__dockWatch = { armed: Math.round(performance.now()), polls: 0, hit: null, hitWhy: null, why: null, log: [] };
+    var hit = function (how) {
+      if (dockClosing) return;
+      window.__dockWatch.hit = Math.round(performance.now());
+      window.__dockWatch.hitWhy = how;
+      beginDockClose();
+    };
+    /* ① 首选:直接盯 body 的 class。MutationObserver 的回调在 class 变化后的
+       微任务里就跑 —— 也就是说【和"按下"同一个任务】,零延迟,不吃定时器节流。
+       (踩过:只靠 40ms 轮询时,后台标签页的 setTimeout 被节流到 ~700ms,
+        于是"按下 → 闭眼"又慢回去了。这正是用户报的那个现象。) */
+    try {
+      new MutationObserver(function () {
+        if (document.body.classList.contains("scene-open")) hit("observer");
+      }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
+    } catch (e) { window.__dockWatch.moErr = String(e && e.message || e); }
+    /* ② 兜底:轮询。管两件事 —— 状态在挂观察者【之前】就已经设过;
+       以及 MutationObserver 万一不可用。 */
+    (function poll() {
+      window.__dockWatch.polls++;
+      window.__dockWatch.log.push([Math.round(performance.now()), !!dockClosing, playing, document.body.classList.contains("scene-open")]);
+      if (window.__dockWatch.log.length > 40) window.__dockWatch.log.shift();
+      if (dockClosing || !playing) { window.__dockWatch.why = dockClosing ? "already" : "stopped"; return; }
+      if (document.body.classList.contains("scene-open")) { hit("poll"); return; }
+      setTimeout(poll, 40);
+    })();
+  }
+
   function closeEye() {
     return new Promise(function (resolve) {
       if (!eye) return resolve();
@@ -608,18 +675,33 @@
     var visR = Math.min(r.right || vw, vw);
     if (!(visR > 80)) visR = vw * (1 - 0.34);             /* 量不到就按"露出 34%"兜底 */
     var third = glassW / 3;
-    /* ★ 转 90° 之后"实际占的宽"是网格的高,所以盒子要换过来给 ——
-       不换的话眼睛会溢出那一格(第三轮就是这么定的)。 */
+    /* ★ 转 90° 之后【宽高互换】,所以"能不能放下"要按【转完的占位】算:
+       转完的宽 = 转之前的高,转完的高 = 转之前的宽。
+       ★★★ 用户第七轮:"转向90°后,眼睛应该小一点,不然放不下。"
+       原来按 "转之前的宽 = 那一格 × 1.02" 给盒子 —— 转完那一格就装的是
+       "0.74 个屏高"(实测转完占位 799×653,而右边那一格只有 640 宽),
+       于是眼睛横过来之后顶出屏幕右缘、上下也顶到机身。
+       ⇒ 改成【先定转完要多大】再回推宿主:
+            L(转完的"长")≤ 屏高的 62%,而且 ≤ 那一格的 1.5 倍
+              —— 系数 1.5 不是拍的:这只眼的 ink 宽高比 ≈ 0.47
+                 (宽 = 长 × 0.468),L 取到 1.5 × 格宽时,
+                 转完的【宽】正好 ≈ 0.70 × 格宽,两侧各留 ~15% 余量。
+            宿主格 = (L, L×0.56):转完占位 = (L×0.56, L),落在那一格正中。 */
     if (eye.rotate) eye.rotate(DOCK_TILT);
-    var hostW = Math.max(120, Math.round(third * 1.02));
-    var hostH = Math.max(200, Math.round(vh * 0.74));
-    var left = Math.max(winL + 6, visR - hostW - 6);
-    eye.anchor(left, (vh - hostH) / 2, hostW, hostH);
-    eye.fitTo(hostH * 0.98, hostW * 0.92);                /* 参数是【转之前的】宽高 */
+    var L = Math.max(220, Math.round(Math.min(vh * 0.62, third * 1.5)));
+    var hostW = L;                                       /* 转之前:宽 */
+    var hostH = Math.max(120, Math.round(L * 0.56));     /* 转之前:高 */
+    var cx = Math.min(visR - 12, winL + glassW - 12) - third / 2;   /* 那一格的中心 */
+    eye.anchor(cx - hostW / 2, (vh - hostH) / 2, hostW, hostH);
+    /* fitTo(boxW, boxH):boxW 定字号+列数(= 画出来的宽,也就是转完的高);
+       boxH 只管行数、而且按 86% 落地,所以要把宿主高除回去。 */
+    eye.fitTo(hostW, hostH / 0.86);
   }
 
   function runDock() {
-    closeEye().then(function () {
+    /* ★ 等的是【按下那一刻就已经开始跑】的那次闭眼(见 beginDockClose),
+       不是"从这里才开始闭" —— 所以镜头不在这儿停顿。 */
+    beginDockClose().then(function () {
       /* ② 左滑出去(和 page-slide.js 用的是同一条过渡) */
       docEl.classList.add("page-slide");
       document.body.classList.add("page-out");
@@ -629,9 +711,21 @@
       dockIntoBox();
       return sleep(reduced ? 40 : 620);                   /* 等旋转的 0.55s 过渡落地 */
     }).then(function () {
-      /* ④ 重新睁开 */
+      /* ④ 重新睁开
+         ★★★ 顺序是【睁开 → 重新贴尺寸 → 才显出来】,不能反。
+         为什么(第七轮实测抓到的真凶):eye.openNow() 内部先调 measure() ——
+         那是"按【整个视口】算字号和列数"的那一套,它会把 dockIntoBox 里
+         按右边那一格算好的尺寸【整个冲掉】:
+           实测 1600×900 下,openNow() 之后 <pre> 的内联尺寸是 748.8×487.5
+           (整屏那一档),而宿主格只有 558×312 —— 于是眼睛横过来之后
+           占位 488×719,而右边那一格只有 480 宽 ⇒ "放不下"。
+         之前几轮把这件事记在"盒子给大了"的账上,其实是这一下被冲掉的。
+         ⇒ openNow() 之后再 dockIntoBox() 一次(宿主盒子没变,只是把
+           字号/列数按那一格重算),最后才 is-on 显出来 ——
+           用户看到的直接就是"睁开的、尺寸正确的那只眼睛",不会看到跳一下。 */
+      if (eye.openNow) eye.openNow();
+      dockIntoBox();
       eyeHost.classList.add("is-on");
-      if (eye.openNow) eye.openNow();                     /* 直接睁着,不再播一遍出场 */
       docEl.classList.remove("page-slide");
       document.body.classList.remove("page-out");
       return sleep(reduced ? 60 : 380);
@@ -668,6 +762,9 @@
   function runStep(s, i) {
     stepIndex = i;
     stepLabel = s.label || "";
+    /* ★ 往后看一拍:有些编排要知道"下一步是什么"(比如"按下这一下会左滑进 CD 页",
+       ⇒ 按下就得立刻闭眼)。见 runStep 里 s.press 那一段。 */
+    var next = stepList[i + 1] || null;
     if (s.lock) lock(true);
     if (s.unlock) lock(false);
     if (s.unlockTop) lockTop(false);
@@ -697,9 +794,16 @@
          "按下左滑后,主屏幕的眼睛马上闭上,等到彻底滑过去后,
           眼睛再在右侧睁开。而且这个右侧眼睛也有同样不跟鼠标的问题。"
          ⇒ 不再是"缩小 + 转 90°",而是:闭眼 → 左滑 → 在新的位置重新睁眼。
-           眼睛的朝向也【不再旋转】—— 它就是同一只眼睛,换了个地方重新睁开,
-           这样才能继续跟扫描框(转 90° 的话"跟鼠标"这件事在视觉上是反的)。 */
-      setTimeout(runDock, reduced ? 30 : 380);
+           眼睛的朝向【也仍然要转 90°】(第三轮的要求,两件事是叠加的,
+           第六轮用户为这个纠正过一次:"我说眼睛要旋转90°,你怎么又给我修回去了?")。
+      ★★★ 第七轮:"按下进入CD页的按钮时,主眼睛应该立马闭合,否则跟不上左滑的速度。"
+        ⇒ 原来这里挂的是 setTimeout(runDock, 380) —— 那 380ms 是"人手按完了,
+          引导还在发呆"的可视延迟。现在【立刻】走 runDock,而 runDock 里等的
+          闭眼是按下那一刻就已经在跑的(见 watchDockPress / beginDockClose)。
+      ★ 顺带:从这一拍起,台词换成"操作旁白"的那一档语速(见 typeMs)。 */
+      typeMs = TYPE_MS_FAST_TAIL;
+      inCdPage = true;
+      runDock();
     }
 
     /* ★ 要按的、要说的,都按【先按后说】的顺序排好再跑 */
@@ -716,6 +820,10 @@
           挂在台词之后 → 用户读完话才亮、一按就灭。两头都够不着。) */
     if (s.press) {
       tasks.push(function () {
+        /* ★★★ 如果按下这一下会引发"左滑进 CD 页",那从这一刻起就盯着那个状态:
+           用户一按,眼睛【立刻】闭(不等引导走到下一拍)。
+           见 watchDockPress / beginDockClose 上的说明。 */
+        if (next && next.dock) watchDockPress();
         window.__mcScript = null;
         lastSnapSpec = null;
         frameRect = null;
@@ -724,7 +832,12 @@
       });
     }
     if (s.text) {
-      tasks.push(function () { return typeLine(s.text).then(function () { return sleep(afterLine); }); });
+      tasks.push(function () {
+        /* ★ 左滑之后那几句换成"操作旁白"的短停拍(见 afterLineTail):
+           它们是一口气交代四个按钮,句间再各停 1.5 秒就太拖了。 */
+        var pause = inCdPage ? afterLineTail : afterLine;
+        return typeLine(s.text).then(function () { return sleep(pause); });
+      });
     }
     if (s.press) {
       tasks.push(function () { return waitForUser(s.press); });
@@ -848,12 +961,14 @@
 
   function play() {
     if (playing) return Promise.resolve();
+    window.__playCount = (window.__playCount || 0) + 1;
     playing = true;
     skipping = false;
     gazeMode = "scan";
     playStart = performance.now();
     followLoop();                        /* 视线每帧跟着扫描框 */
     var list = steps();
+    stepList = list;
     var p = Promise.resolve();
     list.forEach(function (s, i) {
       p = p.then(function () {
@@ -1041,6 +1156,23 @@
       docked: eyeHost.classList.contains("is-docked"),
       eyeOn: eyeHost.classList.contains("is-on"),
       dark: tablet.classList.contains("is-dark"),
+      /* 第七轮新加的三处,给探针直接读:
+         · typeMs  —— 当前生效的字速(进 CD 页后应该变成 34)
+         · inCdPage —— 已经左滑过去了
+         · closing  —— 闭眼是否已经在跑(按下那一刻起就该是 true)
+         · host/pre —— 转 90° 之后到底占了多大(转完是宽高互换的) */
+      typeMs: typeMs,
+      inCdPage: inCdPage,
+      closing: !!dockClosing,
+      host: (function () {
+        var r = eyeHost.getBoundingClientRect();
+        return [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)];
+      })(),
+      pre: (function () {
+        if (!eyePre) return null;
+        var r = eyePre.getBoundingClientRect();
+        return [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)];
+      })(),
       eye: eye ? eye.state() : null,
       frame: mc ? { x: mc.x, y: mc.y, w: mc.w, h: mc.h, locked: mc.locked } : null
     };

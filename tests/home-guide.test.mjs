@@ -313,19 +313,21 @@ ok('★★★ 步骤顺序和用户给的那一串完全一致',
 ok('★★★ 步骤之间必须【串行】(每一步返回 Promise,链条一节一节走)',
   /function runStep\(s, i\)/.test(guideJs) &&
   /p = p\.then\(function \(\) \{/.test(guideJs) &&
-  /return typeLine\(s\.text\)\.then\(function \(\) \{ return sleep\(afterLine\); \}\);/.test(guideJs),
+  /return typeLine\(s\.text\)\.then\(function \(\) \{ return sleep\(pause\); \}\);/.test(guideJs) &&
+  /var pause = inCdPage \? afterLineTail : afterLine;/.test(guideJs),
   '并行跑的话台词会互相盖掉,而且"扫到哪儿说到哪儿"的对应关系就没了');
 /* ★★★ 第五轮把这一段整个换掉了:
    第三轮要"转 90° 横着看",第五轮改成"按下左滑后主屏的眼睛马上闭上,
    等彻底滑过去后眼睛再在右侧睁开"。
-   ⇒ 现在钉的是【三步的顺序】,而不是转多少度。 */
+   第六轮又纠正一次:"我说眼睛要旋转90°,你怎么又给我修回去了?" —— 两件事【叠加】。
+   第七轮:"按下进入CD页的按钮时,主眼睛应该立马闭合,否则跟不上左滑的速度。" */
 ok('★★★ 进 CD 页 = 闭眼 → 左滑 → 右侧重新睁眼(三步,顺序不能乱)',
   /dock: true/.test(guideRaw) &&
   /function closeEye\(\)/.test(guideJs) &&
   /function dockIntoBox\(\)/.test(guideJs) &&
   /function runDock\(\)/.test(guideJs) &&
-  /closeEye\(\)\.then\(function \(\) \{[\s\S]{0,200}?classList\.add\("page-out"\)/.test(guideJs) &&
-  /dockIntoBox\(\);[\s\S]{0,200}?eye\.openNow\(\)/.test(guideJs),
+  /beginDockClose\(\)\.then\(function \(\) \{[\s\S]{0,200}?classList\.add\("page-out"\)/.test(guideJs) &&
+  /if \(eye\.openNow\) eye\.openNow\(\);[\s\S]{0,120}?dockIntoBox\(\);[\s\S]{0,160}?classList\.add\("is-on"\)/.test(guideJs),
   '用户第五轮:"按下左滑后,主屏幕的眼睛马上闭上,等到彻底滑过去后,眼睛再在右侧睁开"');
 ok('★★★ 左滑用的是 page-slide 那条过渡(不是自己另画一套)',
   /docEl\.classList\.add\("page-slide"\)/.test(guideJs) &&
@@ -343,9 +345,18 @@ ok('★★★ 右侧那只眼睛必须【转 90°】(第三轮的要求,不许�
   !/eye\.rotate\(0\)/.test(guideJs),
   '第三轮:"这个眼睛要转向90°,放到右侧,就像横着看一样。而你只是缩小了一下就放上去了"');
 ok('★★★ 转向发生在【眼睛闭着的那段窗口里】(不是转着给你看)',
-  /closeEye\(\)\.then\(function \(\) \{[\s\S]{0,320}?dockIntoBox\(\)/.test(guideJs) &&
-  /dockIntoBox\(\);[\s\S]{0,260}?eye\.openNow\(\)/.test(guideJs),
+  /beginDockClose\(\)\.then\(function \(\) \{[\s\S]{0,320}?dockIntoBox\(\)/.test(guideJs) &&
+  /if \(eye\.openNow\) eye\.openNow\(\);[\s\S]{0,120}?dockIntoBox\(\);/.test(guideJs),
   '闭眼 → 左滑 → 换格并转向 → 睁开:转向那一下正好在闭眼窗口内');
+/* ★★★ 第七轮抓到的真凶:openNow() 内部会 measure()(按【整个视口】重算字号与列数),
+   把 dockIntoBox 里按右边那一格算好的尺寸整个冲掉 ——
+   实测 1600×900:<pre> 被改回 748.8×487.5(整屏那一档),而宿主格只有 558×312,
+   于是眼睛横过来占 488×719,而那一格只有 480 宽 = 用户说的"放不下"。
+   ⇒ 顺序必须是:openNow() → dockIntoBox() → is-on(显出来)。 */
+ok('★★★ 睁开之后要【重新贴一次】那一格的尺寸(openNow 会把它冲掉)',
+  /if \(eye\.openNow\) eye\.openNow\(\);[\s\S]{0,140}?dockIntoBox\(\);/.test(guideJs) &&
+  /openNow: function \(\) \{[\s\S]{0,120}?measure\(\);/.test(eyeJs),
+  'openNow() 里第一句就是 measure() —— 不重新 fitTo 一次,换格等于没换');
 ok('★★ 旋转要有过渡(和左滑同拍 0.55s)',
   /\.home-eye\.is-docked \{[\s\S]{0,400}?transform \.55s cubic-bezier/.test(tcss),
   '没有过渡就是"啪一下转过去";有过渡才像"它转过去了"');
@@ -360,8 +371,78 @@ ok('★★★ 那一格的分母是【玻璃的宽】,不是视口的宽',
   /cssPx\("--ff-win-left"/.test(guideJs) &&
   /var glassW = Math\.max\(320, vw - winL - winR\)/.test(guideJs) &&
   /var third = glassW \/ 3;/.test(guideJs) &&
-  /var left = Math\.max\(winL \+ \d+, visR - hostW - \d+\)/.test(guideJs),
+  /eye\.anchor\(cx - hostW \/ 2, \(vh - hostH\) \/ 2, hostW, hostH\)/.test(guideJs),
   '★★ 第一版写 left:auto/right:0/width:33vw(视口右边三分之一)⇒ 整只眼睛压在 CD 盘面上(截图里就是)');
+
+/* ============================================================
+   ★★★ 第七轮(用户逐字):
+     "1.转向90°后,眼睛应该小一点,不然放不下。
+      2.按下进入CD页的按钮时,主眼睛应该立马闭合,否则跟不上左滑的速度。
+      3.左滑后那几句话的出字速度还是不对。"
+   ============================================================ */
+/* ① 缩小 —— 转 90° 是【宽高互换】的,所以"放不下"要按转完的占位算。
+   实测(1600×900):老公式给 hostW = 480×1.02 = 490、hostH = 0.74×900 = 666,
+   转完占位 666×490 —— 那一格只有 480 宽,眼睛横过来就顶出去了。
+   现在的公式:转完的"长"L ≤ min(屏高 62%, 那一格 × 1.5)。 */
+ok('★★★ 转向 90° 之后眼睛要【缩小】(用户第七轮:"不然放不下")',
+  /var L = Math\.max\(220, Math\.round\(Math\.min\(vh \* 0\.62, third \* 1\.5\)\)\);/.test(guideJs) &&
+  /var hostW = L;/.test(guideJs) &&
+  /var hostH = Math\.max\(120, Math\.round\(L \* 0\.56\)\);/.test(guideJs) &&
+  !/third \* 1\.02/.test(guideJs) && !/vh \* 0\.74/.test(guideJs),
+  '转完的宽 = 转之前的高:按"转之前的宽 = 那一格"给盒子,转完就溢出那一格');
+ok('★★ 缩小的同时字号/列数要跟着重算(不是把画布剪小)',
+  /eye\.fitTo\(hostW, hostH \/ 0\.86\)/.test(guideJs) &&
+  /function fitTo\(boxW, boxH\)/.test(eyeJs) &&
+  /COLS = Math\.max\(16, Math\.floor\(boxW \/ CELL_W\)\)/.test(eyeJs),
+  'fitTo 的第二个参数只管行数(按 86% 落地),所以要除回去 —— 否则眼睛上下被切平');
+
+/* ② 按下 → 立刻闭眼。
+   原来:按下 → 走完这一拍的尾巴 → 下一拍 setTimeout(380) → 才开始闭(780ms)。
+   现在:闭眼挂在【按下那一刻】(盯着 scene-open 轮询),runDock 只等这次闭眼收口。 */
+ok('★★★ 按下"进 CD 页"的按钮时,主眼睛【立刻】开始闭(用户第七轮)',
+  /function watchDockPress\(\)/.test(guideJs) &&
+  /new MutationObserver\(function \(\) \{[\s\S]{0,120}?classList\.contains\("scene-open"\)\) hit\("observer"\)/.test(guideJs) &&
+  /if \(next && next\.dock\) watchDockPress\(\);/.test(guideJs) &&
+  /if \(document\.body\.classList\.contains\("scene-open"\)\) \{ hit\("poll"\); return; \}/.test(guideJs) &&
+  /setTimeout\(poll, 40\)/.test(guideJs),
+  '按下到闭眼之间不许再有"等这一拍走完"的延迟 —— 否则屏幕已经滑走了,眼睛还睁着');
+ok('★★★ 闭眼只做一次(按下就闭 / runDock 兜底闭,两条路径不打架)',
+  /var dockClosing = null;/.test(guideJs) &&
+  /function beginDockClose\(\) \{[\s\S]{0,260}?if \(!dockClosing\) \{[\s\S]{0,260}?dockClosing = closeEye\(\);/.test(guideJs) &&
+  /beginDockClose\(\)\.then\(function \(\) \{/.test(guideJs),
+  '记忆化:第二次调用拿到的是同一个 Promise,不会再播一遍 780ms 的闭眼');
+/* ★ 为什么是 MutationObserver 而不是只靠轮询(第七轮实测):
+   后台标签页/主线程忙的时候 setTimeout(40) 会被排到 700ms 之后,
+   "按下 → 闭眼"又慢回去了。observer 的回调在 class 变化的同一个任务里,
+   实测 1600×900:按下 → 开始闭 = 12ms(hitWhy = "observer")。 */
+ok('★★ 闭眼靠"盯 class 的 observer",轮询只做兜底(定时器会被节流)',
+  /hit\("observer"\)/.test(guideJs) && /hit\("poll"\)/.test(guideJs) &&
+  /attributes: true, attributeFilter: \["class"\]/.test(guideJs),
+  '只靠轮询时:实测一次"按下 → 闭眼"花了 875ms(setTimeout 被排到 722ms 之后)');
+ok('★★ 左滑不再有 setTimeout(runDock, 380) 那种"发呆"',
+  /runDock\(\);\s*\n\s*\}/.test(guideJs) && !/setTimeout\(runDock/.test(guideJs),
+  '第七轮:"否则跟不上左滑的速度"');
+
+/* ③ 左滑之后那几句话换一档语速。
+   开头那四句是"第一次见面,一字一句交代清楚"(58ms/字);
+   进 CD 页之后是一口气交代四个按钮的旁白 ⇒ 34ms/字 + 句间 700ms。 */
+ok('★★★ 左滑之后那几句话换成更快的"操作旁白"档(用户第七轮)',
+  /var TYPE_MS_FAST_TAIL = \(reduced \|\| FAST\) \? \(FAST && !reduced \? 3 : 0\) : 34;/.test(guideJs) &&
+  /var typeMs = TYPE_MS;/.test(guideJs) &&
+  /typeMs = TYPE_MS_FAST_TAIL;/.test(guideJs) &&
+  /inCdPage = true;/.test(guideJs),
+  '第七轮:"左滑后那几句话的出字速度还是不对"');
+ok('★★★ 字速必须【逐字现读】,不能在打这句之前就把 base 定死',
+  /var base = typeMs;/.test(guideJs) &&
+  /if \(typeMs <= 0 \|\| forceInstant\)/.test(guideJs) &&
+  !/var base = TYPE_MS;/.test(guideJs) &&
+  !/if \(TYPE_MS <= 0 \|\| forceInstant\)/.test(guideJs),
+  '踩过:typeMs 切了档,charDelay 里读的还是老常量 ⇒ 换了等于没换');
+ok('★★ 句间停顿也跟着换档(1.5s → 0.7s),标点停顿保持原样',
+  /var afterLineTail = \(reduced \|\| FAST\) \? 60 : 700;/.test(guideJs) &&
+  /var pause = inCdPage \? afterLineTail : afterLine;/.test(guideJs) &&
+  /"。": 300/.test(guideJs) && /"…": 240/.test(guideJs),
+  '快的是"旁的叙述",不是"人的迟疑" —— 逗号/省略号的停顿一秒钟都不许动');
 ok('★★ 眼睛宿主的位置必须用视口坐标显式给(不能靠 left:auto/right:0)',
   /function anchor\(left, top, width, height\)/.test(eyeJs) &&
   /st\.left = Math\.round\(left\) \+ "px";/.test(eyeJs),
