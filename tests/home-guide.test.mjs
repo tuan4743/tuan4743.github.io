@@ -332,10 +332,27 @@ ok('★★★ 左滑用的是 page-slide 那条过渡(不是自己另画一套)'
   /document\.body\.classList\.add\("page-out"\)/.test(guideJs) &&
   /document\.body\.classList\.remove\("page-out"\)/.test(guideJs),
   '整块机器左移 100vw 的那条 CSS 在 shell.css 第三节 —— 复用同一条,过场才接得上');
-ok('★★★ 第五轮取消了旋转(转 90° 之后"跟鼠标"在视觉上是反的)',
-  /if \(eye\.rotate\) eye\.rotate\(0\);/.test(guideJs) &&
-  !/eye\.rotate\(90\)/.test(guideJs),
-  '用户第五轮明确要的是"同一只眼睛换个位置继续跟鼠标" —— 朝向由 setGaze 决定,与旋转无关');
+/* ★★★ 两次要求是【叠加】的,不是互相取代 —— 我第五轮读错了,
+   把旋转删掉,用户第六轮直接指出来:"我说眼睛要旋转90°,你怎么又给我修回去了?"
+     · 第三轮:转向 90°,放右侧,像横着看      ⇒ 要转
+     · 第五轮:闭眼 → 左滑 → 右侧睁开          ⇒ 要换场编排
+   ⇒ 完整是四步:闭眼 → 左滑 → 换格【并转 90°】 → 重新睁开。 */
+ok('★★★ 右侧那只眼睛必须【转 90°】(第三轮的要求,不许再删)',
+  /var DOCK_TILT = 90;/.test(guideJs) &&
+  /if \(eye\.rotate\) eye\.rotate\(DOCK_TILT\);/.test(guideJs) &&
+  !/eye\.rotate\(0\)/.test(guideJs),
+  '第三轮:"这个眼睛要转向90°,放到右侧,就像横着看一样。而你只是缩小了一下就放上去了"');
+ok('★★★ 转向发生在【眼睛闭着的那段窗口里】(不是转着给你看)',
+  /closeEye\(\)\.then\(function \(\) \{[\s\S]{0,320}?dockIntoBox\(\)/.test(guideJs) &&
+  /dockIntoBox\(\);[\s\S]{0,260}?eye\.openNow\(\)/.test(guideJs),
+  '闭眼 → 左滑 → 换格并转向 → 睁开:转向那一下正好在闭眼窗口内');
+ok('★★ 旋转要有过渡(和左滑同拍 0.55s)',
+  /\.home-eye\.is-docked \{[\s\S]{0,400}?transform \.55s cubic-bezier/.test(tcss),
+  '没有过渡就是"啪一下转过去";有过渡才像"它转过去了"');
+ok('★★ 转 90° 之后瞳孔照样跟手(朝向与跟手是两件事)',
+  /eye\.setGaze\(gx, gy\)/.test(guideJs) &&
+  /function lookAtRect\(p\)/.test(guideJs),
+  '跟手靠 setGaze,旋转只改朝向 —— 所以"横着看"和"跟着你"可以同时成立');
 ok('★★ 闭眼要等它真的闭到底(不是拍一下就开始滑)',
   /eye\.close\(fin\)/.test(guideJs) && /setTimeout\(fin, \(eye\.T_CLOSE \|\| 780\) \+ 400\)/.test(guideJs),
   '闭眼动画 780ms;不等它跑完就滑,用户会看到"眼睛还睁着就飞走了"');
@@ -368,6 +385,20 @@ ok('★★★ 要按的目标必须用【看得见的那枚】选择器(.slot-to
   /sel === "\.slot-toggle"/.test(guideJs),
   '★★ #intro-toggle 是 screen 右缘那个 <section class="screen-slot"> 里的按钮,' +
   '它被 .screen-frame(z-index 34)与 .slot-seam 盖着 —— 在它身上加高亮等于没加(实测看不见)');
+ok('★★★ 台词「按下它。」必须在【点击之前】就打出来',
+  (function () {
+    var iText = guideJs.indexOf('return typeLine(s.text)');
+    var iWait = guideJs.indexOf('tasks.push(function () { return waitForUser(s.press); });');
+    return iText >= 0 && iWait >= 0 && iText < iWait &&
+      /顺序:【先说话,再等用户按】/.test(guideRaw);
+  })(),
+  '★★ 用户第六轮:"对话按下它只有点击按钮之后才会触发" ——' +
+  '第三轮把"让用户自己按"改进来时,等待被排到了台词【前面】,' +
+  '于是这一拍先干等着、按下去之后才把那句台词打出来,完全反了。' +
+  '用户给的原顺序本来就是:对话("按下它")→ 动画(按下 → 左滑)');
+ok('★★ 高亮与松框仍在这一拍【一开始】就做(它们是那句台词的注解)',
+  /window\.__mcScript = null;\s*\n\s*lastSnapSpec = null;\s*\n\s*frameRect = null;\s*\n\s*pulseTarget\(s\.press, true\);/.test(guideJs),
+  '提示要跟台词同时在场;但不能等到按完才亮(那时已经没用了)');
 ok('★★★ 等用户按时要给【不看扫描框也能看懂】的高亮',
   /function pulseTarget\(sel, on\)/.test(guideJs) &&
   /pulseTarget\(s\.press, true\)/.test(guideJs) &&

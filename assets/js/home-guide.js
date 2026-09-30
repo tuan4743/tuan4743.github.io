@@ -569,21 +569,24 @@
   }
 
   /* ============================================================
-     进 CD 页那一段的编排(用户第五轮重写)
+     进 CD 页那一段的编排
      ─────────────────────────────────────────────────────────────
-     用户原话:"按下左滑后,主屏幕的眼睛马上闭上,等到彻底滑过去后,
-              眼睛再在右侧睁开。而且这个右侧眼睛也有同样不跟鼠标的问题。"
-
-     ⇒ 三步,顺序不能乱:
-        ① 眼睛【马上闭上】(等它闭到底,约 780ms);
-        ② 机器左滑出去(给 body 挂 .page-out —— shell.css 里那条把 .scene
-           连同平板一起 translateX(-100vw) 的过场);
-        ③ 滑完之后,眼睛在"平板还能看见的那一格"里【重新睁开】。
-     ★ 去掉旋转:第五轮明确要的是"同一只眼睛换个位置继续跟鼠标",
-       而旋转 90° 之后"跟鼠标"在视觉上是反的(第三轮那条要求被这一条取代)。
-       朝向本来就由 setGaze 决定,与旋转无关 —— 去掉旋转不影响跟手。
-     ★ 换格时机器已经滑到位,所以 eyeDock 量到的是最终位置。
+     ★★★ 两次要求【是叠加的,不是互相取代】—— 我第五轮读错了,把旋转删了,
+     用户第六轮指出:"我说眼睛要旋转90°,你怎么又给我修回去了?"
+       · 第三轮:"这个眼睛要转向90°,放到右侧,就像横着看一样"        ⇒ 要【转】
+       · 第五轮:"按下左滑后,主屏幕的眼睛马上闭上,等到彻底滑过去后,
+                 眼睛再在右侧睁开"                                  ⇒ 要【闭→滑→睁】
+     ⇒ 完整编排(四步):
+         ① 按下之后:眼睛马上闭上(等它闭到底,约 780ms);
+         ② 同时左滑 100vw 出去;
+         ③ 到位后换格 + 转到 90°(旋转有 0.55s 过渡,和左滑同拍 ——
+            此刻眼睛是闭着的,所以看到的是"它转过去了",不是"它转着给你看");
+         ④ 全部落定才重新睁开。
+     ★ "右侧那只眼睛跟鼠标"是靠 setGaze 做到的,与旋转无关 ——
+       旋转只改变眼睛的朝向(横着看),瞳孔照样跟着扫描框走。
      ============================================================ */
+  var DOCK_TILT = 90;                      /* 到位后转多少度(用户第三轮定的) */
+
   function closeEye() {
     return new Promise(function (resolve) {
       if (!eye) return resolve();
@@ -605,12 +608,14 @@
     var visR = Math.min(r.right || vw, vw);
     if (!(visR > 80)) visR = vw * (1 - 0.34);             /* 量不到就按"露出 34%"兜底 */
     var third = glassW / 3;
+    /* ★ 转 90° 之后"实际占的宽"是网格的高,所以盒子要换过来给 ——
+       不换的话眼睛会溢出那一格(第三轮就是这么定的)。 */
+    if (eye.rotate) eye.rotate(DOCK_TILT);
     var hostW = Math.max(120, Math.round(third * 1.02));
     var hostH = Math.max(200, Math.round(vh * 0.74));
     var left = Math.max(winL + 6, visR - hostW - 6);
-    if (eye.rotate) eye.rotate(0);
     eye.anchor(left, (vh - hostH) / 2, hostW, hostH);
-    eye.fitTo(hostW * 0.98, hostH * 0.98);
+    eye.fitTo(hostH * 0.98, hostW * 0.92);                /* 参数是【转之前的】宽高 */
   }
 
   function runDock() {
@@ -620,10 +625,11 @@
       document.body.classList.add("page-out");
       return sleep(reduced ? 120 : 700);
     }).then(function () {
-      /* ③ 滑完 → 换格 → 重新睁开 */
+      /* ③ 滑完 → 换格 + 转向(此刻眼睛闭着,所以看得到"它转过去了") */
       dockIntoBox();
-      return sleep(reduced ? 40 : 140);
+      return sleep(reduced ? 40 : 620);                   /* 等旋转的 0.55s 过渡落地 */
     }).then(function () {
+      /* ④ 重新睁开 */
       eyeHost.classList.add("is-on");
       if (eye.openNow) eye.openNow();                     /* 直接睁着,不再播一遍出场 */
       docEl.classList.remove("page-slide");
@@ -698,25 +704,30 @@
 
     /* ★ 要按的、要说的,都按【先按后说】的顺序排好再跑 */
     var tasks = [];
+    /* ★★★ 顺序:【先说话,再等用户按】。
+       用户第六轮:"对话'按下它'只有点击按钮之后才会触发。"
+       根因:第三轮把"让用户自己按"改进来时,我把等待排在了台词【前面】——
+       于是这一拍的表现是:台词一句都没有,界面就那么干等着;
+       用户按下去之后那句"按下它。"才打出来。完全反了。
+       用户给的原顺序本来就是:对话("按下它")→ 动画(按下 → 左滑)。
+       ★ 高亮与松框仍然在这一拍【一开始】就做:它们是"这句台词在说哪个按钮"
+         的注解,要跟台词同时在场,而且不能等到按完才亮。
+         (踩过:高亮挂在拍子开头而台词在最后 → 早了 60 秒;
+          挂在台词之后 → 用户读完话才亮、一按就灭。两头都够不着。) */
     if (s.press) {
-      /* ★★★ "按下"改成【让用户自己按】(用户第三轮:
-         "按下按钮并不是自动按,是让用户自己按")。
-         原来这里 dispatch 一个合成 click 就替用户按了 —— 引导不该代劳。
-         ★★ 这一步一开始就做两件事(和台词几乎同时):
-           · 松开钉住的扫描框(它自己会跟回真实指针);
-           · 给目标加高亮 —— 用户才知道该按哪儿。
-         踩过:把高亮挂在"拍子开头"时,它在台词出现前 60 秒就亮着了;
-         挂在"台词之后"时,用户读完话才亮、而且一按就灭 —— 两头都够不着。 */
       tasks.push(function () {
         window.__mcScript = null;
         lastSnapSpec = null;
         frameRect = null;
         pulseTarget(s.press, true);
-        return waitForUser(s.press);
+        return null;                       /* 先只把提示摆好,不阻塞 */
       });
     }
     if (s.text) {
       tasks.push(function () { return typeLine(s.text).then(function () { return sleep(afterLine); }); });
+    }
+    if (s.press) {
+      tasks.push(function () { return waitForUser(s.press); });
     }
     if (!tasks.length) {
       /* 没有台词的步骤:光等(每步都再给一拍,让扫描框吸稳) */

@@ -668,15 +668,18 @@ html.home-dark body { background: #000; }
 
 .home-eye.is-on { opacity: 1; }
 
-/* ★ 换到"平板还能看见的那一格"里:位置/尺寸都由 ascii-eye.js 的 anchor()
-   用视口坐标显式写内联样式(见那里的说明 —— 不能用 33vw 那种相对写法),
-   所以这里只留一条过渡,让它和 .scene 的 0.55s 平移同拍地挪过去。 */
+/* ★ 换到"平板还能看见的那一格"里:位置/尺寸/【旋转】都要有过渡。
+   旋转这件事是第三轮的要求("这个眼睛要转向90°,放到右侧,就像横着看一样"),
+   第五轮又加了"闭眼 → 左滑 → 右侧睁开"的编排;两件事叠在一起时,
+   转向发生在【眼睛闭着的那段时间里】—— 所以它看着是"转过去了",
+   而不是"转着给你看"。这里给它和左滑同拍的 0.55s,时机正好落在闭眼窗口内。 */
 .home-eye.is-docked {
     transition: opacity .5s ease,
         left .55s cubic-bezier(.22, .61, .36, 1),
         top .55s cubic-bezier(.22, .61, .36, 1),
         width .55s cubic-bezier(.22, .61, .36, 1),
-        height .55s cubic-bezier(.22, .61, .36, 1);
+        height .55s cubic-bezier(.22, .61, .36, 1),
+        transform .55s cubic-bezier(.22, .61, .36, 1);
 }
 
 /* 眼睛本体:<pre>。字号/宽高由 ascii-eye.js 逐帧写内联样式,这里只管字面。
