@@ -66,7 +66,7 @@
            而 HUD 里的明暗旋钮就是那个 id。
          ★ 首页走自己的独立模板(layouts/index.html),不经过这里;
            这里的 if 只是把"万一"挡住(首页有它自己那套平板主界面)。 */}}
-    {{- if not .IsHome }}
+    {{- if not (.Param "isHome") }}
     {{ partial "page-hud.html" . }}
     {{- end }}
 

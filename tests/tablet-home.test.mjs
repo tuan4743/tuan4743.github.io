@@ -19,8 +19,11 @@ const BH = `${WS}/tuagfey-blog`;
 const rows = [];
 const ok = (name, pass, info) => rows.push([!!pass, name, info === undefined ? '' : String(info)]);
 
-/* ---------- 素材 ---------- */
-const tpl = fs.readFileSync(`${BH}/layouts/index.html`, 'utf8');
+/* ---------- 素材 ----------
+   ★★ 这块"仿真屏幕"原来在站点根(layouts/index.html + .tmp/t1/index.html)。
+      启动页占住根之后它搬到了 /home/:模板在 layouts/home/list.html,
+      构建产物在 .tmp/t1/home/index.html。名字仍叫 tpl / built —— 变的只是路径。 */
+const tpl = fs.readFileSync(`${BH}/layouts/home/list.html`, 'utf8');
 /* ★ 扫模板源码之前必须先剥注释:Hugo 注释({{/* … *\/}})、CSS 注释、HTML 注释都要剥。
    本轮又踩了一次 —— 解释"这里原来是什么"的注释里写着 `<div class="statusbar">` /
    `partial "header.html"` / `data-tablet-theme`,于是"首页不该再有它们"这几条
@@ -30,7 +33,7 @@ const noC = (s) => String(s)
   .replace(/\/\*[\s\S]*?\*\//g, '')
   .replace(/<!--[\s\S]*?-->/g, '');
 const tplCode = noC(tpl);
-const built = fs.readFileSync(`${WS}/.tmp/t1/index.html`, 'utf8');   /* 构建产物:验"真正发出去的那份" */
+const built = fs.readFileSync(`${WS}/.tmp/t1/home/index.html`, 'utf8');   /* 构建产物:验"真正发出去的那份" */
 const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '');
 const tcss = strip(fs.readFileSync(`${BH}/assets/css/tablet.css`, 'utf8'));
 const icss = strip(fs.readFileSync(`${BH}/assets/css/intro.css`, 'utf8'));

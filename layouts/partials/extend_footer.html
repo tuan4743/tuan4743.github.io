@@ -34,7 +34,8 @@
      ★ 背景放在页脚位置没关系:它是 position:fixed + z-index:0,压不到内容;
        而它必须在【首帧】就在,所以 CSS(assets/css/extended/shell.css)是
        跟着主题样式表一起加载的,这里只放标记。 */ -}}
-{{- if not .IsHome }}
+{{- /* ★ 同样排掉启动页(bare):星云背景、投影、ECHO 一个都不该在那一屏上。 */ -}}
+{{- if not (or (.Param "isHome") (.Param "bare")) }}
 {{/* ★ 必须套一层 .page-cosmos:
      这个 partial 是【在 <footer> 里面】被调用的(见主题的 _partials/footer.html),
      而 cosmos.html 自己那层 .cosmos 是 position:absolute —— 直接放进去的话,

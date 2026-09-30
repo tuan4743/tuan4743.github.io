@@ -37,7 +37,8 @@ const noC = (s) => String(s)
   .replace(/\/\*[\s\S]*?\*\//g, '')
   .replace(/<!--[\s\S]*?-->/g, '');
 
-const home = rd(`${WS}/.tmp/t1/index.html`);
+const home = rd(`${WS}/.tmp/t1/home/index.html`);
+const root = rd(`${WS}/.tmp/t1/index.html`);           /* ★ 站点根:启动页的重定向壳 */
 const tech = rd(`${WS}/.tmp/t1/tech/index.html`);
 const post = rd(`${WS}/.tmp/t1/posts/hello-world/index.html`);
 const about = rd(`${WS}/.tmp/t1/about/index.html`);
@@ -65,14 +66,25 @@ ok('★★ 博客页有这条 HUD', cls('page-hud').test(tech) && cls('page-hud'
 ok('★★ 首页【没有】(首页有它自己那套平板主界面,两套会撞 id)',
   !cls('page-hud').test(home) && !/page-hud\.[0-9a-f]+\.(css|js)/.test(home),
   '首页既不该有这条 HUD,也不该白下它的样式和脚本');
-ok('★ 样式只从 extend_head 里挂、而且带 if not .IsHome',
-  /if not \.IsHome/.test(extHead) &&
-  extHead.indexOf('if not .IsHome') < extHead.indexOf('css/page-hud.css') &&
+/* ★ 判据从 .IsHome 改成 (.Param "isHome") —— 仿真屏幕搬到 /home/ 之后不再是 Home 页,
+   而 .IsHome 一变 false,这一整块(HUD 缩放因子 / shell-page / page-hud.css / hud-palette.js)
+   就会全部灌进那块屏,连底都会从"屏幕"变成"星云"(实际踩过,靠逐字节对账才发现)。
+   ★ 后来又加了 (.Param "bare"):启动页也不是那块屏,但它更不是博客页。
+   ⇒ 断言跟着改成查新判据,并且【仍然要求那个判断排在 css 之前】。 */
+ok('★ 样式只从 extend_head 里挂、而且带"这块屏与启动页都没有 HUD"的判断',
+  /if not \(or \(\.Param "isHome"\) \(\.Param "bare"\)\)/.test(extHead) &&
+  extHead.indexOf('if not (or (.Param "isHome") (.Param "bare"))') < extHead.indexOf('css/page-hud.css') &&
   /page-hud\.[0-9a-f]+\.css/.test(tech) && /page-hud\.[0-9a-f]+\.js/.test(tech));
+/* ★★ 新判据的护栏:标记只能出现在那一页的 front matter 里。
+   写进 hugo.toml 的 [params] 会变成全站生效 —— 那样每一篇博客页都会丢掉 HUD。 */
+ok('★★ isHome 标记只在 content/home/_index.md 里,不在 hugo.toml 的 [params] 里',
+  /^isHome:\s*true\s*$/m.test(rd(`${BH}/content/home/_index.md`)) &&
+  !/^\s*isHome\s*=/m.test(rd(`${BH}/hugo.toml`)),
+  '写进 [params] 就是全站生效:每篇博客页的 HUD、shell-page、目录会一起消失');
 ok('★★ partial 只在 baseof 里调用一次,而且【不在 footer 链里】',
   (baseof.match(/partial "page-hud\.html"/g) || []).length === 1 &&
   !/page-hud\.html/.test(noC(extFoot)) &&
-  !/page-hud\.html/.test(rd(`${BH}/layouts/index.html`)),
+  !/page-hud\.html/.test(rd(`${BH}/layouts/home/list.html`)),
   '见 ⑨:主题的 footer 是 partialCached 的,按页面变的东西放进去会被"整类页面共用"');
 ok('★ 样式表是【单独挂】的,没放进 assets/css/extended/(那是全站都加载的包)',
   fs.existsSync(`${BH}/assets/css/page-hud.css`) &&
@@ -989,6 +1001,9 @@ ok('★★ 配色算法被【内联进 <head>】(首帧之前就要位,否则先
   /resources\.Get "js\/hud-palette\.js"/.test(extHead) &&
   /\.Content \| safeJS/.test(extHead) && headOf(tech).includes('pref-palette-hue'),
   '内联的是同一个文件,不是抄一份算法');
+/* ★ 这条原来读的是站点根 —— 那时站点根【就是】那块仿真屏幕。
+   启动页占住根之后,这里要读的是屏幕自己的产物 /home/,
+   不然扫的是一个只有 head + 一行跳转的壳,断言再也不会红。 */
 ok('★ 首页不内联(它有自己的配色面板,两套会互相按死)', !headOf(home).includes('pref-palette-hue'));
 ok('★★ 只对 .shell-page 生效 —— 首页那块平板的配色面板不能被这里按死成"点了没反应"',
   /classList\.contains\("shell-page"\)/.test(palJs) && /if \(!isShell\(\)\) return;/.test(palJs));
@@ -1043,15 +1058,26 @@ const walkPages = (d, out = []) => {
   }
   return out;
 };
-let withHud = 0, mismatch = [], homeHasHud = false;
+/* ★★ 故意没有 HUD 的页面 —— 启动页之后这份名单变成两页:
+      · /start/ 启动页(方舟总控 AI 那一屏,用户要求"很干净")
+      · /home/  仿真屏幕(CD 架 + 平板主界面,底是那块屏而不是整页星云)
+    ★ 名单是【白名单】:多一个少一个都要在这里红。
+      以前只跳过 `/` 一个地址,所以 /start/ 和 /home/ 一出现就被报成"没有 HUD"。 */
+const NO_HUD = new Set(['/start/', '/home/']);
+let withHud = 0, mismatch = [], rootHasHud = false;
 for (const f of walkPages(`${WS}/.tmp/t1`)) {
   const h = rd(f);
   const rel = '/' + f.slice(`${WS}/.tmp/t1/`.length).replace(/index\.html$/, '');
   /* 分页第 1 页那种产物是"跳转壳"(只有 head 没有 body),不算页面 */
   if (!h.includes('<body') || /http-equiv=refresh/.test(h)) continue;
   const m = h.match(/data-hud-page=(?:"([^"]*)"|([^\s>]+))/);
-  if (rel === '/') { homeHasHud = !!m; continue; }
-  if (!m) { mismatch.push(`${rel} 没有 HUD`); continue; }
+  /* ★ 根页是启动页的重定向壳,【必须】没有 HUD(这一条以前是跳过,现在是断言) */
+  if (rel === '/') { rootHasHud = !!m; continue; }
+  if (NO_HUD.has(rel)) {
+    if (m) mismatch.push(`${rel} 是"不该有 HUD"的页面,却带着 data-hud-page=${m[1] || m[2]}`);
+    continue;
+  }
+  if (!m) { mismatch.push(`${rel} 没有 HUD,却也不在 NO_HUD 名单里`); continue; }
   withHud++;
   const c = h.match(/rel=canonical href=(?:"([^"]*)"|([^\s>]+))/) || [, '', ''];
   const canonPath = String(c[1] || c[2] || '').replace(/^https?:\/\/[^/]+/, '');
@@ -1061,7 +1087,7 @@ for (const f of walkPages(`${WS}/.tmp/t1`)) {
 ok('★★★ 逐页对账:每个产物里 HUD 的页面标记 == 这个文件自己的 canonical',
   withHud >= 10 && mismatch.length === 0,
   `扫了 ${withHud} 个带 HUD 的页面;` + (mismatch.length ? ' 出问题的:' + mismatch.join(' | ') : '全部一致'));
-ok('★★ 首页不在这次逐页扫描里(它没有 HUD,也不该有)', !homeHasHud);
+ok('★★ 站点根(启动页的重定向壳)没有 HUD,也没有被挂上任何页面标记', !rootHasHud);
 
 /* ---------- ⑩ 还没做的东西没被顺手做进来 ---------- */
 ok('★ 目录面板 / 进度条 / 左侧番茄钟与播放器 / 首页平板:这一轮都还没动',

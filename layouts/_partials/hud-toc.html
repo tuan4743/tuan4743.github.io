@@ -16,7 +16,9 @@
         另外标题少于 2 条时整块不渲染(一条也不值得做目录)。
      ============================================================ */}}
 {{- $frags := .Fragments.Headings -}}
-{{- if and (not .IsHome) $frags -}}
+{{- /* 判据用 (.Param "isHome") 而不是 .IsHome:仿真屏幕搬到 /home/ 之后它不再是
+       Home 页,但目录照样不该长在那块屏上(它没有正文标题)。见 content/home/_index.md。 */ -}}
+{{- if and (not (.Param "isHome")) $frags -}}
 {{- $items := slice -}}
 {{- range $frags -}}
     {{/* ★ 第一层是文章自己的 h1(标题),不是小节 —— 它出现在目录里就是重复标题。

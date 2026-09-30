@@ -1201,7 +1201,8 @@ ok('★ 适配点只有一处:u_time → uTime(宿主里没有 iTime 这个名�
 ok('★ 入口交给宿主:文件里不写 main(),宿主会补 mainImage 的调用',
   !/void\s+main\s*\(\s*\)/.test(aurSrc) && /void mainImage\s*\(/.test(aurSrc),
   /void\s+main\s*\(\s*\)/.test(aurSrc) ? '文件里自己写了 main()' : '没有 main(),由宿主补');
-const idxTpl = fs.readFileSync('tuagfey-blog/layouts/index.html', 'utf8');
+/* ★ 这份模板在启动页占住站点根之后搬到了 /home/(见 content/home/_index.md)。 */
+const idxTpl = fs.readFileSync('tuagfey-blog/layouts/home/list.html', 'utf8');
 ok('★ 模板把它注册进 window.__SHADERS(aurora)',
   /auroraGlsl := resources\.Get "shaders\/aurora\.glsl"/.test(idxTpl) &&
   /aurora: "\{\{ with \$auroraGlsl/.test(idxTpl),

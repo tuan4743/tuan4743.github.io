@@ -554,7 +554,9 @@ paginate = 10
 [[menu.main]]
   identifier = "home"
   name = "主页"
-  url = "/"
+  # ★ 这一项原来指 "/"。现在 "/" 是启动页(会跳到 /start/),仿真屏幕搬到了 /home/:
+  #   平板主界面上那枚"主页"图标如果还指 "/",点一下就被弹去启动页 —— 那叫死循环。
+  url = "/home/"
   weight = 10
   pre = '<svg class="menu-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>'
 

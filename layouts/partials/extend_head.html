@@ -16,8 +16,18 @@
          baseof,body 的 class 由主题决定,插不进去;而这句和上面那句恢复配色一样,
          必须在首帧之前跑(晚了会闪一下主题底色)。
        ★ 首页不能挂(它的底是那块仿真屏幕,不是整页星云)—— head.html 两边都会调,
-         所以必须带 if not .IsHome。 */ -}}
-{{- if not .IsHome }}
+         所以必须带这个判断。
+       ★★ 判据从 .IsHome 改成 (.Param "isHome"):启动页占住站点根之后,
+          这块仿真屏幕搬到了 /home/,它已经不是 Home 页了 —— 而 .IsHome 一旦变 false,
+          下面这一整块(HUD 缩放因子、shell-page、page-hud.css / hud-palette.js)
+          就会【全部灌进那块屏幕】,连底都会从屏幕变成星云。
+          标记写在 content/home/_index.md 的 front matter 里(不是 hugo.toml 的
+          [params],那样全站生效)。凡"只有这块屏才有"的判据一律用它。
+       ★★ 还要排掉启动页(.Param "bare"):它也不是那块屏,但它【更不是博客页】——
+          它是"裸页",自己一屏的样式都在 layouts/start/list.html 里。
+          只写 isHome 那一条的话,启动页会被当成博客页,白下一整份 page-hud.css
+          并挂上 shell-page(实测踩到,靠构建产物对账才发现)。 */ -}}
+{{- if not (or (.Param "isHome") (.Param "bare")) }}
 <script>document.documentElement.classList.add("shell-page");</script>
 
 {{- /* ---------- HUD 的缩放因子 --hud-s(用户第十轮)----------
@@ -89,13 +99,14 @@
 {{- /* ---------- 番茄钟(左栏,可收起)的样式 ----------
      ★ 和上面那两块同一个套路:自己的文件、自己的指纹、排在 page-hud.css 之后
        (它吃 --hud-font / --mc-color / --hud-cover 这几个变量)。
-     ★★ 注意它在 if not .IsHome【外面】:番茄钟的【DOM】挂在 .page-hud 里
-       (layouts/_partials/page-hud.html 第 ⑥ 节),而 .page-hud 只在博客页渲染
-       (baseof.html 里带 if not .IsHome)。样式跟着进 if 也不会错,但放在外面
-       更省心:哪天真要给首页也加一个,只需在那边补一句 partial,不必再回来
-       改样式表的位置。首页没有那个 DOM,这几 KB 不会被解析成任何东西。
+     ★★ 判据改成和上面那块一样(不是仿真屏幕、也不是启动页):
+       原来这两份【故意挂在 if 外面】,理由是"首页没有那个 DOM,这几 KB 不会被解析"。
+       那时"首页"只有一块屏,多下两份无所谓。现在多了启动页,而用户对那一页的要求
+       就是【干净】—— 它一分 HUD 都没有,却照样在下 hud-timer.css + hud-left.css
+       (实测构建产物里两份都在),等于为不存在的 DOM 下样式。所以关进来。
      ★ 它是 fixed 定位的自绘块,不参与任何 Hugo 端计算,所以没有"首帧闪一下"
        的问题,挂在 <head> 末尾就行。 */ -}}
+{{- if not (or (.Param "isHome") (.Param "bare")) }}
 {{- with resources.Get "css/hud-timer.css" }}
 {{- $u := . | fingerprint "sha256" }}
 <link rel="stylesheet" href="{{ $u.RelPermalink }}">
@@ -106,9 +117,9 @@
        (它吃 --hud-font / --hud-cover / --mc-color 这几个变量)。
      ★ 框本身和"按钮的形"不在这里:那是 .page-hud__band 那支 SVG
        (4 层 + 5 个 polygon,样式在 page-hud.css 里)。这里只管能按的那一层
-       —— 每颗按钮铺满整层,靠 clip-path 收成同一个多边形的形状。
-     ★ 同样放在 if not .IsHome 外面:首页没有那个 DOM,这几 KB 不会被解析。 */ -}}
+       —— 每颗按钮铺满整层,靠 clip-path 收成同一个多边形的形状。 */ -}}
 {{- with resources.Get "css/hud-left.css" }}
 {{- $u := . | fingerprint "sha256" }}
 <link rel="stylesheet" href="{{ $u.RelPermalink }}">
+{{- end }}
 {{- end }}

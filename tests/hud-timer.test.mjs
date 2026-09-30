@@ -32,7 +32,8 @@ const strip = (h) => h.replace(/="([^"]*)"/g, '=$1');
 
 const post = rd(`${WS}/.tmp/t1/posts/hello-world/index.html`);
 const about = rd(`${WS}/.tmp/t1/about/index.html`);
-const home = rd(`${WS}/.tmp/t1/index.html`);
+/* ★ 仿真屏幕搬到了 /home/(启动页占了站点根)—— 见 content/home/_index.md */
+const home = rd(`${WS}/.tmp/t1/home/index.html`);
 const sPost = strip(post);
 const sHome = strip(home);
 const tpl = rd(`${BH}/layouts/_partials/page-hud.html`);

@@ -93,8 +93,33 @@ window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}",
         }
     }
 </script>
-<body id="top" class="intro-page"{{ with $cd3dJs }} data-cd3d="{{ .RelPermalink }}"{{ end }}{{ with $audioJs }}
+<body id="top" class="intro-page home-page"{{ with $cd3dJs }} data-cd3d="{{ .RelPermalink }}"{{ end }}{{ with $audioJs }}
     data-cd-audio="{{ .RelPermalink }}"{{ end }}{{ with $fxJs }} data-cd-fx="{{ .RelPermalink }}"{{ end }}>
+    {{- /* ============================================================
+           ★★ /  →  /start/  的那一跳(这一份同时是站点根和 /home/)
+           ─────────────────────────────────────────────────────────────
+           用户:"在输入 https://tuagfey.com 的时候,不要直接跳转到首页,
+           而是跳转到一个启动页。"
+           ⇒ 根地址必须落到启动页。而这块"仿真屏幕"现在住在 /home/。
+
+           ★ 为什么是"内容里的一行跳转"而不是 Hugo 的 redirect 模板:
+             静态站没有服务端重定向,能做这一跳的只有客户端;
+             而写在 <body> 最前面,解析到就执行 —— 比等 defer 的脚本快得多。
+           ★ 为什么用 location.replace:冲掉历史里的 `/`,
+             这样在启动页按【后退】不会回到 / 又被弹到启动页(不会打乒乓)。
+           ★ 怎么不会死循环:启动页上的两个按钮分别指向 /home/(= 本页)
+             和 /tech/,【都不会回到 /】。而本页只在 IS_ROOT 时跳。
+           ★ IS_ROOT 靠 window.location.pathname 判定,不用 .IsHome ——
+             因为这一份模板同时对 `/` 和 `/home/` 生效(Hugo 的 section 模板
+             优先于 _default/list.html,两处共用这一份,不复制两遍)。
+           ============================================================ */ -}}
+    <script>
+        (function () {
+            var p = window.location.pathname.replace(/\/+$/, '') || '/';
+            if (p === '/' || p === '/index.html') location.replace('/start/');
+        })();
+    </script>
+
     <!-- 首次进入的加载页(3D 就绪前显示) -->
     <div class="intro-loader" id="intro-loader">
         <div class="intro-loader-inner">

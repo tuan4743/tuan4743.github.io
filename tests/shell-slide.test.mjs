@@ -23,12 +23,14 @@ const noC = (s) => String(s)
   .replace(/\/\*[\s\S]*?\*\//g, '')
   .replace(/<!--[\s\S]*?-->/g, '');
 
-const home = rd(`${WS}/.tmp/t1/index.html`);          /* 构建产物:验真正发出去的那份 */
+/* ★★ 这一份读的是【仿真屏幕】的构建产物,它现在在 /home/(启动页占了站点根)。
+      下面所有"首页"都是指这块屏幕,不是指 URL 上的 /。 */
+const home = rd(`${WS}/.tmp/t1/home/index.html`);      /* 构建产物:验真正发出去的那份 */
 const tech = rd(`${WS}/.tmp/t1/tech/index.html`);
 const shell = rd(`${BH}/assets/css/extended/shell.css`);
 const shellCode = noC(shell);
 const intro = noC(rd(`${BH}/assets/css/intro.css`));
-const idx = noC(rd(`${BH}/layouts/index.html`));
+const idx = noC(rd(`${BH}/layouts/home/list.html`));
 const slideJs = rd(`${BH}/assets/js/page-slide.js`);
 /* ★ 最小化产物里属性【没有引号】(class=intro-bg),带引号的写法一个都匹配不到。 */
 const cls = (name) => new RegExp('class="?' + name + '(?![\\w-])');
@@ -42,8 +44,8 @@ ok('★ 首页:APP 带 data-slide(过场只认这个属性,不认类名)',
   /data-slide/.test(idx) && /data-slide/.test(home));
 ok('首页:page-slide.js 发出来了', /page-slide\.[0-9a-f]+\.js/.test(home));
 ok('首页:没有 shell-page 类(它的底是那块屏幕,不是整页星云)',
-  /if not \.IsHome/.test(rd(`${BH}/layouts/partials/extend_head.html`)),
-  'extend_head 里带了 if not .IsHome');
+  /if not \(or \(\.Param "isHome"\) \(\.Param "bare"\)\)/.test(rd(`${BH}/layouts/partials/extend_head.html`)),
+  'extend_head 里带了"不是仿真屏幕、也不是启动页"的判断 —— 原来写的是 .IsHome,搬家后失效过一次');
 
 /* ---------- ② 其余页面拿到同一套 ---------- */
 ok('技术页:挂了 shell-page', /classList\.add\("shell-page"\)/.test(tech));
@@ -53,10 +55,10 @@ ok('技术页:没有重复的 .intro-bg(那是首页的)', !/intro-bg/.test(tech
 ok('★★ 技术页【一直有】投影 —— 用户:"博客页是一直出现"',
   cls('proj-node').test(tech) && /partial "projection-node\.html"/.test(rd(`${BH}/layouts/partials/extend_footer.html`)));
 ok('★ 宇宙背景是两处共用的(首页 + 其余页面)',
-  /partial "cosmos\.html"/.test(rd(`${BH}/layouts/index.html`)) &&
+  /partial "cosmos\.html"/.test(rd(`${BH}/layouts/home/list.html`)) &&
   /partial "cosmos\.html"/.test(rd(`${BH}/layouts/partials/extend_footer.html`)));
 ok('★ 投影两处各渲染一次(首页一份、博客页一份),用的是同一个 partial',
-  (rd(`${BH}/layouts/index.html`).match(/partial "projection-node\.html"/g) || []).length === 1 &&
+  (rd(`${BH}/layouts/home/list.html`).match(/partial "projection-node\.html"/g) || []).length === 1 &&
   (rd(`${BH}/layouts/partials/extend_footer.html`).match(/partial "projection-node\.html"/g) || []).length === 1);
 
 /* ---------- ③ 宇宙背景:CD 架和页面背景是同一份 ---------- */
@@ -247,8 +249,20 @@ ok('★★★ 提示的来源链:world/提示.md → archive.hint → data-echo-
 ok('★★ 提示【不能】放在被 partialCached 缓存过的 footer 链里(会串页)',
   !/echoHint|archive\.hint/.test(rd(`${BH}/layouts/partials/extend_footer.html`)),
   '主题按 Layout + Kind 缓存整个 footer —— 按页面变的东西进去就被第一页写死');
-ok('★ 提示一共 48 条,一篇一条',
-  (rd(`${BH}/world/提示.md`).match(/^\s*\|\s*\d{2}\s*\|/gm) || []).length === 48);
+/* ★ 这里原来钉的是"一共 48 条"——加了三篇世界观档案之后它红了,而红得对:
+   它证明的是【一篇一条】这条关系,不是 48 这个数。改成数碎片文件,两边一起数、
+   再要求编号连续,以后加篇/删篇都不会再把它变成假警报,而漏一条仍然会红。 */
+const fragNums = fs.readdirSync(`${BH}/world/碎片`)
+  .map((f) => (/^(\d{2})-.*\.md$/.exec(f) || [])[1])
+  .filter(Boolean)
+  .map(Number)
+  .sort((a, b) => a - b);
+const hintNums = (rd(`${BH}/world/提示.md`).match(/^\s*\|\s*(\d{2})\s*\|/gm) || [])
+  .map((s) => Number(s.replace(/\D/g, '')));
+ok(`★ 提示一篇一条,和碎片数量对得上(${fragNums.length} 篇 / ${hintNums.length} 条)`,
+  hintNums.length === fragNums.length &&
+  fragNums.every((n, i) => hintNums[i] === n),
+  '碎片目录和提示表必须一一对应,且编号连续 —— 漏一条或写错编号都要在这里红');
 
 /* ---------- ⑤d 戳摄像头是一条【阶梯】:语库随机 → 提示 → 威胁 → 真的关掉 ----------
    用户第八轮:"话的种类有点少,来回点就三句,我觉得前两句可以在一个语库中随机抽……

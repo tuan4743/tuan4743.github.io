@@ -1,0 +1,49 @@
+{{- /* ============================================================
+       站点根 —— 只做一件事:把 tuagfey.com 送到启动页
+      ─────────────────────────────────────────────────────────────
+       用户:"在输入 https://tuagfey.com 的时候,不要直接跳转到首页,
+       而是跳转到一个启动页。"
+
+       ★★ 为什么需要这一份:
+          PaperMod 没有 home.html,所以 Hugo 的模板查找会一路退到主题的
+          list.html 去渲染站点根 —— 于是根上原来长的是主题那套
+          "你好,我是 tuan4743" 的个人资料页。
+          启动页要占住根,就得在【站点自己的查找位】上放一份,
+          抢在主题前面:layouts/home.html 的优先级高于主题的 layouts/list.html。
+
+       ★ 这一页故意裸着,【不套 baseof.html】:
+          baseof 会带出 footer 链(宇宙背景、投影、ECHO、page-slide),
+          HUD 那一行虽然被 `if not .IsHome` 挡住,但其余几样挡不住 ——
+          那样每访问一次根就要多下载/解析一整页用不上的东西,
+          而这一页的全部使命只是执行一行 location.replace。
+          ⇒ 只留 head(它管 favicon / 样式 / 主题变量,免得闪白)+ 一行跳转。
+
+       ★★ 跳转是【客户端】的:GitHub Pages 是静态托管,没有服务端重定向。
+          写在这里而不是 /home/ 那一份里,是因为 /home/ 那份只在访问 /home/ 时
+          才执行 —— 而用户输的是根。两份各管一段:
+            /        → /start/   (本文件)
+            /home/   → 正常渲染平板(它身上也有一份同源判断,防直接重定向到根)
+          两边都只在【确实站在根上】时才跳,所以不会来回打乒乓。
+       ============================================================ */ -}}
+
+<!DOCTYPE html>
+<html lang="{{ site.Language.LanguageCode }}" dir="auto" data-theme="dark">
+
+<head>
+    {{- partial "head.html" . }}
+    {{/* 这一页不该被搜索引擎当成一个正经页面收录:它没有任何内容,
+        只是启动页的影子。canonical 指到启动页,收录的就只有启动页一份。 */}}
+    <meta name="robots" content="noindex, follow">
+    <link rel="canonical" href="{{ "start/" | absURL }}">
+</head>
+
+<body id="top" class="start-root">
+    <script>
+        (function () {
+            var p = window.location.pathname.replace(/\/+$/, '') || '/';
+            if (p === '/' || p === '/index.html') location.replace('/start/');
+        })();
+    </script>
+</body>
+
+</html>
