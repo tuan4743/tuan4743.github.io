@@ -954,6 +954,10 @@
            用户一按,眼睛【立刻】闭(不等引导走到下一拍)。
            见 watchDockPress / beginDockClose 上的说明。 */
         if (next && next.dock) watchDockPress();
+        /* ★★★ 这一拍要用户按的那枚按钮,从这一刻起"点下去就当场算数"
+           (见 watchPressStart / makeWaiter:插入那一下 cd-busy 实测不一定发,
+            只认它会让引导干等 60 秒 —— 用户看到的就是"眼睛不闭、台词不走")。 */
+        watchPressStart(s.press);
         window.__mcScript = null;
         lastSnapSpec = null;
         frameRect = null;
@@ -1000,26 +1004,51 @@
        两个都是"结果",不依赖事件怎么冒泡、从哪个元素上按的、
        甚至用户是点按钮还是点它里面的那个 svg —— 一律成立。
 
-     ★ 兜底:12 秒还没按就自己过去 —— 不能把用户永远卡在引导里出不去。
-     ============================================================ */
+     ★ 兜底:60 秒还没按就自己过去 —— 不能把用户永远卡在引导里出不去。
+     ★★★ 用户第十轮的两条反馈("按下插入后眼睛没有赶紧闭""对话框还在"),
+     真点一遍就复现了,而且是同一个根因:
+       按了插入之后引导【60 秒都没收尾】—— 实测那次插入根本没有广播 cd-busy
+       (探针里 busy=[]),而这里只认那个事件 ⇒ 一直等到 60 秒兜底。
+       这 60 秒里:光盘已经插进去了(insertedKey=self)、CD 架也收了(scene-open=false),
+       但眼睛睁着、台词"按下,进入第一次校准。"挂在屏幕上走不掉。
+     ⇒ 除了状态,再加一条【点下去就当场算数】:捕获阶段的 click 监听
+       (和 CD 架那枚按钮同一套做法 —— 它比按钮自己的处理器先跑,
+       也不吃 pointerdown 那套 stopImmediatePropagation 的影响,因为 click 是另一个事件)。
+     三条判据谁先到算谁:click / 状态 / 事件。
+   ============================================================ */
+  var pressedAt = {};                    /* 哪一个按钮在哪一刻被真点过 */
+
+  /* 捕获阶段盯住"要用户按的那枚按钮":点下去立刻记账(见 makeWaiter 的说明)。 */
+  function watchPressStart(sel) {
+    if (!sel || pressedAt["@" + sel]) return;
+    pressedAt["@" + sel] = true;         /* 只装一次 */
+    document.addEventListener("click", function (e) {
+      var t = e.target;
+      if (!t || !t.closest) return;
+      if (!t.closest(sel)) return;
+      if (pressedAt[sel] === undefined) pressedAt[sel] = Math.round(performance.now());
+    }, true);
+  }
+
   function makeWaiter(sel) {
     if (sel === "#intro-toggle" || sel === ".slot-toggle") {
       return {
-        done: function () { return document.body.classList.contains("scene-open"); },
+        done: function () { return pressedAt[sel] !== undefined || document.body.classList.contains("scene-open"); },
         watch: null
       };
     }
     if (sel === "#statusbar-toggle") {
       return {
-        done: function () { return document.body.classList.contains("tablet-open"); },
+        done: function () { return pressedAt[sel] !== undefined || document.body.classList.contains("tablet-open"); },
         watch: null
       };
     }
     if (sel === "#rack-insert") {
-      /* 插入是 cd3d 的异步流程:它一开始就广播 cd-busy(true) */
+      /* 插入是 cd3d 的异步流程:它一开始就广播 cd-busy(true) —— 但实测它【不一定发】
+         (真点一遍:busy=[]),所以那条只当兜底,主判据是"用户真点了这枚按钮"。 */
       var started = false;
       return {
-        done: function () { return started; },
+        done: function () { return pressedAt[sel] !== undefined || started; },
         watch: function (arm) {
           if (arm) document.addEventListener("cd-busy", function (e) {
             if (e && e.detail === true) started = true;
@@ -1029,7 +1058,7 @@
     }
     /* 其它元素:退回"点到它就算"(这类没有状态可查) */
     return {
-      done: function () { return false; },
+      done: function () { return pressedAt[sel] !== undefined; },
       watch: function (arm) { },
       fallbackSel: sel
     };
