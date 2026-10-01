@@ -480,11 +480,17 @@ export async function initCd3d(opts) {
 
   let previewAllowed = true;      /* 插入流程中关掉预览,避免"补位换中心"顺带切歌 */
 
-  function place(idx, instant) {
+  /* ★★★ 用户第八轮:"刚进入首页,背景里面就开始播放第一张CD了。"
+     根因:场景建好之后这里会 place(selIndex, true) 摆一次位,而 place() 里
+     "换选 → 小声预览"那一句对【首次摆位】也生效 —— 于是加载页还没收,
+     第一张盘的预览就已经在响了。
+     ⇒ 首次摆位明确传 silent:开机这一段【一点声音都不该有】。
+       真正该出声的时机是"用户自己打开 CD 页"(previewCurrent)或插盘(toBgm)。 */
+  function place(idx, instant, silent) {
     selIndex = idx;
     if (cdItems[idx]) centerKey = cdItems[idx].key;
     /* 换选 → 这一首小声预览(同一首重复调用会自己忽略)*/
-    if (previewAllowed && audio && cdItems[idx]) audio.music.preview(cdItems[idx].key);
+    if (previewAllowed && !silent && audio && cdItems[idx]) audio.music.preview(cdItems[idx].key);
     cdItems.forEach((item) => {
       if (item.key === insertedKey) return;      /* 已插入的盘不入架 */
       moveToRack(item, instant);
@@ -492,7 +498,7 @@ export async function initCd3d(opts) {
     });
     if (window.__cd3dDebug) window.__cd3dDebug.selIndex = idx;
   }
-  place(selIndex, true);
+  place(selIndex, true, true);
   /* 初始态:插入的盘直接落在槽位 */
   if (insertedKey) {
     const ins = cdItems.find((it) => it.key === insertedKey);
@@ -1324,9 +1330,11 @@ export async function initCd3d(opts) {
   }
 
   const api = {
-    setSelection(i) {
+    /* silent = 只重新摆位、不许出声(3D 刚挂载时那次同步用 ——
+       否则加载页还没收,第一张盘的预览就响了,见 place() 的说明) */
+    setSelection(i, silent) {
       selIndex = i;
-      place(i, false);
+      place(i, false, silent);
     },
     /* ---- 音频可视化(现在是 3D 星云带)---- */
     audio: audio,
@@ -1347,8 +1355,12 @@ export async function initCd3d(opts) {
     cdRadius() { return cdRadius; },
     /* 插入流程中暂停/恢复"选盘预览" */
     setMusicPreview(v) { previewAllowed = !!v; },
-    /* 打开 CD 页时:让当前选中的盘开始预览 */
+    /* 打开 CD 页时:让当前选中的盘开始预览
+       ★ 用户第八轮:"刚进入首页,背景里面就开始播放第一张CD了。"
+         ⇒ 预览总开关关着的时候,连"打开 CD 页"这一下也不许出声
+           (引导期间由 __cdPreview(false) 关掉,见 intro.js)。 */
     previewCurrent() {
+      if (!previewAllowed) return;
       const it = cdItems[selIndex];
       if (audio && it) audio.music.preview(it.key);
     },

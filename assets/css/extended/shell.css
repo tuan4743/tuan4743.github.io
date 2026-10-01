@@ -419,18 +419,40 @@ body.page-out {
     overflow: hidden;
 }
 
-/* ---------- 三之二、引导换场:摘 .page-out 的那一帧不许有"回程" ----------
-   ★★★ 用户第七轮:"动画过程按下进入CD页的按钮,会往左滑,然后突然往右滑又回去,
-     这个往右滑进入数据库是bug"。
-   为什么会有回程:.page-out 把整台机器推到 -100vw,而"到位"就是把这个类摘掉 ——
-   一摘,那三样东西(.scene / .tablet / .statusbar-toggle)就带着各自的 0.55s
-   过渡从 -100vw 滑回原位,看起来就是"又往右滑回去",而且方向正好和
-   "去右边的页面"那条过场一样(所以用户读成"进数据库")。
-   ⇒ 引导摘 .page-out 之前先挂上 html.guide-cut 把过渡按住,让它【瞬间】归位。
-     只在那一帧生效(home-guide.js 的 cutBack 里加/删,中间强制一次 reflow)。 */
-html.guide-cut .scene,
-html.guide-cut .tablet,
-html.guide-cut .statusbar-toggle {
+/* ---------- 三之二、引导换场:左滑出去之后,CD 页【从右边滑进来】 ----------
+   ★★★ 用户第八轮:"往左滑之后又往右滑回去bug还没修掉"。
+   为什么会"往右滑回去":左滑是引导挂的 .page-out(整台机器 -100vw),而"到位"
+   就是把这个类摘掉 —— 一摘,那几样东西就带着 0.55s 过渡从 -100vw 滑回原位,
+   看着就是"又往右滑回去"(方向还和"去右边的页面"那条过场一样)。
+   ★ 上一版只是把回程改成【瞬间】—— 但那仍是一记向【右】的跳,用户照样看得见。
+   ⇒ 现在:摘 .page-out 之前先把它们【瞬移】到右边外面的起点,再松开过渡,
+     让它们【向左】滑进 CD 页 —— 整段只有一个方向(向左),再也没有向右的动作。
+       起点 = CD 页那一格再往右一屏:
+         .scene              calc(var(--rack-w) + 100vw)  ← CD 页那格是 +rack-w
+         .tablet             100vw                        ← 它在 CD 页里是原位
+         .statusbar-toggle   calc(-50% + 100vw)
+     transform 必须带 !important:要压过 page-out 那条同属性声明。
+   ★★★ 这段注释里【不许再写内层注释记号】:嵌套的注释会在第一个结束记号处
+     提前收尾,后面的文字被当成 CSS 解析,紧随其后的第一条规则会被整条吃掉 ——
+     实测就是 html.guide-enter .scene 那条凭空消失(查了半天)。 */
+html.guide-enter .scene {
+    transform: translateX(calc(var(--rack-w) + 100vw)) !important;
+    transition: none !important;
+}
+
+html.guide-enter .tablet {
+    transform: translateX(100vw) !important;
+    transition: none !important;
+}
+
+html.guide-enter .statusbar-toggle {
+    transform: translateX(calc(-50% + 100vw)) !important;
+    transition: none !important;
+}
+
+/* 眼睛的位移是 ascii-eye 的 slideX() 写在宿主内联 transform 上的(那里还要合成
+   90° 的旋转,不能被 CSS 顶掉),所以这一条只按住过渡、不写 transform。 */
+html.guide-enter .home-eye {
     transition: none !important;
 }
 

@@ -228,14 +228,29 @@
        转的是【宿主 + 里面那只 <pre>】这一整块,不是换一套几何 ——
        眼睛还是同一只眼睛,只是被转了 90°。
        ★ transform-origin 放中心:转完仍然以宿主中心为家,
-         anchor() 给的 left/top 不用跟着改。 */
-    var tilt = 0;
-    function rotate(deg) {
-      tilt = +deg || 0;
+         anchor() 给的 left/top 不用跟着改。
+
+       ★★★ slideX(px):临时把整只眼睛横向挪开(首页引导的换场用)。
+       为什么需要它(用户第八轮:"闭眼的速度太慢,要不然就设计成跟随平板移动"):
+       眼睛的宿主是 body 下的独立一层 —— 引导左滑过场时,.scene 整台机器滑走了,
+       眼睛却【钉在原地慢慢闭】,看起来像被落在后面。
+       ⇒ 让它跟着一起走:这个位移是【加在旋转上的】(translateX … rotate …),
+         两个都在 host.style.transform 上,所以必须由这里统一合成 ——
+         直接写 style.transform 会把旋转冲掉。 */
+    var tilt = 0, shiftX = 0;
+    function applyXform() {
       var host = pre.parentNode;
       if (!host) return;
       host.style.transformOrigin = "50% 50%";
-      host.style.transform = tilt ? "rotate(" + tilt + "deg)" : "";
+      host.style.transform = (shiftX ? "translateX(" + shiftX + "px) " : "") + (tilt ? "rotate(" + tilt + "deg)" : "");
+    }
+    function rotate(deg) {
+      tilt = +deg || 0;
+      applyXform();
+    }
+    function slideX(px) {
+      shiftX = +px || 0;
+      applyXform();
     }
 
     function fromPointer(e) {
@@ -332,6 +347,7 @@
        ⇒ 最小值取 0.045(半高≈11.8px,正好铺满一行),看得见一条横线。 */
     var OPEN_LINE = 0.045;
     var T_CLOSE = 780;
+    var closeMs = T_CLOSE;             /* 本次闭眼用多久(close(cb, ms) 可以改快)*/
     var openVal = OPEN_LINE;
     var jitterAmp = 0;
     var glitch = 0, glitchNext = 0, redUntil = 0;
@@ -371,7 +387,7 @@
         var k = Math.min(1, el / T_OPEN);
         openVal = OPEN_LINE + (1 - OPEN_LINE) * easeOutBack(k);
       } else if (phase === PH.CLOSING) {
-        var kc = Math.min(1, el / T_CLOSE);
+        var kc = Math.min(1, el / closeMs);
         openVal = 1 - (1 - OPEN_LINE) * (kc * kc * (3 - 2 * kc));   /* smoothstep */
         if (kc >= 1) {
           openVal = OPEN_LINE; closedDone = true; phase = PH.SHUT;
@@ -650,19 +666,23 @@
         if (!rafOn) { rafOn = true; last = 0; requestAnimationFrame(frameSafe); }
         onOpened();
       },
-      /* close(cb):缓缓闭合(闭到底再回调) */
-      close: function (cb) {
+      /* close(cb, ms):缓缓闭合(闭到底再回调)。
+         ★ ms 可选:首页引导换场时眼睛要"赶紧闭上"(用户第八轮:
+           "闭眼的速度太慢") —— 那里传 ~420ms,启动页不传,还是原来的 780ms。 */
+      close: function (cb, ms) {
+        closeMs = (typeof ms === "number" && ms > 0) ? ms : T_CLOSE;
         closeCb = cb || null;
         closedDone = false;
         phase = PH.CLOSING;
         phaseAt = performance.now();
         if (!rafOn) { rafOn = true; last = 0; requestAnimationFrame(frameSafe); }
-        /* 兜底:万一动画循环没跑起来(标签页被挂起等),T_CLOSE+900ms 强制回调 */
+        /* 兜底:万一动画循环没跑起来(标签页被挂起等),closeMs+900ms 强制回调 */
         setTimeout(function () {
           if (closeCb === cb && cb) { var f = closeCb; closeCb = null; f(); }
-        }, T_CLOSE + 900);
+        }, closeMs + 900);
       },
       closed: function () { return closedDone; },
+      slideX: slideX,
       T_CLOSE: T_CLOSE,
       state: function () { return window.__startEye || null; },
       /* 停掉整个渲染循环(引导结束、要彻底安静时用)*/

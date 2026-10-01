@@ -67,18 +67,11 @@
      默认节奏是"人在说话":每字 42ms、一句说完停 900ms、扫描框吸过去 420ms。 */
   var FAST = /[?&]fast=1/.test(location.search);
   var TYPE_MS = (reduced || FAST) ? (FAST && !reduced ? 3 : 0) : 58;
-  /* ★★★ 进 CD 页之后那几句要【更快】。
-     用户第七轮:"左滑后那几句话的出字速度还是不对"。
-     左滑那段是一口气把四件事说完(引擎内容 / 滤网协议 / 锁滚轮 / 插入按钮),
-     按开头的 58ms/字 一句要读五六秒,四句下来二十多秒 —— 节奏拖垮了。
-     开头那几句是要"一字一句交代清楚"的(第一次见面),这里不一样:
-     用户在等着操作,话只是旁白 ⇒ 压到 34ms/字,并把句间停顿收到 700ms。 */
-  var TYPE_MS_FAST_TAIL = (reduced || FAST) ? (FAST && !reduced ? 3 : 0) : 34;
-  var typeMs = TYPE_MS;                    /* 当前生效的那一档(进 CD 页时切过去) */
+  /* ★★★ 用户第八轮:"左滑后对话间隔太小出字速度太快,跟左滑前设置成一样的。"
+     (第七轮我把进 CD 页之后那几句调快了一档 —— 34ms/字 + 句间 0.7s —— 用户否了。)
+     ⇒ 全篇一个档:58ms/字 + 句间 1.5s,左滑前后完全一样。 */
   var afterLine = (reduced || FAST) ? 60 : 1500;     /* 一句说完之后停一拍(留出读的时间)*/
-  var afterLineTail = (reduced || FAST) ? 60 : 700;  /* 进 CD 页之后:旁白不必停那么久 */
   var settleMs = (reduced || FAST) ? 30 : 520;       /* 扫描框吸过去、停稳 */
-  var inCdPage = false;                    /* 左滑过去之后为真 */
   var gate = function (ms) { return (reduced || FAST) ? Math.min(ms, 90) : ms; };
 
   var eye = null;
@@ -131,6 +124,11 @@
     void tablet.offsetWidth;
     tablet.classList.add("is-scan");
     setTimeout(function () { tablet.classList.remove("is-scan"); }, reduced ? 0 : 1600);
+    /* ★★★ 用户第八轮:"刚进入首页,背景里面就开始播放第一张CD了。"
+       开场这一段(黑屏 + 引导)一点音乐都不许有:把"选盘预览"总开关关掉
+       (cd3d 那边的首次摆位已经在 cd3d.js 里改成 silent 了,这里是第二道口子 ——
+        引导中途按下 CD 架按钮会 previewCurrent())。收尾时交还(见 finishGuide)。 */
+    if (window.__cdPreview) window.__cdPreview(false);
   }
 
   /* 顶缘那枚开关的显隐(见 tablet.css 里 top-locked 那段说明)。
@@ -361,7 +359,7 @@
     consoleEl.classList.remove("is-typed");
     typeDone = false;
     if (!text) { typeDone = true; consoleEl.classList.add("is-typed"); return Promise.resolve(); }
-    if (typeMs <= 0 || forceInstant) {
+    if (TYPE_MS <= 0 || forceInstant) {
       lineEl.textContent = text;
       typeDone = true;
       consoleEl.classList.add("is-typed");
@@ -428,9 +426,7 @@
   var BREATH = 90;     /* 分句起头的换气(轻一点:重音交给标点) */
 
   function charDelay(text, i) {
-    /* ★ 用【当前生效的那一档】,不是常量 TYPE_MS ——
-       左滑进 CD 页之后 typeMs 换成 34ms/字(见 runDock)。 */
-    var base = typeMs;
+    var base = TYPE_MS;
     var ch = text.charAt(i);
     var d = base + (Math.random() * base * 0.45);     /* ±45% 的抖动:匀速最像机器 */
     var p = PUNCT[ch];
@@ -624,13 +620,16 @@
   function watchDockPress() {
     if (dockWatchOn) return;
     dockWatchOn = true;
-    /* 现场读数:这一条链路上任何一处"没接上"都只能靠读时间戳查
-       (什么时候挂上的、轮询了几次、哪一刻命中的)。 */
+    /* 现场读数:这一条链路上任何一处"没接上"都只能靠读时间戳查。 */
     window.__dockWatch = { armed: Math.round(performance.now()), polls: 0, hit: null, hitWhy: null, why: null, log: [] };
     var hit = function (how) {
       if (dockClosing) return;
       window.__dockWatch.hit = Math.round(performance.now());
       window.__dockWatch.hitWhy = how;
+      /* ★★★ 闭眼和左滑【同一时刻】起跑:原生 scene-open 是立刻生效的
+         (那一下是向右平移 66vw),引导的 page-out 必须马上把它接管成向左 ——
+         晚一步用户就先看到一次向右的动作。 */
+      startDockSlide();
       beginDockClose();
     };
     /* ① 首选:直接盯 body 的 class。MutationObserver 的回调在 class 变化后的
@@ -654,14 +653,66 @@
     })();
   }
 
+  /* ★★★ 第八轮又加两条:
+     · "闭眼的速度太慢,要不然就设计成跟随平板移动"
+       ⇒ 两件都做:闭眼缩到 DOCK_CLOSE_MS(420ms),而且【让眼睛跟着机器一起滑走】
+         (eye.slideX —— 它原本是 body 下的独立一层,不跟着 .scene 动,
+          所以左滑时它会被"落在原地慢慢闭")。
+     · "往左滑之后又往右滑回去bug还没修掉"
+       ⇒ 左滑之后不再"回程",改成【CD 页从右边滑进来】(见 enterFromRight):
+         整段只有向左一个方向。 */
+  var DOCK_CLOSE_MS = 420;                 /* 换场时闭眼用多久(原 780ms 太慢)*/
+  var DOCK_SLIDE_MS = 550;                 /* 必须和 shell.css 里 .page-out 那条过渡一致 */
+  var DOCK_ENTER_MS = 550;                 /* 进场那条过渡(同 .55s)*/
+
+  /* 左滑:按下那一刻就起跑(和闭眼同一时刻),不再等闭眼跑完。
+     ★ 为什么必须"按下就跑":平板的 scene-open 是【立刻】生效的(原生那一下是
+       向右平移 66vw),引导的 page-out 必须在同一拍把它接管成向左 ——
+       晚一步用户就先看到一次向右的动作(那正是他说的"又往右滑")。 */
+  var dockSlideAt = 0;
+  function startDockSlide() {
+    if (dockSlideAt) return;
+    dockSlideAt = performance.now();
+    docEl.classList.add("page-slide");
+    document.body.classList.add("page-out");
+    if (eye && eye.slideX) eye.slideX(-window.innerWidth);   /* 眼睛跟着机器一起滑走 */
+  }
+
+  /* 进场:先【瞬移】到右边外面的起点,再松开过渡,让它们向左滑进 CD 页。
+     为什么不能只"摘掉 page-out":那样是从 -100vw 滑回原位 —— 一记向右的滑行,
+     用户看得很清楚("又往右滑回去")。
+     ★★★ 必须真的【画过一帧】再松开(所以是双 rAF,不是同步 reflow):
+       浏览器的过渡起点是"上一次样式变更事件算出来的值"——
+       add(class) / void offsetWidth / remove(class) 全在同一个任务里的话,
+       起点仍然是 -100vw,于是又变成一次向右的滑行(实测:scene -1344 → +171 → 1056,
+       正是用户说的"又往右滑回去")。
+       起点(166vw)整块在屏幕外,画一帧也看不见 —— 所以这一步是免费且安全的。
+     ★ 眼睛的位移由 slideX 给(它的内联 transform 还要合成 90° 旋转,
+       所以 CSS 只负责按住过渡,见 shell.css 的 html.guide-enter)。 */
+  function enterFromRight() {
+    var vw = window.innerWidth;
+    docEl.classList.add("guide-enter");       /* 过渡按住 + 三样东西瞬移到右边起点 */
+    document.body.classList.remove("page-out");
+    docEl.classList.remove("page-slide");
+    dockIntoBox();                            /* 眼睛换到那一格(此刻在屏幕外,看不见) */
+    if (eye && eye.slideX) eye.slideX(vw);    /* 眼睛也站到右边外面 */
+    /* 双 rAF:第一帧把"站在右边"画出来,第二帧再松开过渡 —— 起点才落在右边。 */
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        docEl.classList.remove("guide-enter");   /* 松开:一起【向左】滑进 CD 页 */
+        if (eye && eye.slideX) eye.slideX(0);
+      });
+    });
+  }
+
   function closeEye() {
     return new Promise(function (resolve) {
       if (!eye) return resolve();
       if (eye.freeLook) eye.freeLook(false);
       var done = false;
       var fin = function () { if (!done) { done = true; resolve(); } };
-      try { eye.close(fin); } catch (e) { fin(); }
-      setTimeout(fin, (eye.T_CLOSE || 780) + 400);        /* 兜底:闭眼动画万一没跑 */
+      try { eye.close(fin, DOCK_CLOSE_MS); } catch (e) { fin(); }
+      setTimeout(fin, DOCK_CLOSE_MS + 500);               /* 兜底:闭眼动画万一没跑 */
     });
   }
 
@@ -750,41 +801,21 @@
     return Math.max(strip.l + 6 + half, Math.min(cx, strip.r - 6 - half));
   }
 
-  /* ★★★ 用户第七轮:"动画过程按下进入CD页的按钮,会往左滑,然后突然往右滑又回去,
-     这个往右滑进入数据库是bug"。
-     根因:左滑是引导自己挂的 .page-out(.scene 平移 -100vw);而"到位"是【把
-     .page-out 摘掉】—— 一摘,.scene 就带着那条 0.55s 过渡从 -100vw 滑回
-     scene-open 的位置(CD 架那一格),用户看到的就是"又往右滑回去"
-     (而且方向正好和"去右边的页面"那条过场一样,所以他读成"进数据库")。
-     ⇒ 摘 .page-out 之前先把过渡按住(html.guide-cut),让归位【瞬间】完成:
-       左滑是一次性的离场,不该有回程。 */
-  function cutBack() {
-    try {
-      docEl.classList.add("guide-cut");
-      docEl.classList.remove("page-slide");
-      document.body.classList.remove("page-out");
-      void docEl.offsetWidth;            /* 强制重算样式:让"归位"落在同一帧 */
-    } finally {
-      docEl.classList.remove("guide-cut");   /* 万一上面抛了,也不能把过渡永久按住 */
-    }
-  }
-
   function runDock() {
-    /* ★ 等的是【按下那一刻就已经开始跑】的那次闭眼(见 beginDockClose),
-       不是"从这里才开始闭" —— 所以镜头不在这儿停顿。 */
-    beginDockClose().then(function () {
-      /* ② 左滑出去(和 page-slide.js 用的是同一条过渡) */
-      docEl.classList.add("page-slide");
-      document.body.classList.add("page-out");
-      return sleep(reduced ? 120 : 700);
+    /* ★ 左滑和闭眼都是在【按下那一刻】就起跑的(见 watchDockPress 的 hit):
+       这里只负责等它跑完、把 CD 页从右边送进来、再睁眼。
+       ★ 兜底:如果根本没按下(60 秒超时那条路),startDockSlide 在这里补上。 */
+    startDockSlide();
+    beginDockClose();
+    var depart = Math.max(0, (dockSlideAt + (reduced ? 120 : DOCK_SLIDE_MS)) - performance.now());
+    return sleep(depart + (reduced ? 20 : 140)).then(function () {
+      /* ② 滑完 → CD 页【从右边滑进来】(见 enterFromRight)。
+            换格(含转 90°)也在这一帧里做完:此刻眼睛闭着,所以看到的是
+            "它跟着机器一起滑进来",而不是"它在原地转给你看"。 */
+      enterFromRight();
+      return sleep(reduced ? 40 : DOCK_ENTER_MS + 120);   /* 等进场那条 0.55s 过渡落地 */
     }).then(function () {
-      /* ③ 滑完 → 【瞬间】归位到 CD 页(没有回程滑行,见 cutBack),
-            然后换格 + 转向(此刻眼睛闭着,所以看得到"它转过去了") */
-      cutBack();
-      dockIntoBox();
-      return sleep(reduced ? 40 : 620);                   /* 等旋转的 0.55s 过渡落地 */
-    }).then(function () {
-      /* ④ 重新睁开
+      /* ③ 重新睁开
          ★★★ 顺序是【睁开 → 重新贴尺寸 → 才显出来】,不能反。
          为什么(第七轮实测抓到的真凶):eye.openNow() 内部先调 measure() ——
          那是"按【整个视口】算字号和列数"的那一套,它会把 dockIntoBox 里
@@ -870,10 +901,7 @@
       ★★★ 第七轮:"按下进入CD页的按钮时,主眼睛应该立马闭合,否则跟不上左滑的速度。"
         ⇒ 原来这里挂的是 setTimeout(runDock, 380) —— 那 380ms 是"人手按完了,
           引导还在发呆"的可视延迟。现在【立刻】走 runDock,而 runDock 里等的
-          闭眼是按下那一刻就已经在跑的(见 watchDockPress / beginDockClose)。
-      ★ 顺带:从这一拍起,台词换成"操作旁白"的那一档语速(见 typeMs)。 */
-      typeMs = TYPE_MS_FAST_TAIL;
-      inCdPage = true;
+          闭眼是按下那一刻就已经在跑的(见 watchDockPress / beginDockClose)。 */
       runDock();
     }
 
@@ -903,12 +931,7 @@
       });
     }
     if (s.text) {
-      tasks.push(function () {
-        /* ★ 左滑之后那几句换成"操作旁白"的短停拍(见 afterLineTail):
-           它们是一口气交代四个按钮,句间再各停 1.5 秒就太拖了。 */
-        var pause = inCdPage ? afterLineTail : afterLine;
-        return typeLine(s.text).then(function () { return sleep(pause); });
-      });
+      tasks.push(function () { return typeLine(s.text).then(function () { return sleep(afterLine); }); });
     }
     if (s.press) {
       tasks.push(function () { return waitForUser(s.press); });
@@ -1085,20 +1108,34 @@
     tablet.classList.remove("is-dark");
     if (window.__tabletOpen) window.__tabletOpen(false);
 
-    eyeHost.classList.remove("is-on");
+    /* ★★★ 用户第八轮:"按下之后动画结束,直接趁着插CD的动画赶紧闭眼。"
+       原来这里是"把眼睛淡掉"(is-on 一摘,0.5s 透明度过渡)—— 用户看到的是一只
+       半透明的眼睛慢慢消失。现在:先让它【眨一下闭上】(DOCK_CLOSE_MS),闭到底
+       再连内容一起收掉,和插盘的开机动画同拍。
+       ★ 玩家已经按了插入键,盘正在进仓 —— 这两件事是并行的,谁也不等谁。 */
+    var winked = false;
+    var wink = function () { if (!winked) { winked = true; eyeHost.classList.remove("is-on"); } };
+    try {
+      if (eye && eye.close) eye.close(wink, DOCK_CLOSE_MS);
+      else wink();
+    } catch (e) { wink(); }
+    setTimeout(wink, DOCK_CLOSE_MS + 60);          /* 兜底:闭眼动画万一没跑 */
     consoleEl.classList.remove("is-on");
     setTimeout(function () {
       consoleEl.hidden = true;
       /* 眼睛连内容一起清掉:只 stop() 的话,那一屏字符还留在 <pre> 里,
          淡出的半秒里会被看见(它有 is-docked 的内联尺寸,是实打实占位的)。 */
       if (eye) { eye.stop(); eyePre.textContent = ""; }
-    }, 420);
+    }, DOCK_CLOSE_MS + 180);
     /* ★ 不再往 localStorage 写"播过了":现在每次都播(见 shouldPlay)。
        更要紧的是 —— 验证探针曾经把这个标记写进用户的浏览器,
        于是用户打开线上站看到的是"眼睛挂了九秒就没了"(他报的"动画完全没有加载")。
        探针不该有能力改动用户的持久状态。 */
     docEl.classList.remove("home-boot");
     watchBootEnd();
+    /* 引导结束:把"选盘预览"总开关交还(开场时关掉的,见 blackout)。
+       之后的出声时机是插盘的开机动画 → toBgm,以及用户自己开 CD 页。 */
+    if (window.__cdPreview) window.__cdPreview(true);
     window.__guideDone = true;
   }
 
@@ -1227,14 +1264,14 @@
       docked: eyeHost.classList.contains("is-docked"),
       eyeOn: eyeHost.classList.contains("is-on"),
       dark: tablet.classList.contains("is-dark"),
-      /* 第七轮新加的三处,给探针直接读:
-         · typeMs  —— 当前生效的字速(进 CD 页后应该变成 34)
-         · inCdPage —— 已经左滑过去了
+      /* 现场读数(探针直接读):
          · closing  —— 闭眼是否已经在跑(按下那一刻起就该是 true)
+         · sliding  —— 左滑是否已经在跑(和闭眼同一时刻)
+         · eyeX     —— 眼睛当前被 slideX 挪到了哪里(跟不跟着机器走)
          · host/pre —— 转 90° 之后到底占了多大(转完是宽高互换的) */
-      typeMs: typeMs,
-      inCdPage: inCdPage,
       closing: !!dockClosing,
+      sliding: !!dockSlideAt,
+      eyeX: eyeHost.style.transform || "",
       host: (function () {
         var r = eyeHost.getBoundingClientRect();
         return [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)];

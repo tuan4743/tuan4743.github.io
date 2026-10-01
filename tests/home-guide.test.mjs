@@ -315,8 +315,7 @@ ok('★★★ 步骤顺序和用户给的那一串完全一致',
 ok('★★★ 步骤之间必须【串行】(每一步返回 Promise,链条一节一节走)',
   /function runStep\(s, i\)/.test(guideJs) &&
   /p = p\.then\(function \(\) \{/.test(guideJs) &&
-  /return typeLine\(s\.text\)\.then\(function \(\) \{ return sleep\(pause\); \}\);/.test(guideJs) &&
-  /var pause = inCdPage \? afterLineTail : afterLine;/.test(guideJs),
+  /return typeLine\(s\.text\)\.then\(function \(\) \{ return sleep\(afterLine\); \}\);/.test(guideJs),
   '并行跑的话台词会互相盖掉,而且"扫到哪儿说到哪儿"的对应关系就没了');
 /* ★★★ 第五轮把这一段整个换掉了:
    第三轮要"转 90° 横着看",第五轮改成"按下左滑后主屏的眼睛马上闭上,
@@ -328,8 +327,8 @@ ok('★★★ 进 CD 页 = 闭眼 → 左滑 → 右侧重新睁眼(三步,顺�
   /function closeEye\(\)/.test(guideJs) &&
   /function dockIntoBox\(\)/.test(guideJs) &&
   /function runDock\(\)/.test(guideJs) &&
-  /beginDockClose\(\)\.then\(function \(\) \{[\s\S]{0,200}?classList\.add\("page-out"\)/.test(guideJs) &&
-  /if \(eye\.openNow\) eye\.openNow\(\);[\s\S]{0,120}?dockIntoBox\(\);[\s\S]{0,160}?classList\.add\("is-on"\)/.test(guideJs),
+  /startDockSlide\(\);[\s\S]{0,140}?beginDockClose\(\);/.test(guideJs) &&
+  /enterFromRight\(\);[\s\S]{0,240}?if \(eye\.openNow\) eye\.openNow\(\);[\s\S]{0,140}?dockIntoBox\(\);[\s\S]{0,160}?classList\.add\("is-on"\)/.test(guideJs),
   '用户第五轮:"按下左滑后,主屏幕的眼睛马上闭上,等到彻底滑过去后,眼睛再在右侧睁开"');
 ok('★★★ 左滑用的是 page-slide 那条过渡(不是自己另画一套)',
   /docEl\.classList\.add\("page-slide"\)/.test(guideJs) &&
@@ -347,9 +346,10 @@ ok('★★★ 右侧那只眼睛必须【转 90°】(第三轮的要求,不许�
   !/eye\.rotate\(0\)/.test(guideJs),
   '第三轮:"这个眼睛要转向90°,放到右侧,就像横着看一样。而你只是缩小了一下就放上去了"');
 ok('★★★ 转向发生在【眼睛闭着的那段窗口里】(不是转着给你看)',
-  /beginDockClose\(\)\.then\(function \(\) \{[\s\S]{0,320}?dockIntoBox\(\)/.test(guideJs) &&
-  /if \(eye\.openNow\) eye\.openNow\(\);[\s\S]{0,120}?dockIntoBox\(\);/.test(guideJs),
-  '闭眼 → 左滑 → 换格并转向 → 睁开:转向那一下正好在闭眼窗口内');
+  /function enterFromRight\(\)/.test(guideJs) &&
+  /eye\.rotate\(DOCK_TILT\)/.test(guideJs) &&
+  /enterFromRight\(\);[\s\S]{0,260}?if \(eye\.openNow\) eye\.openNow\(\);/.test(guideJs),
+  '转向是在换格那一帧做的,而那一刻眼睛已经闭上(睁眼在它之后)');
 /* ★★★ 第七轮抓到的真凶:openNow() 内部会 measure()(按【整个视口】重算字号与列数),
    把 dockIntoBox 里按右边那一格算好的尺寸整个冲掉 ——
    实测 1600×900:<pre> 被改回 748.8×487.5(整屏那一档),而宿主格只有 558×312,
@@ -366,9 +366,23 @@ ok('★★ 转 90° 之后瞳孔照样跟手(朝向与跟手是两件事)',
   /eye\.setGaze\(gx, gy\)/.test(guideJs) &&
   /function lookAtRect\(p\)/.test(guideJs),
   '跟手靠 setGaze,旋转只改朝向 —— 所以"横着看"和"跟着你"可以同时成立');
-ok('★★ 闭眼要等它真的闭到底(不是拍一下就开始滑)',
-  /eye\.close\(fin\)/.test(guideJs) && /setTimeout\(fin, \(eye\.T_CLOSE \|\| 780\) \+ 400\)/.test(guideJs),
-  '闭眼动画 780ms;不等它跑完就滑,用户会看到"眼睛还睁着就飞走了"');
+/* ★★★ 第八轮把这条改了(用户:"闭眼的速度太慢,要不然就设计成跟随平板移动"):
+   原来是"等眼睛闭到底再左滑"(780ms 里机器不动,眼睛在原地慢慢闭);
+   现在两件都做 —— 闭眼缩到 420ms,而且左滑【不等它】,两者一起走,
+   眼睛跟着机器滑出屏幕。所以这里钉的是:闭眼有时长上限 + 左滑不等闭眼。 */
+ok('★★★ 换场闭眼要快(420ms),而且左滑【不等】它闭完(用户第八轮)',
+  /var DOCK_CLOSE_MS = 420;/.test(guideJs) &&
+  /eye\.close\(fin, DOCK_CLOSE_MS\)/.test(guideJs) &&
+  /setTimeout\(fin, DOCK_CLOSE_MS \+ 500\)/.test(guideJs) &&
+  /startDockSlide\(\);[\s\S]{0,140}?beginDockClose\(\);/.test(guideJs),
+  '用户第八轮:"闭眼的速度太慢,要不然就设计成跟随平板移动"');
+ok('★★★ 眼睛要跟着机器一起滑走(它就是"被落在原地慢慢闭"的那一个)',
+  /eye\.slideX\(-window\.innerWidth\)/.test(guideJs) &&
+  /eye\.slideX\(vw\)/.test(guideJs) &&
+  /eye\.slideX\(0\)/.test(guideJs) &&
+  /function slideX\(px\)/.test(eyeJs) &&
+  /host\.style\.transform = \(shiftX \? "translateX\(" \+ shiftX \+ "px\) " : ""\) \+ \(tilt \? "rotate\(" \+ tilt \+ "deg\)" : ""\);/.test(eyeJs),
+  '★ 位移必须和 rotate(90deg) 合成在同一条 transform 上 —— 直接写 style.transform 会把旋转冲掉');
 ok('★★★ 那一格的分母是【玻璃的宽】,不是视口的宽',
   /cssPx\("--ff-win-left"/.test(guideJs) &&
   /var glassW = Math\.max\(320, vw - winL - winR\)/.test(guideJs) &&
@@ -411,8 +425,9 @@ ok('★★★ 按下"进 CD 页"的按钮时,主眼睛【立刻】开始闭(用�
 ok('★★★ 闭眼只做一次(按下就闭 / runDock 兜底闭,两条路径不打架)',
   /var dockClosing = null;/.test(guideJs) &&
   /function beginDockClose\(\) \{[\s\S]{0,260}?if \(!dockClosing\) \{[\s\S]{0,260}?dockClosing = closeEye\(\);/.test(guideJs) &&
-  /beginDockClose\(\)\.then\(function \(\) \{/.test(guideJs),
-  '记忆化:第二次调用拿到的是同一个 Promise,不会再播一遍 780ms 的闭眼');
+  /startDockSlide\(\);[\s\S]{0,140}?beginDockClose\(\);/.test(guideJs) &&
+  /startDockSlide\(\);\s*\n\s*beginDockClose\(\);/.test(guideJs),
+  '记忆化:第二次调用拿到的是同一个 Promise,不会再播一遍闭眼');
 /* ★ 为什么是 MutationObserver 而不是只靠轮询(第七轮实测):
    后台标签页/主线程忙的时候 setTimeout(40) 会被排到 700ms 之后,
    "按下 → 闭眼"又慢回去了。observer 的回调在 class 变化的同一个任务里,
@@ -452,45 +467,79 @@ ok('★★ 量不到 CD 架时退回 --rack-w;窄屏时把眼睛压回条带里'
   /Math\.min\(vh \* 0\.62, third \* 1\.5, strip\.w \* 1\.8\)/.test(guideJs),
   '★ 0.5 那个夹子会把 66vw 的架子夹成半个屏(实测眼心 1280),所以上界给 0.86');
 
-/* ② 归位不许有回程:摘 .page-out 之前先用 .guide-cut 把过渡按住。
-   实测(逐帧 + 过渡事件):左滑 -1600 之后,摘除的那一帧直接变 1056,
-   而且 .scene 上【没有再起过 transform 过渡】。 */
-ok('★★★ 摘 .page-out 时不许有"回程滑行"(用户第八轮:"突然往右滑又回去")',
-  /function cutBack\(\)/.test(guideJs) &&
-  /docEl\.classList\.add\("guide-cut"\)/.test(guideJs) &&
+/* ② 进场:摘 .page-out 之前先【瞬移】到右边外面的起点,再松开过渡,让它们向左滑进 CD 页。
+   实测(逐帧位移):-1206(左滑) → 2656(站位) → 1914 → 1103 → 1056(落定)
+   —— 除了那一次屏幕外的站位,整段只有向左。
+   ★ 必须双 rAF:同一个任务里 add/remove 的话,过渡起点还是 -100vw,又会变成向右的滑行。 */
+ok('★★★ CD 页要从【右边】滑进来(用户第八轮:"往左滑之后又往右滑回去bug还没修掉")',
+  /function enterFromRight\(\)/.test(guideJs) &&
+  /docEl\.classList\.add\("guide-enter"\)/.test(guideJs) &&
   /document\.body\.classList\.remove\("page-out"\)/.test(guideJs) &&
-  /void docEl\.offsetWidth;/.test(guideJs) &&
-  /finally \{[\s\S]{0,120}?docEl\.classList\.remove\("guide-cut"\)/.test(guideJs),
-  '左滑是一次性的离场:归位必须瞬间完成,不能带着 0.55s 过渡滑回去');
-ok('★★★ 换场那一下把过渡按住(三样东西同起同落,少一样就穿帮)',
-  /html\.guide-cut \.scene,/.test(tcssShell) &&
-  /html\.guide-cut \.tablet,/.test(tcssShell) &&
-  /html\.guide-cut \.statusbar-toggle \{[\s\S]{0,80}?transition: none !important;/.test(tcssShell),
-  '.scene / .tablet / .statusbar-toggle —— 三条过渡都要按住(和 page-out 里那三条一一对应)');
-ok('★★ 归位发生在【转动/睁眼之前】(用户看到的是"已经在 CD 页上了")',
-  /cutBack\(\);[\s\S]{0,80}?dockIntoBox\(\);/.test(guideJs),
-  '先归位再换格:否则眼睛会在"还没滑到位"的格子上睁眼');
+  /requestAnimationFrame\(function \(\) \{[\s\S]{0,120}?requestAnimationFrame\(function \(\) \{/.test(guideJs) &&
+  /docEl\.classList\.remove\("guide-enter"\)/.test(guideJs),
+  '只"摘掉 .page-out"= 从 -100vw 滑回原位,那是一记向右的滑行 —— 用户看得见');
+ok('★★★ 换场那一下把过渡按住(四样东西同起同落,少一样就穿帮)',
+  /html\.guide-enter \.scene \{[\s\S]{0,160}?transition: none !important;/.test(tcssShell) &&
+  /html\.guide-enter \.tablet \{[\s\S]{0,160}?transition: none !important;/.test(tcssShell) &&
+  /html\.guide-enter \.statusbar-toggle \{[\s\S]{0,160}?transition: none !important;/.test(tcssShell) &&
+  /html\.guide-enter \.home-eye \{[\s\S]{0,80}?transition: none !important;/.test(tcssShell),
+  '.scene / .tablet / .statusbar-toggle / .home-eye —— 四条都要按住(和 page-out 那几条一一对应)');
+/* ★★★ 踩了很久的一条:注释里嵌注释记号会在第一个结束记号处提前收尾,
+   后面的文字被当 CSS 解析,紧随其后的那条规则会被整个吃掉 ——
+   实测 html.guide-enter .scene 就是这么凭空消失的(眼睛/机器站位全乱)。 */
+ok('★★★ 换场那三条 transform 用 !important 压过 page-out,而且注释不许嵌套',
+  /transform: translateX\(calc\(var\(--rack-w\) \+ 100vw\)\) !important/.test(tcssShell) &&
+  /transform: translateX\(100vw\) !important/.test(tcssShell) &&
+  /transform: translateX\(calc\(-50% \+ 100vw\)\) !important/.test(tcssShell),
+  '不加 !important 会被 page-out 那条同属性声明压住(级联),站位就不生效');
+ok('★★ 换格与进场在同一帧完成(眼睛不会在"还没到位"的格子上睁眼)',
+  /dockIntoBox\(\);[\s\S]{0,200}?eye\.slideX\(vw\);/.test(guideJs),
+  '先换格再站到右边,然后一起滑进来');
 
-/* ③ 左滑之后那几句话换一档语速。
-   开头那四句是"第一次见面,一字一句交代清楚"(58ms/字);
-   进 CD 页之后是一口气交代四个按钮的旁白 ⇒ 34ms/字 + 句间 700ms。 */
-ok('★★★ 左滑之后那几句话换成更快的"操作旁白"档(用户第七轮)',
-  /var TYPE_MS_FAST_TAIL = \(reduced \|\| FAST\) \? \(FAST && !reduced \? 3 : 0\) : 34;/.test(guideJs) &&
-  /var typeMs = TYPE_MS;/.test(guideJs) &&
-  /typeMs = TYPE_MS_FAST_TAIL;/.test(guideJs) &&
-  /inCdPage = true;/.test(guideJs),
-  '第七轮:"左滑后那几句话的出字速度还是不对"');
-ok('★★★ 字速必须【逐字现读】,不能在打这句之前就把 base 定死',
-  /var base = typeMs;/.test(guideJs) &&
-  /if \(typeMs <= 0 \|\| forceInstant\)/.test(guideJs) &&
-  !/var base = TYPE_MS;/.test(guideJs) &&
-  !/if \(TYPE_MS <= 0 \|\| forceInstant\)/.test(guideJs),
-  '踩过:typeMs 切了档,charDelay 里读的还是老常量 ⇒ 换了等于没换');
-ok('★★ 句间停顿也跟着换档(1.5s → 0.7s),标点停顿保持原样',
-  /var afterLineTail = \(reduced \|\| FAST\) \? 60 : 700;/.test(guideJs) &&
-  /var pause = inCdPage \? afterLineTail : afterLine;/.test(guideJs) &&
+/* ③ ★★★ 用户第八轮:"左滑后对话间隔太小出字速度太快,跟左滑前设置成一样的。"
+   (第七轮我调快过一档:34ms/字 + 句间 0.7s —— 被否了。)
+   ⇒ 全篇只有一个档:58ms/字 + 句间 1.5s,左滑前后完全一样。
+   实测(正式节奏,每拍排进定时器的延迟):第 1~9 拍中位 58~79ms,
+   第 12~15 拍中位 58~76ms,两边的句间停顿都是 1500ms。 */
+ok('★★★ 左滑之后那几句话的字速/停顿跟左滑前【完全一样】(用户第八轮)',
+  /var TYPE_MS = \(reduced \|\| FAST\) \? \(FAST && !reduced \? 3 : 0\) : 58;/.test(guideJs) &&
+  /var afterLine = \(reduced \|\| FAST\) \? 60 : 1500;/.test(guideJs) &&
+  !/TYPE_MS_FAST_TAIL/.test(guideJs) && !/typeMs/.test(guideJs) &&
+  !/afterLineTail/.test(guideJs) && !/inCdPage/.test(guideJs),
+  '第七轮那套"进 CD 页换快档"已经整个删掉 —— 留一个常量就不会再有人偷偷分档');
+ok('★★ 字速仍然逐字算(PUNCT 表照旧:省略号最重,逗号一口)',
+  /var base = TYPE_MS;/.test(guideJs) &&
+  /if \(TYPE_MS <= 0 \|\| forceInstant\)/.test(guideJs) &&
   /"。": 300/.test(guideJs) && /"…": 240/.test(guideJs),
-  '快的是"旁的叙述",不是"人的迟疑" —— 逗号/省略号的停顿一秒钟都不许动');
+  '快慢可以调,标点那口气不能省');
+
+/* ④ ★★★ 用户第八轮:"按下之后动画结束,直接趁着插CD的动画赶紧闭眼。"
+   原来收尾是"把眼睛淡掉"(摘 is-on,0.5s 透明度)—— 看到的是半透明慢慢消失。
+   现在:先眨一下闭上(420ms),闭到底再连内容一起收掉。 */
+ok('★★★ 收尾时眼睛要【眨一下闭上】(不是慢慢淡掉)',
+  /eye\.close\(wink, DOCK_CLOSE_MS\)/.test(guideJs) &&
+  /var wink = function \(\) \{ if \(!winked\) \{ winked = true; eyeHost\.classList\.remove\("is-on"\); \} \};/.test(guideJs) &&
+  /setTimeout\(wink, DOCK_CLOSE_MS \+ 60\)/.test(guideJs) &&
+  /eye\.stop\(\); eyePre\.textContent = "";/.test(guideJs),
+  '用户第八轮:"直接趁着插CD的动画赶紧闭眼"');
+
+/* ⑤ ★★★ 用户第八轮:"刚进入首页,背景里面就开始播放第一张CD了。"
+   两处会出声的口子都堵上:
+     · cd3d 建场景时的首次摆位 → silent
+     · 3D 挂载时那次 setSelection 同步 → silent
+     · 引导期间打开 CD 页的 previewCurrent → 被总开关挡住
+   收尾时把总开关交还(finishGuide 里 __cdPreview(true))。 */
+ok('★★★ 开场不许有音乐(用户第八轮)',
+  /place\(selIndex, true, true\);/.test(cd3dJs) &&
+  /function place\(idx, instant, silent\)/.test(cd3dJs) &&
+  /if \(previewAllowed && !silent && audio && cdItems\[idx\]\) audio\.music\.preview/.test(cd3dJs) &&
+  /api\.setSelection\(selIndex, true\);/.test(introJs) &&
+  /setSelection\(i, silent\) \{/.test(cd3dJs) &&
+  /previewCurrent\(\) \{\s*if \(!previewAllowed\) return;/.test(cd3dJs) &&
+  /window\.__cdPreview = function \(on\)/.test(introJs) &&
+  /if \(window\.__cdPreview\) window\.__cdPreview\(false\);/.test(guideJs) &&
+  /if \(window\.__cdPreview\) window\.__cdPreview\(true\);/.test(guideJs),
+  '引导这一段(黑屏 + 台词)一点音乐都不该有 —— 实测:只有插盘之后的 toBgm 起播');
 ok('★★ 眼睛宿主的位置必须用视口坐标显式给(不能靠 left:auto/right:0)',
   /function anchor\(left, top, width, height\)/.test(eyeJs) &&
   /st\.left = Math\.round\(left\) \+ "px";/.test(eyeJs),

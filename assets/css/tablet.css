@@ -663,7 +663,10 @@ html.home-dark body { background: #000; }
     justify-content: center;
     pointer-events: none;
     opacity: 0;
-    transition: opacity .5s ease;
+    /* ★ transform 也要有过渡:引导换场时眼睛要【跟着机器一起滑走】
+       (用户第八轮:"闭眼的速度太慢,要不然就设计成跟随平板移动")——
+       位移是 ascii-eye 的 slideX() 写在宿主 transform 上的,没有这条就是瞬移。 */
+    transition: opacity .5s ease, transform .55s cubic-bezier(.22, .61, .36, 1);
 }
 
 .home-eye.is-on { opacity: 1; }

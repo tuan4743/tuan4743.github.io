@@ -1092,6 +1092,16 @@
     setOpen(true);                       /* 视角左移,CD 架滑出(内部会调度光驱弹出) */
   }
 
+  /* ★★★ 用户第八轮:"刚进入首页,背景里面就开始播放第一张CD了。"
+     首页那一段(加载页 + 引导)应该【一点音乐都没有】。两处出声的口子:
+       · cd3d 建好场景时的首次摆位 —— 那边自己改成 silent 了(见 cd3d.js 的 place);
+       · 引导走到"按下 CD 架按钮"时,打开 CD 页会 previewCurrent() 开始选盘预览。
+     这一句把预览总开关交给引导:开场关掉、引导结束再交还。
+     (intro.js 是唯一拿着 cd3dApi 的地方,所以由它转达 —— 引导不碰 3D 那一套。) */
+  window.__cdPreview = function (on) {
+    if (cd3dApi && cd3dApi.setMusicPreview) cd3dApi.setMusicPreview(!!on);
+  };
+
   /* ============================================================
      ★★★ 首页的初始化【不再进 CD 页】,而是停在"一块黑着屏的平板上"
      ─────────────────────────────────────────────────────────────
@@ -1295,7 +1305,9 @@
           onReady: function (api) {
             cd3dApi = api;
             body.classList.add("cd3d-on");
-            api.setSelection(selIndex);
+            /* ★ silent:这一次只是把选择同步进刚建好的场景 —— 不许出声
+               (用户第八轮:"刚进入首页,背景里面就开始播放第一张CD了")。 */
+            api.setSelection(selIndex, true);
             /* 可视化就绪:把当前主题色推给星云带(视觉化开关已经去掉了)*/
             document.documentElement.classList.add("has-cd-fx");
             repaintRack();
