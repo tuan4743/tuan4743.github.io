@@ -229,27 +229,28 @@
        眼睛还是同一只眼睛,只是被转了 90°。
        ★ transform-origin 放中心:转完仍然以宿主中心为家,
          anchor() 给的 left/top 不用跟着改。
-
-       ★★★ slideX(px):临时把整只眼睛横向挪开(首页引导的换场用)。
-       为什么需要它(用户第八轮:"闭眼的速度太慢,要不然就设计成跟随平板移动"):
-       眼睛的宿主是 body 下的独立一层 —— 引导左滑过场时,.scene 整台机器滑走了,
-       眼睛却【钉在原地慢慢闭】,看起来像被落在后面。
-       ⇒ 让它跟着一起走:这个位移是【加在旋转上的】(translateX … rotate …),
-         两个都在 host.style.transform 上,所以必须由这里统一合成 ——
-         直接写 style.transform 会把旋转冲掉。 */
-    var tilt = 0, shiftX = 0;
+       ★ 这里【只有旋转】+ 一个 offsetX(见下)。
+    */
+    var tilt = 0, carry = 0;
     function applyXform() {
       var host = pre.parentNode;
       if (!host) return;
       host.style.transformOrigin = "50% 50%";
-      host.style.transform = (shiftX ? "translateX(" + shiftX + "px) " : "") + (tilt ? "rotate(" + tilt + "deg)" : "");
+      host.style.transform =
+        (carry ? "translateX(" + carry + "px) " : "") + (tilt ? "rotate(" + tilt + "deg)" : "");
     }
     function rotate(deg) {
       tilt = +deg || 0;
       applyXform();
     }
-    function slideX(px) {
-      shiftX = +px || 0;
+    /* ★★★ offsetX(px):换场期间把这只眼睛【跟着机器一起挪】。
+       用户:"右侧的眼睛是定在那里睁开,你的实现绝对不对,眼睛会动" ——
+       机器往右平移 66vw 把 CD 架拉进来的时候,眼睛是贴在屏幕上的,
+       必须跟着走;不跟的话它就是"机器滑走了,眼睛留在原地"。
+       位移和旋转必须合成在同一条 transform 上(直接写 style.transform 会把旋转冲掉),
+       所以由这里统一给;换格那一刻归零(位置改由换格后的格子决定,不能重复加)。 */
+    function offsetX(px) {
+      carry = +px || 0;
       applyXform();
     }
 
@@ -639,6 +640,7 @@
       fitTo: fitTo,
       anchor: anchor,
       rotate: rotate,
+      offsetX: offsetX,
       setGaze: setGaze,
       /* 真人动鼠标:交给 magnetic-cursor 转达(它分得清真人与合成事件) */
       onPointer: pointerLook,
@@ -682,7 +684,6 @@
         }, closeMs + 900);
       },
       closed: function () { return closedDone; },
-      slideX: slideX,
       T_CLOSE: T_CLOSE,
       state: function () { return window.__startEye || null; },
       /* 停掉整个渲染循环(引导结束、要彻底安静时用)*/

@@ -419,57 +419,18 @@ body.page-out {
     overflow: hidden;
 }
 
-/* ---------- 三之一、引导换场:按下那一刻先把机器【按住】 ----------
-   ★★★ 用户第九轮:"现在变成了先右滑再左滑" / "为什么不做成按下按钮立马触发?"。
-   右滑不是引导干的,是【原生那一下】:按下 CD 架按钮 → intro.js 给 body 挂
-   .scene-open → body.scene-open .scene 向右平移 var(--rack-w)(把 CD 架从左边拉进来)。
-   引导自己那次左滑(.page-out)是后到的,于是用户先看到一次向右、再看到向左。
-   ⇒ 按下按钮的【捕获阶段】就先挂上 html.guide-hold:它把 .scene 钉回原位、
-     并且关掉过渡 —— 机器一动不动,眼睛当着用户的面闭上;等闭完了再松开它、
-     挂 .page-out 向左滑出去。这样整段只有一次位移,方向只有一个。
-   ★ 夹在两条中间的那段注释里不许再出现内层注释记号:嵌套会在第一个结束记号处
-     提前收尾,紧随其后的规则会被整条吃掉(第七轮踩过,html.guide-enter .scene 消失)。 */
-html.guide-hold .scene {
-    transform: translateX(0) !important;
-    transition: none !important;
-}
+/* ---------- 三之二、进 CD 页:引导【不做任何平移】 ----------
+   ★★★ 用户:"往左滑那块的 bug 代码删掉,不允许复用旧代码" / "重写还能写出一样的 bug?"
 
-/* ---------- 三之二、引导换场:左滑出去之后,CD 页【从右边滑进来】 ----------
-   ★★★ 用户第八轮:"往左滑之后又往右滑回去bug还没修掉"。
-   为什么会"往右滑回去":左滑是引导挂的 .page-out(整台机器 -100vw),而"到位"
-   就是把这个类摘掉 —— 一摘,那几样东西就带着 0.55s 过渡从 -100vw 滑回原位,
-   看着就是"又往右滑回去"(方向还和"去右边的页面"那条过场一样)。
-   ★ 上一版只是把回程改成【瞬间】—— 但那仍是一记向【右】的跳,用户照样看得见。
-   ⇒ 现在:摘 .page-out 之前先把它们【瞬移】到右边外面的起点,再松开过渡,
-     让它们【向左】滑进 CD 页 —— 整段只有一个方向(向左),再也没有向右的动作。
-       起点 = CD 页那一格再往右一屏:
-         .scene              calc(var(--rack-w) + 100vw)  ← CD 页那格是 +rack-w
-         .tablet             100vw                        ← 它在 CD 页里是原位
-         .statusbar-toggle   calc(-50% + 100vw)
-     transform 必须带 !important:要压过 page-out 那条同属性声明。
-   ★★★ 这段注释里【不许再写内层注释记号】:嵌套的注释会在第一个结束记号处
-     提前收尾,后面的文字被当成 CSS 解析,紧随其后的第一条规则会被整条吃掉 ——
-     实测就是 html.guide-enter .scene 那条凭空消失(查了半天)。 */
-html.guide-enter .scene {
-    transform: translateX(calc(var(--rack-w) + 100vw)) !important;
-    transition: none !important;
-}
+   这一节原来有三条规则(dock-hold / dock-out / dock-in),是引导自己造的一次
+   向左 -100vw 的过场。它和【原生】那一次(scene-open ⇒ .scene 向右 +66vw 把
+   CD 架拉进来)抢同一个 transform,所以无论怎么写都会出现"先右后左 / 先左后右"。
+   ⇒ 整段删掉。进 CD 页本来就只有一次位移,那是 CD 页自己的那一次(平时手点按钮
+     也是它);引导只负责:按下就闭眼、闭着的时候把眼睛挪到右边那一格、再睁开。
+     眼睛那点位移走它自己的过渡(.home-eye.is-docked 的 .55s),不是"机器的过场"。
+   ★ 上面"三、向左滑过场"那一节(给 /tech/ 这类页面跳转用的 .page-out)按原样保留 ——
+     那是站点的页面切换,和引导无关。 */
 
-html.guide-enter .tablet {
-    transform: translateX(100vw) !important;
-    transition: none !important;
-}
-
-html.guide-enter .statusbar-toggle {
-    transform: translateX(calc(-50% + 100vw)) !important;
-    transition: none !important;
-}
-
-/* 眼睛的位移是 ascii-eye 的 slideX() 写在宿主内联 transform 上的(那里还要合成
-   90° 的旋转,不能被 CSS 顶掉),所以这一条只按住过渡、不写 transform。 */
-html.guide-enter .home-eye {
-    transition: none !important;
-}
 
 /* ---------- 四、右边的那些页面(第一批:先给它们"同一个样式") ----------
    ★★ 用户澄清过一次,别再做错:

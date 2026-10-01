@@ -62,15 +62,12 @@
 
   var docEl = document.documentElement;
   var reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  /* ★ ?fast=1:把打字、停拍、等待全部压到最短 —— 只给自动化验证用
-     (?guide=1&fast=1 就是"每次都播、而且快进")。
-     默认节奏是"人在说话":每字 42ms、一句说完停 900ms、扫描框吸过去 420ms。 */
+  /* ★ ?fast=1:只给自动化验证用(把画面与台词都压到最短)。
+     ★★★ 注意:台词的快慢【不再】跟 reduced 走 ——
+     系统一开"减少动效",旧的写法会让每字 0ms、句间 60ms,整段对话瞬间刷完,
+     用户看到的就是"出字速度太快、句子之间没有间隔"(这条被报了两次)。
+     减少动效该压的是画面,不是台词;台词只有 ?fast=1 这一个快档(见 VOICE)。 */
   var FAST = /[?&]fast=1/.test(location.search);
-  var TYPE_MS = (reduced || FAST) ? (FAST && !reduced ? 3 : 0) : 58;
-  /* ★★★ 用户第八轮:"左滑后对话间隔太小出字速度太快,跟左滑前设置成一样的。"
-     (第七轮我把进 CD 页之后那几句调快了一档 —— 34ms/字 + 句间 0.7s —— 用户否了。)
-     ⇒ 全篇一个档:58ms/字 + 句间 1.5s,左滑前后完全一样。 */
-  var afterLine = (reduced || FAST) ? 60 : 1500;     /* 一句说完之后停一拍(留出读的时间)*/
   var settleMs = (reduced || FAST) ? 30 : 520;       /* 扫描框吸过去、停稳 */
   var gate = function (ms) { return (reduced || FAST) ? Math.min(ms, 90) : ms; };
 
@@ -349,103 +346,98 @@
   }
   function lockWheel(on) { wheelLocked = !!on; }
 
-  /* ------------------------------------------------------------
-     四、逐字打出
-     ------------------------------------------------------------ */
-  var typing = 0;
-  function typeLine(text, forceInstant) {
-    clearTimeout(typing);
-    /* ★ 换场时台词是被收掉的(用户第九轮:"为什么对话框还在?")——
-       所以每一句新台词都要把对话框重新挂回来。 */
-    consoleEl.classList.add("is-on");
+  /* ============================================================
+     四、台词机(整块重写 —— 旧的 charDelay / PUNCT / TYPE_MS / afterLine 全删了)
+     ─────────────────────────────────────────────────────────────
+     为什么重写(用户:"bug 地方删掉重写,不允许复用旧代码"):
+
+     旧实现有三个病,而且是叠在一起的:
+       ① 【系统"减少动效"会把台词压成瞬间】——
+          旧代码里 TYPE_MS 和 afterLine 都挂在 (reduced || FAST) 上:
+          系统一开减少动效,每字 0ms、句间 60ms,整段对话"唰"地刷完。
+          用户看到的正是"出字速度太快、句子之间几乎没有间隔"。
+          ⇒ 减少动效该压的是【画面】(平移动画、开机动画),不是台词。
+            新实现只有 ?fast=1(自动化探针用)才走快档,系统设置不再动它。
+       ② 停顿表是按 42ms/字 的年代调的,基础速度提到 58 之后"过重";
+          而标点种类只覆盖了一半(全角/半角混着写)。
+          ⇒ 新表按【停顿强度】重排,全角半角一起管,并且把"换气"从标点里独立出来。
+       ③ 逐字与停顿混在一个函数里算(抖动 + 标点 + 换气 + 代号压速),
+          读完不知道这句话到底会用多久。⇒ 拆成三段:字 / 标点 / 句子。
+
+     对外只有一个入口:
+       say(text) → Promise(打完这一句 + 停一口气)
+       applyVoice(patch) → 运行时改参数(排障/验证用)
+     ============================================================ */
+  var VOICE = {
+    /* ① 字:基准 + 不均匀。匀速最像复读机,所以每个字都带一点随机 */
+    char: 62, charJitter: 0.38,
+    /* ② 标点:按"该停多久"分档,全角半角都收进来 */
+    punct: {
+      "。": 340, ".": 340, "?": 340, "!": 340,
+      ",": 150, "、": 130, ";": 160, ":": 170, "-": 180, "—": 190,
+      "…": 300,                                   /* 连着的……只算一次 */
+      ")": 90, "」": 120, "”": 120
+    },
+    /* ③ 句子:同一句里第二个分句起头"换口气"(比标点轻) */
+    breath: 120,
+    /* ④ 句与句之间:停一拍,让上一句落地 */
+    gap: 1250,
+    /* fast=1(只有探针会用):全部压到最短 */
+    fastChar: 0, fastGap: 40
+  };
+  function voiceFast() { return FAST && !reduced ? true : FAST; }
+  function applyVoice(patch) {
+    if (!patch) return VOICE;
+    for (var k in patch) if (Object.prototype.hasOwnProperty.call(patch, k)) {
+      if (k === "punct") { for (var p in patch.punct) VOICE.punct[p] = patch.punct[p]; }
+      else VOICE[k] = patch[k];
+    }
+    return VOICE;
+  }
+
+  /* 每个字之间隔多久 */
+  function charGap(text, i) {
+    if (FAST) return VOICE.fastChar;
+    var ch = text.charAt(i);
+    var prev = i > 0 ? text.charAt(i - 1) : "";
+    /* 代号那种连着的字母数字:按"一个词"走,不然 ECHOM_D29_Z68J521 要读十几秒 */
+    if (i > 0 && /[A-Za-z0-9_]/.test(ch) && /[A-Za-z0-9_]/.test(prev)) {
+      return Math.max(16, VOICE.char * 0.32);
+    }
+    var d = VOICE.char * (1 + (Math.random() * 2 - 1) * VOICE.charJitter);
+    if (ch === "…" && prev === "…") return VOICE.char + 70;      /* ……只迟疑一次 */
+    var p = VOICE.punct[ch];
+    if (p) d += p;
+    if (prev && VOICE.punct[prev] && prev !== "…") d += VOICE.breath;   /* 分句起头换气 */
+    return d;
+  }
+
+  /* 打完一句 + 停一口气 */
+  var speaking = 0;
+  function say(text) {
+    clearTimeout(speaking);
+    consoleEl.classList.add("is-on");            /* 换场时收掉过,这里挂回来 */
     lineEl.textContent = "";
     consoleEl.classList.remove("is-typed");
     typeDone = false;
-    if (!text) { typeDone = true; consoleEl.classList.add("is-typed"); return Promise.resolve(); }
-    if (TYPE_MS <= 0 || forceInstant) {
-      lineEl.textContent = text;
+    var done = function () {
       typeDone = true;
       consoleEl.classList.add("is-typed");
-      return Promise.resolve();
-    }
+    };
+    if (!text) { done(); return Promise.resolve(); }
+    if (VOICE.fastChar <= 0 && FAST) { lineEl.textContent = text; done(); return Promise.resolve(); }
     return new Promise(function (resolve) {
       var i = 0;
       (function tick() {
-        if (skipping) {
-          lineEl.textContent = text;
-          typeDone = true;
-          consoleEl.classList.add("is-typed");
-          resolve();
-          return;
-        }
+        if (skipping) { lineEl.textContent = text; done(); resolve(); return; }
         i++;
         lineEl.textContent = text.slice(0, i);
-        if (i >= text.length) {
-          typeDone = true;
-          consoleEl.classList.add("is-typed");
-          resolve();
-          return;
-        }
-        var ch = text.charAt(i - 1);
-        typing = setTimeout(tick, charDelay(text, i - 1));
+        if (i >= text.length) { done(); resolve(); return; }
+        speaking = setTimeout(tick, charGap(text, i - 1));
       })();
+    }).then(function () {
+      return new Promise(function (r) { setTimeout(r, FAST ? VOICE.fastGap : VOICE.gap); });
     });
-  }
-
-  /* ============================================================
-     语速:让"打字"读起来像一个人在说话,而不是复读机
-     ─────────────────────────────────────────────────────────────
-     用户第三轮:"语速,按照你的理解把文本出现的速度改一下,现在一是太快
-                二是匀速,有些句子里面两句话是连着出的,还有像……,哦,
-                这些明显需要停顿的没有表现出来,像个真AI复读机一样。"
-
-     三件事:
-       ① 基础速度慢下来(42ms/字 → 58ms/字),太快了来不及读;
-       ② 【标点】给足停顿,而且长度分档 —— 逗号一小口、句号一口、
-          "……"和不齐的省略号是真正的迟疑(最长):
-            逗号/顿号     ~150ms
-            句号/问号/叹号 ~330ms
-            冒号          ~240ms(后半句要来了)
-            省略号(……)  ~620ms(迟疑)
-            破折号        ~260ms
-       ③ 【换气】:一句话里的第二个分句起头稍微压一下,不要"哒哒哒哒"一串
-          同一个速度冲到底 —— 人说话每个小句的起头都会重来一次。
-     ★ 所有停顿都是【附加在字与字之间】的,不改字本身出现的顺序。
-     ============================================================ */
-  /* ★★ 数值是【量出来的】(探针 .tmp/check-pace.mjs 打印每个字之间的间隔):
-     原表是按 42ms/字 调的,基础速度提到 58ms 之后同一个表就"过重"了 ——
-     实测逗号 214ms、冒号 235ms,加上字本身的 60ms 就是 270~300ms,
-     一串"代号:ECHOM_D29_Z68J521,……"读起来一顿一顿的。
-     ⇒ 标点只做"轻微收一下",真正的重音留给省略号。
-     目标节奏(实测):普通字 45~95ms,逗号 ~150ms,句号 ~380ms,省略号 ~560ms。 */
-  var PUNCT = {
-    "。": 300, "!": 300, "?": 300, "?": 300, "!": 300,
-    ",": 90, "、": 90, ";": 100, ";": 100,
-    ":": 130, ":": 130,
-    "…": 240,          /* 单个省略号点;连着的"……"只算一次(见下面的跳过) */
-    "-": 120, "—": 170,
-    ")": 80, ")": 80, "」": 110, "”": 110
-  };
-  var BREATH = 90;     /* 分句起头的换气(轻一点:重音交给标点) */
-
-  function charDelay(text, i) {
-    var base = TYPE_MS;
-    var ch = text.charAt(i);
-    var d = base + (Math.random() * base * 0.45);     /* ±45% 的抖动:匀速最像机器 */
-    var p = PUNCT[ch];
-    if (p) d += p;
-    if (i > 0) {
-      var prev = text.charAt(i - 1);
-      /* ★★ 连续的省略号点只算【一次】迟疑:
-         "……" 是两个 U+2026,按表走就是 2 × 240 = 480ms 的停顿,
-         读起来是"卡了两下"。真正的迟疑只需要一个明显的空档。 */
-      if (ch === "…" && prev === "…") d = base + 60;
-      if (prev === "," || prev === "、" || prev === ";" || prev === ":" || prev === "—") d += BREATH;
-      /* ★ 代号里的字符是一串"一个词":ECHOM_D29_Z68J521 要是按基础速度
-         一个字一个字蹦,那一句要读十几秒,而且没有语义停顿可言 ⇒ 压快。 */
-      if (/[A-Za-z0-9_]/.test(ch) && /[A-Za-z0-9_]/.test(prev)) d = Math.max(14, base * 0.30);
-    }
-    return d;
   }
 
   /* ------------------------------------------------------------
@@ -581,183 +573,111 @@
   }
 
   /* ============================================================
-     进 CD 页那一段的编排
+  /* ============================================================
+     进 CD 页(整块重写:【引导不做任何平移】)
      ─────────────────────────────────────────────────────────────
-     ★★★ 两次要求【是叠加的,不是互相取代】—— 我第五轮读错了,把旋转删了,
-     用户第六轮指出:"我说眼睛要旋转90°,你怎么又给我修回去了?"
-       · 第三轮:"这个眼睛要转向90°,放到右侧,就像横着看一样"        ⇒ 要【转】
-       · 第五轮:"按下左滑后,主屏幕的眼睛马上闭上,等到彻底滑过去后,
-                 眼睛再在右侧睁开"                                  ⇒ 要【闭→滑→睁】
-     ⇒ 完整编排(四步):
-         ① 按下之后:眼睛马上闭上(等它闭到底,约 780ms);
-         ② 同时左滑 100vw 出去;
-         ③ 到位后换格 + 转到 90°(旋转有 0.55s 过渡,和左滑同拍 ——
-            此刻眼睛是闭着的,所以看到的是"它转过去了",不是"它转着给你看");
-         ④ 全部落定才重新睁开。
-     ★ "右侧那只眼睛跟鼠标"是靠 setGaze 做到的,与旋转无关 ——
-       旋转只改变眼睛的朝向(横着看),瞳孔照样跟着扫描框走。
+     用户:"往左滑那块的 bug 代码删掉,不允许复用旧代码" / "重写还能写出一样的 bug?"
+
+     前面四轮都错在同一件事上:我在【引导里自己造了一次平移】。
+       按下按钮时,原生逻辑会给 body 挂 scene-open ⇒ CSS 让 .scene 向右 +66vw
+       把 CD 架拉进来(这是 CD 页本身该有的那一次位移 —— 平时手点按钮也是这样);
+       而引导又叠了一次向左 -100vw 的过场。两条规则抢同一个 transform,
+       于是必然出现"先右后左 / 先左后右"—— 换写法没用,只要还在自己造位移就一样。
+
+     ⇒ 现在引导【一次位移都不造】:
+         ① 按下(捕获阶段,抢在原生之前):眼睛当场开始闭、台词收掉;
+         ② 眼睛闭着的那段时间里:换格 + 转 90° —— 位移是【眼睛自己的 CSS 过渡】
+            (.home-eye.is-docked 的 left/top/width/height/transform .55s),
+            它不是"整台机器的过场",只是这只眼睛从屏幕中间滑到右边那一格;
+         ③ 机架停稳 + 眼睛到位之后:在右侧睁开。
+       屏幕上唯一的大位移就是 CD 架那一次(原生),只有一个方向,不可能来回。
      ============================================================ */
   var DOCK_TILT = 90;                      /* 到位后转多少度(用户第三轮定的) */
+  var DOCK_CLOSE_MS = 320;                 /* 当着用户的面闭完 */
+  var DOCK_SETTLE_MS = 700;                /* 机架停稳 + 眼睛滑到那一格 */
+  var dockStage = 0;                       /* 0 未开始 / 1 闭眼中 / 2 已换格 / 3 已睁开 */
 
-  /* ★★★ 用户第七轮:"按下进入CD页的按钮时,主眼睛应该立马闭合,否则跟不上左滑的速度。"
-     原编排的【闭眼】是从"引导走到下一步"才开始算的:
-       按下 → 这一拍还要把台词尾巴和 1.5s 停拍走完 → 下一步 runStep 里
-       setTimeout(380) → closeEye(780ms) → 才左滑。
-     从按下到眼睛开始闭,最长要一秒多;而平板那一下是【立刻】黑屏 + 左滑的,
-     用户看到的就是"屏幕都滑走了,眼睛还睁着"。
-     ⇒ 闭眼改成【挂在按钮按下的那一刻】,和引导走到哪一拍无关:
-       watchDockPress() 在"该用户按了"的那一拍开头就开始盯着 scene-open,
-       状态一变立刻闭眼;runDock 里只是【等这个已经在跑的闭眼】收口。
-     ★ 闭眼只做一次(记忆化):两条路径(按下就闭 / runDock 兜底闭)不会打架。 */
-  var dockClosing = null;
-  function beginDockClose() {
-    if (!dockClosing) {
-      /* 现场读数:谁在什么时刻把闭眼这件事点着的(带调用栈)*/
-      window.__dockCloseAt = { t: Math.round(performance.now()), stack: String((new Error()).stack || "").split("\n").slice(1, 4).join(" ← ") };
-      dockClosing = closeEye();
-    }
-    return dockClosing;
+  /* ① 按下:闭眼 + 收台词。捕获阶段调用(比按钮自己的处理器先跑)。 */
+  function dockPress() {
+    if (dockStage) return;
+    dockStage = 1;
+    window.__dockAt = { press: Math.round(performance.now()) };
+    consoleEl.classList.remove("is-on");
+    beginDockClose().then(dockSettle);
   }
 
+  /* ② 闭着的时候换格(眼睛自己的过渡负责滑过去 + 转 90°),等机架停稳 */
+  function dockSettle() {
+    if (dockStage >= 2) return;
+    dockStage = 2;
+    window.__dockAt.dock = Math.round(performance.now());
+    dockIntoBox();
+    return sleep(FAST ? 80 : DOCK_SETTLE_MS).then(dockOpen);
+  }
+
+  /* ③ 在右侧睁开(顺序:先睁开 → 再贴一次那一格的尺寸 → 才显出来) */
+  function dockOpen() {
+    if (dockStage >= 3) return;
+    dockStage = 3;
+    window.__dockAt.open = Math.round(performance.now());
+    if (eye && eye.offsetX) eye.offsetX(0);     /* 交还:位置改由换格后的格子决定 */
+    if (eye && eye.openNow) eye.openNow();      /* 它内部会 measure(),把尺寸冲回整屏 */
+    dockIntoBox();                              /* 所以这里必须再贴一次 */
+    eyeHost.classList.add("is-on");
+  }
+
+  /* ★★★ 换场期间:眼睛【跟着机器一起挪】。
+     用户:"右侧的眼睛是定在那里睁开,你的实现绝对不对,眼睛会动"。
+     机器往右平移 66vw 把 CD 架拉进来的那 0.56 秒里,眼睛贴在屏幕上,得跟着走 ——
+     每帧把 #scene 当前的实际位移抄给它(不是"我们以为的位移",是量出来的)。
+     换格那一刻归零(见 dockOpen):位置改由右边那一格算,不能重复加。 */
+  var eyeCarried = false;
+  function carryEye() {
+    if (!eye || !eye.offsetX) return;
+    if (dockStage !== 1) {
+      if (eyeCarried) { eye.offsetX(0); eyeCarried = false; }
+      return;
+    }
+    var s = document.getElementById("scene");
+    var x = 0;
+    try {
+      var cs = s ? getComputedStyle(s) : null;
+      if (cs && cs.transform && cs.transform !== "none") {
+        x = new DOMMatrixReadOnly(cs.transform).m41;
+      }
+    } catch (e) { x = 0; }
+    if (!isFinite(x)) x = 0;
+    eye.offsetX(x);
+    eyeCarried = true;
+  }
+
+  /* 按下那枚按钮:捕获阶段(早于原生 setOpen)+ 状态兜底 + 轮询兜底。 */
   var dockWatchOn = false;
   function watchDockPress() {
     if (dockWatchOn) return;
     dockWatchOn = true;
-    /* 现场读数:这一条链路上任何一处"没接上"都只能靠读时间戳查。 */
-    window.__dockWatch = { armed: Math.round(performance.now()), polls: 0, hit: null, hitWhy: null, why: null, log: [] };
-    /* ★★★ 首选:在【捕获阶段】盯住那枚按钮 —— 用户第八轮问
-       "为什么不做成按下按钮立马触发?"。
-       为什么这一条能赢在原生之前:点按钮时事件路径是
-       document(捕获) → … → button(目标) → … → document(冒泡),
-       而原生那一下(setOpen → 给 body 挂 scene-open)挂在【目标/冒泡】上。
-       所以捕获阶段的这一下先跑 —— 我们可以先"按住机器 + 开始闭眼",
-       等原生把 scene-open 挂上时,机器已经被按住了(见 guide-hold),
-       不会再往右滑一次。 */
     document.addEventListener("click", function (e) {
       var t = e.target;
-      if (t && t.closest && t.closest(".slot-toggle, #intro-toggle")) hit("press");
+      if (t && t.closest && t.closest(".slot-toggle, #intro-toggle")) dockPress();
     }, true);
-    var hit = function (how) {
-      if (dockClosing) return;
-      window.__dockWatch.hit = Math.round(performance.now());
-      window.__dockWatch.hitWhy = how;
-      onDockPress();
-    };
-    /* ① 兜底一:盯 body 的 class(万一那一下不是 click,比如程序化派发)。
-       注意它比捕获监听晚:到这一步 scene-open 已经挂上了。 */
     try {
       new MutationObserver(function () {
-        if (document.body.classList.contains("scene-open")) hit("observer");
+        if (document.body.classList.contains("scene-open")) dockPress();
       }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
-    } catch (e) { window.__dockWatch.moErr = String(e && e.message || e); }
-    /* ② 兜底二:轮询(观察者挂上之前状态就已经设过 / MutationObserver 不可用)。 */
+    } catch (e) { }
     (function poll() {
-      window.__dockWatch.polls++;
-      window.__dockWatch.log.push([Math.round(performance.now()), !!dockClosing, playing, document.body.classList.contains("scene-open")]);
-      if (window.__dockWatch.log.length > 40) window.__dockWatch.log.shift();
-      if (dockClosing || !playing) { window.__dockWatch.why = dockClosing ? "already" : "stopped"; return; }
-      if (document.body.classList.contains("scene-open")) { hit("poll"); return; }
+      if (dockStage || !playing) return;
+      if (document.body.classList.contains("scene-open")) { dockPress(); return; }
       setTimeout(poll, 40);
     })();
   }
 
-  /* ============================================================
-     换场的全部编排(用户第八/九轮连着报了三次,这次按他说的做)
-     ─────────────────────────────────────────────────────────────
-     ★★★ 一问:"为什么不做成按下按钮立马触发?"
-       ⇒ 按下【那一刻同步】做三件事(捕获阶段,抢在原生之前):
-           ① 把机器按住(html.guide-hold):原生的 scene-open 会让机器
-              向右平移 66vw 去把 CD 架拉进来 —— 那正是用户看到的"先右滑"。
-              按住它,机器就停在原地;
-           ② 眼睛立刻开始闭(320ms,当着用户的面闭完);
-           ③ 对话框收掉(用户:"为什么对话框还在?")。
-     ★★★ 二问:"眼睛哪里闭上了?"
-       上一版让眼睛【一边滑走一边闭】,于是"闭"这件事根本没被看见。
-       ⇒ 顺序改成:先闭完(机器按住不动,看得清清楚楚),再滑。
-     ★★★ 三问:"先右滑再左滑"
-       ⇒ 右滑来自原生 scene-open(我们按住它),左滑是我们自己的 page-out。
-         闭完之后松开按住、挂 page-out → 机器【只向左】滑一次出去,
-         然后 CD 页从右边向左滑进来(enterFromRight)。
-     ============================================================ */
-  var DOCK_CLOSE_MS = 320;                 /* 当着用户的面闭完:320ms(780ms 太慢、420 又太快看不清)*/
-  var DOCK_SLIDE_MS = 550;                 /* 必须和 shell.css 里 .page-out 那条过渡一致 */
-  var DOCK_ENTER_MS = 550;                 /* 进场那条过渡(同 .55s)*/
 
-  function onDockPress() {
-    return dockSequence();
-  }
-
-  /* 左滑:等眼睛闭完之后才开始。 */
-  var dockSlideAt = 0;
-  function startDockSlide() {
-    if (dockSlideAt) return;
-    dockSlideAt = performance.now();
-    docEl.classList.remove("guide-hold");  /* 松开:机器从原位出发 */
-    docEl.classList.add("page-slide");
-    document.body.classList.add("page-out");   /* 和上面同一帧 → 0 → -100vw,只向左 */
-    if (eye && eye.slideX) eye.slideX(-window.innerWidth);   /* 闭着的眼睛跟着机器一起走 */
-  }
-
-  /* ------------------------------------------------------------
-     ★★★ 整段换场【挂在按下那一刻】,一步都不等引导的拍子。
-     这是这一轮最要紧的一条(用户:"为什么不做成按下按钮立马触发?"):
-     原来左滑、进场、睁眼都排在"下一步(第 11 拍)"的 Promise 链上 ——
-     而第 10 拍自己还有一个 1.5 秒的句尾停顿,于是按下之后机器被按住
-     干等 1.4 秒才动(实测 47741 闭完 → 49196 才滑)。
-     ⇒ 现在整段是一个自包含的序列:按下 → 按住 + 闭眼 → 左滑 → CD 页从右边进来
-       → 眼睛在右侧睁开。runDock() 只负责等它跑完(幂等,重复调用拿到同一个 Promise)。
-     ------------------------------------------------------------ */
-  var dockSeq = null;
-  function dockSequence() {
-    if (dockSeq) return dockSeq;
-    docEl.classList.add("guide-hold");     /* 机器先别动(压住原生那一下向右的平移)*/
-    consoleEl.classList.remove("is-on");   /* 台词跟着这一次换场一起收掉 */
-    dockSeq = beginDockClose().then(function () {
-      startDockSlide();                    /* 闭完了才滑 —— 闭的过程看得见 */
-      return sleep(reduced ? 40 : DOCK_SLIDE_MS + 140);
-    }).then(function () {
-      enterFromRight();                    /* CD 页从右边向左滑进来 */
-      return sleep(reduced ? 40 : DOCK_ENTER_MS + 120);
-    }).then(function () {
-      /* 眼睛在右侧睁开
-         ★★★ 顺序是【睁开 → 重新贴尺寸 → 才显出来】,不能反。
-         eye.openNow() 内部先调 measure() —— 那是"按整个视口算字号和列数"的
-         那一套,会把 enterFromRight 里按右边那一格算好的尺寸整个冲掉
-         (实测:<pre> 被改回 748.8×487.5,于是横过来放不下)。
-         ⇒ openNow() 之后再 dockIntoBox() 一次,最后才 is-on 显出来。 */
-      if (eye.openNow) eye.openNow();
-      dockIntoBox();
-      eyeHost.classList.add("is-on");
-      return sleep(reduced ? 60 : 380);
-    });
-    return dockSeq;
-  }
-
-  /* 进场:先【瞬移】到右边外面的起点,再松开过渡,让它们向左滑进 CD 页。
-     为什么不能只"摘掉 page-out":那样是从 -100vw 滑回原位 —— 一记向右的滑行,
-     用户看得很清楚("又往右滑回去")。
-     ★★★ 必须真的【画过一帧】再松开(所以是双 rAF,不是同步 reflow):
-       浏览器的过渡起点是"上一次样式变更事件算出来的值"——
-       add(class) / void offsetWidth / remove(class) 全在同一个任务里的话,
-       起点仍然是 -100vw,于是又变成一次向右的滑行(实测:scene -1344 → +171 → 1056,
-       正是用户说的"又往右滑回去")。
-       起点(166vw)整块在屏幕外,画一帧也看不见 —— 所以这一步是免费且安全的。
-     ★ 眼睛的位移由 slideX 给(它的内联 transform 还要合成 90° 旋转,
-       所以 CSS 只负责按住过渡,见 shell.css 的 html.guide-enter)。 */
-  function enterFromRight() {
-    var vw = window.innerWidth;
-    docEl.classList.add("guide-enter");       /* 过渡按住 + 三样东西瞬移到右边起点 */
-    document.body.classList.remove("page-out");
-    docEl.classList.remove("page-slide");
-    dockIntoBox();                            /* 眼睛换到那一格(此刻在屏幕外,看不见) */
-    if (eye && eye.slideX) eye.slideX(vw);    /* 眼睛也站到右边外面 */
-    /* 双 rAF:第一帧把"站在右边"画出来,第二帧再松开过渡 —— 起点才落在右边。 */
-    requestAnimationFrame(function () {
-      requestAnimationFrame(function () {
-        docEl.classList.remove("guide-enter");   /* 松开:一起【向左】滑进 CD 页 */
-        if (eye && eye.slideX) eye.slideX(0);
-      });
-    });
+  /* 眼睛闭到底(带上限兜底)。两条路径(按下就闭 / 兜底闭)共用同一个 Promise。 */
+  var dockClosing = null;
+  function beginDockClose() {
+    if (!dockClosing) dockClosing = closeEye();
+    return dockClosing;
   }
 
   function closeEye() {
@@ -857,12 +777,12 @@
   }
 
   function runDock() {
-    /* ★ 整段换场已经在【按下那一刻】自己跑起来了(见 dockSequence):
-         ① 机器被 guide-hold 按住 → 眼睛当着用户的面闭完;
-         ② 松手 → 只向左滑一次出去;
-         ③ CD 页从右边向左滑进来,眼睛在右侧睁开。
-       这里只是等它跑完 —— 幂等,所以"没按下(超时那条路)"时它会把整段补上。 */
-    return dockSequence();
+    /* 换场从【按下那一刻】就自己跑了(见 dockPress / dockSettle / dockOpen)。
+       这里只负责:如果压根没按下(60 秒超时那条路),把整段补上,并等它跑完。 */
+    if (!dockStage) dockPress();
+    return beginDockClose().then(function () {
+      return sleep(FAST ? 160 : DOCK_SETTLE_MS + 320);
+    });
   }
 
   /* 视线每帧跟着扫描框。
@@ -875,6 +795,7 @@
     requestAnimationFrame(followLoop);
     window.__followTicks = (window.__followTicks || 0) + 1;
     refreshSnap();                       /* ★ 每一帧重新量目标:机器在平移/玻璃在贴合 */
+    carryEye();                          /* ★ 换场那 0.56 秒:眼睛跟着机器一起挪 */
     if (gazeMode !== "scan" || !eye) return;
     if (frameRect) lookAtRect(frameRect);
   }
@@ -966,7 +887,7 @@
       });
     }
     if (s.text) {
-      tasks.push(function () { return typeLine(s.text).then(function () { return sleep(afterLine); }); });
+      tasks.push(function () { return say(s.text); });
     }
     if (s.press) {
       tasks.push(function () { return waitForUser(s.press); });
@@ -1145,7 +1066,7 @@
        整段压成瞬间(那就是"出字太快、句间没间隔")。 */
     try {
       var bEl = document.getElementById("home-console-build");
-      if (bEl) bEl.textContent = "· b:" + (window.__build || "?") + " · " + TYPE_MS + "ms/" + afterLine + "ms" + (reduced ? " · 减少动效:开" : "");
+      if (bEl) bEl.textContent = "· b:" + (window.__build || "?") + " · " + VOICE.char + "ms/" + VOICE.gap + "ms" + (FAST ? " · fast" : "");
     } catch (e) { }
     skipping = false;
     gazeMode = "scan";
@@ -1355,13 +1276,13 @@
       eyeOn: eyeHost.classList.contains("is-on"),
       dark: tablet.classList.contains("is-dark"),
       /* 现场读数(探针直接读):
-         · closing  —— 闭眼是否已经在跑(按下那一刻起就该是 true)
-         · sliding  —— 左滑是否已经在跑(和闭眼同一时刻)
-         · eyeX     —— 眼睛当前被 slideX 挪到了哪里(跟不跟着机器走)
-         · host/pre —— 转 90° 之后到底占了多大(转完是宽高互换的) */
+         · closing   —— 闭眼是否已经在跑(按下那一刻起就该是 true)
+         · dockStage —— 换场走到第几步(1 闭眼 / 2 已换格 / 3 已睁开)
+         · dockAt    —— 每一步的时刻戳(对时序用)
+         · host/pre  —— 转 90° 之后到底占了多大(转完是宽高互换的) */
       closing: !!dockClosing,
-      sliding: !!dockSlideAt,
-      eyeX: eyeHost.style.transform || "",
+      dockStage: dockStage,
+      dockAt: window.__dockAt || null,
       host: (function () {
         var r = eyeHost.getBoundingClientRect();
         return [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)];
