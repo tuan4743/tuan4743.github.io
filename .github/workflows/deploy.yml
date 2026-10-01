@@ -31,6 +31,17 @@ jobs:
         with:
           hugo-version: "0.165.0"
           extended: true
+      # ★ 构建标记:把这次构建的提交号写进 data/buildinfo.json,页面上会把它挂到
+      #   window.__build 并打进控制台。为什么要它 —— 带指纹的文件名每次部署都换,
+      #   浏览器里那份旧 HTML 还在时要么引用 404(整页坏),要么是旧缓存(改了跟没改
+      #   一样),"你看的是哪一版"必须一眼能读出来。
+      #   (Hugo 的 security.funcs.getenv 不许读 GITHUB_SHA,模板侧只能读数据文件;
+      #    也不能用 .GitInfo —— 那是"这一页自己的最后一次提交",不是这次构建。)
+      - name: Build stamp
+        run: |
+          mkdir -p tuagfey-blog/data
+          printf '{"sha":"%s","at":"%s"}\n' "${GITHUB_SHA:0:7}" "$(date -u +%Y-%m-%dT%H:%MZ)" > tuagfey-blog/data/buildinfo.json
+          cat tuagfey-blog/data/buildinfo.json
       - name: Build
         run: hugo --minify
       - name: Upload Pages artifact

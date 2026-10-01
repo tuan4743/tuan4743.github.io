@@ -4,11 +4,13 @@
      完全看不见 —— 浏览器里那份旧 HTML 还在时,要么引用 404(整页坏掉),
      要么是旧缓存(改了跟没改一样)。用户连着几轮反馈"一点修改迹象都没有",
      查起来第一件事就是确认他看的是哪次构建。
-     CI 里 GITHUB_SHA 由 GitHub 提供,但 Hugo 的 security.funcs.getenv 默认
-     不允许读它(会直接判成构建错误),所以走 .GitInfo(见 hugo.toml 的
-     enableGitInfo);拿不到就退回构建时刻。 */ -}}
+     ★ 为什么读 data/buildinfo.json 而不是 .GitInfo:.GitInfo 是【这一页自己的
+     最后一次提交】(content/home/_index.md 那一笔),不是这次构建 —— 实测线上
+     显示 6f000ca(好几轮以前的号),完全误导。CI 在构建前把真正的 GITHUB_SHA
+     写进 data/buildinfo.json(见 .github/workflows/deploy.yml)。
+     本地没有那个文件,退回构建时刻。 */ -}}
 <script>
-    window.__build = "{{ with .GitInfo }}{{ .AbbreviatedHash }}{{ else }}{{ now.Format "0102-1504" }}{{ end }}";
+    window.__build = "{{ with site.Data.buildinfo }}{{ .sha }}{{ else }}{{ now.Format "0102-1504" }}{{ end }}";
     try { console.info("[build]", window.__build, "· 若这里不是最新一次的提交号,说明页面跑的是旧缓存,按 Ctrl+Shift+R 强刷"); } catch (e) {}
 </script>
 <script>
