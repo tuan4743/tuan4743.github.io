@@ -1018,6 +1018,25 @@
    ============================================================ */
   var pressedAt = {};                    /* 哪一个按钮在哪一刻被真点过 */
 
+  /* ★★★ 用户第十轮:"按下之后动画结束,直接趁着插CD的动画赶紧闭眼。"
+     实测(真点一遍):按下插入之后,done 是【好几秒以后】才 true 的 —— 因为这一步
+     自己的任务链还要把台词尾巴和 1.5 秒停拍走完,才轮到 waitForUser;
+     那几秒里插盘动画已经在跑了,眼睛却还睁着、台词还挂着(用户:"没修")。
+     ⇒ 按下的那一刻就当场办两件事:① 眼睛眨一下闭上(420ms)② 台词收掉。
+       finishGuide 稍后跑到时这两件已经做过(幂等),它只管剩下的收尾。 */
+  var winkedOut = false;
+  function winkOut() {
+    if (winkedOut) return;
+    winkedOut = true;
+    consoleEl.classList.remove("is-on");                 /* 对话框立刻收掉 */
+    var off = function () { eyeHost.classList.remove("is-on"); };
+    try {
+      if (eye && eye.close) eye.close(off, DOCK_CLOSE_MS);   /* 闭到底再摘 is-on */
+      else off();
+    } catch (e) { off(); }
+    setTimeout(off, DOCK_CLOSE_MS + 60);                 /* 兜底:闭眼动画万一没跑 */
+  }
+
   /* 捕获阶段盯住"要用户按的那枚按钮":点下去立刻记账(见 makeWaiter 的说明)。 */
   function watchPressStart(sel) {
     if (!sel || pressedAt["@" + sel]) return;
@@ -1027,6 +1046,8 @@
       if (!t || !t.closest) return;
       if (!t.closest(sel)) return;
       if (pressedAt[sel] === undefined) pressedAt[sel] = Math.round(performance.now());
+      /* 最后一次"按下就进入校准":眼睛与台词当场收,不等引导的拍子 */
+      if (sel === "#rack-insert") winkOut();
     }, true);
   }
 
@@ -1117,6 +1138,15 @@
     if (playing) return Promise.resolve();
     window.__playCount = (window.__playCount || 0) + 1;
     playing = true;
+    /* ★★★ 现场读数摆到屏幕上(ECHO 那一行的小字):
+         跑的是哪一次构建 / 这一屏的语速参数 / 系统有没有开"减少动效"。
+       为什么非要摆出来:连着几轮"改了跟没改一样",第一件要确认的事就是
+       "你看的是哪一版、有没有被系统设置压掉" —— 减少动效会把打字与停顿
+       整段压成瞬间(那就是"出字太快、句间没间隔")。 */
+    try {
+      var bEl = document.getElementById("home-console-build");
+      if (bEl) bEl.textContent = "· b:" + (window.__build || "?") + " · " + TYPE_MS + "ms/" + afterLine + "ms" + (reduced ? " · 减少动效:开" : "");
+    } catch (e) { }
     skipping = false;
     gazeMode = "scan";
     playStart = performance.now();

@@ -610,6 +610,12 @@ window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}",
     <div class="home-console__doc">
         <span class="home-console__who">ECHO</span>
         <span class="home-console__id">ECHOM_D29_Z68J521</span>
+        {{- /* ★ 现场读数(排障用,一行小字):跑的是哪一次构建、这一屏的语速参数是多少、
+               系统有没有开着"减少动效"。
+               为什么要摆在屏幕上:连着几轮"改了跟没改一样",都得先确认
+               "你看的是哪一版 / 有没有被系统设置压掉"(减少动效会把打字与停顿
+               整段压成瞬间,看起来就是"出字太快、句间没有间隔")。 */}}
+        <span class="home-console__id" id="home-console-build">·</span>
     </div>
     <p class="home-console__line" id="home-console-line" aria-live="polite"></p>
 </div>

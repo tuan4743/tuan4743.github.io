@@ -616,10 +616,13 @@ ok('★★★ 等用户按的判据:click / 状态 / 事件 三条谁先到算�
   '★★ 靠"结果状态"是对的方向,但【只认事件】会把引导卡死:实测按了插入之后 cd-busy 根本没发,' +
   '引导干等到 60 秒兜底 —— 那 60 秒里光盘已经插好、眼睛却睁着、台词挂在屏幕上走不掉' +
   '(用户第十轮:"按下插入后眼睛没有赶紧闭""对话框还在")。所以补一条"点下去就当场算数"。');
-ok('★★★ 按下插入就当场算数(捕获阶段,和 CD 架那枚按钮同一套)',
-  /document\.addEventListener\("click", function \(e\) \{[\s\S]{0,220}?closest\(sel\)\) return;[\s\S]{0,160}?pressedAt\[sel\] = Math\.round\(performance\.now\(\)\);[\s\S]{0,40}?\}, true\);/.test(guideJs) &&
+ok('★★★ 按下插入就当场算数,而且当场闭眼收台词(不等引导的拍子)',
+  /function watchPressStart\(sel\)/.test(guideJs) &&
+  /if \(sel === "#rack-insert"\) winkOut\(\);/.test(guideJs) &&
+  /function winkOut\(\) \{[\s\S]{0,200}?consoleEl\.classList\.remove\("is-on"\);[\s\S]{0,260}?eye\.close\(off, DOCK_CLOSE_MS\)/.test(guideJs) &&
   /watchPressStart\(s\.press\);/.test(guideJs),
-  '★ click 是独立事件,不受引导自己那套 pointerdown 的 stopImmediatePropagation 影响');
+  '★ click 是独立事件,不受引导自己那套 pointerdown 的 stopImmediatePropagation 影响;' +
+  '而且"按下就闭"不能等到这一拍的任务链走完(实测那要好几秒,插盘动画都跑一半了)');
 ok('★★ 跳过不能用【鼠标】触发(那会把"按它"读成"跳过它")',
   !/document\.addEventListener\("pointerdown", function \(\) \{\s*\n\s*if \(!playing\) return;\s*\n\s*skip\(\);/.test(guideJs) &&
   /e\.key !== " " && e\.key !== "Enter" && e\.key !== "Escape"/.test(guideJs),
