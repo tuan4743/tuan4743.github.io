@@ -110,10 +110,15 @@ body.scene-open .scene {
        所有内容(日志、圆环、百分比、数据列)自然就落进安全区,
        一行渲染代码都不用改。
      · 花屏(雪花)要铺满整块屏幕,所以 .is-full 时把 canvas 放回全屏。 */
-html.frame-fitted .screen-static,
-html.frame-fitted .tablet {
+html.frame-fitted .screen-static {
     inset: 0;
     border-radius: 0;
+    /* ★★★ 平板(.tablet)【不在这里】—— 用户:"下滑栏展开后图层错了,跑到了最上测"。
+       平板的层级(32)在窗框(34)【下面】,但它排在 body 下、和 .screen-frame 不在
+       同一个层叠上下文里,实测铺满 inset:0 时会把金属框整圈盖掉(截图:顶栏展开后
+       连边框都看不见了)。所以平板自己那条 inset(窗口四边,tablet.css 里)留着不动 ——
+       它的内容本来就在玻璃里,边框照样露出来。
+       黑屏/花屏那层则确实要铺满:它由窗框在上面收口(30 < 34)。 */
     /* ★★ 这里【不能】写 background(原来是 background: #04060a,已删)。
        这一层是"黑屏/花屏"那层,黑底只该属于"屏幕该黑"的状态,也就是下面的 .is-black。
        写成常驻的话,开机动画的收尾就永远揭不开页面:五套场景收尾都是靠 canvas 自己
