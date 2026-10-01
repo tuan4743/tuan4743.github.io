@@ -1,4 +1,16 @@
 {{- /* 头部扩展:背景配色在首帧渲染前恢复,避免切换闪烁 */ -}}
+{{- /* ---------- 构建标记 ----------
+     为什么要有这一行:每次部署都会换掉带指纹的文件名,于是"你现在跑的是哪一版"
+     完全看不见 —— 浏览器里那份旧 HTML 还在时,要么引用 404(整页坏掉),
+     要么是旧缓存(改了跟没改一样)。用户连着几轮反馈"一点修改迹象都没有",
+     查起来第一件事就是确认他看的是哪次构建。
+     CI 里 GITHUB_SHA 由 GitHub 提供,但 Hugo 的 security.funcs.getenv 默认
+     不允许读它(会直接判成构建错误),所以走 .GitInfo(见 hugo.toml 的
+     enableGitInfo);拿不到就退回构建时刻。 */ -}}
+<script>
+    window.__build = "{{ with .GitInfo }}{{ .AbbreviatedHash }}{{ else }}{{ now.Format "0102-1504" }}{{ end }}";
+    try { console.info("[build]", window.__build, "· 若这里不是最新一次的提交号,说明页面跑的是旧缓存,按 Ctrl+Shift+R 强刷"); } catch (e) {}
+</script>
 <script>
     (function () {
         try {

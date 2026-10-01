@@ -97,19 +97,23 @@ body.scene-open .scene {
 
 /* ============ 外框贴合(见 assets/js/frame-fit.js)============
    量到贴图的透明窗口之后(html.frame-fitted):
-     · 这一层铺满视口,用窗口轮廓(--ff-clip)裁出屏幕那一块 ——
-       黑底/花屏就正好到金属框的斜切角,不会再在右下角顶出去;
+     · 这一层铺满视口,【不再裁切】—— 新外框(/assets/screen/frame.webp)自己
+       把那圈机体连同背景画进去了,金属框以外全是不透明的:溢出的部分由它盖住,
+       页面这边就不用再拿 --ff-clip 去裁形状了(用户:"这个屏幕框架专门做了背景处理,
+       不需要原本的页面裁切")。
+       ★ 裁切必须去掉的原因不只是"多余":轮廓是【往里收】过的(CORNER/GAP),
+         于是屏幕边缘那一圈没有东西盖 —— 实测开机时玻璃左边约 58px、右边约 88px
+         露出底下的白底,把"黑屏"整个破了功(这条坑 tablet.css 里记过一次)。
+         现在黑屏/平板都一路铺到屏幕盒边缘,窗框在上面收口,那圈白边自然没有了。
      · 画开机动画的 canvas 收到"最大内接矩形"(--ff-safe-*)里。
        五套开机动画全是按 canvas 的 W/H 百分比画的,盒子一收,
        所有内容(日志、圆环、百分比、数据列)自然就落进安全区,
        一行渲染代码都不用改。
-     · 花屏(雪花)要铺满整块屏幕,所以 .is-full 时把 canvas 放回全屏,靠裁边收口。 */
+     · 花屏(雪花)要铺满整块屏幕,所以 .is-full 时把 canvas 放回全屏。 */
 html.frame-fitted .screen-static,
 html.frame-fitted .tablet {
     inset: 0;
     border-radius: 0;
-    clip-path: var(--ff-clip);
-    -webkit-clip-path: var(--ff-clip);
     /* ★★ 这里【不能】写 background(原来是 background: #04060a,已删)。
        这一层是"黑屏/花屏"那层,黑底只该属于"屏幕该黑"的状态,也就是下面的 .is-black。
        写成常驻的话,开机动画的收尾就永远揭不开页面:五套场景收尾都是靠 canvas 自己
@@ -119,30 +123,10 @@ html.frame-fitted .tablet {
        它一透明,看到的就是【这一层自己的背景】—— 背景常年 #04060a 的话,
        擦出来的还是黑:用户报的"大雪花飞过的地方还有黑屏遮挡"就是这个
        (雪花扫过去了,黑留在原地)。这一层平时必须是 transparent(见上面 .screen-static)。
-       注意:也【不要】在这里写 background: transparent —— 这条选择器(html.frame-fitted
-       .screen-static)比 .screen-static.is-black 更具体,写死 transparent 会把黑屏状态
-       一起按掉(打开 CD 架时 glass 边缘会透出页面)。
-       ★★ 平板主界面(.tablet)列在同一个选择器里:量到的贴图窗口(--ff-clip)必须
-          也作用到平板上,它才会裁到金属框的斜切角、严丝合缝待在玻璃里。
-          这一层没有"该黑"的状态,所以它【自己那份 background 写在 tablet.css 里】,
-          这里不碰(上面那段告诫只针对 .screen-static 那层的黑屏状态)。
-       ★★ 但 inset:0 对平板只是【背景】合适,对【内容】是坑:内容盒会从视口
-          边缘算起,而玻璃是往里缩了一块 —— 内边距算错就把内容连同卡片切掉
-          (用户报的"大小不对/搜索栏顶出去了/有些卡片貌似没生效"就是它)。
-          所以 tablet.css 里另有一条同选择器的规则,把窗口那一圈尺寸
-          转成 padding 还给内容。两条属性不重叠,同时生效。 */
-}
-
-/* ★ 平板的剪裁走【覆盖轮廓】--ff-clip-cover,不用 --ff-clip:
-   --ff-clip 是给黑屏/花屏那层的,它被 frame-fit 刻意往中心收过(四周留一圈余量),
-   平板要是也用同一份,就会有一圈盖不到 —— 底下那张 CD 页从那圈露出来,
-   正是用户说的"这个平板界面不能完全遮住"。
-   覆盖轮廓是同一份逐行轮廓,但不内收,反而往外放到四边都盖过窗口
-   (见 frame-fit.js 的 measure() 里 COVER 那段);四角的斜切形状照旧,
-   所以玻璃的切角还是贴合的。 */
-html.frame-fitted .tablet {
-    clip-path: var(--ff-clip-cover, var(--ff-clip));
-    -webkit-clip-path: var(--ff-clip-cover, var(--ff-clip));
+       ★★ 平板主界面(.tablet)列在同一个选择器里:它要铺满整块屏幕(背景一路到边),
+          内容盒的让位靠 tablet.css 里那条同选择器的 padding 规则还回去。
+       ★★★ 平板的层级见 tablet.css 的 .tablet:它在窗框【下面】(32 < 34),
+          所以它铺满也不会糊到金属框上 —— 这正是"不用裁"的前提。 */
 }
 
 html.frame-fitted .screen-static canvas {

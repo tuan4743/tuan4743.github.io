@@ -1032,7 +1032,9 @@
 
   /* ---------- 落位:套用公共的外框贴合模块 ----------
      量贴图、求内接矩形、拼窗口轮廓这些都在 assets/js/frame-fit.js 里(五张盘共用),
-     本文件只负责:玻璃层按轮廓裁(--term-clip)、文字层收到内接矩形里(--term-inset-*)。 */
+     本文件只负责:文字层收到内接矩形里(--term-inset-*)、玻璃层铺满整块屏幕。
+     ★★★ 用户第十轮换了新外框(自带机体背景)之后,这里【不再裁形状】:
+       玻璃层直接铺满屏幕,由窗框(层级更高)在上面收口 —— 所以不再写 --term-clip。 */
   var frameCache = null;
 
   /* 外框内侧的安全余量(--term-frame-gap 是个 clamp(),读出来是原样字符串,这里用兜底值)*/
@@ -1043,7 +1045,6 @@
     var W = window.innerWidth, H = window.innerHeight;
     var FF = window.FrameFit;
     var d = FF && FF.data ? FF.data() : null;
-    var cs = getComputedStyle(document.documentElement);
     var gap = frameGapPx();
     var s = root.style;
     if (d) {
@@ -1059,19 +1060,14 @@
       s.setProperty("--term-inset-top", frameBox[1] + "px");
       s.setProperty("--term-inset-right", (W - frameBox[2]) + "px");
       s.setProperty("--term-inset-bottom", (H - frameBox[3]) + "px");
-      var clip = cs.getPropertyValue("--ff-clip").trim();
-      if (clip) {
-        s.setProperty("--term-clip", clip);
-        root.classList.add("is-fitted");
-      } else {
-        root.classList.remove("is-fitted");
-      }
+      root.classList.add("is-fitted");     /* 铺满屏幕 + 文字收到窗口里(见 terminal.css)*/
       /* 为了排障接口仍然把量到的原始数据挂在身上 */
       frameCache = d;
       s.setProperty("--term-frame-applied", "1");
     } else {
-      ["--term-inset-left", "--term-inset-top", "--term-inset-right", "--term-inset-bottom", "--term-clip", "--term-frame-applied"]
+      ["--term-inset-left", "--term-inset-top", "--term-inset-right", "--term-inset-bottom", "--term-frame-applied"]
         .forEach(function (k) { s.removeProperty(k); });
+      s.removeProperty("--term-clip");     /* 旧版留下的(万一浏览器缓存里还有)*/
       root.classList.remove("is-fitted");
       frameBox = null;
       frameCache = null;

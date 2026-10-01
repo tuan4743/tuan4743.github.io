@@ -1261,8 +1261,12 @@ ok('★ 黑屏那层【只在带状态类的时候】才不透明(常驻黑底 =
   statelessOpaque.length + ' 条' +
   (statelessOpaque.length ? ':' + statelessOpaque.map((r) => r.sel + ' → ' + r.bg).join(' | ') : '') +
   ' · 基础规则是 ' + JSON.stringify(bgOf((cssRules.find((r) => r.sel === '.screen-static') || {}).decl || '')));
-ok('★ 那条 frame-fitted 规则还在(它要负责裁出屏幕轮廓,只是不该带背景)',
-  cssRules.some((r) => r.sel.includes('frame-fitted') && /clip-path/.test(r.decl)),
+/* ★★★ 第十轮:用户换了自带背景的新外框 ⇒ 那条 frame-fitted 规则【不再裁形状】,
+   只负责"铺满整块屏幕(+ 把开机动画的 canvas 收到内接矩形里)"。
+   所以这里改成验:规则还在、而且【没有】clip-path(裁切已经全去掉)。 */
+ok('★ 那条 frame-fitted 规则还在(铺满屏幕,但不再裁形状)',
+  cssRules.some((r) => r.sel.includes('frame-fitted') && /inset:\s*0/.test(r.decl)) &&
+  !cssRules.some((r) => r.sel.includes('frame-fitted') && /clip-path/.test(r.decl)),
   'found: ' + cssRules.filter((r) => r.sel.includes('frame-fitted')).map((r) => r.sel).join(' | '));
 /* 收尾靠 canvas 擦成透明 —— 那么后处理就不许往透明像素上刷黑 */
 const postSrc = fs.readFileSync('tuagfey-blog/assets/js/boot-post.js', 'utf8');

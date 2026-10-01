@@ -10,6 +10,9 @@ enableEmoji = true
 pygmentsUseClasses = true
 mainsections = ["posts", "tech"]
 paginate = 10
+# ★ 构建标记(见 layouts/partials/extend_head.html):要读 git 元数据才算得出提交号。
+#   CI 里 actions/checkout 带 fetch-depth: 0,所以 .GitInfo 拿得到。
+enableGitInfo = true
 
 [minify]
   disableXML = true

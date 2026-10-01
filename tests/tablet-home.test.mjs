@@ -106,8 +106,10 @@ ok('★ 渲染产物里确实生成了列表项(不是空卡片)',
      于是被 .scene 外面 z-index:40 的平板整块盖住。
      所以这里验的是【结构】:开关必须在 .scene 之外。 */
 const zTab = Number((/z-index:\s*(\d+)/.exec(allBlocks(tcss, '.tablet {')) || [])[1]);
-ok('★ 平板层在【所有盘的上面】(用户:"会挡住或被当前 CD 的页面遮挡")',
-  zTab >= 40, 'z-index = ' + zTab + '(霜那一页最高到 8,窗框 34,顶栏 20)');
+/* ★★★ 第十轮:新外框自带背景 ⇒ 页面不再裁形状,前提是平板排在【窗框下面】
+   (32 < 34)。它仍然要盖住所有盘页(最高 8)和黑屏/花屏层(30)、顶栏(20)。 */
+ok('★ 平板层盖住所有盘页,但在窗框【下面】(用户第十轮换的新外框)',
+  zTab >= 30 && zTab < 34, 'z-index = ' + zTab + '(霜那一页最高到 8,黑屏层 30,窗框 34,顶栏 20)');
 const toggleZ = Number((/z-index:\s*(\d+)/.exec(allBlocks(icss, '.statusbar-toggle {')) || [])[1]);
 ok('★ 但仍在【顶缘那枚开关】下面(它必须随时能把平板收回去)',
   zTab < toggleZ, '平板 ' + zTab + ' < 开关 ' + toggleZ);
@@ -232,30 +234,34 @@ ok('★ APP 用 flex 居中排,不是 auto-fit 网格(auto-fit 会把 5 个图�
   /\.tablet__apps\s*\{[^}]*display:\s*flex/.test(tcss) && /justify-content:\s*center/.test(tcss));
 
 /* ---------- ⑥ 第三轮:三件事 ----------
-   ① 平板要【完全盖住】整块屏幕 —— 第一版用的是给黑屏层那份轮廓(--ff-clip),
-      而那份被 frame-fit 刻意往中心收过 k 倍(留给黑屏一点余量),
-      于是平板四周有一圈盖不到,底下那张 CD 页从那一圈露出来。
-      现在多算一份"覆盖轮廓"(--ff-clip-cover),只给平板用。
-      ★ 数值证明(把贴图解码、按同一套算法复算,看覆盖轮廓的四边是不是真的
-        都超过窗口)放在 .tmp/frame-gap.mjs —— 这里钉的是【结构不变量】:
-        黑屏层仍然用收过的那份、平板用放出去的那份,两者不能互换。
+   ★★★ 第十轮改版(用户换了新外框:"这个屏幕框架专门做了背景处理,
+   不需要原本的页面裁切,所有用到的地方都要替换"):
+     · 新外框(/assets/screen/frame.webp)自己把那圈不透明机体 + 背景画进去了,
+       金属框以外的部分由它盖住 ⇒ 页面这边【不再裁形状】;
+     · 于是平板/黑屏/花屏/终端都【铺满整块屏幕】,由窗框(34)在上面收口;
+     · 前提是"被盖住的那几层在窗框下面":平板 32、眼睛 33、终端在 .screen 里
+       (z-index:auto)都比 34 小;屏幕左缘那枚闸门(36)和顶缘开关(41)仍在框上。
+   ★ 老的那条 --ff-clip-cover 覆盖轮廓就此作废(轮廓本身留着,
+     frame-fit 仍然算它,只是没有地方再拿它裁形状了)。
    ② 搜索结果要【在搜索卡片里面】,而且展开要顺(用 animation 不是 transition)。
    ③ 明暗 + 音量两枚控件要回到平板、放在时钟卡片右边,而且不许另起一套逻辑。 */
 const ffjs = fs.readFileSync(`${BH}/assets/js/frame-fit.js`, 'utf8');
-ok('★ frame-fit 另外算了一份【覆盖轮廓】并写进 --ff-clip-cover',
-  /coverClip/.test(ffjs) && /--ff-clip-cover/.test(ffjs) && /var PADT = 5/.test(ffjs),
-  '黑屏层那条 --ff-clip 不动,新增 --ff-clip-cover');
-ok('★ 覆盖轮廓 = 未收缩的逐行轮廓 + 每行各自往外让 PADT',
-  /var raw = pts\.map/.test(ffjs) && /var poly = raw\.map\(shrink\)/.test(ffjs) &&
-  /raw\.map\(function \(p\) \{[\s\S]{0,240}p\[0\] < cxm \? -PADT : PADT/.test(ffjs),
-  '★ 不能用整体放大:倍数会被"电源键凹口"那一行带偏(算出来 1.028),所有行一起被推出去 23px,啃掉一条边框');
-/* 数值证明(把外框贴图解码、按同一套算法复算)在 .tmp/frame-gap.mjs —— 1850×848 下:
-     玻璃四边 101/70/94/75;旧轮廓(--ff-clip)没盖住 7/8/18/7 px;
-     新轮廓(--ff-clip-cover)四边都翻过去了(最外那行 -14,其余 -3~-4)。*/
-ok('★★ 平板用覆盖轮廓,黑屏层仍用收过的那份(两者不能互换)',
-  /html\.frame-fitted \.tablet \{[^}]*clip-path: var\(--ff-clip-cover, var\(--ff-clip\)\)/.test(icss) &&
-  /html\.frame-fitted \.screen-static,\s*\n?html\.frame-fitted \.tablet \{[\s\S]*?clip-path: var\(--ff-clip\)/.test(icss),
-  '平板:--ff-clip-cover · .screen-static:--ff-clip');
+const tcss2 = strip(fs.readFileSync(`${BH}/assets/css/terminal.css`, 'utf8'));
+const termjs = fs.readFileSync(`${BH}/assets/js/cd4-terminal.js`, 'utf8');
+ok('★★★ 页面不再用外框轮廓裁形状(新外框自带背景)',
+  !/html\.frame-fitted \.tablet \{[^}]*clip-path/.test(icss) &&
+  !/html\.frame-fitted \.screen-static[^{]*\{[^}]*clip-path/.test(icss) &&
+  !/\.term\.is-fitted \{[^}]*clip-path/.test(tcss2),
+  '三处裁切(平板 / 黑屏花屏层 / 终端玻璃层)都必须去掉 —— 漏一处就还是老样子');
+ok('★★★ 被窗框盖住的那几层要排在窗框【下面】',
+  /\.tablet \{[\s\S]{0,900}?z-index: 32;/.test(tcss) &&
+  /\.home-eye \{[\s\S]{0,400}?z-index: 33;/.test(tcss) &&
+  /\.screen-frame \{[\s\S]{0,300}?z-index: 34;/.test(icss),
+  '平板 32 < 眼睛 33 < 窗框 34:铺满也不会糊到金属框上,由窗框收口');
+ok('★★ 终端也铺满整块屏幕(不再写 --term-clip)',
+  /\.term\.is-fitted \{\s*inset: 0;\s*border-radius: 0;/.test(tcss2) &&
+  !/s\.setProperty\("--term-clip"/.test(termjs),
+  '终端在 .screen 里、层级远低于窗框,所以铺满也安全');
 
 /* ★★ 这两条的正则以前是 `[\s\S]*?` 一路吃到文件尾 —— 那等于"从这条规则往后
    任何地方出现 position: absolute 就算失败"。第二轮在 tablet.css 末尾追加了
