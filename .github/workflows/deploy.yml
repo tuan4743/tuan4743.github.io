@@ -39,12 +39,16 @@ jobs:
       #    也不能用 .GitInfo —— 那是"这一页自己的最后一次提交",不是这次构建。)
       - name: Build stamp
         run: |
-          mkdir -p tuagfey-blog/data tuagfey-blog/static
-          printf '{"sha":"%s","at":"%s"}\n' "${GITHUB_SHA:0:7}" "$(date -u +%Y-%m-%dT%H:%MZ)" > tuagfey-blog/data/buildinfo.json
+          # ★ 路径:这个 workflow 的工作目录就是仓库根(= Hugo 站点的根),
+          #   所以是 data/ 与 static/ —— 不是 tuagfey-blog/data/。
+          #   (第一版写成了后者,Hugo 完全看不见:线上 __build 退回了时刻、/build.json 404。)
+          mkdir -p data static
+          printf '{"sha":"%s","at":"%s"}\n' "${GITHUB_SHA:0:7}" "$(date -u +%Y-%m-%dT%H:%MZ)" > data/buildinfo.json
           # 同一份也放进 static —— 页面会拿它做"旧缓存自愈"(见 extend_head.html):
           # 对不上就带 ?fresh=<新号> 自己重载一次,用户不会卡在旧版本上。
-          cp tuagfey-blog/data/buildinfo.json tuagfey-blog/static/build.json
-          cat tuagfey-blog/data/buildinfo.json
+          cp data/buildinfo.json static/build.json
+          ls -l data/buildinfo.json static/build.json
+          cat data/buildinfo.json
       - name: Build
         run: hugo --minify
       - name: Upload Pages artifact
