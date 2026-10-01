@@ -1,17 +1,38 @@
 {{- /* 头部扩展:背景配色在首帧渲染前恢复,避免切换闪烁 */ -}}
-{{- /* ---------- 构建标记 ----------
-     为什么要有这一行:每次部署都会换掉带指纹的文件名,于是"你现在跑的是哪一版"
-     完全看不见 —— 浏览器里那份旧 HTML 还在时,要么引用 404(整页坏掉),
-     要么是旧缓存(改了跟没改一样)。用户连着几轮反馈"一点修改迹象都没有",
-     查起来第一件事就是确认他看的是哪次构建。
-     ★ 为什么读 data/buildinfo.json 而不是 .GitInfo:.GitInfo 是【这一页自己的
-     最后一次提交】(content/home/_index.md 那一笔),不是这次构建 —— 实测线上
-     显示 6f000ca(好几轮以前的号),完全误导。CI 在构建前把真正的 GITHUB_SHA
-     写进 data/buildinfo.json(见 .github/workflows/deploy.yml)。
-     本地没有那个文件,退回构建时刻。 */ -}}
+{{- /* ---------- 构建标记 + 旧缓存自愈 ----------
+     ★★★ 为什么非要有这一段(用户连着好几轮"改了跟没改一样"):
+     每次部署都会换掉带指纹的文件名(stylesheet.<hash>.css / home-guide.<hash>.js),
+     而 GitHub Pages 给 HTML 的缓存是 max-age=600。于是浏览器里那份【旧 HTML】
+     一旦还在缓存里,它引用的旧文件名在新部署里【已经不存在】——
+        · 资源 404 ⇒ 整页没样式没脚本(用户报的"整个页面全崩");
+        · 或者整页都从缓存里来 ⇒ 用户看到的还是好几轮以前的版本
+          ("一点修改迹象都没有")。
+     实测:线上发出去的 home-guide.js 里明明有这一轮的改动(guide-hold / dockSequence),
+     但用户看到的还是旧的 —— 就是这条缓存。
+     ⇒ 做法:页面自己带一个构建号(__build),再fetch 一份【不走缓存】的
+       /build.json?t=…;两边对不上就带 ?fresh=<新号> 重载一次 ——
+       新 URL 浏览器必须重新取 HTML,于是自动拿到最新那一版。
+       (只重载一次:/fresh= 已经在地址里就不再跳,免得来回刷。) */ -}}
 <script>
     window.__build = "{{ with site.Data.buildinfo }}{{ .sha }}{{ else }}{{ now.Format "0102-1504" }}{{ end }}";
-    try { console.info("[build]", window.__build, "· 若这里不是最新一次的提交号,说明页面跑的是旧缓存,按 Ctrl+Shift+R 强刷"); } catch (e) {}
+    try { console.info("[build]", window.__build); } catch (e) {}
+    (function () {
+        var mine = window.__build;
+        if (!mine || mine === "dev") return;                 /* 本地开发不折腾 */
+        if (/[?&]fresh=/.test(location.search)) return;      /* 已经自愈过一次了 */
+        try {
+            fetch("/build.json?t=" + Date.now(), { cache: "no-store" })
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .then(function (d) {
+                    if (!d || !d.sha || d.sha === mine) return;
+                    var u = location.pathname + location.search;
+                    u += (u.indexOf("?") < 0 ? "?" : "&") + "fresh=" + encodeURIComponent(d.sha);
+                    try { console.warn("[build] 页面是旧缓存(" + mine + " → " + d.sha + "),自动重载一次"); } catch (e) {}
+                    location.replace(u);
+                })
+                .catch(function () { });
+        } catch (e) { }
+    })();
 </script>
 <script>
     (function () {

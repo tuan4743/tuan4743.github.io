@@ -39,8 +39,11 @@ jobs:
       #    也不能用 .GitInfo —— 那是"这一页自己的最后一次提交",不是这次构建。)
       - name: Build stamp
         run: |
-          mkdir -p tuagfey-blog/data
+          mkdir -p tuagfey-blog/data tuagfey-blog/static
           printf '{"sha":"%s","at":"%s"}\n' "${GITHUB_SHA:0:7}" "$(date -u +%Y-%m-%dT%H:%MZ)" > tuagfey-blog/data/buildinfo.json
+          # 同一份也放进 static —— 页面会拿它做"旧缓存自愈"(见 extend_head.html):
+          # 对不上就带 ?fresh=<新号> 自己重载一次,用户不会卡在旧版本上。
+          cp tuagfey-blog/data/buildinfo.json tuagfey-blog/static/build.json
           cat tuagfey-blog/data/buildinfo.json
       - name: Build
         run: hugo --minify
