@@ -327,7 +327,7 @@ ok('★★★ 进 CD 页 = 闭眼 → 左滑 → 右侧重新睁眼(三步,顺�
   /function closeEye\(\)/.test(guideJs) &&
   /function dockIntoBox\(\)/.test(guideJs) &&
   /function runDock\(\)/.test(guideJs) &&
-  /startDockSlide\(\);[\s\S]{0,140}?beginDockClose\(\);/.test(guideJs) &&
+  /beginDockClose\(\)\.then\(function \(\) \{[\s\S]{0,160}?startDockSlide\(\);/.test(guideJs) &&
   /enterFromRight\(\);[\s\S]{0,240}?if \(eye\.openNow\) eye\.openNow\(\);[\s\S]{0,140}?dockIntoBox\(\);[\s\S]{0,160}?classList\.add\("is-on"\)/.test(guideJs),
   '用户第五轮:"按下左滑后,主屏幕的眼睛马上闭上,等到彻底滑过去后,眼睛再在右侧睁开"');
 ok('★★★ 左滑用的是 page-slide 那条过渡(不是自己另画一套)',
@@ -371,10 +371,10 @@ ok('★★ 转 90° 之后瞳孔照样跟手(朝向与跟手是两件事)',
    现在两件都做 —— 闭眼缩到 420ms,而且左滑【不等它】,两者一起走,
    眼睛跟着机器滑出屏幕。所以这里钉的是:闭眼有时长上限 + 左滑不等闭眼。 */
 ok('★★★ 换场闭眼要快(420ms),而且左滑【不等】它闭完(用户第八轮)',
-  /var DOCK_CLOSE_MS = 420;/.test(guideJs) &&
+  /var DOCK_CLOSE_MS = 320;/.test(guideJs) &&
   /eye\.close\(fin, DOCK_CLOSE_MS\)/.test(guideJs) &&
   /setTimeout\(fin, DOCK_CLOSE_MS \+ 500\)/.test(guideJs) &&
-  /startDockSlide\(\);[\s\S]{0,140}?beginDockClose\(\);/.test(guideJs),
+  /beginDockClose\(\)\.then\(function \(\) \{[\s\S]{0,160}?startDockSlide\(\);/.test(guideJs),
   '用户第八轮:"闭眼的速度太慢,要不然就设计成跟随平板移动"');
 ok('★★★ 眼睛要跟着机器一起滑走(它就是"被落在原地慢慢闭"的那一个)',
   /eye\.slideX\(-window\.innerWidth\)/.test(guideJs) &&
@@ -412,21 +412,40 @@ ok('★★ 缩小的同时字号/列数要跟着重算(不是把画布剪小)',
   /COLS = Math\.max\(16, Math\.floor\(boxW \/ CELL_W\)\)/.test(eyeJs),
   'fitTo 的第二个参数只管行数(按 86% 落地),所以要除回去 —— 否则眼睛上下被切平');
 
-/* ② 按下 → 立刻闭眼。
-   原来:按下 → 走完这一拍的尾巴 → 下一拍 setTimeout(380) → 才开始闭(780ms)。
-   现在:闭眼挂在【按下那一刻】(盯着 scene-open 轮询),runDock 只等这次闭眼收口。 */
-ok('★★★ 按下"进 CD 页"的按钮时,主眼睛【立刻】开始闭(用户第七轮)',
+/* ② ★★★ 用户第九轮:"为什么不做成按下按钮立马触发?"
+   现在按下那一刻【同步】触发(捕获阶段,抢在原生 setOpen 之前):
+   机器先被 guide-hold 按住、眼睛立刻开始闭、台词收掉。 */
+ok('★★★ 按下按钮【立马】触发(捕获阶段,抢在原生那次 scene-open 之前)',
+  /document\.addEventListener\("click", function \(e\) \{[\s\S]{0,200}?closest\("\.slot-toggle, #intro-toggle"\)\) hit\("press"\);[\s\S]{0,80}?\}, true\);/.test(guideJs) &&
   /function watchDockPress\(\)/.test(guideJs) &&
-  /new MutationObserver\(function \(\) \{[\s\S]{0,120}?classList\.contains\("scene-open"\)\) hit\("observer"\)/.test(guideJs) &&
   /if \(next && next\.dock\) watchDockPress\(\);/.test(guideJs) &&
-  /if \(document\.body\.classList\.contains\("scene-open"\)\) \{ hit\("poll"\); return; \}/.test(guideJs) &&
-  /setTimeout\(poll, 40\)/.test(guideJs),
-  '按下到闭眼之间不许再有"等这一拍走完"的延迟 —— 否则屏幕已经滑走了,眼睛还睁着');
+  /function onDockPress\(\)/.test(guideJs),
+  '捕获阶段比按钮自己的 click 先跑 —— 那一瞬间我们还来得及"按住机器"');
+/* ★★★ 用户第九轮:"现在变成了先右滑再左滑"。
+   右滑来自原生:scene-open → body.scene-open .scene 向右平移 --rack-w。
+   guide-hold 在按下那一瞬间把 .scene 钉回原位并关掉过渡 ⇒ 机器一动不动,
+   眼睛当着用户的面闭完,然后才松开向左滑。 */
+ok('★★★ 按下那一瞬间先按住机器,原生那次向右的平移不许发生(用户第九轮)',
+  /docEl\.classList\.add\("guide-hold"\)/.test(guideJs) &&
+  /docEl\.classList\.remove\("guide-hold"\)/.test(guideJs) &&
+  /html\.guide-hold \.scene \{[\s\S]{0,120}?transform: translateX\(0\) !important;[\s\S]{0,80}?transition: none !important;/.test(tcssShell),
+  'guide-hold 是"按住在原位":不然用户先看到一次向右、再看到向左');
+ok('★★★ 先【闭完】再滑(闭的过程机器不动,所以看得见)(用户第九轮:"眼睛哪里闭上了?")',
+  /beginDockClose\(\)\.then\(function \(\) \{[\s\S]{0,160}?startDockSlide\(\);/.test(guideJs),
+  '上一版是一边滑走一边闭 —— 于是"闭"这件事根本没被看见');
+ok('★★★ 换场时台词收掉(用户第九轮:"为什么对话框还在?")',
+  /consoleEl\.classList\.remove\("is-on"\);/.test(guideJs) &&
+  /consoleEl\.classList\.add\("is-on"\);\s*\n\s*lineEl\.textContent = "";/.test(guideJs),
+  '收掉之后,下一句台词开打时会自己挂回来(所以只有换场这一段是干净的)');
+ok('★★★ 整段换场【挂在按下那一刻】,不等引导的拍子(实测:等到第 11 拍会干等 1.4 秒)',
+  /var dockSeq = null;/.test(guideJs) &&
+  /function dockSequence\(\) \{[\s\S]{0,200}?if \(dockSeq\) return dockSeq;/.test(guideJs) &&
+  /function runDock\(\) \{[\s\S]{0,400}?return dockSequence\(\);/.test(guideJs),
+  'runDock 只是等它跑完(幂等);超时那条路也会在这里把整段补上');
 ok('★★★ 闭眼只做一次(按下就闭 / runDock 兜底闭,两条路径不打架)',
   /var dockClosing = null;/.test(guideJs) &&
   /function beginDockClose\(\) \{[\s\S]{0,260}?if \(!dockClosing\) \{[\s\S]{0,260}?dockClosing = closeEye\(\);/.test(guideJs) &&
-  /startDockSlide\(\);[\s\S]{0,140}?beginDockClose\(\);/.test(guideJs) &&
-  /startDockSlide\(\);\s*\n\s*beginDockClose\(\);/.test(guideJs),
+  /function dockSequence\(\)/.test(guideJs),
   '记忆化:第二次调用拿到的是同一个 Promise,不会再播一遍闭眼');
 /* ★ 为什么是 MutationObserver 而不是只靠轮询(第七轮实测):
    后台标签页/主线程忙的时候 setTimeout(40) 会被排到 700ms 之后,

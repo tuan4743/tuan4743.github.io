@@ -355,6 +355,9 @@
   var typing = 0;
   function typeLine(text, forceInstant) {
     clearTimeout(typing);
+    /* ★ 换场时台词是被收掉的(用户第九轮:"为什么对话框还在?")——
+       所以每一句新台词都要把对话框重新挂回来。 */
+    consoleEl.classList.add("is-on");
     lineEl.textContent = "";
     consoleEl.classList.remove("is-typed");
     typeDone = false;
@@ -622,27 +625,32 @@
     dockWatchOn = true;
     /* 现场读数:这一条链路上任何一处"没接上"都只能靠读时间戳查。 */
     window.__dockWatch = { armed: Math.round(performance.now()), polls: 0, hit: null, hitWhy: null, why: null, log: [] };
+    /* ★★★ 首选:在【捕获阶段】盯住那枚按钮 —— 用户第八轮问
+       "为什么不做成按下按钮立马触发?"。
+       为什么这一条能赢在原生之前:点按钮时事件路径是
+       document(捕获) → … → button(目标) → … → document(冒泡),
+       而原生那一下(setOpen → 给 body 挂 scene-open)挂在【目标/冒泡】上。
+       所以捕获阶段的这一下先跑 —— 我们可以先"按住机器 + 开始闭眼",
+       等原生把 scene-open 挂上时,机器已经被按住了(见 guide-hold),
+       不会再往右滑一次。 */
+    document.addEventListener("click", function (e) {
+      var t = e.target;
+      if (t && t.closest && t.closest(".slot-toggle, #intro-toggle")) hit("press");
+    }, true);
     var hit = function (how) {
       if (dockClosing) return;
       window.__dockWatch.hit = Math.round(performance.now());
       window.__dockWatch.hitWhy = how;
-      /* ★★★ 闭眼和左滑【同一时刻】起跑:原生 scene-open 是立刻生效的
-         (那一下是向右平移 66vw),引导的 page-out 必须马上把它接管成向左 ——
-         晚一步用户就先看到一次向右的动作。 */
-      startDockSlide();
-      beginDockClose();
+      onDockPress();
     };
-    /* ① 首选:直接盯 body 的 class。MutationObserver 的回调在 class 变化后的
-       微任务里就跑 —— 也就是说【和"按下"同一个任务】,零延迟,不吃定时器节流。
-       (踩过:只靠 40ms 轮询时,后台标签页的 setTimeout 被节流到 ~700ms,
-        于是"按下 → 闭眼"又慢回去了。这正是用户报的那个现象。) */
+    /* ① 兜底一:盯 body 的 class(万一那一下不是 click,比如程序化派发)。
+       注意它比捕获监听晚:到这一步 scene-open 已经挂上了。 */
     try {
       new MutationObserver(function () {
         if (document.body.classList.contains("scene-open")) hit("observer");
       }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
     } catch (e) { window.__dockWatch.moErr = String(e && e.message || e); }
-    /* ② 兜底:轮询。管两件事 —— 状态在挂观察者【之前】就已经设过;
-       以及 MutationObserver 万一不可用。 */
+    /* ② 兜底二:轮询(观察者挂上之前状态就已经设过 / MutationObserver 不可用)。 */
     (function poll() {
       window.__dockWatch.polls++;
       window.__dockWatch.log.push([Math.round(performance.now()), !!dockClosing, playing, document.body.classList.contains("scene-open")]);
@@ -653,29 +661,76 @@
     })();
   }
 
-  /* ★★★ 第八轮又加两条:
-     · "闭眼的速度太慢,要不然就设计成跟随平板移动"
-       ⇒ 两件都做:闭眼缩到 DOCK_CLOSE_MS(420ms),而且【让眼睛跟着机器一起滑走】
-         (eye.slideX —— 它原本是 body 下的独立一层,不跟着 .scene 动,
-          所以左滑时它会被"落在原地慢慢闭")。
-     · "往左滑之后又往右滑回去bug还没修掉"
-       ⇒ 左滑之后不再"回程",改成【CD 页从右边滑进来】(见 enterFromRight):
-         整段只有向左一个方向。 */
-  var DOCK_CLOSE_MS = 420;                 /* 换场时闭眼用多久(原 780ms 太慢)*/
+  /* ============================================================
+     换场的全部编排(用户第八/九轮连着报了三次,这次按他说的做)
+     ─────────────────────────────────────────────────────────────
+     ★★★ 一问:"为什么不做成按下按钮立马触发?"
+       ⇒ 按下【那一刻同步】做三件事(捕获阶段,抢在原生之前):
+           ① 把机器按住(html.guide-hold):原生的 scene-open 会让机器
+              向右平移 66vw 去把 CD 架拉进来 —— 那正是用户看到的"先右滑"。
+              按住它,机器就停在原地;
+           ② 眼睛立刻开始闭(320ms,当着用户的面闭完);
+           ③ 对话框收掉(用户:"为什么对话框还在?")。
+     ★★★ 二问:"眼睛哪里闭上了?"
+       上一版让眼睛【一边滑走一边闭】,于是"闭"这件事根本没被看见。
+       ⇒ 顺序改成:先闭完(机器按住不动,看得清清楚楚),再滑。
+     ★★★ 三问:"先右滑再左滑"
+       ⇒ 右滑来自原生 scene-open(我们按住它),左滑是我们自己的 page-out。
+         闭完之后松开按住、挂 page-out → 机器【只向左】滑一次出去,
+         然后 CD 页从右边向左滑进来(enterFromRight)。
+     ============================================================ */
+  var DOCK_CLOSE_MS = 320;                 /* 当着用户的面闭完:320ms(780ms 太慢、420 又太快看不清)*/
   var DOCK_SLIDE_MS = 550;                 /* 必须和 shell.css 里 .page-out 那条过渡一致 */
   var DOCK_ENTER_MS = 550;                 /* 进场那条过渡(同 .55s)*/
 
-  /* 左滑:按下那一刻就起跑(和闭眼同一时刻),不再等闭眼跑完。
-     ★ 为什么必须"按下就跑":平板的 scene-open 是【立刻】生效的(原生那一下是
-       向右平移 66vw),引导的 page-out 必须在同一拍把它接管成向左 ——
-       晚一步用户就先看到一次向右的动作(那正是他说的"又往右滑")。 */
+  function onDockPress() {
+    return dockSequence();
+  }
+
+  /* 左滑:等眼睛闭完之后才开始。 */
   var dockSlideAt = 0;
   function startDockSlide() {
     if (dockSlideAt) return;
     dockSlideAt = performance.now();
+    docEl.classList.remove("guide-hold");  /* 松开:机器从原位出发 */
     docEl.classList.add("page-slide");
-    document.body.classList.add("page-out");
-    if (eye && eye.slideX) eye.slideX(-window.innerWidth);   /* 眼睛跟着机器一起滑走 */
+    document.body.classList.add("page-out");   /* 和上面同一帧 → 0 → -100vw,只向左 */
+    if (eye && eye.slideX) eye.slideX(-window.innerWidth);   /* 闭着的眼睛跟着机器一起走 */
+  }
+
+  /* ------------------------------------------------------------
+     ★★★ 整段换场【挂在按下那一刻】,一步都不等引导的拍子。
+     这是这一轮最要紧的一条(用户:"为什么不做成按下按钮立马触发?"):
+     原来左滑、进场、睁眼都排在"下一步(第 11 拍)"的 Promise 链上 ——
+     而第 10 拍自己还有一个 1.5 秒的句尾停顿,于是按下之后机器被按住
+     干等 1.4 秒才动(实测 47741 闭完 → 49196 才滑)。
+     ⇒ 现在整段是一个自包含的序列:按下 → 按住 + 闭眼 → 左滑 → CD 页从右边进来
+       → 眼睛在右侧睁开。runDock() 只负责等它跑完(幂等,重复调用拿到同一个 Promise)。
+     ------------------------------------------------------------ */
+  var dockSeq = null;
+  function dockSequence() {
+    if (dockSeq) return dockSeq;
+    docEl.classList.add("guide-hold");     /* 机器先别动(压住原生那一下向右的平移)*/
+    consoleEl.classList.remove("is-on");   /* 台词跟着这一次换场一起收掉 */
+    dockSeq = beginDockClose().then(function () {
+      startDockSlide();                    /* 闭完了才滑 —— 闭的过程看得见 */
+      return sleep(reduced ? 40 : DOCK_SLIDE_MS + 140);
+    }).then(function () {
+      enterFromRight();                    /* CD 页从右边向左滑进来 */
+      return sleep(reduced ? 40 : DOCK_ENTER_MS + 120);
+    }).then(function () {
+      /* 眼睛在右侧睁开
+         ★★★ 顺序是【睁开 → 重新贴尺寸 → 才显出来】,不能反。
+         eye.openNow() 内部先调 measure() —— 那是"按整个视口算字号和列数"的
+         那一套,会把 enterFromRight 里按右边那一格算好的尺寸整个冲掉
+         (实测:<pre> 被改回 748.8×487.5,于是横过来放不下)。
+         ⇒ openNow() 之后再 dockIntoBox() 一次,最后才 is-on 显出来。 */
+      if (eye.openNow) eye.openNow();
+      dockIntoBox();
+      eyeHost.classList.add("is-on");
+      return sleep(reduced ? 60 : 380);
+    });
+    return dockSeq;
   }
 
   /* 进场:先【瞬移】到右边外面的起点,再松开过渡,让它们向左滑进 CD 页。
@@ -802,36 +857,12 @@
   }
 
   function runDock() {
-    /* ★ 左滑和闭眼都是在【按下那一刻】就起跑的(见 watchDockPress 的 hit):
-       这里只负责等它跑完、把 CD 页从右边送进来、再睁眼。
-       ★ 兜底:如果根本没按下(60 秒超时那条路),startDockSlide 在这里补上。 */
-    startDockSlide();
-    beginDockClose();
-    var depart = Math.max(0, (dockSlideAt + (reduced ? 120 : DOCK_SLIDE_MS)) - performance.now());
-    return sleep(depart + (reduced ? 20 : 140)).then(function () {
-      /* ② 滑完 → CD 页【从右边滑进来】(见 enterFromRight)。
-            换格(含转 90°)也在这一帧里做完:此刻眼睛闭着,所以看到的是
-            "它跟着机器一起滑进来",而不是"它在原地转给你看"。 */
-      enterFromRight();
-      return sleep(reduced ? 40 : DOCK_ENTER_MS + 120);   /* 等进场那条 0.55s 过渡落地 */
-    }).then(function () {
-      /* ③ 重新睁开
-         ★★★ 顺序是【睁开 → 重新贴尺寸 → 才显出来】,不能反。
-         为什么(第七轮实测抓到的真凶):eye.openNow() 内部先调 measure() ——
-         那是"按【整个视口】算字号和列数"的那一套,它会把 dockIntoBox 里
-         按右边那一格算好的尺寸【整个冲掉】:
-           实测 1600×900 下,openNow() 之后 <pre> 的内联尺寸是 748.8×487.5
-           (整屏那一档),而宿主格只有 558×312 —— 于是眼睛横过来之后
-           占位 488×719,而右边那一格只有 480 宽 ⇒ "放不下"。
-         之前几轮把这件事记在"盒子给大了"的账上,其实是这一下被冲掉的。
-         ⇒ openNow() 之后再 dockIntoBox() 一次(宿主盒子没变,只是把
-           字号/列数按那一格重算),最后才 is-on 显出来 ——
-           用户看到的直接就是"睁开的、尺寸正确的那只眼睛",不会看到跳一下。 */
-      if (eye.openNow) eye.openNow();
-      dockIntoBox();
-      eyeHost.classList.add("is-on");
-      return sleep(reduced ? 60 : 380);
-    });
+    /* ★ 整段换场已经在【按下那一刻】自己跑起来了(见 dockSequence):
+         ① 机器被 guide-hold 按住 → 眼睛当着用户的面闭完;
+         ② 松手 → 只向左滑一次出去;
+         ③ CD 页从右边向左滑进来,眼睛在右侧睁开。
+       这里只是等它跑完 —— 幂等,所以"没按下(超时那条路)"时它会把整段补上。 */
+    return dockSequence();
   }
 
   /* 视线每帧跟着扫描框。
