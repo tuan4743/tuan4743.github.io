@@ -200,9 +200,13 @@ ok('★★ 内容四边都落在玻璃里(上/左两条正是被裁掉过的那�
 ok('★ 而且玻璃四边都用上了(不是"躲得远远的"把屏幕缩成一小块)',
   P.top - G.top <= 40 && P.left - G.left <= 40 && P.bottom - G.bottom <= 40,
   `比玻璃再多让 ${(P.top - G.top).toFixed(0)}/${(P.left - G.left).toFixed(0)}px(≤40)`);
-ok('★ frame-fitted 的剪裁规则仍然把平板列进去了(背景要跟着四角的斜切走)',
-  /html\.frame-fitted \.screen-static,\s*\n?html\.frame-fitted \.tablet/.test(icss),
-  '同一条 clip-path 规则覆盖两层');
+/* ★ 旧断言已随 20a5b77(新外框自带背景,页面裁切全去掉)过期:
+   .tablet 刻意【不】再列进 frame-fitted 的铺满规则(见 intro.css 那条的注释),
+   所以这里反过来断言"两层已经分家"。 */
+ok('★ frame-fitted 的铺满规则不再把平板列进去(平板自己那条 inset 留在 tablet.css)',
+  !/html\.frame-fitted \.screen-static,\s*\n?html\.frame-fitted \.tablet/.test(icss) &&
+  /html\.frame-fitted \.tablet/.test(tcss),
+  '铺面/平板两层分家 —— 列回一起去就会把金属框整圈盖掉(234c6a3)');
 
 /* ---------- ④ 转场 ----------
    ★ 取时长不能写 `transition:\s*([\s\S]*?);` —— 那会在第一条属性后的分号就截断。

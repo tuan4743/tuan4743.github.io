@@ -26,16 +26,20 @@
       永远是浅色 #eaf3ff;而正文卡片 .main 用的是 --theme(随主题和色相变)。
    ============================================================ */
 
-/* 和 CD 页同一套像素字体(holo.css 里声明过一次,但那只在首页加载) */
+/* 和 CD 页同一套像素字体(holo.css 里声明过一次,但那只在首页加载)。
+   ★ woff2 优先(见 holo.css 同一条的注释):博客页每个访客都要下这份字体,
+     1461KB 的 ttf 压到 259KB 是这一页最大的一笔节省。 */
 @font-face {
     font-family: "Pixel CN";
-    src: url("/fonts/HYPixel9pxJ-2.ttf") format("truetype");
+    src: url("/fonts/HYPixel9pxJ-2.woff2") format("woff2"),
+        url("/fonts/HYPixel9pxJ-2.ttf") format("truetype");
     font-display: swap;
 }
 
 @font-face {
     font-family: "Alpha Sector";
-    src: url("/fonts/AlphaSector.otf") format("opentype");
+    src: url("/fonts/AlphaSector.woff2") format("woff2"),
+        url("/fonts/AlphaSector.otf") format("opentype");
     font-display: swap;
 }
 

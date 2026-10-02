@@ -24,8 +24,11 @@
         {{- with $star.sun }}
         <span class="solar-sun {{ if $sunIsVideo }}has-video{{ else }}has-tex{{ end }}" aria-hidden="true">
             {{- if $sunIsVideo }}
-            {{/* 静音 + 自动循环:不会导入视频里的声音 */}}
-            <video class="solar-sun-video" src="{{ . }}" autoplay muted loop playsinline preload="auto"
+            {{/* 静音 + 自动循环:不会导入视频里的声音。
+                 ★ preload="metadata"(而不是 auto):4.2MB 的 mp4 不该在第二张盘
+                   还没被选中时就整段下载 —— video 激活后 autoplay 会自己拉流,
+                   "metadata" 只先取头部,首帧显示由 poster/背景色兜着。 */}}
+            <video class="solar-sun-video" src="{{ . }}" autoplay muted loop playsinline preload="metadata"
                 disablepictureinpicture aria-hidden="true"></video>
             {{- else }}
             <img class="solar-sun-img" src="{{ . }}" alt="" decoding="async">

@@ -36,7 +36,7 @@
         function read(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
         function write(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* 无痕模式 */ } }
 
-        /* 暂时常显:接彩蛋系统时把 data-gd-gate 改成 "easter" 即可 */
+        /* 彩蛋门:默认隐藏,由 gd.js 的 unlockEaster() 写 localStorage(EASTER_KEY='1')后显示 */
         if (root.getAttribute('data-gd-gate') === 'easter' && read(EASTER_KEY) !== '1') {
             root.hidden = true;
             return;

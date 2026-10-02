@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "mimosa-finding-history/v1",
+  "runId": "20261001T072911393Z-16328-28bd53d943e1",
+  "runStatus": "inconclusive",
+  "errors": [
+    "baseline-read:.tools/page-weights.py: baseline_snapshot_unreadable: file is missing from task baseline",
+    "scan:public/assets/gd/gd.js: scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+    "scan:.tools/page-weights.py: scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT"
+  ],
+  "target": ".",
+  "revision": "78034f70177ad8fa4e678fb08d04682be7ae81db",
+  "diffHash": "b2239f694d2d8c0af1acc8b68b525f8d71a27579f6332966a36cc836cbbe99c4",
+  "rulesVersion": "unavailable",
+  "recordedAt": "2026-10-01T07:29:11.393Z",
+  "timing": {
+    "startedAt": "2026-10-01T07:29:08.156Z",
+    "completedAt": "2026-10-01T07:29:11.393Z",
+    "durationMs": 3237
+  },
+  "tokens": {
+    "input": 0,
+    "output": 0,
+    "total": 0,
+    "modelCalls": 0,
+    "measurement": "known-zero"
+  },
+  "findings": {
+    "total": 0,
+    "bySeverity": {},
+    "byStatus": {}
+  },
+  "coverage": {
+    "status": "partial",
+    "reasonCounts": {
+      "baseline_snapshot_unreadable": 1,
+      "scanner_failed": 2,
+      "project_check_failed": 3
+    }
+  },
+  "evidenceBoundary": "static_only",
+  "immutableReport": ".mimosa/reports/task-review-sess_106ffa2d-2317-4ffb-b697-4c61c50d5189-20261001T072911393Z-16328-28bd53d943e1.json"
+}

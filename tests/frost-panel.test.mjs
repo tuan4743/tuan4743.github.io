@@ -223,7 +223,7 @@ doneEl.setAttribute('aria-hidden', 'true');
      .frost-shards / .frost-ice / .frost-map / .frost-frame / .frost-head … 全是 none
    → 整页只有 .frost 自己能被指针命中。模块原来却把监听挂在 layer 上,
      结果用户划半天一点反应都没有,而断言全绿。 */
-const pagesCss = fs.readFileSync('tuagfey-blog/assets/css/pages.css', 'utf8')
+const pagesCss = fs.readFileSync('./assets/css/pages.css', 'utf8')
   .replace(/\/\*[\s\S]*?\*\//g, '');
 function peDecl(sel) {                    /* 这个选择器【自己】声明了吗?没声明返回 null */
   const lit = sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -354,7 +354,7 @@ globalThis.window = windowShim;
 globalThis.document = documentShim;
 globalThis.requestAnimationFrame = windowShim.requestAnimationFrame;
 
-const src = fs.readFileSync('tuagfey-blog/assets/js/page-frost.js', 'utf8');
+const src = fs.readFileSync('./assets/js/page-frost.js', 'utf8');
 try {
   new Function('window', 'document', 'setTimeout', 'clearTimeout', 'requestAnimationFrame', src)(
     windowShim, documentShim, setTimeout, clearTimeout, windowShim.requestAnimationFrame);
@@ -910,7 +910,7 @@ ok('远脊是另一档亮度(远近靠色调层次读出来,不是靠高度差)'
       那个量的是【碎片落在哪三个点上】,不是【图案长什么样】;
       而且它量不出"随便连线"这个病:把三个点绕圈连,一样是这个结果。
       现在直接读模块源码里的 PATTERNS:图案、连线表、碎片位都得是写死的。 */
-const srcTxt = fs.readFileSync('tuagfey-blog/assets/js/page-frost.js', 'utf8');
+const srcTxt = fs.readFileSync('./assets/js/page-frost.js', 'utf8');
 const patBlock = srcTxt.slice(srcTxt.indexOf('var PATTERNS = ['), srcTxt.indexOf('var ANCHOR = ['));
 const patSrc = patBlock.slice(patBlock.indexOf('['));
 const PATTERNS_SRC = new Function('return ' + patSrc.slice(0, patSrc.lastIndexOf('];') + 2))();
@@ -1130,7 +1130,7 @@ ok('浅色模式:窗底色与字色都来自 .frost 自己那套变量',
    **量具替被测对象把契约圆了谎** —— 这比断言写错更隐蔽:
    契约错了以后,每一行代码看起来都是对的。
    所以这里做一件事:把模板里真实的选择器抠出来,逐个和模块里用到的对齐。 */
-const tpl = fs.readFileSync('tuagfey-blog/layouts/partials/pages/future.html', 'utf8');
+const tpl = fs.readFileSync('./layouts/partials/pages/future.html', 'utf8');
 /* 模块用到的每一个"取元素"的选择器 —— 从源码里扫出来,不靠人肉维护。
    ★ 必须【先去掉注释】再扫:注释里会提到选择器的历史(比如"这里曾经是
      q(\"[data-frost-readmark]\")"),不剥掉的话扫到的是【散文】不是代码 ——
@@ -1159,7 +1159,7 @@ ok('★ 读数卡的槽:模板用 class,模块也按 class 找(上一版就是�
    ★ 为什么不能更用力地验:着色器能不能【编译】只有 WebGL 说得准,
      这个环境里没有浏览器 —— 所以这里只验"接线的两端都接上了",
      真正的编译结果只能靠用户打开页面看控制台(有 [boot-glsl] 编译失败 会打警告)。 */
-const aurPath = 'tuagfey-blog/assets/shaders/aurora.glsl';
+const aurPath = './assets/shaders/aurora.glsl';
 const aurSrc = fs.existsSync(aurPath) ? fs.readFileSync(aurPath, 'utf8') : '';
 ok('★ 极光 GLSL 在仓库里', aurSrc.length > 1000, aurSrc.length + ' 字符');
 ok('★ 极光那份算法【原样保留】:fbmAurora / aurora 都在',
@@ -1202,7 +1202,7 @@ ok('★ 入口交给宿主:文件里不写 main(),宿主会补 mainImage 的调�
   !/void\s+main\s*\(\s*\)/.test(aurSrc) && /void mainImage\s*\(/.test(aurSrc),
   /void\s+main\s*\(\s*\)/.test(aurSrc) ? '文件里自己写了 main()' : '没有 main(),由宿主补');
 /* ★ 这份模板在启动页占住站点根之后搬到了 /home/(见 content/home/_index.md)。 */
-const idxTpl = fs.readFileSync('tuagfey-blog/layouts/home/list.html', 'utf8');
+const idxTpl = fs.readFileSync('./layouts/home/list.html', 'utf8');
 ok('★ 模板把它注册进 window.__SHADERS(aurora)',
   /auroraGlsl := resources\.Get "shaders\/aurora\.glsl"/.test(idxTpl) &&
   /aurora: "\{\{ with \$auroraGlsl/.test(idxTpl),
@@ -1237,7 +1237,7 @@ ok('★ 模块里接上了:preload + 每帧 render(拿不到就退回手写那�
      都必须是 transparent 或干脆不写。
    ★ 也【不能】在 frame-fitted 那条里写 background: transparent ——
      它比 .is-black 更具体,会把黑屏状态一起按掉(这个陷阱写在源码注释里了)。 */
-const introCss = fs.readFileSync('tuagfey-blog/assets/css/intro.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+const introCss = fs.readFileSync('./assets/css/intro.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
 /* 抠出每一条"选择器 { 声明 }",挑出选择器里含 .screen-static 的 */
 const cssRules = [...introCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
   .map((m) => ({ sel: m[1].trim().replace(/\s+/g, ' '), decl: m[2] }))
@@ -1269,7 +1269,7 @@ ok('★ 那条 frame-fitted 规则还在(铺满屏幕,但不再裁形状)',
   !cssRules.some((r) => r.sel.includes('frame-fitted') && /clip-path/.test(r.decl)),
   'found: ' + cssRules.filter((r) => r.sel.includes('frame-fitted')).map((r) => r.sel).join(' | '));
 /* 收尾靠 canvas 擦成透明 —— 那么后处理就不许往透明像素上刷黑 */
-const postSrc = fs.readFileSync('tuagfey-blog/assets/js/boot-post.js', 'utf8');
+const postSrc = fs.readFileSync('./assets/js/boot-post.js', 'utf8');
 ok('★ 后期覆盖图(扫描线/暗角)必须乘上画面 alpha,不能整屏 source-over 压黑',
   /destination-in[\s\S]{0,120}og\.drawImage\(off/.test(postSrc) &&
   !/ctx\.drawImage\(overlays\[overlayIdx\], 0, 0, W, H\);/.test(postSrc),
@@ -1396,7 +1396,7 @@ ok('★ 没有哪条规则一边挂 is-kept 一边把动画关掉(伪元素会�
    但【忘了在宿主的 FRAG_HEAD 里声明 uTime】—— 于是着色器一编译就失败,
    而失败的后果是"极光整层不出现"(render 返回 null,那一层一直空着)。
    这一条把"两头对得上"钉死:正文里出现的每个时间名字,FRAG_HEAD 里都得有。 */
-const hostSrc = fs.readFileSync('tuagfey-blog/assets/js/boot-glsl.js', 'utf8');
+const hostSrc = fs.readFileSync('./assets/js/boot-glsl.js', 'utf8');
 const headBlock = /var FRAG_HEAD = \[([\s\S]*?)\]\.join/.exec(hostSrc);
 const headStr = headBlock ? headBlock[1] : '';
 const shaderTimeNames = ['uTime', 'iTime', 'u_time'].filter((n) => {

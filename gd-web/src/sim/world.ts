@@ -7,9 +7,10 @@
  * 坐标:一律用 GD 口径的【单位】(1 块 = 30 单位),x 向右、y 向上,玩家 (x,y) 是【左下角】。
  */
 
-import { P, U, Y_TIME_SCALE, vxOf, arcSpan, ORB, PAD, jumpOf, cubeGravityOf } from './constants.ts';
+import { P, U, Y_TIME_SCALE, vxOf, arcSpan, ORB, PAD, jumpOf, cubeGravityOf, type FlipWhen } from './constants.ts';
 import { hitboxOf, circleRadiusOf, GD_SPEC, GD_HITBOX_OFFSET } from './gdids.ts';
 import type { Level, Mode, Obj } from './level.ts';
+import type { OrbKind } from './constants.ts';
 
 /** 每个物理子步最多走多少单位。最薄的实心是 468 线框(1.5 单位厚),取 1.2 < 1.5 ——
  *  这样无论纵向速度多大,都不会"一步跨过一堵墙"(见 frame() 里的自适应切分)。 */
@@ -349,7 +350,7 @@ export class World {
   tick = 0;
   x = 0; y = 0; vy = 0; onGround = true;
   mode: Mode = 'cube';
-  gdir = 1;
+  gdir = 1;   // ±1(1 = 常重力,-1 = 反重力);语义上是 ±1,但不收窄类型 —— PState/存档里的 number 到处互相赋值
   /** ★ 翻重力的纵向速度倍率(原版 flipGravity 里那一下)。默认 0.5 = OpenGD/2.2 口径,
    *  理由见文件头 FLIP_VEL_MUL 那段(关卡 A/B 实测 + 版本 + 手感三条)。
    *  只给【定点实验】用:想知道某一段按另一边才过得去,就设成 1.75 再搜一遍。 */
@@ -411,7 +412,7 @@ export class World {
   /** ★★ 存档点还要记【速度档】和【重力方向】:以前只记了形态和体积,
    *  reset() 里又把 gdir/speedIdx 硬写成 1 ⇒ 在"快速档"或"反重力段"摔死后,
    *  复活出来的是常速+正常重力 —— 同一段路完全对不上 ✗(用户:"存档点机制绝对是错的")。 */
-  checkSpeed = 1; checkGdir: 1 | -1 = 1;
+  checkSpeed = 1; checkGdir = 1;   // ±1(重力方向;不收窄类型,理由同 gdir)
   /** 最近一次跨过的形态门的中心 y(相机在飞行类形态里"钉视口"要用,原版口径) */
   portalY = 0;
   /** 这张铺面是不是"GD 导出的真实关卡"(决定事件物件用相交判还是跨 x 判,见 hitEvent) */
@@ -1594,8 +1595,7 @@ export class World {
            ★ 我们上一版写的是"外框顶越过砖的中线":那对 1 格高的砖允许抬 30 单位,
              而且【贴着砖侧面往下蹭】也满足 → 人就被整块"抬"到平台上,
              用户看到的"容错直接飞上平台"就是它。现在最多修 15 单位,撞侧面老老实实死。 */
-        const snapTol = (this.mode === 'ship' || this.mode === 'ufo' || this.mode === 'wave')
-          ? 6 : (this.mini ? 10 : 15);
+        const snapTol = (this.isFlyMode ? 6 : (this.mini ? 10 : 15));   // 飞行类 6(口径见上面引注;此块本身只在步行形态进,与 isFlyMode 复用同一判据)
         /* ★ 原版落台容错有【两路】(PlayerObject::collidedWithObjectInternal):
              maxSnapY = playerBottom + snapUpThreshold;      ← 这一帧的位置
              floatG   = maxSnapY - adjustedYDelta;           ← 用【整帧位移】倒推回帧初的位置
@@ -2177,7 +2177,7 @@ export class World {
    *  ★ 用【绝对赋值】而不是叠加:于是弹簧连的每一跳几何完全一样,
    *    玩家被第一根弹簧弹起来之后,会自动落进下一根弹簧 —— 这就是"弹簧连不用出手"的原理。
    *  ★ 重力的翻转时机分两种(反编译口径):蓝的"先给速度再翻",绿的"先翻再给速度"。 */
-  private applyTrigger(spec: { v: number; flip: 'none' | 'before' | 'after' | 'dash'; isPad?: boolean }, consumePress = false) {
+  private applyTrigger(spec: { v: number; flip: FlipWhen; isPad?: boolean }, consumePress = false) {
     const vy0 = this.vy, g0 = this.gdir;
     const isPad = !!spec.isPad;
     let v = spec.v * this.triggerScale() * this.padMul;   // 迷你 ×0.8;padMul 是页面上的力度微调

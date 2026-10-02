@@ -127,11 +127,29 @@ for (const f of files) {
     "",
   ].join("\n");
 
-  fs.writeFileSync(path.join(OUT, no + ".md"), fm + body, "utf8");
+  const outP = path.join(OUT, no + ".md");
+  const rendered = fm + body;
+  /* 内容没变就不重写:保住 mtime,Hugo 的 --gc / 增量观察都不会白白抖一遍 */
+  if (!fs.existsSync(outP) || fs.readFileSync(outP, "utf8") !== rendered) {
+    fs.writeFileSync(outP, rendered, "utf8");
+  }
   rows.push({ no, num, title, time, carrier, integrity, act });
 }
 
-/* ---------------- 2. 重建 _index.md 里的目录 ---------------- */
+/* 碎片删了,生成的页面也得跟着删 —— 否则 content/world/ 里留孤儿页,Hugo 照样发布 */
+{
+  const srcNames = fs.readdirSync(SRC);
+  for (const f of fs.readdirSync(OUT)) {
+    const m = /^(\d{2})\.md$/.exec(f);
+    /* 碎片文件名是 "NN-标题.md",生成页是 "NN.md" —— 按编号前缀对上才算有主 */
+    if (m && !srcNames.some((s) => s.startsWith(m[1] + "-"))) {
+      fs.rmSync(path.join(OUT, f));
+      console.log("  删除孤儿页: " + f + "(碎片已不存在)");
+    }
+  }
+}
+
+/* ---------------- 2. 重建 _index.md 里那一段目录 ---------------- */
 const BEGIN = "<!-- WORLD-CATALOG:BEGIN -->";
 const END = "<!-- WORLD-CATALOG:END -->";
 
@@ -156,7 +174,7 @@ if (b < 0 || e < 0) throw new Error("_index.md 里找不到 " + BEGIN + " / " + 
 idx = idx.slice(0, b + BEGIN.length) + "\n" + catalog + "\n" + idx.slice(e);
 idx = idx.replace(/共 \d+ 份(?:回收)?档案/g, "共 " + rows.length + " 份回收档案");
 idx = idx.replace(/共 \d+ 份碎片/g, "共 " + rows.length + " 份碎片");
-fs.writeFileSync(INDEX, idx, "utf8");
+if (fs.readFileSync(INDEX, "utf8") !== idx) fs.writeFileSync(INDEX, idx, "utf8");
 
 console.log("同步完成:" + rows.length + " 份 → " + path.relative(ROOT, OUT));
 const withHint = rows.filter((r) => hints[r.no]).length;

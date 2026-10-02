@@ -614,6 +614,7 @@ export function decodeObjects(text: string): Obj[] {
         case 'exit': o.exit = true; break;
         case 'tpy': o.tpy = Number(v); break;
         case 'mini': o.mini = v === '1'; break;
+        case 'sh': o.sh = Number(v); break;
         /* 圆判定 / 刺族:ID 够了 —— 半径、判定盒、缩放都从表里现算 */
         case 'id': {
           o.id = Number(v);

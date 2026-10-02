@@ -828,6 +828,21 @@ html.top-locked .statusbar-toggle,
     pointer-events: none !important;
 }
 
+/* ★★ 左侧"打开 CD 架"的按钮(.slot-toggle)同一套闸门。
+   用户 2026-10:"介绍过程中可以按下左侧的按钮提前进入CD页,可以做成和上侧按钮
+   一样的,只有介绍到的时候才出现。"
+   ⇒ 和 top-locked 完全同构:
+     · <head> 里同步挂 html.slot-locked(等 defer 脚本起来就太晚了);
+     · 整个 ECHO 引导期间按钮不显示也不可点;
+     · 引导走到"按下它"那一拍(第一次做 .slot-toggle 的 snap)才摘掉,
+       按钮和脉冲高亮一起亮相 ✓
+   ★ 引导脚本把它摘掉之后这条规则就再也不会生效(类摘了就没了)。 */
+html.slot-locked .slot-toggle,
+.slot-toggle.is-locked {
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
 /* ★★ "该按这个"的高亮(用户第五轮:钉住的扫描框和真实指针不是一个位置,
    所以要在目标上给一个不看框也能懂的提示)。
    ★ 用【按钮自己的发光】,不画外圈:

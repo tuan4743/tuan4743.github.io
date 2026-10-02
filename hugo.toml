@@ -196,91 +196,91 @@ enableGitInfo = true
       key = "blush"
       pod = "socket"
       label = "脸红"
-      text = "嘴上说没事,心里其实很在意。"
+      text = "比较感性,不会说话。(真的)"
 
     [[params.intro.decks.self]]
       emoji = "☕"
       key = "coffee"
       pod = "socket"
       label = "咖啡"
-      text = "靠咖啡续命,晚上照样失眠。"
+      text = "你熬不过我信不信。"
 
     [[params.intro.decks.self]]
       emoji = "💻"
       key = "code"
       pod = "socket"
       label = "代码"
-      text = "写代码是工作,也是爱好。"
+      text = "每天都有写不完的代码"
 
     [[params.intro.decks.self]]
       emoji = "🎮"
       key = "game"
       pod = "socket"
       label = "游戏"
-      text = "游戏菜,但爱玩。"
+      text = "好想玩游戏。好想玩游戏。好想玩游戏。"
 
     [[params.intro.decks.self]]
       emoji = "🎧"
       key = "music"
       pod = "socket"
       label = "耳机"
-      text = "没有音乐,写不出东西。"
+      text = "工作的时候要听音乐。(别学我)"
 
     [[params.intro.decks.self]]
       emoji = "🌙"
       key = "night"
       pod = "socket"
       label = "熬夜"
-      text = "夜猫子,凌晨灵感最多。"
+      text = "眼皮有点发紫,可能是心脏不好。"
 
     [[params.intro.decks.self]]
       emoji = "🤡"
       key = "clown"
       pod = "socket"
       label = "小丑"
-      text = "经常自嘲,但内心很认真。"
+      text = "我是真的"
 
     [[params.intro.decks.self]]
       emoji = "✨"
       key = "sparkle"
       pod = "socket"
       label = "星星眼"
-      text = "看到喜欢的东西会失去理智。"
+      text = "热爱就要大胆去追。"
 
     [[params.intro.decks.self]]
       emoji = "😷"
       key = "mask"
       pod = "socket"
       label = "口罩"
-      text = "社交场合戴着脸,回家才摘。"
+      text = "豪到你了?"
 
     [[params.intro.decks.self]]
       emoji = "👑"
       key = "crown"
       pod = "socket"
       label = "王冠"
-      text = "嘴上说随便,心里早有答案。"
+      text = "'我只忠诚于我自己。'"
 
     [[params.intro.decks.self]]
       emoji = "💤"
       key = "nap"
       pod = "socket"
       label = "补觉"
-      text = "白天睡不醒,晚上睡不着。"
+      text = "其实我不怎么困,真的。"
 
     [[params.intro.decks.self]]
       emoji = "🎵"
       key = "note"
       pod = "socket"
       label = "打拍子"
-      text = "走路都在打拍子,自己没发觉。"
+      text = "什么时候RKS能上15?"
 
     [[params.intro.decks.self]]
       emoji = "🫠"
       key = "melt"
       pod = "skin"
       label = "融化"
-      text = "社交电量低,需要独处充电。"
+      text = "社恐勿cue。"
       alt = "融化的脸"
 
     [[params.intro.decks.self]]
@@ -288,7 +288,7 @@ enableGitInfo = true
       key = "heavy"
       pod = "skin"
       label = "睁不开眼"
-      text = "困是真的困,撑也是真的撑。"
+      text = "好想睡,但是不能睡。"
       alt = "困倦的脸"
 
     [[params.intro.decks.self]]
@@ -296,14 +296,14 @@ enableGitInfo = true
       key = "fire"
       pod = "socket"
       label = "上头"
-      text = "三分钟热度,但热的时候很烫。"
+      text = "天天都要被气死。"
 
     [[params.intro.decks.self]]
       emoji = "👻"
       key = "clear"
       pod = "skin"
       label = "半透明"
-      text = "热闹之后会消失一阵。"
+      text = "我是透明人。(认真脸)"
       alt = "幽灵"
 
     # ---- 第二张盘「成长」的主页内容:科幻风太阳系行星图 ----
@@ -322,8 +322,8 @@ enableGitInfo = true
       # 恒星自己的 HUD 卡片:和五颗行星同一套样式、同一套避边框规则。
       # 鼠标移到恒星上(或触屏点一下)才出现;太阳本体一个像素都不动
       sun_code = "SS-00"
-      sun_title = "蓝巨星"
-      sun_text = "整张星图里唯一自己在发光的东西。其余五颗都只是反光 —— 成长大概就是从这里开始的。"
+      sun_title = "图阿格"
+      sun_text = "有时候你不需要知道自己为什么而发光,成为自己内心恒星系的一颗明星就足够了。"
       # sun 也可以直接填视频(放在 static/planet/,例如 "/planet/sun.mp4"),
       # 会自动用 <video muted autoplay loop playsinline> 播放 —— 不会导入声音
 
@@ -348,8 +348,14 @@ enableGitInfo = true
     [[params.intro.decks.growth]]
       code = "SS-01"
       kind = "cold"
-      title = "寒冷行星"
-      text = "整颗星球都在冰点以下,连风都是硬的。它在最外侧,离光最远,也最安静。"
+      title = "埃俄罗斯"
+      text = """
+      思考是一种痛苦的成长方式,人们总是说深思熟虑。
+      经历了一件事，吃了亏、摔了跤，如果不去想“为什么摔”“下次怎么走”，那等于吃一堑再吃一堑。
+      然而思考总是会骗人的,站在你的角度去想,你永远只能看到这恒星系的一角,因为你离别人相差甚远。
+      你还需要去实践,想得再多，真的不亲自撞几次南墙，撞到头破血流,海枯石烂,这才叫"血的教训"。
+      所以不要总沉溺于你的脑海之中,停下来出去看看比一边胡思乱想一边低效工作更好。
+      """
       tex = "/planet/cold.webp"
       x = 0.05
       y = 0.82
@@ -359,8 +365,14 @@ enableGitInfo = true
     [[params.intro.decks.growth]]
       code = "SS-02"
       kind = "hot"
-      title = "炎热行星"
-      text = "地表被烤成锈红色,大气薄得留不住热。太靠近光的地方,往往长不出柔软的东西。"
+      title = "刻耳柏洛斯"
+      text = """
+      热情似火,我总是很犟,一件事情做不成会一直做直到成功或者需要二次评估。
+      当然,我不是傻子,我知道一颗树上吊死是什么后果,只有我知道自己能干或者必须要干的事情我才会做。
+      我其实很不理解那些没耐心做完一件事情的人,但是我某天发现,我身边那些没耐心的人,反而成就比我高?
+      我很疑惑惶恐,害怕成为"愚"公,成为我害怕的人。但我很快想明白:我并不聪明,也不天赋异禀。我只会一次次打磨,一次次加深印象,尝试投入更多时间去增大成功的概率。我就是我,每个人的适性都是不同的,没必要去拿两把尺子硬量。我只需要考虑:"我是否真的努力?真的高效?"仅此而已。
+      所以有时候借口不是你刻意找的,也可能是无意找的,只是你没发现而已。
+      """
       tex = "/planet/hot.webp"
       x = 0.2
       y = 0.56
@@ -370,8 +382,13 @@ enableGitInfo = true
     [[params.intro.decks.growth]]
       code = "SS-03"
       kind = "terrestrial"
-      title = "类地行星"
-      text = "有海、有云、有大气层。岩石上那道巨大的裂痕是很久以前留下的,现在长满了安静。"
+      title = "阿尔库俄纽斯"
+      text = """
+      最舒适的地方。我很不想离开自己的"舒适圈",因为我比较内向,与人交谈是我最大的软肋。
+      所以我习惯低强度社交,将其作为逃避的借口。
+      可是总有一天,我一定走出去,我将前往五湖四海,天南地北。
+      总有一天,这个荒原会充满生机。
+      """
       tex = "/planet/earth.webp"
       x = 0.56
       y = 0.70
@@ -381,8 +398,14 @@ enableGitInfo = true
     [[params.intro.decks.growth]]
       code = "SS-04"
       kind = "blackhole"
-      title = "黑洞"
-      text = "不发光,只能靠被它拉弯的光看见。最小、最重,也最难绕开 —— 有些东西是这样被认出来的。"
+      title = "阿特拉斯"
+      text = """
+      有人说:情绪是你最大的敌人,有人驳:情绪不是敌人,我不关心,也不在意。
+      我只知道,情绪对我来说是我的朋友。
+      说实话,从小到大,我身边没有任何一个人能够成为我的倾诉对象,我习惯了把情绪往自己心里塞,往心底藏。这是我个人的选择。
+      有时候,你要相信人类的适性,相信你脖子上面那个东西,你要相信内心有一股力量能控制住自己。
+      情绪是你自己的,你认为它是什么,它就是什么。你得去掌握它,而不是消灭它。
+      """
       tex = "/planet/blackhole.webp"
       x = 0.68
       y = 0.14
@@ -392,8 +415,8 @@ enableGitInfo = true
     [[params.intro.decks.growth]]
       code = "SS-05"
       kind = "gas"
-      title = "气态巨行星"
-      text = "没有地面可以落脚,只有一层比一层重的风。它很大,大到能替内圈挡下大部分撞击。"
+      title = "克拉托斯"
+      text = "大心脏,大愿望,大胃口。总有一天,我会亲手满足,从未享受过的安逸。"
       tex = "/planet/gas.webp"
       x = 0.85
       y = 0.68

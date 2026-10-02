@@ -3,7 +3,7 @@
      ─────────────────────────────────────────────────────────────
      ★ 抽成 partial 的原因:【首页把那条老导航整个删掉了】(用户要求),
        但这几个开关不能跟着消失 —— 它们现在渲染进【平板主界面的快捷控制卡片】
-       (见 layouts/index.html)。
+       (见 layouts/home.html —— 站点根的重定向壳;平板本体是 layouts/home/list.html)。
      ★ 两处用的是同一份标记、同一批 id(#theme-toggle / #sound-toggle /
        #volume-range / #palette-*),所以 theme-palette.js 与 cd-audio.js
        【一行都不用改】—— 它们按 id 找人,人在哪儿它们不管。

@@ -15,18 +15,20 @@
    ============================================================ */
 import fs from 'node:fs';
 
-const WS = 'C:/Users/hp/Desktop/deep-workspace';
+const WS = 'C:/Users/hp/Desktop/GLM-workspace';
 const BH = `${WS}/tuagfey-blog`;
 const rows = [];
 const ok = (n, p, i) => rows.push([!!p, n, i === undefined ? '' : String(i)]);
 const rd = (p) => fs.readFileSync(p, 'utf8');
 const noC = (s) => String(s).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
-const post = rd(`${WS}/.tmp/t1/posts/hello-world/index.html`);
-const deploy = rd(`${WS}/.tmp/t1/tech/github-actions-deploy/index.html`);
-const techList = rd(`${WS}/.tmp/t1/tech/index.html`);
-const about = rd(`${WS}/.tmp/t1/about/index.html`);
-const home = rd(`${WS}/.tmp/t1/home/index.html`);
+/* 没按 README 构建过(.tmp/t1 不存在)就退回仓库里已提交的 public/ */
+const B = fs.existsSync(`${WS}/.tmp/t1/posts/hello-world/index.html`) ? `${WS}/.tmp/t1` : `${BH}/public`;
+const post = rd(`${B}/posts/hello-world/index.html`);
+const deploy = rd(`${B}/tech/github-actions-deploy/index.html`);
+const techList = rd(`${B}/tech/index.html`);
+const about = rd(`${B}/about/index.html`);
+const home = rd(`${B}/home/index.html`);
 const tpl = rd(`${BH}/layouts/_partials/hud-toc.html`);
 const tplCode = noC(tpl);
 const hudTpl = rd(`${BH}/layouts/_partials/page-hud.html`);

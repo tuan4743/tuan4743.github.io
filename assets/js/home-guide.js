@@ -109,6 +109,9 @@
        引导走到"下滑栏"那一拍才 unlockTop() 放它出来 —— 那一刻正好是
        "现在该认识这个按钮了"。 */
     lockTop(true);
+    /* ★★ 左侧那枚按钮同样锁死(见 lockSlot 上的说明)——
+       整个引导走到"按下它"那一拍才放出来 ✓ */
+    lockSlot(true);
     /* ★★★ 顺序有讲究:必须先挂 .is-dark,再让平板"入场"。
        反过来的话(先 is-on 再 is-dark)平板会带着 opacity 0 → 1 的入场过渡
        淡进来,中间那 260ms 里快捷控制卡片(音量滑条)会跟着露一下脸 ——
@@ -134,6 +137,27 @@
   function lockTop(on) {
     var t = document.getElementById("statusbar-toggle");
     docEl.classList.toggle("top-locked", !!on);
+    if (!t) return;
+    t.classList.toggle("is-locked", !!on);
+    t.setAttribute("aria-hidden", on ? "true" : "false");
+  }
+
+  /* 左侧"打开 CD 架"按钮(.slot-toggle)同一套闸门(2026-10 用户:
+     "没有锁定鼠标点击功能,导致在介绍过程中可以按下左侧的按钮提前进入CD页,
+      可以做成和上侧按钮一样的,只有介绍到的时候才出现")。
+   · <head> 里同步挂了 html.slot-locked(见 layouts/home/list.html)——
+     和 top-locked 同一条理由:等 defer 脚本起来就太晚了;
+   · blackout() 里再补一次(它是幂等的);
+   · 走到"按下它"那一拍(runStep 见到 .slot-toggle 的 snap)才放出 ——
+     那一刻按钮和脉冲高亮一起亮相,正好接住"该按哪个" ✓
+   ★ 解锁必须是【单向】的:之后任何 lock(on)/lockTop 都不许再把它锁回去
+     —— goToPlayMode 重开 CD 架还得靠它。 */
+  var slotOpened = false;
+  function lockSlot(on) {
+    if (!on) slotOpened = true;          /* 一旦开过,永久开 */
+    if (slotOpened) on = false;
+    docEl.classList.toggle("slot-locked", !!on);
+    var t = document.querySelector(".slot-toggle");
     if (!t) return;
     t.classList.toggle("is-locked", !!on);
     t.setAttribute("aria-hidden", on ? "true" : "false");
@@ -473,7 +497,7 @@
         lock: true,
         /* ★ 走到这一拍才把它放出来(开机那一段它是被锁死的,见 blackout) */
         unlockTop: true,
-        text: "按下可以展开终端设置页,在设置页你可以前往核心数据库,或者对终端环境进行一些设置。"
+        text: "这是终端按钮,按下可以切换终端设置页,在设置页你可以前往核心数据库,或者对终端环境进行一些设置。"
       }),
 
       /* —— 左侧打开 CD 架按钮(锁鼠标) —— */
@@ -822,6 +846,11 @@
     if (s.lock) lock(true);
     if (s.unlock) lock(false);
     if (s.unlockTop) lockTop(false);
+    /* ★ 2026-10:拍到要认识/要按左侧按钮时才把它放出来(见 lockSlot 上的说明)。
+       判据是"这一拍的 snap 或 press 指向它"——"从这里可以进入情感引擎安装仓"
+       和"按下它"两拍都命中 ✓ */
+    if ((s.snap === "#intro-toggle" || s.snap === ".slot-toggle" ||
+         s.press === ".slot-toggle" || s.press === "#intro-toggle")) lockSlot(false);
     if (s.wheelLock) lockWheel(true);
     if (s.unlockWheel) lockWheel(false);
 
@@ -1098,6 +1127,7 @@
   function finishGuide() {
     lock(false);
     lockWheel(false);
+    lockSlot(false);                     /* 兜底:走到出口这一拍前漏掉的解锁在这里补上 ✓ */
     /* 扫描框还原成"平时的样子":自转倍率归位;剧本矩形撤掉 */
     window.__mcSpinScale = 1;
     window.__mcScript = null;

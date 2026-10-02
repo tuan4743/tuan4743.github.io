@@ -64,7 +64,7 @@
          ★ 位置也有讲究:必须在 footer.html 之前 —— 那个 partial 末尾有一句
            document.getElementById("theme-toggle").addEventListener(...)(没有判空),
            而 HUD 里的明暗旋钮就是那个 id。
-         ★ 首页走自己的独立模板(layouts/index.html),不经过这里;
+         ★ 首页(/home/,平板屏)走自己的独立模板 layouts/home/list.html,站点根是 layouts/home.html 重定向壳,都不经过这里;
            这里的 if 只是把"万一"挡住(首页有它自己那套平板主界面)。 */}}
     {{- if not (.Param "isHome") }}
     {{ partial "page-hud.html" . }}

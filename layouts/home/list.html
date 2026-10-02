@@ -108,6 +108,11 @@ window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}",
            "看不见却点得到"。闸门必须跟着 home-boot 一起【同步】挂上,
            等 defer 脚本起来(2.7 秒)就太晚了。 */
         d.classList.add("top-locked");
+        /* ★ 2026-10 左侧那枚"打开 CD 架"按钮也一样:整个 ECHO 引导期间它是可点的
+           (用户:"没有锁定鼠标点击功能,导致在介绍过程中可以按下左侧的按钮提前进入CD页")。
+           同步挂上 slot-locked,由 home-guide.js 走到"按下它"那一拍才摘掉
+           (见 home-guide.js 的 lockSlot —— 和 lockTop 同一套做法)。 */
+        d.classList.add("slot-locked");
         setTimeout(function () { d.classList.remove("home-boot"); }, 6000);
     })();
 </script>
@@ -135,16 +140,10 @@ window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}",
              这样在启动页按【后退】不会回到 / 又被弹到启动页(不会打乒乓)。
            ★ 怎么不会死循环:启动页上的两个按钮分别指向 /home/(= 本页)
              和 /tech/,【都不会回到 /】。而本页只在 IS_ROOT 时跳。
-           ★ IS_ROOT 靠 window.location.pathname 判定,不用 .IsHome ——
-             因为这一份模板同时对 `/` 和 `/home/` 生效(Hugo 的 section 模板
-             优先于 _default/list.html,两处共用这一份,不复制两遍)。
+           ★ IS_ROOT 靠 window.location.pathname 判定,不用 .IsHome。
+           ★ 站点根的跳转由 layouts/home.html 负责(那一份只在 `/` 渲染),
+             本文件只在 /home/ 出 —— 不用再防"根上长出平板"了。
            ============================================================ */ -}}
-    <script>
-        (function () {
-            var p = window.location.pathname.replace(/\/+$/, '') || '/';
-            if (p === '/' || p === '/index.html') location.replace('/start/');
-        })();
-    </script>
 
     <!-- 首次进入的加载页(3D / 音乐就绪前显示)
          ★★ 文案全部按【设定】走(用户第二轮:"把加载动画的字换了,Tuagfey-blog

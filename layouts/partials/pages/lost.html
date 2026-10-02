@@ -5,7 +5,6 @@
      视觉:本站显示器 + holo 科技风(不使用原作美术)
      引擎:gd-web/(源码在仓库里,构建产物是 static/assets/gd/gd.js)
      参考:OpenGD(关卡格式与数据结构)、camila314/gdp(GD 物理反编译)*/}}
-{{- $cfg := site.Params.intro.lost | default dict -}}
 <div class="lost is-game" data-lost="{{ .key }}">
     <div class="lost-stage">
         <canvas id="gd-canvas" class="lost-cv" width="1280" height="720" aria-label="几何冲刺式关卡"></canvas>
@@ -15,15 +14,12 @@
         <div class="lost-lyric" id="gd-lyric" aria-live="off"></div>
         <div class="lost-veil" aria-hidden="true"></div>
         <div id="gd-hud" class="lost-hud">方块 · 0%</div>
-        <div class="lost-tip">按一下开始 · 空格 / ↑ = 跳(飞机按住上升)· R = 重来 · G = 无敌(已限制在预定轨道内,飞不出关卡走廊) · B = 看 bot 通关 · [ / ] 或 −/+ = 弹簧力度微调(测试用)</div>
-        {{/* 右上角两个能点的按钮:键盘在某些环境里会被别的东西吃掉(用户实测 R/G 没反应),
-             按钮鼠标/触屏都能按,状态直接写在按钮上 */}}
+        <div class="lost-tip">空格 / 点一下 = 开始 · 按住 = 连跳 · 跳环要按一下 · R = 重来</div>
+        {{/* 右下角两个能点的按钮:键盘在某些环境里会被别的东西吃掉(用户实测 R 没反应),
+             按钮鼠标/触屏都能按 */}}
         <div class="gd-tools">
-            <button type="button" id="gd-god" class="gd-tool" title="测试用:开着就不会死(G)">无敌:关</button>
-            <button type="button" id="gd-demo" class="gd-tool" title="放一遍搜索出来的通关输入卷(B)">看 bot 通关</button>
+            <button type="button" id="gd-skip" class="gd-tool" title="跳过全程,直接走到结尾字幕">跳到结尾字幕</button>
             <button type="button" id="gd-restart" class="gd-tool" title="从头再来(R)">重来</button>
-            <button type="button" id="gd-pad-minus" class="gd-tool" title="弹簧力度 −5%([ 或 -)">跳点 −</button>
-            <button type="button" id="gd-pad-plus" class="gd-tool" title="弹簧力度 +5%(] 或 +)">跳点 +</button>
         </div>
         <div class="gd-mobile-note">
             <b>请用 PC 打开</b>
@@ -129,19 +125,56 @@
         var SHOW_TO_X = 3604;     // 块:右端(= 砖块排末尾;过了这一段就是终点线 3620)
         var U = 30;               // 1 块 = 30 世界单位(gd-web/src/sim/constants.ts)
         var shown = false;
-        setInterval(function () {
+        /* ★ 一直轮询(250ms 一次,开销可忽略):以前是"读到 __gd 就自毁",
+           结果引擎启动后再点"跳到结尾字幕"传送进展示段,卡片永远不淡入 ✗ */
+        var timer = setInterval(function () {
+            if (window.__gd && window.__gd.scene) check();
+        }, 250);
+        function check() {
             var g = window.__gd, sc = g && g.scene, w = g && g.world;
             var done = !!(sc && sc.phase === 'done');
             var xb = (w && typeof w.x === 'number') ? w.x / U : -Infinity;
             /* 通关 ⇒ 显示;走进展示页区间 ⇒ 也显示(两条触发取其一) */
-            var on = done || (xb >= SHOW_FROM_X && xb <= SHOW_TO_X + 40);
-            if (on === shown) return;
-            shown = on;
+        var on = done || (xb >= SHOW_FROM_X && xb <= SHOW_TO_X + 40);
+        /* ★ 2026-10 修(用户:"结束播放终末之诗时,字幕卡片还在")——
+           游戏播诗是把画布推回主菜单前的 'poem' 阶段,判据里没算它,
+           卡片就一直压在诗上面。诗一播,卡片就得让位。 */
+        var poem = !!(sc && sc.phase === 'poem');
+        on = on && !poem;
+        if (on === shown) return;
+        shown = on;
             el.classList.toggle('is-on', on);
             /* 只有"走进展示页、还没通关"时才加上移样式(通关仍居中)✓ */
             el.classList.toggle('is-walk', on && !done);
             el.setAttribute('aria-hidden', on ? 'false' : 'true');
-        }, 250);
+        }
     })();
 </script>
-<script defer src="/assets/gd/gd.js?v=g205"></script>
+{{/* ★★★ 性能:gd.js(Phaser 整包 + WATER 铺面,约 2MB)原来【首页一打开就加载】——
+     它住在 lost 面板里,而首页五张盘共用一个 DOM,别的盘激活时它也在场,
+     浏览器照样把这两 MB 拉下来、把 Phaser 跑起来。
+     现在改成【第一次激活 lost 盘时才加载】:intro.js 的 playPanel() 在每次切盘时
+     都会广播 cd-panel 事件,这里监听它;首次 detail === "lost" 时注入 <script>,
+     之后不再重复注入。页面直接带 ?panel=lost / 游玩模式打开时也会在首拍被触发,
+     行为与"同步加载"一致。 */}}
+<script>
+    (function () {
+        var booted = false;
+        function load() {
+            if (booted) return;
+            booted = true;
+            var s = document.createElement("script");
+            s.src = "/assets/gd/gd.js?v=g209";
+            s.defer = true;
+            document.head.appendChild(s);
+        }
+        try {
+            window.addEventListener("cd-panel", function (e) {
+                if (e && e.detail === "lost") load();
+            });
+            /* 引导/首屏直接落在 lost 盘上的情形:CDPages.activate 也会被调,
+               但事件在同一拍里可能已经发过 —— 开局再查一次当前激活面板 */
+            if (document.querySelector(".intro-panel.is-active[data-panel=lost]")) load();
+        } catch (e) { load(); }   /* 事件机制万一不可用,退回原行为(打开就加载) */
+    })();
+</script>

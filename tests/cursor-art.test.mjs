@@ -15,7 +15,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const WS = 'C:/Users/hp/Desktop/deep-workspace';
+const WS = 'C:/Users/hp/Desktop/GLM-workspace';
 const BH = `${WS}/tuagfey-blog`;
 const rows = [];
 const ok = (n, p, i) => rows.push([!!p, n, i === undefined ? '' : String(i)]);

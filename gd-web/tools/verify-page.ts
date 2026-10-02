@@ -50,7 +50,8 @@ ok(m ? pubHtml.includes('gd.js?v=' + m[1]) : false,
   '站点首页里的版本戳与模板一致' + (m ? '(v=' + m[1] + ')' : '') + ' —— hugo 确实重建过');
 
 /* --- 4. 挂载点 --- */
-const mounts = ['gd-canvas', 'gd-hud', 'gd-demo', 'gd-god', 'gd-restart'];
+/* ★ 2026-10 无敌/演示/弹簧微调按钮已删,页面只保留 gd-canvas + 重来/跳过两枚按钮 ✓ */
+const mounts = ['gd-canvas', 'gd-restart', 'gd-skip'];
 const missMount = mounts.filter((id) => !js.includes(id));
 ok(missMount.length === 0, '页面上要挂的东西 gd.js 里都有(' + mounts.join('/') + ')'
   + (missMount.length ? ' 缺:' + missMount.join(',') : ''));

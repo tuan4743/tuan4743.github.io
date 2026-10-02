@@ -11,10 +11,9 @@
 
 import Phaser from 'phaser';
 import { generateLevel, makeRealTimeAxis, type Level, type Mode, type Obj } from './sim/level.ts';
-import { World, botThink, PORTAL_FRAME, type RunState } from './sim/world.ts';
+import { World, PORTAL_FRAME } from './sim/world.ts';
 import { frameRects, GD_SPEC } from './sim/gdids.ts';
-import { fingerprint } from './sim/replay.ts';
-import { P, U, Y_TIME_SCALE } from './sim/constants.ts';
+import { P, U } from './sim/constants.ts';
 import { WATER_CHART } from './sim/charts/water.ts';
 import { DEMO_CHART } from './sim/charts/demo.ts';   // ★ 演示铺(?level=demo,见下面的 LEVEL 取用处)
 
@@ -76,12 +75,6 @@ const ICON_ENABLED = true;   // ★ 临时默认打开(用户 2026-09:"要")—�
 const ART_ENABLED = true;    // ★ 2026-09 重新打开:现在用的是【官方图集 + 真映射】(不是早期那套猜的表 ✓)
 /* 图集版本号:每次重烘 gd-object-atlas.json / gd-art-*.png 就改一次 ⇒ 浏览器不会吃旧缓存 ✓ */
 const ART_V = 'u4';
-/** ★★ 无敌模式的"轨道上限"(用户口径:"给无敌模式加个上限,不允许脱离预定轨道")。
- *  为什么:无敌本身解决不了"人卡出墙/飞到天上"—— 以前只贴住关卡边界(0 ~ 127 格),
- *  于是开了无敌就能一路飞到 y=110 把整关绕过去,玩起来完全不是这张图。
- *  现在:开着无敌时,把人夹在【规划走廊】(tools/plan.ts 算出来的那条,y 实测 9~18 格)±BAND 块之内,
- *  超出就把纵向位置拉回边界并清掉朝外的速度 —— 横向照旧自由走。`?band=12` 可以放宽。 */
-const GUIDE_BAND = Math.max(1, Number(/(^|[?&])band=([\d.]+)/.exec(location.search)?.[2] ?? 6));
 const ICON_ATLAS: Array<{ mode: Mode; key: string; file: string }> = [
   { mode: 'cube', key: 'icon-cube', file: 'cube' },
   { mode: 'ship', key: 'icon-ship', file: 'ship' },
@@ -190,11 +183,45 @@ const PORTAL_W = 34, PORTAL_H = 86;
  *    滚动速度按行算,按住空格(或点住画面)会加速。 */
 const POEM: string[] = [
   '',
-  '(终末之诗 · 内容待填)',
+  '献给游玩过你',
   '',
-  '把要放的文字填进 src/main.ts 里的 POEM 数组,',
-  '一行一个字符串,空字符串表示空行。',
+  '无论你是真的玩完了整个关卡,',
+  '还是按下了首页的跳关按钮。',
+  '我都十分感谢你的游玩。',
   '',
+  '这个游戏是整个网站建站最大的工程。',
+  '铺面编写耗时一周,草草结束。',
+  '玩法还原耗时一周,还原度还仅仅不到50%。',
+  '整个游戏的物理引擎还存在大量错误。',
+  '我不用想就知道基本上到达这里的肯定都是按了通关按钮。',
+  '因为就连我都知道铺面内存在因为物理引擎不还原导致的无解处。',
+  '',
+  '建站之初我一直在想用什么办法表现挫折这个主题。',
+  '历经无数个想法,最终订下了这个想法。',
+  '现在看来这个游戏无疑十分契合。',
+  '',
+  '这就是挫折的含义,除非你亲自体验,你不会知道:',
+  '四处找ID-物件映射表的无奈。',
+  '反编出的游戏引擎却和实际相差甚远的愤怒。',
+  '写铺写道麻木的挫折。',
+  '四处修贴图错乱的无语。',
+  '连自己都始终无法过关的挫败。',
+  '以及:',
+  '编写时的兴奋。',
+  '展示成果的自豪。',
+  '为编写学习的知识。',
+  '',
+  '这就是挫折。',
+  '尽管这个游戏并不完美。',
+  '甚至十分简陋。',
+  '简陋到我想把这页再次删掉换一个更好实现的。',
+  '甚至这个游戏,这段文字能有多少人看到都是个谜。',
+  '但它就是这样。',
+  '它不会给你甜头。',
+  '只会给你实际的成长。',
+  '这就是挫折。',
+  '',
+  '再次感谢你的游玩!陌生人。'
 ];
 
 /** 彩蛋解锁标记(localStorage):CD 页面靠它显示"切换游玩模式"按钮 */
@@ -221,6 +248,11 @@ function segOf(x: number): string {
   return sg ? (sg.label || sg.mode) : '';
 }
 
+/** ★ 界面字体:和站点同一家("Alpha Sector" 英文像素 + 中文像素后备)。
+ *  旧版写死 ui-monospace ⇒ 菜单/死亡界面是一坨普通等宽字(用户:"字也丑")。
+ *  字体文件由站点 CSS(@font-face)加载;canvas 用它之前若还没就绪,浏览器会退回后备字体 ✓ */
+const UI_FONT = '"Alpha Sector", "Pixel CN", "PingFang SC", "Microsoft YaHei", ui-monospace, monospace';
+
 /** 界面阶段。★ 以前"任何按键/点击"都会开跑,于是面板一加载、加载动画还在放,游戏就开始了 ——
  *  现在只有"明确的确认键(空格/上/W)或点画布"才开始,死亡/通关也会停下来等人。 */
 type Phase = 'idle' | 'running' | 'dead' | 'done' | 'poem';
@@ -243,30 +275,6 @@ class Scene extends Phaser.Scene {
   audio: HTMLAudioElement | null = null;
   started = false;                  // 起跑闸门:按了确认键才开跑
   audioErr = '';                    // play() 失败的原因(验收要看)
-  botStates: RunState[] = [];
-  fp = '';
-  botMode = false;
-  botStarted = false;
-  /** 【看 bot 通关】演示:把搜索出来的通关输入卷原样喂给模拟。
-   *  ★ 为什么不是"现场搜":这张图 3620 块,Node 侧用宏动作最优优先树搜索也要跑一分钟
-   *    (数据在 tools/autoplay.ts 的头注释里),浏览器里现搜会卡住页面。
-   *    所以页面里放的是那一次的【输入卷】——它和 Node 侧逐帧同源,回放指纹一致
-   *    (tools/verify-run.ts 每次都验)。玩家按键随时可以接管。 */
-  demoMode = false;
-  /** 想开演示(URL ?demo=1 或按 B);真正的切换发生在第一帧 update 里(那时世界已经建好) */
-  demoWanted = false;
-  demoTape: boolean[] | null = null;
-  demoTried = false;
-  demoLoaded = false;
-  demoEndX = 0;
-  demoErr = '';
-  /** 演示倍速:**按真实时间**快进的倍数(1 = 正常速度)。
-   *  ★ 2026-09 修:以前是"一帧渲染推 N 帧物理" —— 于是 144Hz/240Hz 屏上会快 2.4~4 倍,
-   *    用户看到的就是"整体八倍速、几秒就播完了"(20086 帧的卷子在 240Hz 上 10 秒跑完)。
-   *    现在按 dt 累积:无论屏幕多少帧,1 倍速就是 334.8 秒播完。 */
-  demoSpeed = 1;
-  /** 演示的时间累积器(秒)—— 按真实时间推进,和刷新率无关 */
-  demoAcc = 0;
   /** 形态图集(static/icons)建好的图层。见 buildIcons() */
   /** 载具里的"驾驶位 cube"(UFO/飞船/球/波浪箭里坐着的那颗)✓ 见 drawIconPlayer */
   pilot: Phaser.GameObjects.Image | null = null;
@@ -360,50 +368,6 @@ class Scene extends Phaser.Scene {
     const id = (o as unknown as { id?: number }).id;
     if (id == null || !pack?.ids) return null;
     return pack.ids[String(id)] ?? null;      // 有帧 ⇒ 画贴图;没帧 ⇒ null ⇒ 矢量 ✓
-  }
-
-  /** 无敌模式的轨道夹取:加载规划走廊(static/assets/gd-guide.json),按 x 插值出这条走廊的高度,
-   *  把人夹在 ±GUIDE_BAND 块内。走廊没加载到就退回"只贴关卡边界"(老行为,不影响能玩)。 */
-  private guide: Array<[number, number]> = [];
-  private guideYAt(xBlocks: number): number | null {
-    const G = this.guide;
-    if (!G.length) return null;
-    if (xBlocks <= G[0][0]) return G[0][1];
-    const last = G[G.length - 1];
-    if (xBlocks >= last[0]) return last[1];
-    let lo = 0, hi = G.length - 1;
-    while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (G[mid][0] <= xBlocks) lo = mid; else hi = mid; }
-    const [x0, y0] = G[lo], [x1, y1] = G[hi];
-    return y0 + (y1 - y0) * ((xBlocks - x0) / Math.max(1e-6, x1 - x0));
-  }
-  private loadGuide() {
-    fetch('/assets/gd-guide.json')
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))))
-      .then((j: { points: Array<[number, number]> }) => {
-        this.guide = (j.points ?? []).filter((p) => Array.isArray(p) && p.length === 2);
-        console.log('[gd] 无敌轨道就绪:' + this.guide.length + ' 个点 · ±' + GUIDE_BAND + ' 块');
-      })
-      .catch((e: Error) => { console.warn('[gd] 轨道没加载到,无敌只贴边界:' + e.message); });
-  }
-  /** 无敌状态下把人夹回轨道。
-   *  ★★ 2026-09 修(用户:"轨道是固定y轴,导致直接卡住"):第一版是【硬夹】——
-   *  超界就把 y 直接赋值到边界。可走廊本身是几何规划出来的,某些位置上它就是贴着砖/在半空,
-   *  硬夹等于每帧把人塞进那块几何里 ⇒ 人卡在墙里动不了 ✗。
-   *  现在改成【软推】:每帧最多推 0.5 块(30 单位/秒),并清掉朝外的纵向速度 ——
-   *  不瞬移、不穿模,推不进去就自然停在那儿,绝不会卡死 ✓。 */
-  private clampToGuide() {
-    const w = this.world;
-    if (!w.god) return;
-    const gy = this.guideYAt(w.x / U);
-    if (gy == null) return;
-    const cy = (w.y + w.box / 2) / U;                 // 用玩家【中心】(块)比,别拿脚底比
-    const over = cy - gy;
-    if (Math.abs(over) <= GUIDE_BAND) return;
-    const dir = over > 0 ? -1 : 1;                    // 往轨道那一侧推
-    const push = Math.min(0.5, Math.abs(over) - GUIDE_BAND) * U;
-    w.y += dir * push;
-    if (dir < 0 && w.vy > 0) w.vy = 0;
-    if (dir > 0 && w.vy < 0) w.vy = 0;
   }
 
   /** 贴图染色:砖用关卡主色;环/冲刺环【不染】—— 官方每种环本来就是带颜色的不同帧
@@ -508,11 +472,9 @@ class Scene extends Phaser.Scene {
   /** 验收用:update 被调了几次、Phaser 喂进来的 delta 是多少 */
   updates = 0;
   lastDt = 0;
-  /** 自己用 performance.now() 量上一次 update 的墙上时间(演示节拍用,见 update) */
-  lastWallMs = 0;
   /** 上一次"试着把音乐 seek 回模拟时间"的时刻(seek 失败时每 1.5 秒重试一次) */
   lastSeekTry = 0;
-  /** 验收用:演示/机器人模式下每次"发现世界死了"的记录(次数、帧号、位置) */
+  /** 验收用:每次"发现世界死了"的记录(次数、帧号、位置) */
   deathLog: Array<{ tick: number; x: number; y: number; vy: number; mode: string; gdir: number; chunk: number; at: number; hold: boolean }> = [];
   baseTick = 0;                     // 这一条命的起点在音乐时间轴上的帧号(复活时跟着存档点走)
   airT = 0;                         // 空中停留了多久(给方块自转用)
@@ -527,6 +489,18 @@ class Scene extends Phaser.Scene {
   private prevR = false;
   private restartPressed = false;
   private confirmLatch = false;     // 真实的 keydown 事件(比"每帧查 isDown"可靠:极短的一下也收得到)
+  /* ★★★ 2026-10 用户:"开头刚播放动画直接按按钮,动画就不对了" ——
+       开机动画(黑屏 loading → 盘片场景)还在播的时候,人就在屏幕底下点/按了:
+       游戏 phase 还是 idle ⇒ 点一下/空格立刻 startRun() 起跑、音乐起 —— 动画揭幕时
+       人已经跑到半截,画面和"刚开始"完全对不上 ✗。
+       修法:动画期间(intro.js 的 window.__bootRunning === true)把确认输入整个吞掉
+       —— keydown/pointerdown 连 latch 都不记(记了也会被下面的 bootHold 消费掉),
+       phase 永远停在 idle;动画放完(__bootRunning 变 false)输入才恢复 ✓
+       动画期间按下的那一下就是丢掉,不补 —— "抢跑"本来就不该成立 ✓ */
+  private bootHold(): boolean {
+    const br = window as unknown as { __bootRunning?: boolean };
+    return br.__bootRunning === true;
+  }
   /* ★★★ 2026-09-26 用户:"低帧率会直接影响游戏(不是卡,是游戏逻辑跟着变)" —— 探针实测(gd-fps-check):
        ×1 限速:模拟 43.9 fps(该 60 ✗,正好是"Phaser 平滑 delta 少算 25%"那条已知问题)、
        ×6 限速(渲染 3 fps):模拟只剩 24.9 fps ⇒ 世界整体变慢 2.4 倍,跳跃距离/节奏全变 ✗✗
@@ -551,13 +525,8 @@ class Scene extends Phaser.Scene {
     return down;
   }
   private restartLatch = false;
-  private godLatch = false;         // G 键:无敌模式
-  private prevG = false;
-  private demoLatch = false;        // B 键:看 bot 通关(演示卷)
   private padLatch = 0;             // [ / ]:弹簧力度微调(-1 / +1 个单位,每个 5%)
-  /** 无敌模式想要的状态 —— startRun() 会 new 一个 World,得把开关带过去 */
-  godWanted = false;
-  /** 弹簧力度微调(和 godWanted 一样:换世界时要带过去) */
+  /** 弹簧力度微调(换世界时要带过去) */
   padMulWanted = 1;
   private modeLatch = 0;            // 数字键 1~7:调试用的现场换形态
   uiTitle!: Phaser.GameObjects.Text;
@@ -661,25 +630,33 @@ class Scene extends Phaser.Scene {
     this.playMusicAt(this.tAtX(w.checkX));
   }
 
-  /** 从头来(R 键 / "重来"按钮 / 死亡界面按 R)。★ 2026-09 修:以前演示/机器人模式下
-   *  这一支根本走不到(update 里每帧把 phase 强行掰回 running),用户按 R 就是"摆设";
-   *  现在任何模式、任何阶段都走这里:演示模式下 = 【演示从头再放一遍】。 */
+  /** 跳到结尾(死亡界面/主菜单用):直接落到结尾展示段(x=3410 块,那排横砖前的空白),
+   *  走两步 lost.html 的"走进展示页"逻辑就会淡入字幕卡片,不用先跑完 300 秒 ✓
+   *  传送走的是【存档点状态】(reset + 指定速度/形态),和 ?from= 的口径一致:
+   *  那一段是常速 cube 平地,safeSpawnY 会把人放在地面线上,落地即走 ✓ */
+  skipToEnd() {
+    /* ★ 2026-10 修(用户:"按跳关到最后,音乐没有正常播放"):
+       从主菜单点"跳到结尾字幕"(以及 ?skip=1)进来时 phase 还是 idle ——
+       world 和 audio 都只在 startRun() 里创建,直接用就是 undefined,
+       playMusicAt 里 `if (!a) return` 静默吞掉 ⇒ 跳过去了但音乐不响。
+       所以先正常开局(建 world + audio、开始放歌),再传送到展示段。 */
+    if (this.phase === 'idle' || !this.world) this.startRun();
+    const w = this.world;
+    const SKIP_X = 3410;                                  // 块:展示段左端(lost.html 的 SHOW_FROM_X)
+    w.checkX = (SKIP_X + 0.5) * U;
+    w.checkY = 0;
+    w.checkMode = 'cube'; w.checkSize = 1; w.checkZoom = 1;
+    w.checkSpeed = 0; w.checkGdir = 1;                    // 展示段 = 常速 1 档(见 water.ts 最后一段)
+    w.reset(w.checkX, 'cube', w.checkY);
+    this.baseTick = Math.floor(this.tAtX(w.checkX) * 60);
+    this.airT = 0; this.acc = 0; this.deathT = 0;
+    this.prevY = w.y; this.camInit = false;
+    this.phase = 'running';
+    this.playMusicAt(this.tAtX(w.checkX));
+  }
+
+  /** 从头来(R 键 / "重来"按钮 / 死亡与通关界面)。 */
   restartRun() {
-    this.demoAcc = 0;
-    this.demoEndX = 0;
-    if (this.demoMode || this.botMode) {
-      this.world = new World(LEVEL);
-      this.world.god = false;   /* ★ 2026-09 用户:"把无敌模式直接给我删掉" ⇒ 恒为 false,开关不再生效 */
-      this.world.padMul = this.padMulWanted;
-      this.botStarted = false;              // 让 pump 里"干净开局"那一段重新走一遍
-      this.botStates = [];
-      this.fp = '';
-      this.baseTick = 0; this.prevY = 0; this.airT = 0; this.camInit = false;
-      this.phase = 'running';
-      this.started = true;
-      this.playMusicAt(0);
-      return;
-    }
     this.restartFromZero();
   }
 
@@ -689,7 +666,6 @@ class Scene extends Phaser.Scene {
     this.baseTick = 0;
     this.airT = 0;
     this.acc = 0;
-    this.demoAcc = 0;
     this.deathT = 0;
     this.prevY = 0;
     this.camInit = false;
@@ -711,20 +687,19 @@ class Scene extends Phaser.Scene {
        三个开关都【不产生任何界面元素】✓(和你要求的"页面不留东西"不冲突 ✓)*/
     {
       const w = this.world;
-      const chks = (w.level.objects as Array<Record<string, unknown>>)
-        .filter((o) => o.kind === 'check').sort((a, b) => (a.b as number) - (b.b as number));
+      const chks = w.level.objects.filter((o) => o.kind === 'check').sort((a, b) => a.b - b.b);
       const q = (k: string) => new RegExp('(^|[?&])' + k + '=([^&]+)').exec(location.search);
       const cpQ = q('cp'), fromQ = q('from'), modeQ = q('mode'), spdQ = q('spd');
-      let pick: Record<string, unknown> | null = null;
+      let pick: Obj | null = null;
       if (cpQ) pick = chks[Math.max(0, Math.min(chks.length - 1, Number(cpQ[2]) - 1))] ?? null;
       else if (fromQ) {
         const x = Number(fromQ[2]);
-        for (const c of chks) if ((c.b as number) <= x) pick = c;
+        for (const c of chks) if (c.b <= x) pick = c;
       }
       const mode = (modeQ ? String(modeQ[2]) : 'cube') as Mode;
       if (pick || modeQ || spdQ) {
-        const px = pick ? ((pick.b as number) + 0.5) * U : w.x;
-        const py = pick ? ((pick.r as number) + 0.5) * U - 15 : w.y;
+        const px = pick ? (pick.b + 0.5) * U : w.x;
+        const py = pick ? (pick.r + 0.5) * U - 15 : w.y;
         w.checkX = px; w.checkY = py; w.checkMode = mode;   // 存档点不记录形态 ⇒ 用 ?mode= 指定的(默认 cube ✓)
         w.checkSpeed = spdQ ? Number(spdQ[2]) : w.speedIdx;
         w.checkGdir = 1; w.checkSize = 1;
@@ -734,21 +709,19 @@ class Scene extends Phaser.Scene {
       /* ★ 演示铺:默认【自由移动】(←/→ 或 A/D 走,不按就停 ✓)—— 用户:"demo 做成自由移动,不再固定往前" */
       if (/(^|[?&])level=demo(&|$)/.test(location.search)) w.freeMove = true;
     }
-    /* ★ 无敌模式:页面按 G 切;也可以开局就用 URL 打开(?god=1),验收脚本直接改 __gd.world.god */
-    this.godWanted = /(^|[?&])god=1(&|$)/.test(location.search);
-    this.world.god = false;   /* ★ 2026-09 用户:"把无敌模式直接给我删掉" ⇒ 恒为 false,开关不再生效 */
-    /* ?demo=1 —— 开局直接演示"bot 通关"(和按 B / 点右下角按钮等效)
-       ?demospeed=4 —— 演示倍速(默认 1 = 正常速度;20086 帧的卷子正常速度播 334.8 秒) */
-    if (/(^|[?&])demo=1(&|$)/.test(location.search)) this.demoWanted = true;
-    const ds = /(^|[?&])demospeed=([\d.]+)/.exec(location.search);
-    if (ds) this.demoSpeed = Math.max(0.25, Math.min(40, Number(ds[2]) || 1));
-    /* ?padmul=0.75 —— 弹簧力度微调(和按 [ / ] 等效),验收脚本也能用 URL 指定 */
+    /* ★ 无敌模式早已整体删除(用户口径:"把无敌模式直接给我删掉")⇒ world.god 恒为 false。
+       World.god 字段本身保留在 sim 里(不碰物理),这里不再有任何开关。 */
+    this.world.god = false;
+    /* ?skip=1 —— 开局直接看结尾字幕(不从头跑);游玩/验收都能用 */
+    if (/(^|[?&])skip=1(&|$)/.test(location.search)) this.skipToEnd();    /* ?padmul=0.75 —— 弹簧力度微调(和按 [ / ] 等效),验收脚本也能用 URL 指定 */
     const pm = /(^|[?&])padmul=([\d.]+)/.exec(location.search);
     if (pm) { this.padMulWanted = Math.max(0.4, Math.min(1.5, Number(pm[2]) || 1)); this.world.padMul = this.padMulWanted; }
     this.cameras.main.setBackgroundColor('#05070d');
     this.cameras.main.setZoom(this.zoomOf());
     /* ★ 只在【画布上】点才算确认 —— 以前监听 window,点导航、点 CD 面板都会顺手把游戏开起来 */
     this.input.on('pointerdown', () => {
+      /* ★ 开机动画还在播 ⇒ 这一连点不是给游戏的,吞掉(见 bootHold 上的注释)✓ */
+      if (this.bootHold()) return;
       this.clicked = true;
       /* ★ 把焦点从站内搜索框上拿走:搜索框还留着焦点时,键盘事件都指向它,
          实测就是它让 R / G 按了没反应(点一下画面就恢复正常)。 */
@@ -762,6 +735,8 @@ class Scene extends Phaser.Scene {
        ★ 不再"焦点在输入框里就不理":用户实测 R/G 没反应,查出来是站内搜索框还留着焦点 ——
          指向输入框的 keydown 我们一样要接。玩之前点一下画面就会把焦点从搜索框上拿走(见下面 pointerdown)。 */
     window.addEventListener('keydown', (ev: KeyboardEvent) => {
+      /* ★ 开机动画还在播 ⇒ 空格/上/W 全部吞掉,不给游戏(见 bootHold 上的注释)✓ */
+      if (this.bootHold()) return;
       if (ev.code === 'Space' || ev.code === 'ArrowUp' || ev.code === 'KeyW') {
         this.confirmLatch = true;
         this.logInput(true, ev.timeStamp || performance.now());     // ★ 时间线:按硬件事件时刻记 ✓
@@ -780,15 +755,10 @@ class Scene extends Phaser.Scene {
     window.addEventListener('keyup', (ev: KeyboardEvent) => {
       if (ev.code === 'Space' || ev.code === 'ArrowUp' || ev.code === 'KeyW') this.logInput(false, ev.timeStamp || performance.now());
     }, true);
-    /* ★ 再给几个【能点的】按钮:键盘在某些环境里会被别的东西吃掉(用户实测 R/G 没反应),
-       按钮用鼠标/触屏都能按,而且状态直接写在按钮上 —— 不用猜到底开没开。 */
-    document.getElementById('gd-god')?.addEventListener('click', () => { this.toggleGod(); this.blurSelf(); });
-    document.getElementById('gd-demo')?.addEventListener('click', () => { this.demoLatch = true; this.blurSelf(); });
-    document.getElementById('gd-restart')?.addEventListener('click', () => { this.restartLatch = true; this.blurSelf(); });
-    /* ★ 累加而不是赋值:连点两下按钮/连按两下键时,如果只是 `= 1`,同一帧里的两次会互相覆盖
-       (用户会看到"点了没反应/只动一格")。 */
-    document.getElementById('gd-pad-minus')?.addEventListener('click', () => { this.padLatch -= 1; this.blurSelf(); });
-    document.getElementById('gd-pad-plus')?.addEventListener('click', () => { this.padLatch += 1; this.blurSelf(); });
+    /* ★ 再给一个【能点的】重来按钮:键盘在某些环境里会被别的东西吃掉(用户实测 R 没反应)。
+       (无敌/演示/跳点按钮随各自功能一起删了 ✓) */
+    document.getElementById('gd-restart')?.addEventListener('click', () => { if (this.bootHold()) return; this.restartLatch = true; this.blurSelf(); });
+    document.getElementById('gd-skip')?.addEventListener('click', () => { if (this.bootHold()) return; this.skipToEnd(); this.blurSelf(); });
     /* ★★ 物件贴图(从【游戏本体】抽出来的小图集,见 tools/verify/build-art.mjs):
        static/assets/gd-art.png/json 里只有这一关用得到的 35 帧 —— 锯片/弹簧板/存档点/硬币/刺/跳环/形态门。
        ★ 密度:1 像素 = 1 单位(方块 30 单位 = 30 px),所以画画时 k = 物件高度(单位) / 帧高(px)。
@@ -807,13 +777,12 @@ class Scene extends Phaser.Scene {
       this.load.once('complete', () => { this.artReady = this.textures.exists('gd-art'); });
       this.load.start();
     }
-    /* ★★ 2026-09 用户:"全删掉,页面不留任何东西" ⇒ 除了画布,其它界面元素一律移除 ✓
-       (HUD 进度条 / 按键提示 / 五个调试按钮 / 手机提示 / 遮罩 / 底部参考行 —— 全部删掉) */
-    for (const sel of ['#gd-hud', '#gd-tools', '#gd-god', '#gd-demo', '#gd-restart', '#gd-pad-minus', '#gd-pad-plus',
-                       '.lost-tip', '.gd-tools', '.gd-mobile-note', '.lost-veil', '.lost-wip__ref']) {
+    /* ★★ 2026-09 用户:"全删掉,页面不留任何东西" ⇒ 除了画布、重来/跳过两个按钮,其它一律移除 ✓
+       (注意不能移除 '.gd-tools' —— 那是这两个按钮的父容器,删了它们就一起没了) */
+    for (const sel of ['#gd-hud', '#gd-god', '#gd-demo', '#gd-pad-minus', '#gd-pad-plus',
+                       '.lost-tip', '.gd-mobile-note', '.lost-veil', '.lost-wip__ref']) {
       document.querySelectorAll(sel).forEach((el) => el.remove());
     }
-    this.loadGuide();                          // ★ 无敌模式的轨道(见 clampToGuide)
     /* ★ 形态图集(static/icons):默认不加载(见上面那段"结论")。?icons=1 才试图集 */
     if (ICON_ENABLED) {
       const q = /(^|[?&])col1=([0-9a-fA-F]{6})/.exec(location.search);
@@ -837,9 +806,9 @@ class Scene extends Phaser.Scene {
       this.load.once('complete', () => { this.buildIcons(); });
       this.load.start();
     }
-    const ui = { fontFamily: 'ui-monospace, Consolas, monospace', align: 'center' as const };
-    this.uiTitle = this.add.text(0, 0, '', { ...ui, fontSize: '44px', color: '#e2f6ff' }).setOrigin(0.5).setDepth(20).setVisible(false);
-    this.uiHint = this.add.text(0, 0, '', { ...ui, fontSize: '24px', color: HL }).setOrigin(0.5).setDepth(20).setVisible(false);
+    const ui = { fontFamily: UI_FONT, align: 'center' as const };
+    this.uiTitle = this.add.text(0, 0, '', { ...ui, fontSize: '40px', color: '#e2f6ff', letterSpacing: 6 }).setOrigin(0.5).setDepth(20).setVisible(false);
+    this.uiHint = this.add.text(0, 0, '', { ...ui, fontSize: '20px', color: HL, lineSpacing: 8 }).setOrigin(0.5).setDepth(20).setVisible(false);
     this.poemText = this.add.text(0, 0, POEM.join('\n'), { ...ui, fontSize: '26px', color: '#e2f6ff', lineSpacing: 10 }).setOrigin(0.5, 0).setDepth(19).setVisible(false);
     /* 功能块(text 物件)做成场上的文字(旧版那种段落旁白水印已删) */
     for (const o of LEVEL.objects) {
@@ -884,6 +853,9 @@ class Scene extends Phaser.Scene {
    *  ★ 用"自己记上一帧"的边沿判定,不用 Phaser.Input.Keyboard.JustDown ——
    *    实测在这个页面里 JustDown 收不到(按键的 isDown 是好的),于是按空格开不了局。 */
   private confirmDown(): boolean {
+    /* ★ 2026-10 兜底:latch 是动画开始前按下的(那一下已经丢了),动画播完的这一帧
+       别把它当"开局确认"放出来 —— bootHold 为真时确认一律 false ✓ */
+    if (this.bootHold()) { this.confirmLatch = false; this.clicked = false; this.restartLatch = false; return false; }
     const k = this.keys;
     const held = !!(k.SPACE?.isDown || k.UP?.isDown || k.W?.isDown);
     const edge = held && !this.prevHeld;
@@ -892,20 +864,9 @@ class Scene extends Phaser.Scene {
     this.prevR = !!k.R?.isDown;
     this.restartPressed = rEdge;
     this.restartLatch = false;
-    /* 无敌模式开关:G 键(边沿触发)。切换时给一次提示,好确认到底开没开。 */
-    const gEdge = (!!k.G?.isDown && !this.prevG) || this.godLatch;
-    this.prevG = !!k.G?.isDown;
-    this.godLatch = false;
-    if (gEdge) this.toggleGod();
-    /* B 键 / ?demo=1:看 bot 通关 */
-    if (this.demoLatch || this.demoWanted) {
-      this.demoLatch = false;
-      this.demoWanted = false;
-      this.toggleDemo();
-    }
     /* ★ 弹簧力度微调:[ 减 5%、] 加 5%(0.4 ~ 1.5)。蓝跳点到底该多大还没定死,
        让用户直接把数值调到手感对,比我们反复猜省事 —— HUD 上会显示"跳点×N"。
-       ★ 走和 G/R 同一条路(真实 keydown 事件 + latch):Phaser 的 addKeys('OPEN_BRACKET')
+       ★ 走真实 keydown 事件 + latch:Phaser 的 addKeys('OPEN_BRACKET')
        实测收不到(按 ] 有效、按 [ 无效),别在这上面浪费时间。 */
     if (this.padLatch) {
       this.padMulWanted = Math.round(Math.max(0.4, Math.min(1.5,
@@ -919,47 +880,10 @@ class Scene extends Phaser.Scene {
     return false;
   }
 
-  /** 无敌开关:键盘 G 和屏幕右下角那个按钮都走这里(状态写在按钮上,不用猜开没开) */
-  toggleGod() {
-    this.godWanted = !this.godWanted;
-    this.world.god = false;   /* ★ 2026-09 用户:"把无敌模式直接给我删掉" ⇒ 恒为 false,开关不再生效 */
-    this.syncGodButton();
-  }
-
   /** 按钮点完把焦点还回去 —— 不然按钮留着焦点,按空格会当成"再点一次这个按钮"(HTML 默认行为) */
   private blurSelf() {
     const ae = document.activeElement as HTMLElement | null;
     if (ae && ae !== document.body) ae.blur();
-  }
-
-  private godBtnEl: HTMLElement | null = null;
-  private godBtnTxt = '';
-
-  /** 演示按钮上的字:没下好 / 下失败 / 开了 / 关了 —— 状态写在按钮上,不用猜 */
-  syncDemoButton() {
-    if (!this.demoBtnEl) this.demoBtnEl = document.getElementById('gd-demo');
-    const el = this.demoBtnEl;
-    if (!el) return;
-    const txt = this.demoMode
-      ? (this.demoTape ? '演示:开 ×' + this.demoSpeed.toFixed(2).replace(/\.?0+$/, '') : this.demoErr ? '演示:卷子加载失败' : '演示:载入中…')
-      : '看 bot 通关';
-    if (txt === this.demoBtnTxt) return;
-    this.demoBtnTxt = txt;
-    el.textContent = txt;
-    el.classList.toggle('is-on', this.demoMode);
-  }
-  private demoBtnEl: HTMLElement | null = null;
-  private demoBtnTxt = '';
-
-  private syncGodButton() {
-    if (!this.godBtnEl) this.godBtnEl = document.getElementById('gd-god');
-    const el = this.godBtnEl;
-    if (!el) return;
-    const txt = this.world.god ? '无敌:开' : '无敌:关';
-    if (txt === this.godBtnTxt) return;              // 只在变了的时候写 DOM
-    this.godBtnTxt = txt;
-    el.textContent = txt;
-    el.classList.toggle('is-on', this.world.god);
   }
 
   /** 可见高度 = VIEW_H_BLOCKS 块 **在真正的窗口里**(不是整块画布)。
@@ -1126,7 +1050,6 @@ class Scene extends Phaser.Scene {
       const mains = Object.keys(F).filter((n) => !/_2_|_3_|_extra_|_glow_/.test(n));
       if (!mains.length) continue;
       const name = mains.slice().sort((p, q) => p.localeCompare(q))[0];
-      const glowName = name.replace(/_(\d+)\.png$/, '_glow_$1.png');
       const made: Array<{ layer: 'body' | 'glow'; tex: string; w: number; h: number }> = [];
       /* ★★★ 2026-09 多层拼装(修用户报的"robot 没腿 / spider 看不出是什么"):
          GD 的玩家图标是【身体 + _2_ + _3_ 部件】叠出来的 ——
@@ -1154,7 +1077,6 @@ class Scene extends Phaser.Scene {
          我们以前【只叠主体】✗ ⇒ 少了那圈"框" ✓ ⇒ 现在把 _extra_ 一起叠进来 ✓(_glow_ 照旧不叠 ✓) */
       const layerNames = [name, name.replace(/_(\d+)\.png$/, '_extra_$1.png')].filter((n) => !!F[n]);
       {
-        const base = F[name];
         /* 画布尺寸 = 各层 内容尺寸 + 2×|偏移| 的最大值(保证都放得下 ✓) */
         let W = 4, H = 4;
         for (const ln of layerNames) {
@@ -1353,52 +1275,20 @@ class Scene extends Phaser.Scene {
     // if (L.glow) L.glow.setVisible(false);   // ✗ 删掉:第二色层要用
   }
 
-  /** 推进 n 帧模拟(输入按当前模式取:演示卷 / 机器人 / 键盘) */
+  /** 推进 n 帧模拟(输入来自键盘时间线) */
   pump(n: number) {
-    /* ★★ 卷子还没下好就别推进(2026-09 修):演示的输入是 `tape[tick]`,
-       而 `loadTape()` 是异步 fetch —— 以前这中间会照常推进,于是**开头几十上百帧是"没有输入"在跑**,
-       等卷子到了,人和卷子已经错位,必然在 x≈100 前后摔死、然后无限重来。
-       用户报的"只播放了几秒就结束了"就有它一份;而且它取决于网速/页面加载快慢,是典型的竞态。
-       现在:没卷子就不动(按钮上显示"载入中…"),卷子到了再由 loadTape 从头开一局。 */
-    /* ★★ 2026-09 用户:"自动播放也给我删掉" ⇒ 演示卷/机器人输入每帧强制关闭,入口(键/URL)都不再生效 ✓
-       (原来是:if (this.demoMode && !this.demoTape) return; —— 演示/机器人输入会接管按键 ✗) */
-    this.demoMode = false;
-    this.botMode = false;
-    this.demoTape = [];
     for (let i = 0; i < n; i++) {
       const w0 = this.world;
       if (w0.dead) {
-        /* ★ 验收用:把"哪一帧、在哪死的"记下来 —— 演示卷在 Node 侧是 0 死亡,
-           页面上要是有死亡,必须能一眼看出是哪一帧/哪个位置(只有一个次数根本查不动)。 */
+        /* ★ 验收用:把"哪一帧、在哪死的"记下来(只记前 20 次,够定位了) */
         if (this.deathLog.length < 20) {
-          this.deathLog.push({ tick: w0.tick, x: +(w0.x / U).toFixed(2), y: +(w0.y / U).toFixed(2), vy: +(w0.vy / U).toFixed(2), mode: w0.mode, gdir: w0.gdir, chunk: n, at: i, hold: this.demoHold(w0.tick) });
+          this.deathLog.push({ tick: w0.tick, x: +(w0.x / U).toFixed(2), y: +(w0.y / U).toFixed(2), vy: +(w0.vy / U).toFixed(2), mode: w0.mode, gdir: w0.gdir, chunk: n, at: i, hold: false });
         }
-        if (this.botMode || this.demoMode) {
-          /* ★ 演示卷【死了一次】= 它和当前物理已经不是一套了(卷子是按某一版物理搜出来的)。
-             以前会静默复活、无限重来(用户看到的"演示几秒就结束/闪一下")——
-             现在直接判定"卷子过期"并退出演示,按钮上写清楚,别装作还能跑。 */
-          if (this.demoMode) {
-            this.demoErr = '演示卷已过期(物理更新过,等重新打包)';
-            this.demoMode = false;
-            this.phase = 'idle';
-            this.pauseMusic();
-            this.syncDemoButton();
-            return;
-          }
-          /* 机器人验收:立刻复活,和 Node 侧一致 */
-          const wasX = w0.checkX;
-          w0.respawn();
-          this.baseTick = Math.floor(this.tAtX(wasX) * 60);
-          this.airT = 0;
-        } else {
-          this.phase = 'dead';                  // 真人:停下来出死亡界面,不再自动复活
-          this.deathT = 0;
-          this.pauseMusic();
-          return;
-        }
+        this.phase = 'dead';                  // 停下来出死亡界面,不自动复活
+        this.deathT = 0;
+        this.pauseMusic();
+        return;
       }
-      /* 输入来源:演示卷按 tick 取(那卷输入是从 tick=0 全程录的),
-         否则反应式机器人,否则键盘。 */
       /* ★★ 短按丢失的修复(2026-09,用户报"空格有时候失效"+"跳环按了没用"其实是同一条):
          键盘这条路原来【只看 isDown 轮询】—— keydown/keyup 落在两次轮询之间的一下会被整帧丢掉 ✗,
          而跳环要求"在环里的那一帧有新按下",丢一拍就是完全没反应 ✗。
@@ -1416,30 +1306,12 @@ class Scene extends Phaser.Scene {
       const tap = this.tapPending;                  // 比一帧还短的一下:只喂第一步,别当成"按住"✓
       this.tapPending = false;
       const liveHold = !!(this.keys.SPACE?.isDown || this.keys.UP?.isDown || this.keys.W?.isDown);
-      const hold = this.demoMode ? this.demoHold(w0.tick)
-        : this.botMode ? botThink(w0)
-          : ((this.inputLog.length ? this.holdAt(stepClock) : liveHold) || tap || useLatch);
-      if ((this.botMode || this.demoMode) && !this.botStarted) {       // 开机器人 = 从干净的一局开始,方便和 Node 侧对指纹
-        this.botStarted = true;
-        this.started = true;
-        this.world = new World(LEVEL);
-        this.world.god = false;   /* ★ 2026-09 用户:"把无敌模式直接给我删掉" ⇒ 恒为 false,开关不再生效 */
-        this.world.padMul = this.padMulWanted;
-        this.botStates = [];
-        this.fp = '';
-        this.prevY = 0;
-        this.airT = 0;
-        this.baseTick = 0;
-        continue;
-      }
+      const hold = ((this.inputLog.length ? this.holdAt(stepClock) : liveHold) || tap || useLatch);
       this.prevY = w0.y;
       w0.frame(hold);
-      /* ★ 无敌模式的"轨道上限":开着无敌时不许飞离规划走廊(见 clampToGuide) */
-      this.clampToGuide();
       this.airT = w0.onGround ? 0 : this.airT + 1 / 60;
       /* ★★ 2026-09 演示铺自由移动(用户:"还是不能自由移动,固定向右"):
-         上一版只在启动时给【当时的那个 world】设了 freeMove ✗ —— 而世界会被重建(复活/切铺),
-         新世界又变回 false ⇒ 表现就是"固定向右" ✓✓
+         世界会被重建(复活/切铺),新世界又变回 false ⇒ 表现就是"固定向右" ✓✓
          ⇒ 改成【每帧】对着当前世界强制打开(check 一次正则,开销可忽略 ✓)*/
       if (/(^|[?&])level=demo(&|$)/.test(location.search)) w0.freeMove = true;
       if (w0.freeMove) {
@@ -1448,26 +1320,13 @@ class Scene extends Phaser.Scene {
         const left = !!(k.LEFT?.isDown || k.A?.isDown);
         w0.freeDir = (right ? 1 : 0) - (left ? 1 : 0);
       }
-      /* ★★ 2026-09 照源码抄的方块自转(PlayerObject::updateRotation,IDA 144749 / 144846):
-           · 目标角:空中时 = 当前角 + 180°(源码 v85 = getRotation + 180 ✓)⇒ 目标永远在前面 180°,
-             所以【一直在转】✓,落地则由下面的"最近 90°"接管 ✓
-           · 插值:朝目标做 Slerp 缓动,每帧步长有上限 = 该字段 × 0.175 × dt
-             (源码 v7 = v3[505] × 0.175;v3[505] 是速度量 ⇒ 速度档越高转得越快 ✓)
-           · 落地:目标换成 convertToClosestRotation(0) = 最近的 90° 倍数
-             (源码 144846 那两个重载里就是这么调的 ✓)⇒ 落地收平是【缓动】,不是瞬跳、也不是回正到 0 ✓
-         这次一个自创常数都没有:180° 和 0.175 都是源码里的 ✓,唯一的换算用本档速度归一化 ✓ */
+      /* ★★ 照源码抄的方块自转(PlayerObject::updateRotation,IDA 144749 / 144846):
+           · 空中:匀速 540°/s(= 180 ÷ 0.33333,源码 runNormalRotation 的常数 ✓)
+           · 落地:收平到最近的 90° 倍数(缓动,不瞬跳)✓
+         重力反了则反向转(源码 v6 = -1 ✓) */
       if (w0.mode === 'cube') {
-        /* ★★★ 2026-09 用户:"cube 的旋转力度太大,照搬原版的旋转机制"
-           原版出处:PlayerObject::runNormalRotation(反编译 144512-144542 行)——
-             角速度是【常数】:ω(度/秒) = 180 × (速度因子 this+589) × a3 ÷ v7
-               v7 = 0.33333(当 this+504 == 1.0 时 0.43333),a3 = 1.0(从 runRotateAction 传 1.0)
-               符号:v6 = -1(重力反时)再乘 reverseMod/flipMod(±1)
-             ⇒ 基准 = 180 ÷ 0.33333 = **540 度/秒**(一圈 2/3 秒),是【匀速积分】✓
-           我们以前是【朝"当前角 + 180°"做指数缓动、步长 0.175×速度】✗ ——
-             目标永远在前面 180° ⇒ 一直追、一上来就猛转 ⇒ 正是"力度太大" ✓✓
-           ⇒ 现在改成按源码常数匀速转 ✓(重力反了反向:源码那个 v6 = -1 ✓)
-           落地收平那段【没动】:原版是 stopRotation(_, 22),那个 22 的口径我还没核,
-             而现在的收平手感是你之前定过的("不再回正")⇒ 只改空中的转速这一个变量 ✓ */
+        /* 空中匀速 540°/s(PlayerObject::runNormalRotation 的源码常数 180 ÷ 0.33333 ✓),
+           落地收平到最近 90° 倍数(缓动)—— 细节依据见 git 历史里 2026-09 那几轮的注释 ✓ */
         if (w0.onGround) {
           const step = Math.min(1, (0.175 * Math.max(0.5, Math.abs(w0.vx) / 5.7700018)) / Math.max(1, n));
           const near = Math.round(this.spinLast / (Math.PI / 2)) * (Math.PI / 2);   // 最近的 90° 倍数
@@ -1480,72 +1339,11 @@ class Scene extends Phaser.Scene {
       } else {
         this.spinLast = 0;
       }
-      if (this.botMode) {
-        this.botStates.push(w0.state);
-        if (w0.done && !this.fp) this.fp = fingerprint(this.botStates);
-      }
       if (w0.done) {
-        if (this.demoMode) {
-          /* 演示跑完 = 通关:停在这一帧,让"通关"两个字留在 HUD 上(R 可以重看) */
-          this.demoEndX = w0.x;
-          this.phase = 'done';
-          this.deathT = 0;
-          this.pauseMusic();
-          break;
-        }
-        if (!this.botMode) { this.phase = 'poem'; this.poemT = 0; this.egg = false; this.pauseMusic(); }
+        this.phase = 'poem'; this.poemT = 0; this.egg = false; this.pauseMusic();
         break;
       }
     }
-  }
-
-  /** 演示卷:第 tick 帧按不按。卷子比模拟短就一律松手(不该发生,但别越界) */
-  private demoHold(tick: number): boolean {
-    const t = this.demoTape;
-    return !!t && tick >= 0 && tick < t.length && t[tick];
-  }
-
-  /** 开/关【看 bot 通关】。开的时候如果卷子还没下载,先去下载(懒加载:平时不占带宽) */
-  toggleDemo() {
-    this.demoMode = !this.demoMode;
-    if (this.demoMode) {
-      this.loadTape();
-      this.world = new World(LEVEL);
-      this.world.god = false;   /* ★ 2026-09 用户:"把无敌模式直接给我删掉" ⇒ 恒为 false,开关不再生效 */
-      this.world.padMul = this.padMulWanted;
-      this.botStarted = false;
-      this.botStates = [];
-      this.fp = '';
-      this.phase = 'running';
-      this.started = true;
-      this.baseTick = 0;
-      this.prevY = 0;
-      this.airT = 0;
-      this.camInit = false;
-      this.playMusicAt(0);
-    } else {
-      this.demoErr = '';
-      this.restartFromZero();
-    }
-    this.syncDemoButton();
-  }
-
-  /** 下载并解码通关输入卷(RLE → 每帧一个 bool) */
-  private loadTape() {
-    if (this.demoTried) return;
-    this.demoTried = true;
-    const url = (window as unknown as { __GD_TAPE?: string }).__GD_TAPE ?? '/assets/gd-tape.json';
-    fetch(url).then((r) => (r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))))
-      .then((j: { first: boolean; rle: number[] }) => {
-        const out: boolean[] = [];
-        let cur = j.first;
-        for (const n of j.rle) { for (let i = 0; i < n; i++) out.push(cur); cur = !cur; }
-        this.demoTape = out;
-        this.demoLoaded = true;
-        /* ★ 卷子到了就从干净的一局重开 —— 这样"第一个输入一定是 tape[0]"(见 pump 开头那条守卫) */
-        if (this.demoMode) this.restartRun();
-      })
-      .catch((e: Error) => { this.demoErr = e.message; });
   }
 
   update(_t: number, dtMs: number) {
@@ -1557,8 +1355,7 @@ class Scene extends Phaser.Scene {
     /* 确认键每帧只读一次(边沿判定要按帧消费) */
     const confirm = this.confirmDown();
     const restart = this.restartPressed;
-    /* ★ R 优先于一切:任何阶段、任何模式都先处理重来(以前演示模式把 phase 强行掰回 running,
-       'done' 那一支永远走不到 → "R 是摆设")。 */
+    /* ★ R 优先于一切:任何阶段都先处理重来 */
     if (restart) this.restartRun();
     /* 调试:数字键现场换形态(1 方块 2 飞机 3 球 4 UFO 5 波浪 6 机器人 7 蜘蛛) */
     if (this.modeLatch) {
@@ -1581,7 +1378,7 @@ class Scene extends Phaser.Scene {
       /* 停半拍再收输入,免得"死亡瞬间还按着的手"直接把菜单点掉 */
       if (this.deathT > 0.35) {
         if (restart) this.restartFromZero();
-        else if (confirm) this.retry();
+        else if (confirm) this.skipToEnd();       // 死亡界面:空格/点一下 = 直接看结尾字幕
       }
       this.followCamera(); this.draw(); this.paintUi(); return;
     }
@@ -1601,22 +1398,7 @@ class Scene extends Phaser.Scene {
       this.followCamera(); this.draw(); this.paintUi(); return;
     }
 
-    if (this.botMode || this.demoMode) {
-      /* 演示:按【真实时间】推进(见 demoSpeed 的说明)。一帧渲染最多推 240 帧,防止切标签页回来爆帧。
-         内置机器人验收(botMode)固定 8 倍速:它只是用来和 Node 侧对指纹,不需要人看。
-         ★ 时间用 performance.now() 自己量,不用 Phaser 的 delta —— 实测 Phaser 的 delta 是"平滑过"的,
-           183 次 update/6 秒(墙上 33ms 一次)却只累出 5.5 秒,演示会慢 25%(用户报的"倍速不对"就有它一份)。 */
-      const now = performance.now();
-      const dtWall = this.lastWallMs ? Math.min(0.5, (now - this.lastWallMs) / 1000) : 0;
-      this.lastWallMs = now;
-      const sp = this.botMode ? 8 : this.demoSpeed;
-      this.demoAcc += dtWall * sp;
-      const want = Math.min(240, Math.floor(this.demoAcc * 60));
-      if (want > 0) {
-        this.demoAcc -= want / 60;
-        this.pump(want);
-      }
-    } else if (this.dbgPause) {
+    if (this.dbgPause) {
       /* 冻住:只画不推(出图/调试用) */
     } else {
       const a = this.audio;
@@ -1669,8 +1451,6 @@ class Scene extends Phaser.Scene {
 
   /** HUD(DOM 里那条):每帧都刷 —— 以前只在"跑着"的分支里刷,死亡界面上的 HUD 是残留的旧值 */
   private paintHud() {
-    this.syncGodButton();
-    this.syncDemoButton();
     const hud = document.getElementById('gd-hud');
     if (!hud) return;
     const w = this.world;
@@ -1684,13 +1464,6 @@ class Scene extends Phaser.Scene {
     if (this.phase === 'idle') parts.push('按空格开始');
     if (this.phase === 'done') parts.push('通关');
     if (w.mode === 'ship') parts.push('按住 = 上升');
-    if (w.god) parts.push('★ 无敌' + (this.guide.length ? ' · 限轨 ±' + GUIDE_BAND + ' 块' : ' · 只贴边界'));
-    if (this.demoMode) {
-      const n = this.demoTape ? this.demoTape.length : 0;
-      parts.push(this.demoTape
-        ? '演示 bot 通关 ×' + this.demoSpeed.toFixed(2).replace(/\.?0+$/, '') + '(' + (n / 60 / this.demoSpeed).toFixed(0) + 's 放完)'
-        : this.demoErr ? '演示卷加载失败:' + this.demoErr : '演示卷载入中…');
-    }
     if (Math.abs(w.padMul - 1) > 0.001) parts.push('跳点×' + w.padMul.toFixed(2));
     /* ★ 可见格数 + 取景框被外框挡掉的比例:和原版对不上时,一眼看出是缩放还是裁切问题 */
     const cam = this.cameras.main;
@@ -1990,15 +1763,15 @@ class Scene extends Phaser.Scene {
     this.uiHint.setVisible(show);
     if (!show) return;
     if (this.phase === 'idle') {
-      this.uiTitle.setText('第三张盘 · 迷茫');
-      this.uiHint.setText('按 空格 开始(也可以点一下画面)\n按住 = 连跳 · 弹簧碰到就弹、不用按 · 跳环要按一下 · R = 重来');
+      this.uiTitle.setText('迷茫 · LOST');
+      this.uiHint.setText('空格 / 点一下 = 开始 · 按住 = 连跳\n跳环要按一下 · 弹簧碰到就弹');
     } else if (this.phase === 'dead') {
       this.uiTitle.setText('摔了 · ' + Math.round(w.progress * 100) + '%');
       const at = LEVEL.length > 0 ? Math.round(w.checkX / U / LEVEL.length * 100) : 0;
-      this.uiHint.setText('空格 / 点一下 = 从上一处存档点(' + at + '% 处)重来 · R = 从头开始');
+      this.uiHint.setText('空格 = 从存档点(' + at + '%)继续 · 点一下画面 = 结束字幕');
     } else {
       this.uiTitle.setText('通关 · ' + Math.round(w.progress * 100) + '%');
-      this.uiHint.setText('你跑完了这一张盘 · 按 R 再来一遍');
+      this.uiHint.setText('你跑完了这一张盘');
     }
     this.uiTitle.setPosition(ux, uy - 26);
     this.uiHint.setPosition(ux, uy + 34);
@@ -2011,27 +1784,19 @@ class Scene extends Phaser.Scene {
       audio: this.audio ? { t: this.audio.currentTime, paused: this.audio.paused, duration: this.audio.duration || 0, err: this.audioErr, src: this.audio.src } : null,
       started: this.started,
       phase: this.phase,
-      god: this.world.god,
-      demoMode: this.demoMode,
-      demoTape: this.demoTape,
-      demoLoaded: this.demoLoaded,
-      demoErr: this.demoErr,
-      demoEndX: this.demoEndX,
       /* ★ 验收脚本要用的几个钩子(每个 bug 都要能在真浏览器里量出来,不能只靠"我看着好了"):
          · musicExpected —— 模拟时间轴上的秒数(baseTick + tick)/60,复活后音乐就该在这儿
          · retry/restartRun —— 不靠按键也能驱动复活/重来
-         · padMul —— 弹簧力度微调到底有没有生效 */
+         · skipToEnd —— 不跑完 300 秒也能直接看结尾字幕 */
       musicExpected: (this.baseTick + this.world.tick) / 60,
       baseTick: this.baseTick,
       padMul: this.padMulWanted,
-      demoSpeed: this.demoSpeed,
-      demoAcc: this.demoAcc,
       updates: this.updates,
       lastDt: this.lastDt,
       deathLog: this.deathLog,
       retry: () => this.retry(),
       restartRun: () => this.restartRun(),
-      tapeHold: (tick: number) => this.demoHold(tick),
+      skipToEnd: () => this.skipToEnd(),
     };
   }
 
@@ -2774,7 +2539,6 @@ class Scene extends Phaser.Scene {
        系数从 1 改成 0.5 ⇒ 普通跳 = 180° ✓、大跳(滞空×2)= 360° ✓。
        (落地不做任何"回正"动作 —— 用户:"回转更刻意了" ✗;落地角由连续旋转自然落在 90° 的
         倍数附近,0/90/180/270 对方块都算趴平 ✓。) */
-    const spinStep = 2 * P.jump / (P.gravity * Y_TIME_SCALE) / 60;   // 一次标称跳的滞空(秒)
     /* ★★ 2026-09 用户口径:"跳跃旋转 180°"(就这一条),不要任何"落地回正/吸附"✗。
        实现:角度 = 空中帧数 × (180° ÷ 一次真实跳跃的空中帧数)。
        实测本引擎一次平地起跳的空中帧数 = 33 帧(之前几版都拿"理论滞空 26 帧"算 ⇒ 每次多转

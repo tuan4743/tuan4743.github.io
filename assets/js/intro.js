@@ -858,6 +858,11 @@
 
   /* ---------- 场景平移开合(视角平移,刚体) ---------- */
   function setOpen(open, onBootEnd) {
+    /* ★ 2026-10:html.slot-locked(ECHO 引导期间左侧按钮的闸门)还挂着 ⇒ 不理这次点击。
+       CSS 已经把按钮做成 opacity:0 / pointer-events:none,但"看不见"挡不住
+       btn.click() 或别处派发的合成 click —— 状态必须在这里再拦一道 ✓
+       (和上侧 top-locked 那枚不同:那枚的入口 tablet.js 自己已经查了锁。) */
+    if (open && document.documentElement.classList.contains("slot-locked")) return;
     body.classList.toggle("scene-open", open);
     toggle.setAttribute("aria-expanded", open ? "true" : "false");
     rack.setAttribute("aria-hidden", open ? "false" : "true");

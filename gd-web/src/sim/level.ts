@@ -73,6 +73,9 @@ export interface Obj {
   gdir?: 1 | -1;    // gravity:进这个门之后重力朝哪(1 = 向下/常重力,-1 = 向上)
   frame?: 'edge' | 'corner' | 'u' | 'box';   // frame:画法(一条边 / L 形 / U 形 / 整框)。判定一律用包围盒
   arrow?: 'green' | 'pink' | 'purple'; // arrow:是哪种冲刺箭头
+  dash?: 'pink' | 'green'; // dash:冲刺环(141/1022):进入冲刺状态,方向由 m_dashX/m_dashY 决定
+  mini?: boolean;   // size:迷你(默认 true)/ 放大(mini:false)
+  sh?: number;      // (预留)缩放字段:gdids 编码器会写 sh=,但本关铺面未用到
   tp?: boolean;     // pad/arrow:瞬移到头顶的方块 + 翻重力(紫的那两种)
   inert?: boolean;  // 只标记、不生效(clone 门、占位物件)
   /* ★★★ 2026-09-26 克隆门(286/287):spec 里有这两个字段、但【Obj 上没有】⇒ 铺面里带不出来,

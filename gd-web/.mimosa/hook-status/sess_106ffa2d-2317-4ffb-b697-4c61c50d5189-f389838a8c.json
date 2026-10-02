@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "mimosa-hook-status/v1",
+  "recordedAt": "2026-10-01T09:46:42.866Z",
+  "sessionId": "sess_106ffa2d-2317-4ffb-b697-4c61c50d5189",
+  "event": "PostToolUse",
+  "toolName": "Edit",
+  "file": "C:\\Users\\hp\\Desktop\\GLM-workspace\\tuagfey-blog\\layouts\\partials\\pages\\lost.html",
+  "outcome": "clear",
+  "coverage": "complete",
+  "findingCount": 0,
+  "durationMs": 16,
+  "hostState": "hook_complete",
+  "reportHint": ".mimosa/reports/"
+}

@@ -1,0 +1,13 @@
+﻿import { WATER_CHART } from "../src/sim/charts/water.ts";
+import { World } from "../src/sim/world.ts";
+import { P, U, SUB } from "../src/sim/constants.ts";
+console.log("常数:P.gravity=" + P.gravity + " · SUB=" + SUB + " · U=" + U + " · P.speedMul=" + JSON.stringify(P.speedMul) + " · P.jump=" + P.jump);
+const w = new World(WATER_CHART);
+w.reset(50 * U, "cube", 2 * U);
+const x0 = w.x; let y0 = w.y;
+w.frame(false);
+console.log("一帧后:dx=" + (w.x - x0).toFixed(4) + " 单位 · vy=" + w.vy.toFixed(4));
+const x1 = w.x;
+for (let i = 0; i < 59; i++) w.frame(false);
+console.log("60 帧:共走 " + (w.x - x0).toFixed(2) + " 单位 = " + ((w.x - x0) / 60).toFixed(3) + " 单位/帧 = " + ((w.x - x0) / 60 / U).toFixed(4) + " 块/帧");
+console.log("参考:原版慢速 8.4 单位/帧(311.1 单位/秒)⇒ 我们差 " + (8.4 / ((w.x - x0) / 60)).toFixed(3) + " 倍");
