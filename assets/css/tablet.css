@@ -1,38 +1,9 @@
-/* ============================================================
-   平板主界面(用户要求)—— 按下屏幕顶缘的箭头,整块屏幕变成一块平板的主屏
-   ─────────────────────────────────────────────────────────────
-   ★★ 定位:这一层必须以【玻璃窗口】为坐标系,不是以视口为坐标系。
-        第一版写的是 `inset: var(--sp-t) var(--sp-x) var(--sp-b)`,那是错的:
-        --sp-* 只定义在 .screen 上(intro.css 第 63~65 行),而这一层在
-        <body> 下、.screen 外 —— 取不到就等于没写(整条 inset 作废),
-        只能靠 frame-fitted 那条 `inset:0` 兜着。而 inset:0 意味着
-        【内边距从视口边缘算起】,玻璃却是往里缩了 5%/8% 的一块 ——
-        于是内容被 clip-path 从上面切掉一条、从左边切掉一条:
-        用户看到的正是"大小不对,不能贴到屏幕的框"、
-        "搜索栏太大,顶出去了"(卡片左半截被切在玻璃外)、
-        "有些卡片貌似没生效"(日期/电量整行、时钟大半都被切没了)。
-      ⇒ 现在用 frame-fit.js 写在 <html> 上的 --ff-win-*(就是玻璃窗口的四边),
-        量不到才退回 CSS 里的保底值。这组变量在 :root,所以 body 这一层看得见。
-      ⇒ 两种情形分开写清楚(见下面的 html.frame-fitted 那条):
-          · 已贴合:inset:0 铺满整块屏幕(新外框自带不透明机体背景,
-            溢出的部分由窗框盖住,页面这边【不再裁切】),
-            窗口那圈尺寸改成【内边距】把内容让回来;
-          · 没贴合:直接 inset 到窗口,不用裁。
-   ★★★ z-index 32(不是 40):用户换上的新外框自带背景处理,页面不用再裁形状,
-      前提就是"平板在窗框【下面】" —— 32 < 窗框 34,所以平板铺满整块屏幕
-      也不会糊到金属框上,由窗框在上面收口。
-      仍然要高于:所有盘页(最高 8)、黑屏/花屏层(30)、顶栏(20)。
-      顶缘那枚开关是 41、屏幕左缘那枚闸门是 36 —— 它们在模板里被搬到了 .scene 外面
-      (原因见 index.html),都还在窗框之上,该露的按钮照样露。
-   ============================================================ */
 .tablet {
     position: absolute;
-    /* 玻璃窗口四边(px)。--ff-win-* 由 frame-fit.js 写在 <html> 上 */
     --tab-g-t: var(--ff-win-top, 13vh);
     --tab-g-r: var(--ff-win-right, 5vw);
     --tab-g-b: var(--ff-win-bottom, 7.5vh);
     --tab-g-l: var(--ff-win-left, 5vw);
-    /* 内容离玻璃边再让一点,别贴着金属框 */
     --tab-gap-y: clamp(12px, 1.8vh, 22px);
     --tab-gap-x: clamp(16px, 2.2vw, 34px);
     inset: var(--tab-g-t) var(--tab-g-r) var(--tab-g-b) var(--tab-g-l);
@@ -48,9 +19,6 @@
         radial-gradient(120% 80% at 50% -10%, rgba(88, 132, 214, .30), rgba(12, 18, 33, 0) 62%),
         radial-gradient(90% 70% at 80% 110%, rgba(126, 84, 200, .22), rgba(12, 18, 33, 0) 60%),
         linear-gradient(168deg, #0d1424 0%, #0a1020 52%, #070b16 100%);
-    /* ★ 转场:从"略微缩小 + 下移 + 变暗"展开到位。360ms ——
-       用户要"短的过场动画":再长就显拖,再短就像闪一下。
-       transform-origin 放上缘:像是从屏幕顶缘那枚按钮上"掀开"的。 */
     transform-origin: 50% 0;
     transform: translateY(-14px) scale(.965);
     opacity: 0;
@@ -60,10 +28,6 @@
     will-change: transform, opacity;
 }
 
-/* 已贴合:铺满视口,靠 clip-path 裁成玻璃形状;窗口那圈尺寸转成内边距
-   —— padding 不能写进 intro.css 那条(那里只是把 .tablet 和 .screen-static
-   并列到同一条剪裁规则上),放在这里离变量定义近。
-   两条同选择器同层级,属性不重叠,同时生效。 */
 html.frame-fitted .tablet {
     padding: calc(var(--tab-g-t) + var(--tab-gap-y)) calc(var(--tab-g-r) + var(--tab-gap-x)) calc(var(--tab-g-b) + var(--tab-gap-y));
 }
@@ -75,7 +39,6 @@ html.frame-fitted .tablet {
     opacity: 1;
 }
 
-/* 屏幕玻璃上的一层反光:让它读起来像"一块发光的屏",而不是一张贴纸 */
 .tablet__glow {
     position: absolute;
     inset: 0;
@@ -86,7 +49,6 @@ html.frame-fitted .tablet {
     mix-blend-mode: screen;
 }
 
-/* ---------- 状态行:日期 + 电量 ---------- */
 .tablet__status {
     position: relative;
     flex: 0 0 auto;
@@ -107,7 +69,7 @@ html.frame-fitted .tablet {
     padding: 1.5px;
 }
 
-.tablet__battery::after {          /* 电池正极那个小凸起 */
+.tablet__battery::after {
     content: "";
     position: absolute;
     right: -3px;
@@ -130,9 +92,6 @@ html.frame-fitted .tablet {
 
 .tablet__battery i.is-charging { background: #8ff0b8; }
 
-/* ---------- 卡片通用外观 ----------
-   ★ 这里【不能】写 overflow:hidden:搜索那张卡片的结果面板是绝对定位、
-     挂在卡片【下面】的,裁掉就再也弹不出来了。要滚的是列表自己。 */
 .tablet__card {
     position: relative;
     min-width: 0;
@@ -142,10 +101,6 @@ html.frame-fitted .tablet {
     border: 1px solid rgba(150, 190, 240, .20);
     background: rgba(255, 255, 255, .045);
     padding: clamp(10px, 1.5vh, 18px) clamp(12px, 1.5vw, 20px);
-    /* 入场(比 APP 早一拍:先铺底,再落图标)+ 悬停描边。
-       ★ transition-delay 是按【上面的属性顺序】逐条给的,所以入场那两个
-         给 70ms、悬停那两个给 0s —— 写成一句 transition-delay:70ms 的话,
-         连悬停描边也会被拖 70ms。 */
     opacity: 0;
     transform: translateY(8px);
     transition: opacity .3s ease, transform .34s cubic-bezier(.2, .9, .25, 1),
@@ -166,7 +121,6 @@ html.frame-fitted .tablet {
     margin-bottom: clamp(6px, 1vh, 10px);
 }
 
-/* ---------- 两行网格 ---------- */
 .tablet__row {
     position: relative;
     display: grid;
@@ -174,23 +128,16 @@ html.frame-fitted .tablet {
     min-height: 0;
 }
 
-/* 第一行:时钟 | 快捷控制(明暗/音量)| 搜索。
-   高度配比:上面这行比下面那行(列表)多分一点 ——
-   列表里的内容本来就不多(仓库里就两篇文章、四个标签),
-   给它太高只会显得空(用户已经说过一次"有点空")。 */
 .tablet__row--widgets {
     flex: 1.25 1 0;
-    /* 中间那列按内容宽(auto):它就是一个按钮 + 一条滑条 */
     grid-template-columns: minmax(0, .85fr) auto minmax(0, 1.15fr);
 }
 
-/* 第二行:最近更新 | 标签 —— 用户说"目前看有点空",这两张填的是真实内容 */
 .tablet__row--fill {
     flex: .85 1 0;
     grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
 }
 
-/* ---------- 时钟卡片 ---------- */
 .tablet__clock { justify-content: center; }
 
 .tablet__time {
@@ -210,15 +157,6 @@ html.frame-fitted .tablet {
     color: rgba(198, 220, 246, .58);
 }
 
-/* ---------- 快捷控制卡片:明暗 / 音量 / 背景配色 ----------
-   里面是【原件】—— partial "nav-switches.html" 渲染出来的 .logo-switches,
-   和其余页面的顶栏用的是同一份标记、同一批 id(#theme-toggle / #sound-toggle /
-   #volume-range / #palette-*)。
-   ★ 所以这里只做"搬进卡片"这一件事,不重画控件:
-     · 排成一行、居中;
-     · 音量从"悬停弹出"改成【常驻在卡片里】—— 平板主界面上悬停是很别扭的交互
-       (鼠标得正好停在图标上),而且用户要的就是"能直接调音量";
-     · 背景配色仍然是弹出面板(5 个色块 + 名字横排太宽,塞不进这一行)。 */
 .tablet__controls {
     justify-content: center;
     padding: clamp(10px, 1.5vh, 18px) clamp(10px, 1.2vw, 16px);
@@ -232,7 +170,6 @@ html.frame-fitted .tablet {
     gap: clamp(10px, 1.2vw, 18px);
 }
 
-/* 三枚开关按钮(明暗 / 静音 / 配色)统一成卡片里的方形图标键 */
 .tablet__controls .theme-toggle {
     flex: 0 0 auto;
     width: clamp(34px, 4vh, 44px);
@@ -256,10 +193,7 @@ html.frame-fitted .tablet {
     outline: none;
 }
 
-/* ★ 静音状态的两个图标(custom.css 里是 #sound-toggle.is-muted 那套)
-   在卡片里同样生效 —— 不用重写,只要别把 svg 的显示规则覆盖掉。 */
 
-/* 音量面板:常驻。去掉绝对定位、悬停展开和那层弹窗外观,变成卡片里的一行滑条 */
 .tablet__controls .volume-panel {
     position: static;
     width: auto;
@@ -276,7 +210,7 @@ html.frame-fitted .tablet {
     gap: 10px;
 }
 
-.tablet__controls .volume-panel-title { display: none; }  /* 卡片里不必再写"音量"两个字 */
+.tablet__controls .volume-panel-title { display: none; }
 
 .tablet__controls .volume-range {
     width: clamp(64px, 8vw, 130px);
@@ -289,13 +223,8 @@ html.frame-fitted .tablet {
     color: rgba(198, 220, 246, .6);
 }
 
-/* 配色面板仍然从按钮下方弹出 —— 卡片【不能】overflow:hidden,否则它被裁掉 */
 .tablet__controls .palette-wrap { position: relative; }
 
-/* ---------- 搜索卡片 ----------
-   ★ 结果面板【在卡片里面】(用户:第一版"展开后不是在卡片内的",所以"不太丝滑")。
-     第一版把它绝对定位挂在卡片下面 —— 视觉上和卡片是两块,展开时还压住下面的东西。
-     现在它就在卡片里往下排:卡片高度由整行决定,展开不改任何布局,所以不跳。 */
 .tablet__search { justify-content: flex-start; }
 
 .tablet__search.is-searching {
@@ -330,12 +259,6 @@ html.frame-fitted .tablet {
 .tablet__search-box input::placeholder { color: rgba(198, 220, 246, .38); }
 .tablet__search-box input::-webkit-search-cancel-button { filter: invert(1) opacity(.5); }
 
-/* 结果面板:在卡片【里面】,占满输入框以下的空间,自己滚。
-   ★ 入场用 animation,不用 transition:元素从 display:none(带 [hidden])
-     变成可见的那一帧,transition 没有"上一帧"可以插值,是不会跑的;
-     animation 在元素重新变为可见时一定会重新开始。
-   ★ 也别在这里写 display —— [hidden] 的 display:none 会被自己的 display 盖掉
-     (这个坑在本项目踩过:.frost-read / .self-card)。 */
 .tablet__search-results {
     flex: 1 1 auto;
     min-height: 0;
@@ -352,7 +275,6 @@ html.frame-fitted .tablet {
     to { opacity: 1; transform: none; }
 }
 
-/* ---------- 最近更新 / 标签 ---------- */
 .tablet__recent-list,
 .tablet__tag-list {
     flex: 1 1 auto;
@@ -418,9 +340,6 @@ html.frame-fitted .tablet {
 .tablet__tag:hover { border-color: rgba(170, 214, 255, .5); color: #fff; }
 .tablet__tag i { font-style: normal; color: rgba(198, 220, 246, .45); }
 
-/* ---------- APP(导航)----------
-   ★ 用 flex + 居中,不是 auto-fit 网格:auto-fit 会把空轨道也摊开,
-     5 个图标会被撑成一排 300px 宽的大格子(第一版就是这个样子,很空)。*/
 .tablet__apps {
     position: relative;
     flex: 0 0 auto;
@@ -444,8 +363,6 @@ html.frame-fitted .tablet {
     font: inherit;
     text-decoration: none;
     cursor: pointer;
-    /* ★ 错开落位:每个图标按 --app-i 依次出现,像主屏"泼"上来。
-       延迟只给 0~6 个,再多也只是尾部拖长,不至于让人等。 */
     opacity: 0;
     transform: translateY(10px) scale(.94);
     transition: opacity .26s ease, transform .3s cubic-bezier(.2, .9, .25, 1.3);
@@ -467,8 +384,6 @@ html.frame-fitted .tablet {
 .tablet__app:focus-visible { outline: none; }
 
 .tablet__app-icon {
-    /* ★ 尺寸:第一版 clamp(40px,5.2vh,58px) 在 848px 高的屏幕上只有 44px,
-       用户说"APP按钮有点小"。现在按屏高的 8% 走,下限也抬到 56px。 */
     width: clamp(56px, 8vh, 82px);
     height: clamp(56px, 8vh, 82px);
     display: flex;
@@ -483,7 +398,6 @@ html.frame-fitted .tablet {
                 box-shadow .2s ease;
 }
 
-/* 菜单项的图标是顶栏那套 SVG(见 hugo.toml 的 pre),这里只调尺寸 */
 .tablet__app-icon svg {
     width: 50%;
     height: 50%;
@@ -497,7 +411,6 @@ html.frame-fitted .tablet {
     white-space: nowrap;
 }
 
-/* ---------- 底部提示 ---------- */
 .tablet__hint {
     flex: 0 0 auto;
     text-align: center;
@@ -523,54 +436,13 @@ html.frame-fitted .tablet {
     background: rgba(255, 255, 255, .06);
 }
 
-/* ============================================================
-   开机黑屏 + ECHO 引导层(用户第二轮)
-   ─────────────────────────────────────────────────────────────
-   用户:"进入首页的初始化从进入CD页转为直接停在平板上,此时平板是黑屏。
-        然后把启动页的眼睛移植过去,触发动画和对话(对话逐字打出)……"
 
-   这一节四件事:
-     ① html.home-boot —— 首帧就把 CD 页压掉(在 <head> 里同步挂类,见模板),
-        接管的 home-guide.js 自己摘掉它。它只活几百毫秒,但少了它
-        用户会先看见一整页 CD 页再"啪"地变黑。
-     ② .tablet.is-dark —— 平板黑屏状态(不透明黑)。
-     ③ .tablet.is-scan —— 扫描遮罩:一束光扫过平板的软边,引导开始时用。
-     ④ .home-eye / .home-console —— 眼睛的宿主格与 ECHO 的台词区。
-   ============================================================ */
-
-/* ① 首帧黑幕:CD 页、宇宙背景、仪器、顶缘按钮全部压掉。
-   ★ 为什么不压 .tablet:它本来就是 hidden(平板要 JS 才开),
-     而且它上面要画黑屏 —— 压掉反而看不见了。 */
 html.home-boot .scene,
 html.home-boot .intro-bg,
 html.home-boot .statusbar-toggle {
     opacity: 0 !important;
 }
 
-/* ★★★ 开机黑屏期的【底衬】。
-   踩过:平板的玻璃是被 clip-path 按贴图窗口裁出来的,贴图窗口【不是满屏】——
-   左侧 3.6%、右侧 5.5% 是金属机身(半透明贴图)。平板自己是黑的,
-   但机身那两竖条后面什么都没有,于是【浅色主题下会透出页面底色(白)】:
-   1600×900 上左边一条约 58px、右边约 88px 的白边把"黑屏"整个破了功。
-   平板的主屏(非开机态)背景是深色渐变,所以平时看不出来。
-
-   ★★★ 层级是本条最要命的地方,两个错法都踩过 ——
-     ① 写 z-index:39(想"紧贴平板之下")⇒ CD 架一打开【整页全黑】。
-        为什么:.scene 是 position:fixed 且【没有 z-index】(auto)⇒ 它自己不是
-        层叠上下文,而它的子元素里有 z-index 的(.screen-slot 36 / .screen-frame 34 /
-        .rack 子树上的那些)会跑到根层叠上下文里跟底衬比大小 —— 39 比它们都大,
-        于是底衬盖在整台机器上面。
-     ② 写 z-index:0 ⇒ 盘页【仍然被压住】(实测:盘页亮像素占比 0.047,
-        而正常是 0.354)。层叠顺序里"z-index:0 的定位元素"排在
-        "z-index:auto 的定位元素(.scene)的子树"【之后】,所以还是压住了。
-     ⇒ 只有【负 z-index】是对的:
-         · 它在"正常流块级背景之上、定位元素之下"那一档,机器怎么也压得住它;
-         · 又因为它排在 html/body 自己的背景之【后】?—— 不,是之前:
-           所以 html/body 的底色要另外涂(见下面那条),否则会把它盖掉。
-     ★ 实测(1600×900,CD 架打开时盘页的亮像素占比):-1 → 0.355、0 → 0.047、
-       auto → 0.047、不挂底衬 → 0.354。所以 -1 和不挂它是一样的。
-     ★ 平时 display:none(绝不能长期挂着 —— 它铺满视口),
-       开机时 display:block + z-index:-1,并排在 .scene 之前。 */
 .tablet-backdrop {
     display: none;
     position: fixed;
@@ -582,26 +454,9 @@ html.home-boot .statusbar-toggle {
 
 html.home-dark .tablet-backdrop { display: block; }
 
-/* ★ 为什么还要单独涂 html/body:
-   底衬排在最底下(负 z-index),而 html/body 自己的背景色画得比它还早?
-   —— 不是:负 z-index 的子元素画在【祖先背景之上】,所以 html/body 会被它盖住。
-   反过来,贴图窗口之外那一圈(机身两侧)露的正是 body 的底色,
-   而平板是被 clip-path 裁出来的、只盖窗口那块 ⇒ 那一圈必须自己涂黑。 */
 html.home-dark,
 html.home-dark body { background: #000; }
 
-/* ② 平板黑屏。
-   ★★★ 用户第三轮:"刚进入页面时,这个音量滑块会莫名其妙出现在屏幕上。"
-   逐帧量出来的真因(探针 .tmp/why-volume.mjs):
-     t=3701ms  tablet 类 = "is-on"          opacity 正在 0 → 1 的过渡中
-     t=3755ms  tablet 类 = "is-on is-dark is-scan"
-     那一刻平板的 opacity 只有 0.047 —— 也就是说【它是"半透明地"出现的】,
-     于是里面的快捷控制卡片(音量滑条)在还没变黑之前,先跟着淡入露了一下脸。
-   根因是两条过渡撞在一起:
-     · .tablet 自己有一条 opacity .26s 的入场过渡(平板主界面的转场,要留);
-     · 开机是"先让平板出现,再挂 .is-dark",中间那 260ms 就是漏光窗口。
-   ⇒ 黑屏态【取消入场过渡】:它是"开机就黑",不该有淡入;
-     而且黑屏这一刻 opacity 直接就是 1,没有中间值可以漏。 */
 .tablet.is-dark {
     background: #000;
     opacity: 1;
@@ -610,16 +465,6 @@ html.home-dark body { background: #000; }
     transition: none;
 }
 
-/* 黑屏期间平板自己的内容一律不画(也顺手不接收指针)。
-   ★★★ 这里【必须】用后代选择器,不能只写 `> *`。
-   CSS 的 visibility 是"子元素可以【反向覆盖】祖先"的:hidden 的祖先里,
-   只要有一个后代自己写着 visibility:visible,它就照样显示。
-   而这个平板上正好有这么一条 —— tablet.css 里把 .tablet__controls 里的
-   .volume-panel 从"悬停弹出"改成了【常驻】,写的就是 visibility:visible。
-   于是:黑屏时平板主体被隐藏了,那条音量滑块却自己顶出来(用户第三轮报的
-   "刚进页面时音量滑块莫名其妙出现")。实测踩过两次,第一次只改成 `> *` 没管用。
-   ⇒ 写成后代选择器 + !important:黑屏期间一个后代都不许反向覆盖;
-     只有引导层两个元素用 id 点名放行。 */
 .tablet.is-dark,
 .tablet.is-dark * {
     visibility: hidden !important;
@@ -632,7 +477,6 @@ html.home-dark body { background: #000; }
     visibility: visible !important;
 }
 
-/* ③ 扫描遮罩:一道竖向亮带从平板左侧扫到右侧,扫完自己撤掉 */
 .tablet.is-scan::after {
     content: "";
     position: absolute;
@@ -654,7 +498,6 @@ html.home-dark body { background: #000; }
     to { background-position: -130% 0; }
 }
 
-/* ④ 眼睛的宿主格:一开始铺满整块屏 */
 .home-eye {
     position: absolute;
     left: 0;
@@ -670,19 +513,11 @@ html.home-dark body { background: #000; }
     justify-content: center;
     pointer-events: none;
     opacity: 0;
-    /* ★ transform 也要有过渡:引导换场时眼睛要【跟着机器一起滑走】
-       (用户第八轮:"闭眼的速度太慢,要不然就设计成跟随平板移动")——
-       位移是 ascii-eye 的 slideX() 写在宿主 transform 上的,没有这条就是瞬移。 */
     transition: opacity .5s ease, transform .55s cubic-bezier(.22, .61, .36, 1);
 }
 
 .home-eye.is-on { opacity: 1; }
 
-/* ★ 换到"平板还能看见的那一格"里:位置/尺寸/【旋转】都要有过渡。
-   旋转这件事是第三轮的要求("这个眼睛要转向90°,放到右侧,就像横着看一样"),
-   第五轮又加了"闭眼 → 左滑 → 右侧睁开"的编排;两件事叠在一起时,
-   转向发生在【眼睛闭着的那段时间里】—— 所以它看着是"转过去了",
-   而不是"转着给你看"。这里给它和左滑同拍的 0.55s,时机正好落在闭眼窗口内。 */
 .home-eye.is-docked {
     transition: opacity .5s ease,
         left .55s cubic-bezier(.22, .61, .36, 1),
@@ -692,9 +527,6 @@ html.home-dark body { background: #000; }
         transform .55s cubic-bezier(.22, .61, .36, 1);
 }
 
-/* 眼睛本体:<pre>。字号/宽高由 ascii-eye.js 逐帧写内联样式,这里只管字面。
-   ★ 不给 letter-spacing(CSS 会和网格叠加,格子就错位了);
-   ★ 颜色只用白 + 极轻辉光,和启动页那一只同一个观感。 */
 .home-eye__pre {
     margin: 0;
     padding: 0;
@@ -710,15 +542,22 @@ html.home-dark body { background: #000; }
 
 .home-eye__pre.is-glitch { color: var(--eye-glitch, #dfe6ee); }
 
-/* ⑤ ECHO 的台词:【直接浮在平板上】,没有对话框(用户第三轮)。
-   ★★ 用户原话:"对话其实不要对话框,就像启动页一样,对话文字是直接浮在平板上的"。
-      所以这里【不许】再出现边框 / 底色 / 圆角 / 左侧那根竖线 ——
-      和启动页那句"你好?"同一个处理:只有字,加一点辉光。
-   ★ 位置:左下角,而且【让开底部金属框】——
-     平板的玻璃是被贴图窗口裁出来的(下缘还有 ~8.5% 视口高是机身),
-     原来 bottom:0 直接顶到玻璃边上,字被机身边框切掉一半(截图里就是)。
-     现在用 --ff-win-bottom(frame-fit.js 写在 <html> 上)再加一档余量。
-   ★ pointer-events:none:它只是字幕,不能挡住扫描框要落的那几个按钮。 */
+/* ★ “第 27 次”一句的加重:ECHO 提到未按时修正的瞬间,
+   眼睛抖一帧红 + 整屏闪一下警告色(只加视觉,不加系统)。 */
+.home-eye__pre.is-glitch-red { color: #ff5a5a; text-shadow: 0 0 8px rgba(255, 90, 90, .55); }
+.ff-redflash {
+    position: fixed;
+    inset: 0;
+    z-index: 120;
+    pointer-events: none;
+    background: rgba(255, 60, 60, .14);
+    animation: ff-redflash .55s ease-out forwards;
+}
+@keyframes ff-redflash {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
 .home-console {
     position: absolute;
     left: calc(var(--ff-win-left, 5vw) + clamp(10px, 1.4vw, 30px));
@@ -766,13 +605,11 @@ html.home-dark body { background: #000; }
     font-size: clamp(.92rem, 1.18vw, 1.22rem);
     line-height: 1.85;
     letter-spacing: .03em;
-    min-height: 1.85em;              /* 空行也占位:逐字打出时不会跳 */
+    min-height: 1.85em;
     white-space: pre-wrap;
     word-break: break-word;
 }
 
-/* ★ 打字光标:跟着逐字打出的尾巴闪。和启动页那条底线是同一路数 ——
-   只加字,不加框。 */
 .home-console__line::after {
     content: "";
     display: inline-block;
@@ -791,11 +628,6 @@ html.home-dark body { background: #000; }
     53%, 100% { opacity: 0; }
 }
 
-/* ⑥ 引导期间:整页不接收真实指针(用户:"锁住鼠标不允许按下")。
-   ★ 为什么不是给单个按钮加 disabled:引导要锁的是"鼠标"这件事本身 ——
-     扫描框正在替用户移动,真实指针一动就会把它拽走。
-     ★ 合成事件(dispatchEvent)不受 pointer-events 影响,所以引导脚本
-       自己派发的 click 照旧能到按钮上。 */
 html.guide-lock,
 html.guide-lock * {
     pointer-events: none !important;
@@ -803,53 +635,24 @@ html.guide-lock * {
 
 html.guide-lock .magnetic-cursor-cv { opacity: .55 !important; }
 
-/* 减少动态效果:黑幕/扫描都不要动,台词直接出现 */
 @media (prefers-reduced-motion: reduce) {
     .tablet.is-scan::after { animation: none; opacity: 0; }
     .home-eye,
     .home-console { transition-duration: .01ms; }
 }
 
-/* ★★ 顶缘那枚下滑栏(打开平板的入口)在【引导走到它之前】必须彻底藏起来。
-   用户第五轮:"貌似刚刚进入首页的时候,这个上滑栏默认是打开的,
-              导致能透过动画按按钮。"
-   ★★★ 为什么用 html.top-locked 而不是引导脚本挂的 .is-locked:
-     脚本要等 defer 才跑(约 2.7 秒),而"刚进首页"那一段正好在这之前 ——
-     实测 t=966/1085ms 时它的 pointer-events 还是 auto(看不见却点得到),
-     正是用户说的"透过动画按按钮"。所以把闸门放在 <head> 里那个
-     【同步挂上】的 top-locked 类上。
-     ★ 它和 home-dark / home-boot 分开是刻意的:那两条要活到开机动画结束,
-       而这一条只要活到"引导走到下滑栏"那一拍 —— 混用会导致
-       走到那一拍之后它仍然是锁着的(实测踩过)。
-   ★ 引导脚本走到那一拍时把 top-locked 摘掉。 */
 html.top-locked .statusbar-toggle,
 .statusbar-toggle.is-locked {
     opacity: 0 !important;
     pointer-events: none !important;
 }
 
-/* ★★ 左侧"打开 CD 架"的按钮(.slot-toggle)同一套闸门。
-   用户 2026-10:"介绍过程中可以按下左侧的按钮提前进入CD页,可以做成和上侧按钮
-   一样的,只有介绍到的时候才出现。"
-   ⇒ 和 top-locked 完全同构:
-     · <head> 里同步挂 html.slot-locked(等 defer 脚本起来就太晚了);
-     · 整个 ECHO 引导期间按钮不显示也不可点;
-     · 引导走到"按下它"那一拍(第一次做 .slot-toggle 的 snap)才摘掉,
-       按钮和脉冲高亮一起亮相 ✓
-   ★ 引导脚本把它摘掉之后这条规则就再也不会生效(类摘了就没了)。 */
 html.slot-locked .slot-toggle,
 .slot-toggle.is-locked {
     opacity: 0 !important;
     pointer-events: none !important;
 }
 
-/* ★★ "该按这个"的高亮(用户第五轮:钉住的扫描框和真实指针不是一个位置,
-   所以要在目标上给一个不看框也能懂的提示)。
-   ★ 用【按钮自己的发光】,不画外圈:
-     顶缘那枚开关紧贴玻璃左缘,外圈(inset:-10px)有一半落在玻璃外面被剪掉 ——
-     实测只看得见半个弧。发光画在按钮自己的盒子里,一定完整。
-   ★ 用 outline 而不是 box-shadow:那枚按钮自己已经写了 box-shadow,
-     再加一条会互相覆盖;outline 跟它互不干扰,而且不占布局。 */
 .is-guide-pulse {
     animation: guide-glow 1.15s ease-in-out infinite !important;
 }
@@ -876,7 +679,6 @@ html.slot-locked .slot-toggle,
     }
 }
 
-/* ---------- 窄屏 / 矮屏 ---------- */
 @media (max-width: 900px), (max-height: 560px) {
     .tablet__time { font-size: clamp(1.8rem, 5vh, 2.6rem); }
 
@@ -895,7 +697,6 @@ html.slot-locked .slot-toggle,
     }
 }
 
-/* ---------- "减少动态效果":不要错开落位,直接出现 ---------- */
 @media (prefers-reduced-motion: reduce) {
     .tablet,
     .tablet__app,

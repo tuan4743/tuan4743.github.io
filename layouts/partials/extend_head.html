@@ -1,18 +1,4 @@
-{{- /* 头部扩展:背景配色在首帧渲染前恢复,避免切换闪烁 */ -}}
-{{- /* ---------- 构建标记 + 旧缓存自愈 ----------
-     ★★★ 为什么非要有这一段(用户连着好几轮"改了跟没改一样"):
-     每次部署都会换掉带指纹的文件名(stylesheet.<hash>.css / home-guide.<hash>.js),
-     而 GitHub Pages 给 HTML 的缓存是 max-age=600。于是浏览器里那份【旧 HTML】
-     一旦还在缓存里,它引用的旧文件名在新部署里【已经不存在】——
-        · 资源 404 ⇒ 整页没样式没脚本(用户报的"整个页面全崩");
-        · 或者整页都从缓存里来 ⇒ 用户看到的还是好几轮以前的版本
-          ("一点修改迹象都没有")。
-     实测:线上发出去的 home-guide.js 里明明有这一轮的改动(guide-hold / dockSequence),
-     但用户看到的还是旧的 —— 就是这条缓存。
-     ⇒ 做法:页面自己带一个构建号(__build),再fetch 一份【不走缓存】的
-       /build.json?t=…;两边对不上就带 ?fresh=<新号> 重载一次 ——
-       新 URL 浏览器必须重新取 HTML,于是自动拿到最新那一版。
-       (只重载一次:/fresh= 已经在地址里就不再跳,免得来回刷。) */ -}}
+
 <script>
     window.__build = "{{ with site.Data.buildinfo }}{{ .sha }}{{ else }}{{ now.Format "0102-1504" }}{{ end }}";
     try { console.info("[build]", window.__build); } catch (e) {}
@@ -45,42 +31,31 @@
     })();
 </script>
 
-{{- /* ★ 首页之外的那些页面挂上 shell-page(见 assets/css/extended/shell.css 第四节):
-       它们的底是同一片宇宙背景、字是浅色、内容装在一块磨砂面板里。
-       ★ 为什么用内联脚本挂 class,而不是写进模板的 <body>:这些页面走 PaperMod 的
-         baseof,body 的 class 由主题决定,插不进去;而这句和上面那句恢复配色一样,
-         必须在首帧之前跑(晚了会闪一下主题底色)。
-       ★ 首页不能挂(它的底是那块仿真屏幕,不是整页星云)—— head.html 两边都会调,
-         所以必须带这个判断。
-       ★★ 判据从 .IsHome 改成 (.Param "isHome"):启动页占住站点根之后,
-          这块仿真屏幕搬到了 /home/,它已经不是 Home 页了 —— 而 .IsHome 一旦变 false,
-          下面这一整块(HUD 缩放因子、shell-page、page-hud.css / hud-palette.js)
-          就会【全部灌进那块屏幕】,连底都会从屏幕变成星云。
-          标记写在 content/home/_index.md 的 front matter 里(不是 hugo.toml 的
-          [params],那样全站生效)。凡"只有这块屏才有"的判据一律用它。
-       ★★ 还要排掉启动页(.Param "bare"):它也不是那块屏,但它【更不是博客页】——
-          它是"裸页",自己一屏的样式都在 layouts/start/list.html 里。
-          只写 isHome 那一条的话,启动页会被当成博客页,白下一整份 page-hud.css
-          并挂上 shell-page(实测踩到,靠构建产物对账才发现)。 */ -}}
 {{- if not (or (.Param "isHome") (.Param "bare")) }}
 <script>document.documentElement.classList.add("shell-page");</script>
 
-{{- /* ---------- HUD 的缩放因子 --hud-s(用户第十轮)----------
-     用户:"有没有考虑页面自适应缩放?我看换到27寸屏幕大部分位置对的,小部分错位了
-     (比如单独放的字体字号按钮,跑到了屏幕正中央),小部分按钮大小没变,比如三个笔按钮"
+{{- if eq .Kind "page" }}
+<link rel="stylesheet" href="/vendor/katex/katex.min.css">
+<script defer src="/vendor/katex/katex.min.js"></script>
+<script defer src="/vendor/katex/auto-render.min.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        if (!window.renderMathInElement) return;
+        try {
+            renderMathInElement(document.querySelector(".post-content") || document.body, {
+                delimiters: [
+                    { left: "$$", right: "$$", display: true },
+                    { left: "$", right: "$", display: false },
+                    { left: "\\(", right: "\\)", display: false },
+                    { left: "\\[", right: "\\]", display: true }
+                ],
+                throwOnError: false
+            });
+        } catch (e) { /* 公式渲染失败不能影响正文阅读 */ }
+    });
+</script>
+{{- end }}
 
-     ★ 病根:HUD 的【位置】全是百分比(跟着视口走),而【控件本身的尺寸】是一堆写死的
-       px(11px 字、65px 宽的笔、22px 图标、38px 按钮高…)。27 寸上框和栏都拉大了,
-       里面的字和按钮还原地不动 —— 于是又空又小,比例全乱。
-
-     ★ 做法:算一个纯数字的比例因子挂在 :root 上,CSS 里用 calc(11px * var(--hud-s,1)) 消费。
-       · 基准是 1600×900(这一整套一直是在这个尺寸上量的)⇒ 那里 s = 1,像素级不变;
-       · 取宽高两个比例的【较小值】:2560×1080 那种带鱼屏不会因为宽就撑爆;
-       · 上下都夹住(0.85 ~ 1.45):小窗口不许缩到点不着,超大屏也不许变成玩具。
-
-     ★★ 为什么用内联脚本:它必须在【首帧之前】就位。放到 defer 的 page-hud.js 里,
-       大屏上会先按 s=1 画一遍、几十毫秒后再跳一下 —— 那一下很明显。
-     ★ 为什么不用 CSS 算:CSS 没法把长度除以长度得出一个纯数字,calc() 做不到。 */ -}}
 <script>
     (function () {
         var d = document.documentElement;
@@ -99,60 +74,27 @@
     })();
 </script>
 
-{{- /* ---------- 右侧 HUD(第二阶段第一刀)----------
-     ★ 样式表在这里单独挂,不放 assets/css/extended/:
-       extended 那个包是【全站】都会加载的,而这条 HUD 只有博客页有 ——
-       放进去等于让首页白下几 KB。这里挂的另一层好处是它排在主样式表【之后】,
-       同分时压得住主题自己的规则(比如给顶栏让位那条 padding)。
-       见 assets/css/page-hud.css 开头那三条约束。 */ -}}
 {{- with resources.Get "css/page-hud.css" }}
 {{- $u := . | fingerprint "sha256" }}
 <link rel="stylesheet" href="{{ $u.RelPermalink }}">
 {{- end }}
 
-{{- /* ---------- 侧边目录(TOC)的样式 ----------
-     ★ 和 page-hud.css 一样单独挂一个指纹文件,不塞 extended/:
-       extended 是全站都加载的,而这块只有文章页才有。
-     ★ 必须排在 page-hud.css【之后】—— 它用 --hud-font / --mc-color 这些变量,
-       同权重冲突时要后加载的说了算。 */ -}}
 {{- with resources.Get "css/hud-toc.css" }}
 {{- $u := . | fingerprint "sha256" }}
 <link rel="stylesheet" href="{{ $u.RelPermalink }}">
 {{- end }}
 
-{{- /* ---------- 配色:必须在首帧前就位 ----------
-     ★ 这里内联的是【同一个文件】(不是抄一份算法):配色算法只有
-       assets/js/hud-palette.js 这一处 —— tests/page-hud.test.mjs 钉着这一点。
-     ★ 顺序不能动:它开头会检查 shell-page 这个类(只对博客页生效),
-       所以必须排在上面那句挂 class 的脚本后面。
-     ★ 它是"还原上次拖过的色相",没拖过就一个字都不写(不偷偷改用户观感)。 */ -}}
 {{- with resources.Get "js/hud-palette.js" }}
 <script>{{ .Content | safeJS }}</script>
 {{- end }}
 {{- end }}
 
-{{- /* ---------- 番茄钟(左栏,可收起)的样式 ----------
-     ★ 和上面那两块同一个套路:自己的文件、自己的指纹、排在 page-hud.css 之后
-       (它吃 --hud-font / --mc-color / --hud-cover 这几个变量)。
-     ★★ 判据改成和上面那块一样(不是仿真屏幕、也不是启动页):
-       原来这两份【故意挂在 if 外面】,理由是"首页没有那个 DOM,这几 KB 不会被解析"。
-       那时"首页"只有一块屏,多下两份无所谓。现在多了启动页,而用户对那一页的要求
-       就是【干净】—— 它一分 HUD 都没有,却照样在下 hud-timer.css + hud-left.css
-       (实测构建产物里两份都在),等于为不存在的 DOM 下样式。所以关进来。
-     ★ 它是 fixed 定位的自绘块,不参与任何 Hugo 端计算,所以没有"首帧闪一下"
-       的问题,挂在 <head> 末尾就行。 */ -}}
 {{- if not (or (.Param "isHome") (.Param "bare")) }}
 {{- with resources.Get "css/hud-timer.css" }}
 {{- $u := . | fingerprint "sha256" }}
 <link rel="stylesheet" href="{{ $u.RelPermalink }}">
 {{- end }}
 
-{{- /* ---------- 左下角 UHD:框上那几枚按钮的样式 ----------
-     ★ 和上面几块同一个套路:自己的文件、自己的指纹、排在 page-hud.css 之后
-       (它吃 --hud-font / --hud-cover / --mc-color 这几个变量)。
-     ★ 框本身和"按钮的形"不在这里:那是 .page-hud__band 那支 SVG
-       (4 层 + 5 个 polygon,样式在 page-hud.css 里)。这里只管能按的那一层
-       —— 每颗按钮铺满整层,靠 clip-path 收成同一个多边形的形状。 */ -}}
 {{- with resources.Get "css/hud-left.css" }}
 {{- $u := . | fingerprint "sha256" }}
 <link rel="stylesheet" href="{{ $u.RelPermalink }}">

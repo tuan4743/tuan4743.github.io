@@ -1,24 +1,4 @@
-/* ============================================================
-   首页开机引导 —— 用户第二轮
-   ─────────────────────────────────────────────────────────────
-   用户(逐字):
-     "1.进入首页不是有一个加载动画?我发现这个加载动画考虑的需要加载的东西不够,
-        导致正式进入后有些东西还是没有加载完成(比如音乐,CD模型)。然后把加载动画的
-        字换了,Tuagfey-blog改成人格修正启动中...,加载文字也要进行替换,比如
-        '下载3D模型->加载情感引擎',总之就是往设定上靠,然后把加载界面的白色背景改成
-        黑色,字体可以调大一点。
-      2.进入首页的初始化从进入CD页转为直接停在平板上,此时平板是黑屏。
-      3.然后把启动页的眼睛移植过去,触发动画和对话(对话逐字打出),按照顺序给出:
-        [眼睛睁开 / 四句台词 / 一段自嘲] → 扫描框吸附整块平板 → 上侧下滑栏(锁鼠标)
-        → 左侧打开 CD 架按钮(锁鼠标) → 瞳孔转向屏幕正中央 → 按下它(解锁)
-        → 进 CD 页、眼睛转个向缩小放到右侧三分之一 → 左上文字区(大致范围)
-        → CD 区域(大致范围) → 锁滚轮 → 左侧插入按钮 → 解锁并按下 → 一切恢复正常。
-      按下后就正常了,所有动画结束。"
-
-   这一份钉的是【这条链路上每一处"一改就会坏、坏了看不出来"的地方】。
-   真实观感(眼睛形状、时序、吸附位置)靠 .tmp/shots-guide.mjs 的截图 +
-   .tmp/verify-home.mjs 的现场读数,单测里不跑浏览器。
-   ============================================================ */
+/* 首页引导层验收。 跑法见 tests/README.md */
 
 import fs from 'node:fs';
 
@@ -35,8 +15,6 @@ const noC = (s) => String(s)
 const homeTpl = rd(`${BH}/layouts/home/list.html`);
 const homeTplC = noC(homeTpl);
 const guideJs = noC(rd(`${BH}/assets/js/home-guide.js`));
-/* ★ 步骤表那一条要在【没去注释】的原文上找:步骤里带着行内注释
-   (`eye: "reveal",   // 睁眼`),注释一去掉,indexOf 找的片段就跨不过去了。 */
 const guideRaw = rd(`${BH}/assets/js/home-guide.js`);
 const eyeJs = noC(rd(`${BH}/assets/js/ascii-eye.js`));
 const introJs = noC(rd(`${BH}/assets/js/intro.js`));
@@ -44,18 +22,13 @@ const cd3dJs = noC(rd(`${BH}/assets/js/cd3d.js`));
 const tabletJs = noC(rd(`${BH}/assets/js/tablet.js`));
 const mcJs = noC(rd(`${BH}/assets/js/magnetic-cursor.js`));
 const tcss = noC(rd(`${BH}/assets/css/tablet.css`));
-/* 引导换场那几条过渡写在 extended/shell.css(page-out 那一节)里 */
 const tcssShell = noC(rd(`${BH}/assets/css/extended/shell.css`));
 const icss = noC(rd(`${BH}/assets/css/intro.css`));
 const hugo = rd(`${BH}/hugo.toml`);
 const builtHome = rd(fs.existsSync(`${WS}/.tmp/t1/home/index.html`)
-  ? `${WS}/.tmp/t1/home/index.html`          /* CI / 本地按 README 构建过就用新产物 */
-  : `${BH}/public/home/index.html`);         /* 没构建过就退回仓库里已提交的 public/ */
+  ? `${WS}/.tmp/t1/home/index.html`
+  : `${BH}/public/home/index.html`);
 
-/* ★★ 取一条 CSS 规则【自己那一对大括号】里的内容。
-   为什么需要它:写 `\.foo \{[\s\S]{0,400}?bar` 这种"往后若干字符里找"的断言,
-   只要在中间补一段注释或一条新规则就会假红(这一轮就踩了两次:tablet.css 末尾
-   追加了引导那一节、hugo.toml 里补了一段说明)。圈到大括号里比数长度稳。 */
 const rule = (css, sel) => {
   const i = css.indexOf(sel + " {");
   if (i < 0) return "";
@@ -63,7 +36,6 @@ const rule = (css, sel) => {
   return j < 0 ? "" : css.slice(i, j + 1);
 };
 
-/* ---------- ① 加载页:补全加载项 + 文案 + 黑底大字 ---------- */
 ok('★★★ 加载页要等【音乐也解码完】才收口,不是 3D 一就绪就进',
   /beginSite\(homeBoot\)/.test(introJs) &&
   /function beginSite\(onReady\)/.test(introJs) &&
@@ -116,7 +88,6 @@ ok('★★★ 加载页白底改黑底、字号调大',
   /\.intro-loader-pct \{[\s\S]{0,260}?font-size: clamp\(0\.92rem/.test(icss),
   '★ 底色【不能】跟主题走:浅色主题下 --theme 是白的,那一屏就变成一大块白(用户看到的正是白的)');
 
-/* ---------- ② 初始化:停在黑屏的平板上,不进 CD 页 ---------- */
 ok('★★★ 首页初始化【不再】打开 CD 架',
   /var IS_HOME = body\.classList\.contains\("home-page"\)/.test(introJs) &&
   /if \(!IS_HOME\) \{ startIntro\(\); return; \}/.test(introJs) &&
@@ -142,7 +113,6 @@ ok('★★ 首页开机要自己开平板,而且有一个明确的口子',
   /window\.__tabletOpen = function \(on\)/.test(tabletJs) && /window\.__tabletOpen\(true\)/.test(introJs),
   'immediate = true:这一下不是用户按的,不抢焦点(抢了会平白画出一个焦点框)');
 
-/* ---------- ②b 黑屏那两层(踩过的坑) ---------- */
 ok('★★★ 黑屏底衬的 z-index 必须是负的',
   /\.tablet-backdrop \{[\s\S]{0,200}?z-index: -1;/.test(tcss),
   '★★ 两个错法都踩过:写 39(想"紧贴平板之下")⇒ CD 架一打开整页全黑;' +
@@ -155,7 +125,6 @@ ok('★★★ 机身两侧的透光也要涂黑(否则浅色主题下黑屏漏�
   /html\.home-dark,\s*\n?html\.home-dark body \{ background: #000; \}/.test(tcss),
   '平板玻璃是被贴图窗口裁出来的,机身那两竖条半透明 —— 底下没东西时浅色主题会透白');
 
-/* ---------- ③ 眼睛:复用启动页那一只 ---------- */
 ok('★★★ 眼睛用【共用模块】,不重写一份',
   /window\.AsciiEye\.create/.test(guideJs) &&
   /resources\.Get "js\/ascii-eye\.js"/.test(homeTpl) &&
@@ -190,7 +159,6 @@ ok('★★★ 黑屏态要关掉入场过渡(0→1 的淡入过程里内容会�
   /\.tablet\.is-dark \{[\s\S]{0,260}?transition: none;/.test(tcss),
   '★ 实测:挂上 .is-dark 那一刻 opacity 只有 0.047,快捷控制卡片跟着淡入露了一下脸');
 
-/* ---------- ④ 扫描框:用【真的】那个,靠合成事件驱动 ---------- */
 ok('★★★ 扫描框是【真的那个】,靠派发合成事件驱动(不是另画一个假框)',
   /new PointerEvent\("pointermove"/.test(guideJs) &&
   /new MouseEvent\("mousemove"/.test(guideJs) &&
@@ -227,7 +195,6 @@ ok('★★★ 框要停在目标的【矩形】上,不是落在中心的一个�
   /scriptSnap\(r\.left, r\.top, r\.width, r\.height\)/.test(guideJs),
   '沿用的还是锁定框那一套美术(角线/白心/青晕),只是位置与尺寸由剧本给');
 
-/* ---------- ⑤ 台词:逐字打出,而且一句不改 ---------- */
 const LINES = [
   '你好。哦,是你啊。怎么又变成了这样。',
   '我是方舟总控 AI 子代理,代号 ECHOM_D29_Z68J521,……你叫我 ECHO。',
@@ -235,7 +202,7 @@ const LINES = [
   '一旦长时间未修正,锚点将发生不可逆偏移。',
   '……好吧,我又得重来一遍:',
   '这是总控修正终端,你需要在这里完成五项修正。',
-  '按下可以展开终端设置页,在设置页你可以前往核心数据库,或者对终端环境进行一些设置。',
+  '这是终端按钮,按下可以切换终端设置页,在设置页你可以前往核心数据库,或者对终端环境进行一些设置。',
   '从这里可以进入情感引擎安装仓。',
   '这可是你的杰作。从里面你可以校准自己的人格。',
   '按下它。',
@@ -248,8 +215,6 @@ const LINES = [
 const missing = LINES.filter((L) => !guideJs.includes(L));
 ok(`★★★ 十五句台词一字不改(${LINES.length - missing.length}/${LINES.length})`,
   missing.length === 0, missing.length ? '缺:' + missing.join(' / ') : '');
-/* ★ 断言已随台词机整块重写(home-guide.js 第四节:旧 charDelay/typeLine 删掉,换 say/charGap)更新:
-   逐字 + 不匀速的语义由 say()/charGap() 承担 —— 抖动现在走 VOICE.charJitter。 */
 ok('★★★ 台词是【逐字打出】的,而且每个字的间隔不是常数',
   /function say\(text\)/.test(guideJs) &&
   /lineEl\.textContent = text\.slice\(0, i\);/.test(guideJs) &&
@@ -297,7 +262,6 @@ ok('★★★ 视线【始终】跟着扫描框(只有一句看向正中央)',
   /function followLoop\(\)/.test(guideJs) && /lookAtRect\(frameRect\)/.test(guideJs),
   '用户第三轮:"眼睛是始终要跟扫描框的,只有一句台词需要看向屏幕中央"');
 
-/* ---------- ⑥ 顺序:照着用户给的那一串 ---------- */
 const ORDER = [
   ['睁眼', 'eye: "reveal"'],
   ['整块平板', 'snap: "region:tablet-all"'],
@@ -317,22 +281,12 @@ const sorted = positions.every(([, i], k, a) => k === 0 || a[k - 1][1] < i);
 ok('★★★ 步骤顺序和用户给的那一串完全一致',
   wrongOrder.length === 0 && sorted,
   wrongOrder.length ? '找不到:' + wrongOrder.map((x) => x[0]).join(',') : (sorted ? '' : '顺序颠倒了:' + positions.map((x) => x[0]).join(' → ')));
-/* ★ 断言已随台词机重写更新:typeLine/afterLine 换成了 say();串行语义不变 ——
-   每步的台词与按键任务仍按 p = p.then(...) 一节一节接起来。 */
 ok('★★★ 步骤之间必须【串行】(每一步返回 Promise,链条一节一节走)',
   /function runStep\(s, i\)/.test(guideJs) &&
   /tasks\.push\(function \(\) \{ return say\(s\.text\); \}\);/.test(guideJs) &&
   /tasks\.push\(function \(\) \{ return waitForUser\(s\.press\); \}\);/.test(guideJs) &&
   /p = p\.then\(fn\);/.test(guideJs),
   '并行跑的话台词会互相盖掉,而且"扫到哪儿说到哪儿"的对应关系就没了');
-/* ★★★ 第五轮把这一段整个换掉了:
-   第三轮要"转 90° 横着看",第五轮改成"按下左滑后主屏的眼睛马上闭上,
-   等彻底滑过去后眼睛再在右侧睁开"。
-   第六轮又纠正一次:"我说眼睛要旋转90°,你怎么又给我修回去了?" —— 两件事【叠加】。
-   第七轮:"按下进入CD页的按钮时,主眼睛应该立马闭合,否则跟不上左滑的速度。" */
-/* ★★★ 这一节已随 95f75e9(引导不再自己造位移,左滑那套全删)整个重写:
-   进 CD 页 = 按下(捕获阶段)→ 闭眼 → 闭着换格(眼睛自己的 .55s 过渡)→ 右侧睁开。
-   引导一次位移都不造;屏幕上唯一的大位移是原生的 scene-open。 */
 ok('★★★ 进 CD 页 = 按下 → 闭眼 → 闭着换格 → 右侧睁开(四步,顺序不能乱)',
   /function dockPress\(\)/.test(guideJs) &&
   /beginDockClose\(\)\.then\(dockSettle\);/.test(guideJs) &&
@@ -347,8 +301,6 @@ ok('★★★ 眼睛换场靠自己的过渡 + 跟着机器挪(不是引导另�
   /if \(eye && eye\.offsetX\) eye\.offsetX\(0\);/.test(guideJs) &&
   /function offsetX\(px\)/.test(eyeJs),
   '★ offsetX 与 rotate 合成在同一条 transform 上 —— 直接写 style.transform 会把旋转冲掉');
-/* ★★★ 两次要求是【叠加】的,不是互相取代 —— 第五轮读错了,第六轮被纠正。
-   ⇒ 闭眼 → 换格【并转 90°】 → 重新睁开。 */
 ok('★★★ 右侧那只眼睛必须【转 90°】(第三轮的要求,不许再删)',
   /var DOCK_TILT = 90;/.test(guideJs) &&
   /if \(eye\.rotate\) eye\.rotate\(DOCK_TILT\);/.test(guideJs) &&
@@ -358,8 +310,6 @@ ok('★★★ 转向发生在【眼睛闭着的那段窗口里】(不是转着�
   /if \(eye\.rotate\) eye\.rotate\(DOCK_TILT\);/.test(guideJs) &&
   /beginDockClose\(\)\.then\(dockSettle\);/.test(guideJs),
   '转向在 dockIntoBox(闭着换格那一步)里做,睁眼在 dockOpen —— 顺序由 dockStage 串起来');
-/* ★★★ 第七轮抓到的真凶:openNow() 内部会 measure(),把按格子算好的尺寸冲掉。
-   ⇒ 顺序必须是:openNow() → dockIntoBox() → is-on(显出来)。 */
 ok('★★★ 睁开之后要【重新贴一次】那一格的尺寸(openNow 会把它冲掉)',
   /if \(eye && eye\.openNow\) eye\.openNow\(\);[\s\S]{0,40}?dockIntoBox\(\);/.test(guideJs) &&
   /openNow: function \(\) \{[\s\S]{0,120}?measure\(\);/.test(eyeJs),
@@ -394,9 +344,6 @@ ok('★★ 缩小的同时字号/列数要跟着重算(不是把画布剪小)',
   /COLS = Math\.max\(16, Math\.floor\(boxW \/ CELL_W\)\)/.test(eyeJs),
   'fitTo 的第二个参数只管行数(按 86% 落地),所以要除回去 —— 否则眼睛上下被切平');
 
-/* ② ★★★ 用户第九轮:"为什么不做成按下按钮立马触发?"
-   现在按下那一刻【同步】触发(捕获阶段,抢在原生 setOpen 之前):
-   眼睛立刻开始闭、台词收掉(dockPress,95f75e9 起没有 guide-hold —— 引导不造位移)。 */
 ok('★★★ 按下按钮【立马】触发(捕获阶段,抢在原生那次 scene-open 之前)',
   /function watchDockPress\(\)/.test(guideJs) &&
   /document\.addEventListener\("click", function \(e\) \{[\s\S]{0,120}?closest\("\.slot-toggle, #intro-toggle"\)\) dockPress\(\);[\s\S]{0,40}?\}, true\);/.test(guideJs) &&
@@ -415,10 +362,6 @@ ok('★★★ 闭眼只做一次(按下就闭 / runDock 兜底闭,两条路径�
   /function beginDockClose\(\) \{[\s\S]{0,80}?if \(!dockClosing\) dockClosing = closeEye\(\);/.test(guideJs) &&
   /function dockPress\(\)/.test(guideJs),
   '记忆化:第二次调用拿到的是同一个 Promise,不会再播一遍闭眼');
-/* ★ 为什么是 MutationObserver 而不是只靠轮询(第七轮实测):
-   后台标签页/主线程忙的时候 setTimeout(40) 会被排到 700ms 之后,
-   "按下 → 闭眼"又慢回去了。observer 的回调在 class 变化的同一个任务里,
-   实测 1600×900:按下 → 开始闭 = 12ms。 */
 ok('★★ 闭眼靠"盯 class 的 observer",轮询只做兜底(定时器会被节流)',
   /new MutationObserver\(function \(\) \{/.test(guideJs) &&
   /attributes: true, attributeFilter: \["class"\]/.test(guideJs) &&
@@ -428,15 +371,6 @@ ok('★★ 左滑不再有 setTimeout(runDock, 380) 那种"发呆"',
   /runDock\(\);\s*\n\s*\}/.test(guideJs) && !/setTimeout\(runDock/.test(guideJs),
   '第七轮:"否则跟不上左滑的速度"');
 
-/* ============================================================
-   ★★★ 第八轮(用户逐字):
-     "1.把侧边显示的眼睛往右边移一点点.
-      2.动画过程按下进入CD页的按钮,会往左滑,然后突然往右滑又回去,
-        这个往右滑进入数据库是bug"
-   ============================================================ */
-/* ① 眼睛的位置:原来按【frame-fit 窗口的右边三分之一】居中 ⇒ 实测 1261,
-   而平板真正露出来的玻璃中心是 1382(机身左边那条黑边比 --ff-win-left 宽得多),
-   眼睛贴着玻璃左缘。现在按【CD 架露出来的那一条】算。 */
 ok('★★★ 侧边那只眼睛按【可见条带】定位(用户第八轮:"往右边移一点点")',
   /function stripLeftX\(vw\)/.test(guideJs) &&
   /document\.querySelector\("\.rack"\)/.test(guideJs) &&
@@ -455,17 +389,7 @@ ok('★★ 量不到 CD 架时退回 --rack-w;窄屏时把眼睛压回条带里'
   /Math\.min\(vh \* 0\.62, third \* 1\.5, strip\.w \* 1\.8\)/.test(guideJs),
   '★ 0.5 那个夹子会把 66vw 的架子夹成半个屏(实测眼心 1280),所以上界给 0.86');
 
-/* ★ 下面四条旧的"进场/按住过渡"断言已随 95f75e9 删掉:
-   引导不再自己造位移(enterFromRight / guide-enter / 双 rAF 那套全删),
-   进 CD 页只有原生的 scene-open 一次位移 —— 见上面重写的那一节。 */
 
-/* ③ ★★★ 用户第八轮:"左滑后对话间隔太小出字速度太快,跟左滑前设置成一样的。"
-   (第七轮我调快过一档:34ms/字 + 句间 0.7s —— 被否了。)
-   ⇒ 全篇只有一个档:58ms/字 + 句间 1.5s,左滑前后完全一样。
-   实测(正式节奏,每拍排进定时器的延迟):第 1~9 拍中位 58~79ms,
-   第 12~15 拍中位 58~76ms,两边的句间停顿都是 1500ms。 */
-/* ★ 断言已随台词机重写更新:TYPE_MS/afterLine 换成了 VOICE 常量(char/gap),
-   全篇仍然只有一个档 —— 快档只剩 ?fast=1(探针用)。 */
 ok('★★★ 左滑之后那几句话的字速/停顿跟左滑前【完全一样】(用户第八轮)',
   /var VOICE = \{/.test(guideJs) &&
   /char: 62, charJitter: 0\.38,/.test(guideJs) &&
@@ -478,9 +402,6 @@ ok('★★ 字速仍然逐字算(VOICE.punct 照旧:句号最重,逗号一口)',
   /"。": 340/.test(guideJs) && /"…": 300/.test(guideJs) && /",": 150/.test(guideJs),
   '快慢可以调,标点那口气不能省');
 
-/* ④ ★★★ 用户第八轮:"按下之后动画结束,直接趁着插CD的动画赶紧闭眼。"
-   原来收尾是"把眼睛淡掉"(摘 is-on,0.5s 透明度)—— 看到的是半透明慢慢消失。
-   现在:先眨一下闭上(420ms),闭到底再连内容一起收掉。 */
 ok('★★★ 收尾时眼睛要【眨一下闭上】(不是慢慢淡掉)',
   /eye\.close\(wink, DOCK_CLOSE_MS\)/.test(guideJs) &&
   /var wink = function \(\) \{ if \(!winked\) \{ winked = true; eyeHost\.classList\.remove\("is-on"\); \} \};/.test(guideJs) &&
@@ -488,12 +409,6 @@ ok('★★★ 收尾时眼睛要【眨一下闭上】(不是慢慢淡掉)',
   /eye\.stop\(\); eyePre\.textContent = "";/.test(guideJs),
   '用户第八轮:"直接趁着插CD的动画赶紧闭眼"');
 
-/* ⑤ ★★★ 用户第八轮:"刚进入首页,背景里面就开始播放第一张CD了。"
-   两处会出声的口子都堵上:
-     · cd3d 建场景时的首次摆位 → silent
-     · 3D 挂载时那次 setSelection 同步 → silent
-     · 引导期间打开 CD 页的 previewCurrent → 被总开关挡住
-   收尾时把总开关交还(finishGuide 里 __cdPreview(true))。 */
 ok('★★★ 开场不许有音乐(用户第八轮)',
   /place\(selIndex, true, true\);/.test(cd3dJs) &&
   /function place\(idx, instant, silent\)/.test(cd3dJs) &&
@@ -510,7 +425,6 @@ ok('★★ 眼睛宿主的位置必须用视口坐标显式给(不能靠 left:au
   /st\.left = Math\.round\(left\) \+ "px";/.test(eyeJs),
   '宿主不在 .scene 里,不会被那 66vw 的平移带着走 —— 用相对写法算出来的格子不是平板露出来的那一块');
 
-/* ---------- ⑦ 锁的时序:该锁的锁、该解的解 ---------- */
 ok('★★★ 上侧下滑栏与 CD 架按钮:锁住鼠标(不允许按下)',
   /lock: true/.test(guideJs) && /function lock\(on\)/.test(guideJs),
   '用户:"吸附到平板上侧的下滑栏(锁住鼠标不允许按下)"');
@@ -532,8 +446,7 @@ ok('★★★ 台词「按下它。」必须在【点击之前】就打出来',
   (function () {
     var iText = guideJs.indexOf('return say(s.text)');
     var iWait = guideJs.indexOf('tasks.push(function () { return waitForUser(s.press); });');
-    return iText >= 0 && iWait >= 0 && iText < iWait &&
-      /顺序:【先说话,再等用户按】/.test(guideRaw);
+    return iText >= 0 && iWait >= 0 && iText < iWait;
   })(),
   '★★ 用户第六轮:"对话按下它只有点击按钮之后才会触发" ——' +
   '第三轮把"让用户自己按"改进来时,等待被排到了台词【前面】,' +
@@ -583,7 +496,6 @@ ok('★★ 滚轮锁必须挂在捕获阶段且 cancelable(否则拦不住 intro
   /if \(e\.cancelable\) e\.preventDefault\(\);/.test(guideJs) &&
   /e\.stopImmediatePropagation\(\);/.test(guideJs));
 
-/* ---------- ⑧ 收尾:一切恢复正常 ---------- */
 ok('★★★ 收尾要把平板关掉(否则开机动画放完看到的是平板主屏)',
   /if \(window\.__tabletOpen\) window\.__tabletOpen\(false\);/.test(guideJs),
   '★ 踩过:只把眼睛和台词淡掉 —— 平板那一层(z-index 40)还压在 CD 页上面,' +
@@ -617,12 +529,6 @@ ok('★★ 黑屏底衬要等开机动画把黑屏撤掉那一刻再收',
   /new MutationObserver\(function \(\) \{\s*\n\s*if \(staticWrap\.classList\.contains\("is-black"\)\) return;/.test(guideJs),
   '早收会看到机身两侧先亮起来(像屏幕边缘漏光)');
 
-/* ---------- ⑨ 每次都播 + 跳过 ---------- */
-/* ★★★ 这一条是用户第三轮报"动画完全没有加载"的真凶之一:
-   原来写的是"播过一次就记住、回访不再播",而【我自己的验证探针】
-   会往 tuagfey.com 这个域的 localStorage 写这个标记 ——
-   于是用户打开线上站,看到的是"眼睛挂了九秒就没了"。
-   探针不该有能力改用户的持久状态,所以这个机制整个废掉。 */
 ok('★★★ 引导【每次进来都播】,不再往 localStorage 写"播过了"',
   /function shouldPlay\(\) \{ return true; \}/.test(guideJs) &&
   !/localStorage\.setItem\(KEY/.test(guideJs),
@@ -633,7 +539,6 @@ ok('★ 可以跳过(键盘),而且跳过之后不再等"要用户按"的那两�
 ok('★ 留了排障出口(这一段的时序错一点都很难从截图上看出来)',
   /window\.__guide = function \(\)/.test(guideJs) && /window\.__homeEyeApi = eye;/.test(guideJs));
 
-/* ---------- ⑩ 顺手修掉的两个真 bug ---------- */
 ok('★★★ 磁力光标:lean 必须声明(少一行整个渲染循环每帧抛异常)',
   /\n    var lean = 0;/.test(mcJs) &&
   (mcJs.match(/var lean = 0;/g) || []).length === 1,
@@ -654,7 +559,6 @@ ok('★ 外部脚本一律 defer,而且眼睛在前、接线在后(文档顺序 
   })(),
   'home-guide.js 要用 window.AsciiEye,它必须排在后面');
 
-/* ---------- 汇总 ---------- */
 const pass = rows.filter((r) => r[0]).length;
 const w = Math.max(...rows.map((r) => r[1].length));
 for (const [p, n, i] of rows) {

@@ -1,8 +1,3 @@
-/* ============================================================
-   CD 架 Three.js 模块(lazy 加载;资产缺失时返回 null → DOM 降级)
-   接口:initCd3d({ container, selIndex, onReady, onCdClick, onScroll })
-   所有可调参数来自 /assets/cd/manifest.json(改配置即可,无需改代码)
-   ============================================================ */
 
 const BASE = "/assets/cd/";
 const CD_ORDER = ["self", "growth", "lost", "tech", "future"];
@@ -12,17 +7,10 @@ export async function initCd3d(opts) {
   const container = opts.container;
   if (!container) return null;
   const report = (p, label) => {
-    /* ★ 3D 这一路封顶 96:剩下 4 个点由 intro.js 在"确实就绪"那一刻补上。
-       不封顶的话模型先跑完就把进度条顶到 100%,而音乐还在下 ——
-       屏幕上是"100% 但什么都不发生"(实测踩过)。 */
     if (opts.onProgress) opts.onProgress(Math.max(0, Math.min(96, Math.round(p * 0.96))), label || "");
   };
-  /* ★★ 加载页上的每一档文案都是【设定口吻】的(用户第二轮:
-     "加载文字也要进行替换,比如'下载3D模型->加载情感引擎',总之就是往设定上靠")。
-     这一支报的是"总控修正终端"在给自己上电的过程 —— 别改回"加载中"那种大白话。 */
-  report(3, "读取终端配置");
+  report(3, "登入验证:锚点身份");
 
-  /* 1. 接口契约(失败时给出明确原因,不再静默降级) */
   let m;
   try {
     const r = await fetch(BASE + "manifest.json", { cache: "no-cache" });
@@ -42,9 +30,8 @@ export async function initCd3d(opts) {
     return null;
   }
 
-  /* 2. 懒加载 three */
   let THREE, GLTFLoader, RoomEnvironment;
-  report(10, "加载渲染引擎");
+  report(10, "调取上次纠错记录");
   try {
     THREE = await import("three");
     ({ GLTFLoader } = await import("three/addons/loaders/GLTFLoader.js"));
@@ -54,7 +41,6 @@ export async function initCd3d(opts) {
     return null;
   }
 
-  /* 2.5 音效模块(懒加载;失败只影响声音,不影响画面)*/
   let audio = null;
   if (opts.audioUrl) {
     try {
@@ -65,7 +51,6 @@ export async function initCd3d(opts) {
     }
   }
 
-  /* 2.6 可视化模块(音频条 / 律动几何体等)*/
   let createFx = null;
   if (opts.fxUrl) {
     try {
@@ -75,24 +60,18 @@ export async function initCd3d(opts) {
     }
   }
 
-  /* 3. 渲染器 / 场景 / 相机 */
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.setSize(container.clientWidth || 1, container.clientHeight || 1);
   renderer.domElement.style.cssText =
     "position:absolute;inset:0;width:100%;height:100%;pointer-events:auto;";
   container.appendChild(renderer.domElement);
-  /* 电影级色调映射:高光/金属更有物理感 */
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = m.exposure != null ? m.exposure : 1.0;
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(30, 1, 0.01, 400);
 
-  /* 环境反射(PMREM)
-     - studio(默认):自建"摄影棚"环境 —— 右侧大柔光(屏幕光)+ 左侧微弱补光 + 暗背景
-       反射连贯,不会出现房间里的矩形灯板
-     - room:Three.js RoomEnvironment(天花/墙上有矩形发光板,会在盘面反射出方块) */
   try {
     const pmrem = new THREE.PMREMGenerator(renderer);
     let envScene;
@@ -111,11 +90,8 @@ export async function initCd3d(opts) {
         if (rotY) mesh.rotateZ(rotY);
         envScene.add(mesh);
       };
-      /* 右侧主柔光(与场景里的"屏幕光"方向一致) */
       addPanel(S.keyColor || 0xd8ecff, S.keyIntensity != null ? S.keyIntensity : 3.2, [4, 2, 3], [6, 6]);
-      /* 左侧微弱补光 */
       addPanel(S.fillColor || 0x5a6a86, S.fillIntensity != null ? S.fillIntensity : 0.5, [-5, 0.5, 1.5], [5, 5]);
-      /* 顶部极弱环境光,避免暗部死黑 */
       addPanel(S.topColor || 0x2a3244, S.topIntensity != null ? S.topIntensity : 0.35, [0, 5, 0], [8, 8]);
     }
     const envRT = pmrem.fromScene(envScene, 0.02);
@@ -130,25 +106,22 @@ export async function initCd3d(opts) {
   const sun = new THREE.DirectionalLight(L.color || 0xbfe6ff, L.intensity || 1.7);
   sun.position.fromArray(L.position || [4.1, 2.4, 2.6]);
   scene.add(sun);
-  /* 补一盏冷色轮廓光(从相反方向打):金属之所以"贵",靠的就是亮高光 + 暗面的大反差。
-     只有一盏正面光的话,曲面全是均匀的中间灰,怎么调都像塑料。 */
   const rim = new THREE.DirectionalLight(L.rimColor || 0x8fd8ff, L.rimIntensity || 1.15);
   rim.position.fromArray(L.rimPosition || [-3.4, 2.2, -2.2]);
   scene.add(rim);
   scene.add(new THREE.HemisphereLight(0xffffff, 0x1b1f27, 0.45));
   scene.add(new THREE.AmbientLight(0xffffff, 0.18));
 
-  /* 4. 加载整机(带进度上报) */
   let gltf;
   try {
-    report(18, "加载情感引擎");
+    report(18, "人格基线比对:漂移 +0.83σ");
     gltf = await new Promise((res, rej) =>
       new GLTFLoader().load(
         m.model,
         res,
         (xhr) => {
           if (xhr && xhr.total) {
-            report(18 + (xhr.loaded / xhr.total) * 70, "加载情感引擎");
+            report(18 + (xhr.loaded / xhr.total) * 70, "挂载情感引擎");
           } else if (xhr && xhr.loaded) {
             report(Math.min(88, 18 + (xhr.loaded / 2600000) * 70), "下载 3D 模型");
           }
@@ -162,12 +135,11 @@ export async function initCd3d(opts) {
     container.removeChild(renderer.domElement);
     return null;
   }
-  report(90, "校准人格模板");
+  report(90, "排队第 27 次人格修正");
   const root = gltf.scene;
   root.updateMatrixWorld(true);
   scene.add(root);
 
-  /* 5. 每张 CD:位置/倾斜组 → 立正组 → 盘面(盘面自身可再平面内旋转 180° 校正贴图) */
   const cdHolder = new THREE.Group();
   root.add(cdHolder);
   const cdItems = [];
@@ -178,14 +150,14 @@ export async function initCd3d(opts) {
     const name = (m.cdNodes && m.cdNodes[key]) || (m.cds && m.cds[key] && m.cds[key].mesh) || key;
     const node = root.getObjectByName(name);
     if (!node) return;
-    const g = new THREE.Group();       /* 位置 + 鼠标倾斜 */
-    g.rotation.order = "YXZ";          /* 先偏航(绕竖轴)再俯仰(绕横轴),斜向移动也不会歪轴 */
-    const stand = new THREE.Group();   /* 立正 */
+    const g = new THREE.Group();
+    g.rotation.order = "YXZ";
+    const stand = new THREE.Group();
     cdHolder.add(g);
     g.add(stand);
-    stand.attach(node);                /* 保持世界变换 */
+    stand.attach(node);
     stand.rotation.set(standRotX, 0, 0);
-    node.rotation.set(0, flipRotY, 0); /* 盘面在自身法线轴上转 180°,校正贴图方向 */
+    node.rotation.set(0, flipRotY, 0);
     g.userData.cdKey = key;
     g.userData.target = new THREE.Vector3();
     cdItems.push({ key: key, group: g, mesh: node, userData: { target: new THREE.Vector3(), tween: null } });
@@ -199,11 +171,9 @@ export async function initCd3d(opts) {
   root.updateMatrixWorld(true);
   const cdBox = new THREE.Box3().setFromObject(cdItems[0].mesh);
   const cdSize = cdBox.getSize(new THREE.Vector3());
-  const cdR = Math.max(cdSize.x, cdSize.y) / 2 || 1;   /* 盘半径(模型单位) */
+  const cdR = Math.max(cdSize.x, cdSize.y) / 2 || 1;
   const cdDiameter = cdR * 2;
 
-  /* 5b. CD 物理材质升级:GLB 里 CD 是 metallic=0 / roughness=0 的纯光滑电介质,
-         只有镜面反射;补上 金属度 + 粗糙度 + 清漆 + 薄膜虹彩(CD 彩虹光)+ 各向异性 */
   const matCfg = m.cdMaterial || {};
   function upgradeCdMaterials(mesh) {
     mesh.traverse((o) => {
@@ -227,7 +197,6 @@ export async function initCd3d(opts) {
           emissive: old.emissive ? old.emissive.clone() : new THREE.Color(0x000000),
           emissiveMap: old.emissiveMap || null
         });
-        /* 有贴图时系数默认 1(不削弱烘焙贴图);显式配置则作为乘数 */
         const hasRoughMap = !!mat.roughnessMap;
         const hasMetalMap = !!mat.metalnessMap;
         mat.roughness =
@@ -245,7 +214,6 @@ export async function initCd3d(opts) {
         return mat;
       });
       o.material = isArr ? upgraded : upgraded[0];
-      /* 各向异性需要切线数据 */
       if (matCfg.anisotropy) {
         try {
           if (o.geometry && !o.geometry.attributes.tangent && o.geometry.attributes.uv) {
@@ -257,9 +225,6 @@ export async function initCd3d(opts) {
   }
   cdItems.forEach((item) => upgradeCdMaterials(item.mesh));
 
-  /* 5c. 光驱材质升级 —— 之前只升级了 CD,光驱还留着 GLB 里的标准材质
-         (metalness/roughness 都是 1 = 哑光灰塑料),这是整屏"廉价感"最大的来源。
-         这里给它明确的 PBR:深色金属 + 低粗糙度 + 一点清漆,让它反射环境、出现高光。 */
   const driveCfg = m.driveMaterial || {};
   function upgradeDriveMaterials(group) {
     group.traverse((o) => {
@@ -284,7 +249,6 @@ export async function initCd3d(opts) {
           opacity: old.opacity != null ? old.opacity : 1,
           side: old.side
         });
-        /* 有贴图时把系数当"乘数"用:默认压到 0.72 → 比原来亮面得多 */
         const hasRoughMap = !!mat.roughnessMap;
         const hasMetalMap = !!mat.metalnessMap;
         mat.roughness = driveCfg.roughness != null ? driveCfg.roughness : (hasRoughMap ? 0.72 : 0.42);
@@ -298,13 +262,12 @@ export async function initCd3d(opts) {
     });
   }
 
-  /* 6. 光驱:先挂载 → 施加 driveRot → 包围盒中心对位到 hub + driveOffset */
   const driveHolder = new THREE.Group();
   root.add(driveHolder);
   const driveNode = root.getObjectByName(m.driveNode || "");
   if (driveNode) {
     driveHolder.attach(driveNode);
-    upgradeDriveMaterials(driveHolder);      /* 光驱也要有材质,不然就是一块哑光灰塑料 */
+    upgradeDriveMaterials(driveHolder);
   }
   const driveRot = m.driveRot || [0, 0, 0];
   driveHolder.rotation.set(rad(driveRot[0] || 0), rad(driveRot[1] || 0), rad(driveRot[2] || 0));
@@ -319,7 +282,6 @@ export async function initCd3d(opts) {
     driveHolder.position.copy(hub).add(driveOffset).sub(dCenter);
   }
 
-  /* 6b. 自动识别光驱内部的 CD 网格:作为「插入落点」,并隐藏它(改由真实 CD 飞入) */
   root.updateMatrixWorld(true);
   let slotTargetVec = null;
   let internalDisc = null;
@@ -338,21 +300,14 @@ export async function initCd3d(opts) {
       const wp = new THREE.Vector3();
       internalDisc.getWorldPosition(wp);
       slotTargetVec = cdHolder.worldToLocal(wp.clone());
-      internalDisc.visible = false;          /* 隐藏模型自带的盘,槽位留给真实盘 */
+      internalDisc.visible = false;
     }
   })();
 
-  /* 7. 布局与取景
-        - 可视高度 = 光驱高度 ÷ driveHeightFraction(默认光驱占 50% 屏高)
-        - CD 间距按「实际间距」排布(默认 = 盘径 × 1.34),沿轻微弧线向 hub 收拢
-        - 选中盘距 hub 的距离 = 插入行程(默认 = 盘径 × 1.6)
-        - 光驱右缘 + driveRightMargin 与画布右缘对齐(负值 = 更靠右) */
   const cdZ = m.cdZ != null ? m.cdZ : 0;
   const fov = (m.camera && m.camera.fov) || 30;
   const driveHFrac = m.driveHeightFraction != null ? m.driveHeightFraction : 0.5;
   const viewH = dSize.y > 0 ? dSize.y / driveHFrac : 10;
-  /* 间距与插入行程默认按「可视高度」比例推导:改变整体大小(driveHeightFraction)时,
-     间距/露出比例自动跟随,不会因为放大而把相邻盘挤出屏幕 */
   const spacingRatio = m.cdSpacingRatio != null ? m.cdSpacingRatio : 0.538;
   const orbitRatio = m.cdOrbitRatio != null ? m.cdOrbitRatio : 0.64;
   const spacing =
@@ -379,11 +334,8 @@ export async function initCd3d(opts) {
   }
   fit();
 
-  /* 8. 排列与补间
-        - 架位:已插入的 CD 不占位,其余盘自动补齐(不留空档)
-        - 移动:多段路径补间(基于时间,与帧率无关) */
   let selIndex = opts.selIndex || 0;
-  let insertedKey = null;          /* 刷新后光驱内为空(不自动插入上次的主题盘) */
+  let insertedKey = null;
   let centerKey = cdItems[selIndex] ? cdItems[selIndex].key : null;
   const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
 
@@ -396,24 +348,21 @@ export async function initCd3d(opts) {
   if (m.slotOffset) slotPoint.add(new THREE.Vector3().fromArray(m.slotOffset));
   const spinNormal = m.cdSpinDegPerSec != null ? m.cdSpinDegPerSec : 12;
 
-  /* ---------- 光驱弹出 / 收回 ----------
-     静止(已插入)= 向右缩进机器里(含回弹余量,保证弹出过冲时也不会整个露出来)
-     弹出       = 向左移动一个身位(行程 = 光驱长度),停下时右缘仍留在接缝内侧一点 */
   const driveDist = m.driveEjectDist != null ? m.driveEjectDist : dSize.x;
   const driveOvershoot = m.driveEjectOvershoot != null ? m.driveEjectOvershoot : 0.1;
-  const driveTuck = driveDist * (1 + driveOvershoot);   /* 静止时的缩进量 */
-  const driveBaseX = driveHolder.position.x;   /* 动画前的位置 = 弹出位参考 */
+  const driveTuck = driveDist * (1 + driveOvershoot);
+  const driveBaseX = driveHolder.position.x;
   const ejectMs = m.driveEjectMs != null ? m.driveEjectMs : 620;
-  const dropHeight = m.cdDropHeight != null ? m.cdDropHeight : 1.1;   /* 抬起高度:大了会飞出画面 */
+  const dropHeight = m.cdDropHeight != null ? m.cdDropHeight : 1.1;
   const dropMs = m.cdDropMs != null ? m.cdDropMs : 720;
   const retractMs2 = m.retractMs != null ? m.retractMs : 620;
   const retractPauseMs = m.retractPauseMs != null ? m.retractPauseMs : 260;
   const retractSnapMs = m.retractSnapMs != null ? m.retractSnapMs : 170;
   const ejectDelayMs = m.driveEjectDelayMs != null ? m.driveEjectDelayMs : 1000;
 
-  let driveShift = 0;          /* 0 = 归位;负值 = 已弹出 */
+  let driveShift = 0;
   let driveTween = null;
-  let rideDrive = false;       /* 已插入的盘随光驱一起进退 */
+  let rideDrive = false;
   const easeOutBack = (p) => 1 + 2.4 * Math.pow(p - 1, 3) + 1.4 * Math.pow(p - 1, 2);
 
   function animateDrive(to, dur, ease, delay, onDone) {
@@ -431,17 +380,13 @@ export async function initCd3d(opts) {
     return cdItems.filter((it) => it.key !== excludeKey);
   }
 
-  /* 架上现有盘(排除已插入的),按顺序补齐 */
   function rackList() {
     return cdItems.filter((it) => it.key !== insertedKey);
   }
   function rackTargetFor(item) {
     const list = rackList();
-    /* 以 centerKey 为架位中心(它在架上时);它被插入光驱时,顺延到仍在架上的下一张,
-       避免抽盘/放盘时整排跳回第一张 */
     let centerItem = cdItems.find((it) => it.key === centerKey && it.key !== insertedKey);
     if (!centerItem) {
-      /* 中心盘被插入光驱时,向外找最近的仍在架上的盘(不取模,避免跳回第一张) */
       const startIdx = Math.max(0, cdItems.findIndex((it) => it.key === centerKey));
       for (let d = 1; d < cdItems.length; d++) {
         const prev = cdItems[startIdx - d];
@@ -478,28 +423,20 @@ export async function initCd3d(opts) {
     setPath(item, [rackTargetFor(item)], [rackMoveMs], 0, instant);
   }
 
-  let previewAllowed = true;      /* 插入流程中关掉预览,避免"补位换中心"顺带切歌 */
+  let previewAllowed = true;
 
-  /* ★★★ 用户第八轮:"刚进入首页,背景里面就开始播放第一张CD了。"
-     根因:场景建好之后这里会 place(selIndex, true) 摆一次位,而 place() 里
-     "换选 → 小声预览"那一句对【首次摆位】也生效 —— 于是加载页还没收,
-     第一张盘的预览就已经在响了。
-     ⇒ 首次摆位明确传 silent:开机这一段【一点声音都不该有】。
-       真正该出声的时机是"用户自己打开 CD 页"(previewCurrent)或插盘(toBgm)。 */
   function place(idx, instant, silent) {
     selIndex = idx;
     if (cdItems[idx]) centerKey = cdItems[idx].key;
-    /* 换选 → 这一首小声预览(同一首重复调用会自己忽略)*/
     if (previewAllowed && !silent && audio && cdItems[idx]) audio.music.preview(cdItems[idx].key);
     cdItems.forEach((item) => {
-      if (item.key === insertedKey) return;      /* 已插入的盘不入架 */
+      if (item.key === insertedKey) return;
       moveToRack(item, instant);
-      if (item !== cdItems[idx]) item.group.rotation.set(0, 0, 0);   /* 非选中盘不倾斜 */
+      if (item !== cdItems[idx]) item.group.rotation.set(0, 0, 0);
     });
     if (window.__cd3dDebug) window.__cd3dDebug.selIndex = idx;
   }
   place(selIndex, true, true);
-  /* 初始态:插入的盘直接落在槽位 */
   if (insertedKey) {
     const ins = cdItems.find((it) => it.key === insertedKey);
     if (ins) {
@@ -508,19 +445,15 @@ export async function initCd3d(opts) {
     }
   }
 
-  /* 插入 / 拔出:
-     - 插入:目标盘先自转归正 → 上移 → 飞入 → 下移到位;其余盘**等飞行结束再补位**(避免穿模)
-     - 拔出:其余盘先让位,旧盘再飞回自己的架位 */
   function setInserted(key) {
     const prevInserted = insertedKey;
     insertedKey = key;
     rideDrive = false;
-    const insertTotal = spinBackMs + 60 + flyMs + settleMs;   /* 插入飞行总时长 */
-    const ejectTotal = 160 + flyMs + settleMs;                /* 拔出飞行总时长 */
+    const insertTotal = spinBackMs + 60 + flyMs + settleMs;
+    const ejectTotal = 160 + flyMs + settleMs;
 
     cdItems.forEach((item) => {
       if (item.key === key) {
-        /* 1) 快速转回原方向(最短路径),之后冻结自转 */
         const cur = item.userData.spinAngle || 0;
         const delta = ((-cur % 360) + 540) % 360 - 180;
         item.userData.spinTween = {
@@ -530,19 +463,16 @@ export async function initCd3d(opts) {
           dur: spinBackMs,
           freezeAfter: true
         };
-        /* 2) 三段路径:上移 → 飞入 → 下移到位 */
         const from = item.group.position.clone();
         const p1 = new THREE.Vector3(from.x, slotPoint.y + riseY, from.z);
         const p2 = new THREE.Vector3(slotPoint.x, slotPoint.y + riseY, slotPoint.z);
         const p3 = slotPoint.clone();
         setPath(item, [p1, p2, p3], [spinBackMs + 60, flyMs, settleMs], 0);
         item.userData.path.points[0].z = from.z;
-        /* 音效:光驱已在机内时的"飞入"(落到盘托那一下)*/
         if (audio) audio.play("disc", { lead: spinBackMs + 60, ms: flyMs, settle: settleMs });
         return;
       }
       if (item.key === prevInserted) {
-        /* 旧盘拔出:先让架上其他盘让位,再沿原路返回 */
         item.userData.spinFrozen = false;
         const tgt = rackTargetFor(item);
         const p1 = new THREE.Vector3(item.group.position.x, slotPoint.y + riseY, item.group.position.z);
@@ -550,7 +480,6 @@ export async function initCd3d(opts) {
         setPath(item, [p1, p2, tgt], [160, flyMs, settleMs], 260);
         return;
       }
-      /* 其余盘:插入完成后补位;拔出时立即让位 */
       setPath(
         item,
         [rackTargetFor(item)],
@@ -561,43 +490,38 @@ export async function initCd3d(opts) {
     if (window.__cd3dDebug) window.__cd3dDebug.insertedKey = key;
   }
 
-  /* ---------- 新流程:光驱弹出 → CD 从上方落入 → CD+光驱一起插回 ---------- */
   function ejectDrive(cb) {
-    if (driveShift <= -driveDist + 0.001) {          /* 已经弹出 */
+    if (driveShift <= -driveDist + 0.001) {
       if (cb) cb();
       return;
     }
-    /* shift = 触发瞬间托盘位置(只用于验证/调试:确认声音与动画同帧)*/
     if (audio) audio.play("eject", { ms: ejectMs, shift: +driveShift.toFixed(3) });
-    animateDrive(-driveDist, ejectMs, easeOutBack, 0, cb);   /* 过冲峰值也不会超过缩进量 */
+    animateDrive(-driveDist, ejectMs, easeOutBack, 0, cb);
   }
 
   function retractDrive(cb) {
     const from = driveShift;
-    if (from >= -0.001) {                            /* 已在机内 */
+    if (from >= -0.001) {
       if (cb) cb();
       return;
     }
-    const toPause = from * 0.12;                 /* 收到最后一点点 */
+    const toPause = from * 0.12;
     if (audio) audio.play("insert", { ms: retractMs2, shift: +driveShift.toFixed(3) });
     animateDrive(toPause, retractMs2, easeInOut, 0, function () {
-      /* 停顿一下 → 干脆地插回(模拟真实光驱) */
       if (audio) audio.play("snap", { ms: retractSnapMs, delayMs: retractPauseMs, shift: +driveShift.toFixed(3) });
       animateDrive(0, retractSnapMs, easeInOut, retractPauseMs, function () {
-        if (audio) audio.play("clack", { shift: +driveShift.toFixed(3) });   /* 咔哒:与"落底"同一帧 */
+        if (audio) audio.play("clack", { shift: +driveShift.toFixed(3) });
         if (cb) cb();
       });
     });
   }
 
-  /* CD 从上方落入弹出后的槽口;完成后随光驱一起进退 */
   function insertCd(key, cb) {
     const item = cdItems.find((it) => it.key === key);
     if (!item) {
       if (cb) cb();
       return;
     }
-    /* 若机内已有旧盘:先让它飞回自己的架位 */
     const prev = insertedKey;
     if (prev && prev !== key) {
       const old = cdItems.find((it) => it.key === prev);
@@ -607,7 +531,6 @@ export async function initCd3d(opts) {
       }
     }
     rideDrive = false;
-    /* 1) 自转快速归正 */
     const cur = item.userData.spinAngle || 0;
     const delta = ((-cur % 360) + 540) % 360 - 180;
     item.userData.spinTween = {
@@ -617,22 +540,19 @@ export async function initCd3d(opts) {
       dur: spinBackMs,
       freezeAfter: true
     };
-    /* 2) 路径:从架位抬出画外 → 移到槽口正上方 → 落入槽口 */
-    const liftMs = 280;          /* 抬出画外那一段(音效的 lead 要用同一个值)*/
-    const seatMs = 180;          /* 落进盘托后坐实那一段 */
+    const liftMs = 280;
+    const seatMs = 180;
     const slotNow = new THREE.Vector3(slotPoint.x + driveTuck + driveShift, slotPoint.y, slotPoint.z);
     const from = item.group.position.clone();
     const p1 = new THREE.Vector3(from.x, slotPoint.y + dropHeight, from.z);
     const p2 = new THREE.Vector3(slotNow.x, slotNow.y + 0.3, slotNow.z);
     const p3 = slotNow.clone();
     setPath(item, [p1, p2, p3], [liftMs, dropMs, seatMs], spinBackMs + 60);
-    /* 音效:先静默抬出 → 下落的 720ms 有气流 → 落在盘托那一下 + 吸到主轴 */
     if (audio) audio.play("disc", { lead: spinBackMs + 60 + liftMs, ms: dropMs, settle: seatMs });
     item.userData.onPathDone = function () {
-      rideDrive = true;                          /* 之后随光驱一起进退 */
+      rideDrive = true;
       insertedKey = key;
       if (window.__cd3dDebug) window.__cd3dDebug.insertedKey = key;
-      /* 其余盘补位(飞完之后才动,避免穿模) */
       cdItems.forEach((it) => {
         if (it.key !== key) setPath(it, [rackTargetFor(it)], [rackMoveMs], 0);
       });
@@ -647,13 +567,11 @@ export async function initCd3d(opts) {
     if (driveHolder.children.length) driveHolder.position.x = driveBaseX + driveTuck;
   }
 
-  /* 9. 交互:屏幕空间拾取(盘面为环状几何,中心镂空)+ 滚轮 + 选中盘随鼠标倾斜 */
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
   const tilt = { x: 0, y: 0 };
   const tiltTarget = { x: 0, y: 0 };
   const TILT_MAX = m.tiltMaxDeg != null ? m.tiltMaxDeg : 14;
-  /* 方向系数:鼠标向右 → 盘面向右转;鼠标向上 → 盘面上仰(可反号) */
   const tiltYawSign = m.tiltYawSign != null ? m.tiltYawSign : 1;
   const tiltPitchSign = m.tiltPitchSign != null ? m.tiltPitchSign : 1;
 
@@ -710,8 +628,6 @@ export async function initCd3d(opts) {
 
   const pv = new THREE.Vector3();
   let hoverIndex = -1;
-  /* 倾斜目标模式:selected = 只有当前选中的那张随鼠标倾斜(鼠标在架子内任意位置都生效);
-                   hover    = 鼠标靠近/压在哪张,哪张倾斜 */
   const TILT_TARGET_MODE = m.tiltTarget === "hover" ? "hover" : "selected";
 
   function resolveTiltItem() {
@@ -734,13 +650,12 @@ export async function initCd3d(opts) {
     const ny = (clientY - r.top - sy) / (pxR * 2.2);
     const cx = Math.max(-1, Math.min(1, nx));
     const cy = Math.max(-1, Math.min(1, ny));
-    /* yaw:鼠标在盘心右侧 → 盘面向右转;pitch:鼠标在盘心上方 → 盘面上仰 */
     tiltTarget.y = cx * TILT_MAX * tiltYawSign;
     tiltTarget.x = cy * TILT_MAX * tiltPitchSign;
   }
 
   function onPointerMove(e) {
-    hoverIndex = pickIndexAt(e.clientX, e.clientY);   /* 供点击/调试使用 */
+    hoverIndex = pickIndexAt(e.clientX, e.clientY);
     const item = resolveTiltItem();
     if (item) {
       computeTiltFor(item, e.clientX, e.clientY);
@@ -762,13 +677,12 @@ export async function initCd3d(opts) {
     if (Date.now() - lastPointerHandled < 500) return;
     handlePointerAt(e.clientX, e.clientY);
   }
-  /* 滚轮:一次手势只走一张,滚动动画期间忽略 */
   const wheelCooldownMs = m.wheelCooldownMs != null ? m.wheelCooldownMs : rackMoveMs + 80;
   let lastWheelAt = 0;
   function onWheel(e) {
     const now = performance.now();
     if (now - lastWheelAt < wheelCooldownMs) return;
-    if (cdItems.some((it) => it.userData.path || it.userData.spinTween)) return;  /* 动画中无效 */
+    if (cdItems.some((it) => it.userData.path || it.userData.spinTween)) return;
     lastWheelAt = now;
     if (opts.onScroll) opts.onScroll(e.deltaY > 0 ? 1 : -1);
   }
@@ -779,15 +693,12 @@ export async function initCd3d(opts) {
   renderer.domElement.addEventListener("click", onClick);
   renderer.domElement.addEventListener("wheel", onWheel, { passive: true });
 
-  /* 10. 渲染循环 */
   let raf = 0;
   let paused = false;
   let pauseWhenIdle = false;
   const tmp = new THREE.Vector3();
   let lastT = performance.now();
 
-  /* ---------- 音频可视化(可选)----------
-     CD 半径:默认从几何体量出来(你改模型大小/位置后特效自动跟随),manifest 写死数字则优先用它 */
   let cdRadius = 0;
   {
     cdItems.forEach((it) => {
@@ -807,37 +718,28 @@ export async function initCd3d(opts) {
     console.info("[cd3d] CD 模型半径 = " + cdRadius.toFixed(3) + (m.cdRadius != null ? "(manifest 指定)" : "(几何体实测)"));
   }
   let fx = null;
-  let fxEnabled = true;      /* 插入动画期间关掉,免得星云跟着盘飞进光驱 */
+  let fxEnabled = true;
 
-  /* ---------- 星云带(真 3D 粒子 · 鼓点驱动)----------
-     按反馈定的四条规矩:
-       1) 颗粒要大、看得清(旧的太小)
-       2) 转速恒定 —— 不跟音量走(跟音量会一抽一抽地顿)
-       3) 检测鼓点:每次鼓点给所有粒子一个随机冲量 + 向外一推,之后靠阻尼弹簧回位
-          → 看起来像被低音震了一下,而不是"整条带子在变速"
-       4) 相邻粒子离得近就连线(星座感)
-     axis = "z" 是绕盘心(默认,视觉上就是一圈带);"x" 则是绕 X 轴的侧环。
-     参数都在 manifest 的 nebula 段。 */
   const NEB = Object.assign({
     count: 420,
-    radius: 1.34,       /* 带半径(相对盘半径)*/
+    radius: 1.34,
     spread: 0.17,
-    thickness: 0.03,    /* 沿环轴方向的厚度 */
-    spin: 0.085,        /* 角速度(弧度/秒,恒定)*/
-    size: 0.055,        /* 粒子大小(相对盘半径)*/
-    ballR: 0.07,        /* ★ 每颗粒子游走的小球半径(相对盘半径):球心在轨道上,粒子在球内活动 */
-    drift: 0.30,        /* ★ 球内慢漂速度(每秒走过多少个球半径)*/
-    seekDur: 0.13,      /* ★ 鼓点换位用多久到达新位置(秒)*/
-    depth: 0.5,         /* ★ 沿环轴的纵深(相对盘半径):0.03 = 扁平贴片,0.5 有明显前后层次 */
-    gapLow: 0.22,       /* ★ 最稀疏处的密度(越小缺口越大,0 = 完全断开)*/
-    irregular: 0.075,   /* ★ 环半径的不规则起伏(相对半径)*/
-    linkSpread: 1.55,    /* 连线距离 = 粒子平均间距 × 这个倍数(自适应,换粒子数也不会炸)*/
-    maxLinks: 1400,     /* 连线上限(性能保险)*/
+    thickness: 0.03,
+    spin: 0.085,
+    size: 0.055,
+    ballR: 0.07,
+    drift: 0.30,
+    seekDur: 0.13,
+    depth: 0.5,
+    gapLow: 0.22,
+    irregular: 0.075,
+    linkSpread: 1.55,
+    maxLinks: 1400,
     axis: "z",
     tilt: 0.17,
-    beatGain: 1.0,      /* 鼓点冲量强度 */
-    spring: 26,         /* 回弹刚度 */
-    damp: 5.2           /* 阻尼 */
+    beatGain: 1.0,
+    spring: 26,
+    damp: 5.2
   }, (m.nebula || {}));
 
   let nebula = null;
@@ -845,7 +747,7 @@ export async function initCd3d(opts) {
   let nebSpin = 0;
   let nebVarsAge = 0;
   let beatPulse = 0, lastBeatMs = 0, fluxAvg = 0, prevBands = null, beatCount = 0;
-  let nebVis = 1;                 /* 星云整体可见度(由左侧滑条控制)*/
+  let nebVis = 1;
 
   function dotTexture() {
     const c = document.createElement("canvas");
@@ -866,8 +768,6 @@ export async function initCd3d(opts) {
     const R = cdRadius * NEB.radius;
     const parts = [];
     for (let i = 0; i < n; i++) {
-      /* ① 角度:均匀基准 + 抖动;再按"密度起伏"做拒绝采样
-            → 有的弧段密、有的稀疏甚至断开,不再是 360° 完整闭环 */
       let th = (i / n) * Math.PI * 2 + (Math.random() - 0.5) * 0.16;
       let tries = 0;
       while (tries++ < 24) {
@@ -875,17 +775,13 @@ export async function initCd3d(opts) {
         if (Math.random() < NEB.gapLow + (1 - NEB.gapLow) * dens) break;
         th += (Math.random() - 0.5) * 0.5;
       }
-      /* ② 半径:环本身带缓慢起伏(碎石环的感觉,不是车出来的圆) */
       const wob = 1 + NEB.irregular * (Math.sin(th * 2.7 + 1.4) + 0.55 * Math.sin(th * 5.1 - 0.6));
-      const k = Math.pow(Math.random(), 0.7);           /* 内侧密一点 */
-      /* ③ Z 纵深:三个随机数叠加 ≈ 正态 → 有前后层次,不再是扁平贴片 */
+      const k = Math.pow(Math.random(), 0.7);
       const gz = ((Math.random() + Math.random() + Math.random()) - 1.5) / 1.5;
       parts.push({
         r: R * wob * (1 + (k - 0.5) * NEB.spread * 2),
         th: th,
         x0: gz * NEB.depth * cdRadius,
-        /* 球内游走:ox/oy/oz 是相对球心的偏移(球心在轨道上),
-           vx/vy/vz 是慢漂速度,tx/ty/tz 是鼓点时随机挑的新落点 */
         ox: 0, oy: 0, oz: 0,
         vx: 0, vy: 0, vz: 0,
         tx: 0, ty: 0, tz: 0,
@@ -912,7 +808,6 @@ export async function initCd3d(opts) {
     pts.renderOrder = 3;
     scene.add(pts);
 
-    /* 连线:预分配一段线段缓冲,每帧只填"靠得近"的那些 */
     const lpos = new Float32Array(NEB.maxLinks * 6);
     const lgeo = new THREE.BufferGeometry();
     lgeo.setAttribute("position", new THREE.BufferAttribute(lpos, 3));
@@ -932,7 +827,6 @@ export async function initCd3d(opts) {
     };
   }
 
-  /* 鼓点检测:低频谱通量的"突增" —— 低频常年饱和,绝对阈值法分不出来,所以用相对涨速 */
   function beatTick(dt, lv) {
     if (!lv || !lv.bands || !lv.playing) return 0;
     const nb = lv.bands.length;
@@ -963,8 +857,8 @@ export async function initCd3d(opts) {
     const n = nebula.n, parts = nebula.parts;
     const hit = beatTick(dt, lv);
     beatPulse *= Math.pow(0.5, dt / 0.18);
-    nebSpin += dt * NEB.spin;                            /* 恒定转速,不跟音量 */
-    const impulse = cdRadius * 0.22 * NEB.beatGain;   /* 位移≈冲量/√k,这里约 0.04R = 轻微一颤 */
+    nebSpin += dt * NEB.spin;
+    const impulse = cdRadius * 0.22 * NEB.beatGain;
     const k = NEB.spring, c = NEB.damp;
     const tint = nebTint;
     const maxR = nebula.R * 1.2;
@@ -979,11 +873,9 @@ export async function initCd3d(opts) {
     for (let i = 0; i < n; i++) {
       const p = parts[i];
       if (hit > 0) {
-        /* 鼓点:在这个小球里随机挑一个新位置,然后平滑挪过去
-           —— 不回到球心,也不改变球心(球心永远在固定轨道上)*/
         const u = Math.random() * 2 - 1;
         const ang = Math.random() * Math.PI * 2;
-        const rad = Math.cbrt(Math.random()) * ballR;     /* 球内均匀 */
+        const rad = Math.cbrt(Math.random()) * ballR;
         const sq = Math.sqrt(Math.max(0, 1 - u * u));
         p.tx = rad * sq * Math.cos(ang);
         p.ty = rad * sq * Math.sin(ang);
@@ -997,7 +889,6 @@ export async function initCd3d(opts) {
         const d2 = p.ox * p.ox + p.oy * p.oy + p.oz * p.oz;
         if (d2 < ballR * ballR * 0.0025) {
           p.seek = 0;
-          /* 到位后给一个慢漂速度,让它继续在球里游走 */
           p.vx = (Math.random() * 2 - 1) * driftV;
           p.vy = (Math.random() * 2 - 1) * driftV;
           p.vz = (Math.random() * 2 - 1) * driftV;
@@ -1007,7 +898,7 @@ export async function initCd3d(opts) {
         p.oy += p.vy * dt;
         p.oz += p.vz * dt;
         const d2 = p.ox * p.ox + p.oy * p.oy + p.oz * p.oz;
-        if (d2 > ballR * ballR) {                          /* 碰到球面:贴着球面滑 + 改向 */
+        if (d2 > ballR * ballR) {
           const d = Math.sqrt(d2) || 1;
           p.ox = p.ox / d * ballR; p.oy = p.oy / d * ballR; p.oz = p.oz / d * ballR;
           p.vx = -p.vx * 0.7 + (Math.random() * 2 - 1) * driftV * 0.5;
@@ -1017,7 +908,7 @@ export async function initCd3d(opts) {
       }
 
       const rr = p.r;
-      const speed = 1 + 1.5 * (1 - Math.min(1, rr / maxR));   /* 差速:内圈快 */
+      const speed = 1 + 1.5 * (1 - Math.min(1, rr / maxR));
       const th = p.th + nebSpin * speed;
       const px = Math.cos(th) * rr, py = Math.sin(th) * rr;
       const i3 = i * 3;
@@ -1030,7 +921,6 @@ export async function initCd3d(opts) {
         pos[i3 + 1] = cy + py * ct + p.x0 * st + p.oy;
         pos[i3 + 2] = cz + py * st + p.x0 * ct + p.oz;
       }
-      /* 颜色:内侧 = 主题色,外侧偏冷紫;鼓点时整体提亮 */
       const kk = Math.min(1, rr / maxR);
       const b = (0.5 + 0.5 * (1 - kk)) * (0.75 + beatPulse * 0.7);
       col[i3] = tint.r * b + 0.10 * kk;
@@ -1042,9 +932,6 @@ export async function initCd3d(opts) {
     nebula.mat.size = NEB.size * cdRadius * (1 + beatPulse * 0.35);
     nebula.mat.opacity = (0.75 + beatPulse * 0.25) * nebVis;
 
-    /* 邻近连线:用格子分桶,只比同一个/相邻格子里的点 */
-    /* 粒子是铺在「二维环带」上的(带本身有径向厚度),所以平均间距要按面积算 ——
-       只按周长算会把间距低估好几倍,连线就会全部消失 */
     const bandW = NEB.spread * 2 * nebula.R;
     const spacing = Math.sqrt((Math.PI * 2 * nebula.R) * bandW / n);
     const linkD = spacing * NEB.linkSpread, linkD2 = linkD * linkD;
@@ -1068,7 +955,6 @@ export async function initCd3d(opts) {
       const kx = Math.floor(key / 1048576) - 512;
       const ky = (Math.floor(key / 1024) % 1024) - 512;
       const kz = (key % 1024) - 512;
-      /* 只和"自己 + 相邻 13 个格子"比,避免重复 */
       for (let dx = -1; dx <= 1; dx++) {
         for (let dy = -1; dy <= 1; dy++) {
           for (let dz = -1; dz <= 1; dz++) {
@@ -1098,7 +984,7 @@ export async function initCd3d(opts) {
     if (window.__cd3dDebug) window.__cd3dDebug.links = seg;
   }
 
-  buildNebula();     /* 3D 星云带:替代原来那套 2D 几何特效 */
+  buildNebula();
 
   function frame(now) {
     raf = requestAnimationFrame(frame);
@@ -1107,7 +993,6 @@ export async function initCd3d(opts) {
     lastT = t;
     if (document.hidden) return;
     if (pauseWhenIdle) {
-      /* 等所有补间(含光驱)结束再真正暂停,避免动画停在半路 */
       const animating =
         !!driveTween || cdItems.some((it) => it.userData.path || it.userData.spinTween);
       if (!animating) {
@@ -1117,7 +1002,6 @@ export async function initCd3d(opts) {
     }
     if (!paused) {
       cdItems.forEach((item, i) => {
-        /* 位置:多段路径补间(累计时间表,无分段漂移,与帧率无关) */
         const path = item.userData.path;
         if (path) {
           const elapsed = t - path.t0;
@@ -1148,7 +1032,6 @@ export async function initCd3d(opts) {
           }
         }
 
-        /* 自转:所有架上的盘同速;插入的盘冻结;确认时先快速转回 0 */
         const st = item.userData.spinTween;
         if (st) {
           const p = Math.min(1, (t - st.t0) / st.dur);
@@ -1165,7 +1048,6 @@ export async function initCd3d(opts) {
         item.mesh.rotation.y = flipRotY + rad(item.userData.spinAngle || 0);
       });
 
-      /* 光驱弹出/收回位移 */
       if (driveTween) {
         const el = t - driveTween.t0;
         if (el >= 0) {
@@ -1179,9 +1061,8 @@ export async function initCd3d(opts) {
         }
       }
       if (driveHolder.children.length) {
-        driveHolder.position.x = driveBaseX + driveTuck + driveShift;   /* 静止 = 缩进机内 */
+        driveHolder.position.x = driveBaseX + driveTuck + driveShift;
       }
-      /* 已插入的盘随光驱一起进退 */
       if (rideDrive && insertedKey) {
         const ins = cdItems.find((it) => it.key === insertedKey);
         if (ins && !ins.userData.path) {
@@ -1189,7 +1070,6 @@ export async function initCd3d(opts) {
         }
       }
 
-      /* 倾斜:按模式决定倾斜哪一张(默认只有当前选中的那张) */
       tilt.x += (tiltTarget.x - tilt.x) * 0.1;
       tilt.y += (tiltTarget.y - tilt.y) * 0.1;
       const tiltItem = resolveTiltItem();
@@ -1224,7 +1104,6 @@ export async function initCd3d(opts) {
           Math.round(((tmp.x + 1) / 2) * r.width),
           Math.round(((1 - tmp.y) / 2) * r.height)
         ];
-        /* 选中盘在屏幕上的半径(px)+ 画布尺寸:音频条要按这个贴在盘外侧 */
         try {
           const geo = sel.mesh.geometry;
           if (!geo.boundingSphere) geo.computeBoundingSphere();
@@ -1251,11 +1130,9 @@ export async function initCd3d(opts) {
               slotPoint && ins.group.position.distanceTo(slotPoint) < 0.05;
           }
         }
-        /* 架上各盘的实时位置(验证滚轮平滑 / 空位补齐) */
         window.__cd3dDebug.rackLive = cdItems
           .filter((it) => it.key !== insertedKey)
           .map((it) => [it.key, +it.group.position.x.toFixed(2), +it.group.position.y.toFixed(2)]);
-        /* 各盘的屏幕坐标(便于精确验证悬停/点击) */
         const rr = container.getBoundingClientRect();
         window.__cd3dDebug.cdScreens = cdItems.map((it) => {
           const v = it.group.position.clone().project(camera);
@@ -1264,7 +1141,6 @@ export async function initCd3d(opts) {
         window.__cd3dDebug.driveShift = +driveShift.toFixed(3);
         window.__cd3dDebug.driveTuck = +driveTuck.toFixed(3);
         window.__cd3dDebug.rideDrive = rideDrive;
-        /* 架位间距(供调参/验证:改 manifest 的 cdSpacingRatio 后看这两个值)*/
         window.__cd3dDebug.spacing = +spacing.toFixed(4);
         window.__cd3dDebug.viewH = +viewH.toFixed(4);
         window.__cd3dDebug.spacingRatio = +(spacing / viewH).toFixed(4);
@@ -1285,8 +1161,6 @@ export async function initCd3d(opts) {
   }
   window.addEventListener("resize", onResize);
 
-  /* 星云带:每帧更新(用选中盘的世界坐标当圆心,再顺手把它的屏幕位置写给 CSS,
-     让"最近层的雾化光晕"能跟着盘走) */
   function fxFrame(dt, visible) {
     if (!nebula) return;
     const r = container.getBoundingClientRect();
@@ -1296,7 +1170,6 @@ export async function initCd3d(opts) {
     nebula.pts.visible = !!visible && fxEnabled && nebVis > 0.01;
     nebula.lines.visible = nebula.pts.visible;
     if (nebula.pts.visible && world) updateNebula(dt, world, lv);
-    /* CSS 变量:盘在屏幕上的位置/半径/律动强度(约 20fps 写一次,别每帧都触发重排)*/
     nebVarsAge += dt;
     if (sel && world && nebVarsAge > 0.05) {
       nebVarsAge = 0;
@@ -1308,8 +1181,6 @@ export async function initCd3d(opts) {
         rackEl.style.setProperty("--cd-r", (cdRadius * (r.height / viewH)).toFixed(1) + "px");
         rackEl.style.setProperty("--cd-pulse", (lv ? lv.level || 0 : 0).toFixed(3));
         rackEl.style.setProperty("--cd-bass", (lv ? lv.bass || 0 : 0).toFixed(3));
-        /* 盘面的投影基向量:把盘心沿它的局部 X/Y 轴各推一个盘半径,投影后相减。
-           2D 层拿着这两个向量就能画出"跟着盘一起倾斜"的椭圆 */
         try {
           const mw = sel.group.matrixWorld;
           const e1 = new THREE.Vector3().setFromMatrixColumn(mw, 0).normalize().multiplyScalar(cdRadius);
@@ -1330,22 +1201,18 @@ export async function initCd3d(opts) {
   }
 
   const api = {
-    /* silent = 只重新摆位、不许出声(3D 刚挂载时那次同步用 ——
-       否则加载页还没收,第一张盘的预览就响了,见 place() 的说明) */
     setSelection(i, silent) {
       selIndex = i;
       place(i, false, silent);
     },
-    /* ---- 音频可视化(现在是 3D 星云带)---- */
     audio: audio,
     nebula: function () { return nebula ? nebula.pts : null; },
     setFxColor(hex) {
       try { nebTint.set(hex || "#22d3ee"); } catch (e) {}
     },
-    setFxMode() { /* 只剩一套星云带,旧的模式开关留着不报错 */ },
+    setFxMode() { },
     setNebulaVisibility(v) { nebVis = Math.max(0, Math.min(1, +v || 0)); },
     fxModes() { return null; },
-    /* 插入动画期间整体关掉可视化(切回主界面后再打开)*/
     setFxEnabled(v) {
       fxEnabled = !!v;
       if (window.__cd3dDebug) window.__cd3dDebug.fxOn = fxEnabled;
@@ -1353,22 +1220,15 @@ export async function initCd3d(opts) {
     },
     fxOn() { return fxEnabled; },
     cdRadius() { return cdRadius; },
-    /* 插入流程中暂停/恢复"选盘预览" */
     setMusicPreview(v) { previewAllowed = !!v; },
-    /* 打开 CD 页时:让当前选中的盘开始预览
-       ★ 用户第八轮:"刚进入首页,背景里面就开始播放第一张CD了。"
-         ⇒ 预览总开关关着的时候,连"打开 CD 页"这一下也不许出声
-           (引导期间由 __cdPreview(false) 关掉,见 intro.js)。 */
     previewCurrent() {
       if (!previewAllowed) return;
       const it = cdItems[selIndex];
       if (audio && it) audio.music.preview(it.key);
     },
-    /* 让真实选中的 CD 飞入/飞出光驱(P2-lite:无需烘焙动画) */
     setInserted(key) {
       setInserted(key);
     },
-    /* 光驱弹出 / 收回;CD 从上方落入 */
     ejectDrive(cb) {
       ejectDrive(cb);
     },
@@ -1379,13 +1239,11 @@ export async function initCd3d(opts) {
       insertCd(key, cb);
     },
     isDriveOut() {
-      /* 弹出过半即视为"已弹出"(换盘流程以此为判断) */
       return driveShift <= -driveDist * 0.5;
     },
     resetDrive() {
       resetDrive();
     },
-    /* 动画实际时长,供状态机对齐面板切换时机 */
     timings: {
       insert: spinBackMs + 60 + flyMs + settleMs,
       eject: 160 + flyMs + settleMs,
@@ -1395,7 +1253,6 @@ export async function initCd3d(opts) {
       driveInsert: spinBackMs + 60 + 280 + dropMs + 180,
       driveRetract: retractMs2 + retractPauseMs + retractSnapMs
     },
-    /* 收起架子时:等当前动画跑完再真正暂停,避免停在半空 */
     setPaused(p) {
       if (p) {
         pauseWhenIdle = true;
@@ -1414,7 +1271,6 @@ export async function initCd3d(opts) {
     }
   };
 
-  /* 调试信息(控制台 / 自动化验证) */
   const sampleMat = (() => {
     let mat = null;
     cdItems[0].mesh.traverse((o) => {

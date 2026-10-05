@@ -1,32 +1,11 @@
-/* ============================================================
-   第一张盘「自我」:脸的下半部分 —— 参数化的几何 + 微调面板
-   ─────────────────────────────────────────────────────────────
-   为什么有这个文件:用户连着几轮说"裙摆/融化的位置不对"。
-   我看不见渲染(沙箱起不了浏览器),只能靠坐标推,结果改了六轮还是不对。
-   于是把这一块做成【可调】的:所有尺寸都是一个数,
-   在页面上拖滑条就能改,改完复制一段贴回代码即可固化。
-
-   怎么用:
-     · 网址加 ?selftune   → 自动打开(线上也能用:https://tuagfey.com/?selftune)
-     · 或按 Alt + S        → 随时开关(平时不加载任何 DOM)
-     · 面板里每根滑条都实时生效;"复制参数"给你一段能直接贴回
-       layouts/partials/pages/self.html 与 assets/js/page-self-tune.js 的值。
-
-   几何全部相对【锚点】(默认 180,268 —— 就是剪影遮罩的切线位置):
-     锚点在"脸的底缘"上,所以"位置对不对"就是锚点这两个数。
-     形状的路径由参数现算,所以改锚点/改大小都不需要重写路径。
-   ============================================================ */
 (function () {
   "use strict";
 
-  var R = 118, CX = 180, CY = 180;        /* 脸的圆(与 self.html 一致)*/
+  var R = 118, CX = 180, CY = 180;
 
-  /* 默认参数 —— 与 self.html / pages.css 里的现值对齐 */
   var DEF = {
-    /* 遮罩切线 + 融化水滴 用的锚点(用户:融化保持之前那一版)*/
     ax: 180,
     ay: 268,
-    /* 裙摆自己的锚点与形状(用户 2026-09 调定)*/
     skirtAx: 254,
     skirtAy: 237,
     skirtW: 0.3,
@@ -50,9 +29,8 @@
     return d > 0 ? Math.sqrt(d) : 0;
   }
 
-  /* ---------- 裙摆:顶边贴着脸的弧,往下展开成三个波 ---------- */
   function skirtPath(P) {
-    var half = halfW(P.skirtAy);   /* ★ 用裙摆自己的锚点高度算半宽 */
+    var half = halfW(P.skirtAy);
     var l = -half * P.skirtW, r = half * P.skirtW;
     var k = P.skirtDrop;
     return 'M' + l.toFixed(1) + ' 0' +
@@ -67,7 +45,6 @@
       '-' + 4 + '-' + Math.round(14 * k) + '-' + 8 + '-' + Math.round(28 * k) + '-' + 14 + '-' + Math.round(44 * k) + 'z';
   }
 
-  /* ---------- 一滴:上收腰、下圆滴 ---------- */
   function dropPath(cx, r, t) {
     var a = Math.round(t * 0.22), b = Math.round(t * 0.56), c = Math.round(t * 0.78);
     return 'M' + cx + ' 0c' + r + ' ' + a + ' ' + r + ' ' + b + ' ' + r + ' ' + c +
@@ -75,28 +52,21 @@
       'c0-' + a + ' 0-' + b + ' ' + r + '-' + c + 'z';
   }
 
-  var DRIBS = [[-28, 15, 34], [0, 20, 46], [28, 14, 30]];   /* cx, r, 长度 */
+  var DRIBS = [[-28, 15, 34], [0, 20, 46], [28, 14, 30]];
   function dripPaths(P) {
     return DRIBS.map(function (d) {
       return dropPath(Math.round(d[0] * P.dripSpread), d[1], Math.round(d[2] * P.dripLen));
     });
   }
 
-  /* ---------- 把参数写进 DOM ---------- */
   function apply() {
     var P = { ax: num('ax'), ay: num('ay'),
       skirtAx: num('skirtAx'), skirtAy: num('skirtAy'),
       skirtW: num('skirtW'), skirtDrop: num('skirtDrop'),
       dripSpread: num('dripSpread'), dripLen: num('dripLen'), gooW: num('gooW'), gooH: num('gooH') };
-    /* ★★ 两个锚点,别混:
-         meltT  = 遮罩切线 + 融化水滴(ax, ay)
-         skirtT = 裙摆自己的起始位置(skirtAx, skirtAy)
-       混用一个的后果:裙摆的起始位置(237)会被当成"圆的切线",
-       而圆的底在 298 —— 脸的下半会被整块切掉 61 个单位。 */
     var meltT = 'translate(' + P.ax + ' ' + P.ay + ')';
     var skirtT = 'translate(' + P.skirtAx + ' ' + P.skirtAy + ')';
 
-    /* 融化的挖回口 + 三滴:跟 meltT */
     var goo = document.querySelector('.self-trim-goo');
     if (goo) {
       goo.setAttribute('transform', meltT);
@@ -112,12 +82,10 @@
         for (var i = 0; i < paths.length && i < ps.length; i++) paths[i].setAttribute('d', ps[i]);
       }
     }
-    /* 遮罩切线(黑区):也跟 meltT —— 它管的是"圆的哪儿被收掉",和裙摆起始位置无关 */
     document.querySelectorAll('#selfTrimMelt > path:nth-child(2), #selfTrimClear > path:nth-child(2)').forEach(function (n) {
       n.setAttribute('d', 'M0 ' + P.ay + 'h360v' + Math.max(0, 360 - P.ay) + 'H0z');
     });
 
-    /* 裙摆(面板上那一块 + 遮罩里的挖回口):跟 skirtT */
     var sk = document.querySelector('.self-ghost-path');
     if (sk) { sk.setAttribute('transform', skirtT); sk.setAttribute('d', skirtPath(P)); }
     var skm = document.querySelector('#selfTrimClear path[transform]');
@@ -126,14 +94,7 @@
   window.__selfSkinApply = apply;
   apply();
 
-  /* ============================================================
-     微调面板
-     ============================================================ */
 
-  /* ★ 精确判断某个查询参数存在(不再用 indexOf 子串匹配)。
-     教训:原来写 location.search.indexOf("tune") >= 0,
-     于是 "?selftune" 里因为含有 "tune",把太阳系那块面板也一起打开了,
-     两块面板又都在右上角,互相覆盖。 */
   function hasFlag(name) {
     var q = location.search.replace(/^\?/, "").split("&");
     for (var i = 0; i < q.length; i++) {
@@ -143,12 +104,10 @@
   }
   var WANT = hasFlag("selftune");
   var FIELDS = [
-    /* ---- 裙摆(clear):锚点 + 形状 ---- */
     { k: 'skirtAx', label: '裙摆锚点 x', min: 60, max: 300, step: 0.5 },
     { k: 'skirtAy', label: '裙摆锚点 y', min: 180, max: 330, step: 0.5 },
     { k: 'skirtW', label: '裙摆宽', min: 0.05, max: 1.6, step: 0.01 },
     { k: 'skirtDrop', label: '裙摆长', min: 0.3, max: 2.5, step: 0.01 },
-    /* ---- 融化(melt):切线锚点 + 水滴 + 挖回口 ---- */
     { k: 'ax', label: '切线锚点 x', min: 60, max: 300, step: 0.5 },
     { k: 'ay', label: '切线锚点 y', min: 180, max: 330, step: 0.5 },
     { k: 'dripSpread', label: '水滴间距', min: 0.3, max: 2.5, step: 0.01 },

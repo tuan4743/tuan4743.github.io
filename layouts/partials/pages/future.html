@@ -1,28 +1,5 @@
-{{/* 第五张盘「未来」的主页内容:夜窗 · 极光 · 记忆碎片
-     ─────────────────────────────────────────────────────────────
-     玩法(方案由用户给,见 hugo.toml 的同名注释):
-       窗上结满霜 → 鼠标/手指靠近的地方被"暖"化、化成水滴下来 →
-       霜底下浮出半透明的记忆碎片 → 点开一片,它飞到屏幕中央放大、显出文字 →
-       收下的碎片变成夜空里的一颗星 → 同主题的星连成一个星座 →
-       全部收齐:中央浮出未来宣言,窗外亮起极光。
-     数据:hugo.toml 的 [[params.intro.decks.future]](text / theme)
-     逻辑:assets/js/page-frost.js
-     样式:assets/css/pages.css 的「第五张:夜窗」那一段
-     ─────────────────────────────────────────────────────────────
-     ★ 层次(从下到上,顺序就是这个 div 的顺序,别调换):
-         1) .frost-scene   窗外:夜空 → 极光 → 飘雪 → 地面
-         2) .frost-shards  霜底下的碎片(真 DOM 文本 —— 可选中、可读屏、可搜索)
-         3) canvas.frost-ice 霜(静态冰晶纹理 ∩ 覆霜场,见 page-frost.js)
-         4) .frost-map     星图(收集到的星星 + 星座连线;★ 在霜【上面】——
-                            收下的星要能穿透霜亮着,不然集齐了也看不见)
-         5) .frost-frame   窗框(你正坐在室内看这扇窗)
-         6) .frost-head / .frost-hint / .frost-finale  界面
-     ★ 为什么霜的透明度要低:用户的原话是"霜的透明度要低一点,能看清窗外" ——
-       所以霜做成【成片、有厚有薄】的:厚的地方几乎不透(白),薄的地方基本没结霜。
-       这样既"看着像一片霜",又能看见外面的极光和雪。 */}}
 <div class="frost" data-frost="{{ .key }}">
 
-    {{/* ---------- 窗外 ---------- */}}
     <div class="frost-scene" aria-hidden="true">
         <canvas class="frost-sky" data-frost-sky></canvas>
         <canvas class="frost-aurora" data-frost-aurora></canvas>
@@ -30,9 +7,6 @@
         <div class="frost-ground"></div>
     </div>
 
-    {{/* ---------- 霜底下的碎片 ----------
-       形状(不规则多边形)与位置由 JS 算;这里只写内容。
-       ★ 文字是【真的 DOM】:可选中、可读屏、可搜索 —— 不是画在 canvas 上的。 */}}
     <div class="frost-shards" data-frost-shards>
         {{- range $i, $c := .items }}
         <button class="frost-shard" type="button" data-frost-shard="{{ $i }}"
@@ -42,25 +16,17 @@
         {{- end }}
     </div>
 
-    {{/* ---------- 霜这一层 ---------- */}}
     <canvas class="frost-ice" data-frost-cv aria-hidden="true"></canvas>
 
-    {{/* ---------- 碎片偶尔的反光 ----------
-       用户要的是"碎片小小的,闪光能遮住,这样能给提示":
-       碎片本身在霜【下面】,而这一层在霜【上面】—— 所以那点闪光能透出霜,
-       告诉你"这一带底下有东西"。它是一闪一闪的诱饵,不参与点击。 */}}
     <div class="frost-glints" data-frost-glints aria-hidden="true"></div>
 
-    {{/* ---------- 星图 ---------- */}}
     <div class="frost-map" data-frost-map aria-hidden="true"></div>
 
-    {{/* ---------- 窗框 ---------- */}}
     <div class="frost-frame" aria-hidden="true">
         <span class="frost-frame__v"></span>
         <span class="frost-frame__h"></span>
     </div>
 
-    {{/* ---------- 界面 ---------- */}}
     <div class="frost-head">
         <span class="frost-kicker">CD-05</span>
         <h2 class="frost-lead">窗上结了霜。把手放上去暖一暖 —— 底下写着几句话。</h2>
@@ -70,28 +36,12 @@
 
     <p class="frost-count" data-frost-count aria-live="polite"></p>
 
-    {{/* 点开一片碎片:它飞到这块卡片左边的槽里,显出文字。
-        ★ 用户:"我说的拾起碎片的动画还是没有,可以把碎片放在文本框的左侧,
-          文本框稍微往右移一点点"。
-        ★ 所以卡片左边留了一个槽(.frost-read__mark),用户点的那片碎片
-          【自己飞进来】—— 它是一个 <svg>,多边形逐顶点照抄碎片的 clip-path,
-          由 JS 在 openShard 里填(见 page-frost.js 的 setMarkPoly)。
-          飞的是它,不是读数卡:卡片只负责在中央淡入。 */}}
     <div class="frost-read" data-frost-read hidden>
         <button class="frost-read__card" type="button" data-frost-readcard>
             <span class="frost-read__mark" aria-hidden="true">
                 <svg viewBox="0 0 100 100" preserveAspectRatio="none" focusable="false">
                     <polygon points="" data-frost-readpoly></polygon>
                 </svg>
-                {{/* ★★ 那个光点:它【不是另一个东西】,是这片碎片凝聚成的那一点。
-                    ★ 用户的原话:"为什么要拆开?是碎片凝聚成光点,你这个明显位置不对
-                      时间不对大小不对" —— 拆开正是我上一版的错:
-                      我把"碎片缩掉"和"光点亮起"做成两个独立的元素依次演出,
-                      于是交接处的位置/时机/大小必须靠人去对齐,而它们永远对不齐。
-                      现在它们是【同一个元素的两个阶段】:
-                        svg   = 碎片的形状(收拢到 0 之后就不见了)
-                        .mote = 同一个位置上亮起来的那一点(形状收拢的同时它就开始亮)
-                      两者同属 .frost-read__mark,共享同一个坐标原点和同一段动画时间。 */}}
                 <span class="frost-read__mote"></span>
             </span>
             <span class="frost-read__text" data-frost-readtext></span>
@@ -99,13 +49,11 @@
         </button>
     </div>
 
-    {{/* 全部收齐:未来宣言 + 极光(极光在 .frost.is-done 时变亮) */}}
     <div class="frost-finale" data-frost-finale aria-hidden="true">
         <p class="frost-finale__main">{{ .panel.declaration }}</p>
         <p class="frost-finale__sub">都收下了。</p>
     </div>
 
-    {{- /* 这一页的逻辑:走 Hugo 资源管线,改一次内容指纹就变,不会被浏览器缓存住 */ -}}
     {{- with resources.Get "js/page-frost.js" -}}
     {{- $js := . | fingerprint "sha256" -}}
     <script defer src="{{ $js.RelPermalink }}"></script>

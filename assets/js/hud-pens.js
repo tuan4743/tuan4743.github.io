@@ -1,21 +1,3 @@
-/* ============================================================
-   三支笔:荧光笔 / 记号笔 / 橡皮擦 —— 真的能画
-   ─────────────────────────────────────────────────────────────
-   用户:"把右下角那两只笔一个橡皮实现了.一直拖到现在."
-
-   为什么单独一个文件:笔的【外观与交互】一直住在 page-hud.js(选笔、滑条、色点、
-   光标形态),而"落笔"是另一码事 —— 一块覆盖正文的 canvas + 笔画数据。
-   分开之后 page-hud.js 不用长出几百行,而且这段可以单独读、单独测。
-
-   ★ 画布是【文档坐标】的:钉在正文那一块上,跟着页面滚 ⇒ 画的线永远贴着那行字,
-     不会"滚一下就跑"。位置/尺寸由 layout() 按正文的实际盒子算(和目录那块同规矩:
-     只在 px 里算,百分比猜不得)。
-   ★ 笔画存成矢量(点数组)而不是只留位图:换窗口/换字号重排之后能重画一遍,
-     而且"清空"就是把这个数组清掉。
-   ★ 什么时候能画:【有笔选中】才画 —— 没选笔时画布 pointer-events:none,
-     正文照常选中/点链接(这是用户第五轮踩过的那条:整层不能吃点击)。
-   ★ 清空:有笔选中时右键(菜单被我们接管)—— 弹一句提示,不做没有反馈的操作。
-   ============================================================ */
 (function () {
   "use strict";
 
@@ -32,13 +14,12 @@
   if (!ctx) return;
   document.body.appendChild(canvas);
 
-  var strokes = [];          /* [{pen, color, size, pts:[[x,y],…]}] 文档坐标(CSS px) */
-  var cur = null;            /* 正在画的这一笔 */
+  var strokes = [];
+  var cur = null;
   var box = { x: 0, y: 0, w: 1, h: 1 };
   var dpr = 1;
   var drawing = false;
 
-  /* 笔的参数:粗细/透明度/合成方式。粗细跟着那支笔自己的滑条(1~24)。 */
   function penCfg(name) {
     var el = document.querySelector('[data-hud-pen="' + name + '"]');
     var input = document.querySelector('[data-hud-pen-size="' + name + '"]');
@@ -51,7 +32,7 @@
     }
     if (name === "marker") return { color: color, w: Math.max(8, size * 2.4), alpha: 0.3, op: "source-over" };
     if (name === "eraser") return { color: "#000", w: Math.max(10, size * 1.8), alpha: 1, op: "destination-out" };
-    return { color: color, w: Math.max(1, size * 0.6), alpha: 1, op: "source-over" };   /* 记号笔 */
+    return { color: color, w: Math.max(1, size * 0.6), alpha: 1, op: "source-over" };
   }
 
   function activePen() {
@@ -59,7 +40,6 @@
     return on ? on.getAttribute("data-hud-pen") : null;
   }
 
-  /* 有笔选中才接管指针;顺带把光标那层也告诉一声(它自己会换成 × 或圆框) */
   function syncMode() {
     var pen = activePen();
     canvas.style.pointerEvents = pen ? "auto" : "none";
@@ -75,7 +55,6 @@
     box.y = Math.round(r.top + sy);
     box.w = Math.max(1, Math.round(r.width));
     box.h = Math.max(1, Math.round(Math.max(r.height, main.scrollHeight || 0)));
-    /* 长文章就把倍率降到 1:画布面积 ×4 是内存,别为了清晰把标签页拖垮 */
     var want = window.devicePixelRatio || 1;
     dpr = (box.w * box.h > 3.2e6) ? 1 : Math.min(2, want);
     canvas.width = Math.round(box.w * dpr);
@@ -87,7 +66,6 @@
     redraw();
   }
 
-  /* 一笔一条路径:圆头圆角,连点之间直接连(点足够密,看着就是平滑的) */
   function paint(s) {
     if (!s.pts.length) return;
     ctx.save();
@@ -135,7 +113,6 @@
     if (!drawing || !cur) return;
     e.preventDefault();
     cur.pts.push(local(e));
-    /* 只画最后一小段(不必整幅重画)—— 橡皮的 destination-out 也能一段一段擦 */
     ctx.save();
     ctx.globalCompositeOperation = cur.op;
     ctx.globalAlpha = cur.alpha;
@@ -155,14 +132,13 @@
     if (!drawing) return;
     drawing = false;
     try { if (e && e.pointerId !== undefined) canvas.releasePointerCapture(e.pointerId); } catch (err) { }
-    if (cur && cur.pts.length === 2) { /* 点一下也留个点 */ cur.pts.push(cur.pts[1]); }
+    if (cur && cur.pts.length === 2) { cur.pts.push(cur.pts[1]); }
     cur = null;
     notify(false);
   }
   canvas.addEventListener("pointerup", finish);
   canvas.addEventListener("pointercancel", finish);
 
-  /* 右键 = 清空(只在有笔选中时;不然正文自己的右键菜单没了) */
   canvas.addEventListener("contextmenu", function (e) {
     if (!activePen()) return;
     e.preventDefault();
@@ -173,7 +149,6 @@
     notify(null, "已清空 " + n + " 笔");
   });
 
-  /* 提示:复用 HUD 那颗 toast(拿走已有的就自己弹一个) */
   function notify(busy, text) {
     var t = document.getElementById("hud-toast");
     if (!t) return;
@@ -189,14 +164,12 @@
     if (window.requestAnimationFrame) window.requestAnimationFrame(run);
     else setTimeout(run, 120);
   });
-  /* 点笔那排按钮之后才知道该不该接管指针 —— page-hud.js 先处理,我们后看 */
   document.addEventListener("click", function () { setTimeout(syncMode, 0); }, true);
   window.addEventListener("load", function () { layout(); syncMode(); });
 
   layout();
   syncMode();
 
-  /* 排障出口 */
   window.__hudInk = {
     strokes: function () { return strokes.slice(); },
     count: function () { return strokes.length; },

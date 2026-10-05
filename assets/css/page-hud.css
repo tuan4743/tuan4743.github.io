@@ -1,34 +1,4 @@
-/* ============================================================
-   右侧 HUD —— 博客页(第二阶段第三刀:七条改造逐条落位)
-   ─────────────────────────────────────────────────────────────
-   用户这一轮的原话(1~7):
-     1. 拉高框的优先级(不然上滑时会被内容重叠、穿过去)
-     2. 左上角那个凸起放 LOGO「Tuagfey Blog」
-     3. 凸起往下收(再一次凸起之前)那一段放搜索栏
-     4. 搜索栏右边、右上角那块空白放三枚按钮(导出 md / GitHub / WeChat)
-     5. 右侧竖栏从"凹下去的地方"起,依次放五个导航按钮
-     6. 导航以下、右下角空白:明暗做成圆角矩形长按钮压在最下面,两根滑条并排在它上面
-     7. 底部横带塞三支笔(荧光笔 / 记号笔 / 橡皮擦),可选、按一下激活并展开成滑条调大小
 
-   ★★ 坐标:整层是 position:fixed; inset:0 + 子元素用百分比定位 ⇒
-      right / top / bottom 里的 % 和边框那条折线【是同一套用户坐标】。
-      折线的关键位置(16:9 参考,真值随视口算,见 page-hud.js 的 gFrame):
-        凸起深 9%(到 y=9)、收窄段浅 6%(y=6)、竖段在 x=5、
-        底带顶边 y=94、底带往左伸到 x=25。
-      ⇒ 下面所有 left/right/top/bottom 的百分数都照着这几个数写。
-
-   ★★ 三个必须记住的约束
-   1) 这一层是 position:fixed + inset:0(在 baseof 里渲染,不在 footer 链):
-      边框与所有控件都按【整页百分比】定位,所以容器必须是整个视口。
-   2) 整层默认 pointer-events:none,只有控件自己开 auto ——
-      否则这层会把正文右半边的点击和划词全吃掉。
-   3) 底色永远是一片深空星云(--bg-base 不随深浅主题变),所以 HUD 的线
-      永远是浅色 #eaf3ff;而正文卡片 .main 用的是 --theme(随主题和色相变)。
-   ============================================================ */
-
-/* 和 CD 页同一套像素字体(holo.css 里声明过一次,但那只在首页加载)。
-   ★ woff2 优先(见 holo.css 同一条的注释):博客页每个访客都要下这份字体,
-     1461KB 的 ttf 压到 259KB 是这一页最大的一笔节省。 */
 @font-face {
     font-family: "Pixel CN";
     src: url("/fonts/HYPixel9pxJ-2.woff2") format("woff2"),
@@ -43,116 +13,63 @@
     font-display: swap;
 }
 
-/* ═══════ 0. 缩放因子 --hud-s(用户第十轮:27 寸上"小部分按钮大小没变")═══════
-   HUD 的【位置】全是百分比(跟着视口走),而【控件尺寸】原来是一堆写死的 px
-   —— 大屏上框拉开了、字和按钮还原地不动,比例就散了。
-   现在所有写死的尺寸都写成 calc(Npx * var(--hud-s, 1)):
-     · 基准 1600×900(这一整套一直是在这个尺寸上量的)⇒ 那里 s = 1,像素级不变;
-     · 取宽高两个比例的较小值,带鱼屏不会因为宽就撑爆;
-     · 夹在 0.85 ~ 1.45,小窗口不缩到点不着、超大屏不变玩具。
-   ★★ 真正的赋值在 layouts/partials/extend_head.html 里那段内联脚本:
-     它必须在【首帧之前】跑,放到 defer 的 page-hud.js 里大屏上会先按 s=1
-     画一遍再跳一下。
-   ★★★ 兜底值必须写在【:root】上,不能写进 .page-hud —— 写在 .page-hud 里
-     会把 html 上那个行内值整个遮掉(就近的声明赢),结果 JS 白设了:
-     实测所有控件纹丝不动,就是踩了这个。行内样式优先级高于 :root 规则,安全。 */
 :root {
     --hud-s: 1;
 }
 
 .page-hud {
-    /* ═══════ 1. 形状层(和 CD 页左侧 .holo 一一对应)═══════ */
-    --hud-ink: #eaf3ff;                   /* 线色 / 文字色 */
-    --hud-line-w: 1px;                    /* 主线宽 */
-    --hud-dash: 26 9 5 7 42 12 13 8 7 6;  /* 断续节拍(和 CD 页逐字相同) */
+    --hud-ink: #eaf3ff;
+    --hud-line-w: 1px;
+    --hud-dash: 26 9 5 7 42 12 13 8 7 6;
     --hud-line-a: 0.42;
     --hud-halo-w: 6px;
     --hud-halo-a: 0.05;
-    --hud-run-len: 46;                    /* 跑马灯长度(屏幕像素) */
+    --hud-run-len: 46;
     --hud-run-dur: 12s;
-    /* ★ 跑马灯起始偏移也是【屏幕像素】,必须 > 折线屏幕总长(≈0.9×高 + 0.55×宽;
-       1080/1920 下约 2030px,1440p 下约 2700px),否则跑不完一圈就跳回去。 */
     --hud-run-total: 3200;
-    --hud-glow: 0;                        /* 0~1:留给"阅读进度"(以后) */
+    --hud-glow: 0;
 
-    /* ═══════ 1b. 底板(覆盖效果)═══════
-       用户原话:"这个框应该能遮住底下(让底下不显示,不然像现在这样很奇怪)"。
-       ★ 框里原来是【透】的:正文卡片滑到框后那些横臂、底带的位置就透出来了。
-       ★ 盖多少只由这一个数决定:0.92 几乎全遮(还留一点星云的呼吸),
-         想要完全不透就写 1,想回到以前(全透)就写 0。 */
     --hud-cover: rgba(3, 3, 8, 0.92);
 
-    /* ═══════ 2. 边框围出来那几个区(数都要和折线对得上)═══════ */
-    --hud-col: 5vw;                       /* 竖栏宽 = 折线竖段的 x(= 5) */
-    --hud-pad: clamp(8px, 0.7vw, calc(14px * var(--hud-s, 1)));   /* 贴边留白 */
-    --hud-top-a: 6%;                      /* 收窄段(浅):搜索栏所在的带 */
-    --hud-top-b: 9%;                      /* 凸起(深):LOGO 所在的带 */
-    --hud-ledge: 30%;                     /* 深段右端 x */
-    --hud-notch: 12%;                     /* 竖段起点 y(= 折线的 11.33 再留一点) */
-    --hud-band: 94%;                      /* 底带顶边 y */
-    /* 底带往左伸到 x(⑨)。用户第七轮:"底部的边框正好多了一点" ⇒ 35 → 30。
-       ★ 这是【一个数管三处】:折线 ⑨、三支笔那一行的宽度、以及笔展开时给控件留的余地。 */
+    --hud-col: 5vw;
+    --hud-pad: clamp(8px, 0.7vw, calc(14px * var(--hud-s, 1)));
+    --hud-top-a: 6%;
+    --hud-top-b: 9%;
+    --hud-ledge: 30%;
+    --hud-notch: 12%;
+    --hud-band: 94%;
     --hud-band-x: 30%;
     --hud-ink-dim: rgba(234, 243, 255, 0.62);
 
-    /* ═══════ 2b. LOGO 的接口(用户:"这条给我一个接口,改字体大小和位置")═══════
-       改这三个数就够了,别的都不用动:
-         --hud-logo-size  字号
-         --hud-logo-x     文字【左边缘】距页面【左】边的百分比
-                          (= 距右缘 100 − 这个数;62% ⇔ 距右缘 38%)
-         --hud-logo-y     文字上边缘距页面顶部的百分比
-       ★ 上限的由来:能用的横向空间是 x 28(搜索框左缘)到 x 43(那条 60° 斜线),
-         也就是 15% 页宽 —— 1920 下约 288px,"Tuagfey Blog" 在 38px 字号下约 250px。 */
     --hud-logo-size: clamp(20px, 2.0vw, 40px);
     --hud-logo-x: 56.8%;
     --hud-logo-y: 2.4%;
     --hud-line-soft: rgba(234, 243, 255, 0.22);
     --hud-line-on: rgba(234, 243, 255, 0.6);
 
-    /* ═══════ 3. 控件 ═══════ */
-    --hud-ctl-fs: calc(11px * var(--hud-s, 1));                   /* 标签字号(用户:"右下角的文字稍微加一点字号") */
+    --hud-ctl-fs: calc(11px * var(--hud-s, 1));
     --hud-ctl-ls: 0.16em;
     --hud-val-fs: calc(12px * var(--hud-s, 1));
-    --hud-fader-len: clamp(72px, 11vh, calc(118px * var(--hud-s, 1))); /* 竖滑条长度(用户:"这个滑条可以长一点点") */
+    --hud-fader-len: clamp(72px, 11vh, calc(118px * var(--hud-s, 1)));
     --hud-rail-w: calc(5px * var(--hud-s, 1));
     --hud-rail: rgba(234, 243, 255, 0.22);
     --hud-thumb: calc(20px * var(--hud-s, 1));
-    --hud-btn-h: clamp(30px, calc(32px * var(--hud-s, 1)), 56px);     /* 按钮高 */
+    --hud-btn-h: clamp(30px, calc(32px * var(--hud-s, 1)), 56px);
 
-    /* ═══════ 4. 字体 ═══════ */
     --hud-font: "Alpha Sector", "Pixel CN", "PingFang SC", "Microsoft YaHei",
         "Noto Sans SC", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     --hud-smooth: none;
 
     position: fixed;
-    inset: 0;                             /* ★ 整个视口:一切都按整页百分比定位 */
-    /* ★★ 改造 1:优先级必须最高。
-       要压过的东西:正文卡片(.main,静态 + backdrop-filter,会自成合成层)、
-       主题那枚"回到顶部"(z-index 99)、顶栏下拉面板(100/120,顶栏以后回来时)、
-       平板(40,只在首页)。所以直接给到 200。
-       ★ 磁力光标是 9999/10000,故意在它上面 —— 那是"鼠标指针"那一层,不抢。 */
+    inset: 0;
     z-index: 200;
-    pointer-events: none;                 /* ★ 见开头第 2 条 */
+    pointer-events: none;
     color: var(--hud-ink);
     font-family: var(--hud-font);
     -webkit-font-smoothing: var(--hud-smooth);
     -moz-osx-font-smoothing: var(--hud-smooth);
 }
 
-/* ---------------- 形状层 ---------------- */
-/* ★ viewBox="0 0 100 100" = 用户的坐标制式(一个单位 = 一页的 1%);
-   preserveAspectRatio="none" 拉满视口 ⇒ 坐标即百分比。
-   ★ 45°/60° 是【屏幕角度】,斜线的水平位移跟视口长宽比有关 ⇒
-     d 只能运行时算(assets/js/page-hud.js 的 gFrame);模板里是 16:9 参考值。
-   ★ 三条线都 vector-effect:non-scaling-stroke —— 线宽【和虚线节拍】都按屏幕
-     像素算,不被拉伸带跑(svgwg#323),所以 --hud-dash 能和 CD 页逐字相同。 */
-/* ★★ 第二支 .page-hud__band = 左下角那个 L 面板:同样的 4 层、同一套类名。
-   用户点名的顺序就是"先用 SVG 画出边框,再往边框上塞按钮"。
-   ★★★ 它【不能】像右支那样铺满整个视口 —— 它的形是在正方形里定的:
-     100×100 铺满 16:9 会把横向拉长 16/9 倍,斜肩从 30° 变成 18°、斜切从 45° 变成 29.4°,
-     连按钮都跟着跑(用户:"你直接迁移到网页里面就变位置了,因为网页比例不是一个正方形")。
-     ⇒ 钉在【左下角一个边长 = 视口高度的正方形】里:两个方向同单位,形一模一样。
-     ★ 右支正相反:它的角度是"屏幕角度",铺满视口才对。 */
 .page-hud__frame {
     position: absolute;
     inset: 0;
@@ -167,17 +84,13 @@
     position: absolute;
     left: 0;
     bottom: 0;
-    width: 100vh;                        /* = 视口高度 ⇒ 正方形,和设计稿同一套比例 */
+    width: 100vh;
     height: 100vh;
     display: block;
     overflow: visible;
     pointer-events: none;
 }
 
-/* ★★ 左下角那五枚按钮的【形】:四个梯形 + 一个直角三角形,和凸起共用同一条边。
-   画在框那支 SVG 里 ⇒ 和框同一个正方形盒子、同一套缩放,永远不会和框走散。
-   能按的那一层在 hud-left.css(.hud-left__mod 用同一个多边形的 clip-path)。
-   ★ 必须在 halo/虚线【之前】画:那圈虚线压在最上面(标记里的顺序也是这个)。 */
 .hud-face {
     fill: rgba(234, 243, 255, 0.05);
     stroke: rgba(234, 243, 255, 0.3);
@@ -185,9 +98,6 @@
     vector-effect: non-scaling-stroke;
 }
 
-/* ★★ 底板:同一圈轮廓的闭合版,把框里那一块盖住(用户要的"覆盖效果")。
-   它必须在【所有其它东西之前】画(标记里就是第一个 path),否则会盖住控件 ——
-   SVG 内部按文档顺序绘制,而这一支 SVG 是 .page-hud 的第一个子元素。 */
 .hud-fill {
     fill: var(--hud-cover);
     stroke: none;
@@ -229,18 +139,11 @@
     to { stroke-dashoffset: 0; }
 }
 
-/* ═══════ 改造 2:凸起里的 LOGO ═══════
-   ★★ 位置:文字的【左边缘】落在 x=42%(凸起的内侧边),往右排。
-      —— 上一版写的是 right:42%,那是"右边缘在 42%",文字于是往【左】(x 更大)
-         长出去,正好穿过那条 60° 斜线、还被视口左缘切掉(用户:"位置和大小不对")。
-      CSS 里要让"左边缘落在距右缘 42% 处",就是 left: calc(100% - 42%) = left: 58%。
-   ★ 字号:上限由那条斜线定死 —— 可用宽度只有 x 28(搜索框左缘)到 x 43(斜线)
-     那 15%,所以 1920 下最多约 38px(原来 13~19px,现在约两倍多)。 */
 .hud-logo {
     position: absolute;
     left: var(--hud-logo-x);
     top: var(--hud-logo-y);
-    pointer-events: none;      /* ★ 纯装饰:不吃鼠标,也不参与磁吸 */
+    pointer-events: none;
     font-size: var(--hud-logo-size);
     letter-spacing: 0.08em;
     line-height: 1.05;
@@ -254,23 +157,18 @@
     color: #ffffff;
 }
 
-/* ═══════ 改造 3:收窄段里的搜索栏 ═══════
-   那一段是 y 0~6、横跨 x 8~28 的浅带 ⇒ 搜索框右边缘落在 x=28 附近、宽度 ~19%。 */
 .hud-search {
     position: absolute;
     right: 9%;
     top: 1.4%;
-    /* ★ 宽度的上限也跟着 --hud-s 走:字号已经放大了,框还卡在 320px 的话
-       大屏上能看见的字反而变少(实测 2560 上字号 17.4px 塞在 320px 里)。 */
     width: min(19%, calc(320px * var(--hud-s, 1)));
     pointer-events: auto;
 }
 
-/* 用 HUD 的语言重画搜索框(主题那套 .search-box 是给浅色卡片用的) */
 .hud-search .search-box input {
     width: 100%;
     height: clamp(26px, 3vh, calc(34px * var(--hud-s, 1)));
-    padding: 0 2.2rem 0 2rem;      /* 右边给自画的 × 留位置 */
+    padding: 0 2.2rem 0 2rem;
     border: 1px solid var(--hud-line-soft);
     border-radius: 4px;
     background: rgba(234, 243, 255, 0.04);
@@ -280,8 +178,6 @@
     letter-spacing: 0.06em;
 }
 
-/* ★ 关掉浏览器自带的清空按钮:它只派发 search 不派发 input(有些浏览器),
-   点了面板不收 —— 用户报的"右侧的×没用"就是它。改用下面那颗自画的。 */
 .hud-search .search-box input::-webkit-search-cancel-button,
 .hud-search .search-box input::-webkit-search-decoration {
     -webkit-appearance: none;
@@ -340,9 +236,6 @@
     backdrop-filter: blur(8px);
 }
 
-/* ═══════ 改造 4:右上角那三枚按钮 —— 四象限排布 + 放大到两倍 ═══════
-   用户:"分成四个象限,三个按钮应该分别在第一二四象限,而且大小至少比现在大两倍"。
-   左上=导出、右上=GitHub、右下=WeChat,左下那格留空。 */
 .hud-acts {
     position: absolute;
     right: var(--hud-pad);
@@ -360,9 +253,6 @@
 .hud-act[data-hud-act="wechat"] { grid-area: 2 / 2; }
 
 .hud-act {
-    /* ★★ 尺寸上限由顶带那条沿(y=6%)定死:第一行必须整个落在带里,
-       所以按钮高 ≤ 约 5vh(再加上 top 0.4% 才不到 6%)。
-       用户报的"下载还是顶出去了"就是第一行越过了那条沿。 */
     width: clamp(42px, 5vh, 64px);
     height: clamp(42px, 5vh, 64px);
     display: inline-flex;
@@ -390,7 +280,6 @@
     display: block;
 }
 
-/* 复制成功的提示(替代原来那块二维码面板) */
 .hud-toast {
     position: absolute;
     top: calc(100% + 8px);
@@ -411,11 +300,6 @@
     display: none;
 }
 
-/* ═══════ 改造 5:竖栏里的五个导航 ═══════
-   ★★ 用户第五轮(第二次):"把右侧的导航栏从上对齐改成居中吧,
-      就是中间的那个归档的中间刚好在页面居中的位置"。
-      ⇒ 整列在视口里【垂直居中】:五项的中间那项(归档)正好落在页面中线。
-      上下各留出多少由内容自己撑,不再从凹点(top)开始往下排。 */
 .hud-nav {
     position: absolute;
     right: 0;
@@ -430,7 +314,7 @@
 
 .hud-nav__item {
     display: flex;
-    flex-direction: column;              /* 图标在上、名字在下 —— 5vw 宽的列里最省地方 */
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 4px;
@@ -466,8 +350,6 @@
     opacity: 0.95;
 }
 
-/* ★ 菜单项的 svg 自己没写 width/height(顶栏是靠 .menu .menu-icon 量的),
-   这里不在 .menu 里 ⇒ 必须自己给尺寸,否则会按 300×150 的固有尺寸铺开。 */
 .hud-nav__icon svg {
     width: calc(22px * var(--hud-s, 1));
     height: calc(22px * var(--hud-s, 1));
@@ -478,15 +360,12 @@
     white-space: nowrap;
 }
 
-/* ═══════ 改造 6 + 5:右下角 —— 两根滑条并排 + 明暗长按钮,整组【下移到底带右边】
-   用户第五轮:"下面的底带三支笔,最右侧应该是从横坐标 7,给上面的明暗长按钮 +
-   两滑条并排留位置,然后把明暗长按钮 + 两滑条并排放下来。"
-   ⇒ 笔的横带从 x=7 起(见 .hud-pens),腾出右下角 x 0~7;这组控件就下移到这里,
-     底部贴到页面下沿附近。 */
 .hud-ctl {
     position: absolute;
     right: 0;
     bottom: 1.2%;
+    top: calc(50% + var(--hud-nav-h, 240px) / 2 + 14px);
+    bottom: auto;
     width: var(--hud-col);
     display: flex;
     flex-direction: column;
@@ -495,9 +374,31 @@
     pointer-events: auto;
 }
 
+:root {
+    --hud-nav-h: 240px;
+}
+
+@media (max-height: 780px) {
+    .page-hud {
+        --hud-fader-len: clamp(48px, 7vh, calc(88px * var(--hud-s, 1)));
+    }
+
+    .hud-ctl {
+        gap: 5px;
+    }
+
+    .hud-fader {
+        gap: 2px;
+    }
+
+    .hud-theme {
+        height: calc(26px * var(--hud-s, 1));
+    }
+}
+
 .hud-faders {
     display: flex;
-    flex-direction: row;                 /* ★ 两根【并排】在上面 */
+    flex-direction: row;
     justify-content: center;
     gap: 4px;
 }
@@ -532,15 +433,10 @@
     white-space: nowrap;
 }
 
-/* 竖滑条:横着写、再转 -90°(CD 页两根推子同一个做法;转完值仍是从下往上增大) */
 .hud-range {
     -webkit-appearance: none;
     appearance: none;
     width: var(--hud-fader-len);
-    /* ★★ 命中区必须够宽:rotate(-90deg) 之后,这个 height 就是【横向】的命中宽度。
-       原来写的是轨粗 5px ⇒ 只有正中间那 5px 点得到,拇指两边溢出的部分全点不着,
-       用户看到的是"光点移上去没反应,要往右挪一点点才拖得动"。
-       现在给到滑块头直径,轨道用"中间 5px 的底色"画出来。 */
     height: var(--hud-thumb);
     margin: 0;
     transform: rotate(-90deg);
@@ -604,7 +500,6 @@
     background-size: 62% 62%;
 }
 
-/* 明暗:圆角矩形的长按钮,压在最下面 */
 .hud-theme {
     display: flex;
     align-items: center;
@@ -614,7 +509,7 @@
     height: var(--hud-btn-h);
     padding: 0;
     border: 1px solid var(--hud-line-soft);
-    border-radius: 999px;                 /* ★ 圆角矩形(胶囊) */
+    border-radius: 999px;
     background: rgba(234, 243, 255, 0.05);
     color: var(--hud-ink);
     font-family: var(--hud-font);
@@ -635,12 +530,9 @@
     display: block;
 }
 
-/* ═══════ 改造 7:底部横带里的三支笔 ═══════
-   横带 = y 94~100、往左伸到 x=25;★ 按用户第五轮的要求,最右侧从 x=7 起
-   —— 把 x 0~7 那一段让给右下角的"两滑条 + 明暗长按钮"。 */
 .hud-pens {
     position: absolute;
-    right: 7%;                            /* ★ 从横坐标 7 开始,不再顶到右缘 */
+    right: 7%;
     bottom: 0;
     width: calc(var(--hud-band-x) - 7%);
     height: calc(100% - var(--hud-band));
@@ -663,24 +555,19 @@
     align-items: center;
     gap: 0.35em;
     height: var(--hud-btn-h);
-    padding: 0 0.5em;                     /* ★ 收窄一点:三支笔 + 展开的滑条要挤进底带 */
+    padding: 0 0.5em;
     border: 1px solid var(--hud-line-soft);
     border-radius: 5px;
     background: rgba(234, 243, 255, 0.04);
     color: var(--hud-ink-dim);
     font-family: var(--hud-font);
-    font-size: calc(11px * var(--hud-s, 1));  /* ★ 用户:"这三个按钮的字号大一点点" */
+    font-size: calc(11px * var(--hud-s, 1));
     letter-spacing: 0.08em;
     white-space: nowrap;
     cursor: pointer;
     transition: color 0.16s ease, background-color 0.16s ease, border-color 0.16s ease;
 }
 
-/* ★★ 展开时把名字收起来(只留图标):底带只有 x 7~30 那 23% 宽,
-   要同时装下"三支笔 + 大小滑条 + 一排颜色点",名字是唯一能让出来的地方。
-   鼠标悬停还有 title 提示,不至于不知道是哪支。 */
-/* ★ 用【收宽度】代替 display:none:display 一改就是一整帧重排(用户:"自动重排有点卡"),
-   宽度过渡 + overflow 隐藏是平滑的。 */
 .hud-pen__name {
     display: inline-block;
     max-width: 6em;
@@ -711,9 +598,6 @@
     display: block;
 }
 
-/* 展开出来的那截尺寸滑条:宽度从 0 长出来 ⇒ 同一行的其它按钮自动重排 */
-/* ★★ 大小滑条 + 颜色点合并进【一个】会动宽度的容器(.hud-pen__tools):
-   只动一个宽度,而不是两个元素各自 display 切换(那样每帧都要重排,就是"卡"的来源)。 */
 .hud-pen__tools {
     display: flex;
     align-items: center;
@@ -736,9 +620,6 @@
     gap: 6px;
 }
 
-/* ═══════ 笔的颜色(用户:"笔应该还要加一个调节颜色的滑块,或者几个颜色的选项")═══════
-   选了"几个颜色的选项":五颗小圆点,展开时才出现。滑块 + 圆点都在同一段里,
-   所以它们是跟着那支笔一起展开/收起的。 */
 .hud-pen__colors {
     display: none;
     align-items: center;
@@ -753,9 +634,6 @@
     flex: 0 0 auto;
 }
 
-/* ★ 颜色点必须是 .hud-pen 的直接子元素【不能】放进 .hud-pen__size ——
-   那个盒子是 overflow:hidden + 定宽(96px),塞进去会被整段裁掉,
-   症状就是"颜色点没出现"(用户第八轮报的)。 */
 
 .hud-pen__swatch {
     width: calc(13px * var(--hud-s, 1));
@@ -789,13 +667,12 @@
     border: 1px solid var(--hud-line-soft);
 }
 
-/* 圆点里面那颗实心球 = 当前笔尖大小的预览(不然滑条就是个"按了没反应"的控件) */
 .hud-pen__dot::after {
     content: "";
     width: calc(2px + var(--pen-size, 8) * 0.7px);
     height: calc(2px + var(--pen-size, 8) * 0.7px);
     border-radius: 50%;
-    background: var(--pen-color, var(--hud-ink));   /* ★ 预览球用当前笔色 */
+    background: var(--pen-color, var(--hud-ink));
     opacity: 0.9;
 }
 
@@ -831,25 +708,9 @@
     cursor: grab;
 }
 
-/* ---------------- 正文字号 / 字距的【备用位置】 ----------------
-   用户第五轮之后从 CDP 扫描里发现的:字号控件住在侧边目录的面板里,而那块面板
-   在缝太窄时【整块收掉】(见 assets/js/hud-toc.js 的 MIN_W)—— 1280 及以下的
-   窗口上目录没了,字号也跟着没了;而"方便用户调内容页"正是用户这一轮点名的需求。
-   ⇒ 目录用不了的时候,由这枚胶囊顶上:同一套 data 属性、同一份读写逻辑
-     (assets/js/hud-toc.js 的 onTypeClick,同时挂在面板和这枚胶囊上 ——
-      胶囊不在目录那一块里,只挂一个容器的话点它不会冒泡过去),显隐由
-      layout() 按【实测宽度】决定。
-   ★ 位置:左栏顶部。不用另外写窄屏规则 —— 1180 及以下整层 .page-hud 都不显示。 */
 .hud-type {
     position: fixed;
     left: min(76px, max(20px, calc(3.6vw - 20px)));
-    /* ★★ top 必须避开番茄钟收起时那枚胶囊 —— 它也在左栏、也在顶部
-       (CDP 扫描报出来的:两枚胶囊叠在一起,上面那枚把下面那枚的点击吃掉了,
-       症状是"点番茄钟胶囊展不开")。
-       番茄钟胶囊高 34px:所以这枚放到 13% 以下,两者隔着一段。
-       ★ 而且这两枚在宽度上是互补的:字号胶囊只在 1260~1310 出现,
-         那段区间番茄钟是收起的;番茄钟展开态(≥1400 常见)时字号胶囊是藏着的 ——
-         真撞上的机会本来就不多,但"不错开"是硬规矩。 */
     top: 13%;
     display: inline-flex;
     align-items: center;
@@ -869,23 +730,37 @@
     display: none;
 }
 
-/* ★★ 没有目录的页面上(比如 /world/44/),这枚胶囊不再一个人留在左上角 ——
-   hud-toc.js 的 placePill() 会把 left/top 写成行内样式,把它钉到
-   "目录本来该在的位置"(右侧那条缝里,和目录面板同一条顶边);
-   缝太窄才退回上面那两行(左栏,给窄屏准备的)。
-   这个类只负责让它看着像"目录这一格今天只剩控制条":左边一道青色竖线。
-   ★★ 同时【收小一号】:右侧那条缝在 1366 的窗口上只有 188px,而原尺寸
-      是 218px —— 不改尺寸的话那些窗口上它还是得退回左栏。
-      下面这套把按钮/字/间距各收一档,量出来 ~183px(见 hud-toc.js 的 PILL_W)。 */
 .hud-type--lane {
     padding: 5px 7px;
     gap: 2px;
     border-color: rgba(234, 243, 255, 0.16);
     box-shadow: inset 2px 0 0 var(--mc-color, rgb(34, 211, 238));
+    padding: 6px 9px;
+    gap: 4px;
+}
+
+@media (max-width: 1600px) {
+    .hud-type--lane {
+        padding: 5px 7px;
+        gap: 2px;
+    }
 }
 
 .hud-type--lane .hud-type__lab {
     font-size: calc(10px * var(--hud-s, 1));
+}
+
+@media (min-width: 1601px) {
+    .hud-type--lane .hud-type__lab { font-size: calc(11px * var(--hud-s, 1)); }
+    .hud-type--lane .hud-type__step {
+        width: calc(18px * var(--hud-s, 1));
+        height: calc(18px * var(--hud-s, 1));
+        font-size: calc(12px * var(--hud-s, 1));
+    }
+    .hud-type--lane .hud-type__val {
+        min-width: calc(26px * var(--hud-s, 1));
+        font-size: calc(11px * var(--hud-s, 1));
+    }
 }
 
 .hud-type--lane .hud-type__step {
@@ -899,15 +774,6 @@
     font-size: calc(10px * var(--hud-s, 1));
 }
 
-/* ★★ 再窄就没有它能站的地方了 —— 这个数是【量出来】的,不是算出来的:
-     胶囊宽 218px,左缘 min(76px, 3.6vw−20px);
-     720px 居中的正文左缘 = vw/2 − 360(vw 大时它反而更靠右,所以最紧的是中段)。
-     CDP 实测:1330px ⇒ 胶囊右缘 245 / 正文 281(余 36px,安全)
-               1310px ⇒ 245 / 271(余 26)   1280px ⇒ 244 / 256(余 12)
-               1250px ⇒ 243 / 241(压 2px!)
-     ⇒ 1260 是最后一条安全线,所以 1259 及以下不显示这枚胶囊:
-       保持"这个宽度上没有字号控件"(和加之前一样)——比压住正文好。
-   ★ 下面 1180 是 .page-hud 整层消失的那一档,两边不重叠,各管各的。 */
 @media (max-width: 1259px) {
     .hud-type {
         display: none;
@@ -952,16 +818,10 @@
     white-space: nowrap;
 }
 
-/* ---------------- 和主题既有元素抢位置 ---------------- */
-/* 「回到顶部」那枚圆按钮是 position:fixed + right:2rem + z-index:99,
-   不挪开就正好压在右下三件套上。 */
 :root[data-theme].shell-page .top-link {
     right: calc(var(--hud-col) + 1.6rem);
 }
 
-/* ---------------- 窄屏:这一层连同控件一起藏掉 ---------------- */
-/* 边框铺满整页,窄屏也画得出来;真正放不下的是竖栏里那几组控件
-   (竖栏 = 5vw,1180px 时只有 59px)。本来这个设计就是桌面版的。 */
 @media (max-width: 1180px) {
     .page-hud {
         display: none;
@@ -972,7 +832,6 @@
     }
 }
 
-/* ---------------- 减少动态效果 ---------------- */
 @media (prefers-reduced-motion: reduce) {
     .hud-run {
         animation: none !important;

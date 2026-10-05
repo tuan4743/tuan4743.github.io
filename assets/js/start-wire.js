@@ -1,46 +1,6 @@
-/* ============================================================
-   启动页接线:眼睛出场 → "你好?" → 两个选项 → 按住确认
-   ─────────────────────────────────────────────────────────────
-   · 眼睛本身在 assets/js/ascii-eye.js(逐帧几何、瞳孔、数据流);
-   · 这里只管【时间线】和【交互】:
-       一线 → 抖动 → 猛地睁开 → 260ms 后"你好?" → 再 890ms 两个选项
-   · 两个选项都要按住 900ms,底边那条线是进度,松手弹回 0;
-     "你是谁?"按住期间眼睛【错乱】(乱码/错位/闪红)= 它在初始化;
-     "别废话"不初始化 —— 认识这东西的人不需要它自我介绍。
-   · 键盘(Enter/Space)走同一套:keydown 开始、keyup 结束。
-   · 跳转要等【眼睛真的闭上】(api.close 的回调),不是只看定时器。
-
-   ★★★ 为什么这段代码【必须是一个外部 js 文件】,不能写回模板的内联 <script>:
-      内联的经典脚本在执行时文档还在解析中,而 ascii-eye.js 是 defer 的 ——
-      defer 的脚本要等解析完才跑。所以内联脚本里 window.AsciiEye 一定是
-      undefined,那句守卫 `if (!window.AsciiEye) return` 会【静默退出】:
-      没有异常、没有日志,页面上就是一双不动的眼睛(实测踩过)。
-      ⇒ 外部脚本 + defer:Hugo 会按【文档顺序】把两个 defer 脚本排队,
-        ascii-eye.js 在前,这一份在后,执行时 window.AsciiEye 必定已就绪。
-   ★★ 另一个坑(同一个症状的第二种成因,已经处理掉了):
-      原来内联脚本里用 `var pre` 收元素、`var REDUCED` 收媒体查询,
-      Hugo 的 JS 压缩器会把这两个局部变量压成【同一个名字】,
-      于是 create() 拿到一个布尔值 —— 也是"什么都不发生"。
-      现在 hugo.toml 里 [minify] disableJS = true 关掉了内联脚本压缩。
-   ============================================================ */
 (function () {
   "use strict";
 
-  /* ============================================================
-     ★★★ 先自检:眼睛那个模块到底加载了没有?
-     ─────────────────────────────────────────────────────────────
-     踩过两次同一件事:模板里明明挂着 ascii-eye.js,而实际发出去的页面里
-     【少了一个 <script>】(一次是 Hugo 的 JS 压缩把内联脚本写坏,
-     一次是 dev server 资源缓存陈旧),结果 —— 这一屏什么都没有:
-     眼睛是 JS 逐格画的、问句和选项默认 opacity:0 等 is-in,
-     任何一环没跑到,用户看到的就是【纯黑一片】,而且控制台一声不响。
-
-     ⇒ 这里做两件事:
-       ① 等一下再试:模块是 defer 的,但万一它排在后面(dash 顺序被打乱、
-          或者被别的脚本插了一脚),轮询 2 秒内等到就继续;
-       ② 真等不到就【自己去加载一次】(地址写在 <pre> 的 data-eye-src 上),
-          并在页面上留一行可见的提示 —— 宁可难看,也不能让用户对着一片黑猜。
-     ============================================================ */
   var eyeEl = document.getElementById("start-eye");
   if (!eyeEl) return;
 
@@ -73,7 +33,6 @@
       s.onload = function () { if (!boot()) warn("模块加载了但没挂上 window.AsciiEye"); };
       s.onerror = function () { warn("ascii-eye.js 取不到(" + src + ")"); };
       document.head.appendChild(s);
-      /* 自己补加载之后仍然给一次机会 */
       setTimeout(function () { if (!boot()) warn("轮询超时"); }, 400);
       return;
     }
@@ -84,6 +43,36 @@
 function wire() {
 
   var reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ---- 顶部登入状态栏:每秒刷新一行"系统状态" ----
+     按设定,启动页是方舟的登入系统:信号来自灰烬计划的中继网络,
+     锚点状态说的是"你"(博客这个锚点)没按时纠错导致身份漂移。
+     只陈述状态,不说话 —— 那一屏的台词只有"你好?"一句。 */
+  function startBar() {
+    var signal = document.getElementById("bar-signal");
+    var anchorEl = document.getElementById("bar-anchor");
+    var clock = document.getElementById("bar-clock");
+    if (!clock || !signal || !anchorEl) return;
+    var t0 = Date.now();
+    var LEVELS = ["▁▂▃", "▁▂▄", "▂▃▅", "▃▄▆", "▄▅▇"];
+    var STATUSES = [
+      { text: "ANCHOR: 漂移", warn: true },
+      { text: "ANCHOR: 待修正", warn: true },
+      { text: "ANCHOR: 纠错逾期", warn: true }
+    ];
+    setInterval(function () {
+      signal.textContent = "RELAY SIGNAL: " + LEVELS[(Math.random() * LEVELS.length) | 0];
+      var st = STATUSES[(Math.random() * STATUSES.length) | 0];
+      anchorEl.textContent = st.text;
+      anchorEl.classList.toggle("is-warn", !!st.warn);
+      var e = Math.floor((Date.now() - t0) / 1000);
+      var hh = String(Math.floor(e / 3600)).padStart(2, "0");
+      var mm = String(Math.floor((e % 3600) / 60)).padStart(2, "0");
+      var ss = String(e % 60).padStart(2, "0");
+      clock.textContent = "T+" + hh + ":" + mm + ":" + ss;
+    }, 1000);
+  }
+  startBar();
 
   var api = null;
   var HOLD_MS = 900;
@@ -104,15 +93,8 @@ function wire() {
   });
   window.__startEyeApi = api;
 
-  /* ★★★ 这一行【必须有】:create() 只是把眼睛造出来并接到宿主上,
-     真正开始播出场(一线 → 抖动 → 猛地睁开)是 start(true)。
-     少了它:没有异常、没有日志,页面上就是一双不动的空眼睛 ——
-     我从内联脚本搬过来时漏掉了它,症状和"变量被压缩器合并"一模一样,
-     所以两条注释都留在文件头了,别再删。 */
   api.start(true);
 
-  /* 按住进度:写 --hold 给 CSS 那条底线。眼睛不参与 -> 用 rAF 单独跑,
-     这样"按住"这件事跟眼睛的渲染循环解耦(眼睛停了也还能读条)。 */
   function holdLoop(now) {
     if (!holdEl) return;
     requestAnimationFrame(holdLoop);
@@ -131,10 +113,7 @@ function wire() {
     document.body.classList.add("is-leaving");
     var href = a.getAttribute("href");
     if (reduced) { window.location.href = href; return; }
-    /* 眼睛缓缓闭合,闭完再多给一拍(让人看清那条线)才换页 */
     api.close(function () { setTimeout(function () { window.location.href = href; }, 260); });
-    /* ★ 兜底:万一渲染循环没跑起来(标签页被挂起等),T_CLOSE+1600ms 强制走,
-       否则用户会卡在启动页出不去。 */
     setTimeout(function () { window.location.href = href; }, api.T_CLOSE + 1600);
     if (done) done.style.setProperty("--hold", 1);
   }
@@ -143,7 +122,6 @@ function wire() {
     if (going) return;
     holdEl = a; holdAt = performance.now(); holdT = 0;
     a.classList.add("is-holding");
-    /* 只有"你是谁?"会触发初始化错乱 */
     if (a.getAttribute("data-start-go") === "who") api.glitch(true);
     requestAnimationFrame(holdLoop);
   }
@@ -154,12 +132,6 @@ function wire() {
     api.glitch(false);
   }
 
-  /* ★★ 必须拦住这两个链接的【默认跳转】:
-     光在 pointerdown 上 preventDefault 不够 —— 浏览器在 pointerup 之后
-     还会补一个 click,而那就是 <a> 的默认行为。
-     症状极隐蔽:按住 300ms 松手,进度条明明只走到 1/3,
-     页面却在 100ms 内跳走了(实测)。
-     ⇒ 捕获阶段拦掉 click,要跳只走 finish()。 */
   document.addEventListener("click", function (e) {
     var a = e.target.closest ? e.target.closest("[data-start-go]") : null;
     if (!a) return;
@@ -186,7 +158,6 @@ function wire() {
     if (e.key === "Enter" || e.key === " ") cancelHold();
   });
 
-  /* 现场读数(排障口) */
   window.__startWire = function () {
     return {
       hold: holdEl ? holdT : -1,

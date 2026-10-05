@@ -1,22 +1,4 @@
-/* ============================================================
-   启动页 —— 输入 tuagfey.com 时落地的第一屏
-   ─────────────────────────────────────────────────────────────
-   用户:"在输入 https://tuagfey.com 的时候,不要直接跳转到首页,而是跳转到一个启动页。
-   启动页很干净,屏幕中一个动态的 ASCII 码组成的大眼睛,瞳孔跟人,眼睛下一句话:你好。
-   下面两个选项:'你是谁?' 和 '别废话'。设定中这个大眼睛就是方舟总控 AI,假设用户不知道,
-   那就会选择'你是谁?',接着跳转至首页,正好接上了设定中'人格未及时稳定'。
-   否则则认为用户不是第一次看博客页,则跳转到技术页。"
-
-   这一份钉的是【路由】和【这一屏自己那几个元素】。
-   ASCII 眼睛的几何靠 .tmp/eye4.mjs 与 CDP 探针量(不在单测里跑浏览器)。
-
-   ★★ 搬家:启动页占住站点根之后,原来住在根上的"仿真屏幕"搬到了 /home/。
-      于是三页的关系变成:
-        /       → 一跳 → /start/         (layouts/home.html)
-        /start/ → 两个按钮 → /home/ 或 /tech/   (layouts/start/list.html)
-        /home/  → 仿真屏幕本身            (layouts/home/list.html)
-      这里最值钱的一条是【不会来回跳】:每一跳都只在"确实站在根上"时才发生。
-   ============================================================ */
+/* 启动页(start)验收。 跑法见 tests/README.md */
 
 import fs from 'node:fs';
 
@@ -34,22 +16,13 @@ const rootTpl = rd(`${BH}/layouts/home.html`);
 const startTpl = rd(`${BH}/layouts/start/list.html`);
 const homeTpl = rd(`${BH}/layouts/home/list.html`);
 const startCss = noC(startTpl);
-/* ★★★ 眼睛的代码【搬出了模板】,现在住在两个外部脚本里(第二轮改的):
-     · assets/js/ascii-eye.js —— 逐帧几何/瞳孔/数据流(首页也要同一只眼睛,
-       两处各写一份迟早会漂:这只眼睛的几何被来回修了七八轮);
-     · assets/js/start-wire.js —— 启动页自己的接线(出场时间线 + 按住确认)。
-   ⇒ 断言的"源码"就是这两个文件;但【链接方式】那几条仍然要看模板与构建产物 ——
-     这两个脚本必须是【外部 + defer】,写回内联会踩两个坑(见下面那两条)。 */
 const eyeJs = noC(rd(`${BH}/assets/js/ascii-eye.js`));
 const wireJs = noC(rd(`${BH}/assets/js/start-wire.js`));
-/* ★ 接线脚本去注释的版本:自检那一段注释里也出现了 data-eye-src 之类的字眼,
-   断言要看的是【代码】,不是注释(踩过:注释里的字把断言弄成假绿)。 */
 const cleanWire = rd(`${BH}/assets/js/start-wire.js`).replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 const startJs = eyeJs + '\n' + wireJs;
 const builtRoot = rd(`${WS}/.tmp/t1/index.html`);
 const builtStart = rd(`${WS}/.tmp/t1/start/index.html`);
 const builtHome = rd(`${WS}/.tmp/t1/home/index.html`);
-/* ---------- ① 站点根:只有一跳 ---------- */
 ok('★★ 站点根有自己的模板(layouts/home.html)',
   /location\.replace\(/.test(rootTpl),
   'PaperMod 没有 home.html,Hugo 会一路退到主题的 list.html —— 那样根上长的是主题那套个人资料页');
@@ -63,7 +36,6 @@ ok('★ 站点根被标了 noindex,canonical 指到 /start/',
   /name=robots content="noindex/.test(builtRoot) && /rel=canonical href=\S*\/start\//.test(builtRoot),
   '它没有任何内容,只是启动页的影子 —— 别让搜索引擎收两份');
 
-/* ---------- ② 不会来回跳(这一条是这一批的核心风险) ---------- */
 ok('★★★ 每一跳都只在"确实站在根上"时才发生',
   /pathname\.replace\(\/\\\/\+\$\/, ?''\) \|\| ?'\/'/.test(noC(rootTpl)) &&
   /p === '\/' \|\| p === '\/index\.html'/.test(noC(rootTpl)),
@@ -83,7 +55,6 @@ ok('★★ 仿真屏幕搬到了 /home/,而且 body 上多了 home-page 标记',
   /class="intro-page home-page"/.test(homeTpl) && /tablet__/.test(builtHome),
   '过场平移与背景那几条 CSS 挂在这两个类上');
 
-/* ---------- ③ 那一屏自己的东西 ---------- */
 ok('★ 只有一个 <pre> 装眼睛(id=start-eye)',
   (builtStart.match(/id=start-eye/g) || []).length === 1);
 ok('★ 屏幕上就一句问句,而且是浮着的(没有输入框、没有面板)',
@@ -96,15 +67,7 @@ ok('★★ 这一屏不加载站内其它外壳(干净)',
   !/page-cosmos/.test(builtStart) && !/proj-node/.test(builtStart),
   '底带 / 星云背景 / 投影 / ECHO 一个都不该在这一页上');
 
-/* ---------- ④ 眼睛:跟人 + 眨眼 ---------- */
-/* ★★ 断言分【模板源码】与【构建产物】两路,别混:
-   模板里是 'mousemove' / function fromPointer / gz.x += …;
-   构建产物被压缩过 —— 事件名保留(字符串),但函数名与变量名都改了。
-   第一版把两者写在同一条里,于是这条永远红(模板过不了压缩后的那半条)。 */
 ok('★★★ 瞳孔跟鼠标:鼠标位置 → 归一化视线 → 平滑趋近',
-  /* ★ 眼睛搬进共用模块之后,"跟鼠标"这件事在 ascii-eye.js 里 ——
-     构建产物里已经没有这段内联脚本了,所以两半都看源码。
-     (原来那半看 builtStart,是因为它当时还是内联的。) */
   /addEventListener\(\s*["']mousemove["']/.test(eyeJs) &&
   /function fromPointer/.test(eyeJs) &&
   /e\.clientX/.test(eyeJs) && /e\.clientY/.test(eyeJs) &&
@@ -129,10 +92,6 @@ ok('★ 网格行数按眼睑峰值反推(带一个量出来的补偿系数)',
   /ROWS = Math\.max\(12, Math\.round\(EYE_HY \* LID_UP \* LID_FIT \* 2 \/ CELL_H \* 1\.\d+\)\)/.test(startJs),
   '不带补偿的话网格比开孔矮,最上/最下几行被切平 ⇒ 眼睛变成两头削平的椭圆(实测量到 3.27 而设定是 2.35)');
 
-/* ---------- ④a 第二轮:眼睛抽成共用模块(启动页 + 首页同一只)---------- */
-/* ★★★ 这一条是第二轮最值钱的一条:
-   首页也要这只眼睛,两处各写一份的话,这只被来回修了七八轮的几何迟早会漂 ——
-   而漂了看不出来(两页不会同时出现在一个屏幕上)。 */
 ok('★★★ 眼睛是【共用模块】,启动页和首页加载的是同一份',
   /resources\.Get "js\/ascii-eye\.js"/.test(startTpl) &&
   /resources\.Get "js\/ascii-eye\.js"/.test(homeTpl) &&
@@ -153,10 +112,6 @@ ok('★★★ 渲染循环外面包了 try/catch(rAF 里抛异常是静默的)',
   /function frameSafe\(now\)/.test(eyeJs) && /window\.__eyeError = String/.test(eyeJs) &&
   /requestAnimationFrame\(frameSafe\)/.test(eyeJs) && !/requestAnimationFrame\(frame\);/.test(eyeJs),
   'rAF 回调抛异常时控制台可能一声不响,表现只是"眼睛不动" —— 这个出口就是为那种时候留的');
-/* ★★★ 这一条防的是【这一页什么都不显示】。
-   这一屏上每一样东西都要等 JS:眼睛是 JS 逐格画的,问句和选项默认 opacity:0。
-   只要发出去的 HTML 里少一个 <script>(踩过两次:一次是压缩器把内联脚本写坏,
-   一次是 dev server 资源缓存陈旧),用户看到的就是纯黑一片,而且控制台一声不响。 */
 ok('★★★ 接线脚本要能【自己把缺失的模块补回来】,并把话说出来',
   /function bootstrap\(tries\)/.test(cleanWire) &&
   /eyeEl\.getAttribute\("data-eye-src"\)/.test(cleanWire) &&
@@ -181,7 +136,6 @@ ok('★★ 静态占位要是纯 ASCII(它和运行时画的是同一种东西)'
   })(),
   '占位只是"JS 没来时的样子",不能是图片或花哨的 CSS —— 那反而会变成第二套美术');
 
-/* ---------- ④b 用户第二轮的四条:光标 / 眼眶 / 竖瞳 / 出场顺序 ---------- */
 ok('★★★ 这一页挂上了磁力光标脚本(否则整页没有鼠标指针)',
   /resources\.Get "js\/magnetic-cursor\.js"/.test(startTpl) &&
   /magnetic-cursor\.[0-9a-f]+\.js/.test(builtStart),
@@ -219,10 +173,6 @@ ok('★★ 开眼时长 ≥ 400ms(用户:"最初睁开的时间可以再拉长�
   '180ms 那版太快,看不出"撑开"的过程');
 ok('★★ 抖动 = 整行上下错位(比"改字符"更像线在跳)',
   /if \(phase === PH\.JITTER\) py \+= \(Math\.random\(\) - 0\.5\) \* jitterAmp \* FCH;/.test(startJs));
-/* ★★★ 镜像【必须不存在】—— 这是用户最后指出的那个 bug:
-   "上一轮有未删干净的对称代码,导致瞳孔移动到一边会对称出来一个"。
-   镜像会把"瞳孔跟随视线偏移"这种【本来就该不对称】的意图也复制一份 ⇒ 两个瞳孔。
-   对称必须由几何本身保证(虹膜圆心在中轴、瞳孔是解析竖缝),不能靠复制一半。 */
 ok('★★★ 渲染循环里【不许】有镜像/左右复制',
   !/\.reverse\(\)\.join/.test(startJs) &&
   !/halfN|tailCh|mirrorCheck/.test(startJs) &&
@@ -236,7 +186,6 @@ ok('★★★ 不许 trim 行尾空格(它是"偏左"的另一个来源)',
   !/s\.replace\(\/\\s\+\$\/, ?''\)/.test(startJs),
   '一 trim 每行字符数就不定,<pre> 按实际宽度居中而坐标系按 COLS 算 ⇒ 画布比坐标系窄几格');
 
-/* ---------- ④d 背景数据流(用户:"向上移动的 ASCII 码线,模拟数据流")---------- */
 ok('★★ 背景有一层 ASCII 数据流,而且是【背景】(在内容之后、不吃点击)',
   /class="start-flow"/.test(startTpl) &&
   /\.start-flow\s*\{[^}]*position:\s*fixed/.test(startCss) &&
@@ -249,12 +198,6 @@ ok('★★ 数据流是【向上】滚动的竖线,不是静态装饰',
   /var d = \(h - r\) % span;/.test(startJs) &&
   /if \(st\.head >= span\)/.test(startJs),
   '流头向上推进 + 环形取模(第一版用"走出边界就重置",每次回卷会在底部留一条空白)');
-/* ★★★ 这一条是整场"乱流只在左半边"的根因,必须钉死:
-   flowMeasure() 里曾经在【建 streams 之前】调了一次 flowDraw() ——
-   而 flowDraw 按 FL.cols 遍历 FL.streams,于是读 undefined.on 抛 TypeError,
-   后面建流的代码整段不执行,<pre> 里就只剩那串测量用的 '0000…'(40 字符),
-   画在屏幕上正好是"左边一小段"。用户连着两轮报的就是它。
-   ⇒ 断言:flowMeasure 里在 FL.streams 赋值【之后】才允许出现 flowDraw()。 */
 ok('★★★ flowMeasure 里必须先建 streams 再 flowDraw(顺序反了会抛异常,整段初始化被跳过)',
   (() => {
     const fn = /function flowMeasure\(\)[\s\S]*?\n    \}/.exec(startJs);
@@ -269,7 +212,6 @@ ok('★★ 数据流起飞前必须有内容(不能停在测量串上)',
   /flow\.textContent = probeTxt;/.test(startJs) &&
   /flowMeasure\(\);\s*\n\s*requestAnimationFrame\(flowTick\);/.test(startJs),
   'flowMeasure 结尾自己会 flowDraw,启动时再挂上 rAF');
-/* ★★★ 字宽必须实测,而且要在设完 fontSize 之后量 —— 顺序反了量到的是回退字体 */
 ok('★★★ 列数按【实测字宽】算,且测量在设置字号之后',
   (() => {
     const fn = /function flowMeasure\(\)[\s\S]*?\n    \}/.exec(startJs);
@@ -291,7 +233,6 @@ ok('★★★ 离场:先缓缓闭眼,【闭到底】之后再跳',
   /var T_CLOSE = \d+/.test(startJs) &&
   /openVal = 1 - \(1 - OPEN_LINE\) \* \(kc \* kc \* \(3 - 2 \* kc\)\)/.test(startJs) &&
   /if \(kc >= 1\) \{[\s\S]{0,80}?closedDone = true;/.test(startJs) &&
-  /* 跳转不能在"闭眼动画还没跑完"时发生:close(cb) 的回调 + 兜底定时器 */
   /api\.close\(function \(\) \{ setTimeout\(function \(\) \{ window\.location\.href = href; \}, 260\); \}\)/.test(startJs) &&
   /setTimeout\(function \(\) \{ window\.location\.href = href; \}, api\.T_CLOSE \+ 1600\)/.test(startJs),
   '用户:"按住按钮读条完毕后,眼睛应该逐渐闭合,闭上之后再跳转" —— 跳转挂在闭合完成的回调上,不能只看定时器');
@@ -301,7 +242,6 @@ ok('★★★ 裂缝要看得见:线的最小开度必须能占满一整行',
   /openVal = OPEN_LINE \+ \(1 - OPEN_LINE\) \* easeOutBack\(k\)/.test(startJs),
   '用户:"最开始的裂缝逐渐变大的效果也没了" —— open=0.02 时开孔半高只有 5px,一行都占不满,屏幕上什么都没有');
 
-/* ---------- ④c 按住确认 ---------- */
 ok('★★★ 两个选项都要按住,时长写在 DOM 上',
   /data-start-hold="\d+"/.test(startTpl) &&
   (builtStart.match(/data-start-hold=/g) || []).length === 2,
@@ -326,8 +266,6 @@ ok('★★ 错乱是三样一起:乱码 + 错位 + 闪红',
   /junkChar\(\)/.test(startJs) && /lines\[g\] = " "\.repeat\(sh\)/.test(startJs) &&
   /--eye-glitch/.test(startJs) && /is-glitch/.test(startCss),
   '乱码只换一部分格子(整屏换就成了雪花),错位是整行横移,闪红在红/黄/白之间交替');
-/* ★★★ 用户:"你这个左下角按钮的乱序的效果,范围是一个小方框,而且范围和频率有点大。"
-   ⇒ 三个量都要压住:爆发间隔、乱码率、错位率。这一条防的是"以后又调回去"。 */
 ok('★★★ 错乱要【克制】:爆发间隔 ≥ 200ms、乱码率 ≤ 5%、错位率 ≤ 10%',
   /glitchNext = now \+ (\d+) \+ Math\.random\(\) \* (\d+)/.test(startJs) &&
   Number(/glitchNext = now \+ (\d+)/.exec(startJs)[1]) >= 200 &&
@@ -338,11 +276,6 @@ ok('★★★ 错乱要【克制】:爆发间隔 ≥ 200ms、乱码率 ≤ 5%、
 ok('★ 键盘也能按住(Enter / Space)',
   /e\.key === ["']Enter["'] \|\| e\.key === ["'] ["']/.test(wireJs));
 
-/* ---------- ⑤ 一屏装得下 ---------- */
-/* 眼睛的像素高度由高度预算推出来,不是拍的:
-   网格高度 = ROWS × CELL_H,而 ROWS 又由 EYE_HY×LID_PEAK 反推 ⇒
-   眼睛 + "你好?" + 两个按钮必须落在视口里。这里把三个百分比钉住,
-   免得以后调参把按钮挤出屏幕(第一版就是网格吃到 81% 视口高,按钮没了)。 */
 ok('★★ 眼睛宽度按视口定(EYE_W_FRAC),行数由眼睑峰值反推 —— 不是写死的行数',
   /EYE_W_FRAC = 0\.\d+/.test(startJs) && !/ROWS = \d+;/.test(startJs),
   '写死行数的话,换屏就错位');
@@ -361,7 +294,6 @@ ok('★ 整屏禁止滚动条(overflow:hidden 在 body 上)',
   /body\.start-page\s*\{[^}]*overflow:\s*hidden/.test(startCss),
   '这一屏是"一屏",不该出现滚动条');
 
-/* ---------- 汇总 ---------- */
 const pass = rows.filter((r) => r[0]).length;
 const w = Math.max(...rows.map((r) => r[1].length));
 for (const [p, n, i] of rows) {

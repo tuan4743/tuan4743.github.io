@@ -1,35 +1,17 @@
-/* ============================================================
-   第四张盘「技术」的开机动画(故障光盘)
-   ─────────────────────────────────────────────────────────────
-   任务书要求的三件事(见 gd-web/docs/cd04-terminal.md):
-     · 删掉过场动画,只留前面这段"终端式加载动画"
-     · 进度到 55% 时【直接变红卡死不动】,左侧打印
-         Wrong disk name, trying decoding...
-       等一秒,再打三行红色的 permission denied,然后清屏进入下一页
-     · 错误期间保留故障元素:局部撕裂 / RGB 分离 / 字符乱码
-
-   下一页(内核日志 + 真正的终端)不在这里画 —— 画布清屏后交给
-   DOM 里的终端(assets/js/cd4-terminal.js),它收到 cd-boot-done 才开始打印。
-   这样"两页"用的是同一套终端排版,不会各画一套。
-
-   接入点:intro.js 的 screenBoot() —— 款式名是 glitch 且本文件已加载时,
-          整段时间轴交给 CD4Boot.render(),不再走下边的 scene。
-   ============================================================ */
 (function () {
   "use strict";
 
-  /* 时间轴(ms)。要改节奏只动这里 */
   var T = {
-    fadeIn: 220,        /* 起手黑屏 */
-    loadEnd: 3000,      /* 进度爬到 55% 的时刻(每行什么时候到见 LINE_AT,不匀速)*/
-    wrongAt: 3260,      /* "Wrong disk name, trying decoding..." 开始打 */
-    wrongSpeed: 30,     /* 打字机基准速度(ms/字符,实际每个字符还会抖)*/
-    denyAt: 4400,       /* 打完那句后再等一秒 → 三行 permission denied(下面会按打字表校正)*/
+    fadeIn: 220,
+    loadEnd: 3000,
+    wrongAt: 3260,
+    wrongSpeed: 30,
+    denyAt: 4400,
     denyGap: 330,
-    clearAt: 5100,      /* 清屏(同样会被校正)*/
-    total: 5700         /* 整段时长(onEnd 在这一刻触发)*/
+    clearAt: 5100,
+    total: 5700
   };
-  var STALL_P = 0.55;   /* 卡死时的进度 */
+  var STALL_P = 0.55;
 
   var LOG = [
     "> OPTICAL BIOS  v1.4",
@@ -49,11 +31,17 @@
 
   function rnd(a, b) { return a + Math.random() * (b - a); }
 
-  /* ---------- 不匀速:真实扫描程序也是一阵一阵的 ----------
-     ① LINE_AT:每一行日志什么时候出现(权重带重尾 —— 有的行几乎同时冒出,
-        有的中间要卡一下)。按它反推进度:读到一块 → 进度跳一下 → 中间慢慢爬。
-     ② TYPE_AT:"Wrong disk name, trying decoding..." 每个字符的打字时刻,
-        同样不是等间隔(标点后停久一点)。 */
+  var snapCv4 = null;
+  function snapshot(ctx, W, H) {
+    if (!snapCv4) snapCv4 = document.createElement("canvas");
+    if (snapCv4.width !== W || snapCv4.height !== H) { snapCv4.width = W; snapCv4.height = H; }
+    var sg = snapCv4.getContext("2d");
+    sg.setTransform(1, 0, 0, 1, 0, 0);
+    sg.clearRect(0, 0, W, H);
+    sg.drawImage(ctx.canvas, 0, 0, W, H);
+    return snapCv4;
+  }
+
   function schedule(n, span) {
     var w = [], sum = 0, i, r;
     for (i = 0; i < n; i++) {
@@ -77,17 +65,14 @@
   })();
   var TYPE_END = TYPE_AT[TYPE_AT.length - 1] || 0;
 
-  /* 打字表建好之后,把后两个时刻往后退 —— 否则非匀速打字还没打完就刷 denied
-     (原来匀速 26ms 时刚好够,改抖动之后就不够了) */
   T.denyAt = T.wrongAt + Math.max(TYPE_END + 900, T.denyAt - T.wrongAt);
   T.clearAt = T.denyAt + T.denyGap * 3 + 480;
   T.total = T.clearAt + 620;
 
-  /* 进度:把 LINE_AT 折成一条单调折线,每段里做轻微 ease-out */
   function progressAt(el) {
     var n = LINE_AT.length, prevT = 0, prevP = 0.015, i;
     for (i = 0; i < n; i++) {
-      var pHere = STALL_P * (0.12 + 0.88 * (i + 1) / n);      /* 每读完一块跳一下 */
+      var pHere = STALL_P * (0.12 + 0.88 * (i + 1) / n);
       if (el <= LINE_AT[i]) {
         var k = (el - prevT) / Math.max(1, LINE_AT[i] - prevT);
         return prevP + (pHere - prevP) * (1 - Math.pow(1 - Math.max(0, Math.min(1, k)), 2));
@@ -97,7 +82,6 @@
     return STALL_P;
   }
 
-  /* 本帧的状态:进度 / 是否已卡死 / 已打完的字符数 / 已出现的 denied 行数 */
   function stateAt(el) {
     var stalling = el >= T.loadEnd;
     var p = stalling ? STALL_P : progressAt(el);
@@ -107,25 +91,22 @@
       while (wrongLen < WRONG.length && TYPE_AT[wrongLen] <= e2) wrongLen++;
     }
     var denyN = el < T.denyAt ? 0 : Math.min(3, Math.floor((el - T.denyAt) / T.denyGap) + 1);
-    /* 故障强度:卡死之后拉满;清屏前 300ms 归零 */
     var amt = 0;
     if (stalling) amt = el > T.clearAt - 320 ? 0.25 : 1;
     return { p: p, stalling: stalling, wrongLen: wrongLen, deny: denyN, amt: amt, lineShown: shownLines(el) };
   }
 
-  /* 已经"到货"的日志行数(按 LINE_AT)*/
   function shownLines(el) {
     var n = 0;
     while (n < LINE_AT.length && LINE_AT[n] <= el) n++;
     return n;
   }
 
-  /* 乱码:故障期间把一部分字符换掉 */
   function maybeGarble(txt, amt, seed) {
     if (amt < 0.5) return txt;
     var x = Math.sin(seed * 12.9898) * 43758.5453;
     var r = x - Math.floor(x);
-    if (r > 0.22) return txt;                       /* 大部分帧不动 */
+    if (r > 0.22) return txt;
     var arr = txt.split("");
     for (var i = 0; i < arr.length; i++) {
       var y = Math.sin((seed + i) * 78.233) * 43758.5453;
@@ -138,10 +119,9 @@
     var st = stateAt(el);
     var outA = Math.min(1, el / T.fadeIn);
     var acc = st.stalling ? C_RED : C_CYAN;
-    var breach = 0.6 + st.amt * 3.6;                 /* 色差幅度 */
+    var breach = 0.6 + st.amt * 3.6;
     var seed = Math.floor(el / 70);
 
-    /* ---- 底:近黑(比其它盘更黑一点,后面要接终端)---- */
     ctx.fillStyle = "#04060a";
     ctx.fillRect(0, 0, W, H);
 
@@ -149,7 +129,6 @@
     var lh = Math.round(fs * 1.45);
     var lx = Math.round(W * 0.062), ly = Math.round(H * 0.07);
 
-    /* 带色差的文字:红/青各偏一点,本体压在上面 */
     function glow(txt, x, y, color, blur, aber) {
       ctx.save();
       if (blur > 0) { ctx.shadowColor = color; ctx.shadowBlur = blur; }
@@ -165,7 +144,6 @@
       ctx.restore();
     }
 
-    /* ---------- 左侧日志 ---------- */
     ctx.save();
     ctx.translate(lx, ly);
     ctx.rotate(-0.022);
@@ -184,7 +162,6 @@
       ctx.globalAlpha = outA * (i === shown - 1 ? 0.75 + 0.25 * Math.abs(Math.sin(el / 150)) : 0.92);
       glow(maybeGarble(txt, st.amt, seed + i), 0, i * lh, col, i === shown - 1 ? 10 : 0, breach);
     }
-    /* 卡死之后:告警行 + 打字机那句 + 三行 permission denied */
     var y = shown * lh;
     if (st.stalling) {
       ctx.globalAlpha = outA;
@@ -205,7 +182,6 @@
     }
     ctx.restore();
 
-    /* ---------- 右侧数据列(故障时整列变红并乱跳)---------- */
     ctx.save();
     ctx.globalAlpha = outA;
     ctx.font = Math.max(9, Math.round(fs * 0.72)) + 'px "Alpha Sector", ui-monospace, Consolas, monospace';
@@ -230,80 +206,73 @@
     }
     ctx.restore();
 
-    /* ---------- 中央圆环 + 百分比 ---------- */
+    /* ---- 中央:与新读盘加载同源的扇区环 ----
+       cd4 的 narrative 是"读不出":环保持半亮,读出弧反复扫却过不去,
+       卡住时转红,与主加载器的视觉语言一致但结局相反 */
     var cx = W / 2, cy = H / 2, rr = Math.min(W, H) * 0.075, rBase = rr * 1.7;
     ctx.save();
     ctx.translate(cx, cy);
     ctx.globalAlpha = outA;
 
-    /* 虚线外圈 */
+    var RINGS4 = [
+      { r: rBase * 0.55, lit: st.p / (2 / 3) },
+      { r: rBase * 0.94, lit: (st.p - 1 / 3) / (2 / 3) },
+      { r: rBase * 1.30, lit: (st.p - 2 / 3) / (2 / 3) }
+    ];
+
+    /* 环底盘面 + 扇区分割线(与主加载器同一套暗底盘) */
     ctx.save();
     ctx.rotate(-el / 2600);
-    ctx.setLineDash([rr * 0.34, rr * 0.26]);
-    ctx.lineWidth = Math.max(1, rr * 0.07);
-    ctx.strokeStyle = st.stalling ? "rgba(255,77,94,0.55)" : C_DIM;
-    ctx.shadowColor = acc; ctx.shadowBlur = 6;
-    ctx.beginPath(); ctx.arc(0, 0, rBase * 1.26, 0, Math.PI * 2); ctx.stroke();
-    ctx.restore();
-
-    /* 刻度(卡死后停转) */
-    ctx.save();
-    ctx.rotate(st.stalling ? 0 : el / 1700);
-    ctx.setLineDash([]);
-    ctx.lineWidth = Math.max(1, rr * 0.055);
-    for (var ti = 0; ti < 24; ti++) {
-      var ang = (Math.PI * 2 / 24) * ti, long = ti % 2 === 0;
-      ctx.globalAlpha = outA * (long ? 0.55 : 0.3);
-      ctx.strokeStyle = long ? acc : C_ICE;
+    ctx.lineWidth = Math.max(1, rr * 0.05);
+    for (var ri0 = 0; ri0 < RINGS4.length; ri0++) {
+      ctx.globalAlpha = outA * 0.14;
+      ctx.strokeStyle = C_DIM;
       ctx.beginPath();
-      ctx.moveTo(Math.cos(ang) * rBase * (long ? 1.06 : 1.12), Math.sin(ang) * rBase * (long ? 1.06 : 1.12));
-      ctx.lineTo(Math.cos(ang) * rBase * 1.2, Math.sin(ang) * rBase * 1.2);
+      ctx.arc(0, 0, RINGS4[ri0].r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.lineWidth = Math.max(1, rr * 0.03);
+    ctx.strokeStyle = C_DIM;
+    for (var si4 = 0; si4 < 24; si4++) {
+      var ang4 = (Math.PI * 2 / 24) * si4;
+      ctx.globalAlpha = outA * 0.10;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(ang4) * RINGS4[0].r, Math.sin(ang4) * RINGS4[0].r);
+      ctx.lineTo(Math.cos(ang4) * RINGS4[2].r * 1.06, Math.sin(ang4) * RINGS4[2].r * 1.06);
       ctx.stroke();
     }
     ctx.restore();
 
-    /* 雷达扫描(卡死后停) */
-    if (!st.stalling) {
-      ctx.save();
-      ctx.rotate(el / 620);
-      ctx.globalAlpha = outA * 0.5;
-      if (ctx.createConicGradient) {
-        var sweep = ctx.createConicGradient(0, 0, 0);
-        sweep.addColorStop(0, "rgba(127,240,255,0)");
-        sweep.addColorStop(0.12, "rgba(127,240,255,0.5)");
-        sweep.addColorStop(0.25, "rgba(127,240,255,0)");
-        sweep.addColorStop(1, "rgba(127,240,255,0)");
-        ctx.fillStyle = sweep;
-        ctx.beginPath(); ctx.arc(0, 0, rBase * 1.02, 0, Math.PI * 2); ctx.fill();
-      }
-      ctx.restore();
+    /* 逐环点亮:卡住后不再推进,读出弧一直扫 */
+    for (var ri4 = 0; ri4 < RINGS4.length; ri4++) {
+      var R4 = RINGS4[ri4];
+      var lit4 = Math.max(0, Math.min(1, R4.lit));
+      if (lit4 <= 0) continue;
+      ctx.globalAlpha = outA * 0.9;
+      ctx.lineWidth = Math.max(2, rr * 0.12);
+      ctx.strokeStyle = st.stalling ? "#ff4d5e" : C_CYAN;
+      ctx.shadowColor = st.stalling ? "#ff4d5e" : C_CYAN;
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.arc(0, 0, R4.r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * lit4);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = outA * 0.08;
+      ctx.lineWidth = Math.max(1, rr * 0.05);
+      ctx.strokeStyle = C_ICE;
+      ctx.beginPath();
+      ctx.arc(0, 0, R4.r, -Math.PI / 2 + Math.PI * 2 * lit4, -Math.PI / 2 + Math.PI * 2);
+      ctx.stroke();
+      var sweep4 = (el / 260) % (Math.PI * 2);
+      ctx.globalAlpha = outA * 0.55;
+      ctx.lineWidth = Math.max(2, rr * 0.09);
+      ctx.strokeStyle = st.stalling ? "rgba(255,77,94,0.8)" : "rgba(255,255,255,0.75)";
+      ctx.beginPath();
+      ctx.arc(0, 0, R4.r, sweep4, sweep4 + 0.5);
+      ctx.stroke();
     }
-
-    /* 进度主环 */
-    ctx.setLineDash([]);
-    ctx.lineWidth = Math.max(2, rr * 0.17);
-    ctx.strokeStyle = st.stalling ? "rgba(255,77,94,0.16)" : "rgba(127, 240, 255, 0.16)";
-    ctx.beginPath(); ctx.arc(0, 0, rBase, 0, Math.PI * 2); ctx.stroke();
-    ctx.save();
-    ctx.rotate(-Math.PI / 2);
-    ctx.strokeStyle = acc;
-    ctx.shadowColor = acc; ctx.shadowBlur = st.stalling ? 22 : 14;
-    ctx.beginPath(); ctx.arc(0, 0, rBase, 0, Math.PI * 2 * st.p); ctx.stroke();
     ctx.restore();
 
-    /* 内侧细环 */
-    ctx.save();
-    ctx.rotate(st.stalling ? 0 : el / 900);
-    ctx.setLineDash([rr * 0.18, rr * 0.3]);
-    ctx.lineWidth = Math.max(1, rr * 0.07);
-    ctx.strokeStyle = C_ICE;
-    ctx.globalAlpha = outA * 0.5;
-    ctx.shadowBlur = 0;
-    ctx.beginPath(); ctx.arc(0, 0, rBase * 0.72, 0, Math.PI * 2); ctx.stroke();
-    ctx.restore();
-    ctx.restore();
-
-    /* 百分比 */
     ctx.save();
     ctx.font = "600 " + Math.round(Math.min(W, H) * 0.032) + "px ui-monospace, Consolas, monospace";
     ctx.textAlign = "center";
@@ -312,11 +281,10 @@
     glow(String(Math.round(st.p * 100)) + "%", cx, cy, acc, 16, breach);
     ctx.restore();
 
-    /* ---------- 故障元素:撕裂条 + RGB 分离 + 闪白 ---------- */
     if (st.amt > 0.4) {
       var nBands = 1 + (Math.random() < 0.35 ? 1 : 0);
       for (var b = 0; b < nBands; b++) {
-        if (Math.random() < 0.45) continue;                 /* 偶尔这一帧不撕 */
+        if (Math.random() < 0.45) continue;
         var bh = Math.round(rnd(6, 26));
         var by = Math.round(rnd(0, H - bh));
         var dx = Math.round(rnd(-16, 16));
@@ -327,7 +295,6 @@
         ctx.fillRect(0, by, W, bh);
         ctx.restore();
       }
-      /* 整帧的横向偏移(很轻,只为了让画面"站不稳")*/
       if (Math.random() < 0.25) {
         ctx.save();
         ctx.globalAlpha = 0.5;
@@ -336,14 +303,27 @@
       }
     }
 
-    /* 清屏前:整块往下压黑(进入下一页) */
+    /* 结尾:同主加载器的 CRT 关屏压缩——读不出→压成一条亮线熄灭 */
     if (el > T.clearAt) {
       var k = Math.min(1, (el - T.clearAt) / (T.total - T.clearAt));
-      ctx.save();
-      ctx.globalAlpha = k;
+      var ke4 = k * k;
+      var sq4 = Math.max(0.004, 1 - ke4);
+      var snap4 = snapshot(ctx, W, H);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalAlpha = 1;
       ctx.fillStyle = "#04060a";
       ctx.fillRect(0, 0, W, H);
+      ctx.save();
+      ctx.translate(0, cy * (1 - sq4));
+      ctx.scale(1, sq4);
+      ctx.drawImage(snap4, 0, 0, W, H);
       ctx.restore();
+      if (ke4 > 0.55) {
+        ctx.globalCompositeOperation = "lighter";
+        ctx.fillStyle = "rgba(190,245,255," + (0.75 * Math.min(1, (ke4 - 0.55) / 0.2)).toFixed(3) + ")";
+        ctx.fillRect(0, cy - 1.5 * (1 - ke4), W, 3 * (1 - ke4) + 1);
+        ctx.globalCompositeOperation = "source-over";
+      }
     }
   }
 

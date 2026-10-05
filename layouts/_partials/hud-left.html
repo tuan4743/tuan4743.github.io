@@ -1,41 +1,6 @@
-{{/* ============================================================
-     左下角 UHD —— 框上那几枚按钮(四个梯形模块 + 左下角一个三角形)
-     ─────────────────────────────────────────────────────────────
-     用户:"左下角也搞一个 UHD,放几个模块,比如番茄钟,音乐播放器,时钟和日历,草稿纸,
-           最左下角留的位置先留一个正方形的模块位置。"
-     用户:"实现和右边一样,是先用 SVG 画出边框,再往边框上塞按钮。"
-     用户:"按钮也是梯形的,所以不需要考虑能不能塞进的问题,按钮贴着凸起的边边。"
-     用户:"这个按钮的底部应该是贴近页面边缘的。"
-     用户:"给一个小空间放一个等腰三角形按钮就够了。"
-
-     ★★ 形不在这个文件里,也不在 CSS 里"另写一遍":形 = page-hud.html 里那 5 个
-        <polygon>(.hud-face),它跟着框一起被长宽比拉伸。
-        这里这五颗 <button> 是【能按的那一层】:铺满整层 + clip-path 用同一组点,
-        所以点击/悬停的范围和画出来的形逐点相同;里面那颗图标/名字钉在
-        --hud-lb-N-x/y(= 那个多边形的重心,由 page-hud.js 算出来写上去)。
-     ★ 为什么不让 SVG 里的 polygon 自己接事件:SVG 里的文字会被 viewBox 拉变形,
-       图标/名字放 HTML 这层才不会被压扁。
-     ★ 同时只开一个面板(JS 管);面板里的内容见 assets/js/hud-left.js。
-     ============================================================ */}}
-{{/* 音乐 = 网易云的嵌入式播放器:用户"音乐播放器其实并非本地曲目,想要做成嵌入式
-     播放器链接网易云音乐。这样对全屏阅览的用户就算是有用了。"
-     随后给了一串 ID —— ★ 是【歌曲】ID 不是歌单(用 type=2 嵌单曲)。
-     ★ 数据从站点参数来(hugo.toml 的 params.hudMusicEmbed / hudMusicSongs):
-       单曲嵌入地址优先;没有就用歌曲列表(带歌名 + 歌手),面板里一个个点着换。
-     ★★ 用 <script type="application/json"> 传结构化数据,不用塞进 data-* 属性 ——
-        属性里要转义引号,歌名里什么字符都可能有。 */}}
 {{- $music := site.Params.hudMusicEmbed | default "" -}}
 {{- $songs := site.Params.hudMusicSongs | default slice -}}
-{{/* ★★ 必须过一道 safeJS:Go 模板的上下文转义认得 <script>,会把 {{ }} 的输出
-     当成"一个 JS 字符串"再包一层引号(实测拿到的就是 "{\"embed\":...}" 这种),
-     于是 JSON.parse 出来还是个字符串。safeJS 才是"这段就是代码,原样输出"。 */}}
 <script type="application/json" id="hud-music-data">{{ dict "embed" $music "songs" $songs | jsonify | safeJS }}</script>
-{{/* ★★ 世界观数据库的目录 —— 面板里那份清单。
-      真值在 content/world/(由 scripts/sync-world.mjs 从 static/world/碎片/ 编译出来),
-      Hugo 在构建时把它压成 JSON 塞进来,所以【加一份碎片,面板里自动多一行】,
-      不用改这里、也不用改 JS。
-      ★ 只带面板要用的六个字段;正文一个字都不进这份 JSON。
-      ★ 同样必须过 safeJS(理由见上面音乐那段)。 */}}
 {{- $worldHome := "" -}}
 {{- $worldItems := slice -}}
 {{- with site.GetPage "/world" -}}
@@ -52,14 +17,10 @@
 {{- end -}}
 <script type="application/json" id="hud-world-data">{{ dict "home" $worldHome "items" $worldItems | jsonify | safeJS }}</script>
 <div class="hud-left" id="hud-left" data-hud-left>
-    {{/* ---- 左支两道(上 → 下)---- */}}
+
     <button class="hud-left__mod" type="button" data-hud-mod="timer" data-hud-lb="0" aria-pressed="false"
         title="番茄钟">
         <span class="hud-left__face">
-            {{/* ★ 收起之后怎么展示(第二轮第 4 条 / 第三轮):进度圈【套在时钟图标外面】,
-                 刚好够一圈(用户:"我想要不套到番茄钟那个时钟图标的外面吧,刚好够")。
-                 进度和"在不在跑"由 hud-timer.js 写进 :root 的
-                 --hud-tomato-p / --hud-tomato-run —— 跨脚本只传变量,不互相戳 DOM。 */}}
             <span class="hud-left__ico" aria-hidden="true">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                     stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -75,10 +36,6 @@
     <button class="hud-left__mod" type="button" data-hud-mod="music" data-hud-lb="1" aria-pressed="false"
         title="音乐播放器">
         <span class="hud-left__face">
-            {{/* ★ 音乐收起后的展示:图标下面一小排音频可视化(三根跳动的柱),和图标同一条中线。
-                 ★★ 说实话:网易云那个播放器是跨域的 iframe,读不到它的音频数据 ⇒
-                    这三根柱是【装饰性动画】,不是真实电平(真电平要等有自己的音源)。
-                    面板打开时跳得快一点,收起时慢慢呼吸 —— 让人知道"这儿有播放器"。 */}}
             <span class="hud-left__ico" aria-hidden="true">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                     stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -92,7 +49,6 @@
         </span>
     </button>
 
-    {{/* ---- 下支两道(左下角 → 往右)---- */}}
     <button class="hud-left__mod" type="button" data-hud-mod="time" data-hud-lb="2" aria-pressed="false"
         title="时钟与日历">
         <span class="hud-left__face">
@@ -121,10 +77,6 @@
         </span>
     </button>
 
-    {{/* ---- 左下角那枚等腰直角三角形(用户:"最左下角留一个正方形的模块位置" →
-            后来定成"给一个小空间放一个等腰三角形按钮就够了")。
-            ★ 第四轮:内容定了 —— 这是【世界观数据库】的入口。
-              点开,全息面板投出 48 份回收档案的目录,点一条进正文页(/world/NN/)。 ---- */}}
     <button class="hud-left__mod hud-left__mod--tri" type="button" data-hud-mod="world" data-hud-lb="4"
         aria-pressed="false" title="世界观数据库">
         <span class="hud-left__face">
@@ -140,24 +92,6 @@
         </span>
     </button>
 
-    {{/* ============================================================
-         全息投影面板:点一下模块投出来,再点一下收回(同时只开一个)
-         ─────────────────────────────────────────────────────────────
-         用户:"我功能页并不是想脱离这个面板,而是想做成那种全息投影,点一下模块,
-               投影出这个面版,再点一下收回。面版其实想做成等宽但根据模块自适应高度的,
-               整体也是先画 SVG 风格的框,左下角和右上角两个 45° 切角就够了。"
-         用户第二轮:"我想做成那种纵向展开的,就是原本都是在一个位置的横线,
-               然后纵向展开,关闭就收拢,现在看着各个面版的位置都不一样。"
-         ★ 先画框:一个六边形 —— 左下角、右上角各切一刀 45°。
-           ★★ 切角是【屏幕上的真 45°】⇒ 不用被拉伸的 viewBox:
-              hud-left.js 每次量完面板就把 viewBox 设成实际像素尺寸,多边形用像素坐标写。
-         ★ 等宽 + 高度自适应。
-         ★★★ 纵向展开:所有模块共用【同一条横线】(那条 #hud-left-slit,
-             钉在页面左下、带子上方),面板就从这条线往上长出来;
-              关闭时收拢回这条线。位置不再跟着模块跑(用户第二轮第 1 条)。
-         ★ 那条虚线光束 + 端点圆点也是 JS 写的:把"从哪个模块投出来的"连起来。
-         ★ 没有 ×(用户第二轮第 2 条:"卡片右上角有一个×啊,这个×没啥用")——
-           收回靠再点一次那枚模块按钮,Esc 也行。 */}}
     <span class="hud-proj__slit" id="hud-left-slit" aria-hidden="true"></span>
     <section class="hud-proj" id="hud-left-panel" hidden aria-live="polite">
         <svg class="hud-proj__frame" viewBox="0 0 320 220" preserveAspectRatio="none" aria-hidden="true">

@@ -1,46 +1,21 @@
+/* 右侧 HUD(多边形边框、按钮组、缩放)验收,顶点坐标对账。 跑法见 tests/README.md */
 import fs from 'node:fs';
 
-/* ============================================================
-   右侧 HUD —— 第二阶段第二刀:边框(多边形)
-   ─────────────────────────────────────────────────────────────
-   用户第一刀之后的原话:"效果不对,先去掉顶部的所有东西,画出边框先。
-   边框并不是一个正统的矩形,而是一个多边形。"然后给了走向:
-
-     以页面右上角为坐标原点,水平向左为 x 轴,页面比例为坐标(0~100):
-       ① 起点在页面顶部、横坐标 30
-       ② 与水平成 60° 往右下,到竖坐标 8
-       ③ 接着向右直到横坐标 10
-       ④ 与水平 45° 往右下直到横坐标 8(记此时竖坐标为 y₁)
-       ⑤ 往下直到竖坐标 100 − y₁
-       ⑥ 与水平 45° 往左下直到横坐标 10
-       ⑦ 接着到横坐标 20
-       ⑧ 与水平 60° 往左下直到下边框
-
-   ★★ 这一套断言的主心骨是【把每个顶点算出来对账】,不是"看着像":
-      · 45° 的判据是 |dx| == dy(坐标空间,不是屏幕角度);
-      · y₁ = 10 不是拍的 —— 它由"⑤ 用 100 − y₁、且 ④ 的 45° 走 2 格"推出来;
-      · 60° 的水平位移必须等于 8 ÷ tan(60°) = 4.6188022。
-     这条链上任何一环改了,下面就会红。
-
-   ★ 这一刀【不做】的(用户按顺序往后排):三枚按钮(导出 md / GitHub / WeChat)、
-     三支笔、目录面板、进度条、左侧番茄钟与播放器。
-   ============================================================ */
 
 const WS = 'C:/Users/hp/Desktop/deep-workspace';
 const BH = `${WS}/tuagfey-blog`;
 const rows = [];
 const ok = (n, p, i) => rows.push([!!p, n, i === undefined ? '' : String(i)]);
 const rd = (p) => fs.readFileSync(p, 'utf8');
-/* ★ 扫源码之前先剥注释 —— 解释性注释里会原样写着这些东西(踩过四次)。 */
 const noC = (s) => String(s)
   .replace(/\{\{\/\*[\s\S]*?\*\/\}\}/g, '')
   .replace(/\/\*[\s\S]*?\*\//g, '')
   .replace(/<!--[\s\S]*?-->/g, '');
 
 const home = rd(`${WS}/.tmp/t1/home/index.html`);
-const root = rd(`${WS}/.tmp/t1/index.html`);           /* ★ 站点根:启动页的重定向壳 */
+const root = rd(`${WS}/.tmp/t1/index.html`);
 const tech = rd(`${WS}/.tmp/t1/tech/index.html`);
-const post = rd(`${WS}/.tmp/t1/posts/hello-world/index.html`);
+const post = rd(`${WS}/.tmp/t1/study/hello-world/index.html`);
 const about = rd(`${WS}/.tmp/t1/about/index.html`);
 const css = rd(`${BH}/assets/css/page-hud.css`);
 const cssCode = noC(css);
@@ -52,31 +27,21 @@ const baseof = rd(`${BH}/layouts/baseof.html`);
 const headerTpl = noC(rd(`${BH}/layouts/_partials/header.html`));
 const hudJs = noC(rd(`${BH}/assets/js/page-hud.js`));
 const palJs = noC(rd(`${BH}/assets/js/hud-palette.js`));
-/* 左下角 UHD 那三件(按钮的标记 / 样式 / 逻辑) */
 const leftTpl = noC(rd(`${BH}/layouts/_partials/hud-left.html`));
 const leftCss = noC(rd(`${BH}/assets/css/hud-left.css`));
 const leftJs = noC(rd(`${BH}/assets/js/hud-left.js`));
 const holo = noC(rd(`${BH}/assets/css/holo.css`));
-/* ★ 最小化产物里属性【没有引号】(class=page-hud),带引号的写法一个都匹配不到。 */
 const cls = (name) => new RegExp('class="?' + name + '(?![\\w-])');
 const headOf = (h) => h.slice(0, h.indexOf('<body'));
 
-/* ---------- ① 这一条边框出现在哪些页面 ---------- */
 ok('★★ 博客页有这条 HUD', cls('page-hud').test(tech) && cls('page-hud').test(post) && cls('page-hud').test(about));
 ok('★★ 首页【没有】(首页有它自己那套平板主界面,两套会撞 id)',
   !cls('page-hud').test(home) && !/page-hud\.[0-9a-f]+\.(css|js)/.test(home),
   '首页既不该有这条 HUD,也不该白下它的样式和脚本');
-/* ★ 判据从 .IsHome 改成 (.Param "isHome") —— 仿真屏幕搬到 /home/ 之后不再是 Home 页,
-   而 .IsHome 一变 false,这一整块(HUD 缩放因子 / shell-page / page-hud.css / hud-palette.js)
-   就会全部灌进那块屏,连底都会从"屏幕"变成"星云"(实际踩过,靠逐字节对账才发现)。
-   ★ 后来又加了 (.Param "bare"):启动页也不是那块屏,但它更不是博客页。
-   ⇒ 断言跟着改成查新判据,并且【仍然要求那个判断排在 css 之前】。 */
 ok('★ 样式只从 extend_head 里挂、而且带"这块屏与启动页都没有 HUD"的判断',
   /if not \(or \(\.Param "isHome"\) \(\.Param "bare"\)\)/.test(extHead) &&
   extHead.indexOf('if not (or (.Param "isHome") (.Param "bare"))') < extHead.indexOf('css/page-hud.css') &&
   /page-hud\.[0-9a-f]+\.css/.test(tech) && /page-hud\.[0-9a-f]+\.js/.test(tech));
-/* ★★ 新判据的护栏:标记只能出现在那一页的 front matter 里。
-   写进 hugo.toml 的 [params] 会变成全站生效 —— 那样每一篇博客页都会丢掉 HUD。 */
 ok('★★ isHome 标记只在 content/home/_index.md 里,不在 hugo.toml 的 [params] 里',
   /^isHome:\s*true\s*$/m.test(rd(`${BH}/content/home/_index.md`)) &&
   !/^\s*isHome\s*=/m.test(rd(`${BH}/hugo.toml`)),
@@ -90,26 +55,16 @@ ok('★ 样式表是【单独挂】的,没放进 assets/css/extended/(那是全�
   fs.existsSync(`${BH}/assets/css/page-hud.css`) &&
   !fs.existsSync(`${BH}/assets/css/extended/page-hud.css`));
 
-/* ---------- ② ★★★ 边框几何:把算法跑起来,验【屏幕角度】 ----------
-   用户纠正过一次:"你的角度理解错了,你现在画的是与水平方向30°,而我要的是60°,
-   陡一点的线。而且你这个45°完全不是45°啊。"
-   ⇒ 45°/60° 是【屏幕上的角度】,换算是 Δx% = Δy% × (视口高 ÷ 视口宽) ÷ tan(角)。
-   ⇒ 所以这条折线只能在运行时算:真值在 assets/js/page-hud.js 的 gFrame(w, h)。
-     这里把它拿真源码跑起来(给一个最小的 window,不要 document ⇒ 它直接 return),
-     然后对着"每段的屏幕角度"和"每个顶点"验 —— 不是比字符串。 */
 const hudJsSrc = rd(`${BH}/assets/js/page-hud.js`);
 const win = {};
-new Function('window', 'document', hudJsSrc)(win, undefined);   /* document=undefined ⇒ 只导函数 */
+new Function('window', 'document', hudJsSrc)(win, undefined);
 const gFrame = win.__hudFrame && win.__hudFrame.gFrame;
-/* ★ 第二十一轮:左下角那支(一个 L 面板)的纯函数。它【不吃视口参数】——
-   形是在正方形坐标空间里定的,上到页面上就是横向拉开(见 LB 那一段断言)。 */
 const gFrameLB = win.__hudFrame && win.__hudFrame.gFrameLB;
 ok('★★ 几何函数 gFrame(w,h) 能在没有 DOM 的环境里单独跑(测试靠它验真值)',
   typeof gFrame === 'function');
 const REF_W = 1920, REF_H = 1080;
 const ref = gFrame ? gFrame(REF_W, REF_H) : { user: [], path: '' };
 const U = ref.user;
-/* 屏幕角度:两点的像素位移算 atan */
 const angOf = (i, j, W, H, pts) => {
   const p = pts || U;
   const dx = (Math.abs(p[j][0] - p[i][0]) / 100) * W;
@@ -146,7 +101,6 @@ ok('★★ ⑩ 最后一段屏幕上正好 60°,落到下边框(y=100)',
   angOf(8, 9, REF_W, REF_H).toFixed(6) + '°');
 ok('★★ 45° 那两段互为镜像 ⇒ ⑧ 的落点恒等于 y=94(与视口长宽比无关)',
   Math.abs(U[7][1] - 94) < 1e-9, 'y=' + U[7][1].toFixed(6));
-/* ★★ 换视口:角度必须【一个都不变】—— 这正是"按屏幕角度"的定义 */
 const views = [[2560, 1440], [1440, 900], [1850, 848], [1280, 1024], [3440, 1440]];
 const angErr = [];
 for (const [W, H] of views) {
@@ -164,7 +118,6 @@ ok('★★ 视口一变,长宽比换算确实动了顶点(否则说明根本没�
   Math.abs(gFrame(1440, 900).y1 - gFrame(1920, 1080).y1) > 0.1,
   '16:9 的 y₁=' + gFrame(1920, 1080).y1.toFixed(4) + ',16:10 的 y₁=' + gFrame(1440, 900).y1.toFixed(4));
 
-/* ★★★ 防漂:模板里那份参考折线必须就是 gFrame(1920,1080) 的输出 */
 const frameSrc = (hudTpl.match(/\$frame := "([^"]+)"/) || [, ''])[1];
 ok('★★★ 模板里的参考折线 == gFrame(1920,1080) 的输出(两边各算一遍再比,逐字相同)',
   !!frameSrc && frameSrc === ref.path,
@@ -177,11 +130,6 @@ ok('★★★ 写 d 的时候【只认边框那支 SVG 里的 path】—— 这�
   /svg\.querySelectorAll\("path"\)/.test(hudJs) &&
   !/root\.querySelectorAll\("path"\)/.test(hudJs),
   '第一版写的是 root.querySelectorAll("path"):导航/按钮里用 <path> 画的图标全被改成了折线,整只消失,看着像"素材丢了"');
-/* ★★★ 行为断言:拿一个假 DOM 跑 drawFrame,看它到底动了哪些 path。
-   只查选择器字符串是不够的 —— 当初那个 bug 的选择器"看着"也没问题。
-   ★ 2026-09-29:左下角 UHD 整块删过一轮;第二十一轮按用户新给的形做了回来 ⇒
-     两支 SVG、各 4 条 path:右支 [0] hud-fill(吃 g.fill)[1..3] halo/line/run;
-     左支一样,外加 5 个 polygon(按钮的形)+ 5 个 CSS 变量(按钮的位置)。 */
 ok('★★★ 行为:drawFrame 给右侧那支的 4 条 path 分别写 d(fill 吃 g.fill、其余吃 g.path),图标一根都不碰', (() => {
   const mkPath = (name) => ({ name, d: 'icon-original', setAttribute(k, v) { if (k === 'd') this.d = v; } });
   const frame = [mkPath('fill'), mkPath('halo'), mkPath('line'), mkPath('run')];
@@ -195,7 +143,7 @@ ok('★★★ 行为:drawFrame 给右侧那支的 4 条 path 分别写 d(fill �
     attrs: {},
     setAttribute(k, v) { this.attrs[k] = v; },
     querySelector(sel) { return sel === '.page-hud__frame' ? svg : null; },
-    querySelectorAll() { return icons; }        /* 若有人写 root.querySelectorAll("path") 就会命中这些 */
+    querySelectorAll() { return icons; }
   };
   const doc = {
     getElementById: (id) => (id === 'page-hud' ? root : null),
@@ -210,10 +158,6 @@ ok('★★★ 行为:drawFrame 给右侧那支的 4 条 path 分别写 d(fill �
   const untouched = icons.every((i) => i.d === 'icon-original');
   return fillOk && lineOk && untouched;
 })(), '图标 path 的 d 一旦被改,就成了"素材丢了"的假象;底板吃的是 g.fill(闭合版),不是 g.path');
-/* ★★★ 左支的行为断言:4 条 d + 5 个 polygon(按钮的形)都要写进去,而且
-   五枚按钮的【盒子 / 形 / 图标位置】要照 gFrameLB().boxes 写到元素 style 上。
-   ★★ 盒子 = 那个梯形的外接矩形:这样 getBoundingClientRect() 量到的就是按钮本身,
-      磁力光标的锁定框才贴得住(用户:"这几个按钮现在还不能被锁定框锁定")。 */
 ok('★★★ 行为:drawFrame 给左下角那支写 4 条 d + 5 个 polygon + 按 boxes 摆好五枚按钮', (() => {
   const mkPath = (name) => ({ name, d: 'x', setAttribute(k, v) { if (k === 'd') this.d = v; } });
   const mkPoly = (name) => ({ name, pts: 'x', setAttribute(k, v) { if (k === 'points') this.pts = v; } });
@@ -251,13 +195,11 @@ ok('★★★ 行为:drawFrame 给左下角那支写 4 条 d + 5 个 polygon + �
 })(), '形在 SVG 里、盒子和 clip-path 写在按钮 style 上 —— 单位是 vh(1 个设计单位 = 1vh)');
 ok('★ 视口变化时会重算(resize + rAF 收口,拖窗口不会每像素都算)',
   /addEventListener\("resize"/.test(hudJs) && /requestAnimationFrame/.test(hudJs));
-/* ★ 边框竖段那一列 = CSS 里给控件留的那一列:改了一个忘了另一个就会骑到正文上 */
-const spineX = 100 - U[5][0];   /* 竖段在 SVG 里的 x */
+const spineX = 100 - U[5][0];
 ok('★★ CSS 的竖栏宽度和折线竖段对得上(5vw ↔ SVG x=95 ⇒ 距右缘 5%)',
   spineX === 95 && /--hud-col:\s*5vw/.test(css),
   '竖段 SVG x=' + spineX + ';改了一个忘了另一个,右下控件就骑到正文上了');
 
-/* ---------- ③ 形状层:同一条 d 画三层 + 屏幕像素的虚线 ---------- */
 const dOf = (html, klass) => {
   const m = html.match(new RegExp('class="?' + klass + '"?\\s+d="([^"]+)"'));
   return m ? m[1] : '';
@@ -267,10 +209,6 @@ const dLine = dOf(tech, 'hud-line');
 const dRun = dOf(tech, 'hud-run');
 ok('★★ 光晕 / 主线 / 跑马灯 用的是【同一条 d】(抄成三份迟早漂)',
   !!dHalo && dHalo === dLine && dHalo === dRun, dHalo);
-/* ★★ 最小化会把路径数据整个改写:M55 0 L57.9228 9 … L73.0514 100
-   变成了 M55 0l2.9228 9H70l1.6875-3H90l4 7.1111V86.8889L90 94H75l-1.9486 6 ——
-   相对命令、V/H、连最后的 100 都被并进 "l-1.9486 6" 里去了。
-   所以【别用正则去产物里找数字】:老老实实按 SVG 路径语法走一遍,拿到顶点再比。 */
 const walkPath = (d) => {
   const toks = d.match(/[MmLlHhVvZz]|-?\d*\.?\d+(?:e-?\+?\d+)?/gi) || [];
   const pts = [];
@@ -294,23 +232,10 @@ ok('★★★ 把产物里那条 minify 过的 d 解析回顶点,和参考折线
   builtUser.length === ref.user.length &&
   builtUser.every(([x, y], k) => Math.abs(x - ref.user[k][0]) < 1e-3 && Math.abs(y - ref.user[k][1]) < 1e-3),
   builtUser.map(([x, y]) => '(' + x.toFixed(3) + ',' + y.toFixed(3) + ')').join(' '));
-/* ★★ 第二十一轮:左下角 UHD 重新做成一整块 L 面板,所以现在是【两支】SVG:
-   右支 .page-hud__frame(按屏幕角度、运行时重算)+ 左支 .page-hud__band
-   (在正方形坐标空间里定的形,顶点不随视口变)。用户点名的顺序是
-   "先用 SVG 画出边框,再往边框上塞按钮"。 */
 ok('★★★ 边框是【两支】SVG:右支 + 左下角那支(每支都只有 4 条 path)',
   (hudTplCode.match(/<svg class="page-hud__frame[\s\S]*?<\/svg>/g) || []).length === 1 &&
   (hudTplCode.match(/<svg class="page-hud__band[\s\S]*?<\/svg>/g) || []).length === 1,
   '第一版踩过的坑:别对整份模板数 path —— 必须分 SVG 数');
-/* ============================================================
-   ★★★ 左下角 UHD —— 一个 L 面板(左支 + 下支)+ 四个梯形按钮 + 左下角三角按钮
-   ─────────────────────────────────────────────────────────────
-   用户这一轮的流程:"你先别直接做,先在一个正方形中给画好了再上" ⇒
-   形是在【正方形坐标空间】里定的(设计稿 left-band-square.html),所以:
-     · 五条斜肩在坐标空间里是 30°、拐角斜切是 45°(正方形里才是真角度);
-     · 顶点【不随视口重算】(和右支的"屏幕角度"正相反 —— 这是有意的);
-     · 下支 = 左支沿【对角线 x=y】的精确镜像(倒序),四个按钮天然一模一样。
-   ============================================================ */
 const lbRef = gFrameLB();
 const lbSrc = (hudTpl.match(/\$band := "([^"]+)"/) || [, ''])[1];
 const lbU = lbRef.user;
@@ -321,7 +246,6 @@ ok('★★★ 构建产物里那份参考折线也一致(模板 → 产物这一
   (tech.match(/data-hud-band=(?:"([^"]*)"|([^\s>]+))/) || [, '', '']).slice(1).includes(lbSrc),
   '产物里 data-hud-band 是根节点上的那份参考值,页面一跑会被 JS 覆盖成同一个值');
 ok('★★ 22 个顶点', lbU.length === 22, '实际 ' + lbU.length);
-/* 坐标空间里的角度:正方形里 30° / 45° 就是看到的 30° / 45° */
 const cAng = (i, j) => {
   const dx = Math.abs(lbU[j][0] - lbU[i][0]), dy = Math.abs(lbU[j][1] - lbU[i][1]);
   return (Math.atan2(dy, dx) * 180) / Math.PI;
@@ -338,8 +262,6 @@ ok('★★★ 左下角那记斜切是【坐标空间】45°(Δx = Δy = 7)',
 ok('★★★ 下支 = 左支沿对角线 x=y 的精确镜像(22 点逐点,偏差 0)',
   lbU.every((p, k) => {
     const m = lbU[21 - k];
-    /* ★ 折线是 SVG 坐标(x 从左往右)—— 镜像在这里是 (x,y) → (100−y, 100−x),
-       不是用户坐标那套 [y, x](上一轮就是在这儿把自己判红的)。 */
     return Math.abs(100 - m[1] - p[0]) < 1e-9 && Math.abs(100 - m[0] - p[1]) < 1e-9;
   }),
   '第 k 点 ↔ 第 (21−k) 点关于对角线 x=y 的镜像');
@@ -350,13 +272,11 @@ ok('★★ 起点落在【页左缘】、终点落在【页底】(用户:"从左
 ok('★★★ 形【不随视口变】—— 这一支和右支正相反(有意的)',
   gFrameLB().path === gFrameLB(1600, 900).path && gFrameLB().path === gFrameLB(2560, 1440).path,
   '右支按屏幕角度算、换长宽比要重算;左支是在正方形空间里定的,百分比就是百分比');
-/* 三段留白等长:这是"按钮加长时往上端要空间、不挤间距"那一条的判据 */
 const lbRuns = [];
 for (let k = 0; k < 2; k++) lbRuns.push(Math.abs(lbU[[2, 6][k]][1] - lbU[[1, 5][k]][1]));
 lbRuns.push(Math.abs(lbU[10][1] - lbU[9][1]));
 ok('★★ 三段留白(上/中/下)等长 ⇒ 按钮加长时不会互相挤近',
   Math.max(...lbRuns) - Math.min(...lbRuns) < 1e-3, lbRuns.map((v) => v.toFixed(4)).join(' / '));
-/* 五枚按钮面:四个梯形 + 左下角一个三角形 */
 ok('★★★ 五枚按钮面:四个梯形(各 4 点)+ 左下角一个三角形(3 点)',
   lbRef.faces.length === 4 && lbRef.faces.every((f) => f.length === 4) && lbRef.tri.length === 3);
 ok('★★★ 模板里那 5 个 polygon == gFrameLB() 算出来的 5 个形(逐点)',
@@ -375,7 +295,6 @@ ok('★★ 按钮面那两条斜边和框的斜肩【平行】(左支 30°、下
       const dx = Math.abs(f[1][0] - f[0][0]), dy = Math.abs(f[1][1] - f[0][1]);
       return (Math.atan2(dy, dx) * 180) / Math.PI;
     };
-    /* 容差 1e-3:多边形顶点是 round 到 4 位小数的,角度会差 ~4e-4 度 */
     return lbRef.faces.slice(0, 2).every((f) => Math.abs(a(f) - 30) < 1e-3) &&
       lbRef.faces.slice(2).every((f) => Math.abs(a(f) - 60) < 1e-3) &&
       Math.abs((Math.atan2(Math.abs(lbRef.tri[2][1] - lbRef.tri[1][1]),
@@ -384,7 +303,6 @@ ok('★★ 按钮面那两条斜边和框的斜肩【平行】(左支 30°、下
   '用户:"按钮贴着凸起的边边" —— 两条斜边就是斜肩的平行延长线;三角那条斜边平行于 45° 斜切');
 ok('★★ 按钮面都在框的范围内(没戳出视口)', lbRef.faces.concat([lbRef.tri])
   .every((f) => f.every((p) => p[0] >= 0 && p[0] <= 100 && p[1] >= 0 && p[1] <= 100)));
-/* 底板收口:和右支一个道理 —— 只走页缘 */
 ok('★★★ 左下角那支的底板 = 折线 + " L0 100 Z"(收口只走页缘,不穿正文)',
   lbRef.fill === lbRef.path + ' L0 100 Z' &&
   /class="hud-fill hud-band-fill" d="\{\{ \$band \}\} L0 100 Z"/.test(hudTplCode),
@@ -400,16 +318,12 @@ ok('★★ .hud-face 那条规则在(按钮的形和框同支 SVG,一起缩放,�
   /\.hud-face\s*\{[^}]*vector-effect:\s*non-scaling-stroke/.test(cssCode) &&
   /\.hud-face\s*\{[^}]*stroke-width:\s*1px/.test(cssCode),
   '形画在框那支 SVG 里 ⇒ 和框同一个盒子、同一套变换');
-/* ---------- 能按的那一层:hud-left.html / .css / .js ---------- */
 ok('★★★ 五颗按钮:四个模块 + 左下角那枚三角形(用户:"给一个小空间放一个等腰三角形按钮就够了")',
   (leftTpl.match(/data-hud-mod="/g) || []).length === 5 &&
   ['timer', 'music', 'time', 'note', 'world'].every((k) => leftTpl.includes('data-hud-mod="' + k + '"')) &&
   /class="hud-left__mod hud-left__mod--tri"[^>]*data-hud-mod="world"/.test(leftTpl),
   '四个凸起 + 左下角那个角,一共五枚(第四轮:角落里那枚 = 世界观数据库)');
-/* ★★★ "点击范围和画出来的形必须逐点相同"的静态判据:
-   CSS 里 clip-path 的兜底值、SVG 里的 polygon、gFrameLB() 的输出 —— 三处同一组数。 */
 const clipOf = (n) => {
-  /* 0 用基类那条;1 和 0 同形(不单独写);2/3 按 data-hud-lb;4 是那枚三角(--tri) */
   const rules = [
     /\.hud-left__mod\s*\{[^}]*clip-path:\s*polygon\(([^)]*)\)/,
     /\.hud-left__mod\s*\{[^}]*clip-path:\s*polygon\(([^)]*)\)/,
@@ -425,7 +339,7 @@ ok('★★★ 左下角那支钉在【正方形】里(边长 = 视口高度),不
   const c = band ? band[1].replace(/\s+/g, ' ') : '';
   return /left:\s*0/.test(c) && /bottom:\s*0/.test(c) &&
     /width:\s*100vh/.test(c) && /height:\s*100vh/.test(c) &&
-    !/inset:\s*0/.test(c) && !/preserveAspectRatio/.test(''); /* 形由盒子保证,不靠 viewBox 拉伸 */
+    !/inset:\s*0/.test(c) && !/preserveAspectRatio/.test('');
 })(),
   '用户:"你直接迁移到网页里面就变位置了,因为网页比例不是一个正方形" —— ' +
   '铺满视口会把横向拉长 16/9 倍:斜肩 30°→18°、斜切 45°→29.4°,按钮位置也跟着跑');
@@ -468,7 +382,6 @@ ok('★★ 面板贴着量出来的那块图标定位(不能量按钮本身 —�
 ok('★★ 五个模块都有内容(含左下角那枚),不会"按了没反应"',
   ['timer:', 'music:', 'time:', 'note:', 'world:'].every((k) => leftJs.includes(k)) && /世界观数据库/.test(leftJs));
 
-/* ---------- 第四轮:左下角那枚三角形 = 世界观数据库 ---------- */
 ok('★★★ 目录数据由 Hugo 构建时从 content/world/ 生成(JS 里不许硬编码条目)',
   /id="hud-world-data"/.test(leftTpl) &&
   /site\.GetPage "\/world"/.test(leftTpl) &&
@@ -495,7 +408,6 @@ ok('★★ 加载顺序:hud-left.js 排在 page-hud.js 与 hud-timer.js 之后',
 ok('★ 番茄钟胶囊让开了第一枚按钮(它原来钉在竖直正中,正好压在上面)',
   /\.hud-timer\s*\{[^}]*top:\s*34%/.test(noC(rd(`${BH}/assets/css/hud-timer.css`))),
   '带子上端收口在 y=42,第一枚按钮从 y=50.8 开始');
-/* ---------- 全息投影面板(用户第二轮的三条)---------- */
 ok('★★★ 面板是【先画 SVG 框】:六边形,左下 + 右上各一刀 45°(用户点名的那两刀)',
   /function hexPoints\(w, h\)/.test(leftJs) &&
   /\[0, 0\], \[w - c, 0\], \[w, c\], \[w, h\], \[c, h\], \[0, h - c\]/.test(leftJs) &&
@@ -564,9 +476,6 @@ ok('★★ 歌曲列表有歌名 + 歌手、能点着换(不是只列 ID)',
   /\.hud-plist__row\.is-on/.test(leftCss));
 ok('★ 提示语只有「歌单」两个字(用户:"把后面的(你给的 24 首,点一首就换):删掉")',
   /<p class="hud-plist__hint">歌单<\/p>/.test(leftJs) && !/点一首就换/.test(leftJs));
-/* ★★★ 音量:用户第五轮"不能通过右下角那个音量滑块控制音量大小"
-   —— 跨域 iframe 里那个播放器外面碰不到,所以有直链的歌走我们自己的 <audio>,
-      音量归右下角那条滑块管(它写 cd-audio-vol + 派发 hud-volume)。 */
 ok('★★★ 有直链的歌用原生 <audio> 播 ⇒ 右下角音量滑块真的能控住它',
   /hud-player-audio/.test(leftJs) &&
   /song\/media\/outer\/url\?id=/.test(leftJs) &&
@@ -584,13 +493,6 @@ ok('★★★ 没直链的那首自动退回嵌入式播放器,并写明"音量�
   !/referrerpolicy/.test(leftJs),
   '网易云的 iframe 是跨域的:没有 API 能改它的音量 —— 这一点只能说实话');
 
-/* ---------- 跨页面"接着放"(用户第九轮)----------
-   用户:"音乐播放器在刷新网页或者进入新文章时也会刷新,歌曲就断了。能修吗?"
-   ★★ 先把边界钉在注释里:网页一导航,文档就销毁,<audio> 跟着没 ——
-      浏览器层面没有"跨页面继续播";而且实测【哪怕上一页点过播放】,新文档里
-      play() 照样被拒(NotAllowedError,需要"与本文档交互过")。
-      所以做的是"接着放":歌 + 秒数 + 在不在播 存 sessionStorage,
-      新页面从该到的那一秒续上,任意一次点击就接着放。 */
 ok('★★★ 播放状态跨页面存下来(sessionStorage,不是 localStorage)',
   /hud-music-state/.test(leftJs) && /sessionStorage\.setItem\(PST/.test(leftJs) &&
   /sessionStorage\.getItem\(PST/.test(leftJs) && !/localStorage\.setItem\(PST/.test(leftJs),
@@ -663,7 +565,6 @@ ok('★★ 跑马灯的起始偏移要 > 折线的屏幕总长,否则白线跑�
 ok('★ CD 页那套"音乐电平点亮线条"的口子留着(--hud-glow)',
   /--hud-glow:\s*0;/.test(css) && /calc\(var\(--hud-line-a\) \+ var\(--hud-glow\)/.test(cssCode));
 
-/* ---------- ④ 这一层不能吃点击、不能盖住东西 ---------- */
 ok('★★ 整层 pointer-events: none(否则正文右半边的点击和划词全被吃掉)',
   /\.page-hud\s*\{[^}]*pointer-events:\s*none/.test(cssCode));
 ok('★★ 控件自己开 auto(右下三件套要能点)',
@@ -684,11 +585,6 @@ const missing = [...used].filter((v) => !defined.has(v));
 ok('★★ CSS 里用到的 --hud-* 变量全都有定义(拼错不会有任何报错,只会静默失效)',
   missing.length === 0, missing.join(', '));
 
-/* ---------- ⑤ 自适应缩放:--hud-s(用户第十轮)----------
-   用户:"有没有考虑页面自适应缩放?我看换到27寸屏幕大部分位置对的,小部分错位了
-   (比如单独放的字体字号按钮,跑到了屏幕正中央),小部分按钮大小没变,比如三个笔按钮"
-   病根:HUD 的【位置】全是百分比(跟着视口走),而【控件尺寸】是一堆写死的 px ——
-   大屏上框拉开了、字和按钮原地不动,比例就散了。 */
 const headExt = rd(`${BH}/layouts/partials/extend_head.html`);
 ok('★★★ 缩放因子在【首帧之前】就算出来(内联脚本,不是 defer 的 js)',
   /d\.style\.setProperty\("--hud-s"/.test(headExt) &&
@@ -702,7 +598,6 @@ ok('★★★ 兜底值写在 :root 上,【不能】写进 .page-hud', (() => {
 })(),
   '★ 写在 .page-hud 里会把 html 上那个行内值整个遮掉(就近的声明赢),JS 白设 —— 实测踩过');
 ok('★★★ 基准是 1600×900 ⇒ 那里 s=1,布局像素级不变', (() => {
-  // 1600/1600 = 1,900/900 = 1 ⇒ min = 1 ⇒ 夹在 0.85~1.45 ⇒ 1
   const m = /Math\.min\(d\.clientWidth \/ (\d+), d\.clientHeight \/ (\d+)\)/.exec(headExt);
   return m && m[1] === "1600" && m[2] === "900";
 })());
@@ -722,12 +617,7 @@ ok('★ 投影节点和 ECHO 气泡【故意】不缩放', (() => {
   '★ 首页那份节点是【跟着平板滑进来】的,而首页没有 --hud-s(内联脚本在 if not .IsHome 里)' +
   ' —— 两份尺寸一旦不同,过场就会跳。所以它们保持同一个固定尺寸');
 
-/* ---------- ⑤ 改造 2/3/4/5:凸起里的 LOGO、收窄段的搜索、右上角三枚按钮、竖栏五个导航 ---------- */
-/* ★ baseof 里那行是被 Hugo 注释包起来的:剥掉注释后,"渲染"这件事必须消失。
-   ★ 写这段注释时【不要把 Hugo 注释的收尾字符原样打出来】—— 它会提前关掉
-     这个 JS 块注释(README 里记着这个坑,这是第五次)。 */
 const baseofCode = noC(baseof);
-/* 取某一项那个 <a> 标签本身来看它的 href/class(最小化后属性没引号) */
 const tagOf = (html, id) => (html.match(new RegExp('<a\\b[^>]*data-hud-nav="?' + id + '"?[^>]*>')) || [''])[0];
 ok('★★★ 顶部那条【主题顶栏】仍然没有渲染(用户上一轮要求撤掉;现在这些东西都进了 HUD)',
   !cls('header').test(tech) && !cls('logo').test(tech) &&
@@ -752,8 +642,8 @@ ok('★★ 改造 4:右上角三枚按钮 = 导出 Markdown / GitHub / WeChat,�
   '★ 产物里属性没有引号(踩过五次的坑);GitHub 地址优先取 socialIcons,取不到才用兜底常量');
 ok('★★★ 导出按钮两种页面都有真文件:文章页导出原文,列表页导出这一页的清单', (() => {
   const hasMd = (h) => /data-hud-act="?md"?/.test(h);
-  const article = fs.existsSync(`${WS}/.tmp/t1/posts/hello-world/index.md`) &&
-    /^---/.test(rd(`${WS}/.tmp/t1/posts/hello-world/index.md`));
+  const article = fs.existsSync(`${WS}/.tmp/t1/study/hello-world/index.md`) &&
+    /^---/.test(rd(`${WS}/.tmp/t1/study/hello-world/index.md`));
   const listMd = rd(`${WS}/.tmp/t1/tech/index.md`);
   return hasMd(post) && hasMd(tech) && !hasMd(home) && article &&
     /^# 技术/.test(listMd) && /github-actions-deploy/.test(listMd) &&
@@ -776,7 +666,7 @@ ok('★★ 按钮比原来(26~34px)大不少,但【高】必须压进顶带:clam
 ok('★★★ 导出按钮指向 Hugo【真生成】的那份 .md(不是前端拼的)',
   /data-hud-act="md" href="\{\{ \$md \}\}" download/.test(hudTplCode) &&
   /data-hud-act=md href=[^\s>]*index\.md/.test(post) &&
-  /^---/.test(rd(`${WS}/.tmp/t1/posts/hello-world/index.md`)) &&
+  /^---/.test(rd(`${WS}/.tmp/t1/study/hello-world/index.md`)) &&
   /\[outputFormats\.markdown\]/.test(rd(`${BH}/hugo.toml`)) &&
   fs.existsSync(`${BH}/layouts/_default/single.md`),
   '产物里那份 index.md 开头就是 front matter(导出的是源文件原文)');
@@ -807,13 +697,6 @@ ok('★★ 导航整列"往下撑一撑":项间距跟着视口高走',
   /\.hud-nav\s*\{[^}]*gap:\s*clamp\(6px,\s*1\.1vh,\s*14px\)/.test(cssCode));
 ok('★★ 顶栏撤掉后不再有两个 id="menu" 的问题', !/id="?menu"?/.test(tech) && !/id="?menu"?/.test(home));
 
-/* ---------- ⑤b ★★★ 搜索:把真组件跑起来,验"打字到底出不出结果" ----------
-   用户报:"输入文字也不会有匹配项出现,可能是因为只做了个按钮"。
-   这种事光看源码是看不出来的(标记全对、脚本也在),所以这里搭一个最小 DOM,
-   把 assets/js/search.js【真读进来执行】,再模拟一次 input —— 看结果面板到底有没有内容。
-   ★ 这个量具本身也踩过一次坑的教训:假 DOM 的 textContent/innerHTML 要接上,
-     否则 esc() 恒返回空串,断言会因为"量具不会转义"而假红。 */
-/* 等异步链跑完:loadIndex 是 promise,render 在 then 里 —— 同步断言只会读到空 */
 const tick = async () => {
   for (let i = 0; i < 4; i++) await Promise.resolve();
   await new Promise((r) => setTimeout(r, 0));
@@ -862,7 +745,6 @@ ok('★★★ search.js 真跑起来会挂出 window.CDSearch(兜底脚本就是
   !!h1.win.CDSearch && typeof h1.win.CDSearch.build === "function");
 h1.input.value = "部署";
 h1.input.dispatch("input");
-/* 索引是异步拿的:等一个微任务批次 */
 await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
 await new Promise((r) => setTimeout(r, 0));
 ok('★★★ 打字之后结果面板【真的有内容】(用户报的就是这里没反应)',
@@ -897,16 +779,8 @@ ok('★★★ 兜底脚本的判据是"正式组件加载没有",不是"页面�
 ok('★ 兜底脚本在没有正式组件时会自己接手(同一个最小 DOM,不挂 window.CDSearch)',
   (() => {
     const h = searchHarness();
-    return !!h.win.CDSearch;   /* search.js 自己会挂;下面的断言看"没挂时"的分支 */
+    return !!h.win.CDSearch;
   })() && /var input = document\.getElementById\("header-search-input"\)/.test(noC(rd(`${BH}/assets/js/header-search.js`))));
-/* ---------- ⑤c 覆盖效果:底板这一刀【故意撤掉】了 ----------
-   ★★★ 用户截图报的那个"大三角"就是底板干的:老的收口写法是
-     d + " L100 100 L100 0 Z" —— 从折线起点 (55,0) 斜着连回右下角,
-     等于把【整个右半边】都涂成暗色,露出一条斜边切过正文。
-   撤掉之后框架只剩折线(用户才能看清形状);要恢复"遮住底下"的效果,
-   得换一种收口方式(沿描边连线、或直接给整层一个背景色)。
-   ⇒ 这里钉的是"撤掉是【故意】的,而且恢复所需的两半都还在":
-     CSS 的 .hud-fill 规则 + JS 里给底板写 d 的那段。 */
 ok('★★★ 底板(.hud-fill)在,而且收口【只走页缘】(不穿正文)',
   /class="hud-fill" d="\{\{ \$frame \}\} L100 100 L100 0 Z"/.test(hudTplCode) &&
   /\.hud-fill\s*\{[^}]*fill:\s*var\(--hud-cover\)/.test(cssCode),
@@ -922,7 +796,6 @@ ok('★★ 底板画在【最前面】(标记里是第一个 path),否则会把�
   hudTplCode.indexOf('class="hud-fill"') < hudTplCode.indexOf('class="hud-acts"'),
   '★ SVG 内部按文档顺序绘制,而这支 SVG 是 .page-hud 的第一个子元素');
 
-/* ---------- ⑥ 改造 6:右下三件套(两滑条并排 + 明暗长按钮) ---------- */
 const cnt = (h, re) => (h.match(re) || []).length;
 ok('★★ #theme-toggle 在博客页【正好一个】—— 主题 footer 那句没有判空,少了会 TypeError',
   cnt(tech, /id="?theme-toggle"?/g) === 1 && cnt(post, /id="?theme-toggle"?/g) === 1);
@@ -961,7 +834,6 @@ ok('★ 滑条是竖的(和 CD 页两根推子同一个做法:横着写再转 -9
 ok('★ 滑条头是圆钮(--hud-thumb 走变量,不是浏览器默认方块)',
   /--hud-thumb:\s*calc\(20px \* var\(--hud-s/.test(css) && /::-webkit-slider-thumb\s*\{[^}]*border-radius:\s*50%/.test(cssCode));
 
-/* ---------- ⑥b 改造 7:底部横带里那三支笔 ---------- */
 ok('★★ 改造 5(第五轮):笔的横带最右侧从横坐标 7 起,把右下角让给两滑条 + 明暗长按钮',
   /\.hud-pens\s*\{[^}]*right:\s*7%/.test(cssCode) &&
   /\.hud-pens\s*\{[^}]*width:\s*calc\(var\(--hud-band-x\) - 7%\)/.test(cssCode) &&
@@ -994,16 +866,12 @@ ok('★ 笔的 aria:按下状态有 aria-pressed(读屏能知道选没选中)',
   /aria-pressed="false"/.test(hudTplCode) &&
   /btn\.setAttribute\("aria-pressed"/.test(hudJs));
 
-/* ---------- ⑦ 配色:HSV 连续调,而且算法只有一份 ---------- */
 ok('★★ 色相键只有一处读写(hud-palette.js):抄成两份,首帧还原和拖动生效就会各算各的',
   /pref-palette-hue/.test(palJs) && !/pref-palette-hue/.test(hudJs));
 ok('★★ 配色算法被【内联进 <head>】(首帧之前就要位,否则先闪一下默认配色)',
   /resources\.Get "js\/hud-palette\.js"/.test(extHead) &&
   /\.Content \| safeJS/.test(extHead) && headOf(tech).includes('pref-palette-hue'),
   '内联的是同一个文件,不是抄一份算法');
-/* ★ 这条原来读的是站点根 —— 那时站点根【就是】那块仿真屏幕。
-   启动页占住根之后,这里要读的是屏幕自己的产物 /home/,
-   不然扫的是一个只有 head + 一行跳转的壳,断言再也不会红。 */
 ok('★ 首页不内联(它有自己的配色面板,两套会互相按死)', !headOf(home).includes('pref-palette-hue'));
 ok('★★ 只对 .shell-page 生效 —— 首页那块平板的配色面板不能被这里按死成"点了没反应"',
   /classList\.contains\("shell-page"\)/.test(palJs) && /if \(!isShell\(\)\) return;/.test(palJs));
@@ -1019,7 +887,6 @@ ok('★ 旧预设名 → 色相 的迁移表在(老用户的 pref-palette 不会
 ok('★ 色相滑条会跟着主题变化重算(hue 存的是角度,不是颜色)',
   /function pal\(h, dark\)/.test(palJs) && /dataset\.theme === "dark"/.test(palJs));
 
-/* ---------- ⑧ 别和页面上原有的东西抢位置 ---------- */
 ok('★★ 「回到顶部」那枚圆按钮让开了右下三件套(它是 fixed + right:2rem + z-index:99)',
   /:root\[data-theme\]\.shell-page \.top-link\s*\{[^}]*right:\s*calc\(var\(--hud-col\)/.test(cssCode));
 ok('★★ 窄屏:整条藏掉,让位那条也要一起撤回(不然右边会空出一块)',
@@ -1030,21 +897,10 @@ ok('★ reduced-motion:跑马灯和旋钮过渡都关掉',
 ok('★ 第一刀那条"给顶栏搜索框让位"的 padding-right 已经删了(顶栏都没了)',
   !/header-nav/.test(cssCode));
 
-/* ---------- ⑨ ★★★ 缓存陷阱:按页面变的东西不能进 footer 链 ----------
-   根因(第一刀踩的,症状是"同一个模板连跑三次,结果三个样"):
-     主题 baseof.html:
-       partialCached "footer.html" . .Layout .Kind (.Param "hideFooter") (.Param "ShowCodeCopyButtons")
-     缓存键只到【页面种类】这一层:/about/ 和 /posts/hello-world/ 都是 page
-     ⇒ 共用同一份 footer 渲染结果。HUD 曾经挂在 extend_footer.html 里,
-       于是"当前页"那类按页变的东西会写死成别人的,而且并行渲染谁先谁后不定。
-   现在:HUD 由 layouts/baseof.html 按页渲染(不在 partialCached 里)。
-   ★★★ 逐页对账是这一批里最值钱的:只要 HUD 再被挪回 footer 链,整批页面立刻变红。 */
 ok('★★★ 主题确实是 partialCached 缓存 footer 的(缓存键 = Layout + Kind + …)',
   /partialCached "footer\.html" \. \.Layout \.Kind/.test(rd(`${BH}/themes/PaperMod/layouts/baseof.html`)),
   '这条是根因,别删');
 ok('★★★ 自家 baseof 里 HUD 排在 partialCached footer【之前】渲染', (() => {
-  /* ★ 必须先剥注释:baseof 顶上的说明里就原样写着那句 partialCached,
-     不剥的话 indexOf 撞到的是注释,这条断言会假红。 */
   const b = noC(baseof);
   return b.includes('partial "page-hud.html" .') &&
     b.indexOf('page-hud.html') < b.indexOf('partialCached "footer.html"');
@@ -1058,20 +914,13 @@ const walkPages = (d, out = []) => {
   }
   return out;
 };
-/* ★★ 故意没有 HUD 的页面 —— 启动页之后这份名单变成两页:
-      · /start/ 启动页(方舟总控 AI 那一屏,用户要求"很干净")
-      · /home/  仿真屏幕(CD 架 + 平板主界面,底是那块屏而不是整页星云)
-    ★ 名单是【白名单】:多一个少一个都要在这里红。
-      以前只跳过 `/` 一个地址,所以 /start/ 和 /home/ 一出现就被报成"没有 HUD"。 */
 const NO_HUD = new Set(['/start/', '/home/']);
 let withHud = 0, mismatch = [], rootHasHud = false;
 for (const f of walkPages(`${WS}/.tmp/t1`)) {
   const h = rd(f);
   const rel = '/' + f.slice(`${WS}/.tmp/t1/`.length).replace(/index\.html$/, '');
-  /* 分页第 1 页那种产物是"跳转壳"(只有 head 没有 body),不算页面 */
   if (!h.includes('<body') || /http-equiv=refresh/.test(h)) continue;
   const m = h.match(/data-hud-page=(?:"([^"]*)"|([^\s>]+))/);
-  /* ★ 根页是启动页的重定向壳,【必须】没有 HUD(这一条以前是跳过,现在是断言) */
   if (rel === '/') { rootHasHud = !!m; continue; }
   if (NO_HUD.has(rel)) {
     if (m) mismatch.push(`${rel} 是"不该有 HUD"的页面,却带着 data-hud-page=${m[1] || m[2]}`);
@@ -1089,23 +938,19 @@ ok('★★★ 逐页对账:每个产物里 HUD 的页面标记 == 这个文件�
   `扫了 ${withHud} 个带 HUD 的页面;` + (mismatch.length ? ' 出问题的:' + mismatch.join(' | ') : '全部一致'));
 ok('★★ 站点根(启动页的重定向壳)没有 HUD,也没有被挂上任何页面标记', !rootHasHud);
 
-/* ---------- ⑩ 还没做的东西没被顺手做进来 ---------- */
 ok('★ 目录面板 / 进度条 / 左侧番茄钟与播放器 / 首页平板:这一轮都还没动',
   !/hud-toc|hud-progress|pomodoro/.test(cssCode) &&
   !/目录|进度条/.test(hudTplCode) &&
   !/intro-page|tablet/.test(hudTplCode),
   '下一刀:目录面板 + 收起 + 字号/字距 + 进度条');
-/* ★★★ 第七轮:三支笔【真的能画】了(用户:"把右下角那两只笔一个橡皮实现了.一直拖到现在.")
-   —— 落笔那一层单独一个文件 hud-pens.js:一套覆盖正文的 canvas + 矢量笔画。
-   ★ page-hud.js 仍然只管"选笔/滑条/色点/光标形态",所以下面这两条依旧成立。 */
 ok('★ page-hud.js 里仍然没有画布(落笔那一层是独立文件,各管一摊)',
   !/createElement\("canvas"\)/.test(hudJs) && !/md-content/.test(hudJs));
 const pensJs = noC(rd(`${BH}/assets/js/hud-pens.js`));
 ok('★★★ 三支笔真的能画:画布 + 矢量笔画 + 三种笔性',
   /createElement\("canvas"\)/.test(pensJs) &&
   /strokes = \[\]/.test(pensJs) &&
-  /name === "marker"[\s\S]{0,80}alpha: 0\.3/.test(pensJs) &&          /* 荧光笔:半透明 */
-  /name === "eraser"[\s\S]{0,80}destination-out/.test(pensJs) &&      /* 橡皮:真的擦 */
+  /name === "marker"[\s\S]{0,80}alpha: 0\.3/.test(pensJs) &&
+  /name === "eraser"[\s\S]{0,80}destination-out/.test(pensJs) &&
   /pointerdown/.test(pensJs) && /pointermove/.test(pensJs) &&
   /getContext\("2d"\)/.test(pensJs),
   '用户:"把右下角那两只笔一个橡皮实现了"');
@@ -1125,13 +970,7 @@ ok('★★ 换窗口/重排能重画(笔画是矢量的),右键清空且有提�
   /已清空 /.test(pensJs) && /hud-toast/.test(pensJs));
 ok('★★ 加载顺序:hud-pens.js 排在 page-hud.js 之后(要读那三支笔的状态)',
   extFoot.indexOf('js/hud-pens.js') > extFoot.indexOf('js/page-hud.js'));
-/* ★★★ 第七轮第二刀:按住拖动时磁吸光标必须跟着走。
-   根因在规范里:落笔那层在 pointerdown 上 preventDefault(不这么做就会开始选字/拖图),
-   而 Pointer Events 规定 pointerdown 的默认行为一被取消,浏览器就【不再派发兼容的
-   mousemove】⇒ 整段按住拖动里 mousemove 一次都不来,光标冻在按下那一刻。
-   ⇒ 跟手必须挂在 pointermove 上(mousemove 留作兜底)。 */
 ok('★★★ 磁吸光标跟的是 pointermove(否则按住画线时光标不动)', (() => {
-  /* ★ 这里直接读文件:mcJs 在下面才声明(const 有暂时性死区,提前用会直接抛) */
   const mc = fs.readFileSync(`${BH}/assets/js/magnetic-cursor.js`, 'utf8');
   return /window\.addEventListener\("pointermove", follow/.test(mc) &&
     /window\.addEventListener\("mousemove", follow/.test(mc) &&
@@ -1139,12 +978,10 @@ ok('★★★ 磁吸光标跟的是 pointermove(否则按住画线时光标不�
 })(),
   '用户:"这个笔在按下的时候这个磁吸光标不会跟着移动啊……不能跟随问题有点大"');
 
-/* ---------- ⑪ 磁力光标:HUD 里的元素也要认(第五轮反馈 4/5) ---------- */
 const mcJs = fs.readFileSync(`${BH}/assets/js/magnetic-cursor.js`, 'utf8');
 ok('★ 大目标的外扩还是 10px 封顶(别把卡片之类的框也缩小了)',
   /Math\.min\(PAD,/.test(mcJs) && /var PAD = 10;/.test(mcJs));
 
-/* ---------- ⑦b 第七轮:接口 + 磁力光标 + 笔色 ---------- */
 ok('★★★ LOGO 是三个接口变量(size / x / y),而且是 span:不跳转、不吸附', (() => {
   const size = /--hud-logo-size:\s*clamp\((\d+)px,\s*([\d.]+)vw,\s*(\d+)px\)/.exec(css);
   return !!size && Number(size[1]) >= 16 && Number(size[3]) >= 32 &&
@@ -1188,7 +1025,6 @@ ok('★★★ 画布的 CSS 盒子与后备缓冲必须是同一个盒子(滚动
   return /document\.documentElement\.clientWidth \|\| window\.innerWidth/.test(mc) &&
     !/var w = window\.innerWidth/.test(mc);
 })(), '★ 用 innerWidth 会把滚动条算进去(比 CSS 的 100% 宽)⇒ 画布被横向拉伸 ⇒ 离原点越远偏得越多');
-/* ---------- 出结果 ---------- */
 let pass = 0;
 for (const [p, n, i] of rows) { if (p) pass++; console.log('  ' + (p ? '✓' : '✗') + ' ' + n + (i ? '   [' + i + ']' : '')); }
 console.log('\n' + pass + '/' + rows.length + ' 通过');

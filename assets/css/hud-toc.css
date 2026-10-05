@@ -1,41 +1,13 @@
-/* ============================================================
-   侧边目录(TOC)—— 用户:"加一个侧边目录,就放在内容页和侧边栏的中间"
-   ─────────────────────────────────────────────────────────────
-   ★★★ 位置不能靠百分比猜(第一版就是这么错的):
-     正文是 --main-width: 720px 【居中】的,它的右缘在视口里的百分比
-     随窗口宽度变:
-        1920 宽 ⇒ 正文右缘 x=68.7%;  1416 宽 ⇒ x=70.4%
-     而竖栏永远是右边 5vw ⇒ 两者之间的空隙【只有 12~16%,而且是移动的】。
-     我第一版把面板左缘写死在 73%,在 1416 的窗口上就压到正文上去了
-     (用户截图:目录盖住了代码块)。
-   ⇒ 现在改成【量出来】:hud-toc.js 在启动和 resize 时读
-       · 正文容器 main.main 的右缘
-       · 竖栏(.hud-nav)的左缘
-     然后写四个变量:--hud-toc-cx(正文右缘)、--hud-toc-lane(进度条 x)、
-     --hud-toc-x(面板左缘)、--hud-toc-panel-w(面板宽 = 一直撑到竖栏左边)。
-     下面这些 clamp 只是【JS 没跑起来时的兜底】。
-   ★ 窄屏按空间判断:算出来的宽度不够就整块不显示(见 JS 里的 MIN_W)。
-   ============================================================ */
 
 .hud-toc {
-    /* ★ JS 会用 px 覆盖这四个(降级值也是 px)。
-       为什么不用百分比:百分比是按【父容器(#page-hud,=视口宽)】解析的,
-       而"面板左缘"要用它减"进度条 x",两个百分比相减的时候浏览器
-       不是按像素换算的 —— calc(73.294% - 74.353%) 会算出 +13px 这种鬼东西,
-       于是面板又往右多挪一截、压住导航。px 就没有这个问题。 */
     --hud-toc-cx: 70vw;
     --hud-toc-lane: calc(70vw + 12px);
     --hud-toc-x: calc(70vw + 30px);
     --hud-toc-panel-w: 160px;
-    /* 竖向三段:面板高(--hud-toc-panel-h)、圆按钮、上下留白 —— 加起来 = 盒子高。
-       这些数都由 JS 写(用户第三轮:"怎么这个卡片没有居中对齐?":原因是面板和
-       进度条各用一个百分比,谁也没对齐谁;第四轮又加了那枚回到顶部)。 */
     --hud-toc-y: 18%;
     --hud-toc-panel-h: 440px;
     --hud-toc-h: 505px;
 
-    /* 目录自己的字号/字距:用户挑好的那组(第四轮:"字号16,字间距4我觉得很好看")
-       ⇒ 固定,不再跟着按钮变 —— 按钮现在调的是【正文】。 */
     --toc-fs: calc(16px * var(--hud-s, 1));
     --toc-ls: 0.04em;
 
@@ -52,21 +24,11 @@
     height: var(--hud-toc-h);
     display: flex;
     align-items: center;
-    pointer-events: none;                /* 只有控件自己开 auto(和整层一个规矩) */
+    pointer-events: none;
     font-family: var(--hud-font);
     color: var(--hud-toc-ink);
 }
 
-/* ---------------- 进度条 ----------------
-   外面这层 .hud-toc__lane 铺满整个 .hud-toc(和面板同高、同心),
-   竖线在里面垂直居中、高度 = 面板高(--hud-toc-h)。
-   ★★ 上一版这里被我自己改坏了(用户第四轮:"进度条怎么被修没了,只剩一个移动点"):
-      .hud-toc__prog 写了 height: var(--hud-toc-h) 但它是 __lane 的 flex 子项,
-      flex 默认 align-items:stretch 会把它拉满整条 lane(505px → 986px);
-      而我的修复又把 __lane 设成了 align-items:center —— 结果它的高度变成
-      "内容高度":里面只有一个绝对定位的光点 ⇒ 高度 0 ⇒ 槽线整条消失。
-      ⇒ 现在让 __lane 自己 stretch(拉满),__prog 用 align-self:center +
-        显式 height: var(--hud-toc-h):槽线有了确定的高度,不再依赖内容。 */
 .hud-toc__lane {
     position: absolute;
     left: calc(var(--hud-toc-lane) - var(--hud-toc-x));
@@ -80,18 +42,17 @@
 
 .hud-toc__prog {
     position: relative;
-    align-self: center;                 /* ★ 有了它才有确定高度 */
+    align-self: center;
     flex: 0 0 auto;
     width: 2px;
     transform: translateY(-22px);       /* 和面板同心(回到顶部那枚占了下方 44px,见 JS 的 TOP_H)
                                            —— 这 22px = (TOP_H + TOP_GAP) / 2 */
-    height: var(--hud-toc-panel-h);     /* ★ 和面板等高 —— 这就是"对齐" */
+    height: var(--hud-toc-panel-h);
     border-radius: 2px;
     background: var(--hud-toc-line);
     pointer-events: none;
 }
 
-/* 已经读过的部分:从顶部长下来 */
 .hud-toc__prog::before {
     content: "";
     position: absolute;
@@ -103,7 +64,6 @@
     background: linear-gradient(to bottom, rgba(234, 243, 255, 0.1), var(--hud-toc-cyan));
 }
 
-/* 跟着滚动走的光点 */
 .hud-toc__prog-thumb {
     position: absolute;
     left: 50%;
@@ -116,9 +76,6 @@
     box-shadow: 0 0 8px 2px color-mix(in srgb, var(--hud-toc-cyan) 70%, transparent);
 }
 
-/* ---------------- 面板(收起页签留给导航栏用,这里不再放)----------------
-   ★ 竖向排:面板在上、「回到顶部」在下(用户第四轮:"这个按钮给他放到
-     目录页下面靠内容页的地方吧")。整盒在 .hud-toc 里垂直居中。 */
 .hud-toc__box {
     position: absolute;
     left: calc(var(--hud-toc-lane) - var(--hud-toc-x) + 18px);
@@ -133,7 +90,6 @@
     pointer-events: auto;
 }
 
-/* 回到顶部:圆形,和主题原来那枚一个手感(线色/玻璃底/悬浮变青) */
 .hud-toc__top {
     flex: 0 0 auto;
     width: calc(34px * var(--hud-s, 1));
@@ -149,7 +105,7 @@
     color: var(--hud-toc-ink);
     cursor: pointer;
     opacity: 0;
-    pointer-events: none;               /* 还没滚动时和主题那枚一样"不出现" */
+    pointer-events: none;
     transition: opacity 0.2s ease, border-color 0.16s ease, background-color 0.16s ease, color 0.16s ease;
 }
 
@@ -171,28 +127,21 @@
     display: block;
 }
 
-/* ★★ 把主题自带的那枚 fixed 圆按钮"废掉"(只废功能与视觉,元素留着):
-   用户第四轮说它原来在左下角、现在挪到目录下面 ⇒ 一块地方不能有两个回到顶部。
-   ★ 不能用 display:none —— 主题的 footer.html 里有一段脚本每帧 toggle 它的
-     .hidden 类;我们这边是靠【同步那个类】决定自己那枚的显隐的,
-     元素一旦不参与布局,类照样在,但"看不见"和"不显示"就混在一起了。
-     用 opacity + pointer-events 更干净:它还在、类还在,只是既不显示也不挡点击。 */
 :root[data-theme].shell-page .top-link {
     opacity: 0 !important;
     pointer-events: none !important;
 }
 
 .hud-toc__panel {
-    position: relative;              /* 装饰层的定位基准 */
+    position: relative;
     width: var(--hud-toc-panel-w);
     flex: 0 0 auto;
-    height: var(--hud-toc-panel-h);  /* ★ 面板自己的高(盒子高 = 它 + 回到顶部那枚) */
+    height: var(--hud-toc-panel-h);
     display: flex;
     flex-direction: column;
     overflow: hidden;
     border: 1px solid var(--hud-toc-line);
     border-radius: 7px;
-    /* ★ 比第一版更透一点:面板变宽了,再那么实就把背景星云糊住了 */
     background:
         linear-gradient(180deg, rgba(234, 243, 255, 0.045), rgba(234, 243, 255, 0) 42%),
         rgba(8, 12, 22, 0.72);
@@ -200,7 +149,6 @@
     transition: border-color 0.2s ease;
 }
 
-/* 装饰:四角直角括号(和右下角那排笔的方框同一套美术) */
 .hud-toc__deco {
     position: absolute;
     inset: 5px;
@@ -215,15 +163,11 @@
     opacity: 0.5;
 }
 
-/* 左上 / 右上 / 左下 / 右下:每个只留两条边 */
 .hud-toc__deco i:nth-child(1) { left: 0; top: 0; border-right: 0; border-bottom: 0; }
 .hud-toc__deco i:nth-child(2) { right: 0; top: 0; border-left: 0; border-bottom: 0; }
 .hud-toc__deco i:nth-child(3) { left: 0; bottom: 0; border-right: 0; border-top: 0; }
 .hud-toc__deco i:nth-child(4) { right: 0; bottom: 0; border-left: 0; border-top: 0; }
 
-/* ★★★ 用户的第四条:"这个右滑的收起页我其实本意是想给导航栏的,
-   收起导航栏可以让用户更专注" ⇒ 目录这一页签【停用】。
-   标记和样式都留着(只在 hidden 时不吃空间),等导航栏那版做的时候一起用。 */
 .hud-toc__toggle {
     display: none;
     flex: 0 0 auto;
@@ -265,7 +209,7 @@
 }
 
 .hud-toc__title {
-    font-family: "Pixel CN", var(--hud-font);   /* 手绘图上"目录"就是像素字 */
+    font-family: "Pixel CN", var(--hud-font);
     font-size: calc(21px * var(--hud-s, 1));
     letter-spacing: 0.08em;
     white-space: nowrap;
@@ -278,7 +222,6 @@
     text-transform: uppercase;
 }
 
-/* 条目列表:自己滚,滚动条藏起来 */
 .hud-toc__list {
     flex: 1 1 auto;
     min-height: 0;
@@ -313,34 +256,15 @@
     background: rgba(234, 243, 255, 0.06);
 }
 
-/* 当前小节:青色左边条 + 一层很淡的底(用户第三轮要的"装饰"之一) */
 .hud-toc__item.is-current {
     border-left-color: var(--hud-toc-cyan);
     color: #ffffff;
     background: linear-gradient(90deg, color-mix(in srgb, var(--hud-toc-cyan) 16%, transparent), transparent 72%);
 }
 
-/* ---------------- 字号 / 字距(面板左下角那组小方块)----------------
-   ★★ 用户第五轮:"你把字号字距改成了一个正文,导致现在是一个配文四个按钮,
-      不知道具体哪个是哪个。" ⇒ 从"一个标签 + 四个按钮"改成【两行】:
-          字号  [−][+]  17px
-          字距  [−][+]  0
-      每行三列(标签 / 两个按钮 / 读数)。用 grid 而不是 flex 的原因:
-      flex 里读数用 margin-left:auto 会被推到"整行最右",两行的读数就对不齐;
-      grid 的第二列固定 50px,两行的按钮和读数天然成列。 */
 .hud-toc__size {
     flex: 0 0 auto;
     display: grid;
-    /* ★★★ 每行【四】格:标签 / 减 / 加 / 读数。
-       这里原来写的是 `26px auto auto` —— 三列。可这一组一共 8 个子元素
-       (2 个标签 + 4 个按钮 + 2 个读数),三列会排成五行:
-           字号 / − + / 字距 / 17px − / + 0
-       (CDP 拿 getBoundingClientRect 按 y 分组量过,就是这样。)
-       用户:"右侧目录栏那两个按钮组件排布不对" —— 就是这个。
-       ⇒ 列数必须等于"每行的元素数"= 4。
-       ★ 后三列都不能定宽:第二、三列是按钮(auto),第四列是读数(auto)。
-         读数那列曾经写死过 50px,结果 "0.003"(≈52px)放不下,
-         浏览器【按字符】折行,屏幕上是一列竖着的 "0 . 0 0 3"(1416 窗口实测)。 */
     grid-template-columns: 26px auto auto auto;
     align-items: center;
     justify-content: start;
@@ -349,7 +273,7 @@
     border-top: 1px solid var(--hud-toc-line);
     font-size: calc(13px * var(--hud-s, 1));
     white-space: nowrap;
-    overflow: hidden;              /* 面板窄的时候宁可裁掉读数,也不让按钮挤出去 */
+    overflow: hidden;
 }
 
 .hud-toc__size-lab {
@@ -358,9 +282,6 @@
     white-space: nowrap;
 }
 
-/* ★ 用户第三条:"下面那个字号字距的按钮也是,因为整体小看着太小了" ⇒ 放大。
-   ★ 两行各 20px 之后整块高 67px(原来一行 42px);面板本身是 flex 列、
-     列表 flex:1 1 auto,所以多出来的 25px 全部从列表里扣,面板总高不变。 */
 .hud-toc__step {
     width: calc(20px * var(--hud-s, 1));
     height: calc(20px * var(--hud-s, 1));
@@ -385,10 +306,6 @@
 }
 
 .hud-toc__size-val {
-    /* 每行自己的读数:紧跟在自己那两个按钮后面,宽度按内容(auto 列)。
-       ★ 不加 text-overflow/overflow:hidden —— 上一版给定宽 50px + 省略号,
-         既会折行又会把 "0.003" 截成 "0.0…",两头都不讨好;
-         现在宁可让整行去顶 .hud-toc__size 的 overflow(面板窄时裁右边)。 */
     color: rgba(234, 243, 255, 0.62);
     font-size: calc(12px * var(--hud-s, 1));
     letter-spacing: 0.02em;
@@ -396,7 +313,6 @@
     white-space: nowrap;
 }
 
-/* ---------------- 空间不够就整块收掉(JS 会按实际空隙加 .is-tight)---------------- */
 .hud-toc.is-tight {
     display: none;
 }

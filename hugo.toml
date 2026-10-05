@@ -8,7 +8,10 @@ buildFuture = false
 buildExpired = false
 enableEmoji = true
 pygmentsUseClasses = true
-mainsections = ["posts", "tech"]
+# ★ 2026-10:posts 分区改名 study(用户:"加一个页面,命名学习,
+#   放学习+生活相关的内容,内容对应现在 posts 文件夹下的文章")。
+#   文章原样搬进 content/study/,URL 从 /posts/<slug>/ 变成 /study/<slug>/。
+mainsections = ["study", "tech"]
 paginate = 10
 # ★ 构建标记(见 layouts/partials/extend_head.html):要读 git 元数据才算得出提交号。
 #   CI 里 actions/checkout 带 fetch-depth: 0,所以 .GitInfo 拿得到。
@@ -588,6 +591,16 @@ enableGitInfo = true
   [markup.goldmark]
     [markup.goldmark.renderer]
       unsafe = true
+    # ★ 2026-10:飞书导出的文章里是 $...$ / $$...$$ 的 LaTeX 公式。
+    #   没有 passthrough 时 goldmark 会把 $x^2$ 当正文渲染,再被 markdown
+    #   转义加工,KaTeX 拿到的是残渣认不出来。
+    #   passthrough 让 $…$ / $$…$$ 原样透传,再由 KaTeX 在浏览器里渲染
+    #   (见 layouts/partials/extend_head.html 的 math 段)。
+    [markup.goldmark.extensions.passthrough]
+      enable = true
+      [markup.goldmark.extensions.passthrough.delimiters]
+        inline = [['$', '$'], ['\(', '\)']]
+        block = [['$$', '$$'], ['\[', '\]']]
   [markup.highlight]
     noClasses = false
     codeFences = true
@@ -600,9 +613,21 @@ enableGitInfo = true
   name = "主页"
   # ★ 这一项原来指 "/"。现在 "/" 是启动页(会跳到 /start/),仿真屏幕搬到了 /home/:
   #   平板主界面上那枚"主页"图标如果还指 "/",点一下就被弹去启动页 —— 那叫死循环。
+  # ★★ 2026-10(用户:"把首页往上移动一个按钮的位置,把新按钮塞进原来首页的位置"):
+  #   「学习」占了 weight 10(原主页的位置),主页上移到 weight 5 ——
+  #   HUD 竖栏/平板 APP 都按 weight 排,两处自动跟着变,不用改模板。
   url = "/home/"
-  weight = 10
+  weight = 5
   pre = '<svg class="menu-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>'
+
+[[menu.main]]
+  # ★★ 2026-10 新增(用户):"再加一个页面,命名学习,放学习+生活相关的内容,
+  #   内容对应现在 posts 文件夹下的文章" —— posts 分区已整体改名 study。
+  identifier = "study"
+  name = "学习"
+  url = "/study/"
+  weight = 10
+  pre = '<svg class="menu-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/></svg>'
 
 [[menu.main]]
   identifier = "tech"

@@ -1,27 +1,5 @@
-/* ============================================================
-   每张 CD 对应的"主页内容"页(在显示器屏幕上显示的那一页)
-   ─────────────────────────────────────────────────────────────
-   已经实现:
-     第一张 自我  → Emoji 拼贴自我介绍 .self(逻辑见 page-self.js)
-     第二张 成长  → 科幻风太阳系行星图 + HUD 标签(.solar)
-     第三张 迷茫  → 网页版几何冲刺关卡(.lost,引擎在 gd-web/)
-     第四张 技术  → 故障光盘的紧急恢复终端(.term)
-   规划中:
-     第五张 未来  → 待定(还没有 decks.future,目前落在面板的留白样式上)
-   尺寸/节奏等可调项都写在各自那一段开头的变量里。
-   ============================================================ */
 
-/* 有自定义内容的页面:去掉面板本来的居中内边距,内容用与开机动画同一块「可视窗」。
-   --page-top / --page-x / --page-b 就是那块窗的内边距。
-   ★ 导航栏是浮在上面的覆盖层,内容【不给它让位】——
-     所以展开/收起导航时画面一点都不动(之前展开导航会往下缩)*/
 .intro-panel.is-page {
-    /* ★★★ 用户:"我说了别碰比例,不然内容全被边框挡住了"。
-       上一版我把这里改成了 --page-top: 0(想让页面铺满整块屏幕)——
-       错了:这一条就是"内容待在窗框里"的那道内缩,去掉之后五个盘页的内容
-       全顶到边框底下、被金属框挡住。内容的一圈让位是【比例的一部分】,
-       和"去掉裁切"不是一回事(裁切指的是 clip-path 那种按轮廓切形状)。
-       ⇒ 恢复原值:--page-top 仍然取屏幕内边距(--sp-t),页面内容照旧待在窗框里。 */
     --page-top: var(--sp-t, 13vh);
     padding: 0;
     display: block;
@@ -29,19 +7,7 @@
     align-items: stretch;
 }
 
-/* 导航收起/展开都不影响内容位置 → 这条规则不再需要 */
 
-/* ============================================================
-   第一张:Emoji 拼贴自我介绍(.self)
-   ─────────────────────────────────────────────────────────────
-   这一页只有四块东西:
-     1) 飘浮区 .self-field —— 九个 emoji 像星星一样慢慢浮动(每个代表一个特质)
-     2) 脸     .self-facebox —— 一张【没有五官的灰脸】,贴一个改一点
-     3) 字幕   .self-say —— 每贴一个就蹦出一句话,一句句累积
-     4) 身份证 .self-card —— 九个贴满之后,汇总出一段自我介绍
-
-   配色 / 尺寸 / 节奏全部是下面这几支变量,想调只动这里:
-   ============================================================ */
 .self {
     --self-ink: #e8f1ff;
     --self-dim: rgba(220, 235, 255, .62);
@@ -50,13 +16,9 @@
     --self-accent: #8fe6ff;
     --self-accent2: #ffcf5c;
 
-    /* ---------- 这张脸的两种状态 ----------
-       空白脸 = 还没画完的 emoji:底色很淡、只有虚线轮廓、没有五官
-       贴满脸 = 正经的黄豆 emoji:满饱和的黄 + 一点体积感 + 深色描边 */
     --self-skin-empty: rgba(255, 205, 70, .16);
     --self-skin-empty-edge: rgba(255, 213, 90, .38);
     --self-skin: #ffcc4d;
-    /* ↑ 就是 emoji 的那个黄 */
     --self-skin-edge: #c98a1e;
 
     --self-face-d: clamp(250px, 56vmin, 430px);
@@ -67,11 +29,9 @@
     user-select: none;
     -webkit-user-select: none;
     -webkit-tap-highlight-color: transparent;
-    /* 飘浮区里那些 emoji 是可以点的,所以这里不能吃掉指针 */
     touch-action: pan-y;
 }
 
-/* 没"起来"之前整页是隐的 —— 开机动画(emoji 掉出屏幕)还没放完,空脸不能先露出来 */
 .self>* {
     opacity: 0;
 }
@@ -85,14 +45,10 @@
     transition: opacity .9s ease;
 }
 
-/* 拖拽进行中:光标统一成"抓着" */
 .self.is-drag {
     cursor: grabbing;
 }
 
-/* ---------- 背景:一团从下往上打的辉光 ---------- */
-/* ★ 颜色抽成变量,因为浅色模式下这几个"加一点暖/冷"的辉光会**完全看不见**
-   (浅色底上再叠浅色 = 没有)。light 那套见文件末尾的覆写块。 */
 .self {
     --self-glow-warm: rgba(255, 204, 77, .10);
     --self-glow-warm2: rgba(255, 207, 92, .06);
@@ -111,7 +67,6 @@
         radial-gradient(50% 36% at 50% 100%, var(--self-glow-cool2), transparent 72%);
 }
 
-/* ---------- 背景装饰:星星 + 准星环 + 刻度(由 JS 按面板尺寸现画) ---------- */
 .self-deco {
     position: absolute;
     inset: 0;
@@ -121,11 +76,6 @@
     z-index: 2;
 }
 
-/* ★ 背景这些线用户说"不仔细看根本看不到",所以:
-     粗细 1 → 2(实线环甚至 2.6),透明度 .30 → .50 上下。
-     线太细在深色底 + 缩放下会被抗锯齿直接抹掉,加粗比提亮更有效。
-   ★ 颜色抽成变量:浅色底上"浅青"是看不见的,得换成中蓝。
-     这不是调透明度能解决的(浅青再怎么加深,也只是灰)。 */
 .self {
     --self-deco-line: rgba(160, 220, 255, .50);
     --self-deco-tick: rgba(160, 220, 255, .42);
@@ -152,7 +102,6 @@
     stroke-width: 2;
 }
 
-/* 准星环:慢慢转(反向那层慢一点,两层不会同步得像一个整体在转)*/
 .self-deco .deco-ring {
     transform-origin: center;
     animation: self-spin var(--spin, 60s) linear infinite;
@@ -177,14 +126,11 @@
     stroke-width: 1.8;
 }
 
-/* 星星:一亮一暗地呼吸(每颗的周期与相位都不同,所以不会整片一起闪)*/
 .self-deco .deco-star {
     stroke: var(--self-deco-star);
     animation: self-twinkle var(--tw, 3s) ease-in-out var(--tw-d, 0s) infinite;
 }
 
-/* 星星中心那一点柔光:★ 必须显式给 fill —— 上面那条通用规则把
-   .self-deco circle 的 fill 设成了 none,不覆盖的话中心点是空的。 */
 .self-deco .deco-star__core {
     fill: var(--self-deco-core);
     stroke: none;
@@ -204,11 +150,6 @@
     }
 }
 
-/* ---------- 扫描:一条上下来回的亮线 + 余辉 ----------
-   ★ 这里本来还有个"矩形取景框"(上下两条横边 + 四角括号),用户看了说去掉 ——
-     屏幕外面已经有显示器的硬边框了,再套一个方框既重复又抢戏。
-     现在只有线:扫描这件事靠"线在动"自己成立,不必把框画出来。
-   线贴着容器的【下沿】走,所以容器的位置就是"此刻扫到哪"。 */
 .self-scan {
     position: absolute;
     left: 0;
@@ -220,21 +161,16 @@
     animation: self-sweep 16s cubic-bezier(.45, .05, .55, .95) infinite;
 }
 
-/* 扫描线:接近纯白 + 外发光,扫过时看得清 */
 .self-scan__line {
     position: absolute;
     left: 0;
     right: 0;
     bottom: -1px;
-    /* 用户 4th 反馈:"要保留的话能不能再细一点?移动也慢一点" ——
-       2px → 1px,动画 9s → 16s,余辉 46px → 30px 且更淡。
-       细线靠外发光撑住"看得见",而不是靠本身粗。 */
     height: 1px;
     background: linear-gradient(to right, transparent, var(--self-scan-a) 12%, var(--self-scan-b) 50%, var(--self-scan-a) 88%, transparent);
     box-shadow: 0 0 10px var(--self-scan-glow), 0 0 26px var(--self-scan-glow2);
 }
 
-/* 余辉:从扫描线往上拖一条越来越淡的尾巴(给出"往下扫"的方向感)*/
 .self-scan__line::after {
     content: "";
     position: absolute;
@@ -245,8 +181,6 @@
     background: linear-gradient(to top, var(--self-scan-tail), transparent);
 }
 
-/* 扫下去、停一下、再回来 —— 一直匀速扫会显得很机械。
-   高度是 0,所以位移用容器高度的百分比算不出来,改用视口单位: */
 @keyframes self-sweep {
 
     0% {
@@ -281,7 +215,6 @@
     mix-blend-mode: overlay;
 }
 
-/* ---------- 左上角:计数 + 一句话指令 ---------- */
 .self-head {
     position: absolute;
     left: 0;
@@ -302,9 +235,6 @@
     text-shadow: 0 0 22px rgba(143, 230, 255, .28);
 }
 
-/* ★ 这行小字以前用 letter-spacing .40em,而它继承的 line-height 只有 1.1 ——
-   于是字被行盒裁掉了下半截(截图里"PIECES"就是缺一块的)。
-   行高单独放大,顺便把字距收一点。 */
 .self-kicker::after {
     content: "PIECES";
     display: block;
@@ -324,21 +254,10 @@
     color: var(--self-ink);
 }
 
-/* ============================================================
-   飘浮区:九个 emoji
-   ------------------------------------------------------------
-   位置完全由 JS 写进 --x / --y(单位 px),这里只负责:
-     · 把每个 emoji 摆到那个点上(translate + 一条很慢的浮动动画)
-     · 贴上去之后改成 position:fixed,沿 --fly-x/--fly-y 飞到落点并缩到 --tu
-   ★ 为什么飞这一下要单独抽一层 .is-flying:
-     浮动动画用的是 transform,飞行动画也用 transform —— 两者不能同时跑,
-     所以起飞时先把浮动动画关掉,落地后再关掉飞行。
-   ============================================================ */
 .self-field {
     position: absolute;
     inset: 0;
     z-index: 4;
-    /* 只有 emoji 本身能点,空白处要能穿透过去(否则整块面板都被它挡住)*/
     pointer-events: none;
 }
 
@@ -370,7 +289,6 @@
     font-size: clamp(26px, 3.8vmin, 42px);
     line-height: 1;
     filter: drop-shadow(0 4px 12px rgba(0, 0, 0, .5));
-    /* emoji 一律走彩色字形(和 custom.css 里那条一致)*/
     font-variant-emoji: emoji;
 }
 
@@ -379,7 +297,6 @@
     filter: drop-shadow(0 0 14px rgba(143, 230, 255, .8)) drop-shadow(0 4px 12px rgba(0, 0, 0, .5));
 }
 
-/* 键盘走到哪个 emoji,就给它一圈光(鼠标用户看不到,不影响画面) */
 .self-pod:focus-visible {
     outline: 2px solid var(--self-accent);
     outline-offset: 2px;
@@ -399,9 +316,6 @@
     }
 }
 
-/* ---------- 贴上去的那一刻 ----------
-   抬起:放大 + 拉亮
-   飞行:沿 --fly-x/--fly-y 平移,并把尺寸压到 1 个 viewBox 单位的 --tu 倍 */
 .self-pod.is-placed {
     position: fixed;
     left: 0;
@@ -409,7 +323,6 @@
     width: calc(var(--hit, 110px) / var(--tu, 1));
     height: calc(var(--hit, 110px) / var(--tu, 1));
     margin: -54px 0 0 -54px;
-    /* ↑ margin 用的是"屏幕上的半径",所以不乘 tu;真正的定位在 --tx/--ty 上 */
     transform: translate3d(var(--x, 0), var(--y, 0), 0) scale(1.5);
     animation: none;
     z-index: 40;
@@ -420,23 +333,19 @@
 
 .self-pod.is-flying {
     transition: transform .46s cubic-bezier(.22, .9, .24, 1);
-    /* ↑ 时长与 page-self.js 的 FLY_MS 必须一致 */
     transform: translate3d(calc(var(--x, 0px) + var(--fly-x, 0px)),
             calc(var(--y, 0px) + var(--fly-y, 0px)), 0) scale(var(--tu, 1)) rotate(var(--tr, 0deg));
 }
 
 .self-pod.is-flown {
     transform: translate3d(var(--tx, 160px), var(--ty, 150px), 0) scale(var(--tu, 1)) rotate(var(--tr, 0deg));
-    /* 落座后归到脸的层级下面一点,别把眼镜/耳机压住 */
     z-index: 12;
 }
 
-/* 拿下来的瞬间先淡掉,再恢复成飘浮的样子 */
 .self-pod.is-placed:not(.is-flying):not(.is-flown) {
     opacity: 0;
 }
 
-/* ---------- 拖拽时跟着指针的那个"影子"(拖到脸上会变亮)*/
 .self-shot {
     position: fixed;
     left: 0;
@@ -455,25 +364,6 @@
     filter: drop-shadow(0 0 18px rgba(143, 230, 255, .95));
 }
 
-/* ============================================================
-   脸(靠左)
-   ------------------------------------------------------------
-   ★★ 这一块只有一条规矩,但它被违反过【三次】,所以说清楚:
-      【脸整块对指针必须完全透明 —— stage 和 facebox 都不能接指针。】
-
-      为什么必须这样:脸是【画在 emoji 上面】的(它在 DOM 里靠后,z-index 也更高)。
-      只要 facebox 接了指针,任何落在脸的方框里的 emoji,pointerdown 全被脸接走,
-      于是那个 emoji "点不动、拖不动" —— 用户实测报了两轮就是这个。
-      前两次我都在"缩小拦截区"上打转(inset:0 → 脸的方框 → clip-path 圆),
-      那都是治标:脸一放大,又有点不到的 emoji。
-
-      真正的做法是【彻底不让脸碰事件】:
-        · stage / facebox 都是 pointer-events: none;
-        · 事件由 .self-field 统一收(field 不是脸的父节点,脸盖不住它);
-        · "点在脸上还是点在外头"由 JS 自己算距离(见 page-self.js 的 onFace),
-          不依赖 DOM 命中测试 —— 所以脸挡没挡住,对判定毫无影响。
-      脸的显示、变形、高亮全是 class + CSS,一个都不需要指针。
-   ============================================================ */
 .self-stage {
     position: absolute;
     left: 0;
@@ -491,28 +381,11 @@
 .self-facebox {
     position: relative;
     width: var(--self-face-d);
-    /* 贴上去的 emoji 是 position:fixed 定位到屏幕坐标的,会盖在这一层上面 ——
-       所以这里不开 3D 变换,免得给 fixed 子元素造出新的包含块 */
     transition: transform .35s cubic-bezier(.2, .8, .3, 1);
     transform: scale(calc(1 + var(--deform, 0) * .06)) translateY(calc(var(--deform, 0) * -6px));
-    /* ↑ 贴得越多,脸越大、越往上抬一点(贴满时最夸张)*/
-    /* ★★ 不做命中区 —— 脸对指针完全透明。理由见上面那一段注释。
-       贴上去的 emoji 比脸靠前(z-index 40/12 对 8),所以"点它拿下来"照样好使。 */
     pointer-events: none;
 }
 
-/* ---------- 剪影遮罩:按状态整条切换 ----------
-   clip-path 没法局部改,只能整条替换,所以三条遮罩各管一个状态:
-     selfTrim      — 默认:什么都不收
-     selfTrimMelt  — 融化:收圆底 + 把三滴水滴挖回来
-     selfTrimClear — 鬼:收圆底 + 把裙摆挖回来
-   ★ 这里栽过一轮:早先只有一条遮罩、黑区写死在 y=268,
-     于是【默认状态下脸的下半 30 个单位就被削掉了】——
-     界面不会报错,只是"到处都不对"。
-   ★★ 默认那条【必须显式写出来】:模板上的 clip-path 属性是 url(#selfTrim),
-      但 CSS 的 clip-path 会盖过它 —— 只写 is-melt / is-clear 两条的话,
-      默认状态到底用哪条就"没定义",出问题时也说不清是谁在生效。
-      显式写死默认值,三条状态各自明确。 */
 .self-facebox .self-trim-group {
     clip-path: url(#selfTrim);
 }
@@ -532,7 +405,6 @@
     overflow: visible;
 }
 
-/* 落影 */
 .self-shadow {
     fill: var(--self-shadow-fill);
     transition: opacity .5s ease;
@@ -542,9 +414,6 @@
     opacity: .26;
 }
 
-/* ---------- 底座:一颗还没画完的黄豆 emoji ----------
-   空白状态刻意"半透明 + 虚线轮廓":看得出那是一张脸的位置,但明显还没长出来。
-   贴第一个特质之后虚线收掉、黄填满 —— 从"一张底稿"变成"一个 emoji"。 */
 .self-blob {
     fill: var(--self-skin-empty);
     stroke: var(--self-skin-empty-edge);
@@ -554,7 +423,6 @@
     animation: self-breathe 5.5s ease-in-out infinite;
 }
 
-/* 空白脸轻轻呼吸(只动一点点,别像在闪)*/
 @keyframes self-breathe {
 
     0%,
@@ -573,7 +441,6 @@
     pointer-events: none;
 }
 
-/* 有特质之后:黄填满、虚线收掉、呼吸停(它已经被"填"起来了)*/
 .self-facebox.is-tint .self-blob {
     fill: var(--self-skin);
     stroke: var(--self-skin-edge);
@@ -583,13 +450,11 @@
     opacity: 1;
 }
 
-/* 贴满:最夸张的状态 —— 更粗的边 + 外发光 */
 .self-facebox.is-done .self-blob {
     stroke-width: 5;
     filter: drop-shadow(0 0 26px rgba(255, 205, 90, .55));
 }
 
-/* ---------- 剪影遮罩:默认不挡任何东西 ---------- */
 
 .self-trim-bot {
     fill: #fff;
@@ -599,13 +464,11 @@
 
 
 
-/* 融化 / 半透明:把底座的下半边挡掉,交给各自那一坨接上 */
 .self-facebox.is-melt .self-trim-bot,
 .self-facebox.is-clear .self-trim-bot {
     fill: #000;
 }
 
-/* ---------- 一瞬间的高光(每次贴上都会闪一下)*/
 .self-flash {
     position: absolute;
     inset: -14%;
@@ -635,7 +498,6 @@
     }
 }
 
-/* 拖拽悬停在脸上:整张脸轻轻放大 + 描边变亮,告诉人"放这儿" */
 .self-facebox.is-hot {
     transform: scale(calc(1.06 + var(--deform, 0) * .06)) translateY(calc(var(--deform, 0) * -6px));
 }
@@ -645,7 +507,6 @@
     stroke-width: 3;
 }
 
-/* ---------- 台阶:贴满之后脸"站"上去的那三层 ---------- */
 .self-step {
     position: absolute;
     left: 50%;
@@ -687,12 +548,6 @@
     bottom: -7%;
 }
 
-/* ============================================================
-   脸的零件(每个特质一样)
-   ------------------------------------------------------------
-   默认 hidden(HTML 上就是 hidden 属性),JS 给 data-on 之后才出现。
-   出现的方式统一:缩放 + 淡入,带一点回弹(是"啪"一下扣上去的)。
-   ============================================================ */
 .self-face-part {
     opacity: 0;
     transform: scale(.5);
@@ -707,7 +562,6 @@
     transform: scale(1);
 }
 
-/* ---------- ☕ 咖啡杯:右下角端着的杯子 ---------- */
 .self-cup path:first-child {
     fill: #f3e6d2;
     stroke: #8a6a44;
@@ -744,7 +598,6 @@
     }
 }
 
-/* ---------- 💻 眼镜 ---------- */
 .self-glasses circle {
     fill: rgba(180, 228, 255, .16);
     stroke: #dfeeff;
@@ -758,7 +611,6 @@
     stroke-linecap: round;
 }
 
-/* ---------- 🎮 手柄 ---------- */
 .self-pad path:first-child {
     fill: #4b5568;
     stroke: #8f9db4;
@@ -776,7 +628,6 @@
     fill: #cfe0f5;
 }
 
-/* ---------- 🎧 耳机 ---------- */
 .self-cans__band {
     fill: none;
     stroke: url(#selfBand);
@@ -790,7 +641,6 @@
     stroke-width: 3;
 }
 
-/* ---------- 🌙 黑眼圈 ---------- */
 .self-bags path {
     fill: none;
     stroke: #6b4b8a;
@@ -799,14 +649,12 @@
     opacity: .8;
 }
 
-/* ---------- 🤡 红鼻子 ---------- */
 .self-nose {
     fill: #e8455f;
     stroke: #ffd0d8;
     stroke-width: 2;
 }
 
-/* ---------- 🔥 火苗 ---------- */
 .self-flame path {
     fill: #ff9a3c;
     stroke: #ffe08a;
@@ -831,7 +679,6 @@
     }
 }
 
-/* ---------- 🫠 融化:下半边淌下来 ---------- */
 .self-melt__drip {
     fill: var(--self-skin);
     stroke: var(--self-skin-edge);
@@ -889,22 +736,9 @@
     }
 }
 
-/* ---------- 👻 半透明:整张脸淡下去,轮廓化开成飘起来的裙摆 ---------- */
 .self-ghost-path {
-    /* ★ 默认【必须隐藏】。
-       这个形状为了和脸共享同一次透明度合成,搬进了 .self-skinfade ——
-       于是它脱离了 .self-face-part 那套"默认 opacity:0、有 [data-on] 才显示"的机制,
-       结果从 00/16(什么都没放)就挂在脸上(用户截图:"啥也没放就显示出来了")。
-       ★ 这里不再套一层 .self-face-part:那一层自带 opacity 过渡,
-         会把 .self-skinfade 的"一次合成"重新拆开,又回到"重叠处颜色相加"的老毛病。
-         用 CSS 按 is-clear 显隐最干净 —— 那个类本来就挂在 facebox 上。 */
     opacity: 0;
     visibility: hidden;
-    /* ★ 和脸同色、但【不描边】。
-       描边向外多占 1.5 个单位(stroke-width 3 的一半),而遮罩里那个白色形状
-       是按【填充轮廓】画的 —— 于是裙摆的可见部分比挖出来的区域高出 1.5 个单位,
-       接缝处露一条边、看着就是"位置不对"(用户实测)。
-       裙摆和脸是同一块材质的两半,接缝本来就不该有轮廓线。 */
     fill: var(--self-skin);
     stroke: none;
 }
@@ -914,17 +748,6 @@
     visibility: visible;
 }
 
-/* 鬼形态:把【脸 + 裙摆】当成一层来淡出。
-   ★ 关键是"只在这一层设一次 opacity":
-     如果分别给 blob 和裙摆各设 .58,重叠处会是 .58 + .58×.42 ≈ .82 —— 偏亮,
-     所以重叠位置一眼看得出(用户实测:"怎么重叠还会颜色相加")。
-     现在两者同在一个 <g> 里,组内先合成成一张不透明的图,再整体淡到 .58,
-     重叠区也就不可能偏亮。
-   ★ 顺带:那个 <g> 上有 clip-path,透明度设在【内层形状】上会被裁剪区限制,
-     所以这里直接对组内的形状统一施加(它们已经同组,合成一次)。 */
-/* ★ 只在这一层设透明度:组内(脸的底色 + 光泽 + 裙摆)先合成成一张不透明的图,
-   再整体淡到 .58。因此重叠处不可能偏亮 ——
-   如果改成给三个形状各设 .58,重叠区会变成 .58 + .58×.42 ≈ .82,一眼就看得出。 */
 .self-facebox.is-clear .self-skinfade {
     opacity: .58;
 }
@@ -947,7 +770,6 @@
     }
 }
 
-/* ---------- ✨ 星星眼:两只眼睛变成星星(在闪) ---------- */
 .self-stars path {
     fill: #fff3b0;
     stroke: #e8a72a;
@@ -977,7 +799,6 @@
     }
 }
 
-/* ---------- 😷 口罩:盖住下半张脸 ---------- */
 .self-mask path:not(.self-mask__strap):not(.self-mask__fold) {
     fill: #eef4fb;
     stroke: #9fb2c8;
@@ -997,15 +818,12 @@
     stroke-width: 3;
 }
 
-/* 中间那道最深的折痕:稍粗一点,让口罩有"折起来"的走向 */
 .self-mask__shot {
     fill: none;
     stroke: #a9bdd4;
     stroke-width: 4;
 }
 
-/* 上沿那道暗边:压住口罩的顶,做出厚度 ——
-   没有它,口罩就是一块贴上去的白纸(用户的反馈就是这个观感)。 */
 .self-mask__rim {
     fill: none;
     stroke: #8fa5bd;
@@ -1013,7 +831,6 @@
     stroke-linecap: round;
 }
 
-/* ---------- 👑 王冠 ---------- */
 .self-crown path:first-child {
     fill: #ffd24a;
     stroke: #b8860b;
@@ -1027,7 +844,6 @@
     stroke-width: 3;
 }
 
-/* ---------- 💤 补觉:头顶三个越来越大的 Z ---------- */
 .self-zzz path {
     fill: none;
     stroke: #cfe6ff;
@@ -1062,7 +878,6 @@
     }
 }
 
-/* ---------- 🎵 音符:耳机旁边飘出来的两个音 ---------- */
 .self-note path {
     fill: none;
     stroke: #cfe6ff;
@@ -1091,9 +906,7 @@
     }
 }
 
-/* ---------- 💗 腮红:两块软边红晕(颜色在 SVG 的 selfBlush 渐变里) ---------- */
 .self-blush ellipse {
-    /* 渐变本身带透明度,这里不再叠 opacity,免得红晕消失 */
     transform-box: fill-box;
     transform-origin: center center;
 }
@@ -1114,7 +927,6 @@
     }
 }
 
-/* ---------- 😪 睁不开眼:压下来的眼皮 + 一滴汗 ---------- */
 .self-heavy path:not(.self-heavy__drop) {
     fill: none;
     stroke: var(--self-skin-edge);
@@ -1148,15 +960,6 @@
     }
 }
 
-/* ============================================================
-   字幕:一句一句蹦出来(在【右侧】一列)
-   ------------------------------------------------------------
-   ★ 这里是用户第二版反馈改回来的:第一版就是"脸在左、字在右",
-     我上一版换成了压在左下角的横条,结果台词一多就越过面板底边被切掉,
-     而且脸也被挤到中间。现在回到右列 ——
-     并且用 top/bottom 双向定位 + max-height,保证【永远不越界】:
-       bottom 留出与左面板同样的内边距,内容超高就在这一列里自己滚。
-   ============================================================ */
 .self-say {
     position: absolute;
     right: 0;
@@ -1192,9 +995,6 @@
     gap: clamp(5px, .8vh, 9px);
 }
 
-/* 每一行台词 = 一个"撤回"按钮:点它就把对应的 emoji 从脸上拿下来。
-   ★ pointer-events 必须在这里打开 —— .self-say 整块是 none(否则右半屏
-     全被它吃掉),所以只能让【行】自己接指针。 */
 .self-say__line {
     display: flex;
     align-items: flex-start;
@@ -1208,13 +1008,10 @@
     margin: 0 -6px;
     padding: 1px 6px;
     transition: background .18s ease, opacity .3s ease;
-    /* 蹦出来:从下面弹一下 + 淡入 */
     animation: self-pop .42s cubic-bezier(.2, 1.4, .4, 1) both;
-    /* 逐条淡出:越旧越暗,把注意力一直压在最新那一句上 */
     transition: opacity .3s ease;
 }
 
-/* 倒数第 4 条之后开始变暗(纯 CSS,不用 JS 一条条算)*/
 .self-say__line:nth-last-child(n+5) {
     opacity: .38;
 }
@@ -1238,8 +1035,6 @@
     flex: 1 1 auto;
 }
 
-/* 行尾的 ×:只在悬停 / 键盘聚焦时明显起来 ——
-   平时它很淡(只是提示"这里能点"),不跟正文抢注意力。 */
 .self-say__undo {
     flex: 0 0 auto;
     width: 1.15em;
@@ -1289,9 +1084,6 @@
     }
 }
 
-/* ============================================================
-   收束:「自我 Emoji 身份证」
-   ============================================================ */
 .self-card {
     margin-top: clamp(10px, 1.6vh, 20px);
     padding: clamp(12px, 1.6vh, 18px) clamp(12px, 1.4vw, 20px);
@@ -1379,7 +1171,6 @@
     transform: translateY(-1px);
 }
 
-/* 窄屏 / 矮屏:台词列收窄、字小一点(脸自己也缩了,靠 clamp)*/
 @media (max-width: 1100px), (max-height: 620px) {
     .self-say {
         width: min(42%, 380px);
@@ -1402,90 +1193,53 @@
     }
 }
 
-/* ============================================================
-   ★★ 浅色模式(用户:"浅色模式下字体背景等看不见")
-   ─────────────────────────────────────────────────────────────
-   症状根因:这一段的调色板全是按深色底写的 ——
-     --self-ink 是近白 #e8f1ff ⇒ 浅色底上文字直接消失;
-     --self-glass 是 rgba(6,12,24,.58) ⇒ 卡片的深色玻璃在浅底上很突兀;
-     装饰线/星点/扫描线是浅青 ⇒ 在浅底上等于没有(浅青再怎么加深也只是灰)。
-   所以浅色模式不能靠"调透明度"救,得【换一套色】。
-
-   分两类处理,这条界线以后也要守住:
-     · 【美术色】不动 —— 咖啡杯、王冠、火苗、口罩、鼻子、星星眼、水滴、
-       手柄、耳罩……这些在中性底上都成立,浅色深色一样好看。
-     · 【UI 版面色】全部换 —— 文字、玻璃、分隔线、装饰线、扫描线、高光、台阶。
-   对比度都按 WCAG 算过(正文 ≥ 7:1,次要 ≥ 4.5:1,大字/装饰 ≥ 3:1)。
-   ============================================================ */
 :root[data-theme="light"] .self {
-    /* 文字:近黑,对比白底 15.7:1 */
     --self-ink: #10141c;
-    /* 次要文字:14.1:1 */
     --self-dim: rgba(16, 20, 28, .70);
-    /* 分隔线:浅底上要"看得见但别抢戏" */
     --self-line: rgba(16, 20, 28, .18);
-    /* 玻璃:★ 这一条最容易错。原来是深色玻璃(浅底上像一块黑板),
-       改成"白色半透明 + 一点模糊",和浅色页面融为一体 */
     --self-glass: rgba(255, 255, 255, .76);
 
-    /* 强调色:浅青 #8fe6ff 在白底上约 1.4:1(看不见)。
-       换成深青 —— 按钮文字用它能到 4.9:1 */
     --self-accent: #0b6b86;
-    /* 金色也要压深:原 #ffcf5c 在白底上 1.8:1,读不出来 */
     --self-accent2: #8a5a00;
 
-    /* 空白脸:白底上"淡黄 16%"是看不见的,加深到 .30 并配深一点的虚线 */
     --self-skin-empty: rgba(230, 170, 40, .30);
     --self-skin-empty-edge: rgba(120, 90, 20, .73);
 
-    /* 背景辉光:浅底上"再叠一层浅色"等于没有 ⇒ 换成很淡的暖/冷阴影 */
     --self-glow-warm: rgba(214, 162, 40, .16);
     --self-glow-warm2: rgba(214, 162, 40, .10);
     --self-glow-cool: rgba(40, 130, 190, .10);
     --self-glow-cool2: rgba(40, 130, 190, .07);
 
-    /* 装饰线:浅青 → 中蓝(白底约 4.5:1,看得见但不刺眼)*/
     --self-deco-line: rgba(40, 110, 160, .78);
     --self-deco-tick: rgba(40, 110, 160, .68);
     --self-deco-star: rgba(40, 110, 160, .82);
     --self-deco-core: rgba(20, 80, 130, .92);
 
-    /* 扫描线:白线在浅底上完全看不见 ⇒ 换成深蓝线 + 淡蓝光晕 */
     --self-scan-a: #1d6f93;
     --self-scan-b: #0d4d69;
     --self-scan-glow: rgba(29, 111, 147, .40);
     --self-scan-glow2: rgba(29, 111, 147, .18);
     --self-scan-tail: rgba(29, 111, 147, .16);
 
-    /* 贴合高光:白闪在白底上没有反差 ⇒ 改用一圈淡金 + 一点白 */
     --self-flash: rgba(255, 255, 255, .95);
     --self-flash2: rgba(214, 162, 40, .35);
-    /* 台阶:浅线换成深线 */
     --self-step: rgba(40, 110, 160, .45);
-    /* 台词行/按钮的高亮:浅青底 → 暖灰底(白底上看得出来)*/
     --self-hl: rgba(16, 20, 28, .06);
     --self-hl-hi: rgba(16, 20, 28, .12);
-    /* 落影:白底上纯黑 .5 太重,减到 .18 */
     --self-shadow-fill: rgba(0, 0, 0, .18);
 }
 
-/* 背景颗粒:深色下是"加亮",浅色下要反过来"加深",否则白底上完全无效 */
 :root[data-theme="light"] .self-noise {
     opacity: .04;
     background-image: repeating-linear-gradient(to bottom, rgba(0, 0, 0, .5) 0 1px, transparent 1px 3px);
     mix-blend-mode: multiply;
 }
 
-/* 玻璃卡片的投影:浅底上黑投影会显脏,改成很淡的一层 */
 :root[data-theme="light"] .self-card {
     box-shadow: 0 10px 30px rgba(16, 20, 28, .10);
 }
 
-/* 脸的描边:浅色底上深琥珀 #c98a1e 仍然成立(它就是靠对比读出来的),
-   但"空白脸"那条虚线的观感要在浅底上重新校准 —— 见上面的 --self-skin-empty-edge。 */
 
-/* 准星环/刻度/星星的透明度补偿:深色下靠"发光"读出来,浅色下靠"线条本身",
-   所以浅色下不需要压那么低 */
 :root[data-theme="light"] .self-deco .deco-ring {
     opacity: .85;
 }
@@ -1494,11 +1248,6 @@
     opacity: .6;
 }
 
-/* ============================================================
-   兜底:系统开了"减少动态效果"就把所有循环动画停掉
-   (静态的样子仍然是对的 —— 零件照样会出现在该在的位置)
-   ★ 这个 @media 放在这一段的最后,免得前面的规则把 animation:none 盖回去。
-   ============================================================ */
 @media (prefers-reduced-motion: reduce) {
 
     .self-pod,
@@ -1525,15 +1274,7 @@
 }
 
 
-/* ============================================================
-   脸下半部分的微调面板(?selftune / Alt+S)
-   ─────────────────────────────────────────────────────────────
-   和 .solar-tune 同一套观感,但这一块是给"裙摆/融化"用的 ——
-   位置错了不用改代码,拖滑条、复制参数即可。
-   ============================================================ */
 .self-tune {
-    /* ★ 放【左上】,不和第二张盘的太阳系微调面板(.solar-tune,右上)打架 ——
-       两块原来都在右上角,同时打开时会互相覆盖(用户实测)。 */
     position: fixed;
     left: 16px;
     top: 16px;
@@ -1626,92 +1367,23 @@
 }
 
 
-/* ============================================================
-   第五张:夜窗 · 极光 · 记忆碎片(.frost)
-   ─────────────────────────────────────────────────────────────
-   用户给的方案:你坐在温暖的室内,看一扇结满冰霜的窗。窗外是夜空、极光、慢雪;
-   鼠标靠近的地方霜被"暖"化、化成水滴下来,霜底下浮出半透明的记忆碎片;
-   点开一片飞到屏幕中央放大、显出文字;收下的碎片变成夜空里的星,
-   同主题的连成星座;全部收齐 → 中央浮出未来宣言,窗外亮起极光。
-
-   层次(从下到上,和 future.html 里的 DOM 顺序一致):
-     1) .frost-scene   夜空 → 极光 → 飘雪 → 地面
-     2) .frost-shards  霜底下的碎片(真 DOM 文本)
-     3) .frost-ice     霜(canvas:静态冰晶纹理 ∩ 覆霜场)
-     4) .frost-map     星图(★ 在霜上面 —— 收下的星要能穿透霜亮着)
-     5) .frost-frame   窗框 + 室内那点暖光
-     6) .frost-head / .frost-hint / .frost-count / .frost-read / .frost-finale
-
-   ★★ 配色只跟【面】有关,跟主题无关(踩过:第一版按 data-theme 配色,
-      浅色模式下屏幕底色一变白,"霜"直接消失)。这一页【故意没有】
-      :root[data-theme="light"] 覆写 —— 它永远是一扇【夜里的窗】。
-      要改观感就改下面这套变量,别加主题分支。
-   ★★ 画法:霜是【线段】画的(见 page-frost.js 的 buildFrost)。
-      上上版每个 7px 格子画一个方块,用户的原话是
-      "像素风格的整体美感好不到哪去,也不搭" —— 这一站的语汇是细线 / 辉光 / 矢量。
-   ============================================================ */
 .frost {
-    /* 窗外 */
-    --frost-night: #060a14;                  /* 夜空底色(极光是画在 canvas 上的)*/
-    /* 地面:落地窗下缘那片雪 —— ★★ 用户看过截图之后定的调子:
-       "地面太丑了,做成黑色的剪影。现在跟海面一样,而且把地面再往下放一点"。
-       ─────────────────────────────────────────────────────────────
-       ★ 为什么【不允许再出现横向亮带】(上一版就是那样,被读成了海面):
-         上亮下暗的【平滑】渐变 + 最上缘一条【亮】边 —— 这两样凑齐就是水面反射的读法:
-         远处亮 = 水面掠射反光,亮边 = 水天相接处那道反光,越往下越暗 = 水下的暗。
-         人的眼睛对"上亮下暗 + 一条亮边"这套组合的默认解释就是【水】,
-         所以哪怕画的明明是雪,它也会被看成一片发亮的水面。极光那条青绿铺在雪上,
-         又刚好是水面反光的颜色。想让它是【地】,就得把关系【反过来】:
-         靠地平线最暗、往下继续加深、整片压成夜色的剪影 —— 亮只允许出现在
-         最上缘那一两像素的冷光里(雪面被天光扫到的一点边),绝不允许再有一条
-         "中间最亮"的横带。要改观感只能改这里的值,别在下面重新堆一层亮渐变。
-       ★ 数值上的对得上:page-frost.js 的 buildSky 把地平线画在 H*0.80
-         (原来是 0.735,用户说"再往下放一点",JS 那边跟着下移),
-         · 山脊从地平线往上最高抬到约 H*0.705、往下压到约 H*0.895,
-           暗面从不透明的 rgb(10,14,25) 一路沉到 rgb(3,5,10)。
-         · 这一层现在【不再自己画边、也不再自己画亮面】(说明见 .frost-ground)。 */
-    --frost-ground-near: rgba(4, 7, 14, .88);        /* 画面最下缘:近处的雪完全沉进夜色(比 --frost-night 更黑) */
-    /* ★ 原来还有两条:--frost-ground(雪地本体的一片半透明暗影)和
-       --frost-ground-far(贴地平线的一道冷光亮边)。两条【都删掉了】,原因写在这里,
-       免得以后有人再加回来 —— 它们就是用户两次说地面不对的两个来源:
-         · --frost-ground-far 那道亮边和 canvas 里那条 1px 冷光叠在同一个高度,
-           两条"边"加在一起,正好是一条横贯画面的线(用户:"剪影就是一条线");
-         · --frost-ground 是一片【半透明】的暗面,天光会从底下透上来,
-           于是地面是"被照亮的水"而不是"挡住光的土"。
-       现在地面的暗面全部由 canvas 的 buildSky 直接画成【不透明】的色阶(远脊 +
-       近脊 + 脊下的纵向暗面),CSS 这一层只负责接着它往下沉。
-       要改观感,改 buildSky 里那三条色阶,别在这里重新堆一层半透明亮渐变。 */
-    /* ★ 原来还有一条 --frost-ground-lit(极光落在雪地上的青绿冷光)。
-       它【删掉了】,原因写在这里,免得以后有人再把它加回来:
-       它是一条横贯整个窗户、贴着地平线最亮的带 —— 那正是上面说的
-       "上亮下暗 + 一条亮边"里的那条亮边,是"像海面"的另一个成因(而且青绿
-       正好是水面反光的颜色)。极光现在只留在天上(canvas 的 .frost-aurora
-       和 CSS 的 .frost-aurora),不再往地上铺 —— 地上的极光要出现,
-       也只能是一条【比夜色更暗】的剪影边缘,不能是亮带。 */
-    /* 室内:窗框和窗台那点暖光 —— "你坐在温暖的室内"全靠这一点。
-       ★ 窗台那两档(见下)跟着地面改成剪影之后【调淡过】:
-         暖色原来压在"偏亮的雪面"上,靠的是和雪面的明度差;
-         现在底下是近黑的剪影,同样的暖色会变成全画面最亮的一块,
-         视线全被窗台拽走("窗台在跳")。剪影是暗的,暖光就得跟着收一点 ——
-         收的是强度,不是色相,更不是把窗台拿掉:没有窗台就不是落地窗了。 */
+    --frost-night: #060a14;
+    --frost-ground-near: rgba(4, 7, 14, .88);
     --frost-warm: rgba(255, 186, 120, .16);
     --frost-frame: rgba(9, 13, 20, .72);
-    --frost-sill: rgba(255, 186, 120, .16);          /* 窗台:和 --frost-warm 同一族的暖色 */
-    --frost-sill-lit: rgba(255, 214, 170, .34);      /* 窗台朝上那条亮口 */
-    --frost-sill-h: clamp(16px, 3.4vh, 42px);        /* 窗台高度:它比其它三边厚 —— 那是"台子",不是"边" */
-    /* 界面 */
-    --frost-ink: #eaf4ff;                    /* 压在窗上的字 */
+    --frost-sill: rgba(255, 186, 120, .16);
+    --frost-sill-lit: rgba(255, 214, 170, .34);
+    --frost-sill-h: clamp(16px, 3.4vh, 42px);
+    --frost-ink: #eaf4ff;
     --frost-dim: rgba(214, 234, 255, .72);
     --frost-accent: #dceeff;
     --frost-shard-glow: rgba(176, 220, 255, .55);
-    --frost-glint-core: #f4fbff;                     /* 爆闪的核 */
-    --frost-glint-halo: rgba(190, 226, 255, .55);    /* 核外面那圈很窄的冷光(爆闪不是个硬点)*/
-    --frost-glint-ray: rgba(235, 247, 255, .95);     /* 星芒:两端透明、中间亮 */
-    /* ★ 星芒长度:自检图上 132/104px 是【横跨半个窗的巨大白十字】,完全不是
-       用户要的"在碎片边缘某个点闪一下" —— 碎片本身才 18~37px。
-       现在长芒 30px、横芒 22px(约为碎片的一半),读起来是"冰面上一点反光"。 */
-    --frost-glint-ray-main: 30px;                    /* 长星芒(顺着 --edge)*/
-    --frost-glint-ray-cross: 22px;                   /* 横星芒(和它垂直)—— 不等长才像镜头里的爆闪,等长就是个加号 */
+    --frost-glint-core: #f4fbff;
+    --frost-glint-halo: rgba(190, 226, 255, .55);
+    --frost-glint-ray: rgba(235, 247, 255, .95);
+    --frost-glint-ray-main: 30px;
+    --frost-glint-ray-cross: 22px;
     --frost-star: #eaf4ff;
 
     position: absolute;
@@ -1721,23 +1393,40 @@
     -webkit-user-select: none;
     -webkit-tap-highlight-color: transparent;
     cursor: crosshair;
-    touch-action: none;   /* 划霜不能被页面滚动抢走 */
+    touch-action: none;
     background: var(--frost-night);
+    /* 与过场的衔接:过场在霜雾里结束,面板从同一层霜雾里透出来,
+       而不是先黑一下再突然出现 */
+    --frost-enter: 1;
 }
 
-/* ---------- 窗外 ---------- */
+.frost::after {
+    /* 进场霜雾:面板激活时盖一层与过场同色的雾,1.6s 内散掉 */
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 9;
+    pointer-events: none;
+    background:
+        radial-gradient(120% 90% at 50% 44%, rgba(16, 28, 42, .10) 0%, rgba(168, 205, 228, .55) 78%, rgba(190, 222, 244, .78) 100%);
+    opacity: var(--frost-enter);
+    transition: opacity 1.6s ease;
+}
+
+.frost.is-entering {
+    --frost-enter: 1;
+}
+
+.frost.is-entered {
+    --frost-enter: 0;
+}
+
 .frost-scene {
     position: absolute;
     inset: 0;
     z-index: 1;
     overflow: hidden;
-    /* ★ isolate:极光用了 mix-blend-mode: screen,不隔离的话它会和窗【外】的东西
-       (面板底色、机身)一起混,颜色就不受控了。 */
     isolation: isolate;
-    /* ★ 必须写:它铺满整块窗,不写的话指针命中的是它而不是 .frost。
-       事件虽然还能冒泡上去(功能不坏),但"整页只有 .frost 是被指的那个元素"
-       这条不变量就破了 —— 测试会红,而且以后有人把监听挪到这层就出事。
-       例外只有一个:.frost-read(读数层),它本来就要能点。 */
     pointer-events: none;
 }
 
@@ -1755,15 +1444,6 @@
     z-index: 1;
 }
 
-/* ★★★ 第七轮:这一层换成了【只画极光】的着色器(assets/shaders/aurora.glsl)。
-   那份用户给的 GLSL 原本是一整幅风景(raymarch 地形 + 云海 + 相机),
-   极光只是它"没打到地形时"那一支里的一个加数 —— 整份铺上来等于把别人的
-   地形画进了这扇窗。现在只取极光那一段,天空和地面仍用 buildSky 那一层。
-   于是这一层的语义回到最初:
-     · 【黑底 + 发光】⇒ 混合模式必须是 mix-blend-mode: screen
-       (黑 = 没画,这正是 screen 的用法;上一版用 normal 是因为那时它画的是整幅天);
-     · opacity 平时 .75、收齐时 1 —— 默认值仍然重要:
-       着色器画的是"夜空里的极光",配上这一页自己的夜空才是完整的天。 */
 .frost-aurora {
     z-index: 2;
     opacity: .75;
@@ -1775,68 +1455,14 @@
     z-index: 3;
 }
 
-/* 地面:落地窗下缘那片雪 —— 是【夜色里的剪影】,不是一片亮面。
-   (用户看截图后的原话:"地面太丑了,做成黑色的剪影。现在跟海面一样,
-     而且把地面再往下放一点"。)
-   ★★ 为什么"像海面",以及为什么这里【不许再出现横向亮带】:
-      上一版是 6% 处一条 --frost-ground-far 的亮带 + 中间 46% 处 --frost-ground
-      的亮面 + 最下缘压暗 + 极光那条青绿铺满。也就是【上亮下暗的平滑渐变
-      + 最上缘一条亮边】—— 这套组合人眼默认读成【水面反射】:
-      远处亮是掠射反光,亮边是水天相接那道反光,越往下越暗是水下的暗。
-      再叠一条青绿的极光冷光(= 水面反光最常见的那种颜色),
-      "雪地"就被彻底读成"发亮的水面"了。所以这一版把关系【反过来】:
-        · 地平线【以下】是一块近乎均质的暗影(中段不许比别处亮);
-        · 亮只允许出现在最上缘那一两像素(雪面被天光扫到的一点边);
-        · 越往下越黑,黑的【程度】拉开纵深,但别用"亮→暗"去拉。
-      → 剪影要的是"形状 + 边缘",不是"明暗渐变";一条横向亮带就等于水。
-   ★ 地平线在哪(和 JS 对得上):
-      page-frost.js 的 buildSky 把地平线画在 H*0.80(原来是 H*0.735,
-      用户说"再往下放一点",JS 那边跟着下移),地平线上还有一条
-      "雪在反光"的亮边。
-      这一层的带子顶在面板 72% 处 → 地平线落在带内 (80-72)/28 ≈ 28.6% 的位置,
-      下面那条最亮的 stop 就压在这里 —— 两层亮在同一个地方,
-      才不会出现"两条地平线"。带子顶到 26% 之间【故意留空】:
-      让 JS 那道极细的亮边原样透出来,不跟 canvas 抢那一笔。
-      ★ 改 JS 的地平线就必须回来改这个数(28% 是算出来的,不是随手定的)。
-   ★ z-index 2,不是 4:它要压在 sky(1)和极光(2,同层靠后)之上、飘雪(3)之下 ——
-      雪是从窗前飘过去的,不该被地面挡住。原来在 4 上,加高之后会把下半屏的雪全吃掉。 */
 .frost-ground {
     position: absolute;
     left: -5%;
     right: -5%;
     bottom: 0;
-    /* ★★ 第三轮:28% → 27%,跟着地平线走。地平线从 0.80 抬到 0.73 ——
-       因为用户第三次说"地面剪影还是一条直线",而前两轮我都在改脊线形状,
-       改错了地方:真正的原因是地面【太扁】(只占画面最下面 20%,390px 上 78px),
-       那么窄的带子里画不出山。抬上去之后地面占 27%(105px),脊线才有地方起伏。
-       ★ 这一层的顶边 = 100% - 27% = 73% 面板高,正好落在新的地平线上:
-         两层的接缝在同一个高度,不会出现"两条地平线"。 */
     height: 27%;
     z-index: 2;
-    pointer-events: none;   /* 和别的层一样:整页只有 .frost 收得到指针事件 */
-    /* 这一层只做一件事:【接着 canvas 的暗面往下沉】。
-       ★ 断点是算出来的,不是随手写的:地平线在面板 0.73H 处、这一层高 27%,
-         所以面板上的 0.780H 落在层内 (78.0-73)/27 = 18.5%。
-         canvas 在 0.73H→0.78H 这一段画的是【远脊】(rgb(24,34,55)),比夜空亮 ——
-         这一层到 18.5% 才开始压暗,就是为了让那段远脊原样透出来:
-         剪影的"远"靠它,不靠任何一条亮边。
-       ★ 颜色必须和 buildSky 的近脊渐变【对得上】
-         (那边 rgb(7,10,19) → rgb(11,15,26) → rgb(3,5,10)),
-         对不上的话地平线上会出现一道平直的接缝 —— 那又是一条线,只是换了来源。
-       ★ 上一版在 28% 处放过一道 --frost-ground-far 的亮边,和 canvas 那道 1px 冷光
-         叠在同一个高度,两道"边"加起来正好是一条横贯画面的线。两道都删了。 */
-    /* ★★ 第四轮:把"最亮的地方"彻底去掉 —— 这一层现在是【单调变暗】的。
-       用户第二、三轮都说地面像海。逐行量他截图里的亮度(用正确的 PNG 解码器):
-         天空 40 · 地平线那一段 60~74 · 地面 26~46
-       问题不在"地面暗不暗",在【中间那一整条横贯全宽的亮带】:
-       一条等亮的横带 + 下面一片蓝灰 = 水面反光的默认读法。
-       那条亮带来自两个地方,都要去掉:
-         ① canvas 里铺在脊线上方的天光 —— 已从 0.115+0.030 降到 0.045+0.012;
-         ② 这一层的渐变 —— 原来它在 14% 处最亮(近脊的色),往下才变暗,
-            于是 0.76H~0.80H 又是一条横带。
-       现在这一层只有一个方向:从地平线往下【一路变暗】,没有任何局部最亮。
-       canvas 在 0.73H 附近画的是 rgb(3,5,10)(亮度 5),这里在 15% 处
-       (≈0.770H)也接 rgba(4,6,12,.88) —— 亮度对得上,接缝看不见。 */
+    pointer-events: none;
     background:
         linear-gradient(180deg,
             transparent 0%,
@@ -1845,16 +1471,13 @@
             var(--frost-ground-near) 100%);
 }
 
-/* ---------- 霜底下的碎片 ---------- */
 .frost-shards {
     position: absolute;
     inset: 0;
     z-index: 2;
-    pointer-events: none;   /* ★ 和 canvas 一样是 none —— 整页只有 .frost 收得到指针事件 */
+    pointer-events: none;
 }
 
-/* ★ 碎片的可见度由 JS 每帧写 --clear(= 它那一带的覆霜量)。
-   霜盖着的时候只有一点点影子,霜化开了才亮起来 —— "字真的在霜底下"。 */
 .frost-shard {
     position: absolute;
     display: block;
@@ -1870,28 +1493,20 @@
         inset 0 0 26px var(--frost-shard-glow),
         inset 0 0 3px rgba(232, 246, 255, .55);
     opacity: calc(.10 + var(--clear, 0) * .90);
-    pointer-events: none;   /* 由 JS 按 --clear 打开(见下)*/
+    pointer-events: none;
     transition: opacity .25s linear;
     animation: shardGlow 7.5s ease-in-out infinite;
     animation-delay: var(--shard-delay, 0s);
 }
 
-/* 霜化开得差不多了,碎片才"可以被点" —— 免得对着白霜乱点也能捡到。
-   ★ 这一条由 JS 逐片写在元素上(--clear 超过阈值才 auto),不在这里写死:
-     每片碎片的霜是各自化的,一个统一开关会和"逐片判定"打架。 */
 .frost-shard__text {
-    opacity: 0;             /* 碎片上不显示文字;放大到中央才显出来 */
+    opacity: 0;
 }
 
-/* ★ 读数层打开时,霜下面的碎片先退出去(视觉 + Tab 顺序 + 读屏树):
-   不这么做的话,Tab 会跑到"被盖住的那一片"上,读屏用户会莫名其妙跳走。 */
 .frost.is-reading .frost-shards {
     visibility: hidden;
 }
 
-/* ★ 键盘焦点:这一页是"划过去才化霜"的玩法,键盘用户只能靠 Tab 进来
-   (pointer-events 不影响键盘焦点),所以必须有看得见的焦点反馈。
-   ★ clip-path 会把 outline 一起剪掉 —— 所以不能用 outline,只能提亮 + 内阴影。 */
 .frost-shard:focus-visible {
     filter: brightness(1.8);
     box-shadow:
@@ -1906,26 +1521,15 @@
     transition: opacity .5s ease;
 }
 
-/* ---------- 霜 ---------- */
 .frost-ice {
     position: absolute;
     left: 0;
     top: 0;
     z-index: 3;
-    pointer-events: none;   /* 事件由 .frost 收(page-frost.js 挂的就是它)*/
+    pointer-events: none;
     display: block;
 }
 
-/* ---------- 碎片偶尔的反光(在霜【上面】)----------
-   ★ 为什么单独一层:碎片自己有 clip-path,而 clip-path 会把元素自身的
-     box-shadow / 光晕一起剪掉 —— 想在碎片外面发光,只能用一个不被剪的兄弟元素。
-   ★ 为什么在霜上面:这颗闪光是"诱饵" —— 它得能透过霜被看见,人才知道该去暖哪一块。
-   ★★ 它现在的样子是"超新星式的一点爆闪"。用户的原话是"闪光不对,
-      是类似超星星爆发那种突然在碎片边缘的某个点闪一下"。
-      上一版是"很大的柔和圆晕 + 7.4s 呼吸",还要求它比碎片大一圈好盖住碎片 ——
-      那其实是个呼吸灯:它【一直亮着】,既不像偶然的反光,也没有"啪一下抓住眼睛"的劲儿。
-      现在:6px 的核 + 一对细长的十字星芒(90~140px),99% 的时间完全不亮,
-      只在极短的一瞬炸开再衰减(见 glintFlash)。 */
 .frost-glints {
     position: absolute;
     inset: 0;
@@ -1933,40 +1537,28 @@
     pointer-events: none;
 }
 
-/* ★ JS 摆的是【那个点】而不是一个盒子:它按碎片多边形上的某个顶点写 left/top,
-   --edge 是"从碎片中心指向那个点"的角度(deg,给星芒定向)。
-   所以这里自己回退半个身位,点才是"点"在坐标上,而不是左上角压在坐标上。
-   (上一版 JS 写的是"按碎片外扩 55%"的大盒子,那时光晕得靠内联 width/height 撑着;
-    现在两边的契约是"一个点",这里就不需要再去压内联值了。) */
 .frost-glint {
     position: absolute;
-    width: 6px;                 /* 直径约 6px 的一个点 */
+    width: 6px;
     height: 6px;
-    margin: -3px 0 0 -3px;      /* 自己居中:JS 写的就是那个点的坐标 */
+    margin: -3px 0 0 -3px;
     border-radius: 50%;
     background: radial-gradient(closest-side,
             var(--frost-glint-core),
             var(--frost-glint-halo) 52%,
             transparent);
     box-shadow: 0 0 7px var(--frost-glint-ray);
-    opacity: 0;             /* 默认完全不亮 —— 动画里 88% 的时间也在 0 */
-    /* 9s 只是"没人写内联值"时的兜底:JS 会给每片一个自己的 animation-duration
-       (6.5~14.1s)和 animation-delay,周期错开才不会变成一片同频的呼吸灯。 */
+    opacity: 0;
     animation: glintFlash 9s linear infinite;
     will-change: opacity, transform;
 }
 
-/* 一对细长的十字星芒:一根顺着 --edge(= 那个点在碎片边缘上的角度),另一根和它垂直。
-   ★ 转角必须写在两根伪元素【各自】的 transform 上:--edge 是自定义属性,
-     父元素转不了伪元素 —— 只有它自己 rotate,星芒才跟着那个角度走。 */
 .frost-glint::before,
 .frost-glint::after {
     content: "";
     position: absolute;
     left: 50%;
     top: 50%;
-    /* ★ 两端透明、中间亮:这是"镜头里的一点爆闪",不是一根实线。
-       纯渐变,不用图片 —— 换长度不用重出图,缩放时也不会糊。 */
     background: linear-gradient(90deg, transparent, var(--frost-glint-ray), transparent);
 }
 
@@ -1979,24 +1571,14 @@
 .frost-glint::after {
     width: 1.5px;
     height: var(--frost-glint-ray-cross);
-    /* ★ 竖的那根渐变必须竖着走:沿用上面那条 90deg 的话,
-       它是"一条横向渐变贴在一根竖条上" —— 两头亮、中间暗,看起来是断的。 */
     background: linear-gradient(180deg, transparent, var(--frost-glint-ray), transparent);
     transform: translate(-50%, -50%) rotate(var(--edge, 0deg));
 }
 
 .frost-glint.is-kept {
-    display: none;          /* 收下了就不再闪 */
+    display: none;
 }
 
-/* ★ 爆闪的形状:88% 的时间【一个关键帧都不写】,opacity 就一直停在 0 ——
-   这正是"绝大多数时间完全不亮"。然后在 88% → 89% 这 1% 里"啪"地冲满,
-   再用 8% 衰减回 0。
-   ★ 整条曲线只用【百分比】写:JS 给每片碎片的 duration 都不一样(6.5~14.1s),
-     用秒写死的话,周期长的那些就变成慢动作呼吸了 —— 百分比让"爆闪"在任何时长下
-     都是同一个形状(1% 的起跳、8% 的余晖)。
-   ★ 别把它写成"从 0 慢慢涨到 1 的斜坡":那就是上一版的呼吸灯(用户否掉的正是它)。
-     一次爆闪要隔得够久,才像"偶然的一点反光"而不是心跳。 */
 @keyframes glintFlash {
 
     0%,
@@ -2027,20 +1609,9 @@
     }
 }
 
-/* ---------- 星图(在霜上面:收下的星要能穿透霜亮着)---------- */
 .frost-map {
     position: absolute;
     inset: 0;
-    /* ★★ z-index 从 4 提到 6(和界面文字同一层,在窗框 5 之上)。
-       这一条是【量出来的】,不是随手调的:
-       星座的像素框算完之后,三套图案都【横跨】窗框的横梁 ——
-       拿 1024×390 的面板算:北斗 y 63..171、猎户 8..156、仙后 43..184,
-       而横梁在 0.34H = 133px。
-       星图放在窗框【下面】的话,连线会被横梁拦腰切断 ——
-       一条"穿过窗棂就断掉"的星座,比没有星座更糟。
-       放在窗框之上,读法是"星图画在玻璃上",而玻璃本来就在窗棂前面:
-       图层关系仍然是真实世界的顺序,不是硬凑的。
-       ★ 仍在 .frost-read(7)和 .frost-finale(8)之下:读数卡和宣言要压住星图。 */
     z-index: 6;
     pointer-events: none;
 }
@@ -2053,10 +1624,6 @@
     border-radius: 50%;
     background: radial-gradient(circle, #fff 0%, var(--frost-star) 45%, rgba(180, 220, 255, 0) 72%);
     box-shadow: 0 0 10px rgba(190, 228, 255, .85), 0 0 22px rgba(150, 200, 255, .45);
-    /* ★ 这一条不能省:starPop 是 "both" 且从 opacity 0 起步 ——
-       动画一旦被停掉(系统开了"减少动态效果"),整颗星会直接消失。
-       和 .frost-glint 是同一个坑(那一条已经踩过、补过)。
-       静态值给 .85,动画跑起来时由 keyframes 接管。 */
     opacity: .85;
     animation: starPop .7s cubic-bezier(.2, .9, .3, 1.4) both, starTwinkle 4.5s ease-in-out .7s infinite;
 }
@@ -2081,14 +1648,6 @@
     height: 26px;
 }
 
-/* 伴星:用户说"星座能不能多加几颗星星,哪有星座就三颗星的"。
-   JS 那边(rebuildMap)在一个星座集齐时,除了三颗由碎片变来的亮星,会再补四颗伴星。
-   ★ 它是【另一档】的星,所以不能直接复用 .frost-star:
-     · 小一半(4px):一眼能分出主次 —— 星座要读成"几颗亮的 + 一圈暗的",
-       四颗一样亮的星堆上去,三颗亮星反而被淹掉了;
-     · 暗一档(不透明度 .45):伴星是【背景】,负责把星座的形状垫出来;
-     · 【没有】十字星芒:星芒是"这一颗是收下的记忆"的记号,
-       伴星是布景,给它也画十字就等于把这个记号作废了。 */
 .frost-companion {
     position: absolute;
     width: 4px;
@@ -2097,19 +1656,12 @@
     border-radius: 50%;
     background: radial-gradient(circle, #fff 0%, var(--frost-star) 45%, rgba(180, 220, 255, 0) 72%);
     box-shadow: 0 0 6px rgba(190, 228, 255, .40);
-    opacity: .45;          /* ★ 静态的不透明度:只在动画【之外】也成立(见下面的 reduced-motion)*/
-    /* ★ 复用 starPop / starTwinkle,不新造一套:
-       只把 starPop 推后 .25s —— 亮星先出现、伴星跟着补上,才像"星座被点亮",
-       四颗一起蹦出来更像加载动画。
-       ★ 第二条的延迟是 .25 + .7 = .95s:starPop 的 .7s【跑完之后】twinkle 才接手,
-         否则两条动画在 .25~.95s 之间同时动 opacity,后写的那条会把 starPop 的淡入盖掉
-         (CSS 里同属性由【列表里靠后】的动画取胜)。 */
+    opacity: .45;
     animation:
         starPop .7s cubic-bezier(.2, .9, .3, 1.4) .25s both,
         starTwinkle 5.5s ease-in-out .95s infinite;
 }
 
-/* 星座连线:一条极细的、两头淡的光线 */
 .frost-starline {
     position: absolute;
     height: 1px;
@@ -2118,29 +1670,16 @@
     animation: starLine .9s ease both;
 }
 
-/* ---------- 窗框:你正坐在室内看这扇窗 ---------- */
 .frost-frame {
     position: absolute;
     inset: 0;
     z-index: 5;
     pointer-events: none;
-    /* ★ 四面一样厚的框 + 一层室内暖光。
-       ★ 底边那条"窗台"不在这里:inset 阴影只能给【四边一样厚】的框。
-         试过再加一条 inset 阴影当窗台 —— 多层阴影是"先写的压在上面",
-         深色框边会把贴着底边的那段暖色盖掉,窗台根本读不出来。
-         所以窗台单独用 ::after 画。 */
     box-shadow:
         inset 0 0 0 clamp(6px, .9vw, 13px) var(--frost-frame),
         inset 0 0 46px var(--frost-warm);
 }
 
-/* 窗台:比其它三边厚、颜色略暖 —— 这一笔是"落地窗"的读法来源之一
-   (底下有台子,人是站在窗前从下往上看窗外的;天窗没有窗台)。
-   ★ 它是 .frost-frame 的伪元素,而伪元素排在真实子节点【之后】绘制,
-     所以它天然压在 .frost-frame__v 竖棂的下端上 —— 不需要再去改竖棂的 bottom。
-   ★ 底下那条地面改成近黑剪影之后,这圈暖光就是画面里最亮的东西了,
-     所以两个暖色的 alpha 各收了一档(见 .frost 变量上的注释)——
-     收强度,不收色相,窗台本身照旧留着(用户没让动它)。 */
 .frost-frame::after {
     content: "";
     position: absolute;
@@ -2152,7 +1691,6 @@
             var(--frost-sill-lit) 0,
             var(--frost-sill) 16%,
             var(--frost-frame) 100%);
-    /* 一条亮口 = 窗台朝上的棱; 往上那点暖光 = 室内灯打在玻璃上的返照 */
     box-shadow: 0 -1px 0 var(--frost-sill-lit), 0 -16px 30px var(--frost-warm);
     pointer-events: none;
 }
@@ -2171,8 +1709,6 @@
     width: clamp(5px, .7vw, 11px);
 }
 
-/* 横棂放在 38%(不是 47%):下面的格子要明显大于上面那块 ——
-   上格是天、下格是"窗外的地面",地面那一格太小就还是天窗。 */
 .frost-frame__h {
     left: 0;
     right: 0;
@@ -2180,7 +1716,6 @@
     height: clamp(5px, .7vw, 11px);
 }
 
-/* ---------- 界面 ---------- */
 .frost-head {
     position: absolute;
     left: clamp(14px, 2vw, 30px);
@@ -2213,8 +1748,6 @@
 .frost-hint {
     position: absolute;
     left: clamp(14px, 2vw, 30px);
-    /* ★ 要抬到窗台【上面】:窗台高 16~42px,原来 bottom:12~24px 正好和它叠在一起,
-       提示语会像写在台子侧面。抬一个窗台高度再加一点余量。 */
     bottom: calc(var(--frost-sill-h) + clamp(8px, 1.2vh, 16px));
     z-index: 6;
     margin: 0;
@@ -2244,7 +1777,6 @@
     pointer-events: none;
 }
 
-/* ---------- 点开一片碎片:飞到中央放大 ---------- */
 .frost-read {
     position: absolute;
     inset: 0;
@@ -2256,9 +1788,6 @@
     transition: opacity .35s ease;
 }
 
-/* ★ 必须写这一条:上面给了 display:grid,它会盖掉浏览器对 [hidden] 的默认
-   display:none —— 不写的话"关掉"的读数层照样铺在屏幕上、还挡住点击。
-   (这是 HTML/CSS 的经典坑,写在这里免得下次又踩。) */
 .frost-read[hidden] {
     display: none;
 }
@@ -2267,16 +1796,6 @@
     opacity: 1;
 }
 
-/* ★★ 用户:"我说的拾起碎片的动画还是没有,可以把碎片放在文本框的左侧,
-   文本框稍微往右移一点点"。
-   ★ 为什么前两版他说"没有动画":我把动画做成了【读数卡从碎片的位置飞过来】。
-      技术上是动画,看起来却是"一整块发光面板横扫过屏幕"—— 被拾起的那个东西
-      在视觉上必须【还是那片碎片】,而不是装碎片的板子。所以:
-        · 卡片不再飞(它只在中央淡入,见下面的 markIn);
-        · 左边留一个槽 .frost-read__mark,让碎片【自己】飞进去;
-        · 整个卡片的重心因此【右移】—— 这正好也是用户要的第二件事。
-   ★ 卡片改成 flex 而不是 grid:grid 的 place-items:center 会把槽和文字
-      各自居中,槽就不在"左侧"了。 */
 .frost-read__card {
     position: relative;
     display: flex;
@@ -2286,11 +1805,7 @@
     height: min(38vh, 320px);
     padding: 0 7% 0 5%;
     border: 0;
-    /* ★ 卡片尺寸公式【两处都有】,改一处必须改另一处:
-       JS 那边 page-frost.js 的 CARD_W / CARD_H 用同一组 min() 算槽的落点,
-       因为它【不能】去 measure 这个卡片(刚显示的那一帧测出来全是 0)。
-       测试里钉着 62vw / 620px / 38vh / 320px 这四个数。 */
-    border-radius: 20px;    /* 一块干净的圆角面板:不再跟着碎片的多边形走 */
+    border-radius: 20px;
     font: inherit;
     text-align: left;
     color: var(--frost-ink);
@@ -2302,31 +1817,15 @@
         inset 0 0 60px rgba(176, 220, 255, .45),
         inset 0 0 4px rgba(236, 248, 255, .7);
     cursor: pointer;
-    /* ★ 打开那一下:卡片只做"淡入 + 微微放大"。
-       以前这里是由 --flip-* 驱动的 FLIP(卡片从碎片位置飞过来),
-       已删掉 —— 现在飞的是槽里的碎片形状,不是卡片。
-       ★ 时序上的坑(在 JS 那边,这里是记号):[hidden] → 显示必须和
-         "落位"是【同一拍】(page-frost.js 的 openShard 就是这样),
-         晚一帧的话浏览器会当成一次普通变化,卡片会先缩到很小再涨回来。 */
     transform: scale(.96);
     transition: transform .58s cubic-bezier(.2, .9, .25, 1), opacity .35s ease;
     animation: shardGlow 6s ease-in-out infinite;
-    /* ★★ 文字直接显示在屏幕上(用户:"文字没必要非得展示在碎片上,展示在屏幕上就行")。
-       所以卡片是一块干净的圆角面板,不跟着碎片的多边形剪形状 —— JS 那边也不再写
-       clip-path 了(page-frost.js 的 openShard 里那句已经删掉,测试里有一条断言钉着
-       "卡片的 clip-path 必须是空的")。这里因此【不需要】任何 clip-path 覆写。 */
 }
 
-/* 打开态:卡片回正(配合上面的 transform: scale(.96)) */
 .frost-read.is-on .frost-read__card {
     transform: scale(1);
 }
 
-/* ---------- 左边那个槽:被拾起的那片碎片停在这里 ----------
-   ★ 尺寸必须【固定】,不能跟着文字长短走:槽的大小一变,碎片飞进来的落点
-     就跟着变,"飞到左边"这件事每一片都不一样(那样动画就没有"归位"的读法了)。
-   ★ 它不参与点击:pointer-events 默认就拦不到按钮以外的东西,
-     这里再写一次是为了"整页只有卡片和 .frost 收得到指针"这条不变量。 */
 .frost-read__mark {
     position: relative;
     flex: 0 0 auto;
@@ -2351,16 +1850,6 @@
     vector-effect: non-scaling-stroke;
 }
 
-/* ---------- 起飞与落位 ----------
-   ★ 这就是"拾起"那一下,分两拍:
-       第一拍(is-flying,一帧):【关掉过渡】并把形状反推回碎片当时的位置和大小。
-          ★ 一帧的窗口够了,但前提是 [hidden] → visible 和写变量在同一拍里
-            (openShard 里就是这么排的)。分开写就会出现"卡片先缩到很小再涨回来"
-            那种抽搐(见 .frost-read__card 上面那段注释)。
-       第二拍(下一帧):去掉 is-flying、把变量清成默认值 →
-          过渡打开,形状自己飞进槽里并回正。
-   ★ 过渡曲线用 (.2,.9,.25,1):起步快、收尾缓 —— "被拿走"的东西是这个手感;
-     线性会像贴纸被拖过去。 */
 .frost-read__mark {
     transform:
         translate(var(--mark-x, 0px), var(--mark-y, 0px))
@@ -2375,68 +1864,10 @@
     transition: none;
 }
 
-/* ============================================================
-   收下那一下:碎片【凝聚成光点】,光点往上飞
-   ─────────────────────────────────────────────────────────────
-   ★★★ 用户的原话:"为什么要拆开?是碎片凝聚成光点,你这个明显位置不对
-       时间不对大小不对"。**"拆开"就是要害** ——
-       我上一版把"碎片缩掉"和"光点亮起"做成了【两个独立的元素】依次演出:
-       先把 svg 收拢淡出,再让 ::after 亮起来。于是交接处的位置、时机、大小
-       全靠人去对齐,而它们永远对不齐(差一点点就是"位置不对、时间不对、大小不对")。
-   ★ 现在:它们是【同一个东西的两个阶段】,不再是两个东西。
-       容器 .frost-read__mark 不动(它定住位置:槽的中心)
-         ├─ svg              碎片的形状 —— 收拢到 0 并淡出
-         └─ .frost-read__mote 同一个位置上亮起来的那一点
-       两者共享同一个坐标原点、同一段动画时间,所以位置天然对齐。
-   ★ 一条连续的时间线(总长 1s = JS 的 MOTE_MS),没有任何"等待段":
-        0    ~ .34s  碎片收拢:svg 缩到 0,同时光点从 0 涨起来(交叠,不交接)
-        .34s ~ .52s  光点定住、微涨(凝聚完成的那一瞬)
-        .52s ~ 1.00s 光点垂直往上飞、渐隐
-   ★ 之后才轮到卡片:1.00s~1.30s 卡片淡出,1.30s~1.45s 读数层淡出。
-   ============================================================ */
 .frost-read__mark.is-kept {
-    opacity: 1;          /* ★ 容器必须不透明:它一透明,里面的光点跟着消失 */
+    opacity: 1;
 }
 
-/* ★★★ 「凝聚」不是「消失」—— 用户第五轮的原话点出来的:
-     "能不能理解我的意思?是碎片凝聚,不是碎片消失"
-   ★ 我上一版做的是【消失 → 出现】:
-       碎片 scale(0) + opacity:0(物质消散了),然后另一个光点凭空亮起。
-     那是"碎片没了,换了个光点上来",不是"碎片变成了光点"。
-   ★ 凝聚的物理读法是这样,三件事【同时】发生:
-       ① 形状向中心【收拢】—— 物质没少,只是被压实;
-       ② 收拢过程中越来越【亮】—— 被压紧、被点着,而不是被擦淡;
-       ③ 最后压缩【成】一个点 —— 光点是从碎片里出来的,不是替代它的。
-   ★ 落实到 CSS,关键差别只有一处:
-       ✗ 旧:opacity 跟着一起掉到 0(那叫消失)
-       ✓ 新:opacity 全程保持 1,并叠一层 brightness 让它越缩越亮;
-           只在【最后一刻】(碎片已缩到几乎看不见、光点已经足够亮)才淡掉 ——
-           那时它在光点里面,谁也看不见。
-   ─────────────────────────────────────────────────────────
-   时间线(总长 1s = JS 的 MOTE_MS;两条动画同时起跑,共享这段时间):
-     碎片 svg  : 0 ~ 62%   收拢 1 → 0.08,同时 brightness 1 → 3.4(越缩越亮)
-                 62% ~ 78% 保持(已经被光点淹没)
-                 78% ~ 100% 才允许淡掉
-     光点 mote : 0 ~ 34%   灭着(这期间碎片正在收拢、正是它最亮的时候)
-                 34% ~ 62% 涨起来,直到盖过碎片
-                 62% ~ 78% 定住(凝聚完成的那一瞬)
-                 78% ~ 100% 垂直往上飞、渐隐
-*/
-/* ★★★ 这条动画【一直挂着、但是暂停的】,用 animation-play-state 控制播放。
-   ★ 为什么不能"平时不挂、加 is-kept 才挂":
-     `animation-fill-mode: forwards` 的填充是【双向】的 ——
-     一条已经写好、还没开始跑的动画,会把【第一个关键帧】的样式填上去。
-     而这里的第一个关键帧是 scale(1)(原始尺寸、原始亮度),
-     于是开卡那一刻,槽里的碎片会先被显示成一个【按原始尺寸铺开的多边形】,
-     要等 is-kept 才开始收拢 ——
-     用户在第六轮报的"为什么拿起碎片就开始播放收起动画了!!!",说的就是这一下。
-   ★ 改成 paused 之后:开卡时它停在 0%,不推进;is-kept 一到 → running,
-     从 0% 开始演,一步不多不少。
-   ★ 剩下一个细节:开卡时第一个关键帧仍是 scale(1),它按层叠会盖掉 JS 写的
-     --mark-s(内联过渡)。所以 page-frost.js 的 openShard 在开卡那一帧
-     往 svg 上压一个内联的 animation-play-state: paused + 把动画名清掉一帧,
-     让【内联过渡】先把碎片从原位收进槽里,然后再放开这条动画。
-     两件事各管一段(定位归过渡、凝聚归动画),不互相踩。 */
 .frost-read__mark svg {
     transform-origin: 50% 50%;
     animation: shardCondense 1s cubic-bezier(.5, 0, .35, 1) forwards;
@@ -2454,14 +1885,12 @@
         filter: brightness(1) saturate(1);
     }
 
-    /* 收拢的前半:形状明显变小,但【不暗】,反而开始发亮 */
     34% {
         transform: scale(.58);
         opacity: 1;
         filter: brightness(1.9) saturate(1.5) drop-shadow(0 0 6px rgba(190, 232, 255, .9));
     }
 
-    /* 收拢到底:几乎成了一点,而且最亮 —— 到这里它【就是】那个光点了 */
     62% {
         transform: scale(.08);
         opacity: 1;
@@ -2474,7 +1903,6 @@
         filter: brightness(3.4) saturate(1.2) drop-shadow(0 0 14px rgba(220, 244, 255, 1));
     }
 
-    /* 只有到这里才允许淡掉 —— 此时它在光点里面 */
     100% {
         transform: scale(.06);
         opacity: 0;
@@ -2482,13 +1910,6 @@
     }
 }
 
-/* ---------- 那个光点 ----------
-   ★ 尺寸:96px 的槽里放 ~30px 的光球。上一版是 18px,偏小 ——
-     用户说"大小不对":碎片本身 24~40px,凝聚出来的点至少该有同样的分量。
-   ★ 位置:绝对居中于槽(槽的中心就是碎片飞进来落下的那个点)。
-     上一版它是个 ::after,而伪元素的定位基准是【槽的 padding box】,
-     加上 margin 负值那套写法,差几个像素就"位置不对"。
-     现在是一个真元素 + inset:0 + margin:auto,居中不依赖任何外部数值。 */
 .frost-read__mote {
     position: absolute;
     inset: 0;
@@ -2507,34 +1928,27 @@
     pointer-events: none;
 }
 
-/* 光点:和 svg 的收拢【同时】开始,不是等它演完。
-   ★ 用 cubic-bezier 的过冲(1.6)让"涨起来"那一下有劲 ——
-     凝聚是有能量的动作,匀速涨大像淡入。 */
 .frost-read__mark.is-kept .frost-read__mote {
     animation: shardMote 1s cubic-bezier(.2, .8, .3, 1.35) forwards;
 }
 
 @keyframes shardMote {
-    /* 前 1/3:碎片正在收拢、越缩越亮 —— 这时不需要光点,它还是灭的 */
     0%,
     34% {
         opacity: 0;
         transform: translateY(0) scale(.15);
     }
 
-    /* 碎片缩到底(62%)时涨到最亮:这一步就是"凝聚完成" */
     62% {
         opacity: 1;
         transform: translateY(0) scale(1.14);
     }
 
-    /* 定住一瞬,让"它变成光点了"这件事被看清楚 */
     78% {
         opacity: 1;
         transform: translateY(-4%) scale(1);
     }
 
-    /* 然后才往上飞 */
     100% {
         opacity: 0;
         transform: translateY(-42vh) scale(.55);
@@ -2544,9 +1958,6 @@
 
 
 
-/* 文字:比形状晚 .1s 出现(先"拿到东西",再"看清字")。
-   ★ 用 animation 的 delay 而不是 transition:它要淡入两次(每次打开都要重播),
-     transition 需要"先回到 0 再打开",反而要两拍。 */
 .frost-read__text {
     font-size: clamp(1.05rem, 2.1vw, 1.7rem);
     font-weight: 600;
@@ -2560,24 +1971,6 @@
     animation: none;
 }
 
-/* ============================================================
-   收下之后的【两段,严格串行】
-   ─────────────────────────────────────────────────────────────
-   ★★★ 用户连问三轮"收下碎片的动画呢?",前两轮我都没找到真因 ——
-       因为两轮的表象不同,而底下一直是同一个结构问题:
-       **动画演在卡片里面,而卡片自己的存在感压过了它。**
-       ★ 这一轮查出来的具体事实:`.frost-read__card.is-flying` 那条规则
-         【在 CSS 里根本不存在】—— 我改"卡片只在中央淡入"时把它删了,
-         而 JS 的 keepShard 一直在挂这个类。于是收下那一刻,
-         卡片【完全不淡出】,碎片在卡片的文字底下缩成一个点、光点往上飞,
-         全被读数卡的文字盖住 —— 谁的看不出来。
-       现在三段独立的时间线(总长 = JS 的 KEEP_MS = 1450ms):
-         0      ~ 1.00s  碎片收拢成光点、光点升上去   ← 这期间卡片【保持不透明】
-         1.00s  ~ 1.30s  卡片淡出(面板、文字、提示一起)
-         1.30s  ~ 1.45s  读数层整体淡出
-       ★ 顺序的道理:动画演在哪儿,那一层就得先给它让位;
-         而读数层是整个覆盖层,它一淡,里面的东西全跟着淡 —— 所以它必须最后。
-   ============================================================ */
 .frost-read__card.is-flying {
     animation: cardOut .3s ease 1s forwards;
     pointer-events: none;
@@ -2589,14 +1982,6 @@
     }
 }
 
-/* 收尾最后一拍:读数层整体淡出,槽里那片东西停住。
-   ★★★ 这一条原来还带一个 `.frost-read__mark.is-kept` 选择器,写成
-       "收下就 animation: none" —— 而 `animation: none` 作用在元素【及其伪元素】上,
-       它把 `.frost-read__mark.is-kept::after` 那条 shardMote 一起关掉了:
-       动画从加类的那一刻就被取消。
-       ★ 一条规则里同时写"开始演"和"别演了"的两个选择器,必然互相打架。
-       现在只留 is-off,而 is-off 是【收尾那一拍】才挂上的(见 JS 的 KEEP_MS),
-       所以动画有整整一秒属于自己的时间。 */
 .frost-read.is-off {
     opacity: 0;
 }
@@ -2605,8 +1990,6 @@
     animation: none;
 }
 
-/* 打开读数层时焦点会被移到这张卡上(见 page-frost.js 的 openShard),
-   所以它必须有看得见的焦点态 */
 .frost-read__card:focus-visible {
     box-shadow:
         inset 0 0 74px rgba(212, 240, 255, .62),
@@ -2624,7 +2007,6 @@
     color: var(--frost-dim);
 }
 
-/* ---------- 收尾:未来宣言 ---------- */
 .frost-finale {
     position: absolute;
     inset: 0;
@@ -2658,8 +2040,6 @@
     text-shadow: 0 1px 10px rgba(4, 10, 16, .95);
 }
 
-/* 全部收齐:极光推到满 + 宣言浮出来
-   ★ .75 → 1:窗外那层极光在 3.5s 里彻底亮起来。 */
 .frost.is-done .frost-aurora {
     opacity: 1;
 }
@@ -2677,8 +2057,6 @@
     transition: opacity 1.2s ease;
 }
 
-/* ---------- 动画 ---------- */
-/* 文字淡入:card 已经淡入了,文字再晚 .1s 跟上(先"拿到东西",再"看清字") */
 @keyframes readTextIn {
     from {
         opacity: 0;
@@ -2751,7 +2129,6 @@
     }
 }
 
-/* 窄屏 / 矮屏 */
 @media (max-width: 900px), (max-height: 560px) {
     .frost-head {
         max-width: 62%;
@@ -2762,8 +2139,6 @@
     }
 
     .frost-frame__h {
-        /* ★ 跟着桌面一起改:桌面 38%(横棂上移 = 下半屏是窗外的地面)。
-           窄屏原来还是 42%,反而比桌面低,两个尺寸读起来就不是同一扇窗了。 */
         top: 34%;
     }
 
@@ -2773,7 +2148,6 @@
     }
 }
 
-/* 系统开了"减少动态效果":雪和极光停下来,别晃 */
 @media (prefers-reduced-motion: reduce) {
 
     .frost-aurora,
@@ -2784,18 +2158,11 @@
         animation: none !important;
     }
 
-    /* ★ 星图也得管:starPop 是从 scale(0) + opacity 0 起步的,
-       动画一停,收下的星就整颗消失 —— 和上面 .frost-glint 是同一个坑。
-       所以停掉之后补一个静态亮度,星星还在,只是不闪。 */
     .frost-star,
     .frost-companion {
         opacity: .62;
     }
 
-    /* ★ 爆闪也得停:一秒钟内从 0 冲到 1 的亮度突变对光敏感的人不友好。
-       但【不能只是停掉动画】—— 停掉之后 .frost-glint 的 opacity 是 0,
-       那颗"这里可以暖"的诱饵就整个消失了(动画一停,连一丝提示都不剩)。
-       所以停下来之后给它一个静态的亮点,诱饵还在,只是不闪了。 */
     .frost-glint {
         animation: none !important;
         opacity: .34;
@@ -2803,24 +2170,14 @@
 }
 
 
-/* ============================================================
-   第二张:太空站视角的太阳系(.solar)
-   ─────────────────────────────────────────────────────────────
-   构图由用户指定(太阳中心偏左上约占 1/3 屏 + 五颗星体的机位),
-   坐标由 page-solar.js 按面板尺寸算;这里只管长相:
-     · 星空底 + 星云辉光(视差最远的两层)
-     · 太阳:核心 + 光晕 + 缓慢自转的日冕
-     · 五类星体的"皮":类地 / 炎热岩石 / 气态(带环)/ 黑洞
-     · HUD 卡片 + 连线:只在磁吸锁定某颗星体时才出现
-   可调项:--pad(卡片离边框最小距离)、--cam-x/y(视差,JS 写)、   ============================================================ */
 .solar {
     --pad: clamp(16px, 2.4vw, 34px);
     --cam-x: 0;
-    --cam-y: 0px;              /* 摄像机位移(px),JS 写 */
-    --cam-max: 0.06;           /* 拖动的最大范围 = 面板尺寸的比例 */
-    --cam-tau: 110;            /* 拖动阻尼时间常数(ms),越小越跟手 */
-    --cam-par: 8;              /* 鼠标视差最大位移(px)*/
-    --sun-w: 220px;            /* 恒星宽度,JS 写 */
+    --cam-y: 0px;
+    --cam-max: 0.06;
+    --cam-tau: 110;
+    --cam-par: 8;
+    --sun-w: 220px;
     position: absolute;
     inset: var(--page-top, 0px) var(--sp-x, 5vw) var(--sp-b, 7.5vh) var(--sp-x, 5vw);
     overflow: hidden;
@@ -2831,7 +2188,6 @@
     -webkit-tap-highlight-color: transparent;
 }
 
-/* ---------- 背景两层:星空(远) + 星云(更远) ---------- */
 .solar-sky,
 .solar-neb {
     position: absolute;
@@ -2875,7 +2231,6 @@
     }
 }
 
-/* ---------- 连线层(只有锁定某颗星体时才画东西)---------- */
 .solar-svg {
     position: absolute;
     inset: 0;
@@ -2895,41 +2250,29 @@
     fill: var(--intro-accent);
 }
 
-/* ---------- 定位锚点:left/top = 星体中心(JS 给) ---------- */
 .solar-node {
     position: absolute;
     width: 0;
     height: 0;
 }
 
-/* 视差:不同 --depth 的层反向平移一点,近的动得多 */
 .solar-body {
     position: absolute;
     left: 0;
     top: 0;
     width: 0;
     height: 0;
-    /* 摄像机投影后的位移 + 透视缩放,全由 JS 算好写在这三个变量上 */
     transform: translate3d(var(--cam-dx, 0px), var(--cam-dy, 0px), 0) scale(var(--cam-s, 1));
     transform-origin: 50% 50%;
 }
 
-/* 恒星跟着视角动 —— 但 transform 必须落在【视频/图片自己】身上:
-   祖先一旦有 transform,就会隔离 mix-blend-mode,黑底就抠不掉了 */
 .solar-node--star {
-    /* 这里保持无 transform */
 }
 
-/* ---------- 太阳 ---------- */
-/* 尺寸:宽度由 JS 写进 --sun-w,高度用 aspect-ratio 保持正方形。
-   ★ 之前这里用的是 --sun-r(150px 的旧变量),把外框压成 300px 高、
-     而贴图是 374 见方 → 图比框高、视觉中心偏下,看着就像贴图没生效 */
 .solar-sun {
     position: absolute;
     left: 0;
     top: 0;
-    /* ★ 这里【不能有 transform】:它是 video 的祖先,会隔离 mix-blend-mode。
-       居中改由 video/img 自己的 transform 做(元素自身的 transform 不影响混合)*/
     width: var(--sun-w, 220px);
     aspect-ratio: 1;
     border-radius: 50%;
@@ -2977,12 +2320,10 @@
 
 
 
-/* ---------- 星体本体 ---------- */
 .solar-planet {
     position: absolute;
     left: 0;
     top: 0;
-    /* ★ 贴图版按 --w 定宽(JS 按面板宽 × w 算出来);CSS 版回落到 --r 那套 */
     width: var(--w, calc(var(--r, 30px) * 2));
     height: auto;
     min-height: var(--r, 0);
@@ -2997,7 +2338,6 @@
     transition: transform 0.7s cubic-bezier(0.22, 0.9, 0.3, 1), opacity 0.5s ease, box-shadow 0.3s ease;
 }
 
-/* 立体感:高光 + 背光阴影,套在任何"皮"上都成立 */
 .solar-shade {
     position: absolute;
     inset: 0;
@@ -3008,7 +2348,6 @@
     pointer-events: none;
 }
 
-/* 磁吸锁定的提示环 */
 .solar-planet::before {
     content: "";
     position: absolute;
@@ -3037,7 +2376,6 @@
     transform: scale(1);
 }
 
-/* —— 类地行星:蓝绿,带云带 —— */
 .solar-node--terrestrial .solar-planet {
     --skin:
         radial-gradient(circle at 62% 34%, rgba(255, 255, 255, 0.5) 0 6%, rgba(255, 255, 255, 0) 30%),
@@ -3047,7 +2385,6 @@
     --glow-strong: rgba(150, 220, 255, 0.8);
 }
 
-/* —— 岩石行星(炎热地表)—— */
 .solar-node--hot .solar-planet {
     --skin:
         radial-gradient(circle at 30% 34%, rgba(255, 236, 190, 0.75) 0 5%, rgba(255, 236, 190, 0) 26%),
@@ -3057,7 +2394,6 @@
     --glow-strong: rgba(255, 180, 100, 0.85);
 }
 
-/* —— 气态巨行星:条纹 + 环 —— */
 .solar-node--gas .solar-planet {
     --skin:
         repeating-linear-gradient(94deg, #f6e2b4 0 7%, #e0bd83 7% 13%, #c79b5f 13% 19%, #edd6a4 19% 26%, #d2a970 26% 33%),
@@ -3066,7 +2402,6 @@
     --glow-strong: rgba(255, 232, 180, 0.85);
 }
 
-/* —— 黑洞:黑心 + 吸积环 —— */
 .solar-node--blackhole .solar-planet {
     --skin: radial-gradient(circle, #000000 0 52%, #05050b 60%, #1b1030 70%, #06030c 100%);
     --glow: rgba(150, 110, 255, 0.5);
@@ -3084,7 +2419,6 @@
     box-shadow: 0 0 18px rgba(160, 120, 255, 0.6);
 }
 
-/* —— 星环:一圈在后、半圈在前(土星那种穿过去的感觉)—— */
 .solar-ring {
     position: absolute;
     left: 50%;
@@ -3099,14 +2433,10 @@
 }
 
 .solar-ring--front {
-    /* 只保留下半圈:上半圈被行星本体挡住 */
     clip-path: polygon(-10% 52%, 110% 52%, 110% 120%, -10% 120%);
     border-color: rgba(246, 226, 178, 0.62);
 }
 
-/* ============================================================
-   HUD 卡片:默认不显示,磁吸锁定才出现
-   ============================================================ */
 .solar-card {
     position: absolute;
     left: 0;
@@ -3150,7 +2480,6 @@
     line-height: 1.75;
 }
 
-/* ---------- 边角 HUD 装饰(太空站观察窗的感觉)---------- */
 .solar-hud {
     position: absolute;
     inset: 0;
@@ -3190,9 +2519,6 @@
     color: color-mix(in srgb, var(--intro-accent) 55%, transparent);
 }
 
-/* ============================================================
-   窄屏:竖排列表(卡片常显,星体缩成小图标,不玩视差)
-   ============================================================ */
 .solar.is-narrow {
     overflow-y: auto;
     overflow-x: hidden;
@@ -3291,11 +2617,7 @@
     display: none;
 }
 
-/* ---------- 整幅贴图模式(填了 params.intro.solar.image)----------
-   底图铺满,CSS 画的太阳/星体全部让位;
-   五个磁吸热区还在(看不见,但光标锁上去照样弹 HUD 卡片)*/
 .solar-art {
-    /* 背景图整体暗化:数值越大越暗(由 hugo.toml 的 bg_dim 写进来)*/
     --bg-dim: 0.45;
     position: absolute;
     inset: 0;
@@ -3304,7 +2626,6 @@
     background-repeat: no-repeat;
 }
 
-/* 暗化用一层遮罩,不动图片文件本身;想更暗就调 bg_dim */
 .solar-art::after {
     content: "";
     position: absolute;
@@ -3325,7 +2646,6 @@
     display: none;
 }
 
-/* 放在 .is-live 规则之后才能盖住 is-live 点亮的 opacity */
 .solar.has-art .solar-planet {
     opacity: 0;
 }
@@ -3334,18 +2654,14 @@
     opacity: 1;
 }
 
-/* ---------- 用户贴图版 ---------- */
-/* 贴图已裁掉透明边距 → 元素的宽就是可见宽度,size 调起来所见即所得 */
 .solar-tex {
     display: block;
     width: 100%;
     height: auto;
     pointer-events: none;
     transform-origin: 50% 50%;
-    /* 平时不加外发光(用户要求保持贴图原样),只在磁吸锁定时才亮 */
 }
 
-/* 有贴图时,CSS 画的那套皮肤/星环/高光全部让位 */
 .solar-node.has-tex .solar-planet {
     background: none;
     box-shadow: none;
@@ -3356,22 +2672,17 @@
     display: none;
 }
 
-/* 锁定时给贴图描一圈(不改变大小)*/
 .solar-node.has-tex.is-on .solar-tex {
     filter: drop-shadow(0 0 10px color-mix(in srgb, var(--intro-accent) 70%, transparent))
         drop-shadow(0 0 26px color-mix(in srgb, var(--intro-accent) 40%, transparent));
 }
 
-/* 恒星贴图:贴图自己就是完整的星体,这里把 CSS 画的那套全部关掉。
-   ★ 注意 animation 必须一起关:上面 .solar-sun 的光晕是 @keyframes 动画在动的,
-     动画优先级高于普通声明,只写 box-shadow:none 压不住 */
 .solar-sun.has-tex {
     background: none;
     box-shadow: none;
     animation: none;
 }
 
-/* 蓝巨星贴图自带光,不再额外加光晕(用户要求去掉)*/
 
 .solar-sun.has-tex::after {
     display: none;
@@ -3388,13 +2699,11 @@
     transform: translate(-50%, -50%);
 }
 
-/* 有背景图时,星空/星云让位 */
 .solar.has-bg .solar-sky,
 .solar.has-bg .solar-neb {
     display: none;
 }
 
-/* ---------- ?tune 微调面板 ---------- */
 .solar-tune {
     position: fixed;
     right: 12px;
@@ -3496,28 +2805,23 @@
     color: #bfefff;
     font: 11px/1.5 ui-monospace, Consolas, monospace;
 }
-/* 贴图版:不画虚线环,锁定直接用贴图外发光 */
 .solar-node.has-tex .solar-planet::before {
     display: none;
 }
 
-/* 贴图版的行星按钮不做圆形裁切 */
 .solar-node.has-tex .solar-planet {
     border-radius: 0;
 }
 
-/* 贴图版:关掉 CSS 画的一切装饰(虚线锁定环 ::before / 黑洞吸积环 ::after)*/
 .solar-node.has-tex .solar-planet::before,
 .solar-node.has-tex .solar-planet::after {
     display: none;
 }
 
-/* ---------- 摄像机拖动 ---------- */
 .solar.is-drag {
     cursor: grabbing;
 }
 
-/* 光标旁边那行小字:DRAG / 按住时 RELEASE */
 .solar-drag {
     position: fixed;
     left: 0;
@@ -3548,12 +2852,10 @@
     color: #ffffff;
 }
 
-/* 窄屏不玩拖动 */
 .solar.is-narrow .solar-drag {
     display: none;
 }
 
-/* ---------- 背景光子(独立 canvas,只在选中这张盘时跑)---------- */
 .solar-photons {
     position: absolute;
     inset: 0;
@@ -3566,9 +2868,8 @@
     display: none;
 }
 
-/* ---------- 恒星用视频(mp4/webm)时 ---------- */
 .solar-sun.has-video {
-    aspect-ratio: auto;          /* 尺寸由视频自己的宽高比决定 */
+    aspect-ratio: auto;
     background: none;
     box-shadow: none;
     animation: none;
@@ -3580,46 +2881,24 @@
     height: auto;
     border: 0;
     pointer-events: none;
-    /* 摄像机位移/缩放由 JS 写在这三个变量上(放在自己身上才不会隔离混合)*/
-    /* 居中 + 摄像机变换都在自己身上(祖先带 transform 会隔离混合)*/
     transform: translate(-50%, -50%) translate3d(var(--cam-dx, 0px), var(--cam-dy, 0px), 0) scale(var(--cam-s, 1));
     transform-origin: 50% 50%;
-    /* ★ 抠图第一招:视频背景是纯黑,用 screen 混合叠上去 ——
-       黑像素等于没叠,球体和光晕原样留下,等于按亮度抠了图 */
     mix-blend-mode: screen;
-    /* ★ 抠图第二招:压掉视频背景那层薄雾。
-       实测视频背景不是纯黑,而是一层很淡的灰蓝 —— screen 混合会把它原样叠上来,
-       所以太阳周围会出现一个淡淡的【矩形】。contrast 把暗部压到 0,亮部几乎不动。
-       注意别压太狠:太狠会在光晕上切出新的台阶(--sun-key 可调)*/
-    --sun-key: 2;      /* 薄雾压制:实测 2.0 时画框那层灰彻底没了,再大就压暗光晕 */
+    --sun-key: 2;
     filter: contrast(var(--sun-key)) saturate(1.04);
-    /* ★ 抠图第三招:遮罩 =【正圆】(用 px 半径,挂在 --sun-w 上,跟着太阳缩放)。
-       实心半径 ≈ 1.36 倍球半径(横向光晕多留一点),淡出终点 ≈ 2.0 倍球半径;
-       那层灰蓝薄雾不靠遮罩、只靠上面的 contrast 压平 */
-    --sun-mask-rp: 260px;    /* 遮罩外缘半径(px)—— 由 JS 按球体半径算好写进来 */
-    --sun-mask: 76%;         /* 实心占外缘的比例(≈1.0 倍球半径,保住球体与内圈光晕)*/
+    --sun-mask-rp: 260px;
+    --sun-mask: 76%;
     -webkit-mask-image: radial-gradient(circle var(--sun-mask-rp, 260px) at 50% 50%,
             #000 var(--sun-mask), transparent 100%);
     mask-image: radial-gradient(circle var(--sun-mask-rp, 260px) at 50% 50%,
             #000 var(--sun-mask), transparent 100%);
 }
 
-/* 视频恒星也不加光圈(用户要求保持素材原样)*/
 .solar-sun.has-video::before,
 .solar-sun.has-video::after {
     display: none;
 }
 
-/* ============================================================
-   恒星自己的 HUD(和五颗行星同一套卡片、同一套避边框规则)
-   ─────────────────────────────────────────────────────────────
-   ★ 命中按钮画在视频【上面】(DOM 里排在 .solar-sun 之后),理由有三:
-     1) .solar-sun 那一层会把指针全吃掉,放在下面根本收不到 hover;
-     2) 它全透明、无背景、无外发光 —— 太阳本身一个像素都不改
-        (任何发光都会落进视频的混合背景板,等于偷偷改了太阳的样子);
-     3) 画在上面 = 不进视频的 screen 混合背景板,抠图效果完全不受影响。
-   ★ 命中范围 = 球体直径 × 1.16(JS 按 sun_w 算好写进 --sun-hit,最小 56px)
-   ============================================================ */
 .solar-planet--star {
     width: var(--sun-hit, 0px);
     height: var(--sun-hit, 0px);
@@ -3627,19 +2906,15 @@
     background: none;
     border-radius: 50%;
     box-shadow: none;
-    /* 摄像机位移/缩放跟视频共用同一套变量 → 卡片连线永远指着球心 */
     transform: translate(-50%, -50%) translate3d(var(--cam-dx, 0px), var(--cam-dy, 0px), 0) scale(var(--cam-s, 1));
     transform-origin: 50% 50%;
 }
 
-/* ★ 必须排在 .solar.is-live .solar-planet 之后:
-   那套规则带着自己的 transform,会盖掉上面的摄像机变量 */
 .solar.is-live .solar-planet--star {
     opacity: 1;
     transform: translate(-50%, -50%) translate3d(var(--cam-dx, 0px), var(--cam-dy, 0px), 0) scale(var(--cam-s, 1));
 }
 
-/* 恒星锁定/悬停:不要外发光(会渗进太阳的光晕里)*/
 .solar-node--star:hover .solar-planet--star,
 .solar-node--star.is-on .solar-planet--star,
 .solar-planet--star:focus-visible {
@@ -3647,17 +2922,14 @@
     outline: none;
 }
 
-/* 锁定环:虚线圆环,画在视频下面 → 被 screen 混合提亮,看起来就是光晕上浮起一圈 */
 .solar-planet--star::before {
     inset: -2%;
 }
 
-/* 窄屏:卡片常显,恒星缩成 38px 小图标,命中按钮不需要 */
 .solar.is-narrow .solar-planet--star {
     display: none;
 }
 
-/* 窄屏修正:38px 的小方框里再按 (-50%,-50%) 平移会跑偏到框外 */
 .solar.is-narrow .solar-sun-video,
 .solar.is-narrow .solar-sun-img {
     position: relative;
@@ -3669,22 +2941,14 @@
     transform: none;
 }
 
-/* 拖动时整屏都该是抓手:星体上的 cursor:pointer 会盖掉它 */
 .solar.is-drag .solar-planet {
     cursor: grabbing;
 }
 
-/* 拖动时禁用文字选中,免得拖出一片蓝 */
 .solar.is-drag {
     user-select: none;
 }
 
-/* ============================================================
-   铺面编辑器(?chart / Alt+E)
-   ─────────────────────────────────────────────────────────────
-   盖在整页上的深色面板:上面工具条 + 中间时间轴 canvas + 下面提示
-   时间轴 = 波形(最下)+ 节拍网格 + 四段色带 + 物件 + 播放头
-   ============================================================ */
 .lost-ed {
     position: absolute;
     inset: 0;
@@ -3782,29 +3046,12 @@
     letter-spacing: 0.06em;
 }
 
-/* ============================================================
-   第三张盘「迷茫」:几何冲刺式音乐关卡(游戏页)
-   ─────────────────────────────────────────────────────────────
-   语言沿用第二张盘那套 HUD(等宽小字 + 强调色 + 直角边 + 角标),
-   画面本体是 canvas(见 page-lost.js),这里只管叠在上面的 HUD
-   ★ 这一层不要用 filter / backdrop-filter:开机后期的后期处理层
-     要求内容层保持干净(第二张盘的黑框就是栽在这上面)
-   ============================================================ */
 .lost {
-    /* ★ 自己带一份边距变量:不要依赖 .screen 上的 --pad ——
-       那是第二张盘的旋钮,而且一旦取不到值,calc(var(--pad) + 22px) 整条会失效,
-       HUD 会掉到左上角叠在关卡编号上(验收截图里看到的)*/
     --pad: 20px;
-    /* ★ 画面落在屏幕【可视区】里(和 .screen-static 一样的 inset),不要糊满整块屏 ——
-       之前 inset:0,游戏直接铺到金属边框下面去了(用户报的第一条 bug)。
-       --page-top 在这里归零:HUD 的定位基准改成游戏自己这块盒子 */
     --page-top: 0px;
     position: absolute;
     inset: var(--sp-t, 0px) var(--sp-x, 0px) var(--sp-b, 0px);
     border-radius: 12px;
-    /* ★ 这一页自带一套【固定深色】配色:游戏画面不该跟着站点的浅色主题变白 ——
-       浅色主题下 canvas 底色和 HUD 卡片都会变浅,字直接看不见(实机截图里看到的)。
-       写在 .lost 上,canvas 读到的就是这几支变量,连 HUD 一起保持一致 */
     --theme: #06080f;
     --intro-accent: #7ff0ff;
     --intro-dim: rgba(226, 242, 255, 0.62);
@@ -3827,16 +3074,10 @@
     display: block;
     width: 100%;
     height: 100%;
-    /* ★ !important 是故意的:Phaser 的 ScaleManager(mode: NONE)会把 canvas 的
-       【行内样式】写成 "1280px / 720px",行内样式优先级高于这里的 100% ——
-       于是画布固定 720 px 高,盒子矮一半时底下就露一条黑边(用户截图里的那条)。
-       JS 里虽然每 20 帧按回一次 100%,但 Phaser 会在 resize 后再写一遍,抢不过它;
-       用 !important 一次性钉死,画布永远等于盒子。 */
     width: 100% !important;
     height: 100% !important;
 }
 
-/* 慢动作时压一层冷色(纯渐变,不用滤镜)*/
 .lost-veil {
     position: absolute;
     inset: 0;
@@ -3852,8 +3093,6 @@
     opacity: 1;
 }
 
-/* ★★ 歌词字幕:屏幕正下方贴边,JS 只改 opacity 与文字(按音乐时间逐句淡入淡出)——
-   参数按 6445f14 那一版原样恢复(位置/字号/字距/颜色/阴影/淡入淡出)✓ */
 .lost-lyric {
     position: absolute;
     left: 6%;
@@ -3870,12 +3109,10 @@
     transition: opacity 0.35s linear;
 }
 
-/* ---------- 顶部:关卡编号 + 尝试次数 + 进度 ---------- */
 .lost-top {
     position: absolute;
     left: var(--pad);
     right: var(--pad);
-    /* 让开顶上的站点状态栏:和内容页统一用 --page-top(取不到就当 0)*/
     top: calc(var(--page-top, 0px) + var(--pad));
     display: flex;
     align-items: baseline;
@@ -3892,7 +3129,6 @@
     color: color-mix(in srgb, var(--intro-accent) 72%, transparent);
 }
 
-/* 进度:一条随他走了多远的细线 */
 .lost-code::after {
     content: "";
     position: absolute;
@@ -3914,7 +3150,6 @@
     font-weight: 700;
 }
 
-/* ---------- 旁白:一句话,淡入淡出 ---------- */
 .lost-say {
     position: absolute;
     left: 50%;
@@ -3938,7 +3173,6 @@
     transform: translate(-50%, 0);
 }
 
-/* ---------- 能力栏:全是 ??? ,死一次亮一个 ---------- */
 .lost-skills {
     position: absolute;
     left: var(--pad);
@@ -3982,14 +3216,12 @@
     letter-spacing: 0.3em;
 }
 
-/* 主题(复盘/求助/呼吸/继续)—— 这一段的"名字"*/
 .lost-skill-theme {
     color: #ffffff;
     font-weight: 700;
     letter-spacing: 0.2em;
 }
 
-/* ---------- 时钟 / 拍点灯 / 当前状态(几何冲刺版的 HUD 补充)---------- */
 .lost-clock {
     flex: 1 1 auto;
     text-align: center;
@@ -3997,7 +3229,6 @@
     letter-spacing: 0.18em;
 }
 
-/* 四个点 = 一拍里的四个 1/4 位置,跟着音乐转 */
 .lost-beat {
     position: absolute;
     left: 50%;
@@ -4020,7 +3251,6 @@
     transform: scale(1.5);
 }
 
-/* 当前形态 / 能力状态(右下角,和键盘提示同一风格)*/
 .lost-state {
     position: absolute;
     right: var(--pad);
@@ -4055,7 +3285,6 @@
     letter-spacing: 0.02em;
 }
 
-/* 未解锁:整体压暗,名字换成 ??? */
 .lost-skill.is-locked {
     opacity: 0.4;
     border-left-color: color-mix(in srgb, var(--intro-dim) 45%, transparent);
@@ -4071,12 +3300,10 @@
     display: none;
 }
 
-/* 刚解锁的那一条闪一下 */
 .lost-skill.is-on {
     background: color-mix(in srgb, var(--intro-accent) 9%, color-mix(in srgb, var(--theme, #06080f) 74%, transparent));
 }
 
-/* ---------- 操作提示 / 触摸键 ---------- */
 .lost-hint {
     position: absolute;
     right: var(--pad);
@@ -4119,7 +3346,6 @@
     min-width: 62px;
 }
 
-/* 窄屏那个大 TAP:整块点 */
 .lost-btn--tap {
     min-width: 150px;
     font-size: 0.95rem;
@@ -4130,15 +3356,10 @@
     opacity: 0.7;
 }
 
-/* ---------- CD 架打开 = 屏幕黑屏:内容页整页隐藏 ----------
-   ★ 太阳的 <video> 带 mix-blend-mode,会被提升成独立合成层,
-     在个别浏览器上能盖到黑屏之上(层级关系没错,是合成层的锅)。
-     黑屏状态下这一页本来就不该显示,直接隐藏最稳。*/
 body.scene-open .intro-panel.is-page {
     visibility: hidden;
 }
 
-/* ---------- 第三张盘:施工中卡片(旧游戏已归档到 tag lost-from-scratch)---------- */
 .lost.is-wip {
     display: flex;
     flex-direction: column;
@@ -4228,10 +3449,6 @@ body.scene-open .intro-panel.is-page {
     border-bottom-color: #ffffff;
 }
 
-/* ---------- 第三张盘:新引擎的画布(固定逻辑尺寸 1280x720,CSS 撑满显示器框)----------
-   ★ 尺寸由 .lost-cv 的 width/height:100% !important 定死(见那一条的注释);
-     这里不要再写 height:auto / aspect-ratio —— 两个来源抢同一件事,
-     将来谁赢取决于优先级,又会长出"画布不填满盒子"那类 bug。 */
 .lost-stage #gd-canvas {
     display: block;
     background: #05070d;
@@ -4250,10 +3467,6 @@ body.scene-open .intro-panel.is-page {
 
 .gd-tools { display: none; }
 
-/* 测试用的小按钮(无敌开关 / 重来):放在画面【右下角】、盖在画布上,
-   但只有按钮自己收点击(外层 pointer-events: none)。
-   ★ 不能放右上角:站点的 header(连搜索框)盖在画面顶部,按钮会被它挡住 ——
-     实测 elementFromPoint 在那个位置拿到的是 header-search-input,鼠标根本点不到。 */
 .lost.is-game .gd-tools {
     display: flex;
     position: absolute;
@@ -4283,7 +3496,6 @@ body.scene-open .intro-panel.is-page {
     border-color: color-mix(in srgb, var(--intro-accent) 70%, transparent);
 }
 
-/* 无敌开着:按钮变亮绿,一眼看出状态 */
 .gd-tool.is-on {
     color: #0a1a10;
     background: #7dffb0;
@@ -4292,7 +3504,6 @@ body.scene-open .intro-panel.is-page {
 
 .gd-mobile-note { display: none; }
 
-/* 手机端:不启动引擎,改显示这段说明(embed.ts 会给 <html> 打 data-gd="mobile") */
 html[data-gd="mobile"] .lost-stage #gd-canvas,
 html[data-gd="mobile"] .lost-tip { display: none; }
 
@@ -4321,16 +3532,8 @@ html[data-gd="mobile"] .gd-mobile-note span {
     color: color-mix(in srgb, var(--intro-accent) 55%, transparent);
 }
 
-/* ★ 这里以前是 `.lost-stage { inset: 0 0 104px 0 }` —— 给底部那段"能力图例"
-   (.lost-skills)留位置。那段图例早就删了(lost.html 的注释里写着"已删"),可这 104 px 一直
-   留着:画布只占 .lost 的上半截,底下 104 px 露出 .lost 的深色底 —— 就是用户截图里那条
-   【黑条】(实测 .lost=1270×705,画布只有 1270×601,差的正好 104)。
-   现在舞台铺满 .lost(= 外框透明窗口 + 缝隙),画布跟着铺满,黑条没有了。
-   顺便:`.lost-wip__ref` 那段参考链接是 .lost 里唯一的常规流子元素(.lost.is-game 用
-   justify-content:center 居中),本来就一直压在画布底下看不见 —— 删掉这条 inset 也不影响它。 */
 .lost.is-game .lost-stage { inset: 0; }
 
-/* 第三张盘:HUD(进度 / 段落 / 尝试 / fps / 音乐时间)—— 引擎每帧更新它 */
 .lost-hud {
     position: absolute;
     left: 10px;

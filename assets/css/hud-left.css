@@ -1,30 +1,12 @@
-/* ============================================================
-   左下角 UHD —— 框上那几枚按钮 + 点出来的"全息投影"面板
-   ─────────────────────────────────────────────────────────────
-   用户:"完成左侧UHD,实现和右边一样,是先用 SVG 画出边框,再往边框上塞按钮。"
-   用户:"按钮也是梯形的……按钮贴着凸起的边边" + "按钮的底部应该是贴近页面边缘的。"
-   用户:"我功能页并不是想脱离这个面板,而是想做成那种全息投影,点一下模块,
-         投影出这个面版,再点一下收回。面版其实想做成等宽但根据模块自适应高度的,
-         整体也是先画 SVG 风格的框,左下角和右上角两个 45° 切角就够了。"
-
-   ★ 框和"按钮的形"都在 page-hud.html 那支 .page-hud__band 里(4 层 + 5 个 polygon)。
-   ★★ 每颗按钮的盒子 = 那个梯形的【外接矩形】(用 vh 写:整支钉在边长 = 视口高度的
-      正方形里,1 个设计单位就是 1vh),里面再用 clip-path 收成梯形的形状。
-      ★★★ 为什么盒子要等于外接矩形,而不是"铺满整层 + 全局 %":
-        铺满整层的话 getBoundingClientRect() 返回的是整个视口 ⇒
-        磁力光标的锁定框会变成一个巨大的方框(用户:"这几个按钮还不能被锁定框锁定")。
-      下面这些数是没跑 JS 时的兜底值,和 gFrameLB() 的输出逐点相同(tests 会比对)。
-   ============================================================ */
 
 .hud-left {
     position: absolute;
-    inset: 0;                            /* 和 .page-hud 同一套整页坐标 */
-    pointer-events: none;                /* 只有按钮自己开 auto(整层一个规矩) */
+    inset: 0;
+    pointer-events: none;
     color: var(--hud-ink, #eaf3ff);
     font-family: var(--hud-font);
 }
 
-/* ---------------- 按钮:盒子 = 梯形外接矩形,形 = clip-path ---------------- */
 .hud-left__mod {
     position: absolute;
     left: 0.3vh;
@@ -68,7 +50,6 @@
     -webkit-clip-path: polygon(0% 100%, 24.0092% 0%, 75.9908% 0%, 100% 100%);
 }
 
-/* 左下角那枚等腰直角三角形:直角贴着页角 */
 .hud-left__mod--tri {
     left: 0.7vh;
     top: 90.3vh;
@@ -84,13 +65,11 @@
     color: var(--hud-ink, #eaf3ff);
 }
 
-/* 当前打开的模块:青色(和右侧导航的 .is-current、目录面板同一套语言) */
 .hud-left__mod.is-on {
     background: color-mix(in srgb, var(--mc-color, rgb(34, 211, 238)) 20%, transparent);
     color: #ffffff;
 }
 
-/* 图标 + 名字:钉在这个盒子的中心(JS 会按 gFrameLB() 再写一遍) */
 .hud-left__face {
     position: absolute;
     left: 50%;
@@ -101,7 +80,7 @@
     align-items: center;
     gap: 3px;
     white-space: nowrap;
-    pointer-events: none;                /* 事件归外面那颗按钮 */
+    pointer-events: none;
 }
 
 .hud-left__mod--tri .hud-left__face {
@@ -115,25 +94,18 @@
     display: block;
 }
 
-/* 下支那两枚贴着页底,名字放上面;左支那两枚贴着页左缘,名字放右边 */
 .hud-left__mod[data-hud-lb="2"] .hud-left__face,
 .hud-left__mod[data-hud-lb="3"] .hud-left__face {
     flex-direction: column-reverse;
 }
 
-/* ---------------- 收起之后的展示(用户第二轮第 4 条 + 第三轮微调)----------------
-   "考虑一下某些组件收起后怎么展示,比如番茄钟,可以在按钮旁边展示一个小进度圈,
-    音乐播放器可以在按钮的边缘做一个小的音频可视化,时钟不太必要。"
-   第三轮:"那个番茄钟小进度条的位置,我想要不套到番茄钟那个时钟图标的外面吧,刚好够。
-          音乐那个小标有点小歪。" */
 
 .hud-left__ico {
-    position: relative;                  /* 两个指示都挂在这个 17×17 的框上 ⇒ 自然对齐,不会歪 */
+    position: relative;
     display: block;
     line-height: 0;
 }
 
-/* 番茄钟:一圈套在时钟图标外面(inset:-3px ⇒ 23×23,刚好够一圈) */
 .hud-mod__ring {
     position: absolute;
     inset: -3px;
@@ -148,12 +120,10 @@
     transition: opacity 0.2s ease;
 }
 
-/* 正在跑:圈亮起来(这是"计时还在走"唯一的提示 —— 悬浮胶囊已经删了) */
 :root[style*="--hud-tomato-run: 1"] .hud-mod__ring {
     opacity: 1;
 }
 
-/* 音乐:图标下面一小排柱,和图标同一条中线(所以不会歪) */
 .hud-mod__bars {
     position: absolute;
     left: 50%;
@@ -186,7 +156,6 @@
     50% { transform: scaleY(1); }
 }
 
-/* 面板开着的时候跳得明显一点;正在播的时候也跳起来(哪怕面板收着) */
 .hud-left__mod.is-on .hud-mod__bars i,
 .hud-left__mod.is-playing .hud-mod__bars i {
     opacity: 1;
@@ -200,17 +169,7 @@
     }
 }
 
-/* ============================================================
-   全息投影面板(纵向展开)
-   ─────────────────────────────────────────────────────────────
-   ★ 框是【先画 SVG】:一个六边形 —— 左下角和右上角各切一刀 45°(用户点名的两刀)。
-     ★★ 切角必须是【屏幕上的真 45°】⇒ 不能用一个被拉伸的 viewBox:
-        JS 每次量完面板就把 viewBox 设成它的实际像素尺寸,多边形也用像素坐标写。
-   ★★★ 纵向展开:面板的高度由 JS 从 0 动画到内容高度(每帧重画框,所以两刀
-        在展开过程中一直是 45°),关闭时收拢回那条横线。
-   ============================================================ */
 
-/* 收起态 = 一条横线(所有模块共用同一条,位置不跟着模块跑) */
 .hud-proj__slit {
     position: absolute;
     height: 2px;
@@ -228,14 +187,12 @@
     top: 0;
     width: 320px;
     height: 0;
-    overflow: hidden;                     /* ★ 展开过程中内容被裁,不是被压扁 */
+    overflow: hidden;
     display: flex;
     flex-direction: column;
     pointer-events: auto;
 }
 
-/* ★★ 阴影只在【停稳之后】挂:展开/收拢时每帧都在改高度,
-   一个 drop-shadow 会让整块每帧重绘一遍 —— 那就是"卡卡的"的来源(用户第三轮反馈)。 */
 .hud-proj.is-still {
     filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.45));
 }
@@ -268,7 +225,6 @@
     vector-effect: non-scaling-stroke;
 }
 
-/* 内容:同一圈切角(JS 把 --hud-proj-clip 写成像素版的多边形,免得字压到切角外面) */
 .hud-proj__inner {
     position: relative;
     flex: 0 0 auto;
@@ -277,7 +233,7 @@
     clip-path: var(--hud-proj-clip, none);
     -webkit-clip-path: var(--hud-proj-clip, none);
     opacity: 0;
-    transition: opacity 0.22s ease 0.06s;   /* 晚一点点淡入 —— 像"先展开、字再显出来" */
+    transition: opacity 0.22s ease 0.06s;
 }
 
 .hud-proj.is-open .hud-proj__inner { opacity: 1; }
@@ -287,7 +243,7 @@
     display: flex;
     align-items: baseline;
     gap: 9px;
-    padding: 11px 14px 9px;               /* 右上角是切角,但那一刀在标题右边,留白够 */
+    padding: 11px 14px 9px;
     border-bottom: 1px solid rgba(234, 243, 255, 0.16);
 }
 
@@ -305,8 +261,6 @@
     text-transform: uppercase;
 }
 
-/* ★ 这里原来有一颗"×"收回键 —— 用户第二轮第 2 条:"卡片右上角有一个×啊,这个×没啥用"。
-   删掉。收回 = 再点一次那枚模块按钮(或者 Esc)。 */
 
 .hud-proj__body {
     flex: 1 1 auto;
@@ -319,7 +273,6 @@
 
 .hud-proj__body::-webkit-scrollbar { width: 0; height: 0; }
 
-/* 投影的光束:从模块那一点连到面板(JS 写两端的坐标) */
 .hud-proj__beam {
     position: absolute;
     inset: 0;
@@ -342,7 +295,6 @@
     fill: color-mix(in srgb, var(--mc-color, rgb(34, 211, 238)) 80%, transparent);
 }
 
-/* ---------------- 各模块的内容 ---------------- */
 .hud-left__todo {
     margin: 0;
     font-size: 12px;
@@ -437,7 +389,6 @@
     border-color: rgba(234, 243, 255, 0.6);
 }
 
-/* 网易云那类嵌入式播放器:它自己带皮,给它一条干净的槽位 */
 .hud-left__music {
     display: block;
     width: 100%;
@@ -447,7 +398,6 @@
     overflow: hidden;
 }
 
-/* 歌单列表:用户第三轮给了一串歌曲 ID ⇒ 面板里一个个点着换 */
 .hud-plist__hint {
     margin: 12px 0 6px;
     font-size: 11px;
@@ -462,9 +412,6 @@
     color: rgba(234, 243, 255, 0.5);
 }
 
-/* ---------------- 原生播放器(有直链的那些歌)----------------
-   ★ 为什么不用网易云那个 iframe 播所有歌:跨域 iframe 的音量外面碰不到,
-     右下角那条滑块就管不着它。有直链的走我们自己的 <audio> ⇒ 音量归滑块管。 */
 .hud-player {
     display: grid;
     grid-template-columns: 34px 1fr auto;
@@ -504,7 +451,6 @@
     display: block;
 }
 
-/* 播放中:图标变成"暂停"两根条(用一个 CSS 遮罩把三角切成两条,省一个图标) */
 .hud-player__btn.is-playing .hud-player__icon {
     d: path("M7 5h4v14H7zM13 5h4v14h-4z");
 }
@@ -557,7 +503,7 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
-    max-height: 190px;                    /* 面板高度受它约束:别长到顶住左上角的投影节点 */
+    max-height: 190px;
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-width: none;
@@ -607,12 +553,6 @@
     font-variant-numeric: tabular-nums;
 }
 
-/* ---------------- 世界观数据库:面板里那份目录 ----------------
-   ★ 行是 <a>(点了进正文页),不是 <button> —— 但长得和上面歌单那排一路货,
-     免得同一块面板里出现两种"能点的东西"。
-   ★ 48 条 + 6 个幕标题一次装进来,靠【一个】滚动盒子兜住:
-     盒子自己有上限,所以面板高度是个常数,不会长到顶住左上角那个投影节点。
-     (和 .hud-plist 同一个理由,见那一行的注释。) */
 .hud-cat {
     display: flex;
     flex-direction: column;
@@ -625,7 +565,6 @@
 
 .hud-cat::-webkit-scrollbar { width: 0; height: 0; }
 
-/* 顶栏:面板里唯一一处通往 /world/(整库首页)的门 */
 .hud-cat__home {
     display: flex;
     flex-direction: column;
@@ -658,7 +597,6 @@
     color: rgba(234, 243, 255, 0.5);
 }
 
-/* 幕标题吸在滚动盒子顶上 —— 滚到中间也得知道这一串属于哪一幕 */
 .hud-cat__act {
     position: sticky;
     top: 0;
@@ -728,10 +666,6 @@
     color: rgba(234, 243, 255, 0.4);
 }
 
-/* ---------------- 番茄钟被搬进面板时的样子 ----------------
-   ★ 它本来是 position:fixed 钉在左栏的定宽块(hud-timer.css);
-     进面板就得回到文档流里,不然会飘在页面上。逻辑一行都不用改 ——
-     搬的是同一个 DOM 节点,id 和事件都还在(见 hud-left.js)。 */
 .hud-timer--inpanel {
     position: static;
     left: auto;
@@ -743,7 +677,7 @@
 
 .hud-timer--inpanel .hud-timer__pill,
 .hud-timer--inpanel .hud-timer__min {
-    display: none;                       /* 面板开着的时候不需要胶囊和收起键 */
+    display: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

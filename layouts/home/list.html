@@ -158,7 +158,7 @@ window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}",
         <div class="intro-loader-inner">
             <span class="intro-loader-brand">人格修正启动中…</span>
             <div class="intro-loader-bar"><i id="intro-loader-fill"></i></div>
-            <span class="intro-loader-pct" id="intro-loader-pct">正在校验锚点…</span>
+            <span class="intro-loader-pct" id="intro-loader-pct">正在校验锚点身份…</span>
             <span class="intro-loader-sub" id="intro-loader-sub" aria-hidden="true"></span>
         </div>
     </div>
@@ -166,6 +166,12 @@ window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}",
          所以点 APP 平移时露出来的正是它,而落地页(博客页)用的也是同一份
          partial + 同一批类 ⇒ 看起来像"在同一个页面里平移"(见 shell.css 顶部)。 */}}
     <div class="intro-bg">{{ partial "cosmos.html" . }}</div>
+    {{- /* 新背景(CD 首页):缺陷海密度场 —— 只在暗模式显示;亮模式保持原样
+         (这页外圈有星点装饰,亮底会毁掉它)。回退 = 摘 html.void-bg-on。 */ -}}
+    {{- with resources.Get "js/void-bg.js" }}
+    {{- $voidJsHome := . | fingerprint "sha256" }}
+    <script defer src="{{ $voidJsHome.RelPermalink }}"></script>
+    {{- end }}
 
     <!-- 场景:屏幕(右缘为光驱边缝)+ 右侧 CD 架,整体刚体平移 -->
     <div class="scene" id="scene">
@@ -551,7 +557,8 @@ window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}",
     {{/* 第二行:最近更新 | 标签 —— 用户说"目前看有点空",
         这两张卡片填的是【真实内容】而不是装饰:文章列表和标签云。 */}}
     <div class="tablet__row tablet__row--fill">
-        {{- $mains := site.Params.mainSections | default (slice "posts" "tech") -}}
+        {{- /* ★ 2026-10:posts 分区改名 study(菜单新增「学习」页),mainSections 同步 */ -}}
+        {{- $mains := site.Params.mainSections | default (slice "study" "tech") -}}
         {{- $recent := first 4 (where site.RegularPages.ByDate.Reverse "Section" "in" $mains) -}}
         {{- if $recent }}
         <section class="tablet__card tablet__recent">

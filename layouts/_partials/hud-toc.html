@@ -1,29 +1,8 @@
-{{/* ============================================================
-     侧边目录(进度条 + 目录面板 + 收起)
-     ─────────────────────────────────────────────────────────────
-     用户原话:"加一个侧边目录,就放在内容页和侧边栏的中间"。
-     左边那张手绘图上给的三样东西,这里的落点:
-       · 「进度条」          → 最左边那条竖线(+ 跟着滚动的光点)
-       · 「目录 TOC」        → 中间那块矩形,标题 + 条目
-       · 「字号 字距 □□ □□」 → 面板【左下角】那一组小方块
-       · 「收起 >」          → 面板【右侧中间】那个页签
-
-     ★★ 为什么可以放在 HUD 这一层里(而不是塞进正文模板):
-        HUD 是 position:fixed; inset:0,子元素的 left/top 百分比 = 整页百分比,
-        和边框那条折线同一套坐标 —— 所以"内容页右边、竖栏左边"这个位置
-        直接写 left:73% 就对上了,不用碰正文模板。
-     ★★ 只在【文章页】出现:目录要拿 .Fragments(正文标题),列表页没有;
-        另外标题少于 2 条时整块不渲染(一条也不值得做目录)。
-     ============================================================ */}}
 {{- $frags := .Fragments.Headings -}}
-{{- /* 判据用 (.Param "isHome") 而不是 .IsHome:仿真屏幕搬到 /home/ 之后它不再是
-       Home 页,但目录照样不该长在那块屏上(它没有正文标题)。见 content/home/_index.md。 */ -}}
 {{- if and (not (.Param "isHome")) $frags -}}
 {{- $items := slice -}}
 {{- range $frags -}}
-    {{/* ★ 第一层是文章自己的 h1(标题),不是小节 —— 它出现在目录里就是重复标题。
-       实测:hello-world.md 有 3 个 h2,而这里只给出 1 个顶层片段(= 那个 h1),
-       所以以前"至少 2 条才渲染"的门槛把所有文章都挡掉了,一块目录都没出来。 */}}
+    {{- $items = $items | append (dict "id" .ID "title" .Title "lvl" 1) -}}
     {{- range .Headings -}}
         {{- $items = $items | append (dict "id" .ID "title" .Title "lvl" 2) -}}
         {{- range .Headings -}}
@@ -36,17 +15,12 @@
 {{- end -}}
 {{- if ge (len $items) 2 -}}
 <div class="hud-toc" id="hud-toc" data-hud-toc="{{ .RelPermalink }}">
-    {{/* ── 阅读进度:竖线 + 跟着走的光点。位置/长度由 hud-toc.js 写
-        --hud-toc-lane-x / --hud-toc-prog-h / --hud-toc-p(每帧)── */}}
     <div class="hud-toc__lane" aria-hidden="true">
         <div class="hud-toc__prog">
             <span class="hud-toc__prog-thumb"></span>
         </div>
     </div>
 
-    {{/* ★★★ 用户第二轮第四条:"这个右滑的收起页我其实本意是想给导航栏的,
-       收起导航栏可以让用户更专注。" ⇒ 这一页签【先停用】(hidden),
-       目录不再需要它。标记和样式都留着,等做导航栏收起时直接搬过去。 */}}
     <div class="hud-toc__box">
         <button class="hud-toc__toggle" type="button" id="hud-toc-toggle" aria-expanded="true" aria-controls="hud-toc"
             title="收起目录" hidden>
@@ -56,8 +30,6 @@
             </svg>
         </button>
         <div class="hud-toc__panel" id="hud-toc-panel">
-            {{/* 用户第三轮:"卡片整体我觉得可以再装饰一下" ⇒ 四角直角括号
-                (和右下角那排笔的框同一套美术),纯装饰、不吃鼠标事件。 */}}
             <span class="hud-toc__deco" aria-hidden="true">
                 <i></i><i></i><i></i><i></i>
             </span>
@@ -71,16 +43,6 @@
                 {{- end -}}
             </nav>
 
-            {{/* ── 字号 / 字距:面板左下角那一组小方块(用户图上标的"字号 字距 □□ □□")
-                 ★ 用户第四轮:"我发现你这个字号怎么是调整这个目录页的,其实我想调整
-                   内容页的,方便用户。" ⇒ 这两个按钮【调的是正文】。
-                   目录自己的字号/字距就固定成用户挑好的那组(16px / 4),不再参与调节。
-                 ★ 面板最窄只有 168px:两块标签吃掉近 60px 会把读数挤没,
-                   四个按钮长得一样,认不出哪两个管字号 —— 拆成【两行】:
-                        字号  [−][+]  17px
-                        字距  [−][+]  0
-                    每行一个标签、两个按钮、自己的读数;宽度靠 CSS 的 grid 标签列管,
-                    不再靠"少写字"。两个读数各有自己的 id(JS 不再拼 "17/0")。 */}}
             <div class="hud-toc__size" role="group" aria-label="正文字号与字距">
                 <span class="hud-toc__size-lab">字号</span>
                 <button class="hud-toc__step" type="button" data-hud-toc-size="-1" aria-label="正文字号减小" title="正文字号 −">−</button>
@@ -93,10 +55,6 @@
             </div>
         </div>
 
-        {{/* 「回到顶部」——用户第四轮:"左下角有一个圆的 go to top 按钮……这个按钮给他放到
-            目录页下面靠内容页的地方吧"。
-            ★ 为什么自己画一个:主题那枚是 position:fixed + right:2rem,搬进这块要跟
-              一堆百分比打架;自己画一个位置精确,而且照旧触发同一套滚动逻辑。 */}}
         <button class="hud-toc__top" type="button" id="hud-toc-top" aria-label="回到顶部" title="回到顶部">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                 stroke-linejoin="round" aria-hidden="true">

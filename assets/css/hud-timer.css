@@ -1,44 +1,7 @@
-/* ============================================================
-   番茄钟(左栏,可收起)—— 用户:"可以先继续做番茄钟,番茄钟做成可收起的"
-   ─────────────────────────────────────────────────────────────
-   为什么单独一个文件、而不是塞进 page-hud.css:
-     · page-hud.css 是"外壳"(框线、LOGO、搜索、导航、滑条、笔),
-       用户自己会动它的旋钮(--hud-logo-size / x / y),我不该往里塞新东西;
-     · 和上一步的侧边目录一个套路:hud-toc.css / hud-toc.js 自成一块,
-       找不到 DOM 就静默退出。这一块同样只在 .page-hud 存在时才有意义。
-
-   ★ 两种形态(用户点名的"可收起"):
-       展开  .hud-timer(默认)      → 整张卡片(只在被投影进面板时露面)
-       收起  .hud-timer.is-min      → 整块不显示
-     ★★ 第二轮改动:原来收起态是一枚悬浮胶囊(25:00 番茄钟),用户说
-        "原本的番茄钟按钮没删" ⇒ 删掉。收起之后"还在跑"改在左下角那枚
-        模块按钮上显示一个小进度圈(:root 的 --hud-tomato-p / -run)。
-     切换【全部在 CSS 里】按 .is-min 走,JS 只切类名和文字 ——
-     免得像目录那块一样"布局一半在 JS、一半在 CSS",调一个数要改两个地方。
-
-   ★ 位置:左栏。视口左边那一条(x 0~5%)在 1416 宽下只有 70px,放不下卡片,
-     所以卡片从 3.6vw−20px 处起;宽度跟着视口走(见下面 --hud-timer-w 的算式),
-     右缘永远停在【正文左缘】(720px 居中,随窗口变)的左边。
-     窄到 1180 以下整块收起(见文件末尾 media query),和 HUD 其它块一个规矩。
-   ============================================================ */
 
 .hud-timer {
-    /* ★★ 宽度【跟着视口走】,不是写死 252px。
-       为什么(CDP 扫描逼出来的):正文是 720px 居中,它的左缘随窗口变窄而左移
-       ——  1440 ⇒ 336px,1366 ⇒ 299px,1280 ⇒ 256px,1200 ⇒ 216px。
-       而卡片右缘 = clamp(x) + 宽:写死 252 的话在 1366 上就是 307px,吃掉正文 8px;
-       在 1200 上更狠。
-       现在:宽 = min(252, max(156, 28vw − 176px)),左距 = min(76, max(20, 3.6vw − 20px))
-             ⇒ 右缘 ≈ min(328, 31.6vw − 196px),永远停在正文左缘左边约 20px。
-             1920 ⇒ 最小侧 252 宽 / 右缘 328(和正文 576 差得远,宽屏就是要大气)
-             1440 ⇒ 227 宽 / 右缘 282(正文 336)
-             1366 ⇒ 207 宽 / 右缘 262(正文 299)
-             1280 ⇒ 182 宽 / 右缘 237(正文 256)
-             1200 ⇒ 160 宽(夹到下限)/ 右缘 217(正文 216,刚好贴住不压)
-       ★ 156px 是这套界面的【下限】:再窄"今日完成 0 个番茄"那行就折行了。
-         所以 1180 以下(正文左缘 216px 以下)整块收掉 —— 见文件末尾的 media query。 */
     --hud-timer-w: clamp(156px, calc(28vw - 176px), 252px);
-    --hud-timer-h: 392px;                     /* .is-min 时被清掉(胶囊只有 34px) */
+    --hud-timer-h: 392px;
     --hud-timer-ink: rgba(234, 243, 255, 0.92);
     --hud-timer-dim: rgba(234, 243, 255, 0.68);
     --hud-timer-line: rgba(234, 243, 255, 0.22);
@@ -47,24 +10,19 @@
 
     position: fixed;
     left: min(76px, max(20px, calc(3.6vw - 20px)));
-    /* ★ 第二十一轮:左下角 UHD 上线之后,胶囊不能再待在【竖直正中】——
-       那正好压在左缘第一枚模块按钮(番茄钟,占 y 50.8~63.3)上。
-       提到带子上端收口(y=42)之上,离它最近的那枚按钮还有一段距离。 */
     top: 34%;
     width: var(--hud-timer-w);
     height: var(--hud-timer-h);
     transform: translateY(-50%);
-    pointer-events: none;                     /* 只有控件自己开 auto(整层一个规矩) */
+    pointer-events: none;
     font-family: var(--hud-font);
     color: var(--hud-timer-ink);
 }
 
-/* 收起:高度交给胶囊(不然卡片那 392px 会留一片"看不见但占位"的死区) */
 .hud-timer.is-min {
     height: auto;
 }
 
-/* ---------------- 展开态:卡片 ---------------- */
 .hud-timer__shell {
     position: absolute;
     inset: 0;
@@ -77,9 +35,6 @@
     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25), 0 12px 34px rgba(0, 0, 0, 0.34);
     -webkit-backdrop-filter: blur(6px);
     backdrop-filter: blur(6px);
-    /* ★ overflow:hidden 是上保险:矮屏(--hud-timer-h 收到 352px)时内容总高
-       约 380px,多出来的十几像素宁可裁掉"今日完成"那一行,也不能把
-       "开始"按钮顶出卡片外 —— 溢出到卡片外的按钮看起来像浮在半空。 */
     overflow: hidden;
     opacity: 1;
     transition: opacity 0.16s ease, transform 0.16s ease;
@@ -92,7 +47,6 @@
     pointer-events: none;
 }
 
-/* 四角直角括号 —— 和目录面板、笔那排同一套美术(纯装饰、不吃事件) */
 .hud-timer__deco {
     position: absolute;
     inset: 4px;
@@ -135,7 +89,6 @@
     text-transform: uppercase;
 }
 
-/* 收起那枚(展开态在右上角) */
 .hud-timer__min {
     margin-left: auto;
     width: 24px;
@@ -173,12 +126,6 @@
     padding-top: 11px;
 }
 
-/* ---------------- 表盘 ---------------- */
-/* ★ 为什么不画成圆环进度条那种"两段弧":
-   stroke-dasharray 在 SVG 里是按【用户单位】算的,一个圆 r=54 ⇒ 周长 339.29;
-   JS 只写 --hud-timer-p(0~1),弧长由 CSS 算 —— 一个数一个真相。
-   ★ transform: rotate(-90deg) 让 0 点回到 12 点方向(CSS 的 px 单位在 SVG 上
-   有兼容坑,所以旋转写在 .hud-timer__arc 自己身上、用 transform-box)。 */
 .hud-timer__ring {
     position: relative;
     flex: 0 0 auto;
@@ -213,7 +160,6 @@
     transform: rotate(-90deg);
     transform-origin: 60px 60px;
     transform-box: view-box;
-    /* 周长 = 2πr ≈ 339.29;进度 0 时整条藏起来 */
     stroke-dasharray: 339.29;
     stroke-dashoffset: calc(339.29 * (1 - var(--hud-timer-p, 0)));
     transition: stroke-dashoffset 0.2s linear;
@@ -243,7 +189,6 @@
     color: var(--hud-timer-dim);
 }
 
-/* 计时中:数字亮一点 + 光环呼吸(用户不喜欢"按了没反应"的控件) */
 .hud-timer.is-run .hud-timer__time {
     color: #ffffff;
     text-shadow: 0 0 10px color-mix(in srgb, var(--hud-timer-cy) 62%, transparent);
@@ -253,7 +198,6 @@
     filter: drop-shadow(0 0 5px color-mix(in srgb, var(--hud-timer-cy) 70%, transparent));
 }
 
-/* ---------------- 模式 / 时长 / 动作 ---------------- */
 .hud-timer__modes,
 .hud-timer__presets {
     flex: 0 0 auto;
@@ -347,45 +291,24 @@
     font-variant-numeric: tabular-nums;
 }
 
-/* ---------------- 收起态:不飘胶囊了 ----------------
-   ★★ 用户第二轮第 3 条:"原本的番茄钟按钮没删" —— 那枚悬浮胶囊删掉。
-      番茄钟现在的入口是左下角 UHD 的模块按钮;收起之后"还在跑"这件事
-      改成在那枚按钮上画一个小进度圈(见 hud-left.css 的 .hud-mod__ring,
-      进度由本文件 render() 写进 :root 的 --hud-tomato-p / --hud-tomato-run)。
-   ★ 所以 is-min 现在就是"整块不显示":卡片只在被投影到面板里时才露面
-      (hud-left.js 会把它搬进面板并摘掉 is-min)。
-   ★ 注意:display:none 的元素 offsetHeight 是 0 —— hud-left.js 是先搬进面板、
-      摘掉 is-min,再量高度的,顺序不能反。 */
 .hud-timer.is-min {
     display: none;
 }
 
 
-/* ---------------- 窄屏:整块收掉 ----------------
-   1180 以下正文左缘已经压到 x≈300px,而卡片右缘约 328px ⇒ 开始咬了。
-   和 HUD 其它块一个规矩:宁可没有,也不能压住正文。 */
 @media (max-width: 1180px) {
     .hud-timer {
         display: none;
     }
 }
 
-/* ---------------- 窄屏一档:内容跟着卡片一起缩 ----------------
-   ★★ 这一节是"真浏览器量出来"才发现的:卡片右缘必须停在正文左缘左边,
-      而正文(720px 居中)的左缘随窗口变窄而左移 ⇒ 卡片宽只能跟着视口走
-      (见上面 --hud-timer-w 的算式)。1440 以上缝够,不用动;
-      1400 以下卡片最窄会到 156px,这时候表盘、按钮、内边距都要跟着收,
-      不然 132px 的表盘在 156px 的卡片里会把左右内边距挤没。
-   ★ 为什么不是"直接收掉整块":用户要的是【可收起】的番茄钟 ——
-     1280 的笔记本上 display:none 等于把功能删了。缩一档仍然能用。
-   ★ 1180 以下才真的收掉(那时候正文左缘已经到 216px,再缩也塞不下)。 */
 @media (max-width: 1400px) {
     .hud-timer__shell {
         padding: 10px 11px 11px;
     }
 
     .hud-timer__en {
-        display: none;                     /* 先让位的是那行英文小字 */
+        display: none;
     }
 
     .hud-timer__title {
@@ -435,7 +358,6 @@
     }
 }
 
-/* 矮屏(笔记本 13" 常见 768):卡片矮一点,别顶到顶带/底带 */
 @media (max-height: 760px) {
     .hud-timer {
         --hud-timer-h: 352px;

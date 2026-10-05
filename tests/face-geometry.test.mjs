@@ -1,12 +1,4 @@
-/* 用坐标核对"部件是不是按【正圆】摆的"。
-   脸的圆:圆心 (180,180),半径 118 ⇒ x 62..298, y 62..298。
-
-   ★ 这个文件的第一版是【坏的】:它只用正则抓 `命令 + 两个数`,于是
-       · 相对命令(h/l/v/a/c)全被当成绝对坐标;
-       · 一条命令后面跟多组参数时只取第一组。
-     结果算出 "sparkle 中线 73" 这种一眼假的数,把 12 条好规则全报成 FAIL。
-     判形状的工具自己算错形状 = 没有工具。所以这里重写成真正的
-     "命令 → 绝对坐标 → 细分" 流程(和 facecircle 那份同一套逻辑)。 */
+/* ASCII 脸部几何:canvas 画法与坐标对账。 跑法见 tests/README.md */
 import fs from 'node:fs';
 
 const SRC = new URL('../layouts/partials/pages/self.html', import.meta.url);
@@ -55,7 +47,6 @@ function flatten(d, steps = 12) {
       }
       cur = e;
     } else if (up === 'A') {
-      /* 弧只取两端点 + 中点近似(判越界/位置足够;真正的圆弧细分在 facecircle 那份里)*/
       const e = A(a[5], a[6]);
       out.push(cur, e, [(cur[0] + e[0]) / 2, (cur[1] + e[1]) / 2]);
       cur = e;
@@ -64,7 +55,6 @@ function flatten(d, steps = 12) {
   return out;
 }
 
-/* ---------- 解析:压平 → 抠出每个 data-part → 一律变成 { pts } ---------- */
 const flatAll = txt.replace(/\s+/g, ' ');
 
 function circlePts(cx, cy, rx, ry, n = 48) {
@@ -94,16 +84,9 @@ function ptsOfBody(body) {
   return pts;
 }
 
-/* ★ 别名表:有些部件的几何【故意】画在别处 ——
-   比如 clear(裙摆)为了和脸共享同一次透明度合成,搬进了 .self-skinfade。
-   组本身留成空占位(数据 key 还得有),几何去别名指向的地方找。 */
 const ALIAS = { 'clear': '.self-ghost-path' };
 
 const blocks = {};
-/* 1) 成组抠取:逐个找 data-part,再从它往后找【最近的】</g>。
-       ★ 不能用 .*?</g> 这种惰性匹配:它会从上一次匹配的结尾继续往后吃,
-         跨过组的边界,把后面那个组整个吞掉 —— blush 就是这么消失的
-         (表现是"零件数 15",而且不会触发"空坐标"自检,因为它根本没被建出来)。 */
 const groupRe = new RegExp('data-part="([a-z]+)" data-pod="[a-z]+"[^>]*>', 'g');
 let gm;
 while ((gm = groupRe.exec(flatAll))) {
@@ -112,20 +95,17 @@ while ((gm = groupRe.exec(flatAll))) {
   const bodyStart = gm.index + gm[0].length;
   const close = flatAll.indexOf('</g>', bodyStart);
   let body = close < 0 ? flatAll.slice(bodyStart, bodyStart + 2000) : flatAll.slice(bodyStart, close);
-  /* 组是空的(几何画在别处)⇒ 按别名取那一段 */
   if (!body.includes('<path') && ALIAS[key]) {
     const tag = new RegExp('class="' + ALIAS[key].slice(1) + '"[^>]*?d="([^"]+)"').exec(flatAll);
     body = tag ? 'd="' + tag[1] + '"' : '';
   }
   blocks[key] = { pts: ptsOfBody(body) };
 }
-/* 2) 自闭合 / 单标签的(红鼻子那个 <ellipse> 属性跨行,所以必须用压平后的文本)*/
 for (const m of flatAll.matchAll(new RegExp('<(?:circle|ellipse|rect)[^>]*?data-part="([a-z]+)"[^>]*?>', 'g'))) {
   const key = m[1];
   if (blocks[key]) continue;
   blocks[key] = { pts: ptsOfBody(m[0]) };
 }
-/* 自检:抠出来的部件不能有任何一个是空的 */
 const empty = Object.entries(blocks).filter(([, v]) => !v.pts.length).map(([k]) => k);
 if (empty.length) {
   console.error('✗ 这些部件一个坐标都没解析出来(解析器有洞): ' + empty.join(', '));
@@ -161,52 +141,38 @@ for (const [k, [label, lo, hi]] of Object.entries(BAND)) {
 
 for (const k of ['fire', 'crown', 'nap', 'note']) {
   if (!blocks[k]) { add(k.padEnd(8) + ' 存在', false, '缺部件'); continue; }
-  /* 描边容差:stroke-width 4.5 在 viewBox 360 里占 2.25 个单位 */
   const dmin = Math.min(...blocks[k].pts.map((q) => Math.hypot(q[0] - CX, q[1] - CY))) - 2.5;
-  /* ★ 王冠是【故意骑在圆顶上的】:它的最近点必然在圆内,否则就不像戴着了。
-     所以它的门槛单独放宽到 80 —— 这是设计,不是放水;其余三个必须整体在圆外。 */
   const limit = k === 'crown' ? 80 : R - 4;
   add(k.padEnd(8) + ' 长在圆外(最近点 ≥ ' + limit + ')', dmin >= limit, '最近 ' + dmin.toFixed(0));
 }
 
 for (const [k, v] of Object.entries(blocks)) {
-  if (k === 'melt' || k === 'clear') continue;   /* 这两个故意淌到 268 以下 */
+  if (k === 'melt' || k === 'clear') continue;
   const ymax = Math.max(...v.pts.map((q) => q[1]));
   add(k.padEnd(8) + ' 没被剪影遮罩切到 (y<268)', ymax < 269, '最低 y ' + ymax.toFixed(0));
 }
 
-/* ---------- "戴在头上 / 戴在脸上"这一组(用户 7th 反馈) ----------
-   ★ 这些数字是用户来回三轮才定下来的,必须钉住:
-     耳罩曾经切进圆内 17 个单位(那才叫"戳到脸上"),现在 1.7~3.6;
-     头梁曾经整段压在圆里(等于没有),现在露在圆外。 */
 const distC = (x, y) => Math.hypot(x - CX, y - CY);
 const cornerMax = (x0, x1, y0, y1) =>
   Math.max(...[[x0, y0], [x1, y0], [x0, y1], [x1, y1]].map(([x, y]) => distC(x, y)));
 
-/* 口罩:戴在脸上 ⇒ 整块在圆内 */
 {
   const worst = cornerMax(132, 228, 198, 242);
   add('口罩整块在圆内(是"戴在脸上")', worst <= R, '最远角 ' + worst.toFixed(1) + ' ≤ ' + R);
 }
-/* 咖啡杯:拿在手里 ⇒ 也在圆内(此前角落出圆 7.6,会被剪影遮罩切平)*/
 {
   const worst = cornerMax(92, 130, 210, 250);
   add('咖啡杯整块在圆内(没戳出轮廓)', worst <= R, '最远角 ' + worst.toFixed(1) + ' ≤ ' + R);
 }
-/* 听筒:允许骑在轮廓上,但不能切进脸里太多 */
 for (const [name, x0, x1] of [['左', 52, 72], ['右', 288, 308]]) {
   const worst = cornerMax(x0, x1, 154, 206);
   add(name + '听筒出圆 ≤ 15(骑在轮廓上,不悬空)', worst - R <= 15, '出圆 ' + (worst - R).toFixed(1));
 }
 {
-  /* 圆的左边界在 y=152 / y=208 都是 x≈65.4;内缘 x=80 ⇒ 切进 1.7~3.6(此前 17)*/
-  /* ★ 用【听筒自己上沿高度】的圆边界来比 —— 上一版顺手拿了 y=180 的边界,
-     于是把 14.6 的切进量算成了 1.8(假通过)。 */
   const edge = CX - Math.sqrt(R * R - (154 - CY) ** 2);
   const bite = 72 - edge;
   add('听筒内缘只切进圆内 ≤ 10(不是"戳到脸上")', bite <= 10, '切进 ' + bite.toFixed(1) + ' 个单位(圆边界 x=' + edge.toFixed(1) + ')');
 }
-/* 头梁:必须露在圆外,否则看着不像"戴在头上" */
 {
   const band = blocks.music.pts.filter((p) => p[0] > 90 && p[0] < 270 && p[1] < 140);
   const top = band.length ? Math.min(...band.map((p) => p[1])) : NaN;
@@ -219,15 +185,8 @@ add('眼镜左右对称(关于 x=180)', Math.abs(180 - 130) === Math.abs(230 - 1
 add('部件数 = 16', Object.keys(blocks).length === 16, Object.keys(blocks).length + ' 个');
 
 console.log('脸的圆: 圆心 (' + CX + ',' + CY + ') r=' + R + '  ⇒  x 62..298, y 62..298\n');
-/* ---------- CSS 变量自检:引用的 --self-* 必须真的有定义 ----------
-   ★ 这条是拿真 bug 换来的:改成正圆时删了 --self-full,而
-     .self-melt__drip / .self-ghost path 还在引用它。
-     var() 指向不存在的变量【不会报错】,只会让那个属性变无效 ——
-     填充变成透明,鬼的裙摆就只剩一圈描边,和脸接不上。
-   这类错误静默、只在个别部件上显现,很难靠肉眼定位,所以必须自动查。 */
 {
   const css = fs.readFileSync(new URL('../assets/css/pages.css', import.meta.url), 'utf8');
-  /* 只看 .self 那一段(其他页面的变量不归这条管)*/
   const start = css.indexOf('.self {');
   const end = css.indexOf('/* ============================================================\n   第二张');
   const selfCss = css.slice(start, end > start ? end : css.length);
@@ -237,7 +196,6 @@ console.log('脸的圆: 圆心 (' + CX + ',' + CY + ') r=' + R + '  ⇒  x 62..2
   add('CSS 里引用的 --self-* 变量都有定义',
     undef.length === 0,
     undef.length ? '未定义: ' + undef.join(', ') : '用了 ' + used.size + ' 个,全部有定义');
-  /* 顺带:定义了却没人用的变量会让人误以为还在生效(就是 --self-full 那种残留) */
   const unused = [...defined].filter((v) => !used.has(v));
   add('没有"定义了却没人用"的 --self-* 变量(防止残留)',
     unused.length === 0,
@@ -245,10 +203,6 @@ console.log('脸的圆: 圆心 (' + CX + ',' + CY + ') r=' + R + '  ⇒  x 62..2
 }
 
 
-/* ---------- 剪影遮罩:三条状态必须齐全 ----------
-   ★ 这是拿真 bug 换来的:只写了 is-melt / is-clear 两条,漏了默认那条 ——
-     而模板上的 clip-path 属性会被 CSS 覆盖,于是默认状态用了一个"没定义"的值。
-     界面不报错,只是"到处都不对"。 */
 {
   const css = fs.readFileSync(new URL('../assets/css/pages.css', import.meta.url), 'utf8');
   const html = fs.readFileSync(SRC, 'utf8');
@@ -256,7 +210,6 @@ console.log('脸的圆: 圆心 (' + CX + ',' + CY + ') r=' + R + '  ⇒  x 62..2
   for (const id of ids) {
     add('遮罩 #' + id + ' 在模板里定义了', html.includes('id="' + id + '"'));
   }
-  /* CSS 必须为三个状态各给一条(默认 / is-melt / is-clear)*/
   const need = [
     ['默认', /(\.self-facebox|\.self-facebox\s)\.self-trim-group\s*\{[^}]*clip-path:\s*url\(#selfTrim\)/],
     ['is-melt', /\.self-facebox\.is-melt \.self-trim-group\s*\{[^}]*clip-path:\s*url\(#selfTrimMelt\)/],
@@ -265,28 +218,19 @@ console.log('脸的圆: 圆心 (' + CX + ',' + CY + ') r=' + R + '  ⇒  x 62..2
   for (const [name, re] of need) {
     add('CSS 里 ' + name + ' 状态有对应的遮罩切换', re.test(css));
   }
-  /* 默认遮罩必须是"什么都不收" —— 只有一条全屏白 rect */
   const def = /<clipPath id="selfTrim">([\s\S]*?)<\/clipPath>/.exec(html);
   const shapes = def ? (def[1].match(/<path/g) || []).length : 0;
   add('默认遮罩只有一块(什么都不收)', shapes === 1, shapes + ' 块');
 }
 
-/* ---------- 搬离 .self-face-part 的形状必须自带"默认不可见" ----------
-   ★ 两次真 bug 换来的规矩:
-     .self-ghost-path 为了和脸共享透明度,搬进了 .self-skinfade ——
-     于是它脱离了 "默认 opacity:0、有 [data-on] 才显示" 那套机制,
-     结果什么都没放(00/16)它就已经挂在脸上了。
-   所以:凡是不在 .self-face-part 里的形状,都要自己声明默认隐藏。 */
 {
   const css = fs.readFileSync(new URL('../assets/css/pages.css', import.meta.url), 'utf8');
   const html = fs.readFileSync(SRC, 'utf8');
-  /* 找出所有"独立形状"的类名(带 self- 前缀、看起来是图形的那几个)*/
   const loose = ['.self-ghost-path'];
   for (const sel of loose) {
     const name = sel.slice(1);
     const inPart = new RegExp('class="self-face-part[^"]*' + name).test(html);
     if (inPart) { add(name + ' 在 .self-face-part 里(自动显隐)', true); continue; }
-    /* 不在里面 ⇒ 必须自己声明隐藏 */
     const rule = new RegExp('\\' + sel + '\\s*\\{([\\s\\S]*?)\\}');
     const body = rule.exec(css);
     const hidden = !!body && /(opacity:\s*0\b|visibility:\s*hidden|display:\s*none)/.test(body[1]);
@@ -295,10 +239,6 @@ console.log('脸的圆: 圆心 (' + CX + ',' + CY + ') r=' + R + '  ⇒  x 62..2
   }
 }
 
-/* ---------- 浅色模式:对比度必须达标(WCAG) ----------
-   ★ 用户报的是"浅色模式下字体背景等看不见"。这类问题看着主观,
-     其实【可以算】—— 所以把它固化成断言,以后改配色不会悄悄退化。
-     底色取纯白与浅灰两种最坏情况。 */
 {
   const css = fs.readFileSync(new URL('../assets/css/pages.css', import.meta.url), 'utf8');
   const blk = /:root\[data-theme="light"\] \.self \{([\s\S]*?)\n\}/.exec(css);
@@ -338,7 +278,6 @@ console.log('脸的圆: 圆心 (' + CX + ',' + CY + ') r=' + R + '  ⇒  x 62..2
         r.toFixed(2) + ':1  ' + V[v]);
     }
   }
-  /* 玻璃卡片 [文字压在卡片上也要达标] */
   if (V['--self-glass'] && V['--self-ink']) {
     const g = over(parse(V['--self-glass']), BGS['纯白']);
     const r = ratio(parse(V['--self-ink']), g);
@@ -346,22 +285,18 @@ console.log('脸的圆: 圆心 (' + CX + ',' + CY + ') r=' + R + '  ⇒  x 62..2
   }
 }
 
-/* ---------- 两份实现必须一致(烘焙值 vs 面板现算) ---------- */
 {
   const html2 = fs.readFileSync(SRC, 'utf8');
   const tuneSrc = fs.readFileSync(new URL('../assets/js/page-self-tune.js', import.meta.url), 'utf8');
 
-  /* DEF 是唯一真值源 */
   const defBlk = /var DEF = \{([\s\S]*?)\n  \};/.exec(tuneSrc);
   const D = {};
   if (defBlk) for (const m of defBlk[1].matchAll(/(\w+):\s*(-?[\d.]+)/g)) D[m[1]] = parseFloat(m[2]);
   add('page-self-tune.js 里有 DEF(唯一真值源)', !!defBlk);
 
-  /* self.html 里烘焙的那条 d */
   const baked = /<path class="self-ghost-path"[^>]*?d="([^"]+)"/.exec(html2);
   add('self.html 里烘焙了裙摆路径', !!baked);
 
-  /* 遮罩里的挖回口 + 锚点 */
   const trim = /<clipPath id="selfTrimClear">[\s\S]*?<path transform="translate\(([\d.]+) ([\d.]+)\)" d="([^"]+)"/.exec(html2);
   add('遮罩里有裙摆的挖回口', !!trim);
 
@@ -370,7 +305,6 @@ console.log('脸的圆: 圆心 (' + CX + ',' + CY + ') r=' + R + '  ⇒  x 62..2
     add('裙摆锚点与 DEF 一致(skirtAx/skirtAy)',
       +trim[1] === D.skirtAx && +trim[2] === D.skirtAy,
       trim[1] + ',' + trim[2] + ' vs DEF ' + D.skirtAx + ',' + D.skirtAy);
-    /* 形状参数确实用上了:宽度应等于 skirtW × 该高度圆的半宽 */
     const hw = Math.sqrt(R * R - (D.skirtAy - CY) ** 2);
     const want = Math.round(hw * D.skirtW * 100) / 100;
     const got = parseFloat(/^M(-?[\d.]+)/.exec(baked[1])[1]);
@@ -378,7 +312,6 @@ console.log('脸的圆: 圆心 (' + CX + ',' + CY + ') r=' + R + '  ⇒  x 62..2
       got + ' vs ' + (-want).toFixed(2));
   }
 
-  /* ★★ 切线必须留在融化的锚点 —— 这是"两个锚点"存在的唯一理由 */
   const cuts = [...html2.matchAll(/<path d="M0 (\d+)h360v92H0z"/g)].map((m) => +m[1]);
   add('两条遮罩的切线都 = DEF.ay(融化锚点)', cuts.length === 2 && cuts.every((y) => y === D.ay),
     '切线 ' + cuts.join(',') + '  DEF.ay ' + D.ay);
@@ -398,9 +331,6 @@ console.log('-'.repeat(96));
 console.log((rows.length - bad) + '/' + rows.length + ' 通过');
 
 
-/* ---------- 关键:hugo.toml 的 key 与 self.html 的 data-part 必须一一对应 ----------
-   漏掉一个的症状是"某个 emoji 点了没反应"(点了但脸上没有对应部件),
-   极难靠肉眼发现 —— 之前漏掉 night 就是这条检查抓出来的。 */
 import fs2 from 'node:fs';
 const TOML = fs2.readFileSync(new URL('../hugo.toml', import.meta.url), 'utf8');
 const tomlKeys = [];

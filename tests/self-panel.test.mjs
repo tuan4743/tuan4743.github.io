@@ -1,3 +1,4 @@
+/* 自我介绍页面板验收。 跑法见 tests/README.md */
 ﻿/* ============================================================
    第一张盘「自我」的逻辑验收 —— 在 Node 里用一套最小 DOM 跑真代码
    ─────────────────────────────────────────────────────────────
@@ -12,7 +13,6 @@
    ============================================================ */
 import fs from 'node:fs';
 
-/* ---------- 最小 DOM ---------- */
 class El {
   constructor(tag) {
     this.tagName = String(tag).toUpperCase();
@@ -38,9 +38,6 @@ class El {
   }
   get className() { return [...this._cls].join(' '); }
   set className(v) { this._cls = new Set(String(v).split(/\s+/).filter(Boolean)); }
-  /* ★ 真 DOM 里 textContent 是【递归取子树】的(父节点上没有直接文字时,读出来是
-     所有后代拼起来)。第一版这里写成了普通属性,于是读 <li> 的 textContent
-     拿到空字符串 —— 是假 DOM 的错,不是模块没写那句话。 */
   get textContent() { return this._text + this.children.map((c) => c.textContent).join(''); }
   set textContent(v) { this._text = String(v); this.children.length = 0; }
   getAttribute(n) { return this.attrs.has(n) ? this.attrs.get(n) : null; }
@@ -54,10 +51,6 @@ class El {
   addEventListener(t, fn) { if (!this._listeners.has(t)) this._listeners.set(t, []); this._listeners.get(t).push(fn); }
   removeEventListener() { }
   dispatch(type, ev) {
-    /* ★ 真浏览器里 e.target 是【派发事件的那个元素】(监听器冒泡时才轮到祖先),
-       不是"当前正在跑监听器的元素"。第一版这里写成了 this,于是模块拿到的
-       target 永远是容器,closest('[data-self-pod]') 一律落空,拖拽整条路径
-       都被判成"没点到 emoji" —— 是这套假 DOM 的错,不是模块的错。 */
     const target = (ev && ev.target) || this;
     const e = Object.assign({ type, target, preventDefault() { }, stopPropagation() { } }, ev, { target });
     (this._listeners.get(type) || []).forEach((fn) => fn(e));
@@ -65,7 +58,6 @@ class El {
     while (p) { (p._listeners.get(type) || []).forEach((fn) => fn(e)); p = p.parentNode; }
     return e;
   }
-  /* 只支持这一页真正用到的那几种选择器 */
   matches(sel) { return matchesSel(this, sel); }
   closest(sel) { let n = this; while (n) { if (n.matches && n.matches(sel)) return n; n = n.parentNode; } return null; }
   _all(out) { for (const c of this.children) { out.push(c); c._all(out); } return out; }
@@ -100,8 +92,6 @@ function matchesSel(el, sel) {
   return false;
 }
 
-/* ---------- 按 self.html 渲染出来的结构搭一棵树 ---------- */
-/* ★ 顺序必须与 hugo.toml 一致(汇总那句话就是按这个顺序拼的)。 */
 const TRAITS = [
   { key: 'blush', emoji: '💗', text: '嘴上说没事,心里其实很在意。', pod: 'socket' },
   { key: 'coffee', emoji: '☕', text: '靠咖啡续命,晚上照样失眠。', pod: 'socket' },
@@ -120,9 +110,6 @@ const TRAITS = [
   { key: 'fire', emoji: '🔥', text: '三分钟热度,但热的时候很烫。', pod: 'socket' },
   { key: 'clear', emoji: '👻', text: '热闹之后会消失一阵。', pod: 'skin' },
 ];
-/* ★ 这是这一页最关键的一条结构性事实:skin 类互斥,
-   所以【永远不可能 15 件同时在脸上】—— 同时最多 SLOTS 件。
-   凡是"贴满了没有"的断言,都得用 SLOTS,不能用 TRAITS.length。 */
 const SKINS = TRAITS.filter((t) => t.pod === 'skin').map((t) => t.key);
 const SOCKETS = TRAITS.filter((t) => t.pod === 'socket').map((t) => t.key);
 const SLOTS = SOCKETS.length + 1;
@@ -139,11 +126,6 @@ function buildPage() {
   field.clientWidth = 1200; field.clientHeight = 620;
   const stage = root.appendChild(new El('div'));
   stage.setAttribute('data-self-stage', '');
-  /* ★ 脸的实测位置必须和【真页面的版式】对得上,否则"落点换算"这组断言
-     验的就是一堆假坐标(第一版这里给的是面板居中时的 100,100 ——
-     版式改成"脸在左"之后它立刻失效了)。
-     真页面:stageW = min(1200*0.52, 620) = 620,脸心在 stage 正中 → (310,310);
-     脸 240 见方 → 左上角 (190,190),右下角 (430,430)。 */
   stage._rect = { left: 0, top: 0, width: 620, height: 620, right: 620, bottom: 620 };
   const facebox = stage.appendChild(new El('div'));
   facebox.classList.add('self-facebox');
@@ -184,17 +166,13 @@ function buildPage() {
     b.appendChild(new El('span')).textContent = t.emoji;
     return b;
   });
-  /* ★ 这一页的"该显示了吗"看的是【面板是不是选中的那张】:
-       page-self.js 里查的是 .intro-panel.is-active[data-panel='self']。
-       所以假页面也得有这么一块面板,否则第 3 道兜底判断永远为假。 */
   const panel = new El('section');
   panel.setAttribute('data-panel', 'self');
   panel.classList.add('intro-panel', 'is-active');
-  root.parentNode = panel;      /* 挂到面板里,但别进 children(免得被当成子元素查出来)*/
+  root.parentNode = panel;
   return { root, panel, field, facebox, list, card, chips, outEl, resetBtn, pods, deco, glow, noise, head, stage, say, hint };
 }
 
-/* ---------- 装 window / document,把真模块读进来跑 ---------- */
 const page = buildPage();
 const docListeners = new Map();
 const documentShim = {
@@ -232,12 +210,9 @@ new Function('window', 'document', 'setTimeout', 'clearTimeout', src)(
 const api = registry.self;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/* ---------- 断言 ---------- */
 const rows = [];
 const ok = (name, pass, info) => rows.push({ name, pass: !!pass, info: info === undefined ? '' : String(info) });
 const count = () => (page.root.querySelector('[data-self-count]').textContent || '').trim();
-/* ★ 选择器必须是【真类名】.self-face-part —— 用 .self-cup[data-on] 这种写法会让
-   "部件没亮"这种真失败被误报成"没找到"(假通过的反面:假失败)。 */
 const litParts = () => page.root.querySelectorAll('.self-face-part[data-on]').map((e) => e.getAttribute('data-part'));
 const lineKeys = () => page.list.children.map((li) => li.getAttribute('data-line'));
 const lineCount = () => page.list.children.length;
@@ -257,11 +232,6 @@ const homes = page.pods.map((p) => p.style.getPropertyValue('--x') + ',' + p.sty
 ok('十六个 emoji 被摆到十六个不同位置', new Set(homes).size === N, new Set(homes).size + ' 个不同位置');
 ok('每个 emoji 都有自己的浮动节奏', new Set(page.pods.map((p) => p.style.getPropertyValue('--wob'))).size > 1);
 
-/* ---- 散布范围(用户 3rd 反馈:"emoji 可以散布在台词列的左侧")----------
-   验的是"确实铺开了",不是"位置各不相同"那种弱断言:
-     · 全部都落在台词列左边(不能压到右边的字);
-     · 垂直方向要铺开(如果都挤在一条水平线上,说明散布退化了);
-     · 而且不是"围着脸一圈"—— 半径的离散度要够大。 */
 const f = page.field;
 const xs = page.pods.map((p) => parseFloat(p.style.getPropertyValue('--x')));
 const ys = page.pods.map((p) => parseFloat(p.style.getPropertyValue('--y')));
@@ -272,13 +242,8 @@ ok('emoji 在垂直方向铺开了(不是挤在一条线上)',
 ok('emoji 铺在左半区而不是全屏乱撒', Math.min(...xs) > 1 && Math.max(...xs) - Math.min(...xs) > 140,
   'x 跨度 ' + (Math.max(...xs) - Math.min(...xs)).toFixed(0) + 'px');
 
-/* ---- ★★ 脸挡不住 emoji 的点击(用户报了两轮的 bug)----
-   做法:把某个 emoji 的"家"【直接挪到脸的正中心】,然后对它派发一次 pointerdown,
-   看它还能不能被选中。
-   如果命中判定还依赖 DOM(脸盖在飘浮层上面),这一步就会失败 ——
-   而现在判定是 JS 自己算距离的,所以它必须成功。 */
 const victim = page.pods.find((b) => b.getAttribute('data-self-pod') === 'crown');
-const fcx = 310, fcy = 310;                        /* 脸心(见上面 stage/facebox 的 rect)*/
+const fcx = 310, fcy = 310;
 victim.style.setProperty('--x', String(fcx));
 victim.style.setProperty('--y', String(fcy));
 victim._rect = { left: fcx - 25, top: fcy - 25, width: 50, height: 50, right: fcx + 25, bottom: fcy + 25 };
@@ -291,7 +256,6 @@ ok('★ 压在脸正中心的 emoji 仍然点得到', count() !== before,
 api.unplace('crown');
 await sleep(400);
 ;
-/* ★ 装饰层:脸的领地里不能有星星(否则会糊在脸上),但别处要有 */
 const decoHTML = page.deco.innerHTML || '';
 const starCount = (decoHTML.match(/deco-star/g) || []).length;
 ok('背景装饰画出来了(星星 + 准星环 + 刻度)',
@@ -300,20 +264,9 @@ ok('背景装饰画出来了(星星 + 准星环 + 刻度)',
 ok('装饰层写了 viewBox(跟着面板尺寸)',
   (page.deco.getAttribute('viewBox') || '').startsWith('0 0 1200 620'),
   page.deco.getAttribute('viewBox'));
-/* 星星要避开脸的领地。
-   ★ 版式是【脸在左、字在右】,所以脸的领地【不在面板中心】:
-     面板 1200x620 → stageW = min(1200*0.52, 620) = 620 → 脸心 = (310, 310);
-     faceR = max(min(1200,620)*0.30, 232) = 232。
-     上一版这里写的是"脸心 600,310、半径 190"(居中版式的数),版式一改它
-     就误报 13 颗 —— 这组数必须跟着版式一起改,否则测试会撒谎。
-   ★ 只数星星内部的那个小圆:准星环也是 circle,不筛的话会把环心当成星星。 */
 const FC = { x: Math.min(1200 * 0.52, 620) * 0.5, y: 620 / 2 };
 const FACE_R = Math.max(Math.min(1200, 620) * 0.30, 232);
 const textX = 1200 - Math.min(1200 * 0.40, 430) - 14;
-/* ★ 取样点改成"星星中心的那点柔光"。
-   早先星星是"十字 + 中心圆",所以直接数内部的小圆;现在改成四角星路径 +
-   中心柔光圆,那个小圆依然在星星正中心,判位置一样准。
-   (第一版没跟着改,starPts 变成空数组,断言就成了假失败。) */
 const starPts = [...decoHTML.matchAll(/<g class="deco-star"[^>]*>([\s\S]*?)<\/g>/g)]
   .map((mm) => /<circle[^>]*?cx="([\d.]+)"[^>]*?cy="([\d.]+)"/.exec(mm[1]))
   .filter(Boolean)
@@ -329,7 +282,6 @@ ok('准星环以脸为中心(不是面板中心)',
   !!ringMatch && Math.abs(+ringMatch[1] - FC.x) < 2 && Math.abs(+ringMatch[2] - FC.y) < 2,
   ringMatch ? ringMatch[1] + ',' + ringMatch[2] + ' (脸心 ' + FC.x + ',' + FC.y + ')' : '没解析到');
 
-/* ---- 点击一个 ---- */
 api.place('coffee');
 await sleep(40);
 ok('放上咖啡 → 01 / 16', count() === '01 / ' + PAD(N), count());
@@ -342,8 +294,6 @@ ok('台词内容 = hugo.toml 里那句',
 ok('那行台词挂在 coffee 上', lineKeys()[0] === 'coffee', lineKeys().join(','));
 ok('脸进入染色状态', page.facebox.classList.contains('is-tint'));
 ok('提示语收起来了', page.hint.hidden === true);
-/* 按 key 找 pod,而不是写死下标:特质一加,下标就全挪一位,
-   写死 pods[0] 会悄悄指向另一个 emoji(这次加了 blush 就错位了)。 */
 const podByKey = (k) => page.pods.find((b) => b.getAttribute("data-self-pod") === k);
 ok('emoji 拿到落点坐标',
   !!podByKey("coffee") && podByKey("coffee").style.getPropertyValue("--tx") !== "" &&
@@ -353,31 +303,26 @@ ok('emoji 拿到落点坐标',
 ok('emoji 缩放到脸的尺度(--tu)', parseFloat(podByKey("coffee").style.getPropertyValue("--tu")) > 0,
   podByKey("coffee").style.getPropertyValue("--tu"));
 
-/* ---- 撤销 ---- */
 api.unplace('coffee');
 await sleep(40);
 ok('拿下来 → 00 / 16', count() === '00 / ' + PAD(N), count());
 ok('咖啡杯灭了', !litParts().includes('coffee'));
 ok('那行台词立刻进入淡出(is-gone)', page.list.children[0] &&
   page.list.children[0].classList.contains('is-gone'));
-await sleep(340);                       /* 淡出 260ms 之后才真的从 DOM 里摘掉 */
+await sleep(340);
 ok('台词淡出后从 DOM 摘掉', lineCount() === 0, lineCount() + ' 句');
 ok('脸退回空白', !page.facebox.classList.contains('is-tint'));
 ok('提示语又出现了', page.hint.hidden === false);
 ok('emoji 的 is-placed 被摘掉(会回到飘浮区)', !page.pods[0].classList.contains('is-placed'));
 
-/* ---- 放/拿对称:来回三次计数不能漂 ---- */
 for (let i = 0; i < 3; i++) { api.place('game'); await sleep(10); api.unplace('game'); await sleep(10); }
-await sleep(700);                       /* 等三行淡出全部走完 */
+await sleep(700);
 ok('反复放/拿三次后计数不漂', count() === '00 / ' + PAD(N), count());
 ok('反复放/拿后台词不残留', lineCount() === 0, lineCount() + ' 句');
 ok('全部拿光后提示语回来了', page.hint.hidden === false);
 
-/* ---- skin 互斥:同一次只能有一层"皮肤" ----
-   融化 / 半透明 / 睁不开眼 改的都是脸本身,两个同时上会互相打架,
-   所以贴新的那个时,前一个必须被摘掉。 */
 api.place('melt');
-await sleep(400);            /* 等 melt 那行的淡出(260ms)真的把 <li> 摘掉 */
+await sleep(400);
 ok('放上融化 → is-melt 开着', page.facebox.classList.contains('is-melt'));
 api.place('clear');
 await sleep(400);
@@ -398,7 +343,6 @@ ok('复位后三个皮肤类全清',
   !page.facebox.classList.contains('is-melt') && !page.facebox.classList.contains('is-clear') &&
   !page.facebox.classList.contains('is-heavy'));
 
-/* ---- socket 不互斥:眼镜和耳机本来就该能同时戴 ---- */
 api.place('code');
 api.place('music');
 await sleep(40);
@@ -408,9 +352,6 @@ ok('叠加后计数 02 / 16', count() === '02 / ' + PAD(N), count());
 api.reset();
 await sleep(400);
 
-/* ---- 全部贴满 ----
-   ★ 15 件是【不可能】同时在脸上的:skin 类互斥,所以贴到最后一个皮肤时,
-     前一个皮肤会被顶掉。这里验的就是这个 —— 最终 = 13 个 socket + 1 层皮肤。 */
 for (const t of TRAITS) { api.place(t.key); await sleep(20); }
 await sleep(700);
 const st = api.state();
@@ -440,7 +381,6 @@ ok('汇总把十四件都串进去了', out.split(',').length >= SLOTS, out.spli
 ok('身份证上是一串十四个 emoji',
   (page.chips.textContent || '').trim().split(/\s+/).length === SLOTS, page.chips.textContent);
 
-/* ---- 撤销一个:汇总要跟着变 ---- */
 api.unplace('clear');
 await sleep(400);
 ok('拿掉一层皮 → 13 / 16', count() === PAD(SLOTS - 1) + ' / ' + PAD(N), count());
@@ -451,9 +391,8 @@ api.place('clear');
 await sleep(700);
 ok('补回去又满了', api.state().done === true && count() === PAD(SLOTS) + ' / ' + PAD(N));
 
-/* ---- 再来一次 ---- */
 page.resetBtn.dispatch('click', {});
-await sleep(400);                        /* 淡出走完 */
+await sleep(400);
 ok('"再来一次"清空部件', litParts().length === 0, litParts().join(',') || '空');
 ok('"再来一次"清空台词', lineCount() === 0, lineCount() + ' 句');
 ok('"再来一次"清空计数', count() === '00 / ' + PAD(N), count());
@@ -461,12 +400,11 @@ ok('"再来一次"收起卡片', page.card.hidden === true);
 ok('"再来一次"把提示语放回来', page.hint.hidden === false);
 ok('十六个 emoji 都回到飘浮区', page.pods.every((p) => !p.classList.contains('is-placed')));
 
-/* ---- 拖拽:拖到脸上才算数,拖到别处不算 ---- */
 const pod1 = page.pods[1];
 const bx = pod1._rect.left + 25, by = pod1._rect.top + 25;
 f.dispatch('pointerdown', { clientX: bx, clientY: by, button: 0, pointerId: 1, target: pod1 });
 f.dispatch('pointermove', { clientX: 900, clientY: 900, pointerId: 1 });
-f.dispatch('pointerup', { clientX: 900, clientY: 900, pointerId: 1, target: pod1 });   /* 拖到远处松手 */
+f.dispatch('pointerup', { clientX: 900, clientY: 900, pointerId: 1, target: pod1 });
 await sleep(40);
 ok('拖到空白处松手 → 不算放置', count() === '00 / ' + PAD(N), count());
 ok('拖到空白处松手 → 拖影子已收起', !page.root.querySelector('.self-shot'));
@@ -479,15 +417,9 @@ f.dispatch('pointerup', { clientX: 310, clientY: 310, pointerId: 2, target: pod1
 await sleep(40);
 ok('拖到脸上松手 → 放上去了', count() === '01 / ' + PAD(N), count());
 ok('放上去的是被拖的那一个(coffee)', lineKeys()[0] === 'coffee', lineKeys().join(','));
-/* 脸在 (190,190)+240 见方,viewBox 360 ⇒ 1 单位 = 240/360 = 0.6667px;
-   松手在脸心 (310,310) ⇒ (310-190)/0.6667 = 180 */
 ok('落点用了松手的位置(不是脸心)', pod1.style.getPropertyValue('--tx') === '180.0',
   pod1.style.getPropertyValue('--tx') + ',' + pod1.style.getPropertyValue('--ty'));
 
-/* ---- ★★ 压在脸上的 emoji 要能【拖走】(用户报的 bug 本身)----
-   上一轮只验了"点得到",没验"拖得动",所以脸劫持事件的毛病漏了过去。
-   这里模拟:把 emoji 拖到脸上松手 → 贴上去;再从【脸的位置】把它拖出来 → 拿下来。
-   第二步是关键:如果脸还在吃 pointer 事件,这一步就通不过。 */
 api.reset();
 await sleep(400);
 const overFace = podByKey('game');
@@ -499,8 +431,6 @@ f.dispatch('pointerup', { clientX: 310, clientY: 310, pointerId: 21, target: ove
 await sleep(60);
 ok('★ 从脸的位置起手,能把它贴上去', count() !== c1, c1 + ' → ' + count());
 ok('贴上去的确实是 game', lineKeys().includes('game'), lineKeys().join(','));
-/* 再拖一次:这次从【脸的正中心】起手,把它拖到别处 —— 拿下来再放回去都行,
-   这里只要求"这一串事件被接收到了"(count 或线条数变化) */
 const c2 = count();
 f.dispatch('pointerdown', { clientX: 310, clientY: 310, button: 0, pointerId: 22, target: overFace });
 await sleep(20);
@@ -513,9 +443,6 @@ ok('★ 从脸的正中心起手也能拖动(事件没被脸吃掉)',
 api.reset();
 await sleep(400);
 
-/* ---- ★ 点右侧台词栏的那一行 = 撤回对应的 emoji(用户 6th 反馈)----
-   用户明确要的入口:"点一下右侧文本栏的某个图标就撤回这个 emoji"。
-   现在整行都能点(× 只是"这里能点"的提示),所以必须有断言钉住。 */
 api.reset();
 await sleep(400);
 api.place('clown');
@@ -531,18 +458,14 @@ await sleep(80);
 ok('★ 点台词栏那一行 → 红鼻子被撤下来', count() === '01 / ' + PAD(N), count());
 ok('★ 红鼻子的部件也跟着灭了', !litParts().includes('clown'), litParts().join(','));
 ok('★ 耳机没被误伤', litParts().includes('music'), litParts().join(','));
-await sleep(340);   /* 台词行是淡出 260ms 之后才真的从 DOM 摘掉的 */
+await sleep(340);
 ok('★ 那一行自己也消失了', !lineKeys().includes('clown'), lineKeys().join(','));
-rowClown.dispatch('click', { target: rowClown });     /* 再点一次:不该有副作用 */
+rowClown.dispatch('click', { target: rowClown });
 await sleep(80);
 ok('重复点已撤下的那行不会出错', count() === '01 / ' + PAD(N), count());
 api.reset();
 await sleep(400);
 
-/* ---- 键盘 ----
-   ★ 这一段【自带前置条件】:先 reset 到"一件都没贴"再断言,
-     不然它就会依赖上一段测试留下的状态 —— 上一版就因为这个把断言写成了 02,
-     而 reset 之后其实是 01,于是无端报红。测试段落之间不该有隐藏的耦合。 */
 api.reset();
 await sleep(400);
 const kbPod = podByKey('code');
@@ -557,7 +480,6 @@ page.root.dispatch('keydown', { key: 'Escape', target: page.root });
 await sleep(400);
 ok('Escape 全部清空', count() === '00 / ' + PAD(N), count());
 
-/* ---------- 出结果 ---------- */
 let pass = 0;
 for (const r of rows) {
   if (r.pass) pass++;

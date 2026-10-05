@@ -1,14 +1,3 @@
-{{/* 「切换游玩模式」(左下角)—— 和左上角 HUD 完全同一套实现逻辑:
-     挂在 .holo 容器里(inset:0 的整屏层),自带一块 frame SVG(viewBox 0 0 100 100 +
-     preserveAspectRatio=none),所以路径坐标就是"占整屏宽/高的百分比";
-     样式在 assets/css/holo.css(和 .holo / .drive-status 同一个文件、同一批变量)。
-     不再用任何 JS 定位 —— 和左上角那块一样,靠容器 + CSS 就位,所以它会一直留在屏幕上。
-
-     外框走向(用户给的,百分比空间;y 向下换算):
-       下往上 12% 起 → 与竖直 30° 往右下到 9%(Δ高 3% → Δ宽 3·tan30 ≈ 1.73%)
-       → 向右到 20% → 往下到 3% → 与竖直 60° 往右下(Δ高 3% → Δ宽 3·tan60 ≈ 5.2%)到页面下边界
-     ★ 按钮的大小与位置:见 assets/css/holo.css 里 .gd-mode 顶部的 --gd-btn-* 变量
-     语言(halo / line / lock / node)与左上角一致。*/}}
 <div class="gd-mode" data-gd-mode data-gd-gate="easter">
     <svg class="gd-mode__frame" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
         <path class="gd-mode__halo" d="M0 88 L1.73 91 L20 91 L20 97 L25.196 100" />

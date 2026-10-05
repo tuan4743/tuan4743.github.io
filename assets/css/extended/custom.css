@@ -1,23 +1,12 @@
-/* ============================================================
-   站点自定义样式(由 PaperMod 自动并入主样式表,位于最后,可覆盖默认样式)
-   ============================================================ */
 
-/* ---------- 导航项配色变量(改这里即可调整标签背景框颜色) ---------- */
 :root {
     --menu-active-bg: rgba(99, 102, 241, 0.16);
     --menu-hover-bg: rgba(127, 127, 127, 0.10);
-    --mc-color: rgb(34, 211, 238);          /* 磁力光标颜色 */
-    --mc-size: 34px;                        /* 默认框体尺寸 */
-    --mc-thick: 2px;                        /* 角标线宽 */
-    --mc-dot: 6px;                          /* 中心实点直径 */
+    --mc-color: rgb(34, 211, 238);
+    --mc-size: 34px;
+    --mc-thick: 2px;
+    --mc-dot: 6px;
 
-    /* ---------- 正文排版(由右下角/目录面板那组"字号 / 字距"按钮驱动)----------
-       ★ 用户原话:"我发现你这个字号怎么是调整这个目录页的,其实我想调整内容页的,
-         方便用户。" ⇒ 那组按钮现在写的是这三个变量(hud-toc.js 的 applyType)。
-       ★ 为什么放在 :root 而不是直接改 .post-content 的 font-size:
-         主题那条规则带类名权重,行内改样式不好维护;走变量就只有这一个开关。
-       ★ 只作用于【正文的段落/列表/引用】,标题、代码块、表格的相对比例不动 ——
-         这和"阅读器调字号"的预期一致(代码块跟着变大会很难看)。 */
     --article-fs: 17px;
     --article-lh: 1.72;
     --article-ls: 0em;
@@ -28,7 +17,6 @@
     --menu-hover-bg: rgba(255, 255, 255, 0.08);
 }
 
-/* ---------- 磁力光标(四角选择框 + 磁吸) ---------- */
 .magnetic-cursor {
     position: fixed;
     top: 0;
@@ -44,7 +32,6 @@
     will-change: transform, width, height;
 }
 
-/* 中心实点:严格贴在鼠标真实坐标上(无过渡,保证点击精准),磁吸锁定时隐藏 */
 .magnetic-dot {
     position: fixed;
     top: 0;
@@ -59,14 +46,13 @@
     pointer-events: none;
     z-index: 10000;
     opacity: 0;
-    transition: opacity 0.15s ease;   /* 只过渡透明度:位置必须即时到位 */
+    transition: opacity 0.15s ease;
 }
 
 .magnetic-dot.is-visible {
     opacity: 1;
 }
 
-/* 磁吸锁定:小点让位给框体 */
 html.magnetic-locked .magnetic-dot {
     opacity: 0;
 }
@@ -111,23 +97,19 @@ html.magnetic-locked .magnetic-dot {
     border-right-width: var(--mc-thick);
 }
 
-/* 磁吸到目标时略加强调 */
 .magnetic-cursor.is-locked i {
     filter: drop-shadow(0 0 6px color-mix(in srgb, var(--mc-color) 65%, transparent));
 }
 
-/* 启用后隐藏系统光标(JS 正常初始化才会加上这个 class) */
 html.magnetic-on,
 html.magnetic-on * {
     cursor: none !important;
 }
 
-/* 减少动效:不做过渡 */
 html.magnetic-reduced .magnetic-cursor {
     transition: none;
 }
 
-/* 触屏/窄屏不启用 */
 @media (pointer: coarse) {
     .magnetic-cursor,
     .magnetic-dot {
@@ -140,27 +122,25 @@ html.magnetic-reduced .magnetic-cursor {
     }
 }
 
-/* ---------- 顶栏:全宽,左顶格 / 右定格,拉开间距 ---------- */
 .header {
     position: relative;
-    z-index: 40;              /* 顶栏(及其下拉面板)始终在内容之上 */
+    z-index: 40;
 }
 
 .header-nav {
-    max-width: none;          /* 去掉 1024px 居中容器限制,顶栏贯穿全屏 */
-    padding-inline: 0.75rem;  /* 仅留极小留白,视觉上顶格 */
-    column-gap: 2rem;         /* logo 组与右侧组之间的最小间距 */
+    max-width: none;
+    padding-inline: 0.75rem;
+    column-gap: 2rem;
 }
 
 .logo {
-    column-gap: 1rem;         /* logo 文字与主题切换按钮之间 */
+    column-gap: 1rem;
 }
 
 .logo-switches {
     gap: 0.75rem;
 }
 
-/* 光驱音效开关:音效模块就绪前不显示(3D 降级 → 没有音效,也就没有这个按钮)*/
 html:not(.has-cd-audio) #sound-toggle {
     display: none;
 }
@@ -177,7 +157,6 @@ html:not(.has-cd-audio) #sound-toggle {
     display: inline;
 }
 
-/* 音量滑动条:悬停 / 聚焦 / 点击时展开(和配色面板同一套交互)*/
 .sound-wrap {
     position: relative;
     display: inline-flex;
@@ -256,7 +235,6 @@ html:not(.has-cd-audio) #sound-toggle {
     font-variant-numeric: tabular-nums;
 }
 
-/* 右侧组合容器:菜单 + 搜索框 */
 .nav-right {
     display: flex;
     align-items: center;
@@ -264,11 +242,10 @@ html:not(.has-cd-audio) #sound-toggle {
 }
 
 .menu {
-    column-gap: 1.6rem;       /* 导航项之间的间距 */
-    min-width: 0;             /* 允许窄屏下横向滚动 */
+    column-gap: 1.6rem;
+    min-width: 0;
 }
 
-/* 导航项:内联 flex + 小图标 */
 .nav-right .menu a {
     display: inline-flex;
     align-items: center;
@@ -281,7 +258,6 @@ html:not(.has-cd-audio) #sound-toggle {
     flex: none;
 }
 
-/* 悬停 / 选中:加粗 + 选中项背景框 */
 .nav-right .menu a {
     padding: 0.22em 0.85em;
     border-radius: 8px;
@@ -302,10 +278,9 @@ html:not(.has-cd-audio) #sound-toggle {
 }
 
 .nav-right .menu span.active {
-    text-decoration: none;   /* 背景框替代下划线 */
+    text-decoration: none;
 }
 
-/* ---------- 顶栏内置搜索框(紧凑版) ---------- */
 .search-widget {
     position: relative;
 }
@@ -328,7 +303,7 @@ html:not(.has-cd-audio) #sound-toggle {
     height: 30px;
     padding: 0 0.7rem 0 1.8rem;
     border: 1px solid var(--border);
-    border-radius: 999px;     /* 圆角胶囊形搜索框 */
+    border-radius: 999px;
     background: var(--entry);
     color: var(--primary);
     font-size: 0.85rem;
@@ -346,7 +321,6 @@ html:not(.has-cd-audio) #sound-toggle {
     color: var(--secondary);
 }
 
-/* 搜索结果下拉面板 */
 .search-results {
     position: absolute;
     right: 0;
@@ -427,13 +401,10 @@ html:not(.has-cd-audio) #sound-toggle {
     text-decoration: none;
 }
 
-/* ---------- 页面切换动效 ---------- */
 @view-transition {
     navigation: auto;
 }
 
-/* 顶栏:旧顶栏快照立即移除(避免双顶栏),新顶栏原地保持静止,
-   并带上不透明背景(顶栏本身透明,否则会透过交叉淡化层看到白色画布) */
 .header {
     view-transition-name: header;
 }
@@ -450,8 +421,6 @@ html:not(.has-cd-audio) #sound-toggle {
     animation: none;
 }
 
-/* 旧页整屏保持不透明常驻,新页在其上淡入(等效交叉淡出淡入),
-   全程不会透出白色画布(修复切换时顶栏/白底闪烁) */
 ::view-transition-old(root) {
     animation: none;
 }
@@ -467,7 +436,6 @@ html:not(.has-cd-audio) #sound-toggle {
     }
 }
 
-/* ---------- 背景配色(画板) ---------- */
 :root[data-palette="mist"] {
     --theme: rgb(240, 244, 250);
     --entry: rgb(251, 253, 255);
@@ -556,12 +524,10 @@ html:not(.has-cd-audio) #sound-toggle {
     --code-bg: rgb(24, 20, 36);
 }
 
-/* ---------- emoji 一律彩色字形渲染 ---------- */
 body {
     font-variant-emoji: emoji;
 }
 
-/* 窄屏:菜单允许滚动,搜索框缩短 */
 @media (max-width: 640px) {
     .search-box input {
         width: 84px;
@@ -572,7 +538,6 @@ body {
     }
 }
 
-/* ---------- 背景配色选择面板(画板) ---------- */
 .palette-wrap {
     position: relative;
 }
@@ -649,16 +614,6 @@ body {
     box-shadow: 0 0 0 2px var(--theme), 0 0 0 4px var(--primary);
 }
 
-/* ============================================================
-   正文排版:消费 --article-fs / --article-lh / --article-ls
-   (由目录面板左下角那组"字号 / 字距"驱动,见 assets/js/hud-toc.js)
-   ─────────────────────────────────────────────────────────────
-   用户第四轮:"我想调整内容页的,方便用户" ⇒ 这是"阅读器调字号"那种功能。
-   ★ 只动正文的段落 / 列表 / 引用 / 表格文字:
-     标题、行内代码、代码块、图片题注的相对比例【不动】—— 代码块跟着变大会
-     撑破版心,标题跟着变大会把层次压平。这是刻意的。
-   ★ 列表项和引用也要带上,否则调大字号时它们的行距会和段落不一致。
-   ============================================================ */
 .post-content p,
 .post-content li,
 .post-content blockquote,
@@ -670,7 +625,92 @@ body {
     letter-spacing: var(--article-ls);
 }
 
-/* 引用块里的段落别再叠一层(它的字号已经被上面那条设过了) */
 .post-content blockquote p {
     font-size: inherit;
+}
+
+:root {
+    --accent: rgb(34, 211, 238);
+    --accent-soft: rgba(34, 211, 238, 0.14);
+    --accent-line: rgba(34, 211, 238, 0.38);
+}
+
+.post-content a,
+.post-content a:visited {
+    color: color-mix(in srgb, var(--accent) 62%, var(--primary));
+    text-decoration-color: var(--accent-line);
+    text-underline-offset: 3px;
+    transition: color 0.18s ease, text-shadow 0.18s ease;
+}
+
+.post-content a:hover {
+    color: var(--accent);
+    text-shadow: 0 0 10px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.post-content ::selection {
+    background: rgba(34, 211, 238, 0.26);
+}
+
+.post-content blockquote {
+    border-left: 2px solid var(--accent-line);
+    background: linear-gradient(90deg, var(--accent-soft), transparent 70%);
+    border-radius: 0 8px 8px 0;
+}
+
+.post-content h1,
+.post-content h2,
+.post-content h3 {
+    letter-spacing: 0.02em;
+}
+
+.post-content h2 {
+    padding-left: 0.55em;
+    border-left: 2px solid var(--accent-line);
+}
+
+.post-content code {
+    color: color-mix(in srgb, var(--accent) 55%, var(--primary));
+}
+
+.search-box input:focus {
+    border-color: var(--accent-line);
+    box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12);
+}
+
+.sr-title mark,
+.sr-snippet mark {
+    background: rgba(34, 211, 238, 0.3);
+}
+
+.main {
+    position: relative;
+}
+
+.main::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    border: 1px solid transparent;
+    background:
+        linear-gradient(135deg, rgba(34, 211, 238, 0.22), transparent 34%, transparent 66%, rgba(34, 211, 238, 0.14)) border-box;
+    -webkit-mask:
+        linear-gradient(#fff 0 0) padding-box,
+        linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 0.35s ease;
+}
+
+:root[data-theme="dark"] .main::before {
+    opacity: 1;
+}
+
+:root[data-theme="dark"] .main {
+    box-shadow:
+        0 24px 60px rgba(0, 0, 0, 0.35),
+        0 0 42px rgba(34, 211, 238, 0.07) inset;
 }

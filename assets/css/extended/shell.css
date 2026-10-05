@@ -1,44 +1,478 @@
-/* ============================================================
-   全站外壳(Shell)—— 首页和"右边的那些页面"共用的三样东西
-   ─────────────────────────────────────────────────────────────
-   用户的设计:世界坐标从左到右依次是【CD 选择页 | 首页(仿真屏幕)| 其他页】——
-   其他页住在首页的【右边】,是另一张页面,不是同一页里的东西。
-   点平板上的 APP 时,整块机器【向左平移 100vw】出去(视口往右移),
-   滑完再跳过去。为了不穿帮,滑走时露出来的东西和落地页必须是【同一个样式】,
-   于是看起来就像"在同一个页面里平移"。
 
-   这个文件就是那份"同一个样式",三部分:
-     一、宇宙背景 .cosmos —— 从 CD 页(机箱左侧的 CD 架)那套星云搬过来的,
-         两处【共用同一批类】,不是抄一份(抄了迟早会漂)。
-         ★ 它刻意【不跟深浅主题走】:不管 data-theme 是 dark 还是 light,
-           背景都是同一片星云 —— 用户要的就是"切换深浅背景也不变"。
-     二、投影 .proj-node —— 等腰直角三角形(HUD 风格)。它是【机器的一部分】:
-         首页那一份贴在屏幕右缘外侧、跟着机器平移(静止时在视口外 ⇒ 看不见;
-         左移 100vw 时从右边扫进来、停在左上角);博客页那一份就在左上角、一直可见。
-     三、向左滑过场 —— 点 APP → 整块机器(场景 + 平板 + 顶缘按钮)左移 100vw,
-         滑完再由 JS 跳转。用的是 CD 架那套 transform + 同一条缓动曲线,
-         只是这次滑的是【整屏】而不是 66vw。
-
-   ★ 这个文件走 PaperMod 的 extended 通道(assets/css/extended/*.css 会被
-     自动拼进全站样式表),所以首页和其余页面都吃得到,不用各处注册。
-   ============================================================ */
-
-/* ---------- 一、宇宙背景 ----------
-   ★ 这些变量原来定义在 .rack 上;为了让"页面背景"和"CD 架背景"用的是同一份,
-     默认值提到 :root。CD 架上那两根推子写的仍然是【.rack 上的内联变量】,
-     所以它们照旧只影响 CD 架那一块,不会把整页背景一起拽走。 */
 :root {
-    --bg-base: #030307;                     /* 最底的黑 */
-    --neb-1: rgba(56, 38, 100, 0.26);       /* 星云雾 1:左上,紫 */
-    --neb-2: rgba(30, 46, 108, 0.23);       /* 星云雾 2:右上,蓝 */
-    --neb-3: rgba(64, 34, 84, 0.30);        /* 星云雾 3:下方,品红紫 */
-    --neb-4: rgba(14, 18, 44, 0.28);        /* 中心那团:偏中性 */
-    --star-alpha: 0.74;                     /* 星点整体强度 */
-    --grid-alpha: 0.42;                     /* 网格整体强度 */
-    --grid-line: rgba(58, 186, 168, 0.075); /* 网格线颜色(青绿) */
+    --bg-base: #030307;
+    --neb-1: rgba(56, 38, 100, 0.26);
+    --neb-2: rgba(30, 46, 108, 0.23);
+    --neb-3: rgba(64, 34, 84, 0.30);
+    --neb-4: rgba(14, 18, 44, 0.28);
+    --star-alpha: 0.74;
+    --grid-alpha: 0.42;
+    --grid-line: rgba(58, 186, 168, 0.075);
 }
 
-/* 容器:只管铺满,长什么样交给下面两层 */
+/* ============================================================
+   新背景(缺陷海/驻波)挂载 —— 原 cosmos 星云保留在 DOM 里当备份:
+   .void-bg-on 时旧背景退场、新 canvas 接管;去掉 html 上的 .void-bg-on
+   即整体回退到原 cosmos(不用回滚代码)。
+   ============================================================ */
+.void-bg {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+}
+
+/* 首页:canvas 放进 .intro-bg(z-index:0 那层)而不是 .page-cosmos(首页没有),
+   亮模式不显示(外圈星点是暗底设计的) */
+html.void-bg-on.home-page[data-theme="light"] .void-bg,
+html.void-bg-on.intro-page[data-theme="light"] .void-bg {
+    display: none;
+}
+
+html.void-bg-on .page-cosmos .cosmos {
+    display: none;
+}
+
+/* ============================================================
+   正文"去框":新背景(缺陷海/驻波)下文字直接浮在背景上。
+   撤掉 .main / .post-entry 的底色、边框、投影 —— 只在 void-bg-on 时生效,
+   摘掉类即整体回退(连同样式)。
+   ============================================================ */
+html.void-bg-on .main {
+    background: transparent;
+    box-shadow: none;
+    border: 1px solid transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+/* 暗模式的青色描边 + 大投影(custom.css 按 [data-theme=dark] 写的),
+   选择器特异性更高,这里对齐它的写法压掉 */
+:root[data-theme="dark"] html.void-bg-on .main,
+html.void-bg-on[data-theme="dark"] .main {
+    box-shadow: none;
+}
+
+html.void-bg-on .main::before {
+    opacity: 0 !important;      /* 暗模式的青色描边框一并撤 */
+}
+
+/* shell-page(经过 start 登录进来的页面)的 .main 是一块毛玻璃卡
+   (底色+边框+圆角+blur+投影),一并撤。
+   ★ 原规则是 :root[data-theme].shell-page .main(特异性 = 4 个类级),
+     这里必须 ≥ 它:用 html.void-bg-on.shell-page .main(3 类级+1 类型)+ !important
+     保底 —— 压不过它去框就是一句空话。 */
+html.void-bg-on .shell-page .main,
+html.void-bg-on.shell-page .main,
+:root[data-theme].shell-page html.void-bg-on .main {
+    background: transparent !important;
+    border: 1px solid transparent !important;
+    border-radius: 0 !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none !important;
+}
+
+html.void-bg-on .post-entry {
+    background: transparent;
+    border: 1px solid transparent;
+    box-shadow: none;
+}
+
+html.void-bg-on .post-entry:hover,
+html.void-bg-on .post-entry:focus-within {
+    border-color: transparent;
+    transform: none;
+}
+
+html.void-bg-on .post-entry:active {
+    transform: none;
+}
+
+/* ============================================================
+   亮模式(奶白波底)下的 HUD / 组件配色和谐:
+   暗模式的 HUD 是"深底上的浅字"(青白发光);亮模式底是奶白,
+   同样写法会糊掉。这里把 HUD 的墨色/线色翻成"浅底上的深字",
+   青色 accent 换成深青(在奶白上可读),发光全部收敛。
+   只在 html.void-bg-on[data-theme="light"] 生效。
+   ============================================================ */
+html.void-bg-on[data-theme="light"] .page-hud {
+    --hud-ink: #3a3f48;
+    --hud-ink-dim: rgba(58, 63, 72, 0.62);
+    --hud-line-soft: rgba(58, 63, 72, 0.22);
+    --hud-line-on: rgba(58, 63, 72, 0.60);
+    --hud-rail: rgba(58, 63, 72, 0.22);
+    --hud-cover: rgba(244, 241, 233, 0.92);
+    --hud-glow: 0;
+    text-shadow: none;
+}
+
+/* 磁力光标 accent:奶白底上用深青,发光收敛 */
+html.void-bg-on[data-theme="light"] {
+    --mc-color: rgb(14, 116, 122);
+}
+
+html.void-bg-on[data-theme="light"] .hud-toc {
+    --hud-toc-ink: rgba(58, 63, 72, 0.92);
+    --hud-toc-dim: rgba(58, 63, 72, 0.70);
+    --hud-toc-line: rgba(58, 63, 72, 0.22);
+    --hud-toc-on: rgba(58, 63, 72, 0.62);
+    --hud-toc-cyan: rgb(14, 116, 122);
+}
+
+/* HUD 上的白色实心字(青底按钮等)在亮模式保持白字,但底色块换深青 */
+html.void-bg-on[data-theme="light"] .hud-toc .toc-item.is-on,
+html.void-bg-on[data-theme="light"] .hud-left .is-on {
+    box-shadow: none;
+}
+
+/* ECHO 对话框:墨绿描边 + 浅纸底 + 墨绿字 */
+html.void-bg-on[data-theme="light"] .echo-say {
+    background: rgba(240, 246, 242, 0.94);
+    border-color: rgba(24, 92, 82, 0.42);
+    color: rgb(24, 92, 82);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+html.void-bg-on[data-theme="light"] .echo-say__who {
+    color: rgb(24, 92, 82);
+}
+
+/* 顶栏 header 的毛玻璃在亮模式下换暖色 */
+html.void-bg-on[data-theme="light"] .header,
+:root[data-theme="light"].shell-page html.void-bg-on .header {
+    background: color-mix(in srgb, #f4f1e9 76%, transparent);
+}
+
+/* HUD 内写死的浅色(logo/run/face)在亮模式翻成深色 */
+html.void-bg-on[data-theme="light"] .hud-logo {
+    color: #3a3f48;
+    text-shadow: none;
+}
+
+html.void-bg-on[data-theme="light"] .hud-logo:hover {
+    color: #20242b;
+}
+
+html.void-bg-on[data-theme="light"] .hud-run {
+    stroke: #3a3f48;
+}
+
+html.void-bg-on[data-theme="light"] .hud-face {
+    fill: rgba(58, 63, 72, 0.05);
+    stroke: rgba(58, 63, 72, 0.30);
+}
+
+html.void-bg-on[data-theme="light"] .page-hud text,
+html.void-bg-on[data-theme="light"] .page-hud .hud-val,
+html.void-bg-on[data-theme="light"] .page-hud button {
+    text-shadow: none;
+}
+
+/* HUD 大框(halo/line)亮模式:墨绿细线,halo(发光层)发暗 ——
+   从"白光晕"改成墨绿薄晕,run 扫描线(白)换墨绿。
+   ★ page-hud.css 是【单独的 link,在主样式表之后】加载 ——
+     同特异性下它会赢 ⇒ 这里全部挂 !important 才压得住。 */
+html.void-bg-on[data-theme="light"] .page-hud {
+    --hud-halo-a: 0.06;
+    --hud-line-a: 0.34;
+}
+
+html.void-bg-on[data-theme="light"] .page-hud .hud-halo {
+    stroke: rgb(24, 92, 82) !important;
+}
+
+html.void-bg-on[data-theme="light"] .page-hud .hud-line {
+    stroke: rgba(24, 92, 82, 0.55) !important;
+}
+
+html.void-bg-on[data-theme="light"] .page-hud .hud-run {
+    stroke: rgb(24, 92, 82) !important;
+    opacity: 0.5;
+}
+
+html.void-bg-on[data-theme="light"] .hud-run {
+    stroke: rgb(24, 92, 82) !important;
+}
+
+/* 左下投影节点的扫描框(hud-proj__scan/line/beam):
+   青白混色线在奶白底上发白发亮 → 墨绿发暗 */
+html.void-bg-on[data-theme="light"] .hud-proj__line {
+    stroke: rgba(24, 92, 82, 0.62) !important;
+}
+
+/* ============================================================
+   左下四个组件面板(时钟/音乐/番茄钟/待办+分类页)亮模式墨绿分支
+   —— hud-left.css 里大量硬编码 rgba(234,243,255,*) 白色系,
+      奶白底上白字白边看不见,全部翻成墨绿/深灰系。
+   ============================================================ */
+
+/* 面板头部:分隔线/英文副标题 */
+html.void-bg-on[data-theme="light"] .hud-proj__head {
+    border-bottom-color: rgba(24, 92, 82, 0.22) !important;
+}
+
+html.void-bg-on[data-theme="light"] .hud-proj__en {
+    color: rgba(24, 92, 82, 0.62) !important;
+}
+
+/* 待办文字 / 时钟副行 / 日历格 / 播放器副行 · 通用淡白字 → 深灰墨绿 */
+html.void-bg-on[data-theme="light"] .hud-left__todo,
+html.void-bg-on[data-theme="light"] .hud-left__clock span,
+html.void-bg-on[data-theme="light"] .hud-left__calgrid i,
+html.void-bg-on[data-theme="light"] .hud-left__calhead span,
+html.void-bg-on[data-theme="light"] .hud-player__meta span,
+html.void-bg-on[data-theme="light"] .hud-player__time,
+html.void-bg-on[data-theme="light"] .hud-plist__row,
+html.void-bg-on[data-theme="light"] .hud-cat__row,
+html.void-bg-on[data-theme="light"] .hud-plist__hint,
+html.void-bg-on[data-theme="light"] .hud-plist__note,
+html.void-bg-on[data-theme="light"] .hud-cat__foot {
+    color: rgba(58, 63, 72, 0.72) !important;
+}
+
+html.void-bg-on[data-theme="light"] .hud-left__calgrid i.w {
+    color: rgba(58, 63, 72, 0.30) !important;
+}
+
+/* 日历"今天"格:墨绿底白字 → 墨绿底 + 白字保留(底够深) */
+html.void-bg-on[data-theme="light"] .hud-left__calgrid i.today {
+    background: rgba(24, 92, 82, 0.85) !important;
+    color: #ffffff !important;
+}
+
+/* 记事本/日历翻页按钮:白边白底 → 墨绿细边 + 墨绿薄底 */
+html.void-bg-on[data-theme="light"] .hud-left__note,
+html.void-bg-on[data-theme="light"] .hud-left__calhead button {
+    border-color: rgba(24, 92, 82, 0.30) !important;
+    background: rgba(24, 92, 82, 0.05) !important;
+}
+
+html.void-bg-on[data-theme="light"] .hud-left__note:focus {
+    border-color: rgba(24, 92, 82, 0.62) !important;
+}
+
+/* 播放器/列表行:白底纹 → 墨绿薄底 */
+html.void-bg-on[data-theme="light"] .hud-player,
+html.void-bg-on[data-theme="light"] .hud-plist__row,
+html.void-bg-on[data-theme="light"] .hud-cat__row,
+html.void-bg-on[data-theme="light"] .hud-music {
+    background-color: rgba(24, 92, 82, 0.05) !important;
+    border-color: rgba(24, 92, 82, 0.18) !important;
+}
+
+html.void-bg-on[data-theme="light"] .hud-plist__row:hover,
+html.void-bg-on[data-theme="light"] .hud-cat__row:hover {
+    background-color: rgba(24, 92, 82, 0.12) !important;
+    color: rgb(24, 92, 82) !important;
+}
+
+/* 分类首页卡(主分类大卡)与激活列表行 */
+html.void-bg-on[data-theme="light"] .hud-cat__home {
+    border-color: rgba(24, 92, 82, 0.45) !important;
+    background: rgba(24, 92, 82, 0.08) !important;
+    color: rgb(24, 92, 82) !important;
+}
+
+html.void-bg-on[data-theme="light"] .hud-cat__home span {
+    color: rgba(24, 92, 82, 0.62) !important;
+}
+
+html.void-bg-on[data-theme="light"] .hud-plist__row.is-on {
+    border-color: rgba(24, 92, 82, 0.60) !important;
+    background: rgba(24, 92, 82, 0.16) !important;
+    color: rgb(24, 92, 82) !important;
+}
+
+/* 分类页粘性标签:深底白字 → 墨绿底白字 */
+html.void-bg-on[data-theme="light"] .hud-cat__act {
+    background: rgba(24, 92, 82, 0.92) !important;
+    color: #ffffff !important;
+}
+
+/* 播放器进度条:青白混色 → 墨绿 */
+html.void-bg-on[data-theme="light"] .hud-player__track {
+    background: rgba(24, 92, 82, 0.18) !important;
+}
+
+html.void-bg-on[data-theme="light"] .hud-player__track i {
+    background: rgb(24, 92, 82) !important;
+}
+
+/* 播放按钮圆钮:墨绿描边 */
+html.void-bg-on[data-theme="light"] .hud-player__btn {
+    border-color: rgba(24, 92, 82, 0.50) !important;
+    background: rgba(24, 92, 82, 0.10) !important;
+    color: rgb(24, 92, 82) !important;
+}
+
+html.void-bg-on[data-theme="light"] .hud-player__btn:hover {
+    background: rgba(24, 92, 82, 0.18) !important;
+}
+
+html.void-bg-on[data-theme="light"] .hud-proj__beam line {
+    stroke: rgba(24, 92, 82, 0.55) !important;
+}
+
+html.void-bg-on[data-theme="light"] .hud-proj__beam circle {
+    fill: rgba(24, 92, 82, 0.55) !important;
+    stroke: rgba(24, 92, 82, 0.55) !important;
+}
+
+html.void-bg-on[data-theme="light"] .hud-proj__scan {
+    opacity: 0.5;
+}
+
+/* 扫描纹理(pattern 里的 rect 硬编码青白 rgba(234,243,255,0.05)),
+   奶白底上完全看不见 → 亮模式换墨绿纹理并加浓 */
+html.void-bg-on[data-theme="light"] #hud-proj-scan rect {
+    fill: rgba(24, 92, 82, 0.10) !important;
+}
+
+/* ECHO 摄像头内部扫描线:原 opacity 0.15 在奶白底上不可见 → 加浓到墨绿可见 */
+html.void-bg-on[data-theme="light"] .pn-scan {
+    opacity: 0.5 !important;
+}
+
+html.void-bg-on[data-theme="light"] .pn-dash {
+    stroke: rgba(24, 92, 82, 0.6) !important;
+}
+
+/* 番茄钟/左栏里的白字按钮(青底白字)在亮模式换深青底 */
+html.void-bg-on[data-theme="light"] .hud-left {
+    color: #3a3f48;
+}
+
+html.void-bg-on[data-theme="light"] .hud-left__name {
+    color: rgba(58, 63, 72, 0.62);
+}
+
+/* ============================================================
+   亮模式墨绿系(用户定色):墨绿 rgb(24,92,82)
+   —— 图标、目录卡底、组件卡文字、搜索框文字。
+   ============================================================ */
+
+/* ============================================================
+   亮模式墨绿系(用户定色):墨绿 rgb(24,92,82)
+   —— 图标、目录卡底、组件卡文字、搜索框文字、ECHO 摄像头。
+   ★ ECHO 摄像头(proj-node 的 SVG)在暗模式是"发光"语义(青色亮线);
+     奶白底上发光看不见 —— 亮模式翻成【发暗】的墨绿:深色实线、
+     不透明度拉高、去掉一切 glow,浅底上靠"深"而不是"亮"来显形。
+   ============================================================ */
+
+/* ECHO 摄像头本体:墨绿实线,不发白光 */
+html.void-bg-on[data-theme="light"] .pn-scan path {
+    stroke: rgba(24, 92, 82, 0.55);
+}
+
+html.void-bg-on[data-theme="light"] .pn-scan path:last-child {
+    stroke: rgba(24, 92, 82, 0.32);
+}
+
+html.void-bg-on[data-theme="light"] .pn-edge {
+    stroke: rgba(24, 92, 82, 0.78);
+}
+
+html.void-bg-on[data-theme="light"] .pn-dash {
+    stroke: rgba(24, 92, 82, 0.34);
+}
+
+html.void-bg-on[data-theme="light"] .pn-leg {
+    stroke: rgba(24, 92, 82, 0.45);
+}
+
+html.void-bg-on[data-theme="light"] .pn-tick {
+    stroke: rgba(24, 92, 82, 0.62);
+}
+
+html.void-bg-on[data-theme="light"] .pn-ruler {
+    stroke: rgba(24, 92, 82, 0.45);
+}
+
+html.void-bg-on[data-theme="light"] .pn-eye__case {
+    fill: rgba(24, 92, 82, 0.12);
+    stroke: rgba(24, 92, 82, 0.72);
+}
+
+html.void-bg-on[data-theme="light"] .pn-eye__iris {
+    fill: rgba(24, 92, 82, 0.20);
+    stroke: rgba(24, 92, 82, 0.90);
+}
+
+html.void-bg-on[data-theme="light"] .pn-eye__pupil {
+    fill: rgb(24, 92, 82);
+}
+
+html.void-bg-on[data-theme="light"] .pn-eye__glint {
+    fill: rgba(244, 248, 244, 0.9);
+}
+
+/* 渐变填充(pnGrad 硬编码青色 #22d3ee):亮模式换墨绿 ——
+   SVG 渐变 stop-color 只能改 SVG 内部,CSS 对 stop 无效;
+   这里用 filter 把青色调成品绿(色相旋转),暗模式不受影响。 */
+html.void-bg-on[data-theme="light"] .pn-fill {
+    filter: hue-rotate(150deg) saturate(0.55) brightness(0.9);
+}
+
+/* HUD 各处 svg 图标(导航/动作/笔/主题旋钮) */
+html.void-bg-on[data-theme="light"] .page-hud svg,
+html.void-bg-on[data-theme="light"] .hud-left svg {
+    color: rgb(24, 92, 82);
+}
+
+html.void-bg-on[data-theme="light"] .hud-nav__name,
+html.void-bg-on[data-theme="light"] .hud-left__name {
+    color: rgba(24, 92, 82, 0.78);
+}
+
+/* 目录卡片背景:深灰卡 → 墨绿薄雾卡(奶白上的浅墨绿玻璃) */
+html.void-bg-on[data-theme="light"] .hud-toc__panel {
+    background:
+        linear-gradient(180deg, rgba(24, 92, 82, 0.06), rgba(24, 92, 82, 0) 42%),
+        rgba(236, 243, 239, 0.80);
+    border-color: rgba(24, 92, 82, 0.26);
+}
+
+/* 组件卡片文字(音乐播放器/番茄钟等):白字 → 墨绿字 */
+html.void-bg-on[data-theme="light"] .hud-card,
+html.void-bg-on[data-theme="light"] .hud-panel,
+html.void-bg-on[data-theme="light"] .hud-left__mod,
+html.void-bg-on[data-theme="light"] .hud-left__ico,
+html.void-bg-on[data-theme="light"] .hud-timer,
+html.void-bg-on[data-theme="light"] .hud-timer * {
+    color: rgb(24, 92, 82);
+}
+
+/* 搜索框文字 */
+html.void-bg-on[data-theme="light"] .hud-search .search-box input {
+    color: rgb(24, 92, 82);
+    border-color: rgba(24, 92, 82, 0.34);
+    background: rgba(244, 246, 244, 0.6);
+}
+
+html.void-bg-on[data-theme="light"] .hud-search .search-box input::placeholder {
+    color: rgba(24, 92, 82, 0.5);
+}
+
+html.void-bg-on[data-theme="light"] .hud-search__clear {
+    color: rgba(24, 92, 82, 0.66);
+}
+
+/* 回到顶部按钮:亮模式墨绿圆钮 + 白色图标 */
+html.void-bg-on[data-theme="light"] .top-link {
+    background: rgb(24, 92, 82);
+    color: #f2f6f2;
+}
+
+html.void-bg-on[data-theme="light"] .top-link:hover {
+    color: #ffffff;
+}
+
+html.void-bg-on[data-theme="light"] .top-link svg {
+    fill: #f2f6f2;
+}
+
 .cosmos {
     position: absolute;
     inset: 0;
@@ -47,9 +481,6 @@
     border-radius: inherit;
 }
 
-/* 1. 最远层:深空星云 —— 颜色/亮度全部走 --neb-* / --bg-base
-   ★ 这段和 .rack-bg 那份声明是【同一段文字】,只是搬到了这里、
-     由 .cosmos-nebula 这个类来承载(CD 架的标记上也挂了这个类)。 */
 .cosmos-nebula {
     background-color: var(--bg-base, #030307);
     background-image:
@@ -62,15 +493,26 @@
     animation: cosmos-nebula 46s ease-in-out infinite alternate;
 }
 
-/* 星点单独一层,方便用 --star-alpha 一个数调强弱 */
 .cosmos-nebula::after {
     content: "";
     position: absolute;
-    inset: 0;
+    inset: -60%;
     border-radius: inherit;
     opacity: var(--star-alpha, 0.34);
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='170' height='170'%3E%3Cg fill='%23ffffff'%3E%3Ccircle cx='14' cy='26' r='0.85' opacity='.42'/%3E%3Ccircle cx='63' cy='12' r='0.6' opacity='.28'/%3E%3Ccircle cx='104' cy='41' r='1' opacity='.46'/%3E%3Ccircle cx='152' cy='22' r='0.55' opacity='.24'/%3E%3Ccircle cx='31' cy='79' r='0.7' opacity='.32'/%3E%3Ccircle cx='86' cy='96' r='0.9' opacity='.42'/%3E%3Ccircle cx='139' cy='112' r='0.6' opacity='.26'/%3E%3Ccircle cx='22' cy='139' r='0.95' opacity='.36'/%3E%3Ccircle cx='74' cy='152' r='0.5' opacity='.22'/%3E%3Ccircle cx='126' cy='159' r='0.75' opacity='.32'/%3E%3C/g%3E%3C/svg%3E");
     background-size: 170px 170px;
+    animation: cosmos-twinkle 7s ease-in-out infinite alternate, cosmos-drift 240s linear infinite;
+}
+
+@keyframes cosmos-twinkle {
+    0% { opacity: calc(var(--star-alpha, 0.34) * 0.72); }
+    50% { opacity: var(--star-alpha, 0.34); }
+    100% { opacity: calc(var(--star-alpha, 0.34) * 1.18); }
+}
+
+@keyframes cosmos-drift {
+    from { transform: translate(0, 0); }
+    to { transform: translate(-170px, -120px); }
 }
 
 @keyframes cosmos-nebula {
@@ -78,13 +520,11 @@
     to { background-position: 6% 3%, -5% 4%, 4% -3%, -3% -4%, 0% 0%; }
 }
 
-/* 2. 中层:复古数据网格 —— 颜色/强度走 --grid-line / --grid-alpha */
 .cosmos-grid {
     opacity: var(--grid-alpha, 0.5);
     background-image:
         repeating-linear-gradient(0deg, var(--grid-line) 0px, var(--grid-line) 1px, transparent 1px, transparent 26px),
         repeating-linear-gradient(90deg, var(--grid-line) 0px, var(--grid-line) 1px, transparent 1px, transparent 26px);
-    /* 雷达网格:平的,不做透视 —— 一旦加 rotateX,线条会被拉开成大片色块 */
     transform: none;
     -webkit-mask-image: radial-gradient(44% 34% at 42% 60%, #000 0%, rgba(0, 0, 0, 0.5) 42%, transparent 76%);
     mask-image: radial-gradient(44% 34% at 42% 60%, #000 0%, rgba(0, 0, 0, 0.5) 42%, transparent 76%);
@@ -96,7 +536,6 @@
     to { background-position: 0 26px, 0 0; }
 }
 
-/* 两层都要定位:它们由 .cosmos / .rack 这类容器负责铺满 */
 .cosmos-nebula,
 .cosmos-grid {
     position: absolute;
@@ -105,12 +544,6 @@
     border-radius: inherit;
 }
 
-/* 页面上的那份:钉在视口,永远在所有内容的【后面】
-   ★ z-index 必须是负数:定位元素哪怕写 z-index:0 也会画在【静态内容之上】
-     (在同一个层叠上下文里,定位层排在普通块级内容后面),于是整片星云会盖住正文 ——
-     用户报的"挡住了主页面"就是这个。写成 -1 就画在内容之前、html 底色之后。
-   ★ 必须是 position:fixed:这套标记是在 <footer> 里被渲染出来的,
-     用 absolute 的话包含块会变成文档初始包含块,滚轮一滚它跟着走。 */
 .page-cosmos {
     position: fixed;
     inset: 0;
@@ -118,24 +551,12 @@
     pointer-events: none;
 }
 
-/* ---------- 二、投影(等腰直角三角形)----------
-   ★★ 它是【机器的一部分】,不是钉在视口上的东西 ——
-      用户原话:"我要的是贴着屏幕,跟着屏幕移动"。
-      · 首页那一份是 .scene 的子元素,画在屏幕右缘【外侧】(left: 100vw),
-        平移完全由机器带着走 ⇒
-          静止时:在视口右边之外,CD 页和平板主界面上【根本看不见】;
-          点 APP 后机器左移 100vw:它正好从右边扫进来,最后停在视口左上角;
-          而博客页上那一份也在左上角(见下面的 shell-page 那条)⇒ 接得上。
-      · 它自己【没有任何动画】、没有 opacity 门:节奏全由机器那 0.55s 决定。
-        上一版做成"淡入",用户否掉了:"动画没播放完这个东西直接就跑到屏幕上了"。
-   ★ 两处共用尺寸/装饰,定位各写各的(一处跟着机器、一处钉在落地页上)。 */
 .proj-node {
     width: clamp(88px, 9vw, 132px);
     pointer-events: none;
     opacity: 0.9;
 }
 
-/* 首页:贴屏幕右缘外侧,跟着平移 */
 .intro-page .proj-node {
     position: absolute;
     left: 100vw;
@@ -143,8 +564,6 @@
     z-index: 34;
 }
 
-/* 博客页:同一个左上角,一直看得见;压在内容下面
-   (定位元素的 z-index:0 会画在静态正文之上,而左上角正是 logo 的位置) */
 :root[data-theme].shell-page .proj-node {
     position: fixed;
     left: 0;
@@ -152,8 +571,6 @@
     z-index: -1;
 }
 
-/* 顶栏在半透明下才看得见后面的投影 —— 同时保住浅色主题下的可读性:
-   用主题自己的 --theme 调出 72%,深色主题=深色磨砂、浅色主题=浅色磨砂。 */
 :root[data-theme].shell-page .header {
     background: color-mix(in srgb, var(--theme) 72%, transparent);
     backdrop-filter: blur(10px);
@@ -167,12 +584,10 @@
     overflow: visible;
 }
 
-/* 三角本体:从角上亮起来,往斜边方向淡掉 */
 .pn-fill {
     fill: url(#pnGrad);
 }
 
-/* 平行于斜边的两道扫描线:往斜边方向慢慢漂出去(像投影在扫) */
 .pn-scan path {
     stroke: rgba(34, 211, 238, 0.34);
     stroke-width: 1;
@@ -184,7 +599,6 @@
     animation-delay: 0.9s;
 }
 
-/* 斜边 + 斜边内侧那条虚线 + 直角边:细亮线,和 CD 界面那套 HUD 同一路数 */
 .pn-edge {
     stroke: rgba(160, 235, 255, 0.62);
     stroke-width: 1.1;
@@ -201,7 +615,6 @@
     stroke-width: 1;
 }
 
-/* 装饰:斜边上的垂直刻度 + 两条直角边上的标尺 */
 .pn-tick {
     stroke: rgba(160, 235, 255, 0.5);
     stroke-width: 1;
@@ -214,11 +627,6 @@
     stroke-linecap: round;
 }
 
-/* ── ECHO 的【副摄像头】(用户第七轮)─────────────────────────────
-   原来是"角上的节点":pn-ring(呼吸环)+ pn-core(亮芯),钉在直角顶点上。
-   现在是镜头 —— 外圈 / 虹膜 / 瞳孔 / 高光,位置挪到三角形内侧(markup 里 cx=cy=56)。
-   ★ 呼吸只在虹膜和瞳孔上做;镜头本身的【位移】由 hud-echo.js 每帧写 transform,
-     两件事各管各的,别在这里写 transform(会被 JS 覆盖掉)。 */
 .pn-eye__case {
     fill: rgba(6, 10, 18, 0.7);
     stroke: rgba(160, 235, 255, 0.5);
@@ -246,22 +654,11 @@
     50% { opacity: 1; }
 }
 
-/* ★ 这里原来叫 pn-core —— 那是上一版"角上光点"的类名,
-   类删了名字还留着,排查的时候会被它骗(它就是骗了我一次)。改成跟着瞳孔走。 */
 @keyframes pn-eye-glow {
     0%, 100% { opacity: 0.72; }
     50% { opacity: 1; }
 }
 
-/* ── ECHO 的对话框 ─────────────────────────────────────────────
-   用户:"我想的是在它的右侧加一个小小的对话框就足够了,正好缺点东西。
-        在进行某些交互时有反应。(触发别太密集,搞得跟一个描述框一样)"
-   ★ left 那个 clamp 和 .proj-node 的 width 是【同一组数】——
-     两处必须一起改(测试会把两个数抓出来比)。
-   ★ top 70px:让开顶栏(顶栏约 60px 高),落在左侧那片空白里。
-   ★ 只在博客页出现:首页那份节点还在屏幕外(跟着平板滑进来),不需要说话。
-   ★ 显隐【只用 .is-on 一个类】,不用 hidden 属性 —— 否则 [hidden]{display:none}
-     特异性比 ":root[data-theme].shell-page .echo-say" 低,压不住,话会一直挂着。 */
 .echo-say {
     display: none;
 }
@@ -270,14 +667,14 @@
     position: fixed;
     left: calc(clamp(88px, 9vw, 132px) + 6px);
     top: 70px;
-    z-index: 60;                       /* 压着正文,但远低于 HUD(200)与磁力光标(9999) */
+    z-index: 60;
     max-width: 178px;
     display: flex;
     flex-direction: column;
     gap: 2px;
     padding: 7px 10px 8px;
     border: 1px solid rgba(160, 235, 255, 0.26);
-    border-radius: 2px 11px 11px 11px;  /* 左上角是尖的:指着那个摄像头 */
+    border-radius: 2px 11px 11px 11px;
     background: rgba(6, 10, 18, 0.84);
     -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
@@ -288,7 +685,7 @@
     opacity: 0;
     transform: translateX(-5px);
     transition: opacity 0.22s ease, transform 0.22s ease;
-    pointer-events: none;              /* 只是个气泡,别挡住底下的东西 */
+    pointer-events: none;
 }
 
 :root[data-theme].shell-page .echo-say.is-on {
@@ -302,13 +699,18 @@
     color: rgba(34, 211, 238, 0.85);
 }
 
-/* ── ECHO 摄像头的热区(一个透明的圆,罩住那颗镜头)────────────────
-   ★ 为什么要有它:.proj-node 是 pointer-events:none + z-index:-1(压在所有内容后面,
-     刻意的)⇒ 它收不到鼠标。要"鼠标扫过来有反应""点它有反应",就得另放一层来收事件。
-   ★ 位置:镜头中心在节点方框的 56/168 = 1/3 处 ⇒ left/top = 宽/3 − 半个热区。
-     那个 clamp 和 .proj-node 的 width 是同一组数(测试会把三个数抓出来比)。
-   ★ z-index 61:要压过顶栏 —— 顶栏横跨整个页宽,而镜头就在顶栏那一条里;
-     抬高一点点不会挡住什么:左上角那一小块里顶栏本来就没有可点的东西。 */
+/* 浅色模式:ECHO 对话框改成纸面便签 —— 深墨字、浅灰蓝描边,
+   青色署名压深到可读;不再沿用暗模式那套黑底荧光 */
+:root[data-theme="light"].shell-page .echo-say {
+    border-color: rgba(70, 90, 100, 0.35);
+    background: rgba(250, 248, 242, 0.92);
+    color: rgba(40, 46, 52, 0.92);
+    box-shadow: 0 2px 10px rgba(60, 70, 80, 0.10);
+}
+:root[data-theme="light"].shell-page .echo-say__who {
+    color: rgba(8, 110, 130, 0.9);
+}
+
 .echo-hot {
     display: none;
 }
@@ -319,22 +721,12 @@
     top: calc(clamp(88px, 9vw, 132px) / 3 - 22px);
     width: 44px;
     height: 44px;
-    /* ★ 这条不能漏:上面那条基础规则是 display:none,这里不写回 block
-       就还是个 0×0 的隐形元素 —— 点不到,鼠标也扫不进去(实测踩过)。 */
     display: block;
     z-index: 61;
     border-radius: 50%;
     cursor: pointer;
 }
 
-/* ── ECHO 把"带宽共识协议"关掉:整屏黑掉,然后重进网站 ──────────────
-   用户:"接着点就会真的黑屏然后重进网站"。
-   ★ 它不走 shell-page 那条:哪一页都可能被关。基础规则【不写 display】,
-     靠 [hidden] 关着 —— .echo-black[hidden] 的特异性比 .echo-black 高,
-     不会被下面那条 display:flex 顶掉(这个坑在 .echo-say 上踩过一次)。
-   ★ z-index 99998:压过 HUD(200),但让磁力光标(9999)…不,光标得压住它,
-     所以留一档给 9999 —— 实际上黑屏时鼠标本来就该看得见,取 9998 也行;
-     这里取 99998 是为了【连光标一起盖住】,黑屏就该是黑的。 */
 .echo-black {
     position: fixed;
     inset: 0;
@@ -377,30 +769,16 @@
     color: rgba(234, 243, 255, 0.45);
 }
 
-/* 顺着斜边的法向往外漂一点点(22.5° 那条法线方向)*/
 @keyframes pn-sweep {
     0% { transform: translate(0, 0); opacity: 0.15; }
     45% { opacity: 0.9; }
     100% { transform: translate(26px, 18px); opacity: 0; }
 }
 
-/* ---------- 三、向左滑过场 ----------
-   ★ 方向:世界坐标从左到右是【CD 选择页 | 首页 | 其他页】——其他页在首页【右边】。
-     所以"去右边的页面"= 视口往右移 = 内容【向左】平移 100vw。
-     ★ 复用的是 CD 架那套:.scene 上的 transform + 同一条缓动曲线(intro.css 里
-     `body.scene-open .scene` 那条,它把左边的 CD 架拉进画面 —— 同一种"刚体平移"),
-     只是这次滑【整屏 100vw】而且是"滑完就跳走"。
-   ★ 选择器写成 body.intro-page.page-out(三个类)是为了压过 intro.css 里
-     body.scene-open .scene 那条同属性声明 —— extended 那份样式表在 intro.css
-     【之前】加载,同分时后加载的赢,所以这里必须多一个类。 */
 body.intro-page.page-out .scene {
     transform: translateX(-100vw);
 }
 
-/* 平板和顶缘那枚按钮都不在 .scene 里(它们是为了压住 CD 页的层级才搬到 body 的),
-   所以过场时要单独带上 —— 否则屏幕滑走了、平板还在原地,一眼穿帮。
-   ★ 两条的过渡时长也要改成和 .scene 一样(平板原本 .36s、按钮原本 .42s):
-     三样东西必须同起同落,差一点就能看出"它们不是一块的"。 */
 body.intro-page.page-out .tablet {
     transform: translateX(-100vw);
     opacity: 1;
@@ -413,35 +791,13 @@ body.intro-page.page-out .statusbar-toggle {
         transform .55s cubic-bezier(.22, .61, .36, 1);
 }
 
-/* 过场期间别让用户再点第二下 / 别让滚动条冒出来 */
 body.page-out {
     pointer-events: none;
     overflow: hidden;
 }
 
-/* ---------- 三之二、进 CD 页:引导【不做任何平移】 ----------
-   ★★★ 用户:"往左滑那块的 bug 代码删掉,不允许复用旧代码" / "重写还能写出一样的 bug?"
-
-   这一节原来有三条规则(dock-hold / dock-out / dock-in),是引导自己造的一次
-   向左 -100vw 的过场。它和【原生】那一次(scene-open ⇒ .scene 向右 +66vw 把
-   CD 架拉进来)抢同一个 transform,所以无论怎么写都会出现"先右后左 / 先左后右"。
-   ⇒ 整段删掉。进 CD 页本来就只有一次位移,那是 CD 页自己的那一次(平时手点按钮
-     也是它);引导只负责:按下就闭眼、闭着的时候把眼睛挪到右边那一格、再睁开。
-     眼睛那点位移走它自己的过渡(.home-eye.is-docked 的 .55s),不是"机器的过场"。
-   ★ 上面"三、向左滑过场"那一节(给 /tech/ 这类页面跳转用的 .page-out)按原样保留 ——
-     那是站点的页面切换,和引导无关。 */
 
 
-/* ---------- 四、右边的那些页面(第一批:先给它们"同一个样式") ----------
-   ★★ 用户澄清过一次,别再做错:
-      · 【底层背景】不跟深浅主题走 —— 永远是同一片星云
-        (所以 body 透明,让 .page-cosmos 露出来);
-      · 【内容自己的背景】按主题【正常变化】 —— 正文面板就是一张卡片,
-        深色主题下是深卡、浅色主题下是浅卡,字色也跟着主题走。
-      上一版把整套调色板( --primary / --content / --entry …)都按成了"深底浅字",
-      那是把主题整个按死了 —— 错的。这一版只动"页面底色"这一件事。
-   ★ body 透明:PaperMod 的 body 背景是 var(--theme),不透明会把负 z-index
-     那层星云盖掉。注意只透明【背景】,--theme 这个变量本身留着给卡片用。 */
 :root[data-theme].shell-page {
     background: var(--bg-base, #030307);
 }
@@ -450,9 +806,6 @@ body.page-out {
     background: transparent;
 }
 
-/* 正文面板:一张【跟着主题走】的磨砂卡片(略微透一点,能看见后面的星云)。
-   color-mix 用的就是主题自己的 --theme(浅色主题=白、深色主题=深灰),
-   所以深浅一切换它自己就跟着变。 */
 :root[data-theme].shell-page .main {
     background: color-mix(in srgb, var(--theme) 86%, transparent);
     border: 1px solid var(--border);
@@ -464,15 +817,14 @@ body.page-out {
     margin: clamp(12px, 2.2vh, 28px) auto;
 }
 
-/* ---------- "减少动态效果":背景和投影都不要动 ---------- */
 @media (prefers-reduced-motion: reduce) {
     .cosmos-nebula,
+    .cosmos-nebula::after,
     .cosmos-grid,
     .pn-eye__iris,
     .pn-eye__pupil,
     .pn-scan path {
         animation: none !important;
     }
-    /* 镜头也别追鼠标了(hud-echo.js 会读这个查询,自己停掉) */
     .echo-say { transition: none; }
 }

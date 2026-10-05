@@ -32,30 +32,8 @@
             </a>
             {{- end }}
 
-            {{- /* ★ 三个开关(明暗 / 音量 / 配色)【已经搬走】—— 见右侧 HUD
-                   (layouts/_partials/page-hud.html 的右下三件套)。
-                   用户给的布局图里,顶栏只剩【品牌 + 搜索栏】两样东西。
-                   ★ 搬走不会丢功能:主题 footer 的脚本是按 id 找 #theme-toggle 的
-                     (document.getElementById,不关心它在哪),cd-audio.js 同理。
-                   ★ 也【不能】两边都渲染:同一个页面里两套同 id 的控件,
-                     按 id 找人的那些脚本只会绑到先出现的那个。 */ -}}
         </div>
         <div class="nav-right">
-            {{- /* ★ 五个菜单项【已经搬到右侧 HUD 的导航栏】(layouts/_partials/page-hud.html)。
-                   用户给的布局图:导航栏在屏幕最右侧,竖着排。
-                   ★ 数据源还是同一份 site.Menus.main —— 图标也还是同一个 $m.Pre,
-                     三处(顶栏旧址 / 平板 APP / 右侧 HUD)不会各自漂。
-                   ★ 必须删干净,不能只藏起来:这段原来是 <ul id="menu">,
-                     主题 footer 的脚本按 id 取它(#menu 那个横向滚动记忆),
-                     留着就会出现两个 id="menu"。 */ -}}
-            {{/* ★ 这一块现在是【可复用搜索组件】的一个实例(见 assets/js/search.js):
-                   data-search          = 一个实例的根
-                   data-search-input    = 那个实例的输入框
-                   data-search-results  = 结果面板
-                 ★ 组件【不再依赖 id】:它只在容器内查找。id 保留着是因为
-                   页面上(和外面)可能还有按 id 引用它的东西 —— 但复用第二处
-                   (平板主界面的搜索卡片)时不必再编一套 id。
-                 ★ 这段标记必须和 search.js 里 build() 的查找顺序一致,测试里钉着。 */}}
             <div class="search-widget" id="header-search" data-search>
                 <div class="search-box">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"

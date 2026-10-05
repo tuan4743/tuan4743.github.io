@@ -120,6 +120,27 @@
         }
         .start-wrap { position: relative; z-index: 1; }
 
+        /* --- 顶部登入状态栏:方舟登入系统的外壳常驻一行 ---
+           等宽数字 + 极低亮度,是"环境"不是"内容";
+           内容由 start-wire.js 每秒刷新(信号强度 / 锚点状态 / 在船时间)。 */
+        .start-bar {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 2;
+            display: flex;
+            gap: clamp(14px, 3vw, 42px);
+            padding: 10px clamp(14px, 2.6vw, 34px);
+            font-size: 11px;
+            letter-spacing: .16em;
+            color: rgba(255, 255, 255, .38);
+            pointer-events: none;
+            user-select: none;
+            font-variant-numeric: tabular-nums;
+        }
+        .start-bar__cell:first-child { color: rgba(255, 255, 255, .55); }
+        .start-bar__dim { margin-left: auto; }
+        .start-bar .is-warn { color: rgba(255, 120, 120, .75); }
+
         /* ★★ 出场顺序(用户:"刚进入屏幕中央只有一条线,然后开始抖动突然猛地睁开,
            文字'你好?'随后出现。过一点时间再出现两个选项")
            ⇒ 三段各自等一个 is-in 类;类由 JS 按时间线挂,不用 CSS 动画延时 ——
@@ -218,6 +239,16 @@
     <div class="start-fade" aria-hidden="true"></div>
     {{/* 背景数据流(向上滚的 ASCII 线)—— 内容由下面的脚本生成 */}}
     <pre class="start-flow" id="start-flow" aria-hidden="true"></pre>
+
+    {{/* 顶部登入状态栏:方舟登入系统的"外壳"。
+        按设定,启动页是方舟的登入系统,博客本身是方舟里的一个锚点。
+        这一栏只陈述系统状态,不替总控 AI 说话(那一屏只有"你好?"是它的台词)。 */}}
+    <div class="start-bar" aria-hidden="true">
+        <span class="start-bar__cell">ARK // LOGIN</span>
+        <span class="start-bar__cell" id="bar-signal">RELAY SIGNAL: --</span>
+        <span class="start-bar__cell" id="bar-anchor">ANCHOR: 漂移</span>
+        <span class="start-bar__cell start-bar__dim" id="bar-clock">T+00:00:00</span>
+    </div>
 
     <div class="start-wrap">
         {{/* ★★★ 这里有一段【写死在 HTML 里】的静态眼睛占位。

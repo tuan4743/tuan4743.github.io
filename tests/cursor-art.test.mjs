@@ -1,17 +1,4 @@
-/* ============================================================
-   磁力光标:用【真模块 + 假 canvas 录制器】跑一遍,把这一轮的两个真 bug 钉死。
-   ─────────────────────────────────────────────────────────────
-   为什么不能用"源码里有没有 ctx.rotate"这种扫描:
-     · × 那半边的 rotate 一直都在,只是 gradLine 用绝对坐标 + 自己 save/restore,
-       根本不看变换矩阵 —— 扫源码会得出"在转",实际一点没转(用户:"×还是不转")。
-     · 中心光点也一直在画,只是半径被写成了 DOT/5 = 2px(整颗点 4px 宽,
-       压在四条白心线的交叉点上,等于没画)。
-   所以这里把模块本体的绘制调用录下来,直接量【世界坐标】和【半径】。
-
-   技巧:调用 ctx.rotate(θ) 之后 ctx.__lastRot = θ,再用 ctx.rotate(-θ) 配平 ——
-   假 ctx 全程恒等变换 ⇒ 记下来的坐标天然就是世界坐标,不用手算矩阵。
-   跑法:node tuagfey-blog/tests/cursor-art.test.mjs
-   ============================================================ */
+/* 磁吸光标:源码 + 样式 + 指纹三层验收。 跑法见 tests/README.md */
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -20,7 +7,6 @@ const BH = `${WS}/tuagfey-blog`;
 const rows = [];
 const ok = (n, p, i) => rows.push([!!p, n, i === undefined ? '' : String(i)]);
 
-/* ---------------- 假 canvas:录制 + 旋转配平 ---------------- */
 function makeCtx(rec) {
   const ctx = {
     __lastRot: 0,
@@ -51,7 +37,7 @@ function makeCtx(rec) {
         lineWidth: this.lineWidth, shadowBlur: this.shadowBlur, shadowColor: this.shadowColor,
         moveTo: this.cur.moveTo, lineTo: this.cur.lineTo, arcs: this.cur.arcs.slice()
       });
-      ctx.rotate(-rot); ctx.__lastRot = 0;      /* ★ 配平:假 ctx 全程恒等,坐标即世界坐标 */
+      ctx.rotate(-rot); ctx.__lastRot = 0;
     },    fill() {
       rec.push({
         op: 'fill', deg: +(this.__lastRot * 180 / Math.PI).toFixed(3), alpha: this.globalAlpha,
@@ -63,10 +49,6 @@ function makeCtx(rec) {
   return ctx;
 }
 
-/* ---------------- 假 DOM + 驱动 ---------------- */
-/* ★ 每个用例 boot() 一次 = 把模块本体再跑一遍。上一份实例的 rAF 循环还在
-   (它记的是自己那个假 ctx),不掐掉就会【两个实例同时往同一个录制器里写】——
-   这正是"90 帧却录到 720 条臂"的原因。用 BOOT_ID 把旧实例静音。 */
 let BOOT_ID = 0;
 function boot() {
   const MY = ++BOOT_ID;
@@ -94,7 +76,6 @@ function boot() {
     __MC_BOOT: MY,
     matchMedia: (q) => ({ matches: false, media: q }),
     innerWidth: 1920, innerHeight: 1080, devicePixelRatio: 1,
-    /* 只有当前实例能排帧:out 是把旧实例的 rAF 彻底断掉 */
     requestAnimationFrame: (cb) => { if (MY !== BOOT_ID) return 0; rafCb = cb; return 1; },
     addEventListener(t, f) { (listeners[t] = listeners[t] || []).push(f); }, removeEventListener() {},
     getComputedStyle: () => ({ getPropertyValue: () => '' })
@@ -119,16 +100,12 @@ function boot() {
   return { rec, win, fire, frame };
 }
 
-/* ============================================================
-   ① 自检:录制器本身可信吗?(先证明量具,再证明结论)
-   ============================================================ */
 {
   const rec = [];
   const c = makeCtx(rec);
   c.save(); c.translate(100, 50); c.rotate(Math.PI / 2);
   c.beginPath(); c.moveTo(0, 0); c.lineTo(10, 0); c.stroke();
   const s = rec[0];
-  /* 世界坐标:绕原点转 90°,点 (10,0) 应该落到 (0,10),再平移 (100,50) ⇒ (100,60) */
   ok('自检:录制器把旋转后的坐标还原成世界坐标',
     Math.abs(s.lineTo[0] - 100) < 1e-6 && Math.abs(s.lineTo[1] - 60) < 1e-6,
     `lineTo=${JSON.stringify(s.lineTo)}`);
@@ -136,9 +113,6 @@ function boot() {
   ok('自检:配平之后矩阵恢复恒等', Math.abs(c.m[0] - 1) < 1e-9 && Math.abs(c.m[1]) < 1e-9);
 }
 
-/* ============================================================
-   ② 记号笔(×):四条臂必须吃到 rot,而且是"看得见"的转
-   ============================================================ */
 {
   const { rec, win, fire, frame } = boot();
   rec.length = 0;
@@ -149,16 +123,12 @@ function boot() {
     frame(400 + i * 16);
   }
   const arms = rec.filter((r) => r.op === 'stroke' && r.moveTo && r.lineTo);
-  /* 四条臂 × 每条两笔(gradLine 自己会描两遍:青晕那一笔 + 白芯那一笔)= 8 笔/帧 */
   ok('× 形态:四条臂每帧都画了(4 臂 × 2 笔)', arms.length === 90 * 8, `arms=${arms.length}`);
 
   const degs = arms.map((a) => a.deg);
   const uniq = new Set(degs.map((d) => Math.round(d)));
   ok('★ × 的四条臂真的吃到 rot(不再恒为 0)', uniq.size > 30 && degs.some((d) => Math.abs(d) > 5),
     `不同角度=${uniq.size} 例:${[...uniq].slice(0, 6).join(',')}`);
-  /* __mc.rot 是"这一刻的自转角",臂角是"画这条臂那一刻吃的角" —— 同一帧内臂先画、
-     rot 后写,数值差一帧的缓动量,所以不能直接比大小。改成量【行为】:
-     每帧取一条臂的角度、按时间排开,看它是不是一直在往一个方向转。 */
   const perFrame = [];
   for (let i = 0; i + 8 <= arms.length; i += 8) perFrame.push(arms[i].deg);
   let swept = 0, rising = 0;
@@ -174,8 +144,6 @@ function boot() {
     !!win.__mc && Object.prototype.hasOwnProperty.call(win.__mc, 'pen') && win.__mc.pen === 'x',
     JSON.stringify(win.__mc));
 
-  /* 直角 × 是 90° 对称的 ⇒ 只看青线,转 90° 和原图一模一样,眼睛看不出在转。
-     所以白色内芯必须跟着 rot 沿臂来回走:量它离中心多远。 */
   const coreAt = (r) => {
     if (!r.stops) return null;
     const w = r.stops.find((s) => s[0] > 0 && /255,255,255/.test(s[1]));
@@ -186,13 +154,10 @@ function boot() {
   ok('★ × 的白芯随 rot 沿臂移动(90° 对称下唯一看得见的旋转线索)', spread > 0.3,
     `白芯位置 0~${Math.max(...coreVals).toFixed(2)},跨度 ${spread.toFixed(2)}`);
 
-  /* 形状本身还是要跟手:每条臂都从光标位置出发(同一帧 8 笔共用同一个起点) */
   const starts = new Set(arms.slice(-8).map((a) => a.moveTo.join(',')));
   const want = [(900 + 89 * 6), (500 + 89 * 3)].join(',');
   ok('× 的臂从光标真实位置出发', starts.size === 1 && starts.has(want), `起点=${[...starts].join(' / ')} 期望=${want}`);
 
-  /* 中心光点:每帧一层柔光 + 一颗实心 = 2 次 fill;半径必须是 --mc-dot 那一档。
-     原来写的是 Math.max(1.1, DOT / 5) ⇒ DOT=6 时半径 1.2px,压在 4 条白心线交叉处 = 看不见 */
   const fills = rec.filter((r) => r.op === 'fill');
   ok('★ 记号笔下中心光点每帧都画(不再消失)', fills.length === 90 * 2, `fills=${fills.length}`);
   const solid = fills.filter((r) => r.fillStyle === '#eaf3ff');
@@ -203,9 +168,6 @@ function boot() {
     JSON.stringify(solid.length ? solid[solid.length - 1].arcs[0] : null));
 }
 
-/* ============================================================
-   ③ 荧光笔/橡皮(圆框):本来就在转,别被上面的改动碰坏
-   ============================================================ */
 {
   const { rec, win, fire, frame } = boot();
   rec.length = 0;
@@ -225,9 +187,6 @@ function boot() {
   ok('圆框下中心光点也在', rf.length === 90 * 1, `fills=${rf.length}`);
 }
 
-/* ============================================================
-   ④ 未锁定:那颗呼吸的点必须和笔形态同一套画法(同半径、同颜色)
-   ============================================================ */
 {
   const { rec, win, fire, frame } = boot();
   rec.length = 0;
@@ -236,35 +195,19 @@ function boot() {
   for (let i = 0; i < 30; i++) frame(100 + i * 16);
   const f = rec.filter((r) => r.op === 'fill' && r.fillStyle === '#eaf3ff');
   ok('未锁定:中心光点画了', f.length === 30, `fills=${f.length}`);
-  /* --mc-dot:6px ⇒ 半径 3px,呼吸 ±26% ⇒ 2.2 ~ 3.8 */
   const idleR = f[0].arcs[0].r;
   ok('未锁定:光点半径 = DOT/2 带呼吸(2.2~3.8px)', idleR >= 2.2 && idleR <= 3.8, `r=${idleR.toFixed(2)}`);
   ok('未锁定:光点是一层柔光 + 一颗实心(两份 fill)',
     rec.filter((r) => r.op === 'fill' && r.fillStops).length === 30);
-  /* ★ 笔形态和未锁定必须是【同一个函数画出来的】:半径只差呼吸系数 */
   const solidR = f.map((r) => r.arcs[0].r);
   ok('未锁定与笔形态的光点半径同源(呼吸幅度之内)',
     Math.abs(Math.max(...solidR) - Math.min(...solidR)) <= 3 * 0.26 + 0.001,
     `半径范围 ${Math.min(...solidR).toFixed(2)} ~ ${Math.max(...solidR).toFixed(2)}`);
 }
 
-/* ============================================================
-   ⑤ 锁定框该锁谁(用户第三轮:"内容页的某些可点击事件,比如文本链接、标签、
-      上下一页等,扫描框不会锁")
-   ─────────────────────────────────────────────────────────────
-   这是老毛病第三次犯:白名单里只列了已知的类名,而兜底那条只认 <button>。
-   正文里的链接/标签/上下篇导航都是 <a> ⇒ 一个都不匹配。
-   这里不靠"跑一遍 DOM",直接把选择器抠出来用真 DOM(jsdom 没有,就用
-   Chrome 里量过的真实选择器语义)检查:白名单文本里必须出现这些覆盖。
-   ★ 关键的一条是 main.main a —— 用排除法覆盖正文里所有能点的东西,
-     而不是继续列类名(列类名必漏)。
-   ============================================================ */
 {
   src_check: {
     const src = fs.readFileSync(`${BH}/assets/js/magnetic-cursor.js`, "utf8");
-    /* ★ 一行里可能有好几条规则(写成 "a", "b", "c" 挤一行),
-       所以【按引号扫】,不要按行切 —— 按行切会把 "b", "c 连成一坨,
-       于是"某条规则漏了 .anchor"这种断言会误报。 */
     const block = (src.match(/var SELECTOR = \[([\s\S]*?)\]\.join\(","\)/) || [, ""])[1]
       .replace(/\/\*[\s\S]*?\*\//g, "");
     const rules = (block.match(/"([^"]*)"/g) || []).map((s) => s.slice(1, -1));
@@ -275,24 +218,16 @@ function boot() {
     ok('标签在列表里', /\.post-tags a/.test(sel) || /\.terms-tags a/.test(sel));
     ok('上下一页/翻页在列表里', /\.paginav a/.test(sel) && /\.post-nav a/.test(sel));
     ok('面包屑/页脚链接在列表里', /\.breadcrumbs a/.test(sel) && /\.footer a/.test(sel));
-    /* ★★ 会命中标题旁 .anchor 的,只有"正文/整篇"这几条(锚点就长在正文里):
-         main.main a / .post-single a / .post-content a —— 每条都必须自己带 :not(.anchor)。
-       实测 .anchor 就是被 .post-single a / .post-content a 漏进来的
-       (只在 main.main a 那条写 :not 不够)。
-       ★ .post-tags a / .post-nav a 这类是【局部容器】里的链接,锚点不会长在那儿,
-         不必也不该给它们加 :not —— 加了反而是噪音。 */
     const bodyWide = rules.filter((r) => /^(main\.main a|\.post-single a|\.post-content a)(:|$)/.test(r));
     const leaky = bodyWide.filter((r) => !/:not\(\.anchor\)/.test(r));
     ok('★ 覆盖整篇正文的那几条规则都排除了 .anchor', bodyWide.length >= 3 && leaky.length === 0,
       `正文级规则 ${bodyWide.length} 条,漏的:${leaky.join(" | ") || "无"}`);
     ok('碎片的排除还在(那是用户明确要求不吸的)', /button:not\(\.frost-shard\)/.test(sel));
-    /* ★ 别用 indexOf(".hud-logo") 判 —— ".hud-logo__x" 这种也会命中。按独立选择器比。 */
     ok('LOGO 仍然不吸(用户:"它只是个 LOGO")',
       !rules.some((r) => r.trim() === ".hud-logo"), rules.filter((r) => r.indexOf("hud-logo") >= 0).join(" | ") || "(未出现)");
   }
 }
 
-/* ---------------- 输出 ---------------- */
 let bad = 0;
 const pad = (s, n) => String(s).padEnd(n);
 rows.forEach(([p, n, i]) => {

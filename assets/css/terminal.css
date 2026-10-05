@@ -1,25 +1,4 @@
-/* ============================================================
-   第四张盘「技术」:故障光盘的紧急恢复终端(.term)
-   ─────────────────────────────────────────────────────────────
-   配色就一套 Linux 控制台的老配方:
-     底      #05060a(近黑)  + 极淡的扫描线
-     正文    灰白
-     错误    红
-     提示符  绿(emergency@recovery:~$)
-     路径    蓝
-     警告    黄   ·  故障/乱码 品红
-   所有可调项都在下面 .term 的变量里;想换整套配色只改这一块。
-
-   结构(见 layouts/partials/pages/tech.html):
-     .term
-       .term-stage
-         .term-screen   ← 所有输出都在这里(<pre>,等宽 + 保留空格)
-         .term-tear     ← 撕裂条(故障爆发时闪一下)
-         .term-scan     ← 缓慢下移的扫描线
-       .term-tip
-   ============================================================ */
 .term {
-    /* ---- 配色 ---- */
     --term-bg: #05060a;
     --term-fg: #c9d3e0;
     --term-hi: #eaf2ff;
@@ -30,25 +9,13 @@
     --term-yellow: #e8c15a;
     --term-magenta: #c56cff;
 
-    /* ---- 排版 ---- */
     --term-font: "Alpha Sector", "Pixel CN", "PingFang SC", "Microsoft YaHei", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     --term-fs: clamp(11px, 0.83vw, 14.5px);
     --term-lh: 1.62;
     --term-pad-x: clamp(16px, 1.9vw, 34px);
     --term-pad-y: clamp(12px, 1.6vh, 22px);
-    /* 顶上那条站点导航是浮在内容之上的覆盖层 —— 但它默认是收起隐藏的,
-       所以这里默认【不让位】;真露出来的时候由 JS 量出高度写进 --term-gap-top
-       (见 cd4-terminal.js 的 syncTopGap)*/
     --term-gap-top: 0px;
 
-    /* ---- 落位 ----
-       下面这组是【保底】的百分比:正常情况由 cd4-terminal.js 在运行时把外框贴图
-       /assets/screen/frame.webp 读进 canvas、量出真正的透明窗口,再写成内联的 px 值
-       (贴图是静态资源没有指纹,浏览器里可能是旧缓存 —— 写死的百分比不一定对得上)。
-       数据来源:tools/verify/frame-window.mjs(2200×1216 那张图:
-       top 8.224% / right 5.455% / bottom 8.553% / left 3.636%)。
-       ★ 别再退回 --sp-t/--sp-x/--sp-b 那一组:那是整块屏幕的内边距,
-         右下比外框的窗口多出去 7~10px,终端会"顶出框"(用户报过)。*/
     --term-frame-gap: clamp(8px, 1.1vh, 16px);
     --term-frame-top: calc(8.224% + var(--term-frame-gap));
     --term-frame-right: calc(5.455% + var(--term-frame-gap));
@@ -67,7 +34,6 @@
     -webkit-font-smoothing: antialiased;
 }
 
-/* 老显示器的味道:一张极淡的水平扫描线贴图(纯渐变,不用图片)*/
 .term::after {
     content: "";
     position: absolute;
@@ -84,13 +50,6 @@
     inset: 0;
 }
 
-/* 量到外框贴图之后:玻璃层【铺满整块屏幕,不再裁形状】——
-   新外框(/assets/screen/frame.webp)自带不透明的机体背景,溢出的部分由它盖住
-   (用户:"这个屏幕框架专门做了背景处理,不需要原本的页面裁切")。
-   ★ 终端这一层在 .screen 里、层级远低于窗框(z-index:auto 对 34),
-     所以铺满也不会糊到金属框上,窗框在上面收口。
-   文字的活动范围仍然被收到最大内接矩形里(--term-inset-*,JS 写的 px)。
-   量不到图时不会加 is-fitted,就退回上面那组保底百分比。 */
 .term.is-fitted {
     inset: 0;
     border-radius: 0;
@@ -103,7 +62,6 @@
            calc(var(--term-inset-left, 0px) + var(--term-pad-x));
 }
 
-/* 输出区:等宽 + 保留空格(表格/树/进度条全靠它对齐)*/
 .term-screen {
     position: absolute;
     inset: calc(var(--term-pad-y) + var(--term-gap-top, 0px)) var(--term-pad-x) var(--term-pad-y);
@@ -129,12 +87,10 @@
     border-radius: 4px;
 }
 
-/* 一行 = 一个 div(空行也占位)*/
 .t-ln {
     min-height: 1em;
 }
 
-/* ---- 语义颜色:JS 里用 <span class="c-x"> 或行级 class ---- */
 .c-dim { color: var(--term-dim); }
 .c-hi { color: var(--term-hi); }
 .c-err, .t-ln.is-err { color: var(--term-red); }
@@ -146,7 +102,6 @@
 .t-ln.is-dim { color: var(--term-dim); }
 .t-ln.is-hi { color: var(--term-hi); }
 
-/* 输入行:提示符 + 已输入内容 + 方块光标 */
 .t-prompt { color: var(--term-green); }
 .t-caret {
     display: inline-block;
@@ -163,7 +118,6 @@
     53%, 100% { opacity: 0; }
 }
 
-/* ---- 撕裂条 / 扫描线(故障爆发时用)---- */
 .term-tear {
     position: absolute;
     left: 0;
@@ -211,7 +165,6 @@
     100% { transform: translateY(160vh); }
 }
 
-/* 一次故障爆发:文字左右错开(RGB 分离)+ 轻微抖动 */
 .term.is-glitching .term-screen {
     text-shadow: 1.2px 0 rgba(255, 95, 86, 0.42), -1.2px 0 rgba(90, 200, 255, 0.38);
     animation: term-shake 0.16s steps(2, end) 2;
@@ -223,7 +176,6 @@
     100% { transform: translateX(1px); }
 }
 
-/* 整块显示器偶尔"接触不良"一下(和选择界面那块面板同一套脾气)*/
 .term.is-unstable {
     animation: term-instability 6.4s steps(1, end) infinite;
 }
@@ -236,10 +188,7 @@
     97.7% { filter: none; }
 }
 
-/* 底部提示行:刻意不做 —— 提示都放在终端里(help / [recover] 引导),
-   页面上不再重复一份说明,免得和终端的语气打架 */
 
-/* 只给读屏用的一行(终端本身是逐行刷新的,不能让读屏去念每一次按键)*/
 .term-sr {
     position: absolute;
     width: 1px;

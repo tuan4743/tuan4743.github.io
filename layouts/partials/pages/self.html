@@ -1,33 +1,7 @@
-{{/* 第一张盘「自我」的主页内容:Emoji 拼贴自我介绍
-     ─────────────────────────────────────────────────────────────
-     玩法:屏幕中央一张【没有五官的空白脸】,四周像星星一样飘着 14 个 emoji;
-           点一下(或拖上去)就把这个特质贴到脸上,同时蹦出一句话;
-           十四个全贴满 → 脸变成那个夸张形象,并汇总出一段自我介绍。
-     数据:hugo.toml 的 [[params.intro.decks.self]](emoji / key / label / text / pod)
-     逻辑:assets/js/page-self.js
-     样式:assets/css/pages.css 的「第一张:Emoji 拼贴」那一段
-     ─────────────────────────────────────────────────────────────
-     ★ 这张脸是【手写的 SVG】,不是图片素材。它是「一颗还没被填满的黄豆 emoji」:
-        · 默认状态:只有轮廓 + 一点底色 —— 刻意【不画五官】,「空白脸」是这一页的钩子
-        · 每贴一个特质,脸上多一样东西(见下面各 <g>/<circle> 的注释),
-          位置都按"这个 emoji 最显眼的那个特征"摆:眼镜在眼睛的位置、
-          耳罩扣在脸的两侧、杯子塞在手里、火苗长在头顶外面……
-        · 配色全部走 CSS 变量,想换只动 pages.css 的 .self 那一段,这里不写死颜色
-     ★ 部件分两类,由 hugo.toml 的 pod = "socket" | "skin" 决定:
-        socket = 往脸上【加】一样东西(眼镜/耳机/杯子/手柄/火苗/面具/王冠……)
-        skin   = 改整张脸【本身】的性质(融化、半透明、睁不开眼……)
-       —— 分开是因为 skin 类只该有一个生效,两个同时上会互相打架 */}}
 <div class="self" data-self="{{ .key }}">
     <div class="self-glow" aria-hidden="true"></div>
 
-    {{/* 背景装饰:星星 + 准星环 + 刻度 + 扫描线。
-         全部由 JS 按面板尺寸撒点(见 page-self.js 的 decorate),这里只留容器。
-         星星会自动避开中间那块"脸的领地"和左上角的标题,所以它永远在填空,不会糊在脸上。 */}}
     <svg class="self-deco" data-self-deco aria-hidden="true" preserveAspectRatio="none"></svg>
-    {{/* 扫描:只剩一条上下来回的亮线(带余辉)。
-         ★ 上一版这里还有个"矩形取景框"(四条边 + 四角括号),用户看了说去掉 ——
-           屏幕本身已经有显示器的边框了,再套一个方框既重复又抢戏。
-           现在只留线:扫描这件事靠"线在动"自己成立,不需要把框画出来。 */}}
     <div class="self-scan" aria-hidden="true">
         <span class="self-scan__line"></span>
     </div>
@@ -38,16 +12,6 @@
         <h2 class="self-lead">把我拼出来,你就认识我了。</h2>
     </div>
 
-    {{/* 飘浮区:整块面板那样大,emoji 散布在"台词列左侧"的整片地方(不只围着脸)。
-         每个按钮就是"一个特质",点击或拖拽都行(见 page-self.js)
-
-         ★★ 这里有一条【必须成立】的规矩(用户实测踩过两次):
-            脸永远不能挡住 emoji 的点击。
-            前两版靠"把拦截区缩小"来绕,结果脸一放大就又有点不到的 emoji。
-            现在从结构上根治(见 page-self.js 的 onDown / onMove):
-              · pointer 事件挂在 .self-field 上 —— 它不是脸的父节点,所以脸盖不住它;
-              · "点在脸上还是点在外头"改成【自己算距离】,不再依赖 DOM 命中测试。
-            于是"脸挡住了什么"这件事在结构上就不可能发生。 */}}
     <div class="self-field" data-self-field>
         {{- range $i, $c := .items }}
         <button type="button" class="self-pod" data-self-pod="{{ $c.key }}" data-self-emoji="{{ $c.emoji }}"
@@ -58,68 +22,38 @@
         {{- end }}
     </div>
 
-    {{/* 脸 + 台阶。
-         ★ .self-stage 只是"脸的位置",它【不接指针】(CSS 里 pointer-events:none,
-           只有 .self-facebox 那一圈圆接)——
-           第一版它是铺满整块面板的,于是中间那一大片把飘浮 emoji 的点击全吃了,
-           观众会发现圈里的 emoji 点不动。 */}}
     <div class="self-stage" data-self-stage>
         <div class="self-facebox">
             <span class="self-flash" aria-hidden="true"></span>
             <svg class="self-face" viewBox="0 0 360 360" role="img"
                 aria-label="一张还没有五官的脸,等着被拼出来">
                 <defs>
-                    {{/* 球面感:左上打光 —— 纯平涂的黄色会像一块塑料板 */}}
+
                     <radialGradient id="selfFuse" cx="33%" cy="25%" r="78%">
                         <stop offset="0%" stop-color="#ffffff" stop-opacity=".58"></stop>
                         <stop offset="50%" stop-color="#ffffff" stop-opacity=".06"></stop>
                         <stop offset="100%" stop-color="#000000" stop-opacity=".22"></stop>
                     </radialGradient>
-                    {{/* 耳机头梁的金属色 */}}
+
                     <linearGradient id="selfBand" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stop-color="#e6eefb"></stop>
                         <stop offset="100%" stop-color="#93a2ba"></stop>
                     </linearGradient>
-                    {{/* 腮红:一块软边椭圆,压上去像"脸红了"而不是贴了张纸 */}}
+
                     <radialGradient id="selfBlush" cx="50%" cy="50%" r="50%">
                         <stop offset="0%" stop-color="#ff8fa3" stop-opacity=".75"></stop>
                         <stop offset="70%" stop-color="#ff8fa3" stop-opacity=".35"></stop>
                         <stop offset="100%" stop-color="#ff8fa3" stop-opacity="0"></stop>
                     </radialGradient>
-                    {{/* ★ 剪影遮罩:默认整块白(= 什么都不挡)。白 = 保留,黑 = 挡掉。
-                         「融化」和「半透明」要改的是【脸本身的轮廓】,不是"再叠一个东西",
-                         所以得先把底座下半边挡住,再让各自那一坨接上去。
-                         JS 只切 facebox 上的 is-melt / is-clear,不动这里。 */}}
-                    {{/* ★★ 剪影遮罩分成三条,而且【各自独立】——这一块我连错了两轮:
-                         第一轮:只有一条,而且黑区范围写错,把下半颗脸也收掉了;
-                         第二轮:想用"默认白、某状态变黑"的反转去省一条路径,
-                                 结果"融化"和"鬼"抢同一条路径,互相干扰。
-                         现在老老实实三条,语义各不重叠:
-                           selfTrim        — 什么都不收(默认 / 只贴了 socket 时)
-                           selfTrimMelt    — 收圆底 + 把三滴水滴挖回来
-                           selfTrimClear   — 收圆底 + 把裙摆挖回来
-                         JS 切 facebox 上的 is-melt / is-clear,CSS 负责换 clip-path。
-                         ★ 默认那条【必须什么都不收】:否则正常状态下的脸
-                           底部会被削掉一截 30 个单位 —— 那就是"看不出但到处都不对"的 bug。 */}}
-                    {{/* ★★ 剪影遮罩:三条独立,语义不重叠,按状态整条切换。
-                         锚点 (180, 268) 就是"切线"那个点 ——
-                         形状坐标写成【相对锚点】的,移动形状 = 改锚点这一个数,
-                         不用再动路径(见里面的 transform)。 */}}
                     <clipPath id="selfTrim">
                         <path d="M0 0h360v360H0z"></path>
                     </clipPath>
-                    {{/* ★ 融化:melt 自己那一套(锚点 180,268)。
-                         切线收掉 y≥268 以下的圆,再把三滴的挖回口放行。 */}}
                     <clipPath id="selfTrimMelt">
                         <path d="M0 0h360v360H0z"></path>
                         <path d="M0 268h360v92H0z"></path>
                         <path class="self-trim-goo" transform="translate(180 268)"
                             d="M-45.5 0h91v61h-91z"></path>
                     </clipPath>
-                    {{/* ★ 裙摆(clear):用【它自己的】锚点 254,237。
-                         ★★ 为什么两个锚点必须分开:裙摆的顶边(237)比圆的底(298)高 61,
-                            如果拿 237 当"切线",脸的下半会被整块切掉。
-                            237 只是"裙摆从哪儿开始",切线归融化那套管。 */}}
                     <clipPath id="selfTrimClear">
                         <path d="M0 0h360v360H0z"></path>
                         <path d="M0 268h360v92H0z"></path>
@@ -127,25 +61,9 @@
                     </clipPath>
                 </defs>
 
-                {{/* ---- 落影:让脸"站"在屏幕上(贴满时会亮起来,见 CSS) ---- */}}
                 <ellipse class="self-shadow" cx="180" cy="344" rx="104" ry="10"></ellipse>
 
-                {{/* ---- 底座:一颗【正圆】的 emoji 脸。
-                         圆:x 62..298,y 62..298(圆心 180,180 / r 118)。
-                         ★ 这里【故意不画话泡尾巴】:试过两版都不行 ——
-                           一版尾巴伸到圆外 57 个单位,被 selfTrim 剪影遮罩切掉一半,
-                           看着像圆上长了个疙瘩(用户:"为啥要给脸加个刘海,看着好怪");
-                           一版那条弧收在 -135°,在额头上留了一道横线(也是"刘海")。
-                           要"话泡"的感觉,交给旁边那列台词本身去表达,别靠一个突起。 */}}
                 <g class="self-trim-group" clip-path="url(#selfTrim)">
-                    {{/* ★ 这一层只干一件事:承载【唯一的一次】透明度(鬼形态 .58)。
-                           脸的底色、光泽、裙摆都在里面 —— 它们先合成成一张不透明的图,
-                           再整体淡出,所以重叠处绝不会"颜色相加"(用户实测的那个毛病;
-                           各自设 opacity 会让重叠区从 .58 变成 .82)。
-                       ★ 这两层必须是【两个各自闭合的 <g>】:
-                           上一版我漏了一个 </g>,后面所有部件都被套进这一层,
-                           于是它们既被剪影遮罩切、又跟着一起变半透明 ——
-                           整页都坏了(用户:"bug 更严重了")。 */}}
                     <g class="self-skinfade">
                         <path class="self-blob"
                             d="M62 180A118 118 0 1 1 180 298A118 118 0 0 1 62 180z">
@@ -153,29 +71,12 @@
                         <path class="self-blob-gloss" fill="url(#selfFuse)"
                             d="M62 180A118 118 0 1 1 180 298A118 118 0 0 1 62 180z">
                         </path>
-                        {{/* 👻 的裙摆放在这一层里:它必须和脸共享同一次透明度合成 */}}
+
                         <path class="self-ghost-path" transform="translate(254 237)" d="M-31 0A118 118 0 0 1 31 0c-6 27-10 51-14 74-6 41-12 81-12 51 0 4-10-24-24-37-14-14-34-20-54-20s-40 7-54 20c-14 14-24 44-24 37 0 30-6-10-12-51-4-24-8-47-14-74z"></path>
                     </g>
                 </g>
 
-                {{/* ================= 皮肤层(skin:改整张脸的性质) =================
-                     ★ 画在 socket 的【下面】:融化和半透明改的是"脸",而眼镜、耳机、
-                       杯子、手柄是戴在脸上的东西 —— 所以脸化掉时杯子还在手里端着。
-                       反过来的话,淌下来的那一坨会盖在杯子和手柄上面,看着像穿模。 */}}
-
-                {{/* 🫠 融化:下半边化成往下淌的几缕
-
-                     ★ 形状和位置都要跟着【圆的弧】走:遮罩把圆切在 y=250,
-                       所以垂坠也从 y=250 那条弧上出发 ——
-                       早先从 266 起,中间会露 16 个单位的缝。
-                     ★ 三缕粗细不同、长短不一(r=21/27/20,底到 292/304/290),
-                       半径都 ≤ 圆的半宽 73.9,起点稳落在圆内、不会顶出轮廓。
-                       三缕都是"从弧上垂下来的一滴":半圆扫出圆底,上面收在起点。 */}}
                 <g class="self-face-part self-melt" data-part="melt" data-pod="skin" hidden>
-                    {{/* 🫠 融化:往下淌的三滴,锚点 (180, 268)。
-                         ★ 它和裙摆【各用各的锚点】—— 裙摆的锚点是 (254, 237),
-                           那是"裙摆从哪儿开始",不是"圆的切线在哪儿";
-                           拿它当切线会把脸的下半切掉 61 个单位。 */}}
                     <g transform="translate(180 268)">
                         <path class="self-melt__drip" d="M-28 0c15 7 15 19 15 27a15 15 0 0 1 -30 0c0-7 0-19 15-27z"></path>
                         <path class="self-melt__drip" d="M0 0c20 10 20 26 20 36a20 20 0 0 1 -40 0c0-10 0-26 20-36z"></path>
@@ -186,90 +87,52 @@
                 </g>
                 </g>
 
-                {{/* 👻 半透明:整张脸淡下去,下半边轮廓化开成飘起来的裙摆。
-
-                     ★ 形状按【正圆脸】重算过。旧版是按旧的圆角方脸做的:
-                       上缘 y=251、只到 y=302、幅度很小,所以看着像圆下面贴一条横带。
-                       现在上缘上移到 y=246(圆在那儿半宽 78.7,接得住),
-                       两侧展开到 ±90,底边三个波、波谷到 y=316。
-                     ★ 颜色必须和脸【同一个变量】(--self-skin / --self-skin-edge):
-                       不然接缝一眼就看得出 —— 这一条栽过跟头:
-                       原来指的是 --self-full,而那个变量在改成正圆时就被删了,
-                       于是填充是无效值 = 透明,裙摆只剩一圈描边。 */}}
                 <g class="self-face-part self-ghost" data-part="clear" data-pod="skin" hidden></g>
 
-                {{/* 😪 睁不开眼:两道压下来的眼皮 + 一滴汗
-                     ★ 眼皮落在【眼睛的高度】y≈152,和眼袋/星星眼同一带 ——
-                       偏离这个高度就会读成"眉毛"或者"皱纹"。 */}}
                 <g class="self-face-part self-heavy" data-part="heavy" data-pod="skin" hidden>
                     <path d="M104 138c11 15 23 22 34 22s23-7 34-22"></path>
                     <path d="M188 138c11 15 23 22 34 22s23-7 34-22"></path>
                     <path class="self-heavy__drop" d="M236 106c0 0 8 10 8 15a8 8 0 0 1-16 0c0-5 8-15 8-15z"></path>
                 </g>
 
-                {{/* ================= 特质部件(socket:往脸上加东西) =================
-                     默认 hidden(HTML 上的 hidden 属性),JS 给 data-on 之后才出现。
-                     位置全部按【正圆脸】算:x 62..298 / y 62..298,圆心 (180,180)。
-                     z 顺序(从下往上)按"戴着 / 长着"的物理关系排:
-                       圆外面的:火苗 → 王冠 → Z → 音符
-                       扣在圆上的:耳罩(骑在两侧)
-                       脸上的:眼袋 → 星眼 → 眼镜 → 杯子 → 手柄 → 口罩 → 鼻子 → 腮红 */}}
-
-                {{/* 🔥 火苗:长在圆的【外面】(圆的顶在 y=62),整根留在 viewBox 里 */}}
                 <g class="self-face-part self-flame" data-part="fire" data-pod="socket" hidden>
                     <path d="M152 48c-9-16 7-24 12-36 9 13 25 18 20 33-3 8-12 15-19 13s-11-5-13-10z"></path>
                     <path d="M200 50c-6-14 5-19 9-29 8 9 19 12 15 27-2 7-9 11-14 9s-8-4-10-7z"></path>
                 </g>
 
-                {{/* 👑 王冠:底座压在圆的上缘(读起来就是"戴在头上") */}}
                 <g class="self-face-part self-crown" data-part="crown" data-pod="socket" hidden>
                     <path d="M128 84l-7-40 30 23 29-33 29 33 30-23-7 40z"></path>
                     <path class="self-crown__band" d="M132 80h96v15H132z"></path>
                 </g>
 
-                {{/* 💤 补觉:右上角三个越来越大的 Z(在圆的外面) */}}
                 <g class="self-face-part self-zzz" data-part="nap" data-pod="socket" hidden>
                     <path d="M276 62h18l-18 18h18"></path>
                     <path class="self-zzz__s" d="M288 46h14l-14 14h14"></path>
                     <path class="self-zzz__s" d="M296 30h11l-11 11h11"></path>
                 </g>
 
-                {{/* 🎵 音符:从右耳罩飘出来(在圆的外面) */}}
                 <g class="self-face-part self-note" data-part="note" data-pod="socket" hidden>
                     <path d="M276 84V48l20-6v34"></path>
                     <ellipse class="self-note__head" cx="268" cy="86" rx="8" ry="6"></ellipse>
                     <ellipse class="self-note__head" cx="288" cy="80" rx="8" ry="6"></ellipse>
                 </g>
 
-                {{/* 🎧 耳机:头梁从【圆顶上方】跨过去,两侧挂一对竖长听筒。
-                     ★ 三处尺寸都是按圆的方程算的,不是目测:
-                        · 听筒内缘 x=80 —— 圆的边界在 y=180 是 x=62,
-                          所以内缘只切进圆内约 2 个单位(此前是 17,那才叫"戳到脸上");
-                        · 听筒 y 152..208,上下各留出脸,不糊住眼睛也不吃掉下巴;
-                        · 头梁 y 40..124 整个露在黄色圆【外面】,所以一眼看得出是"戴在头上"。
-                     ★ rx 必须用 SVG 的属性 —— CSS 的 border-radius 对 SVG <rect> 不生效
-                       (早期版本就是这里画成了两块尖角灰方块)。 */}}
                 <g class="self-face-part self-cans" data-part="music" data-pod="socket" hidden>
                     <path class="self-cans__band" d="M72 150c0-48 44-98 108-98s108 50 108 98"></path>
                     <rect class="self-cans__cup" x="52" y="154" width="20" height="52" rx="10"></rect>
                     <rect class="self-cans__cup" x="288" y="154" width="20" height="52" rx="10"></rect>
                 </g>
 
-                {{/* 🌙 黑眼圈:眼睛【下面】两道弧(比眼睛低 24 左右)*/}}
                 <g class="self-face-part self-bags" data-part="night" data-pod="socket" hidden>
                     <path d="M108 184a22 14 0 0 0 40 0"></path>
                     <path d="M212 184a22 14 0 0 0 40 0"></path>
                 </g>
 
-                {{/* ✨ 星星眼:两只眼睛变成星星。★ 先画它、后画眼镜 ——
-                     眼镜框落在星星上,读起来就是"戴着眼镜的一双星星眼"。 */}}
                 <g class="self-face-part self-stars" data-part="sparkle" data-pod="socket" hidden>
                     <path d="M126 133l6 12 12 6-12 6-6 12-6-12-12-6 12-6z"></path>
                     <path d="M234 133l6 12 12 6-12 6-6 12-6-12-12-6 12-6z"></path>
                 </g>
 
-                {{/* 💻 眼镜:两片圆镜框(【只描边、不填充】)+ 鼻梁 + 镜腿。
-                     ★ 不填充是有意的:填了半透明灰就会把星星眼糊成两块灰饼。 */}}
                 <g class="self-face-part self-glasses" data-part="code" data-pod="socket" hidden>
                     <circle cx="128" cy="148" r="27"></circle>
                     <circle cx="232" cy="148" r="27"></circle>
@@ -277,7 +140,6 @@
                     <path d="M101 144l-16-5M259 144l16-5"></path>
                 </g>
 
-                {{/* 🎮 手柄:右下那只手里握着(方向键 + 两颗按钮) */}}
                 <g class="self-face-part self-pad" data-part="game" data-pod="socket" hidden>
                     <path
                         d="M210 222h58a17 17 0 0 1 17 17v10a17 17 0 0 1-17 17h-10l-8-16h-22l-8 16h-10a17 17 0 0 1-17-17v-10a17 17 0 0 1 17-17z">
@@ -287,53 +149,37 @@
                     <circle class="self-pad__btn" cx="271" cy="248" r="5"></circle>
                 </g>
 
-                {{/* 😷 口罩:盖住下半张脸。整块收进圆内(y 206..256),
-                     贴着圆的底边会被切掉一个角。 */}}
                 <g class="self-face-part self-mask" data-part="mask" data-pod="socket" hidden>
-                    {{/* 挂绳:从口罩上角牵到耳侧,画实一点 —— 没有它就读不出是"戴着的" */}}
+
                     <path class="self-mask__strap" d="M132 206c-14-2-22-8-26-16M228 206c14-2 22-8 26-16"></path>
-                    {{/* 口罩主体:上沿略拱(从鼻梁下缘开始),下沿包住下巴 */}}
+
                     <path d="M136 200h88a10 10 0 0 1 10 10v16a24 24 0 0 1-24 24h-60a24 24 0 0 1-24-24v-16a10 10 0 0 1 10-10z"></path>
-                    {{/* ★ 三道折痕 + 一道暗边:口罩的"立体感"全靠这几笔 ——
-                       上一版只有两条淡线,看着就是一块贴上去的白纸。 */}}
                     <path class="self-mask__shot" d="M136 214h88"></path>
                     <path class="self-mask__fold" d="M136 226h88M136 238h88"></path>
                     <path class="self-mask__rim" d="M136 200h88"></path>
                 </g>
 
-                {{/* ☕ 咖啡杯:左下那只看不见的手里端着(带热气)。
-                     ★ 位置很讲究:必须画在 😷 口罩【之后】——
-                       杯子是"拿在手上"的,该压住口罩的边;画在口罩前面
-                       就会变成"杯子插进脸里"(用户截图上就是这个观感)。
-                     整块收在 y<268 以内,免得被剪影遮罩切平底座。 */}}
                 <g class="self-face-part self-cup" data-part="coffee" data-pod="socket" hidden>
                     <path d="M92 210h38v28a12 12 0 0 1-12 12h-14a12 12 0 0 1-12-12z"></path>
                     <path class="self-cup__handle" d="M130 217h7a7 7 0 0 1 0 14h-7"></path>
                     <path class="self-cup__steam" d="M102 198c0-5 5-5 5-10M117 198c0-5 5-5 5-10"></path>
                 </g>
 
-                {{/* 🤡 红鼻子:正圆脸的圆心那一带(眼睛和嘴之间) */}}
                 <ellipse class="self-face-part self-nose" data-part="clown" data-pod="socket" cx="180" cy="186" rx="20"
                     ry="16" hidden></ellipse>
 
-                {{/* 💗 腮红:两块软边红晕,画在【最上层】—— 它是"皮肤泛出来的颜色",
-                     不该被眼镜腿或耳罩压住。
-                     ★ 位置从 (112,218) 收到 (118,196):圆的左边界在 y=218 只有 x≈94,
-                       原来那样是糊在轮廓边上的。 */}}
                 <g class="self-face-part self-blush" data-part="blush" data-pod="socket" hidden>
                     <ellipse cx="118" cy="196" rx="24" ry="15" fill="url(#selfBlush)"></ellipse>
                     <ellipse cx="242" cy="196" rx="24" ry="15" fill="url(#selfBlush)"></ellipse>
                 </g>
             </svg>
 
-            {{/* 台阶:贴满之后一层层亮起来(纯装饰) */}}
             <span class="self-step self-step--1" aria-hidden="true"></span>
             <span class="self-step self-step--2" aria-hidden="true"></span>
             <span class="self-step self-step--3" aria-hidden="true"></span>
         </div>
     </div>
 
-    {{/* 蹦出来的话:一句一句累积在这里(贴满时多出标题 + emoji 串 + 汇总) */}}
     <div class="self-say" data-self-say aria-live="polite">
         <p class="self-say__hint" data-self-hint>点一下飘着的 emoji —— 也可以直接拖到我脸上。</p>
         <ul class="self-say__list" data-self-list></ul>
@@ -347,7 +193,6 @@
         </div>
     </div>
 
-    {{- /* 这一页的逻辑:走 Hugo 资源管线,改一次内容指纹就变,不会被浏览器缓存住 */ -}}
     {{- with resources.Get "js/page-self.js" -}}
     {{- $js := . | fingerprint "sha256" -}}
     <script defer src="{{ $js.RelPermalink }}"></script>

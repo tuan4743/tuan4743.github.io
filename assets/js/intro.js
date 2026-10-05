@@ -1,4 +1,3 @@
-/* 首页介绍页 v0.2:屏幕+CD架刚体场景,CD轮以插入点(hub)为轴心 */
 (function () {
   "use strict";
 
@@ -21,16 +20,14 @@
   };
 
   var selIndex = 0;
-  var activeKey = null;      /* 当前"正在播放"的主题(持久化用) */
-  var insertedKey = null;    /* 真正位于光驱内的那张盘(刷新后为空) */
+  var activeKey = null;
+  var insertedKey = null;
   var locked = false;
-  var STEP = 22;              /* 相邻 CD 角度步长(度) */
+  var STEP = 22;
 
-  /* ---------- 轮盘几何:轴心 = hub(插入点,靠近屏幕接缝),CD 在其左侧绕转 ---------- */
   var rackInfo = Array.prototype.slice.call(document.querySelectorAll(".rack-info-item"));
   var rackPainted = null;
 
-  /* 反色:#RRGGBB → 每通道 255-x */
   function invertHex(hex) {
     var h = String(hex || "").trim().replace(/^#/, "");
     if (h.length === 3) h = h.charAt(0) + h.charAt(0) + h.charAt(1) + h.charAt(1) + h.charAt(2) + h.charAt(2);
@@ -38,7 +35,6 @@
     return "#" + ("000000" + (0xffffff - parseInt(h, 16)).toString(16)).slice(-6);
   }
 
-  /* 相对亮度(用于"背景换成深蓝黑之后,文字选哪个颜色才看得清")*/
   function luminance(hex) {
     var h = String(hex || "").replace(/^#/, "");
     if (!/^[0-9a-fA-F]{6}$/.test(h)) return 0;
@@ -55,7 +51,6 @@
   var BASE_HEX = "#0b0b14";
   var BASE_LUM = luminance(BASE_HEX);
 
-  /* 文字实际压在"菱形(主题色 50%)叠在深底上"的结果上,所以要拿这个合成色比对比度 */
   function composite(hex, t) {
     var h = String(hex || "").replace(/^#/, "");
     var b = BASE_HEX.replace(/^#/, "");
@@ -67,9 +62,6 @@
     return "#" + out.join("");
   }
 
-  /* 文字/按钮/音频条的颜色:在"主题色"和"它的反色"里挑一个更稳的。
-     注意它们不只压在菱形上,也压在深底上,所以要取"两处里更差的那个"来比 ——
-     否则像"未来"这种白色主题会选出黑色,菱形上勉强能看,深底上直接消失 */
   function pickInk(themeHex) {
     var inv = invertHex(themeHex);
     if (!themeHex) return "";
@@ -82,7 +74,6 @@
     return worst(themeHex) >= worst(inv) ? themeHex : inv;
   }
 
-  /* 主题色若和深底太接近(比如"技术"的纯黑),菱形会看不见 —— 往白里提一点点 */
   function mixWhite(hex, t) {
     var v = [1, 3, 5].map(function (i) { return parseInt(hex.substr(i, 2), 16); });
     return "#" + v.map(function (c) {
@@ -94,9 +85,6 @@
     return contrast(luminance(hex), BASE_LUM) < 1.15 ? mixWhite(hex, 0.3) : hex;
   }
 
-  /* 菱形平铺图案:一块 tile 里放 4x4 个正方形,每个朝向/大小都随机(否则满屏菱形一模一样,
-     一眼就看出是贴图)。填充用主题色 25% 透明。
-     注意 tile 变大了(4 格),所以 CSS 的 --bg-tile 也要跟着 ×4 */
   function diamondBg(hex) {
     var c = /^#[0-9a-fA-F]{6}$/.test(String(hex || "")) ? hex : "#888888";
     c = liftForBase(c);
@@ -105,7 +93,7 @@
     for (var r = 0; r < n; r++) {
       for (var q = 0; q < n; q++) {
         var cx = q * cell + cell / 2, cy = r * cell + cell / 2;
-        var ang = 45 + (Math.random() * 34 - 17);          /* 45° ± 17° */
+        var ang = 45 + (Math.random() * 34 - 17);
         var s = side * (0.82 + Math.random() * 0.36);
         parts += "<rect x='" + (cx - s / 2).toFixed(1) + "' y='" + (cy - s / 2).toFixed(1) +
           "' width='" + s.toFixed(1) + "' height='" + s.toFixed(1) +
@@ -120,14 +108,11 @@
       svg.replace(/</g, "%3C").replace(/>/g, "%3E").replace(/#/g, "%23") + '")';
   }
 
-  /* CD 架文字介绍 + 背景色:都跟随"当前选中的那张盘"(滚动换选即变色)*/
   function paintRackInfo(key) {
     if (key === rackPainted) return;
     rackPainted = key;
-    /* 主题色:直接取主题色表(老文字块已删)*/
     var themeFg = themeColors[key] || "#22d3ee";
     rack.style.setProperty("--rack-fg", themeFg);
-    /* 新全息 UI 里的大标题 + 右侧配字 */
     var ht = document.getElementById("holo-theme");
     if (ht) {
       var btn = document.querySelector('.cd[data-panel="' + key + '"]');
@@ -139,12 +124,10 @@
       hc.textContent = (cbtn && cbtn.getAttribute("data-caption")) || "";
     }
     if (cd3dApi && cd3dApi.setFxColor) cd3dApi.setFxColor(themeFg);
-    /* 广播:锁定圆那一层会据此快速淡出,切换停稳后再淡回来 */
     try { window.dispatchEvent(new CustomEvent("cd-select", { detail: key })); } catch (e) {}
     window.__rackDebug = { key: key, bg: themeFg, fg: themeFg, at: Math.round(performance.now()) };
   }
 
-  /* 3D 就绪后要把颜色重推一次(fx 是后来才创建的)*/
   function repaintRack() {
     rackPainted = null;
     paintRackInfo(cdOrder[selIndex]);
@@ -153,17 +136,17 @@
   function layout() {
     var rect = wheel.getBoundingClientRect();
     var R = Math.max(96, Math.min(190, rect.height * 0.34, rect.width * 0.38));
-    var hubX = Math.max(rect.width * 0.7, rect.width - R - 60);  /* hub 靠右(接缝侧) */
+    var hubX = Math.max(rect.width * 0.7, rect.width - R - 60);
     var hubY = rect.height * 0.5;
     var hubW = hub.offsetWidth;
     var hubH = hub.offsetHeight;
 
     cds.forEach(function (cd, i) {
-      var deg = 180 - (i - selIndex) * STEP;   /* 选中位在 hub 左侧(180°) */
+      var deg = 180 - (i - selIndex) * STEP;
       var rad = deg * Math.PI / 180;
       var x = hubX + R * Math.cos(rad) - cd.offsetWidth / 2;
       var y = hubY + R * Math.sin(rad) - cd.offsetHeight / 2;
-      var counter = 180 - deg;                 /* 保持盘面立正 */
+      var counter = 180 - deg;
       cd.style.transform =
         "translate(" + x.toFixed(1) + "px," + y.toFixed(1) + "px) rotate(" + counter.toFixed(1) + "deg)";
       var sel = i === selIndex;
@@ -180,7 +163,7 @@
     hub.style.left = (hubX - hubW / 2).toFixed(1) + "px";
     hub.style.top = (hubY - hubH / 2).toFixed(1) + "px";
     paintHubCd();
-    paintRackInfo(cdOrder[selIndex]);   /* 文字介绍 + 背景色跟随选中盘 */
+    paintRackInfo(cdOrder[selIndex]);
   }
 
   function paintHubCd() {
@@ -189,18 +172,15 @@
     hubCd.style.boxShadow = "0 0 12px " + c;
   }
 
-  /* ---------- 选择 ---------- */
   function select(i) {
     if (locked) return;
     if (i < 0 || i >= cds.length) return;
-    /* 点击已经选中的那张盘:不再插入(插入只走侧边按钮)*/
     if (i === selIndex) return;
     selIndex = i;
     layout();
     if (cd3dApi) cd3dApi.setSelection(selIndex);
   }
 
-  /* 换选:只跳过"真正在光驱里"的那张;到边界即停(不循环) */
   function step(dir) {
     var i = selIndex;
     var n = cdOrder.length;
@@ -211,18 +191,12 @@
     }
   }
 
-  /* ---------- 插拔时序:拔出 → 插入 → 切换面板 ---------- */
   function wait(ms) {
     return new Promise(function (r) { setTimeout(r, ms); });
   }
 
   function playPanel(key) {
-    /* ★ 游玩模式(左下角那个开关打开时):插入有铺面的盘不走展示页,
-       直接进第三张盘(游戏),并把这张盘对应的歌喂给引擎 —— 见 gd-mode-button.html
-       与 gd-web/src/embed.ts(window.__GD_SONG)。只保留加载动画,不另做载入页。 */
     var song = window.GD_SONGS && window.GD_SONGS[key];
-    /* ★ 第三张盘(迷茫)进游戏时放【完整版】:完整曲子是 static/levels/WATER.mp3(用户换的),
-       原来那张 lost.mp3 只是给开机动画对节拍用的裁剪版,进游戏听着不对(用户反馈)。 */
     if (key === "lost") song = "/levels/WATER.mp3";
     if (song && window.__gdPlayMode && window.__gdPlayMode()) {
       window.__GD_SONG = song;
@@ -231,13 +205,10 @@
     panels.forEach(function (p) {
       p.classList.toggle("is-active", p.getAttribute("data-panel") === key);
     });
-    /* 通知"每张盘自己的主页内容"模块(见 pages.js):只有当前这张盘会被激活 */
     if (window.CDPages && window.CDPages.activate) window.CDPages.activate(key);
-    /* 再广播一次"这张盘激活了"(第四张盘的终端在听这个) */
     try { window.dispatchEvent(new CustomEvent("cd-panel", { detail: key })); } catch (e) {}
   }
 
-  /* 插入某张盘后,把"架位中心/选中项"挪到最近的仍在架上的盘(避免整排跳位) */
   function moveSelectionOff(key) {
     var ki = cdOrder.indexOf(key);
     if (ki === -1) return;
@@ -253,65 +224,48 @@
   function confirmTheme() {
     if (locked) return;
     var key = cds[selIndex].getAttribute("data-panel");
-    /* 只有"该盘已在光驱内"才阻止重复插入;刷新后光驱为空,即使主题相同也能插 */
     if (insertedKey !== null && key === insertedKey) return;
     locked = true;
-    /* 插入动画开始:锁定圆那一层保持隐藏(节点不隐藏)*/
     try { window.dispatchEvent(new CustomEvent("cd-busy", { detail: true })); } catch (e) {}
-    if (cd3dApi && cd3dApi.setMusicPreview) cd3dApi.setMusicPreview(false);  /* 插入期间别再切预览 */
-    /* 插入动画开始:音乐停、可视化关(否则几何体/音频条会跟着盘飞进光驱)*/
+    if (cd3dApi && cd3dApi.setMusicPreview) cd3dApi.setMusicPreview(false);
     if (cd3dApi) {
       if (cd3dApi.audio && cd3dApi.audio.music.stop) cd3dApi.audio.music.stop();
       if (cd3dApi.setFxEnabled) cd3dApi.setFxEnabled(false);
     }
 
-    /* 3D 模式:让「真实选中的那张 CD」飞入光驱(前端补间) */
     var use3d = !!cd3dApi;
-    /* 只要光驱是弹出的,就走"光驱流程"(换盘时也一样) */
     var useDriveFlow = use3d && cd3dApi.isDriveOut && cd3dApi.isDriveOut();
     var insertDelay = use3d ? cd3dApi.timings.insert + 80 : 820;
     var ejectDelay = use3d ? cd3dApi.timings.eject + 60 : 720;
 
     function finish() {
       activeKey = key;
-      insertedKey = key;          /* 记录"盘已在光驱内" */
-      /* 这里先不放音乐:等开机动画播完再起 BGM(见下面的 screenBoot 回调)。
-         插入动作的音效不属于音乐,照旧 */
-      moveSelectionOff(key);      /* 飞入完成后再补位/换中心,避免穿模 */
+      insertedKey = key;
+      moveSelectionOff(key);
       playPanel(key);
-      /* ★ 第四张盘:先把终端清空待机 —— 它的开机序列等 cd-boot-done 才开始
-         (见 assets/js/cd4-terminal.js),这样重插同一张盘也会从头播一遍 */
       if (key === "tech" && window.CD4Term) window.CD4Term.reset();
       hub.classList.add("is-playing");
       try { localStorage.setItem("intro-theme", key); } catch (e) {}
       locked = false;
       if (cd3dApi && cd3dApi.setMusicPreview) cd3dApi.setMusicPreview(true);
-      /* 用这张盘对应的那套开机动画(emoji / 六边形 / 水面 / 故障 / 雪花分形)*/
       bootStyle = (window.CDBoot && window.CDBoot.styleFor) ? window.CDBoot.styleFor(key) : "hex";
-      /* 回到主界面。音乐要等动画彻底放完才开始 —— 开机时是"静音通电"的 */
       try { window.dispatchEvent(new CustomEvent("cd-busy", { detail: false })); } catch (e) {}
       setOpen(false, function () {
-        /* ★ 这张盘如果声明了 no_bgm(CD 按钮上有 data-bgm="0"),插入后就【不】自动起站点 BGM:
-           第三张盘的音乐由游戏自己播放、第四张盘按要求关掉 */
         var cdBtn = document.querySelector('.cd[data-panel="' + key + '"]');
         var noBgm = !!(cdBtn && cdBtn.getAttribute("data-bgm") === "0")
           || key === "lost" || key === "tech";
-        /* 第三张盘(迷茫):音乐由游戏自己播放(铺面时钟要跟音频走),站点别再放一遍;
-           第四张盘(技术):按用户要求关掉。其它盘想关就在 hugo.toml 里写 no_bgm = true */
         if (!noBgm && cd3dApi && cd3dApi.audio) cd3dApi.audio.music.toBgm(key);
         if (cd3dApi && cd3dApi.setMusicPreview) cd3dApi.setMusicPreview(true);
       });
-      /* 可视化等镜头平移完再开 */
       setTimeout(function () {
         if (cd3dApi && cd3dApi.setFxEnabled) cd3dApi.setFxEnabled(true);
       }, 900);
     }
 
-    /* 光驱已弹出的新流程:CD 从上方落入 → CD+光驱一起插回(末尾停顿后干脆插入) */
     if (useDriveFlow) {
       cd3dApi.insertCd(key, function () {
         cd3dApi.retractDrive(function () {
-          setTimeout(finish, 200);      /* 动画播完再停 0.2s,然后回主界面 */
+          setTimeout(finish, 200);
         });
       });
       return;
@@ -319,7 +273,7 @@
 
     function insert() {
       if (use3d) {
-        cd3dApi.setInserted(key);      /* 旧盘(若有)自动飞回自己的架位 */
+        cd3dApi.setInserted(key);
         wait(insertDelay).then(finish);
         return;
       }
@@ -335,7 +289,6 @@
 
     if (activeKey !== null) {
       if (use3d) {
-        /* 旧盘飞回架位 → 新盘飞入 */
         cd3dApi.setInserted(null);
         wait(ejectDelay).then(insert);
         return;
@@ -353,9 +306,8 @@
     }
   }
 
-  /* ---------- 花屏(电视雪花)/ 黑屏 ---------- */
-  var staticWrap = document.getElementById("screen-static");       /* 定位/状态在外面这层 */
-  var staticCv = document.getElementById("screen-static-cv");       /* 画雪花用里面的 canvas */
+  var staticWrap = document.getElementById("screen-static");
+  var staticCv = document.getElementById("screen-static-cv");
   var staticCtx = staticCv ? staticCv.getContext("2d") : null;
   var staticTiles = [];
   var staticRAF = 0;
@@ -380,12 +332,10 @@
 
   function runStatic(ms) {
     if (!staticCtx || !staticWrap || noMotion) return;
-    window.__staticLastMs = ms;      /* 供验证:本次花屏设定的时长 */
+    window.__staticLastMs = ms;
     buildStaticTiles();
-    /* 画布尺寸按屏幕可视区(DPR 限 1.5,雪花不需要那么细)*/
     var dpr = Math.min(window.devicePixelRatio || 1, 1.5);
     staticWrap.classList.remove("is-black");
-    /* 花屏要铺满整块屏幕 → 让 canvas 回到全屏(贴合的那层负责按外框裁边)*/
     staticWrap.classList.add("is-full");
     staticCv.width = Math.max(1, Math.round(staticCv.clientWidth * dpr));
     staticCv.height = Math.max(1, Math.round(staticCv.clientHeight * dpr));
@@ -403,17 +353,16 @@
         staticRAF = 0;
         return;
       }
-      /* 每 ~55ms 换一张噪点图 ≈ 18fps 的雪花(rAF 时间戳可能略早于 t0,要做成正模)*/
       var n = staticTiles.length;
       var idx = Math.abs(Math.floor(Math.max(0, el) / 55)) % n;
       if (idx !== patIdx) {
         pattern = staticCtx.createPattern(staticTiles[idx], "repeat");
         patIdx = idx;
       }
-      staticCtx.globalAlpha = el > ms - 260 ? Math.max(0, (ms - el) / 260) : 1;   /* 末尾淡出 */
+      staticCtx.globalAlpha = el > ms - 260 ? Math.max(0, (ms - el) / 260) : 1;
       staticCtx.fillStyle = pattern || "#000";
       staticCtx.save();
-      staticCtx.translate(Math.random() * 40 - 20, Math.random() * 40 - 20);      /* 抖动 */
+      staticCtx.translate(Math.random() * 40 - 20, Math.random() * 40 - 20);
       staticCtx.fillRect(-40, -40, staticCv.width + 80, staticCv.height + 80);
       staticCtx.restore();
       staticRAF = requestAnimationFrame(frame);
@@ -421,45 +370,35 @@
     staticRAF = requestAnimationFrame(frame);
   }
 
-  /* ---------- 开机动画的公共前缀(黑屏 + 进度)---------- */
   var HEX = {
-    cols: 15, rows: 7,     /* 7 行:消失顺序 4 → 3/5 → 2/6 → 1/7 */
-    load: 1800,           /* 进度条 0→100% 的时长(ms)—— 已整体 ×2 */
-    hold: 1000,           /* 读满后停顿(让 100% 看清楚)—— 已 ×2 */
-    fade: 520,            /* loading 淡出 —— 已 ×2 */
-    draw: 430,            /* 六边形描边时长(只有成长那套用)*/
-    drawEach: 2.2,        /* 描边随机错开的窗口(ms × 个数)*/
-    collapse: 400         /* 六边形塌缩时长(消失用时越快越干脆)/ */
+    cols: 15, rows: 7,
+    load: 1800,
+    hold: 1000,
+    fade: 300,   /* 关屏压缩时长(CRT collapse),不再是淡出 */
+    draw: 430,
+    drawEach: 2.2,
+    collapse: 400
   };
   var bootRAF = 0;
 
   var bootRAF = 0;
-  var bootStyle = "hex";        /* 当前这张盘用哪套动画(见 cd-boot.js 的 BY_KEY)*/
+  var bootStyle = "hex";
 
-  /* 小黄脸素材提前抓好 —— 放到第一次播动画时才抓的话,那 10 个 svg 的取回+解码
-     会把首帧卡住,动画开头就会卡成静止画面 */
   setTimeout(function () {
     if (window.CDBoot && window.CDBoot.preload) window.CDBoot.preload();
   }, 1200);
 
-  /* 开机动画的统一流程:黑屏 + 进度条(所有盘共用)→ 各盘的 scene 接管画面
-     每个 scene 由 cd-boot.js 提供:{ total, draw(el) } —— 它自己负责盖住/揭开页面 */
   function screenBoot(style, onEnd) {
     if (!staticCtx || !staticWrap || noMotion) {
-      /* 没有动画(减少动效/缺画布)也要把"放完了"这件事说出去 ——
-         第四张盘的终端就靠这个信号开始打印 */
       window.__bootRunning = false;
       try { window.dispatchEvent(new CustomEvent("cd-boot-done", { detail: style || bootStyle || "hex" })); } catch (e) {}
       if (onEnd) onEnd();
       return;
     }
     var used = style || bootStyle || "hex";
-    /* ★ 第四张盘(故障光盘)的开机动画是单独一段脚本(assets/js/cd4-boot.js):
-       它自带完整时间轴(55% 卡死 → permission denied ×3 → 清屏),
-       不放 cd-boot.js 里的那个 scene —— 也就是任务书说的"删掉过场动画"。*/
     var useCD4 = used === "glitch" && !!window.CD4Boot;
     if (!useCD4 && !window.CDBoot) { if (onEnd) onEnd(); return; }
-    window.__bootRunning = true;          /* 终端靠它判断"现在有没有动画在放" */
+    window.__bootRunning = true;
     if (staticRAF) { cancelAnimationFrame(staticRAF); staticRAF = 0; }
     if (bootRAF) { cancelAnimationFrame(bootRAF); bootRAF = 0; }
     var dpr = Math.min(window.devicePixelRatio || 1, 1.5);
@@ -468,99 +407,64 @@
     var W = staticCv.width, H = staticCv.height;
     staticWrap.classList.add("is-on");        /* 画布可见(opacity:1)—— 少了这个,撤掉 is-black 后
                                                  opacity 会退回 0,整个动画就"看不见"了 */
-    /* 开工前把上一轮收尾留下的内联隐藏清掉,否则这次动画会看不见 */
     staticWrap.style.opacity = "";
     staticWrap.style.visibility = "";
     staticWrap.style.transition = "";
-    staticWrap.classList.add("is-black");     /* 起手:黑屏 + 不透明 */
-    staticWrap.classList.remove("is-full");   /* 开机动画的 canvas 要待在安全区里(见 frame-fit.js)*/
+    staticWrap.classList.add("is-black");
+    staticWrap.classList.remove("is-full");
     var accent = "#22d3ee";
     try {
       var v = getComputedStyle(document.querySelector(".screen")).getPropertyValue("--intro-accent").trim();
       if (v) accent = v;
     } catch (e) {}
 
-    /* 全息后期层:场景/loading 都画在离屏画布,再统一过一遍成像 */
     var POST = window.CDBootPost || null;
     var sceneCtx = POST ? POST.context(W, H) : staticCtx;
     var scene = useCD4 ? null : window.CDBoot.create(used, sceneCtx, W, H, accent, HEX);
-    var tFull = HEX.load;                                  /* 进度读满 */
-    var tFadeIn = tFull + HEX.hold;                        /* 停 0.5s 后开始淡出 */
-    var tPanel = tFadeIn + HEX.fade;                       /* loading 淡完 → 交给 scene */
+    var tFull = HEX.load;
+    var tFadeIn = tFull + HEX.hold;
+    var tPanel = tFadeIn + HEX.fade;
     var tEnd = useCD4 ? window.CD4Boot.total : tPanel + scene.total;
     var t0 = performance.now();
+    var snapCv = null;
+    /* 过场开屏扫描线:黑场结束后的 320ms 内,画面从一条中心横线纵向展开 */
+    var WIPE = 320;
     window.__bootLastAt = Math.round(t0);
     window.__bootStyle = used;
     window.__bootTotalMs = Math.round(tEnd);
-    /* 第四张盘没有 scene:这几个"阶段点"按它的时间轴填,方便验证脚本读 */
     var cd4T = useCD4 ? window.CD4Boot.T : null;
     window.__bootPhases = useCD4 ? {
       full: 0, holdEnd: cd4T.loadEnd, panel: cd4T.wrongAt,
       black: cd4T.clearAt, sceneEnd: tEnd
     } : {
       full: tFull, holdEnd: tFadeIn, panel: tPanel,
-      black: tPanel + (scene.blackUntil || 0),      /* 黑屏撤掉的时刻 */
+      black: tPanel + (scene.blackUntil || 0),
       sceneEnd: tEnd
     };
     var droppedBlack = false;
 
-    /* 共用的 loading(黑屏 + 转动的六边形 + 百分比)*/
     function drawLoader(el) {
       staticCtx.fillStyle = "#04060a";
       staticCtx.fillRect(0, 0, W, H);
       var p = Math.min(1, el / HEX.load);
-      p = 1 - Math.pow(1 - p, 1.5);                        /* 末尾慢一点,读得清 */
+      p = 1 - Math.pow(1 - p, 1.5);
       var outA = el > tFadeIn ? Math.max(0, 1 - (el - tFadeIn) / HEX.fade) : 1;
       var cx = W / 2, cy = H / 2, rr = Math.min(W, H) * 0.075;
-      staticCtx.globalAlpha = outA;
-      staticCtx.save();
-      staticCtx.translate(cx, cy);
-      staticCtx.rotate(el / 900);
-      staticCtx.beginPath();
-      for (var i = 0; i < 6; i++) {
-        var a = Math.PI / 180 * (60 * i - 90);
-        if (i === 0) staticCtx.moveTo(Math.cos(a) * rr, Math.sin(a) * rr);
-        else staticCtx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
-      }
-      staticCtx.closePath();
-      var per = 6 * rr;
-      staticCtx.setLineDash([per * 0.22, per * 0.78]);
-      staticCtx.lineDashOffset = -el / 12;
-      staticCtx.strokeStyle = accent;
-      staticCtx.lineWidth = Math.max(1.5, rr * 0.05);
-      staticCtx.stroke();
-      staticCtx.setLineDash([]);
-      staticCtx.restore();
-      staticCtx.fillStyle = accent;
-      staticCtx.font = "600 " + Math.round(Math.min(W, H) * 0.032) + "px ui-monospace, Consolas, monospace";
-      staticCtx.textAlign = "center";
-      staticCtx.textBaseline = "middle";
-      staticCtx.globalAlpha = outA * (0.55 + 0.45 * Math.abs(Math.sin(el / 260)));
-      /* 中间的 "LOADING xx%" 文字已移除:进度由圆环 + 环内百分比表达 */
 
-      /* ================= 终端启动外壳 =================
-         配色:霓虹青 / 冰蓝;第四张(glitch)混入品红
-         辉光:画布原生 shadowBlur(不是 CSS filter,安全)
-         色差:文字画三遍(红偏移 / 青偏移 / 正本),lighter 叠加
-         数据密度:右侧一列十六进制与实时跳动数值
-         排版:左侧日志整体轻微倾斜,MOUNTING 行两侧带进度条
-         圆环:虚线外圈 + 旋转刻度 + 雷达扫描 + 多层嵌套弧            */
       var IS_GLITCH = String(used || "").toLowerCase() === "glitch";
-      var C_CYAN = "#7ff0ff";                       /* 主色:霓虹青 */
-      var C_ICE = "#bfe9ff";                        /* 冰蓝:次级文字 */
+      var C_CYAN = "#7ff0ff";
+      var C_ICE = "#bfe9ff";
       var C_DIM = "rgba(127, 240, 255, 0.45)";
-      var C_ACC = "#7ff0ff";                        /* 平时一律霓虹青;红色只在"卡住"时出现 */
+      var C_ACC = "#7ff0ff";
 
       function glowText(txt, x, y, color, blur, aber) {
         staticCtx.save();
-        /* ★ shadowBlur 很贵:blur<=0 时不画阴影,只留给关键元素(当前行/圆环/百分比)*/
         if (blur > 0) {
           staticCtx.shadowColor = color;
           staticCtx.shadowBlur = blur;
         }
         staticCtx.fillStyle = color;
         staticCtx.fillText(txt, x, y);
-        /* 色差:左右各偏一点点,红/青通道错开 */
         staticCtx.globalCompositeOperation = "lighter";
         staticCtx.globalAlpha *= 0.4;
         staticCtx.shadowBlur = 0;
@@ -573,31 +477,27 @@
       }
 
       var LOG = [
-        "> OPTICAL BIOS  v1.4",
-        "> DRIVE SPIN-UP ........... OK",
+        "> OPTICAL DISC  v2.1",
+        "> SPINDLE ................. " + Math.round(8200 * Math.min(1, pShow / 0.35)) + " RPM",
         "> MOUNTING DISC " + String(used || "").toUpperCase(),
-        "> READING SECTORS ......... 100%",
+        "> TRACKING ................ " + Math.round(pShow * 100) + "%",
+        "> EMBEDDED ERRORS ......... " + (3 - Math.round(pShow * 3)) + " FIXED",
         "> SIGNAL LOCK ............. STABLE",
-        "> READY",
-        "! SECTOR RETRY ... HOLD"
+        "> READY"
       ];
-      /* ---- 逐步故障(第四张最明显)----
-         pShow:显示用的进度 —— 在 STALL_A~STALL_B 之间卡住不动,之后猛冲完成
-         glitchAmt:0→1,控制 RGB 分离幅度与报警色 */
-      var GLITCH_K = IS_GLITCH ? 1 : 0;             /* 逐步故障只给第四张 */
+      var GLITCH_K = IS_GLITCH ? 1 : 0;
       var STALL_A = 0.62, STALL_B = 0.80;
-      var stalling = IS_GLITCH && p > STALL_A && p < STALL_B;   /* ★ 只有第四张会卡住 */
-      /* 不卡住时 pShow 就等于 p —— 其它盘进度完全顺滑,只有第四张会在 62% 冻住 */
+      var stalling = IS_GLITCH && p > STALL_A && p < STALL_B;
       var pShow = stalling ? STALL_A : p;
       var glitchAmt = Math.min(1, GLITCH_K * (stalling ? 1 : p * 0.85));
-      var typed = pShow * (LOG.length + 0.5) + (stalling ? 1 : 0);   /* 卡住时把告警行顶出来 */
-      var fs2 = Math.max(14, Math.round(Math.min(W, H) * 0.021 * 1.4));   /* 字号 ×1.4 */
+      var typed = pShow * (LOG.length + 0.5) + (stalling ? 1 : 0);
+      var fs2 = Math.max(14, Math.round(Math.min(W, H) * 0.021 * 1.4));
       var lh = Math.round(fs2 * 1.45);
-      var lx = Math.round(W * 0.062), ly = Math.round(H * 0.07);          /* 往右挪一点 */
+      var lx = Math.round(W * 0.062), ly = Math.round(H * 0.07);
 
       staticCtx.save();
       staticCtx.translate(lx, ly);
-      staticCtx.rotate(-0.022);                     /* 轻微倾斜,打破死板对齐 */
+      staticCtx.rotate(-0.022);
       staticCtx.font = fs2 + "px \"Alpha Sector\", ui-monospace, Consolas, monospace";
       staticCtx.textAlign = "left";
       staticCtx.textBaseline = "top";
@@ -613,7 +513,6 @@
         var col = (li === LOG.length - 1) ? C_ACC : (li === 2 ? C_CYAN : C_ICE);
         glowText(txt, 0, li * lh, col, isLast ? 12 : 0, 0.6 + glitchAmt * 3.4);
 
-        /* MOUNTING 这一行两侧各加一根进度条 */
         if (li === 2 && reach > 0.2) {
           var barW = Math.round(W * 0.13), barH = 3;
           var bx = staticCtx.measureText(txt).width + 14;
@@ -623,7 +522,6 @@
           staticCtx.fillRect(bx, 5, barW, barH);
           staticCtx.fillStyle = C_ACC;
           staticCtx.fillRect(bx, 5, barW * pShow, barH);
-          /* 左右各一根,右边反方向 */
           staticCtx.fillStyle = "rgba(127,240,255,0.18)";
           staticCtx.fillRect(-barW - 26, 5, barW, barH);
           staticCtx.fillStyle = C_CYAN;
@@ -633,7 +531,6 @@
       }
       staticCtx.restore();
 
-      /* ---------- 数据流(右侧 + 左下):按 90ms 缓存成图,每帧只贴一次 ---------- */
       var seed = Math.floor(el / 90);
       function rnd(i) { var x = Math.sin(seed * 12.9898 + i * 78.233) * 43758.5453; return x - Math.floor(x); }
       if (!window.__bootDataCv) {
@@ -642,6 +539,8 @@
       }
       var dcv = window.__bootDataCv;
       if (dcv.width !== W || dcv.height !== H) { dcv.width = W; dcv.height = H; window.__bootDataSeed = -1; }
+      /* 侧边读数:围绕"读盘"语义,数值锚定进度(可读的系统性变化) +
+         小幅随帧抖动(设备噪声),右上为光学头通道,左下为缓存区 */
       if (window.__bootDataSeed !== seed) {
         window.__bootDataSeed = seed;
         var dg = dcv.getContext("2d");
@@ -650,21 +549,30 @@
         dg.font = Math.max(9, Math.round(fs2 * 0.72)) + "px \"Alpha Sector\", ui-monospace, Consolas, monospace";
         dg.textBaseline = "top";
         dg.textAlign = "right";
+        var discRpm = Math.round(8200 * Math.min(1, pShow / 0.35) * (0.99 + 0.01 * rnd(50)));
+        var sectors = Math.round(pShow * 2048) + "/" + 2048;
+        var channels = [
+          function (i) { return "TRK " + Math.max(0, Math.min(96, Math.round(pShow * 96 + rnd(i) * 2 - 1))); },
+          function (i) { return "SIG " + (92 + rnd(i) * 7.4 * pShow).toFixed(1) + "%"; },
+          function (i) { return "ECC " + Math.max(0, Math.round((1 - pShow) * 14 + rnd(i) * 2)) + " CORR"; }
+        ];
         var di;
         for (di = 0; di < 9; di++) {
           var val;
-          if (di % 3 === 0) val = "0x" + Math.floor(rnd(di) * 65535).toString(16).toUpperCase().padStart(4, "0");
-          else if (di % 3 === 1) val = "SIG " + (95 + rnd(di) * 4.9).toFixed(1) + "%";
-          else val = "LAT " + (6 + rnd(di) * 9).toFixed(1) + "ms";
-          dg.globalAlpha = 0.35 + 0.35 * rnd(di + 40);
-          dg.fillStyle = di % 3 === 0 ? C_DIM : C_ICE;
+          if (di === 0) val = "RPM " + discRpm;
+          else if (di === 1) val = "SEC " + sectors;
+          else val = channels[di % 3](di);
+          dg.globalAlpha = 0.32 + 0.34 * rnd(di + 40);
+          dg.fillStyle = (di === 0 || di === 1) ? C_ICE : C_DIM;
           dg.fillText(val, W * 0.955, H * 0.07 + di * lh);
         }
         dg.textAlign = "left";
+        var totalKb = Math.round(pShow * 702);
         for (var dj = 0; dj < 4; dj++) {
+          var bufKb = Math.max(0, Math.round(totalKb - dj * 168 + rnd(dj + 90) * 12));
           dg.globalAlpha = 0.3 + 0.3 * rnd(dj + 130);
           dg.fillStyle = C_DIM;
-          dg.fillText("BUF 0x" + Math.floor(rnd(dj + 90) * 65535).toString(16).toUpperCase().padStart(4, "0"),
+          dg.fillText("CACHE " + String(bufKb).padStart(3, "0") + " KB",
                       W * 0.062, H - lh * (dj + 1.2) - 6);
         }
       }
@@ -673,155 +581,239 @@
       staticCtx.drawImage(dcv, 0, 0);
       staticCtx.restore();
 
-      /* ---------- 中央圆环:多层嵌套 + 虚线外圈 + 旋转刻度 + 雷达扫描 ---------- */
+      /* ---- 中央:读盘仪表(单一进度源 pShow) ----
+         三层同心"扇区环",随进度由内向外逐环点亮;每环内读出弧
+         (readout sweep)随进度扫过;RPM 由 0 爬升到额定再稳定。
+         全部由 LOG 行数驱动的 pShow 决定,不再各转各的。 */
       staticCtx.save();
       staticCtx.translate(cx, cy);
       staticCtx.globalAlpha = outA;
       var rBase = rr * 1.7;
 
-      /* 1) 虚线外圈(缓慢反向自转)*/
+      var RPM_MAX = 8200;
+      var rpm = RPM_MAX * (pShow < 0.9 ? Math.pow(pShow / 0.9, 1.25) : 1) *
+                (pShow >= 1 ? 1 : (0.965 + 0.035 * Math.sin(el / 90)));
+      var rpmTxt = (stalling ? 0 : rpm).toFixed(0);
+
+      var RINGS = [
+        { r: rBase * 0.55, lit: pShow / (2 / 3) },
+        { r: rBase * 0.94, lit: (pShow - 1 / 3) / (2 / 3) },
+        { r: rBase * 1.30, lit: (pShow - 2 / 3) / (2 / 3) }
+      ];
+
+      /* 环底盘面:细刻度(始终可见,暗) */
       staticCtx.save();
       staticCtx.rotate(-el / 2600);
-      staticCtx.setLineDash([rr * 0.34, rr * 0.26]);
-      staticCtx.lineWidth = Math.max(1, rr * 0.07);
-      staticCtx.strokeStyle = C_DIM;
-      staticCtx.shadowColor = C_CYAN; staticCtx.shadowBlur = 6;
-      staticCtx.beginPath();
-      staticCtx.arc(0, 0, rBase * 1.26, 0, Math.PI * 2);
-      staticCtx.stroke();
-      staticCtx.restore();
-
-      /* 2) 旋转刻度(每 15° 一根,长短交替)*/
-      staticCtx.save();
-      staticCtx.rotate(el / 1700);
-      staticCtx.setLineDash([]);
-      staticCtx.lineWidth = Math.max(1, rr * 0.055);
-      for (var ti = 0; ti < 24; ti++) {
-        var ang = (Math.PI * 2 / 24) * ti;
-        var long = ti % 2 === 0;
-        var r1 = rBase * (long ? 1.06 : 1.12), r2 = rBase * 1.2;
-        staticCtx.globalAlpha = outA * (long ? 0.55 : 0.3);
-        staticCtx.strokeStyle = long ? C_CYAN : C_ICE;
+      staticCtx.lineWidth = Math.max(1, rr * 0.05);
+      for (var ri0 = 0; ri0 < RINGS.length; ri0++) {
+        staticCtx.globalAlpha = outA * 0.14;
+        staticCtx.strokeStyle = C_DIM;
         staticCtx.beginPath();
-        staticCtx.moveTo(Math.cos(ang) * r1, Math.sin(ang) * r1);
-        staticCtx.lineTo(Math.cos(ang) * r2, Math.sin(ang) * r2);
+        staticCtx.arc(0, 0, RINGS[ri0].r, 0, Math.PI * 2);
+        staticCtx.stroke();
+      }
+      /* 扇区分割线 */
+      staticCtx.lineWidth = Math.max(1, rr * 0.03);
+      staticCtx.strokeStyle = C_DIM;
+      for (var si = 0; si < 24; si++) {
+        var ang = (Math.PI * 2 / 24) * si;
+        staticCtx.globalAlpha = outA * 0.10;
+        staticCtx.beginPath();
+        staticCtx.moveTo(Math.cos(ang) * RINGS[0].r, Math.sin(ang) * RINGS[0].r);
+        staticCtx.lineTo(Math.cos(ang) * RINGS[2].r * 1.06, Math.sin(ang) * RINGS[2].r * 1.06);
         staticCtx.stroke();
       }
       staticCtx.restore();
 
-      /* 3) 雷达扫描(一圈渐隐的扇形,持续旋转)*/
+      /* 逐环点亮 + 读出弧 */
       staticCtx.save();
-      staticCtx.rotate(el / 620);
-      staticCtx.globalAlpha = outA * 0.5;
-      var sweep = staticCtx.createConicGradient ? staticCtx.createConicGradient(0, 0, 0) : null;
-      if (sweep) {
-        sweep.addColorStop(0, "rgba(127,240,255,0)");
-        sweep.addColorStop(0.12, "rgba(127,240,255,0.5)");
-        sweep.addColorStop(0.25, "rgba(127,240,255,0)");
-        sweep.addColorStop(1, "rgba(127,240,255,0)");
-        staticCtx.fillStyle = sweep;
+      for (var ri = 0; ri < RINGS.length; ri++) {
+        var R = RINGS[ri];
+        var lit = Math.max(0, Math.min(1, R.lit));
+        if (lit <= 0) continue;
+        var litCol = stalling ? "#ff4d5e" : C_ACC;
+        /* 已点亮的弧(尾端发光) */
+        staticCtx.globalAlpha = outA * 0.9;
+        staticCtx.lineWidth = Math.max(2, rr * 0.12);
+        staticCtx.strokeStyle = litCol;
+        staticCtx.shadowColor = litCol;
+        staticCtx.shadowBlur = 10;
         staticCtx.beginPath();
-        staticCtx.arc(0, 0, rBase * 1.02, 0, Math.PI * 2);
-        staticCtx.fill();
+        staticCtx.arc(0, 0, R.r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * lit);
+        staticCtx.stroke();
+        staticCtx.shadowBlur = 0;
+        /* 未点亮部分只留极暗底 */
+        staticCtx.globalAlpha = outA * 0.08;
+        staticCtx.lineWidth = Math.max(1, rr * 0.05);
+        staticCtx.strokeStyle = C_ICE;
+        staticCtx.beginPath();
+        staticCtx.arc(0, 0, R.r, -Math.PI / 2 + Math.PI * 2 * lit, -Math.PI / 2 + Math.PI * 2);
+        staticCtx.stroke();
+        /* 读出弧:当前环上一小段随进度扫动 */
+        var sweepAng = (el / 260) % (Math.PI * 2);
+        staticCtx.globalAlpha = outA * 0.55;
+        staticCtx.lineWidth = Math.max(2, rr * 0.09);
+        staticCtx.strokeStyle = stalling ? "rgba(255,77,94,0.8)" : "rgba(255,255,255,0.75)";
+        staticCtx.beginPath();
+        staticCtx.arc(0, 0, R.r, sweepAng, sweepAng + 0.5);
+        staticCtx.stroke();
       }
       staticCtx.restore();
 
-      /* 4) 进度主环 + 内侧细环(双向)*/
-      staticCtx.setLineDash([]);
-      staticCtx.lineWidth = Math.max(2, rr * 0.17);
-      staticCtx.strokeStyle = "rgba(127, 240, 255, 0.16)";
+      /* 内盘孔 */
+      staticCtx.globalAlpha = outA * 0.85;
       staticCtx.beginPath();
-      staticCtx.arc(0, 0, rBase, 0, Math.PI * 2);
-      staticCtx.stroke();
-      staticCtx.save();
-      staticCtx.rotate(-Math.PI / 2);
-      var ringCol = stalling ? "#ff4d5e" : C_ACC;
-      staticCtx.strokeStyle = ringCol;
-      staticCtx.shadowColor = ringCol; staticCtx.shadowBlur = stalling ? 22 : 14;
-      staticCtx.beginPath();
-      staticCtx.arc(0, 0, rBase, 0, Math.PI * 2 * pShow);
-      staticCtx.stroke();
-      staticCtx.restore();
-
-      staticCtx.save();
-      staticCtx.rotate(el / 900);
-      staticCtx.setLineDash([rr * 0.18, rr * 0.3]);
-      staticCtx.lineWidth = Math.max(1, rr * 0.07);
+      staticCtx.arc(0, 0, rBase * 0.18, 0, Math.PI * 2);
+      staticCtx.lineWidth = Math.max(2, rr * 0.12);
       staticCtx.strokeStyle = C_ICE;
-      staticCtx.globalAlpha = outA * 0.5;
-      staticCtx.shadowBlur = 0;
-      staticCtx.beginPath();
-      staticCtx.arc(0, 0, rBase * 0.72, 0, Math.PI * 2);
       staticCtx.stroke();
+      staticCtx.globalAlpha = outA * 0.25;
+      staticCtx.fillStyle = C_DIM;
+      staticCtx.fill();
+      staticCtx.globalAlpha = 1;
+
+      /* 环外转速圈 + RPM 读数 */
+      staticCtx.save();
+      staticCtx.globalAlpha = outA * 0.6;
+      staticCtx.font = Math.max(10, Math.round(Math.min(W, H) * 0.013)) + "px \"Alpha Sector\", ui-monospace, Consolas, monospace";
+      staticCtx.textAlign = "center";
+      staticCtx.textBaseline = "middle";
+      staticCtx.fillStyle = stalling ? "#ff4d5e" : C_DIM;
+      glowText(rpmTxt + " RPM", 0, rBase * 1.58, stalling ? "#ff4d5e" : C_DIM, 6);
       staticCtx.restore();
 
       staticCtx.restore();
 
-      /* ---------- 中央百分比(带辉光)*/
       staticCtx.save();
       staticCtx.font = "600 " + Math.round(Math.min(W, H) * 0.032) + "px ui-monospace, Consolas, monospace";
       staticCtx.textAlign = "center";
       staticCtx.textBaseline = "middle";
-      staticCtx.globalAlpha = outA * (0.6 + 0.4 * Math.abs(Math.sin(el / 260)));
-      glowText(Math.round(pShow * 100) + "%", cx, cy, stalling ? "#ff4d5e" : C_CYAN, 16);
+      staticCtx.globalAlpha = outA;
+      glowText(Math.round(pShow * 100) + "%", cx, cy, stalling ? "#ff4d5e" : C_CYAN, 12);
       staticCtx.restore();
 
-      staticCtx.textAlign = "center";
-      staticCtx.textBaseline = "middle";
-      staticCtx.globalAlpha = 1;
-      staticCtx.globalAlpha = 1;
+      /* 100% 后短暂全环发亮一拍,再交给关屏压缩 */
+      if (pShow >= 1 && !stalling) {
+        var fraw = (el - tFull - HEX.hold * 0.62) / (HEX.hold * 0.38);
+        var flash = fraw < 0 ? 0 : (fraw > 1 ? 1 : fraw);
+        if (flash > 0 && flash < 1) {
+          staticCtx.globalCompositeOperation = "lighter";
+          staticCtx.globalAlpha = (1 - flash) * 0.16;
+          staticCtx.fillStyle = C_ACC;
+          staticCtx.fillRect(0, 0, W, H);
+          staticCtx.globalAlpha = 1;
+          staticCtx.globalCompositeOperation = "source-over";
+        }
+      }
+
+      /* CRT 关屏压缩:tFadeIn 之后画面纵向压成一条亮线再熄灭 */
+      if (outA < 1) {
+        var ct = 1 - outA;                       /* 0→1 压缩进度 */
+        /* 先把当前帧快照下来,再在本画布上重绘压缩版 */
+        if (!snapCv) snapCv = document.createElement("canvas");
+        if (snapCv.width !== W || snapCv.height !== H) { snapCv.width = W; snapCv.height = H; }
+        var sg = snapCv.getContext("2d");
+        sg.setTransform(1, 0, 0, 1, 0, 0);
+        sg.clearRect(0, 0, W, H);
+        sg.drawImage(staticCv, 0, 0);
+        staticCtx.setTransform(1, 0, 0, 1, 0, 0);
+        var sq = Math.max(0.004, 1 - ct * ct);   /* 纵向压缩 */
+        staticCtx.globalAlpha = 1;
+        staticCtx.fillStyle = "#04060a";
+        staticCtx.fillRect(0, 0, W, H);
+        staticCtx.save();
+        staticCtx.translate(0, cy * (1 - sq));
+        staticCtx.scale(1, sq);
+        staticCtx.globalAlpha = Math.min(1, outA * 2.2);
+        staticCtx.drawImage(snapCv, 0, 0, W, H);
+        staticCtx.restore();
+        if (ct > 0.55) {
+          /* 亮扫描线,随压缩变细变亮 */
+          staticCtx.globalCompositeOperation = "lighter";
+          staticCtx.fillStyle = "rgba(190,245,255," + (0.75 * Math.min(1, (ct - 0.55) / 0.2) * outA).toFixed(3) + ")";
+          staticCtx.fillRect(0, cy - 1.5 * (1 - ct), W, 3 * (1 - ct) + 1);
+          staticCtx.globalCompositeOperation = "source-over";
+        }
+        staticCtx.globalAlpha = 1;
+        return;
+      }
+    }
+
+    function finishBoot() {
+      staticCtx.setTransform(1, 0, 0, 1, 0, 0);
+      staticCtx.clearRect(0, 0, W, H);
+      if (POST) POST.reset();
+      staticWrap.style.opacity = "0";
+      staticWrap.style.visibility = "hidden";
+      staticWrap.style.transition = "none";
+      staticWrap.classList.remove("is-black");
+      staticWrap.classList.remove("is-on");
+      if (bootRAF) { cancelAnimationFrame(bootRAF); bootRAF = 0; }
+      window.__bootRunning = false;
+      try { window.dispatchEvent(new CustomEvent("cd-boot-done", { detail: used })); } catch (e) {}
+      if (onEnd) onEnd();
     }
 
     function frame(now) {
       var el = now - t0;
       if (el >= tEnd) {
-        staticCtx.setTransform(1, 0, 0, 1, 0, 0);
-        staticCtx.clearRect(0, 0, W, H);
-        if (POST) POST.reset();          /* 离屏也清掉,避免收尾时残留最后一帧 */
-        /* 确定性收尾:不依赖"清画布"这一件事 ——
-           直接把这一层隐掉(内联样式优先级最高),彻底杜绝残留的泛光/扫描线/噪点 */
-        staticWrap.style.opacity = "0";
-        staticWrap.style.visibility = "hidden";
-        staticWrap.style.transition = "none";
-        staticWrap.classList.remove("is-black");
-        staticWrap.classList.remove("is-on");
-        bootRAF = 0;
-        /* 开机动画结束:广播出去(第四张盘的终端在等这个信号才开始打印第二页)*/
-        window.__bootRunning = false;
-        try { window.dispatchEvent(new CustomEvent("cd-boot-done", { detail: used })); } catch (e) {}
-        if (onEnd) onEnd();
+        finishBoot();
         return;
       }
       staticCtx.setTransform(1, 0, 0, 1, 0, 0);
       staticCtx.globalAlpha = 1;
       staticCtx.globalCompositeOperation = "source-over";
       staticCtx.clearRect(0, 0, W, H);
-      /* ★ 第四张盘:整段时间轴交给 cd4-boot.js(没有 scene,也不走 loading 的淡出)*/
       if (useCD4) {
+        /* cd4 自带整段叙述(含结尾 CRT 关屏),不经过加载器/开屏扫描线;
+           cd4 每帧自绘 #04060a 底,is-black 冗余且会压住 home-guide 的 home-dark,立即摘掉 */
+        if (!droppedBlack) { staticWrap.classList.remove("is-black"); droppedBlack = true; }
         window.CD4Boot.render(staticCtx, W, H, el);
         bootRAF = requestAnimationFrame(frame);
         return;
       }
       if (el < tPanel) { drawLoader(el); bootRAF = requestAnimationFrame(frame); return; }
-      /* 交给 scene 之后就不再铺全屏黑底:"谁盖住页面"由 scene 自己负责,
-         这样它才能一块一块地把页面露出来。
-         但若场景声明了 blackUntil(此刻它还没盖住页面),黑屏就再留一会儿 ——
-         否则铺满之前页面会从缝隙里透出来(emoji 场景正是如此) */
       var holdBlack = tPanel + (scene.blackUntil || 0);
       if (!droppedBlack && el >= holdBlack) { staticWrap.classList.remove("is-black"); droppedBlack = true; }
-      /* ★ 关键:场景画在离屏画布上,离屏必须【每帧先清空】再画 ——
-         否则上一帧残留在下面,和下一帧叠在一起(帧残留/重影)。
-         原来场景直接画在可见画布上时,是靠上面那句 clearRect 清掉的。 */
+      var sceneEl = el - tPanel;
       if (POST) {
         sceneCtx.setTransform(1, 0, 0, 1, 0, 0);
         sceneCtx.globalAlpha = 1;
         sceneCtx.globalCompositeOperation = "source-over";
         sceneCtx.clearRect(0, 0, W, H);
       }
-      scene.draw(el - tPanel);
-      /* 每张盘的标志性动作(画在离屏上,随后由后期层统一输出)*/
-      if (window.CDBootFx) window.CDBootFx.apply(used, sceneCtx, W, H, el - tPanel, { fillDone: (scene.blackUntil || 0) });
-      if (POST) POST.present(staticCtx, W, H, el, 1);   /* 过一遍全息成像:泛光/扫描线/暗角/噪点 */
+      scene.draw(sceneEl);
+      if (window.CDBootFx) window.CDBootFx.apply(used, sceneCtx, W, H, sceneEl, { fillDone: (scene.blackUntil || 0) });
+      if (POST) POST.present(staticCtx, W, H, el, 1);
+
+      /* 开机扫描线:黑场刚结束时,内容从中心一条横线纵向展开(与关屏压缩互为镜像) */
+      var wipeEl = sceneEl - (scene.blackUntil || 0);
+      if (wipeEl >= 0 && wipeEl < WIPE) {
+        if (!snapCv) snapCv = document.createElement("canvas");
+        if (snapCv.width !== W || snapCv.height !== H) { snapCv.width = W; snapCv.height = H; }
+        var wg = snapCv.getContext("2d");
+        wg.setTransform(1, 0, 0, 1, 0, 0);
+        wg.clearRect(0, 0, W, H);
+        wg.drawImage(staticCv, 0, 0);
+        staticCtx.fillStyle = "#04060a";
+        staticCtx.fillRect(0, 0, W, H);
+        var wp = wipeEl / WIPE;
+        var open = wp * wp * (3 - 2 * wp);       /* smoothstep */
+        var hh = Math.max(1, (H / 2) * open);
+        staticCtx.save();
+        staticCtx.beginPath();
+        staticCtx.rect(0, H / 2 - hh, W, hh * 2);
+        staticCtx.clip();
+        staticCtx.drawImage(snapCv, 0, 0, W, H);
+        staticCtx.restore();
+        /* 展开边缘的亮扫描线 */
+        staticCtx.globalCompositeOperation = "lighter";
+        staticCtx.fillStyle = "rgba(190,245,255," + (0.55 * (1 - wp)).toFixed(3) + ")";
+        staticCtx.fillRect(0, H / 2 - hh - 1, W, 2);
+        staticCtx.fillRect(0, H / 2 + hh - 1, W, 2);
+        staticCtx.globalCompositeOperation = "source-over";
+      }
+
       staticCtx.setLineDash([]);
       staticCtx.globalAlpha = 1;
       staticCtx.globalCompositeOperation = "source-over";
@@ -832,54 +824,27 @@
   function screenOff() {
     if (!staticWrap) return;
     if (staticRAF) { cancelAnimationFrame(staticRAF); staticRAF = 0; }
-    /* 关键:开机动画的循环也要停 —— 否则它在收尾时会 remove("is-black"),
-       把这里的黑屏又撤掉(用户在动画播到一半时重新打开 CD 架就会踩到)*/
     if (bootRAF) { cancelAnimationFrame(bootRAF); bootRAF = 0; }
     if (staticCtx) staticCtx.clearRect(0, 0, staticCv.width, staticCv.height);
     staticWrap.classList.remove("is-on");
     staticWrap.classList.add("is-black");
   }
-  /* 调试/验证入口:手动放一段花屏 */
   window.__runStatic = runStatic;
-  window.__screenBoot = screenBoot;      /* 调试/验证入口:手动放一次开机动画(__screenBoot("emoji") 指定那套)*/
-  window.__hexCfg = HEX;                 /* 调试:可以直接改 loading 的时长 */
+  window.__screenBoot = screenBoot;
+  window.__hexCfg = HEX;
 
-  /* ---------- 状态栏的"上缘箭头收放"已经删掉 ----------
-     原来这里有一整套:点顶缘那枚箭头 → 把 .statusbar 收起来 / 放出来,
-     状态记在 localStorage 的 "cd-statusbar"。
-     两件事让它彻底作废:
-       · 那枚箭头现在开的是【平板主界面】(见 tablet.js —— 它在捕获阶段就把这一下
-         截走,这套监听根本轮不到执行);
-       · 首页那条老顶栏整个删掉了(用户要求),`.statusbar` 这个元素已经不存在。
-     ⇒ 留着只会误导:它还会往 "cd-statusbar" 写值、给 body 挂一个没人理会的
-       statusbar-hidden(cd4-terminal.js 会读这个类来决定顶部让位 —— 它现在取到的
-       是"没有导航"这个正确答案,但那是靠 navEl 找不到、跟这个类无关)。
-     ★ 顶缘那枚按钮(#statusbar-toggle)【还在】—— 它是打开平板的入口,别一起删了。 */
 
-  /* ---------- 场景平移开合(视角平移,刚体) ---------- */
   function setOpen(open, onBootEnd) {
-    /* ★ 2026-10:html.slot-locked(ECHO 引导期间左侧按钮的闸门)还挂着 ⇒ 不理这次点击。
-       CSS 已经把按钮做成 opacity:0 / pointer-events:none,但"看不见"挡不住
-       btn.click() 或别处派发的合成 click —— 状态必须在这里再拦一道 ✓
-       (和上侧 top-locked 那枚不同:那枚的入口 tablet.js 自己已经查了锁。) */
     if (open && document.documentElement.classList.contains("slot-locked")) return;
     body.classList.toggle("scene-open", open);
     toggle.setAttribute("aria-expanded", open ? "true" : "false");
     rack.setAttribute("aria-hidden", open ? "false" : "true");
     if (cd3dApi) cd3dApi.setPaused(!open);
-    /* 打开 CD 架(= 光驱拔出)= 屏幕黑掉,一直黑到插盘;
-       回到主界面 = 先花屏 1.5 秒,再出画面 */
     if (open) {
       screenOff();
     } else {
-      /* 回到主界面:黑屏 loading → 本盘的动画 → 露出界面。
-         ★ 开机动画期间必须【一点音乐都没有】:
-           · 先把"选盘预览"掐掉(动画里就算换选也不许再切出歌来);
-           · 背景音乐不在这里起 —— 等动画播完那一刻再起(见下面的收尾回调)。
-         原来 leaveCdPage() 会在动画刚开播时把上一张盘的 BGM 拉起来,就是这个 bug */
       if (cd3dApi && cd3dApi.setMusicPreview) cd3dApi.setMusicPreview(false);
       screenBoot(undefined, function () {
-        /* 插入流程带了 onBootEnd(它自己会用刚插入的那张盘起 BGM)—— 别重复起,否则同一首会叠两条 */
         if (onBootEnd) onBootEnd();
         else if (cd3dApi && cd3dApi.audio && insertedKey) cd3dApi.audio.music.toBgm(insertedKey);
         if (cd3dApi && cd3dApi.setMusicPreview) cd3dApi.setMusicPreview(true);
@@ -887,14 +852,12 @@
     }
     if (open) {
       setTimeout(layout, 80);
-      scheduleEject();                 /* 每次打开都重新弹出光驱 */
-      /* 回到 CD 页 → 当前选中的盘小声预览(背景音乐让位)*/
+      scheduleEject();
       if (cd3dApi && cd3dApi.previewCurrent) cd3dApi.previewCurrent();
     } else if (cd3dApi && cd3dApi.isDriveOut() && !locked) {
       clearTimeout(ejectTimer);
-      cd3dApi.retractDrive();          /* 收起架子时把弹出的光驱收回去 */
+      cd3dApi.retractDrive();
     }
-    /* 收起架子:结束预览;光驱里那张盘的背景音乐继续放 */
     if (!open && cd3dApi && cd3dApi.audio) cd3dApi.audio.music.leaveCdPage();
   }
 
@@ -907,16 +870,15 @@
       body.classList.contains("scene-open") &&
       !rack.contains(e.target) &&
       !toggle.contains(e.target) &&
-      !(e.target.closest && e.target.closest(".header"))   /* 点顶栏(导航/明暗/配色)不收起 CD 架 */
+      !(e.target.closest && e.target.closest(".header"))
     ) {
       setOpen(false);
     }
   });
 
-  /* ---------- 滚轮 / 方向键 ---------- */
   var lastWheel = 0;
   rack.addEventListener("wheel", function (e) {
-    if (cd3dApi) return;              /* 3D 模式:滚轮由 Three.js 画布接管 */
+    if (cd3dApi) return;
     e.preventDefault();
     var now = Date.now();
     if (now - lastWheel < 180) return;
@@ -930,8 +892,6 @@
     else if (e.key === "ArrowDown") { e.preventDefault(); step(1); }
   });
 
-  /* ---------- 插入按钮(左中)+ 两根纵向滑条 ----------
-     插入统一走按钮:点碟片只负责选中,不再插入 */
   var insertBtn = document.getElementById("rack-insert");
   if (insertBtn) {
     insertBtn.addEventListener("click", function () { confirmTheme(); });
@@ -955,19 +915,14 @@
     el.addEventListener("input", push);
     push();
   }
-  /* 上:背景整体强度(直接乘在第一层星云上)*/
   bindSlider("rack-bg-power", function (v) {
     rack.style.setProperty("--bg-power", v.toFixed(2));
   });
-  /* 下:星云整体可见度(3D 粒子带 + 连线 + 第三层光晕一起)*/
   bindSlider("rack-neb-power", function (v) {
     rack.style.setProperty("--glow-alpha", v.toFixed(2));
     if (cd3dApi && cd3dApi.setNebulaVisibility) cd3dApi.setNebulaVisibility(v);
   });
 
-  /* ---------- CD 点击:只负责"选中",不再插入 ----------
-     插入统一走左侧中部的按钮(见下面的 .rack-insert);
-     点碟片 = 把它滚到中间选中,点已选中的那张也不再插入 */
   cds.forEach(function (cd) {
     cd.addEventListener("click", function () {
       var i = cds.indexOf(cd);
@@ -975,7 +930,6 @@
     });
   });
 
-  /* ---------- CD 随鼠标微倾斜 ---------- */
   cds.forEach(function (cd) {
     var disc = cd.querySelector(".cd-disc");
     cd.addEventListener("mousemove", function (e) {
@@ -991,20 +945,15 @@
     });
   });
 
-  /* ---------- 加载页 ---------- */
   var loader = document.getElementById("intro-loader");
   var loaderFill = document.getElementById("intro-loader-fill");
   var loaderPct = document.getElementById("intro-loader-pct");
   var loaderSub = document.getElementById("intro-loader-sub");
   var loaderDone = false;
   var loaderKick = setTimeout(function () {
-    if (!loaderDone && loader) loader.classList.add("is-active");   /* 超过 250ms 才显示,避免闪现 */
+    if (!loaderDone && loader) loader.classList.add("is-active");
   }, 250);
 
-  /* 辅助行:一个转动的 ASCII 轮 + 逐字刷出来的日志。
-     ★ 它唯一的职责是"证明还在动" —— 模型几 MB,慢网下这一段是好几个静止的秒。
-       所以它【不】承担任何进度语义,进度归上面的百分比。
-     ★ 轮子 12 格、日志逐字,节奏压到 240ms 一拍:够看出在动,又不抢上面的主文案。 */
   var SPIN = "|/-\\";
   var loaderBeat = 0, loaderTimer = 0;
   function startLoaderSub() {
@@ -1022,16 +971,6 @@
   }
   startLoaderSub();
 
-  /* ★★★ 进度【分路】,不是"谁最后报谁说了算"。
-     踩过(用户第三轮报的"动画完全没有加载"里就有一层是它):
-     音乐预载和 3D 是两件并行的事,原来两边都往同一个宽度上写 ——
-     音乐先跑完报到 99%,模型那边一报 18%,进度条就【倒着走】(99% → 18%),
-     看起来就是"卡住了/重来了"。
-     ⇒ 每一路各自按 0~100 报,宽度取所有路的【最大值】:
-       路修好了数字只会前进;文案显示"当前往回报的那一路"干了什么
-       (按原始进度判断,所以模型从 0 开始跑时音乐那 100 不会一直霸着标题)。
-     ★ 用 max 而不是加权和:加权和要先知道"模型占总量的几成",
-       而模型多大、网多快事先都不知道 —— max 不需要这两个数。 */
   var progSrc = {};
   function resetProgress(id) { delete progSrc[id]; }
   function setProgress(p, label, src) {
@@ -1049,14 +988,9 @@
       if (!progSrc.hasOwnProperty(s) || s.indexOf(":label") > 0) continue;
       var val = progSrc[s];
       if (val > best) best = val;
-      /* ★ 标题显示"【还没跑完】的第一条线"干了什么,不是"数值最大的那条"。
-         为什么:两条线并行,音乐先跑完 100% 之后模型才报到 60% ——
-         按数值挑会一直显示"载入情感引擎 100%"(看着像卡死),
-         按"还没完"挑就自然切到"加载情感引擎 · 60%"。 */
       if (val < 100 && !name) name = progSrc[s + ":label"] || "";
     }
     if (!name) {
-      /* 都跑完了:显示最后动过的那条 */
       for (var k = order.length - 1; k >= 0; k--) {
         if (progSrc[order[k] + ":label"]) { name = progSrc[order[k] + ":label"]; break; }
       }
@@ -1077,71 +1011,33 @@
     }
   }
 
-  /* ---------- 进入 CD 界面(加载完成后) ---------- */
   var ejectTimer = null;
 
-  /* 每次打开 CD 架:等 1 秒后光驱弹出(可重复触发) */
   function scheduleEject() {
     clearTimeout(ejectTimer);
     if (!cd3dApi) return;
     ejectTimer = setTimeout(function () {
       if (body.classList.contains("scene-open") && cd3dApi) {
-        cd3dApi.ejectDrive();          /* 等 1 秒后:光驱弹出 */
+        cd3dApi.ejectDrive();
       }
     }, cd3dApi.timings.driveEjectDelay || 1000);
   }
 
   function startIntro() {
     hideLoader();
-    window.__introReady = true;          /* 站点进入 CD 界面了(第四张盘的终端等这个信号才敢开始)*/
-    setOpen(true);                       /* 视角左移,CD 架滑出(内部会调度光驱弹出) */
+    window.__introReady = true;
+    setOpen(true);
   }
 
-  /* ★★★ 用户第八轮:"刚进入首页,背景里面就开始播放第一张CD了。"
-     首页那一段(加载页 + 引导)应该【一点音乐都没有】。两处出声的口子:
-       · cd3d 建好场景时的首次摆位 —— 那边自己改成 silent 了(见 cd3d.js 的 place);
-       · 引导走到"按下 CD 架按钮"时,打开 CD 页会 previewCurrent() 开始选盘预览。
-     这一句把预览总开关交给引导:开场关掉、引导结束再交还。
-     (intro.js 是唯一拿着 cd3dApi 的地方,所以由它转达 —— 引导不碰 3D 那一套。) */
   window.__cdPreview = function (on) {
     if (cd3dApi && cd3dApi.setMusicPreview) cd3dApi.setMusicPreview(!!on);
   };
 
-  /* ============================================================
-     ★★★ 首页的初始化【不再进 CD 页】,而是停在"一块黑着屏的平板上"
-     ─────────────────────────────────────────────────────────────
-     用户第二轮:"2.进入首页的初始化从进入CD页转为直接停在平板上,此时平板是黑屏。
-                 3.然后把启动页的眼睛移植过去,触发动画和对话……"
-     ⇒ startIntro() 那条路(视角左移 + 拉出 CD 架 + 屏幕黑掉)整个不走,
-       改成:黑屏 → 打开平板 → 把控制权交给 assets/js/home-guide.js。
 
-     ★ 加载页要等到【音乐也解码完】才收(用户:"我发现这个加载动画考虑的需要加载的
-       东西不够,导致正式进入后有些东西还是没有加载完成(比如音乐,CD模型)")。
-       所以真正收口的不是 onReady,而是这里(3D + 音乐都好了才调)。
-
-     ★ 谁来调:tryInit3D 的 onReady。它已经报过 100% 了,这里只负责
-       "把剩下的加载项补齐 → 收加载页 → 开机"。
-     ============================================================ */
-
-  /* 收起加载页 → 黑屏 → 打开平板(黑着) → 交给引导脚本 */
   function homeBoot() {
-    /* ★ 两路都封顶在 100 以下,只有【真正就绪】那一刻才写 100 ——
-       不这么做的话:音乐那几首下的比模型快,进度条先被它顶到 100%,
-       而模型还在下,屏幕上是"100% 但什么都不发生"(实测踩过)。
-       ★ 为什么 homeBoot 里还要再写一次 model/music:模型那一路在
-         "拆模型 / 建场景"的最后几档可能还没来得及报,这里给它一个确定的终点。 */
-    setProgress(100, "校准人格模板", "model");
+    setProgress(100, "排队第 27 次人格修正", "model");
     setProgress(100, "载入情感引擎", "music");
 
-    /* ★★★ 用户第五轮:"加载页还是不完全,需要在加载页结束前必定完全加载出网页,
-       现在又出现了平板贴图不能及时出现的问题。"
-       ⇒ 收加载页之前先等【这一页真的画得出来】:
-         · 字体(document.fonts.ready)—— 不等它,首帧的字会先按回退字体排一遍,
-           平板的日期/电量/时钟都会跳一下;
-         · 贴图(背景图 + <img>)—— 平板外框、CD 封面这些都是图,
-           不等它们,用户就会看到"贴图没跟上";
-         · 两帧 rAF —— 保证布局与绘制都已经落过一版。
-       全部套在 2.5 秒硬上限里:慢网下也不能把用户永远按在黑屏前。 */
     whenPainted(function () {
       finishHomeBoot();
     });
@@ -1150,12 +1046,11 @@
   function whenPainted(done) {
     var go = false;
     var fire = function () { if (!go) { go = true; done(); } };
-    setTimeout(fire, 2500);                       /* 硬上限 */
+    setTimeout(fire, 2500);
     var waits = [];
     try {
       if (document.fonts && document.fonts.ready) waits.push(document.fonts.ready);
     } catch (e) { }
-    /* 页面上已有的 <img>:还没 decode 完的都等 */
     try {
       var imgs = document.images || [];
       for (var i = 0; i < imgs.length; i++) {
@@ -1169,60 +1064,36 @@
     } catch (e) { }
     Promise.all(waits.map(function (p) { return Promise.resolve(p).catch(function () { }); }))
       .then(function () {
-        /* 两帧:第一帧把布局+绘制落下来,第二帧确认它稳了 */
         requestAnimationFrame(function () { requestAnimationFrame(fire); });
       })
       .catch(function () { fire(); });
   }
 
   function finishHomeBoot() {
-    /* ★ 黑屏:CD 架没开也先把屏幕压黑 —— "初始化 = 停在一块黑着屏的平板上"。
-       这一层是 .screen-static.is-black,和平板自己的 is-dark 是两层保险:
-       平板那一层由引导脚本挂(它要负责收黑),这一层让"加载页刚收掉、
-       引导还没起来"的那几十毫秒也是黑的。 */
     if (staticWrap) { staticWrap.classList.remove("is-full"); staticWrap.classList.add("is-on"); staticWrap.classList.add("is-black"); }
-    /* 平板打开(而且【不】记忆:这次是开机,不是用户按的)
-       ★ 顺序:先让引导脚本挂 .is-dark(它的 blackout 里做),再打开平板 ——
-         反过来的话平板会带着 opacity 0→1 的入场过渡淡进来,中间那 260ms
-         快捷控制卡片(音量滑条)会跟着露一下脸(用户第三轮报过这个小 bug)。
-       ⇒ 这里先开着,由引导脚本"先黑后亮"自己收口:它是唯一知道
-         "这一刻该不该全黑"的一方。 */
     if (!window.__homeBoot) {
-      /* 引导脚本没就绪(降级):直接开,至少不是白屏 */
       if (window.__tabletOpen) window.__tabletOpen(true);
       else body.classList.add("tablet-open");
     }
-    /* ★ 加载页【最后】才收:上面那些都落定了,它一淡出就是"画好了的"那一版 */
     hideLoader();
     window.__introReady = false;
-    /* 下一帧再把控制权交出去:让浏览器先把黑屏画出来 */
     requestAnimationFrame(function () {
       if (typeof window.__homeBoot === "function") window.__homeBoot();
       else console.warn("[home] 引导脚本没就绪(assets/js/home-guide.js)");
     });
   }
 
-  /* 首页那一份模板才有的开机入口;**其余页面不走这里** */
   var IS_HOME = body.classList.contains("home-page");
 
   function beginSite(onReady) {
     if (!IS_HOME) { startIntro(); return; }
-    /* 加载项还差"音乐":把它报进加载页,报完才开机。
-       ★ 音乐在页面一进来【就已经在下】(见文件末尾那句 startMusicPreload),
-         这里只是"等它" —— 两者并行,所以总时长是 max(模型, 音乐) 而不是相加。 */
     var p = musicPreload || startMusicPreload();
     p.then(function () {
-      setProgress(100, "校准完成", "music");
+      setProgress(100, "排队第 27 次人格修正", "music");
       onReady();
     });
   }
 
-  /* 音乐预载:第一首【解码】(插盘那一刻要立刻能响),其余只把字节拉进 HTTP 缓存。
-     ★ 解码要用 OfflineAudioContext,必须等用户有一次交互之后才在有些浏览器上放行 ——
-       所以这里只"尽力而为",失败不算错(真正播放时会再解一次)。
-     ★ 它和 3D 是【并行】的:早一点发起,慢网下就少等一大截 ——
-       用户的抱怨"这个加载动画考虑的需要加载的东西不够"反过来也成立:
-       该并行的东西串起来等,就是白等。 */
   var musicPreload = null;
   function readMusicList() {
     var out = [];
@@ -1245,17 +1116,9 @@
     var audio = (cd3dApi && cd3dApi.audio) || window.__cdAudio;
     var first = list[0], rest = list.slice(1);
     var done = 0, span = 1 + rest.length;
-    /* ★ 音乐这一路报在 "music" 这条线上:它和模型并行,两条线各自的 0~100
-       由 setProgress 取最大值合成(见那里的说明)。 */
     var beat = function () {
-      /* ★ 封顶 96:剩下 4 个点留给 homeBoot 那一句"确实就绪了"。
-         不封顶的话音乐先跑完就把进度条顶到 100%,而模型还在下 ——
-         屏幕上是"100% 但什么都不发生"(实测踩过)。 */
-      setProgress((++done / span) * 96, "载入情感引擎", "music");
+      setProgress((++done / span) * 96, "挂载情感引擎", "music");
     };
-    /* ★★ 那几首是【并行】下的,谁先回来不确定 —— 实测进度条会一口气
-       从 19% 跳到 77%(三首同时到),看着像卡了一下又猛冲。
-       所以给"字节都到齐"单独一个台阶(60%):解码那一首再往上走,每一步都有交代。 */
     var bytesDone = 0;
     var bytesBeat = function () {
       bytesDone++;
@@ -1274,14 +1137,10 @@
         .catch(function () { bytesBeat(); beat(); return null; });
     }));
 
-    /* ★ 4 秒硬上限(原来是 8 秒):某首歌缺失/网络极慢时不能把用户永远按在加载页上。
-       第一首的那几 MB 在本地探测里 1~2 秒就下完了,4 秒留给慢网已经够宽。
-       (超时就当它加载完了 —— 真正播的时候再缺也一样是缺。) */
     musicPreload = Promise.race([Promise.all([p1, p2]), wait(4000)]).catch(function () { });
     return musicPreload;
   }
 
-  /* ---------- Three.js 懒加载(资产缺失/无WebGL/减少动效 → DOM 降级) ---------- */
   var cd3dApi = null;
   var cd3dTried = false;
 
@@ -1304,30 +1163,23 @@
         return mod.initCd3d({
           container: wheel,
           selIndex: selIndex,
-          audioUrl: body.dataset.cdAudio,     /* 光驱音效 + 音乐(Web Audio 合成/解码,无第三方库)*/
-          fxUrl: body.dataset.cdFx,           /* 音频可视化(音频条 / 律动几何体)*/
+          audioUrl: body.dataset.cdAudio,
+          fxUrl: body.dataset.cdFx,
           onProgress: function (p, label) { setProgress(p, label); },
           onReady: function (api) {
             cd3dApi = api;
             body.classList.add("cd3d-on");
-            /* ★ silent:这一次只是把选择同步进刚建好的场景 —— 不许出声
-               (用户第八轮:"刚进入首页,背景里面就开始播放第一张CD了")。 */
             api.setSelection(selIndex, true);
-            /* 可视化就绪:把当前主题色推给星云带(视觉化开关已经去掉了)*/
             document.documentElement.classList.add("has-cd-fx");
             repaintRack();
             console.info("[cd3d] 3D 模式已激活");
             setProgress(90, "挂载 CD 模板");
-            /* ★ 收口交给 beginSite:首页还要等音乐(用户:"加载动画考虑的需要
-               加载的东西不够…… 比如音乐,CD模型"),其余页面照旧直接进 CD 界面。
-               startIntro() / homeBoot() 只有这一个调用点。 */
             beginSite(homeBoot);
           },
           onCdClick: function (key) {
             var i = cdOrder.indexOf(key);
             if (i === -1) return;
             console.info("[cd3d] 点击 CD:", key);
-            /* 单击只负责选中,不再插入(插入只走侧边按钮)*/
             if (i !== selIndex) {
               selIndex = i;
               layout();
@@ -1338,7 +1190,7 @@
         }).then(function (api) {
           if (!api) {
             console.warn("[cd3d] 未能初始化(资产缺失/加载失败),继续使用 DOM 轮盘");
-            beginSite(homeBoot);    /* 降级:首页照样停黑屏平板,只是没有 3D 轮盘 */
+            beginSite(homeBoot);
           }
         });
       })
@@ -1348,17 +1200,13 @@
       });
   }
 
-  /* ---------- 初始状态 ---------- */
   var restored = false;
   var savedKey = null;
   try { savedKey = localStorage.getItem("intro-theme"); } catch (e) {}
 
   if (savedKey && panels.length) {
-    /* 回访:面板先显示上次的主题(光驱内为空) */
     restored = true;
     activeKey = savedKey;
-    /* ★ 连同"这张盘的开机动画款式"一起恢复 —— 否则回访时收起 CD 架放的是默认那套
-       (第四张盘回访时会放成六边形,和它的故障风对不上)*/
     bootStyle = (window.CDBoot && window.CDBoot.styleFor) ? window.CDBoot.styleFor(savedKey) : "hex";
     playPanel(savedKey);
     cds.forEach(function (cd, i) {
@@ -1369,9 +1217,6 @@
     layout();
   }
 
-  /* 先加载 3D(显示加载页),就绪后再开机;失败/超时则降级 */
-  /* ★ 音乐和 3D 【并行】下:慢网下这是省时间最实在的一处 ——
-     串起来等就是白等(用户的"加载动画考虑的东西不够"反过来也成立)。 */
   startMusicPreload();
   tryInit3D();
   setTimeout(function () {

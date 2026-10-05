@@ -1,22 +1,10 @@
-{{/* 第三张盘「迷茫」:几何冲刺式关卡(新引擎,Phaser 4 + 纯 TS 定点模拟)
-     玩法:七种形态(方块/飞机/球/UFO/波浪/机器人/蜘蛛)、跳环与弹簧、尖刺/锯片/坑、
-           形态门/速度门/重力门/尺寸门/双向传送门、触发器(move/color/pulse)、存档点
-     关卡:按采音 onset 自动铺面(用户后续会自己写铺面,见 .gmd 导入)
-     视觉:本站显示器 + holo 科技风(不使用原作美术)
-     引擎:gd-web/(源码在仓库里,构建产物是 static/assets/gd/gd.js)
-     参考:OpenGD(关卡格式与数据结构)、camila314/gdp(GD 物理反编译)*/}}
 <div class="lost is-game" data-lost="{{ .key }}">
     <div class="lost-stage">
         <canvas id="gd-canvas" class="lost-cv" width="1280" height="720" aria-label="几何冲刺式关卡"></canvas>
-        {{/* ★★ 歌词字幕:跟着音乐时间逐句淡入淡出(用户 2026-09:「把之前的字幕加回来」)。
-             走 DOM 而不是画进 Phaser:能截图自证,最坏情况也只是没效果,不会把游戏画面搞坏 ✓
-             数据 /assets/water/lyrics.json,由 main.ts 的 paintLyric() 驱动 ✓ */}}
         <div class="lost-lyric" id="gd-lyric" aria-live="off"></div>
         <div class="lost-veil" aria-hidden="true"></div>
         <div id="gd-hud" class="lost-hud">方块 · 0%</div>
         <div class="lost-tip">空格 / 点一下 = 开始 · 按住 = 连跳 · 跳环要按一下 · R = 重来</div>
-        {{/* 右下角两个能点的按钮:键盘在某些环境里会被别的东西吃掉(用户实测 R 没反应),
-             按钮鼠标/触屏都能按 */}}
         <div class="gd-tools">
             <button type="button" id="gd-skip" class="gd-tool" title="跳过全程,直接走到结尾字幕">跳到结尾字幕</button>
             <button type="button" id="gd-restart" class="gd-tool" title="从头再来(R)">重来</button>
@@ -27,8 +15,6 @@
         </div>
     </div>
 
-    {{/* 旧版自研工程的能力图例(二段跳/护盾形态/重力箭头…)已删:那是上一版遗留的旁白体系 */}}
-
     <p class="lost-wip__ref">参考:
         <a href="https://github.com/Open-GD/OpenGD" target="_blank" rel="noopener noreferrer">OpenGD</a>(关卡格式与数据结构)、
         <a href="https://github.com/camila314/gdp" target="_blank" rel="noopener noreferrer">camila314/gdp</a>(GD 物理反编译)。
@@ -37,16 +23,6 @@
     </p>
 </div>
 
-{{/* ★★ 结束页 / 致谢(用户 2026-09:「关卡结尾那一大片空白做成结束文字/致谢页」)。
-     为什么走 DOM 而不是画进画布:**链接必须可点** —— 画布里做不到 ✗,DOM 层可以 ✓
-     什么时候出现:通关时 main.ts 把 phase 置成 'done'(main.ts:1491)⇒ 这里轮询它;
-     重开 / 回放(phase 回到 running/idle)会自动收起 ✓
-     文案来源:曲名与作者是拿用户给的 B 站链接去查、并和 osu! 谱面页交叉核对过的
-       (A-39 - WATER (feat. MIKU)),与仓库里 47 句日文歌词一致 ✓ —— 不是我编的 ✓
-     ★「制作相关介绍」那一段是**我们这个还原工程本身的说明**(不是关卡/歌曲介绍),
-       文案由作者提供草稿、我逐条对着实现核过:**六条里只有最后一条改了口径** ——
-       原文写"保证手感与帧率无关",而我们实测极端限速下仍有 ~13.7% 离散度 ✗
-       ⇒ 改成"低帧率下按墙上时间补步(极端限速下仍偶有掉帧,还在修)" ✓ 其余五条都有行号/读数支撑 ✓ */}}
 <div class="lost-ending" id="gd-ending" aria-hidden="true">
     <div class="lost-ending__card">
         <h3 class="lost-ending__title">WATER</h3>
@@ -150,13 +126,6 @@
         }
     })();
 </script>
-{{/* ★★★ 性能:gd.js(Phaser 整包 + WATER 铺面,约 2MB)原来【首页一打开就加载】——
-     它住在 lost 面板里,而首页五张盘共用一个 DOM,别的盘激活时它也在场,
-     浏览器照样把这两 MB 拉下来、把 Phaser 跑起来。
-     现在改成【第一次激活 lost 盘时才加载】:intro.js 的 playPanel() 在每次切盘时
-     都会广播 cd-panel 事件,这里监听它;首次 detail === "lost" 时注入 <script>,
-     之后不再重复注入。页面直接带 ?panel=lost / 游玩模式打开时也会在首拍被触发,
-     行为与"同步加载"一致。 */}}
 <script>
     (function () {
         var booted = false;

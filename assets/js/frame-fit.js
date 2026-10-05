@@ -1,35 +1,13 @@
-/* ============================================================
-   模拟屏幕外框贴合(FrameFit)—— 五张盘共用
-   ─────────────────────────────────────────────────────────────
-   问题:外框是 /assets/screen/frame.webp 按 100% 100% 拉伸铺满视口的贴图,
-         它中间那块【透明窗口】才是真正能显示东西的地方。而页面上原来用
-         --sp-t/--sp-x/--sp-b(13vh / 5vw / 7.5vh)当可视区内边距 ——
-         右下比窗口多出去 7~10px,四角的【斜切】也压不住,于是内容顶出金属框
-         (用户先在第四张盘的终端上发现,其实五张盘的开机画面/页面都有)。
-   做法:运行时把那张贴图读进 canvas(缩到 1/4 算,毫秒级),量出两样东西:
-     · 最大内接矩形(safe):完全落在透明区里的最大矩形 → 给"内容"用;
-     · 窗口轮廓(polygon):逐行扫透明范围拼成的多边形 → 给"玻璃"裁边用。
-   产出(写在 <html> 上的自定义属性 + 一个 class,懂 CSS 的地方直接用):
-     html.frame-fitted                   量到了(量不到就退回 CSS 里的保底值)
-     --ff-safe-*   内接矩形四边(px,从视口算)
-     --ff-win-*    中线包围盒四边(px)—— 比内接矩形大,给"贴边"的层用
-     --ff-clip     多边形(px),配合 clip-path 把一整层裁成屏幕形状
-   另外会把 .screen 上那套 --sp-* 抬高到"不小于窗口内边距",页面自然就收进来了。
-
-   依赖:无。任何模块都可以
-     FrameFit.ready(function (d) { … })  // 量好之后回调(已量好则立即回调)
-   来拿数据;窗口 resize 时会自动重算并派发 frame-fit 事件。
-   ============================================================ */
 (function () {
   "use strict";
 
   var IMG = "/assets/screen/frame.webp";
-  var GAP = 10;                 /* (历史值)内接矩形再往里收一点 */
-  var CORNER = 14;              /* 窗口再往里收一点,躲开四角的斜切(给"内容"用)*/
-  var SP_GAP = 4;               /* --sp-* 至少比窗口多让这么多 */
-  var S = 4;                    /* 贴图缩到这个比例再算 */
+  var GAP = 10;
+  var CORNER = 14;
+  var SP_GAP = 4;
+  var S = 4;
 
-  var data = null;              /* 量到的原始数据*/
+  var data = null;
   var cbs = [];
   var pending = false;
 
@@ -47,7 +25,6 @@
           var d = g.getImageData(0, 0, W, H).data;
           var A = function (x, y) { return d[(y * W + x) * 4 + 3]; };
 
-          /* ① 中线上的一整段透明:中线包围盒(参考用,也是"贴边层"的边界)*/
           function bigRun(len, alpha) {
             var best = null, s = -1, i;
             for (i = 0; i < len; i++) {
@@ -61,8 +38,6 @@
           var vRun = bigRun(H, function (y) { return A(Math.floor(W / 2), y); });
           var hRun = bigRun(W, function (x) { return A(x, Math.floor(H / 2)); });
 
-          /* ② 最大内接矩形(单调栈,按行做直方图)—— 保证整个落在透明区里,
-                斜切角也不会被顶到。只搜中间 5%~95%,免得把贴图最外圈的透明留白当成窗口 */
           var x0 = Math.floor(W * 0.05), x1 = Math.ceil(W * 0.95);
           var y0 = Math.floor(H * 0.05), y1 = Math.ceil(H * 0.95);
           var heights = new Int32Array(W), best = null;
@@ -82,9 +57,6 @@
           }
           if (!best) return done(null);
 
-          /* ③ 窗口轮廓:逐行扫出透明范围拼成多边形(玻璃层裁边用)。
-                同时给"逐行左右边界"取中位数 —— 电源键那种局部凸起、四角的斜切
-                都是离群值,中线法量出来的左边界会偏掉(实际 77px,被电源键带成 52px)。*/
           var rows = 25, pts = [], lefts = [], rights = [];
           var ry0 = vRun ? vRun[0] * S : best.y * S, ry1 = vRun ? vRun[1] * S : (best.y + best.h) * S;
           for (var i2 = 0; i2 < rows; i2++) {
@@ -99,7 +71,6 @@
             if (s2 >= 0 && (!r || x1 - 1 - s2 > r[1] - r[0])) r = [s2, x1 - 1];
             if (r) {
               pts.push([r[0] * S, yy, r[1] * S, yy]);
-              /* 只收"跟典型值差不多宽"的行(太窄的是切角/凸起)*/
               if (r[1] - r[0] > (x1 - x0) * 0.5) { lefts.push(r[0]); rights.push(r[1]); }
             }
           }
@@ -110,29 +81,11 @@
           var cx = (best.x + best.w / 2) * S, cy = (best.y + best.h / 2) * S;
           var k = Math.max(0.9, 1 - (2 * GAP) / Math.max(80, best.h * S));
           function shrink(p) { return [cx + (p[0] - cx) * k, cy + (p[1] - cy) * k]; }
-          /* 逐行轮廓的原始点(贴图坐标,没经过 shrink)*/
           var raw = pts.map(function (p) { return [p[0], p[1]]; })
             .concat(pts.slice().reverse().map(function (p) { return [p[2], p[3]]; }));
           var poly = raw.map(shrink);
 
-          /* ④ 覆盖用轮廓(cover):给"必须把整块屏幕盖住"的层用(平板主界面)。
-                poly 是给黑屏/花屏那层用的 —— 它被 shrink() 往中心收了 k 倍
-                (见上面 GAP 的来历),四周因此留出一圈【没盖到】的地方:
-                用户按开平板时,底下那张 CD 页就从这一圈露出来
-                ("这个平板界面不能完全遮住")。
-               做法:拿【没收过】的原始逐行轮廓(raw),每个点沿 x 往外让 PADT,
-               最上一行/最下一行再沿 y 往外让 PADT。
-               ★ 两个都试过才定下来的:
-                 · 直接在 poly 上加固定外扩 —— 不够:shrink 在左右两边挖掉的是
-                   ~20px(离中心越远挖得越多),固定几像素补不回来,还是露 13px;
-                 · 整体放大一个倍数 —— 太狠:倍数由最极端那一行(左侧电源键那道
-                   凹口比别的行多探出 13px)决定,算出来 1.028,于是【所有】行
-                   被推出去 23px,平板会啃掉左边一整条金属边框。
-                 ⇒ 用没收缩的轮廓 + 每行各自往外让固定的几像素:刚好盖住、不多啃。
-               ★ 单位:这里是【贴图坐标】。medL/medR 是缩略图坐标(要 ×S),
-                 而 pts 里的 x/y 已经是贴图坐标 —— 混用会把窗口中心算错
-                 (本轮踩过:算出 kc=1.69,平板整个糊到边框外面去)。 */
-          var PADT = 5;                         /* ≈ 屏幕上 4px */
+          var PADT = 5;
           var cover = null;
           if (raw.length >= 6) {
             var cxm = (medL * S + medR * S) / 2;
@@ -147,7 +100,6 @@
             img: [img.naturalWidth, img.naturalHeight],
             safe: [best.x * S, best.y * S, (best.x + best.w) * S, (best.y + best.h) * S],
             box: hRun && vRun ? [hRun[0] * S, vRun[0] * S, hRun[1] * S, vRun[1] * S] : null,
-            /* 窗口四边的稳健值(图上坐标):左右取中位数,上下取中线透明段的两端 */
             win: [medL * S, ry0, medR * S, ry1],
             polygon: poly.length >= 6 ? poly : null,
             coverClip: cover
@@ -159,7 +111,6 @@
     });
   }
 
-  /* "13vh" / "5vw" / "24px" → px(自定义属性取出来是原样的字符串,不会自动解析)*/
   function resolveLen(raw, W, H) {
     var m = /^\s*(-?[\d.]+)(vh|vw|px|%)?\s*$/.exec(String(raw || ""));
     if (!m) return null;
@@ -169,8 +120,6 @@
     return v;
   }
 
-  /* 页面那套 --sp-* 直接落到窗口四边(不再取 max:第二张/第三张那种自带整块底的页面,
-     原来会留一圈底色在框里,看着像"浮在框里的小方块") */
   var spOrig = null;
   function clampSp(winIns) {
     var el = document.querySelector(".screen");
@@ -197,7 +146,6 @@
       return;
     }
     var sx = W / data.img[0], sy = H / data.img[1];
-    /* 窗口四边的内边距(px):玻璃按轮廓裁;内容用"窗口 + CORNER"躲开斜切 */
     var win = data.win || [data.safe[0], data.safe[1], data.safe[2], data.safe[3]];
     var winIns = [win[0] * sx, win[1] * sy, W - win[2] * sx, H - win[3] * sy];
     var safeIns = [winIns[0] + CORNER, winIns[1] + CORNER, winIns[2] + CORNER, winIns[3] + CORNER];
@@ -215,8 +163,6 @@
       }).join(", ") + ")";
     }
     if (data.polygon) s.setProperty("--ff-clip", polyStr(data.polygon));
-    /* 覆盖用轮廓:平板主界面要"把整块屏幕盖住",不能像黑屏层那样四周留一圈
-       (见 measure() 里 COVER 那段)。量不到就退回 --ff-clip。 */
     if (data.coverClip) s.setProperty("--ff-clip-cover", polyStr(data.coverClip));
     html.classList.add("frame-fitted");
     clampSp(winIns);
@@ -242,7 +188,6 @@
     },
     data: function () { return data; },
     refit: apply,
-    /* 排障:控制台敲 FrameFit.debug() */
     debug: function () {
       var W = window.innerWidth, H = window.innerHeight;
       return {

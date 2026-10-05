@@ -1,80 +1,24 @@
-/* ============================================================
-   方舟总控 AI 的【ASCII 大眼睛】—— 共用实现
-   ─────────────────────────────────────────────────────────────
-   这一只眼睛原来只长在启动页(layouts/start/list.html 的内联脚本)里。
-   现在【首页也要它】(用户:"然后把启动页的眼睛移植过去,触发动画和对话")——
-   两个地方必须表现得一模一样,所以抽成这一份,两边都用它,不各写一遍:
-     · 启动页:眼睛 → 睁开 → "你好?" → 两个选项(按住确认)
-     · 首页  :眼睛 → 睁开 → ECHO 开口逐字说话 → 扫过平板各个部件(引导)
-
-   ★★ 两处【不是同一个角色】,别把台词写进这里:
-      启动页那一只是方舟总控 AI(全页不说话);首页这一只叫 ECHO(子代理)。
-      所以本模块只管"怎么画",一个字都不说 —— 说什么是调用方的事(onOpened)。
-
-   ★★★ 这个文件里每一条注释都是踩出来的,改之前先读:
-     · 不做任何镜像/复制(只算左半再反转):瞳孔跟着视线往一边移时,
-       镜像会把左半的瞳孔复制到右半 ⇒ 屏幕上出现【两个瞳孔】(用户报过)。
-       对称只能靠几何本身(虹膜圆心在中轴上、瞳孔是解析竖缝)。
-     · 每行必须补满到 COLS,【不许 trim 行尾空格】:
-       <pre> 的宽度会被行尾空格影响,一 trim 画布就比坐标系窄几格,眼睛整体偏左。
-       宽度同时钉成 COLS × 字宽,居中交给 text-align。
-     · flowMeasure 里【不能】提前调 flowDraw:那时 FL.streams 还没建,
-       读 undefined.on 直接抛异常,后面建流的代码整段不执行,
-       <pre> 里只剩测量用的那串 '0000…' —— 用户看到的是"乱流只在左半边"。
-     · 字号上限原来是 14px,那正是"27 寸上眼睛不变大"的病根;
-       现在按 vw/120 走(上限 22px)。
-     · 高度必须封顶(网格高 ≤ 视口高的 56%),否则宽屏上眼睛把视口吃光,
-       下面的字和按钮被挤出屏幕。
-     · 竖瞳用【解析竖缝】(|ix| < IRIS_R·SLIT_W && |iy| < IRIS_R·SLIT_H),
-       不要写成 hypot(px·SQUEEZE, py) < PUPIL_R —— 后者正中间那一列会被取整挤掉。
-     · 高光【不要加】:一块亮斑压在瞳孔左上会把整只眼的重心拽向左边。
-
-   ★★ rAF 回调里抛异常是【静默】的(控制台可能一声不响,表现只是"眼睛不动"),
-      所以渲染循环外面包了 frameSafe,try/catch 之后把栈写进 window.__eyeError。
-
-   接口(window.AsciiEye.create):
-     create(pre, opt) → {
-       el, resize(), fitTo(w,h), setGaze(x,y), lookAt(el), centerGaze(), glitch(on),
-       start(openOnStart) / openNow() / close(cb) / stop(),
-       isOpen(), running(), closed(), T_CLOSE, state()
-     }
-     opt: { flow, gaze:'fixed', openOnStart, onOpened, reduced, drift }
-   ============================================================ */
 (function () {
   "use strict";
 
-  /* 字符梯度:暗 → 亮。★ 用 ASCII,不用制表符/方块字 ——
-     那些在等宽字体里不一定是 1ch 宽,网格会歪(踩过)。 */
   var RAMP = " .-:=+*#%@";
 
   function create(pre, opt) {
     opt = opt || {};
     if (!pre) return null;
 
-    /* ---------- 几何 ----------
-       ★★ 数学定下来了,都是量出来的:
-         · 格子尺寸【固定】= 字号 × 0.6 / 字号 × 1.5,只按视口挑字号;
-           不要"先摆网格再反推字号"—— 那样每改一次字号格子跟着动,
-           瞳孔位置就跟着漂,量出来的数全废(踩过)。
-         · 眼睛宽度按视口的 62% 定列数,再由 EYE_AR 反推行数。
-         · ★★★ 虹膜半径按【眼睑开孔高度】取,不按眼半径 ——
-           这是唯一能让"瞳孔 ≥3 格""虹膜 ≥8 格""两侧还看得见眼白"
-           同时成立的取法。按眼半径取时开孔永远被虹膜塞满,
-           画出来是一团圆盘/曼陀罗,不是眼睛(连试 6 组参数都是)。 */
     var CELL_W = 6.6, CELL_H = 16.5;
     var COLS = 0, ROWS = 0, FS = 11;
     var HALF_W = 0, EYE_HY = 0, IRIS_R = 0, PUPIL_R = 0;
-    var EYE_AR = 2.05;          /* 杏仁形 宽 : 高 */
-    var EYE_W_FRAC = 0.62;      /* 眼睛宽度 / 视口宽度 */
-    var LID_POW = 0.30;         /* lidAt 的形状指数(同时决定眼睛占多少行)*/
-    var IRIS_OF_LID = 0.74;     /* 虹膜半径 / 开孔半高 */
+    var EYE_AR = 2.05;
+    var EYE_W_FRAC = 0.62;
+    var LID_POW = 0.30;
+    var IRIS_OF_LID = 0.74;
     var PUPIL_OF_IRIS = 0.46;
-    var SLIT_W = 0.075, SLIT_H = 0.42;   /* 竖缝的两个半轴(按虹膜半径取比例)*/
-    /* lidAt 的峰值:LID_POW=0.30 时 ≈ 0.877。
-       ★ 这个数同时定了两件事:网格高度、虹膜半径。别再拍系数。 */
+    var SLIT_W = 0.075, SLIT_H = 0.42;
     var LID_PEAK = 1 / Math.pow(1 - Math.pow(2, -1 / LID_POW), LID_POW);
     var LID_FIT = LID_PEAK;
-    var LID_UP = 1.0, LID_DOWN = 0.86;   /* 上睑盖得多、下睑浅 —— 真眼睛的比例 */
+    var LID_UP = 1.0, LID_DOWN = 0.86;
     var CENTER_SHIFT = 0;
 
     function lidAt(px, open, up) {
@@ -83,13 +27,6 @@
       return open * EYE_HY * (up ? LID_UP : LID_DOWN) * Math.pow(t, LID_POW);
     }
 
-    /* 巩膜(眼白):整只眼里最亮的一片,但【必须是平的】。
-       ★★★ 这里改了三版,每版的病都不一样,记下来免得再走一遍:
-         ① 强渐变(正中很亮、往边缘衰减):那团亮在字符网格上自己围成一个环,
-            截图看起来【像两只眼睛叠在一起】。
-         ② 压平但绝对亮度和虹膜同档:巩膜和虹膜糊成一片,没有层次。
-         ③ 压到 0.14~0.26:整只眼变成一坨灰,虹膜反而看不见了。
-       ⇒ 巩膜要【又平又亮】,层次靠"巩膜 > 虹膜 > 竖瞳"这个【顺序】拉开。 */
     function sclera(depth, open) {
       return (0.66 + 0.14 * Math.pow(depth > 0 ? depth : 0, 0.8)) * (0.6 + open * 0.4);
     }
@@ -97,8 +34,6 @@
     function eye(px, py, gx, gy, open, out) {
       var q = 0;
       if (open > 0.001) {
-        /* 开孔 = 上睑【与】下睑之间,两条都要判:
-           只判一条的话另一侧会豁出去一块(眼角多出一片肉)。 */
         var lidU = lidAt(px, open, true);
         var lidD = lidAt(px, open, false);
         if (py < lidU && py > -lidD) {
@@ -107,18 +42,9 @@
           var ir = Math.sqrt(ix * ix + iy * iy);
           q = sclera(depth, open);
           if (ir < IRIS_R) {
-            /* 虹膜:比巩膜暗【两档】。
-               ★ 梯度只有 10 级,差一档等于没差 —— 0.40 和巩膜的 0.66~0.80
-                 都落在 '=' 那一级,画出来是"一整片 = 中间一块 ."。
-               ★ 放射纹从 0.28+0.05·fib 收到 0.30 定值:那点纹路在 10 级梯度上
-                 翻不出第二档字符,却让虹膜里散布一堆明暗不一的格子 ——
-                 用户连着两轮说"歪",一半是它贡献的(看着像脏,不像结构)。 */
             q = 0.30;
-            /* 轮部环:整只眼睛"有神"全靠这一圈。收窄到 0.07 ——
-               0.11 那版这一圈自己就宽得能当第二只眼。 */
             var lim = Math.abs(ir - IRIS_R * 0.90);
             if (lim < IRIS_R * 0.07) q = 0.98 - lim * 0.6;
-            /* ★★★ 瞳孔:竖缝用【解析式】,不用"半径放大再取整"。 */
             var sl = Math.abs(ix) < IRIS_R * SLIT_W && Math.abs(iy) < IRIS_R * SLIT_H;
             if (sl) q = 0.16;
           }
@@ -127,12 +53,8 @@
       out.q = q;
     }
 
-    /* ---------- 尺寸 ---------- */
     function measure() {
       var vw = window.innerWidth, vh = window.innerHeight;
-      /* ★★★ 字号上限原来是 14px,那正是"27 寸上眼睛不变大"的病根:
-         格子尺寸 = 字号 × 0.6 / 字号 × 1.5,字号封在 14 ⇒ 格子封在 8.4×21px,
-         视口再宽也只能靠"多给几列"变大 —— 而列数又被视口宽卡住。 */
       FS = Math.max(8, Math.min(22, Math.round(vw / 120)));
       CELL_W = FS * 0.6;
       CELL_H = FS * 1.5;
@@ -140,17 +62,7 @@
       COLS = Math.max(40, Math.min(240, Math.round(eyeW / CELL_W)));
       HALF_W = COLS * CELL_W / 2;
       EYE_HY = HALF_W / EYE_AR;
-      /* ★★★ 1.30 是【量出来的】,不是算出来的:
-         原来写 1.06,实测量到的画布宽高比是 3.27 —— 而 EYE_AR 设的是 2.35,
-         差了 39%。原因:网格比开孔矮,最上/最下那几行的开孔被网格边缘切掉,
-         眼睛就成了"两头削平的椭圆"。1.06 × (3.27/2.35) ≈ 1.48,
-         但补偿是非线性的(切成什么样取决于行对齐),所以取 1.30 实测到位。 */
       ROWS = Math.max(12, Math.round(EYE_HY * LID_UP * LID_FIT * 2 / CELL_H * 1.30));
-      /* ★★★ 高度必须封顶 —— 只按宽度定尺寸会在宽屏上炸掉:
-         2560×1080 下算出 42 行 = 882px,眼睛本体就把视口吃光,
-         下面的"你好?"和两个选项被挤出屏幕(wrap 甚至跑到 y = -33)。
-         按"网格高 ≤ 视口高的 56%"再夹一道,并【同步缩 COLS】——
-         只改行数会把眼睛压扁,比例就毁了。 */
       var maxRows = Math.max(12, Math.floor(vh * 0.56 / CELL_H));
       if (ROWS > maxRows) {
         ROWS = maxRows;
@@ -161,20 +73,13 @@
       }
       IRIS_R = EYE_HY * LID_UP * LID_FIT * IRIS_OF_LID;
       PUPIL_R = IRIS_R * PUPIL_OF_IRIS;
-      /* 眼睛竖向中心相对网格中心偏了多少(上睑高、下睑低)⇒ 反向平移网格 */
       CENTER_SHIFT = (lidAt(0, 1, true) - lidAt(0, 1, false)) / 2;
       pre.style.fontSize = FS + "px";
       pre.style.lineHeight = CELL_H + "px";
       pre.style.height = (ROWS * CELL_H) + "px";
-      /* ★★★ 宽度也钉死成"列数 × 字宽"。这是"眼睛偏左"的根治:
-         <pre> 的宽度原来由内容撑,而内容宽度会被行尾空格影响;
-         flex 又按那个宽度居中 ⇒ 画布与坐标系差几格,眼睛整体偏。
-         text-align:center 再兜一层,保证任何宽度下文字都在正中间。 */
       pre.style.width = (COLS * CELL_W) + "px";
     }
 
-    /* fitTo(w,h):换宿主尺寸(首页要把它塞进平板右三分之一那一格)。
-       只重算列/行/字号,不改形状比例 —— 还是同一只眼睛,只是小了一号。 */
     function fitTo(boxW, boxH) {
       if (!boxW || !boxH) return;
       var fs = Math.max(6, Math.min(22, Math.round(boxW / 26)));
@@ -194,12 +99,6 @@
       pre.style.width = (COLS * CELL_W) + "px";
     }
 
-    /* 换宿主格(首页要把它塞进"平板还能看见的那一格")。
-       ★★★ 位置必须【用视口坐标显式给】,不能用 left:auto;right:0 + width:33vw:
-          .scene 打开 CD 架时整块机器按 --rack-w(66vw)平移,而眼睛的宿主不在
-          .scene 里,不会被带着走 —— 按"视口右边三分之一"算出来的那一格,
-          和平板实际露出来的那一格【不是同一块】(第一版截图里眼睛有一大半
-          压在金属框上,就是它)。⇒ left/top/width/height 由调用方量好传进来。 */
     function anchor(left, top, width, height) {
       if (!pre.parentNode || !width || !height) return;
       var st = pre.parentNode.style;
@@ -209,28 +108,12 @@
       st.height = Math.round(height) + "px";
     }
 
-    /* ---------- 视线 ---------- */
-    var tgt = { x: 0, y: 0 };      /* 目标 */
-    var gz = { x: 0, y: 0 };       /* 当前(平滑用) */
+    var tgt = { x: 0, y: 0 };
+    var gz = { x: 0, y: 0 };
     var hasPointer = false;
-    var forceGaze = opt.gaze === "fixed";   /* true = 不跟鼠标,只认 setGaze */
-    /* ★★ 引导期间"谁说了算":
-       · freeLook=false(默认):脚本钉住的视线优先 —— 引导说看哪儿就看哪儿;
-       · freeLook=true:用户自己动了鼠标,于是【手优先】——
-         瞳孔跟着指针走,松手/停下之后由脚本重新接管(下一帧 setGaze)。
-       为什么要这一条:用户第三轮报"眼睛不能跟随自由移动的扫描框" ——
-       引导每帧都在重申目标视线,把真实鼠标的手势整个盖掉了。
-       ★ 判据由 magnetic-cursor 转达(它会告诉我们这一下是真人还是剧本)。 */
+    var forceGaze = opt.gaze === "fixed";
     var freeLook = false, freeUntil = 0;
 
-    /* ★★★ rotate(deg):把整只眼睛转过去(用户第三轮:
-       "这个眼睛要转向90°,放到右侧,就像横着看一样")。
-       转的是【宿主 + 里面那只 <pre>】这一整块,不是换一套几何 ——
-       眼睛还是同一只眼睛,只是被转了 90°。
-       ★ transform-origin 放中心:转完仍然以宿主中心为家,
-         anchor() 给的 left/top 不用跟着改。
-       ★ 这里【只有旋转】+ 一个 offsetX(见下)。
-    */
     var tilt = 0, carry = 0;
     function applyXform() {
       var host = pre.parentNode;
@@ -243,12 +126,6 @@
       tilt = +deg || 0;
       applyXform();
     }
-    /* ★★★ offsetX(px):换场期间把这只眼睛【跟着机器一起挪】。
-       用户:"右侧的眼睛是定在那里睁开,你的实现绝对不对,眼睛会动" ——
-       机器往右平移 66vw 把 CD 架拉进来的时候,眼睛是贴在屏幕上的,
-       必须跟着走;不跟的话它就是"机器滑走了,眼睛留在原地"。
-       位移和旋转必须合成在同一条 transform 上(直接写 style.transform 会把旋转冲掉),
-       所以由这里统一给;换格那一刻归零(位置改由换格后的格子决定,不能重复加)。 */
     function offsetX(px) {
       carry = +px || 0;
       applyXform();
@@ -271,12 +148,10 @@
       }, { passive: true });
     }
 
-    /* 面向屏幕正中央(用户:"瞳孔转向面对屏幕正中央")*/
     function centerGaze() {
       hasPointer = false;
       tgt.x = 0; tgt.y = 0;
     }
-    /* 跟着某个元素:把视线指向那个元素相对视口中心的方向 */
     function lookAt(el) {
       hasPointer = false;
       if (!el || !el.getBoundingClientRect) return;
@@ -288,17 +163,13 @@
       tgt.x = Math.max(-1, Math.min(1, nx * 1.25));
       tgt.y = Math.max(-1, Math.min(1, ny * 1.25));
     }
-    /* 直接给归一化方向(引导脚本用)*/
     function setGaze(x, y) {
-      /* ★ 用户刚动过手(600ms 内)→ 手优先,脚本先让一让 */
       if (freeLook && performance.now() < freeUntil) return;
       hasPointer = false;
       tgt.x = Math.max(-1, Math.min(1, +x || 0));
       tgt.y = Math.max(-1, Math.min(1, +y || 0));
     }
 
-    /* 真人移动指针(由 magnetic-cursor 转达;合成事件不会走到这里)——
-       直接更新视线目标,并在 600ms 内不许脚本覆盖。 */
     function pointerLook(clientX, clientY) {
       if (!forceGaze) return;
       var w = window.innerWidth, h = window.innerHeight;
@@ -309,11 +180,7 @@
       freeUntil = performance.now() + 600;
     }
 
-    /* ---------- 眨眼 ---------- */
     var blinkN = 0;
-    /* ★ REDUCED 是【查询一次定死】的,但系统设置可能在页面开着的时候改;
-       而且无头浏览器默认就报 reduce(踩过:采样 6 秒一次都没眨)。
-       所以在查询外面再套一层"可被覆盖"的软开关,默认跟随系统。 */
     var blinkOff = !!opt.reduced;
     try {
       if (window.matchMedia) {
@@ -334,21 +201,13 @@
       return 1;
     }
 
-    /* ---------- 出场时间线 ----------
-       BOOT(一线) → JITTER(抖) → 猛地睁开 → IDLE → CLOSING(闭)
-       ★ 开眼用 easeOutBack 过冲:"猛地睁开"要的就是过冲那一下。
-       ★ 眨眼在 BOOT/JITTER 期间【不许插进来】—— 那时候眼睛还没开。 */
     var PH = { BOOT: 0, JITTER: 1, OPEN: 2, IDLE: 3, CLOSING: 4, SHUT: 5 };
     var phase = PH.SHUT;
     var phaseAt = 0;
     var T_BOOT = 620, T_JITTER = 260, T_OPEN = 560;
-    /* ★★★ 缝的最小开度 —— 这个数必须【能占满一整行】:
-       格子高 16.5px,而开孔半高 = open × EYE_HY × LID_UP × PEAK。
-       open = 0.02 时半高只有 5px —— 一行都占不满,屏幕上【什么都没有】。
-       ⇒ 最小值取 0.045(半高≈11.8px,正好铺满一行),看得见一条横线。 */
     var OPEN_LINE = 0.045;
     var T_CLOSE = 780;
-    var closeMs = T_CLOSE;             /* 本次闭眼用多久(close(cb, ms) 可以改快)*/
+    var closeMs = T_CLOSE;
     var openVal = OPEN_LINE;
     var jitterAmp = 0;
     var glitch = 0, glitchNext = 0, redUntil = 0;
@@ -356,7 +215,6 @@
 
     function easeOutBack(k) { var c = 1.7; return 1 + (c + 1) * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2); }
 
-    /* 错乱的字符库:只用 ASCII(用户要的就是 ASCII),挑字形碎的 */
     var JUNK = "#%&$@*!?=+~^<>/\\|_";
     function junkChar() { return JUNK.charAt((Math.random() * JUNK.length) | 0); }
 
@@ -366,10 +224,9 @@
     function frame(now) {
       if (!rafOn) return;
       requestAnimationFrame(frameSafe);
-      if (now - last < 16) return;            /* ≈60fps */
+      if (now - last < 16) return;
       last = now;
 
-      /* ---------- 阶段推进 ---------- */
       var el = now - phaseAt;
       if (phase === PH.BOOT && el > T_BOOT) { phase = PH.JITTER; phaseAt = now; }
       else if (phase === PH.JITTER && el > T_JITTER) { phase = PH.OPEN; phaseAt = now; }
@@ -377,11 +234,9 @@
 
       if (blinkOff && phase < PH.IDLE && phase !== PH.SHUT) { phase = PH.IDLE; phaseAt = now; openVal = 1; onOpened(); }
 
-      /* ---------- 开合 ---------- */
       if (phase === PH.BOOT) {
         openVal = OPEN_LINE;
       } else if (phase === PH.JITTER) {
-        /* 抖动:线开始跳。振幅随机游走,别用正弦 —— 正弦看着像呼吸不像故障 */
         jitterAmp = 1.6 + Math.random() * 2.4;
         openVal = OPEN_LINE + Math.random() * 0.05;
       } else if (phase === PH.OPEN) {
@@ -389,7 +244,7 @@
         openVal = OPEN_LINE + (1 - OPEN_LINE) * easeOutBack(k);
       } else if (phase === PH.CLOSING) {
         var kc = Math.min(1, el / closeMs);
-        openVal = 1 - (1 - OPEN_LINE) * (kc * kc * (3 - 2 * kc));   /* smoothstep */
+        openVal = 1 - (1 - OPEN_LINE) * (kc * kc * (3 - 2 * kc));
         if (kc >= 1) {
           openVal = OPEN_LINE; closedDone = true; phase = PH.SHUT;
           if (closeCb) { var cb = closeCb; closeCb = null; cb(); }
@@ -400,12 +255,6 @@
         openVal = blink(now);
       }
 
-      /* ---------- 错乱 ----------
-         ★★★ 用户:"你这个左下角按钮的乱序的效果,范围是一个小方框,
-           而且范围和频率有点大。"
-         ⇒ 频率:爆发间隔 60~190ms → 240~560ms;
-           范围:每个字符被换成乱码的概率 10% → 3.5%,整行错位 18% → 7%;
-           强度:红/黄/白闪的亮度也压了一档。 */
       if (glitch && now > glitchNext) {
         glitchNext = now + 240 + Math.random() * 320;
         redUntil = now + 45 + Math.random() * 90;
@@ -417,8 +266,6 @@
           (Math.random() < 0.5 ? "#d94a42" : (Math.random() < 0.5 ? "#d9c25a" : "#dfe6ee")));
       }
 
-      /* ★ 鼠标不在时不许"死住":给一点极慢自漂(两个不同频率,不会走成一条直线)。
-         但【引导脚本钉住的视线不许被自漂带跑】—— opt.drift === false 时完全不加。 */
       var tx = tgt.x, ty = tgt.y;
       if (!hasPointer && opt.drift !== false) {
         tx += Math.sin(now / 3100) * 0.30;
@@ -426,27 +273,17 @@
         tx = Math.max(-1, Math.min(1, tx));
         ty = Math.max(-1, Math.min(1, ty));
       }
-      /* ★★★ 收敛速度分两种:
-         · 跟鼠标:0.09/帧 —— 慢一点才像"眼睛跟着看",起步就冲过去很假;
-         · 引导钉住的视线(gaze:'fixed'):0.20/帧 —— 引导说"看向这里"时,
-           瞳孔要在半秒内到位。0.09 太慢:实测给了 800ms 还没走到,
-           用户看到的是"眼睛没跟上来"(第三轮报的"跟人"问题里就有这一半)。 */
       var kk = blinkOff ? 1 : (forceGaze ? 0.20 : 0.09);
       gz.x += (tx - gz.x) * kk;
       gz.y += (ty - gz.y) * kk;
 
       var lines = new Array(ROWS);
       var tmp = { q: 0 };
-      /* ★★★ 把几何量在帧开头就咬死成局部量:measure() 会在 resize 时改这些量,
-         渲染循环跑到一半被改掉的话,同一行左右两半就是用【两套几何】算出来的。 */
       var FW = HALF_W, FCH = CELL_H, FSHIFT = CENTER_SHIFT, FH = FW;
       var w = COLS - 1;
       for (var r = 0; r < ROWS; r++) {
         var py = ((r + 0.5) / ROWS * 2 - 1) * (ROWS * FCH / 2) - FSHIFT;
         if (phase === PH.JITTER) py += (Math.random() - 0.5) * jitterAmp * FCH;
-        /* ★★★ 每一列【独立】按自己的 px 算,不做任何镜像。
-           对称要靠几何本身(虹膜圆心在中轴上、瞳孔是解析竖缝)去保证,
-           不能靠"复制一半"—— 复制会把任何非对称的意图(追鼠标)也一起复制。 */
         var s = "";
         for (var c = 0; c <= w; c++) {
           var px = ((c + 0.5) / COLS * 2 - 1) * FH;
@@ -457,12 +294,10 @@
             s += RAMP.charAt(Math.round(tmp.q * (RAMP.length - 1)));
           }
         }
-        /* ★★★ 【不要 trim 行尾空格】。补满到 COLS,坐标系与渲染宽度严格一致。 */
         if (s.length < COLS) s += new Array(COLS - s.length + 1).join(" ");
         else if (s.length > COLS) s = s.slice(0, COLS);
         lines[r] = s;
       }
-      /* 错位:整行横移一两格(只有乱码期才有)。★ 概率 18% → 7% */
       if (glitching) {
         for (var g = 0; g < ROWS; g++) {
           if (Math.random() < 0.07) {
@@ -474,7 +309,6 @@
       var out = lines.join("\n");
       if (out !== pre.textContent) pre.textContent = out;
 
-      /* 现场读数:探针要能读到视线/开孔/阶段,不然只能靠猜 */
       window.__startEye = {
         gx: gz.x, gy: gz.y, open: openVal, cols: COLS, rows: ROWS,
         cellW: CELL_W, cellH: CELL_H, fs: FS,
@@ -485,8 +319,6 @@
       };
     }
 
-    /* ★★ rAF 回调里抛异常是【静默】的(控制台可能一声不响,
-       表现只是"眼睛不动"),所以包一层并把栈留在一个能读的地方。 */
     function frameSafe(now) {
       try { frame(now); }
       catch (e) {
@@ -503,30 +335,21 @@
       try { window.dispatchEvent(new CustomEvent("eye-opened")); } catch (e) { }
     }
 
-    /* ============================================================
-       背景数据流:向上滚的 ASCII 竖线(可选 —— 传 opt.flow 才建)
-       ─────────────────────────────────────────────────────────────
-       · 一张铺满视口的 <pre>,内容是 ROWS_L × COLS_L 的字符网格;
-         每帧把每列的"流头位置"向上推,并给走过的位置补一个新字符。
-       · 一部分列留空(散列决定),这样像"数据流"而不是"雨帘"。
-       · 帧率压到 ~12fps:背景不该抢注意力,而且省 CPU。
-       ============================================================ */
     var flow = opt.flow || null;
     var FL = { cols: 0, rows: 0, streams: [], last: 0 };
     var FLOW_CH = "01".split("");
     var FLOW_TAIL = ".:-=+*#%@";
     var FLOW_SPEED = 0.34;
+    var FRAGMENTS = [
+      "EVENT_ID:UL002-", "泡壁速度0.9c", "最后广播32分钟", "RELAY#0194", "灰烬计划",
+      "ANCHOR:漂移", "信噪比不足", "唯一事件ID", "TTL:800ly", "拓扑缺陷",
+      "纠错网络", "相变潜热", "中继转发", "威胁列表", "真空衰变"
+    ];
 
     function flowMeasure() {
       if (!flow) return;
       var vw = window.innerWidth, vh = window.innerHeight;
       var fs = 11, ch = fs * 2.1;
-      /* ★★★ 顺序错了就全错,这一处踩了三次:
-         ① 先量字宽、后设 fontSize ⇒ 量的是【继承来的字号】的字宽;
-         ② 按 0.62 估字宽 ⇒ 126 列 × 12.8px = 1613px > 1600px 视口,右边整片被裁;
-         ③ 字体继承正文的栈 ⇒ 等宽回退的字宽和估值差得远。
-         ⇒ 正确顺序:先定字号与字体(字体在 CSS 里写死 monospace),
-           再量一个【真字符】的宽度,最后按它算列数,并留 4px 余量。 */
       flow.style.fontSize = fs + "px";
       flow.style.lineHeight = ch + "px";
       flow.style.width = "auto";
@@ -547,21 +370,16 @@
       FL.rows = Math.max(8, Math.floor(vh / ch));
       flow.style.width = (FL.cols * cw) + "px";
       flow.style.height = (FL.rows * ch) + "px";
-      /* ★★★ 这里【绝对不能】提前 flowDraw():那时 FL.streams 还没建,
-         读 undefined.on 直接抛异常,后面建流的代码整段不执行,
-         <pre> 里只剩上面那串测量用的 '0000…' —— 用户看到的"乱流只在左半边"
-         就是这串残留。 */
-      /* ★★★ 环形缓冲 + 规则分布:每列各自随机"开不开、流头在哪、多长"
-         ⇒ 总有若干连续列恰好同时空着,截图上就是【某一段整片空白】。 */
       FL.streams = [];
-      var GAP = 2;                          /* 每 2 列留 1 列空 */
+      var GAP = 2;
       for (var c = 0; c < FL.cols; c++) {
         var on = (c % GAP !== 0) && ((c * 3) % 5 !== 0);
-        var len = 7 + ((c * 7) % 9);        /* 7~15,按列号错开 */
-        var ph = (c * 5) % 23;              /* 相位错开 */
+        var len = 7 + ((c * 7) % 9);
+        var ph = (c * 5) % 23;
         FL.streams.push({
           on: on, speed: FLOW_SPEED, len: len,
           head: ph * (FL.rows + len) / 23,
+          frag: null, fragDone: false, origLen: len,
           cells: new Array(FL.rows).fill(" ")
         });
       }
@@ -584,10 +402,23 @@
 
     function flowStep() {
       if (!flow || !FL.streams.length) return;
+      // 设定文本碎片:偶尔有一条流整段换成设定词句(中继重发的碎片),
+      // 概率极低,平时仍是 0/1,不抢戏。
       for (var c = 0; c < FL.cols; c++) {
         var st = FL.streams[c];
         if (!st.on) continue;
         st.head += st.speed;
+        if (st.frag && st.head >= st.len && !st.fragDone) {
+          st.fragDone = true; st.frag = null;
+          st.len = st.origLen; // 还原普通流长度,否则这条流永久变长
+        }
+        if (!st.frag && Math.random() < 0.0002) {
+          st.frag = FRAGMENTS[(Math.random() * FRAGMENTS.length) | 0];
+          st.fragDone = false;
+          st.origLen = st.len;
+          st.len = st.frag.length + 6;
+          st.head = 0; // 碎片从头开始滚,否则 head 多半早已越过 len,下一帧就被清掉
+        }
         var span = FL.rows + st.len;
         if (st.head >= span) { st.head -= span; if (st.head >= span) st.head = 0; }
         var h = st.head | 0;
@@ -597,9 +428,14 @@
           if (d >= st.len) { st.cells[r] = " "; continue; }
           if (Math.random() < 0.18) { st.cells[r] = " "; continue; }
           var k = d / st.len;
-          st.cells[r] = k < 0.35
-            ? FLOW_CH[(Math.random() * FLOW_CH.length) | 0]
-            : FLOW_TAIL[Math.min(FLOW_TAIL.length - 1, Math.floor(k * FLOW_TAIL.length))];
+          if (st.frag && !st.fragDone) {
+            var fi = Math.round(k * (st.frag.length - 1));
+            st.cells[r] = k < 0.12 ? " " : st.frag.charAt(Math.max(0, fi));
+          } else {
+            st.cells[r] = k < 0.35
+              ? FLOW_CH[(Math.random() * FLOW_CH.length) | 0]
+              : FLOW_TAIL[Math.min(FLOW_TAIL.length - 1, Math.floor(k * FLOW_TAIL.length))];
+          }
         }
       }
       flowDraw();
@@ -608,7 +444,7 @@
     function flowTick(now) {
       if (!flow || flowOff) return;
       requestAnimationFrame(flowTick);
-      if (now - FL.last < 80) return;                 /* ≈12fps */
+      if (now - FL.last < 80) return;
       FL.last = now;
       flowStep();
     }
@@ -617,9 +453,6 @@
       if (!flow) return;
       flowMeasure();
       requestAnimationFrame(flowTick);
-      /* ★★★ 字体一加载完必须【重量一次】:首帧量到的是回退字体的字宽
-         (实测 5.93px/字),而真字体更宽 ⇒ 按 269 列排出来的行比 <pre> 宽,
-         右边整片被裁掉 —— 这就是"乱流只在左半边"的根因。 */
       if (document.fonts && document.fonts.ready && document.fonts.ready.then) {
         document.fonts.ready.then(function () { flowMeasure(); });
       }
@@ -642,7 +475,6 @@
       rotate: rotate,
       offsetX: offsetX,
       setGaze: setGaze,
-      /* 真人动鼠标:交给 magnetic-cursor 转达(它分得清真人与合成事件) */
       onPointer: pointerLook,
       freeLook: function (on) { freeLook = !!on; if (!on) freeUntil = 0; },
       lookAt: lookAt,
@@ -650,7 +482,6 @@
       glitch: function (on) { glitch = on ? 1 : 0; glitchNext = 0; if (!on) pre.classList.remove("is-glitch"); },
       isOpen: function () { return phase === PH.IDLE; },
       running: function () { return rafOn; },
-      /* start(openOnStart):从"一条线"开始播完整出场 */
       start: function (openOnStart) {
         openedOnce = false;
         closedDone = false;
@@ -660,7 +491,6 @@
         else { phase = PH.BOOT; openVal = OPEN_LINE; phaseAt = performance.now(); }
         if (!rafOn) { rafOn = true; last = 0; requestAnimationFrame(frameSafe); }
       },
-      /* openNow():跳过出场,直接睁着(回访/调试用)*/
       openNow: function () {
         measure();
         if (flow) flowStart();
@@ -668,9 +498,6 @@
         if (!rafOn) { rafOn = true; last = 0; requestAnimationFrame(frameSafe); }
         onOpened();
       },
-      /* close(cb, ms):缓缓闭合(闭到底再回调)。
-         ★ ms 可选:首页引导换场时眼睛要"赶紧闭上"(用户第八轮:
-           "闭眼的速度太慢") —— 那里传 ~420ms,启动页不传,还是原来的 780ms。 */
       close: function (cb, ms) {
         closeMs = (typeof ms === "number" && ms > 0) ? ms : T_CLOSE;
         closeCb = cb || null;
@@ -678,7 +505,6 @@
         phase = PH.CLOSING;
         phaseAt = performance.now();
         if (!rafOn) { rafOn = true; last = 0; requestAnimationFrame(frameSafe); }
-        /* 兜底:万一动画循环没跑起来(标签页被挂起等),closeMs+900ms 强制回调 */
         setTimeout(function () {
           if (closeCb === cb && cb) { var f = closeCb; closeCb = null; f(); }
         }, closeMs + 900);
@@ -686,7 +512,6 @@
       closed: function () { return closedDone; },
       T_CLOSE: T_CLOSE,
       state: function () { return window.__startEye || null; },
-      /* 停掉整个渲染循环(引导结束、要彻底安静时用)*/
       stop: function () { rafOn = false; flowOff = true; }
     };
     return api;

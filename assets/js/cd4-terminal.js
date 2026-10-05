@@ -1,22 +1,3 @@
-/* ============================================================
-   第四张盘「技术」:故障光盘 = 一台紧急恢复终端
-   ─────────────────────────────────────────────────────────────
-   背景设定(整段逻辑都围着它转):
-     · 这是 CD 的镜像,盘面标签印错 → 固件拒绝按普通介质挂载
-     · 只挂上了一个只读的 iso9660 会话,挂在 /mnt/cdrom
-     · 当前身份是 emergency 用户(没有 root),所以 /bin /etc 读不动
-     · 盘上有坏扇区:02_vllm_DCU_optimize 的 README.md 读不出来,
-       要用自定义指令 recover <文件夹> 重建后才能看
-
-   这个文件里有三块:
-     ① FS      —— 文件树 + 每个节点的"读得出来吗"(ok/denied/eio/bad)
-     ② 输出层  —— 逐行打印 / 打字机 / 进度条 / 故障爆发
-     ③ 指令层  —— Linux 指令(大多会报错)+ recover 工具
-   盘里的真实文件在 static/assets/cd/tech/(fetch 按需取),要改项目简介改那边。
-
-   接入点:见 intro.js —— 开机动画放完会派发 cd-boot-done,
-          本文件收到后开始打第二页日志(见 bootSequence)。
-   ============================================================ */
 (function () {
   "use strict";
 
@@ -28,13 +9,6 @@
   var panel = root.closest(".intro-panel");
   var CD = (root.getAttribute("data-term-cd") || "/assets/cd/tech").replace(/\/$/, "");
 
-  /* ============================================================
-     ① 文件树
-     read: 'ok' 读得到 | 'denied' 没权限 | 'eio' 读取错误
-           'bad' 坏扇区(recover 之后变成 ok)| 'missing' 文件不存在
-     file: static/assets/cd/tech/ 下的相对路径(fetch 取)
-     text: 直接写在代码里的小文件
-     ============================================================ */
   function D(read, children, note) { return { d: true, read: read || "ok", ch: children || {}, note: note || "" }; }
   function T(read, text, note) { return { read: read, text: text, note: note || "" }; }
   function F(read, file, note) { return { read: read, file: file, note: note || "" }; }
@@ -66,13 +40,13 @@
     }),
     mnt: D("ok", {
       cdrom: D("ok", {
-        INDEX: T("ok", null, "由 recover 工具现场生成"),   /* 内容动态生成,见 indexText() */
+        INDEX: T("ok", null, "由 recover 工具现场生成"),
         "README.txt": F("ok", "README.txt"),
         "MANIFEST.sha256": F("ok", "MANIFEST.sha256"),
         projects: D("ok", {
           "00_tuagfey-blog": D("ok", {
             "README.md": F("ok", "projects/00_tuagfey-blog/README.md"),
-            "manifest.json": F("missing"),          /* 归档时就丢了 */
+            "manifest.json": F("missing"),
             "launch.sh": F("ok", "projects/00_tuagfey-blog/launch.sh"),
             preview: D("ok", {}),
             src: D("eio", {}, "目录项还在,数据读不出来")
@@ -112,17 +86,14 @@
     })
   });
 
-  /* 项目表:INDEX / recover --list / 恢复状态都以它为准(以后加项目只改这里) */
   var PROJECTS = [
     { id: "00", dir: "00_tuagfey-blog", title: "Tuagfey Blog", size: 1104 },
     { id: "01", dir: "01_ROMS", title: "ROMS-CoSiNE 限定环境优化", size: 1473 },
     { id: "02", dir: "02_vllm_DCU_optimize", title: "Qwen3.5-27B × 海光 DCU × vLLM", size: 6131, bad: true, sectors: ["0x1a3f", "0x1a40", "0x1b02"] }
   ];
-  var recovered = {};                    /* dir → true(本次会话里恢复过的)*/
+  var recovered = {};
 
   function projOf(dir) {
-    /* 容忍这几种写法:02_vllm_DCU_optimize / 02_vllm_DCU_optimize/ /
-       projects/02_vllm_DCU_optimize / /mnt/cdrom/projects/02_vllm_DCU_optimize */
     var name = String(dir || "").replace(/\/+$/, "").split("/").pop();
     for (var i = 0; i < PROJECTS.length; i++) if (PROJECTS[i].dir === name) return PROJECTS[i];
     return null;
@@ -132,7 +103,6 @@
     return recovered[p.dir] ? "RECOVERED" : "BAD SECTORS";
   }
 
-  /* INDEX 是现场生成的:恢复过谁,这里就是什么状态(与 recover 同一份真相)*/
   function indexText() {
     var out = [
       "GLITCH ARCHIVE - RECOVERY INDEX",
@@ -162,7 +132,6 @@
   }
   function pad(s, n) { s = String(s); while (s.length < n) s += " "; return s; }
 
-  /* 几个文件的大小(ls -l 用):不 fetch 也能显示得像样 */
   var SIZES = {
     "/mnt/cdrom/README.txt": 1057,
     "/mnt/cdrom/MANIFEST.sha256": 1290,
@@ -175,20 +144,16 @@
     "/mnt/cdrom/projects/02_vllm_DCU_optimize/manifest.json": 499,
     "/mnt/cdrom/recovered/fragment_001.bin": 4096
   };
-  /* 二进制文件:cat 会吐乱码,用 strings 才看得到里面的串 */
   var BIN = { "/mnt/cdrom/recovered/fragment_001.bin": true };
 
-  /* ============================================================
-     ② 输出层
-     ============================================================ */
-  var epoch = 0;                 /* 每次 reset 自增:旧的异步流程会自己停手 */
-  var inputEl = null;            /* 当前输入行(永远是"可输入"的那一行)*/
+  var epoch = 0;
+  var inputEl = null;
   var curInput = "";
   var hist = [], histIdx = -1;
   var cwd = "/home/emergency";
-  var busy = false;              /* 正在跑指令(这段时间不吃键盘)*/
-  var unkCount = 0;              /* 乱输指令的次数:够了就给提示 */
-  var stick = true;              /* 自动滚到底(用户往上翻就停)*/
+  var busy = false;
+  var unkCount = 0;
+  var stick = true;
 
   function esc(s) {
     return String(s === null || s === undefined ? "" : s)
@@ -198,13 +163,10 @@
   function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
   function rnd(a, b) { return a + Math.random() * (b - a); }
 
-  /* 真实程序不是匀速打印的:
-       多数行之间很快、偶尔卡一下(在读盘/重试)、偶尔连着蹦两行。
-     用带重尾的随机,而不是均匀分布 —— 这就是"正常程序运行"的节奏。*/
   function pace(fast, slow) {
     var r = Math.random();
-    if (r < 0.13) return rnd(slow * 1.6, slow * 4.4);   /* 卡一下:多半是在读坏道 */
-    if (r < 0.36) return rnd(40, fast * 0.75);          /* 连着蹦两行 */
+    if (r < 0.13) return rnd(slow * 1.6, slow * 4.4);
+    if (r < 0.36) return rnd(40, fast * 0.75);
     return rnd(fast, slow);
   }
 
@@ -215,7 +177,6 @@
     stick = screen.scrollHeight - screen.scrollTop - screen.clientHeight < 28;
   });
 
-  /* 写一行(插在当前输入行之前)*/
   function write(html, cls) {
     var d = document.createElement("div");
     d.className = "t-ln" + (cls ? " " + cls : "");
@@ -226,7 +187,6 @@
     trim();
     return d;
   }
-  /* 写在最底下(开机引导那种"抢在提示符后面打印"的行)*/
   function writeAfter(html, cls) {
     var d = document.createElement("div");
     d.className = "t-ln" + (cls ? " " + cls : "");
@@ -238,13 +198,11 @@
   }
   function blank() { return write("&nbsp;"); }
 
-  /* 回滚上限:太长的历史就不留了(终端也不留无限行)*/
   var MAX_LINES = 900;
   function trim() {
     while (screen.childNodes.length > MAX_LINES) screen.removeChild(screen.firstChild);
   }
 
-  /* 一行一行地打(内核日志就是这种节奏;行与行之间的间隔由 pace() 给,不匀速)*/
   function writeSeq(items, myEpoch) {
     var i = 0;
     return new Promise(function (done) {
@@ -259,7 +217,6 @@
     });
   }
 
-  /* 打字机:一个字符一个字符,而且字符之间也不是匀速(标点后多停一下)*/
   function typeLine(text, cls, speed, myEpoch) {
     var d = write("", cls);
     return new Promise(function (done) {
@@ -277,7 +234,6 @@
     });
   }
 
-  /* 原地刷新的一行(进度条)*/
   function liveLine() {
     var d = write("");
     return function (text, cls) {
@@ -287,7 +243,6 @@
     };
   }
 
-  /* 故障爆发:撕裂条 + RGB 分离抖动 + 随机把某一行弄成乱码 */
   var GARBLE = "▓▒░#@%&$*!?/\\|<>~^¤§µ¶·¸";
   function glitchBurst(ms, myEpoch) {
     ms = ms || 420;
@@ -298,7 +253,6 @@
       void tear.offsetWidth;
       tear.classList.add("is-on");
     }
-    /* 挑一行把字符换掉,过一会儿再换回来 */
     var pool = Array.prototype.filter.call(screen.children, function (n) { return n !== inputEl; });
     var victim = pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
     var saved = victim ? victim.innerHTML : "";
@@ -318,7 +272,6 @@
     }, ms);
   }
 
-  /* 环境光故障:开机完事后偶尔来一下(不打扰输入)*/
   function ambientGlitch(myEpoch) {
     setTimeout(function () {
       if (myEpoch !== epoch) return;
@@ -327,9 +280,6 @@
     }, rnd(9000, 17000));
   }
 
-  /* ============================================================
-     路径与文件
-     ============================================================ */
   function norm(p, base) {
     if (!p) p = ".";
     var abs = p.charAt(0) === "/" ? p : (base === "/" ? "/" + p : base + "/" + p);
@@ -355,7 +305,6 @@
   function pretty(p) { return p === "/home/emergency" ? "~" : p; }
   function shortName(p) { var a = p.split("/"); return a[a.length - 1] || "/"; }
 
-  /* 取文件内容(带缓存);读不出来的按策略直接抛错,不去 fetch */
   var cache = {};
   function readNode(path, node) {
     var r = node.read;
@@ -404,13 +353,9 @@
   function DIM(s) { return { h: seg(s, "c-dim") }; }
   function OK(s) { return { h: seg(s, "c-ok") }; }
 
-  /* ============================================================
-     ③ 指令层
-     ============================================================ */
   var CMDS = {};
 
   CMDS.help = function () {
-    /* 指令列 + 说明:说明统一对到第 44 列(等宽字体下才对得齐)*/
     function row(cmds, label) {
       var c = "  " + cmds;
       while (c.length < 44) c += " ";
@@ -451,7 +396,7 @@
   CMDS.clear = function () {
     while (screen.firstChild) screen.removeChild(screen.firstChild);
     inputEl = null;
-    return null;                       /* 不打印任何东西 */
+    return null;
   };
   CMDS.less = function (a) {
     if (!a.length) return [E("usage: less <file>")];
@@ -710,7 +655,6 @@
     return [E("bash: exit: cannot exit the emergency shell")];
   };
 
-  /* ---------- ★ recover:这不是 Linux 指令,是这张盘自己的恢复工具 ---------- */
   CMDS.recover = function (a, out) {
     var arg = (a[0] || "").replace(/\/+$/, "");
     if (!arg || arg === "-h" || arg === "--help") {
@@ -744,7 +688,6 @@
         H("[recover] Read it directly: cat /mnt/cdrom/projects/" + proj.dir + "/README.md")
       ];
     }
-    /* 有坏扇区:打进度条 → 成功 */
     var prog = out.progress();
     var cur = 0;
     return new Promise(function (done) {
@@ -780,7 +723,6 @@
     });
   };
 
-  /* 未收录的指令 */
   function notFound(name) {
     unkCount++;
     var out = [E("bash: " + name + ": command not found")];
@@ -790,9 +732,6 @@
     return out;
   }
 
-  /* ============================================================
-     输入行 / 按键
-     ============================================================ */
   function promptHtml() {
     return seg("emergency@recovery", "c-ok") + ":" + seg(pretty(cwd), "c-path") + "$";
   }
@@ -812,9 +751,8 @@
 
   function submit() {
     var line = curInput;
-    /* 输入行前面可能还压着后来打印的引导行 → 先把它挪到底,输出顺序才不乱 */
     if (inputEl && inputEl.nextSibling) screen.appendChild(inputEl);
-    if (inputEl) inputEl.innerHTML = promptHtml() + " " + esc(line);   /* 定格的回显 */
+    if (inputEl) inputEl.innerHTML = promptHtml() + " " + esc(line);
     inputEl = null;
     if (line.trim()) {
       hist.push(line);
@@ -860,7 +798,6 @@
     });
   }
 
-  /* 读屏用:只报"用户敲了什么 + 结果第一行",不报每一次按键 */
   function announce(cmd, result) {
     if (!live) return;
     live.textContent = "$ " + cmd + " → " + String(result).replace(/\s+/g, " ").slice(0, 120);
@@ -893,9 +830,6 @@
 
   function onKey(e) {
     if (!panelActive()) return;
-    /* ★ 中断/清屏用 Ctrl+Shift+C / Ctrl+Shift+L:
-       纯 Ctrl+C、Ctrl+V 一律不拦 —— 那是浏览器的复制/粘贴,用户要能选中台词拷走
-       (用户报过"Ctrl+C / Ctrl+V 不能用")。粘贴由下面的 paste 事件接。*/
     if (e.ctrlKey && e.shiftKey && (e.key === "c" || e.key === "C")) {
       e.preventDefault();
       if (inputEl) { inputEl.innerHTML = promptHtml() + " " + esc(curInput) + seg("^C", "c-dim"); }
@@ -932,7 +866,7 @@
       if (curInput) { curInput = curInput.slice(0, -1); renderInput(); }
       return;
     }
-    if (e.key === "Tab") { e.preventDefault(); return; }        /* 不做补全 */
+    if (e.key === "Tab") { e.preventDefault(); return; }
     if (e.key.length === 1) {
       e.preventDefault();
       if (curInput.length < 200) { curInput += e.key; renderInput(); }
@@ -943,8 +877,6 @@
     try { screen.focus({ preventScroll: true }); } catch (e) { screen.focus(); }
   });
 
-  /* 粘贴:Ctrl+V / Ctrl+Shift+V 都交给浏览器的 paste 事件,这里接住塞进输入行。
-     终端不是真的 <input>,不接的话按 Ctrl+V 什么也不会发生。 */
   document.addEventListener("paste", function (e) {
     if (!panelActive() || busy) return;
     var txt = e.clipboardData ? e.clipboardData.getData("text") : "";
@@ -954,10 +886,7 @@
     renderInput();
   });
 
-  /* ============================================================
-     开机序列(第二页:内核日志,没有进度条)
-     ============================================================ */
-  function tstamp() {                       /* 随机、但单调递增的时间戳 */
+  function tstamp() {
     var t = tstamp._t || 0;
     t += rnd(0.0006, 0.42);
     tstamp._t = t;
@@ -977,7 +906,7 @@
       { h: esc("Scanning /dev/sr0..."), d: pace(260, 620) },
       { h: esc("  Reading TOC... OK"), d: pace(220, 520) },
       { h: esc("  Reading session 1... OK"), d: pace(240, 560) },
-      { h: esc("  Reading session 2..."), d: rnd(1100, 2400) }     /* 卡在这儿:读不过去 */
+      { h: esc("  Reading session 2..."), d: rnd(1100, 2400) }
     ], myEpoch).then(function () {
       if (myEpoch !== epoch) return;
       glitchBurst(420, myEpoch);
@@ -996,12 +925,10 @@
       ], myEpoch);
     }).then(function () {
       if (myEpoch !== epoch) return;
-      newInput();                       /* 欢迎语后面的那个提示符 */
-      /* ★ 引导不是紧接着来的:像有个保护进程在后台先愣几秒,再开始扫盘 */
+      newInput();
       return wait(rnd(3400, 5200));
     }).then(function () {
       if (myEpoch !== epoch) return;
-      /* 抢在提示符后面打印的恢复守护进程 */
       return writeSeq([
         { h: seg("[recover] Received fatal error, trying detecting...", "c-mag"), d: rnd(220, 520) },
         { h: seg("[recover] Medium error detected on /dev/sr0.", "c-mag"), d: rnd(200, 460) },
@@ -1013,34 +940,24 @@
     }).then(function () {
       if (myEpoch !== epoch) return;
       blank();
-      /* 引导打完之后把提示符"收"到底部 —— 屏幕上永远只有一个 emergency@recovery:~$
-         (之前这里又新建了一个,于是出现两个提示符,用户报过这个 bug)。
-         用户要是在这几秒里已经敲了字,就不动它,免得把输入弄没。*/
       settlePrompt();
       try { screen.focus({ preventScroll: true }); } catch (e) {}
       ambientGlitch(myEpoch);
     });
   }
 
-  /* 让输入行回到最底下(它前面是被打印出来的引导行时)*/
   function settlePrompt() {
     if (!inputEl) { newInput(); return; }
-    if (curInput) return;                 /* 用户在打字:保持原样 */
+    if (curInput) return;
     if (inputEl.nextSibling) screen.appendChild(inputEl);
     scrollDown();
   }
 
-  /* ---------- 落位:套用公共的外框贴合模块 ----------
-     量贴图、求内接矩形、拼窗口轮廓这些都在 assets/js/frame-fit.js 里(五张盘共用),
-     本文件只负责:文字层收到内接矩形里(--term-inset-*)、玻璃层铺满整块屏幕。
-     ★★★ 用户第十轮换了新外框(自带机体背景)之后,这里【不再裁形状】:
-       玻璃层直接铺满屏幕,由窗框(层级更高)在上面收口 —— 所以不再写 --term-clip。 */
   var frameCache = null;
 
-  /* 外框内侧的安全余量(--term-frame-gap 是个 clamp(),读出来是原样字符串,这里用兜底值)*/
   function frameGapPx() { return 10; }
 
-  var frameBox = null;                   /* 文字活动范围(px,视口坐标)*/
+  var frameBox = null;
   function fitToFrame() {
     var W = window.innerWidth, H = window.innerHeight;
     var FF = window.FrameFit;
@@ -1049,8 +966,6 @@
     var s = root.style;
     if (d) {
       var sx = W / d.img[0], sy = H / d.img[1];
-      /* 文字活动范围 = 窗口四边往内收 gap(FrameFit 的 win 是图上坐标,
-         右边的写法是"坐标 - gap",不是"视口宽 - 坐标" —— 两种口径混过一次,终端被压成 0 宽)*/
       var win = d.win || d.safe;
       frameBox = [
         Math.round(win[0] * sx + gap), Math.round(win[1] * sy + gap),
@@ -1060,14 +975,13 @@
       s.setProperty("--term-inset-top", frameBox[1] + "px");
       s.setProperty("--term-inset-right", (W - frameBox[2]) + "px");
       s.setProperty("--term-inset-bottom", (H - frameBox[3]) + "px");
-      root.classList.add("is-fitted");     /* 铺满屏幕 + 文字收到窗口里(见 terminal.css)*/
-      /* 为了排障接口仍然把量到的原始数据挂在身上 */
+      root.classList.add("is-fitted");
       frameCache = d;
       s.setProperty("--term-frame-applied", "1");
     } else {
       ["--term-inset-left", "--term-inset-top", "--term-inset-right", "--term-inset-bottom", "--term-frame-applied"]
         .forEach(function (k) { s.removeProperty(k); });
-      s.removeProperty("--term-clip");     /* 旧版留下的(万一浏览器缓存里还有)*/
+      s.removeProperty("--term-clip");
       root.classList.remove("is-fitted");
       frameBox = null;
       frameCache = null;
@@ -1079,11 +993,6 @@
   }
   window.addEventListener("frame-fit", function () { fitToFrame(); });
 
-  /* 顶部站点导航(浮层)让位:导航默认收起,那就不让;真露出来才量它的高度。
-     ★ 首页现在已经【没有顶栏】了(导航都搬进平板主界面)—— 那时 navEl 找不到,
-       navVisible() 直接返回 false、让位量恒为 0,正是想要的答案,这里不用改。
-     ★ statusbar-hidden 是旧那套"上缘箭头收放顶栏"留下的类,那套已经删了;
-       这两处判断留着只是兜底(万一以后又有个能收起的顶栏)。 */
   var navEl = document.querySelector("header") || document.querySelector(".statusbar");
   function navVisible() {
     if (!navEl) return false;
@@ -1092,7 +1001,6 @@
     if (cs.display === "none" || cs.visibility === "hidden" || parseFloat(cs.opacity) < 0.05) return false;
     return navEl.getBoundingClientRect().height > 4;
   }
-  /* 排障:把导航为什么算"没露出来"的原因也带上 */
   function navWhy() {
     if (!navEl) return "no-nav";
     if (document.body.classList.contains("statusbar-hidden")) return "body.statusbar-hidden";
@@ -1104,10 +1012,6 @@
     return "visible";
   }
   function syncTopGap() {
-    /* ★ 参照物必须是【文字区】,不能是 .term 这个盒子 ——
-       量到外框之后 .term 是铺满视口的(靠 clip-path 裁),它的 top 永远是 0,
-       拿它比就永远算出"导航没压到东西",让位量恒为 0(踩过)。
-       做法:先把让位量清零量一次文字区顶部,再按导航底边算需要让多少。 */
     root.style.setProperty("--term-gap-top", "0px");
     var gap = 0;
     if (navVisible()) {
@@ -1118,9 +1022,6 @@
     root.style.setProperty("--term-gap-top", gap + "px");
   }
   syncTopGap();
-  /* 导航的显示/隐藏、入场动画、窗口缩放都可能晚于本脚本:
-     头 10 秒里每 450ms 重算一次(就两次 getBoundingClientRect,代价可以忽略),
-     之后靠 MutationObserver(body 的 class)+ 点收起箭头 + resize 兜着 */
   var gapTicks = 0;
   var gapTimer = setInterval(function () {
     syncTopGap();
@@ -1133,9 +1034,6 @@
   var sbToggle = document.getElementById("statusbar-toggle");
   if (sbToggle) sbToggle.addEventListener("click", function () { syncTopGap(); setTimeout(syncTopGap, 420); });
 
-  /* ============================================================
-     对外接口:reset() 清屏待机,start() 开始开机序列
-     ============================================================ */
   var started = false;
   function reset() {
     epoch++;
@@ -1155,7 +1053,6 @@
     if (started) return;
     started = true;
     var myEpoch = epoch;
-    /* 第一屏先来一句"看门狗"式的开场,再接内核日志 */
     writeSeq([
       { h: seg("GLITCH ARCHIVE — emergency shell 1.4 (tty1)", "c-dim"), d: 200 },
       { h: seg("booting from /dev/sr0 ...", "c-dim"), d: 320 },
@@ -1170,8 +1067,6 @@
     reset: reset,
     start: start,
     isStarted: function () { return started; },
-    /* 调试/排障用:控制台里敲 CD4Term.measure() —— 看看终端到底落在哪、外框窗口量到多少。
-       用户那边如果"文字还偏"或"还顶出框",把这一行结果发过来就够了 */
     measure: function () {
       var r = root.getBoundingClientRect();
       var cs = getComputedStyle(root);
@@ -1197,16 +1092,11 @@
     refit: fitToFrame
   };
 
-  /* 接入站点流程:
-     · 必须"面板激活 + CD 架已收起 + 没有开机动画在放"三条同时成立才开始打印,
-       否则会打在还被盖住的画面上(用户只会看到日志的尾巴)
-     · 插盘:finish() 紧接着会调 reset() 清一次,所以这里抢跑也没关系
-     · 回访:收起 CD 架 → 先放这张盘的开机动画 → cd-boot-done 之后才开始 */
   function maybeStart() {
     if (started) return;
-    /* 站点还没进入 CD 界面(加载 3D 那几秒)时别抢跑:那时候 scene-open 还没加上,
-       一抢跑就会打在还没露出来的页面上 */
-    if (!window.__introReady) return;
+    /* 首页引导流程不会设置 __introReady(只有非首页的 startIntro 会),
+       这里改用 __guideDone(引导结束)兜底,其余守卫不变 */
+    if (!window.__introReady && !window.__guideDone) return;
     if (!panel || !panel.classList.contains("is-active")) return;
     if (document.body.classList.contains("scene-open")) return;
     if (window.__bootRunning) return;
@@ -1214,7 +1104,7 @@
   }
   window.addEventListener("cd-panel", maybeStart);
   window.addEventListener("cd-boot-done", maybeStart);
-  setInterval(maybeStart, 400);        /* 兜底:收起架子/动画结束都可能错过事件 */
+  setInterval(maybeStart, 400);
 
-  maybeStart();                        /* 本次加载时如果条件已满足(极少见),立刻开始 */
+  maybeStart();
 })();

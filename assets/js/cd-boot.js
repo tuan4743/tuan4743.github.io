@@ -1,16 +1,3 @@
-/* 主界面"开机动画"——每张盘一套
-   ------------------------------------------------------------------
-   约定:每个 scene 返回 { total, draw(el) },runner(intro.js)只负责
-   清屏、计时、收尾。scene 自己负责"怎么盖住页面"和"怎么把页面揭开"。
-
-   5 套:
-     emoji   自我 —— 大黄脸随机贴满屏幕(后贴的盖前面的)→ 一起掉到屏幕底下
-     hex     成长 —— 一整块六边形面板 → 描边随机画出 → 从第 4 行开始向上下逐行消失
-     water   迷茫 —— 水从底部漫上来 → 鱼群游过(含 DeepSeek 鲸鱼)→ 水退回
-     glitch  技术 —— 先是这张盘的封面 → 再是 WARING!!!DISK ERROR!!!(等长)→ 切片飞走
-     fractal 未来 —— 六角枝晶雪花边生长边从中心融化 → 迭代完成后圆形扩散清掉黑底
-   ------------------------------------------------------------------
-   依赖:必须在 intro.js 之前加载(window.CDBoot) */
 (function () {
   "use strict";
 
@@ -22,11 +9,6 @@
   var rand = function (a, b) { return a + Math.random() * (b - a); };
   var pick = function (arr) { return arr[(Math.random() * arr.length) | 0]; };
 
-  /* ================= 素材加载 ================= */
-  /* 小黄脸:用户的 svg 有三点要处理,否则 canvas 里画出来是错的 ——
-       1) 没有 width/height → <img> 里给 300x150 视口,画出来会被压扁
-       2) 自带 <style> 描边动画 → 抓到的可能是"画了一半"的样子
-       3) 右下角有 emojiall.com 水印 <a><text> */
   var EMOJI_CODES = [0x1f603, 0x1f602, 0x1f60e, 0x1f618, 0x1f61d, 0x1f621, 0x1f62d, 0x1f630, 0x1f914, 0x1f9d0];
   var _emoji = [];
   var _emojiByCode = {};
@@ -63,10 +45,6 @@
     });
   }
 
-  /* DeepSeek 鲸鱼:原图是单条纯黑路径,画在深色水里看不见 → 重新上色。
-     注意这个 svg 自己带 width/height,直接当图片加载即可 ——
-     之前走 fetch+改文本的路子,给它又加了一对 width/height,
-     属性重复 → XML 非法 → 图片加载失败,所以鲸鱼一直没出现 ✗ */
   var _whale = null, _whaleLoading = false;
   function loadWhale() {
     if (_whaleLoading) return;
@@ -78,7 +56,7 @@
         c.width = 254; c.height = 200;
         var g = c.getContext("2d");
         g.drawImage(im, 0, 0, 254, 200);
-        g.globalCompositeOperation = "source-atop";     /* 只刷已有像素 → 保持鲸鱼轮廓 */
+        g.globalCompositeOperation = "source-atop";
         g.fillStyle = "#9fe8ff";
         g.fillRect(0, 0, 254, 200);
         _whale = c;
@@ -88,13 +66,12 @@
     im.src = "/assets/eggs/deepseek.svg";
   }
 
-  /* 故障那套要用的盘封面 */
   var _techImg = null;
   function loadTechCover() {
     if (_techImg) return;
     var im = new Image();
     im.onload = function () { _techImg = im; };
-    im.src = "/assets/cd/cds/tech.webp";               /* 方形封面,画的时候缩到屏幕中间 */
+    im.src = "/assets/cd/cds/tech.webp";
   }
 
   function drawFallbackFace(ctx, s) {
@@ -107,10 +84,6 @@
     ctx.lineWidth = s * 0.06; ctx.strokeStyle = "#664500"; ctx.stroke();
   }
 
-  /* ================= 1. emoji:随机贴满 → 掉到屏幕底下(自我) =================
-     随机撒点,后贴的盖在前面的上面;靠"覆盖采样点"判断是否贴满:
-     每次挑一个还没被盖住的采样点,在它附近贴一张,然后把它圆内的采样点标掉。
-     没有底板 —— 页面之所以被盖住,完全靠这些互相重叠的脸。 */
   function sceneEmoji(ctx, W, H) {
     loadEmojis();
     var S = Math.min(W, H) * 0.20;
@@ -143,23 +116,11 @@
     }
     var T = { fill: Math.min(1100, pieces.length * 8 + 320), hold: 220, fall: 900 };
 
-    /* ★★ "所有 emoji 掉出屏幕之后,只剩一张空脸" —— 用户对这一页的要求。
-       做法:最后一张 emoji 开始下落的时刻(tLastFall)之后,屏幕中央淡入一张
-       灰色的、没有五官的脸 —— 只在画布上画个圆角方块,【不画眼睛不画嘴】。
-       为什么只画个底:真正的脸是 .self-facebox 里那套手写 SVG(它要能被拖上去的
-       emoji 变形、要能变透明/融化),画布上再画一张真脸的话,两套轮廓对不齐,
-       换场那一瞬间会"跳"一下。这里只负责把"那里有一张脸"这件事先立住,
-       等 .self 起来(它自己的 .55s 淡入)正好把这张底接过去。
-       底用 #2f3a4d,与 pages.css 的 --self-blank 是同一个值 —— 改颜色要一起改。 */
     var tLastFall = T.fill + T.hold + 520;
     var FACE = { at: tLastFall, dur: 420 };
 
     return {
-      /* 时长要多留一点给最后那张空脸淡入(FACE.at 偏后),别让它在没淡完时就被切掉 */
       total: Math.max(T.fill + T.hold + T.fall + 60, FACE.at + FACE.dur + 80),
-      /* ★ 黑屏要留到"贴满并开始下落"那一刻:
-         这段时间里页面仍被黑底盖着,emoji 一层层贴上去,
-         等铺满了再撤黑屏(而不是一接手就撤,那时还没盖住页面) */
       blackUntil: T.fill + T.hold,
       draw: function (el) {
         for (var i = 0; i < pieces.length; i++) {
@@ -168,7 +129,7 @@
           if (pop <= 0) continue;
           var ft = el - T.fill - T.hold - e.fallAt;
           var dy = 0, rot = e.rot, sc = easeOutBack(pop);
-          if (ft > 0) {                                     /* 自由落体,一路掉到屏幕底下 */
+          if (ft > 0) {
             var t = ft / 1000;
             dy = 0.5 * 5600 * t * t;
             rot += e.spin * t;
@@ -185,12 +146,11 @@
           ctx.restore();
         }
 
-        /* 收尾:emoji 都掉下去了,屏幕中央留一张空脸(只有轮廓,没有五官)*/
         var fa = clamp((el - FACE.at) / FACE.dur, 0, 1);
         if (fa <= 0) return;
         var side = Math.min(W, H) * 0.30;
         var w = side * 0.80, h = side;
-        var r = side * 0.22;                 /* 圆角:emoji 的脸是圆角方块,不是正圆 */
+        var r = side * 0.22;
         var x = (W - w) / 2, y = (H - h) / 2;
         ctx.save();
         ctx.globalAlpha = fa;
@@ -201,7 +161,7 @@
         ctx.arcTo(x, y + h, x, y, r);
         ctx.arcTo(x, y, x + w, y, r);
         ctx.closePath();
-        ctx.fillStyle = "#2f3a4d";           /* 与 pages.css 的 --self-blank 同一个值 */
+        ctx.fillStyle = "#2f3a4d";
         ctx.fill();
         ctx.strokeStyle = "rgba(206, 228, 255, " + (0.30 * fa).toFixed(3) + ")";
         ctx.lineWidth = Math.max(1.5, side * 0.016);
@@ -211,7 +171,6 @@
     };
   }
 
-  /* ================= 2. 六边形矩阵(成长) ================= */
   function hexPath(ctx, R) {
     ctx.beginPath();
     for (var i = 0; i < 6; i++) {
@@ -222,10 +181,6 @@
     ctx.closePath();
   }
 
-  /* ================= 2. 六边形矩阵(成长) =================
-     实际作画在 boot-fx.js 的 fxHex —— 它每帧开头会清屏,所以这里再画一遍是白费性能。
-     但"这一场多长""黑屏留到什么时候"必须由场景声明,于是从这里读它的时间轴:
-       blackUntil = 塌缩开始的时刻 → 形成过程底下是纯黑,格子开始消失才撤黑屏 */
   function sceneHex(ctx, W, H, accent, cfg) {
     var T = (window.CDBootFx && window.CDBootFx.hexTiming) || { outAt: 990, total: 2890 };
     return {
@@ -235,114 +190,299 @@
     };
   }
 
-  /* ================= 3. 水面 + 鱼群(迷茫) ================= */
-  function sceneWater(ctx, W, H) {
-    /* ================= 迷茫:像素火车驶过云海(真 GLSL) =================
-       着色器来自用户提供的 Shadertoy 源码(train.glsl),做了四处改造:
-         · 云层密度参数化 uCloud(越大云越稀)
-         · 去掉 Shadertoy 的 iChannel1 图像输入
-         · 末尾加色相旋转 + 冷色偏移 + 压暗 → 橙红变蓝黑
-         · 雨与"出屏圆形清除"仍在 2D 层叠加(更好控制时机)
-       渲染在离屏 WebGL 画布上,再 drawImage 到 2D 画布(与现有管线共存)。 */
-    /* 优先用模板注入的带指纹网址(window.__SHADERS.train);
-       拿不到时退回固定路径(本地直接开文件等情况)*/
-    var URL = (window.__SHADERS && window.__SHADERS.train) || "/shaders/train.glsl";
-    var TRAVEL = 3200;        /* 这一场的主体时长 */
-    var WIPE = 1000;          /* 出屏后圆形清除用时 */
-    var total = TRAVEL + WIPE + 120;
-    if (window.CDBootGlsl) window.CDBootGlsl.preload("train", URL);
+  var _gdArt = null, _gdArtLoading = false;
+  /* GD 美术:gd-art.png 是从【游戏本体】抽出来的小图集(见 gd-web),
+     spike01/block1 各占 30×30,1 px = 1 世界单位 ⇒ 过场里一格 = 一格,和游戏同尺度 */
+  function loadGdArt() {
+    if (_gdArtLoading) return;
+    _gdArtLoading = true;
+    var im = new Image();
+    im.onload = function () { _gdArt = im; };
+    im.onerror = function () { _gdArt = null; };
+    im.src = "/assets/gd-art.png";
+  }
+  var _gdCube = null, _gdCubeLoading = false;
+  /* 玩家 cube:官方图标贴图 player_348(主体+第二色两帧都在 cube.png 里,plist: 主体@{131,1} 120×120,
+     第二色@{1,133} 110×110)。游戏里染 P1 绿(125,255,0)/P2 青(0,255,255) —— 见 main.ts PLAYER_C1/C2。 */
+  function loadGdCube() {
+    if (_gdCubeLoading) return;
+    _gdCubeLoading = true;
+    var im = new Image();
+    im.onload = function () {
+      try {
+        var c = document.createElement("canvas");
+        c.width = 120; c.height = 120;
+        var g = c.getContext("2d");
+        g.drawImage(im, 131, 1, 120, 120, 0, 0, 120, 120);
+        /* 染玩家色 1(亮绿):source-atop 只染非透明像素,黑描边也会被染 ——
+           所以先拷主体,再用第二色层(_2_)当"内芯"原样叠回,内芯保持贴图原色 */
+        g.globalCompositeOperation = "source-atop";
+        g.fillStyle = "rgb(125, 255, 0)";
+        g.fillRect(0, 0, 120, 120);
+        g.globalCompositeOperation = "source-over";
+        g.drawImage(im, 1, 133, 110, 110, 5, 5, 110, 110);
+        _gdCube = c;
+      } catch (e) { _gdCube = null; }
+    };
+    im.onerror = function () { _gdCube = null; };
+    im.src = "/icons/cube.png";
+  }
 
-    /* 雨:自右上往左下 */
-    function drawRain(g, el) {
-      g.save();
-      g.strokeStyle = "rgba(170, 215, 255, 0.42)";
-      g.lineWidth = 1;
-      for (var ri = 0; ri < 120; ri++) {
-        var seed = ((ri * 2654435761) % 1000) / 1000;
-        var rv = ((ri * 40503) % 997) / 997;
-        var fall = (el * (0.5 + rv * 0.45)) % (H + 60);
-        var rx = (seed * W + fall * 0.45) % (W + 60) - 30;
-        var ry = (rv * H + fall) % (H + 60) - 30;
-        var len = 6 + rv * 9;
-        g.beginPath();
-        g.moveTo(rx, ry);
-        g.lineTo(rx - len * 0.45, ry + len);      /* 往左下 */
-        g.stroke();
+  /* 失落:GD WATER 关卡的前置演示——摄影机固定,cube 从左边缘一路跑到右边缘,
+     物理 = 游戏真值(见 gd-web/src/sim/constants.ts):
+       速度 0.9 档 vx = 5.77000189×0.9 = 5.193 单位/帧 = 10.386 块/秒;
+       方块重力 0.958199024 单位/帧²,起跳初速 11.1800318 单位/帧(Y_TIME_SCALE 0.9 只影响时间轴);
+       一跳滞空 = 2v/(g·0.9·60) ≈ 0.4327s,跨距 ≈ 4.494 块,峰值 = v²/(2g) ≈ 65.2 单位 ≈ 2.17 块。
+     美术 = 游戏真图(尖刺/方块从 gd-art.png 取,cube 用官方图标),配色取关卡 kS38:
+       BG rgb(40,125,255)、Ground rgb(0,102,255)、Line 白、玩家色 P1 绿/P2 青。 */
+  function sceneWater(ctx, W, H) {
+    loadGdArt(); loadGdCube();
+    var T = { typeAt: 480, bpm: 170, end: 3050, total: 3480 };
+    var STEP = 60000 / T.bpm / 2;               /* 八分音符一跳 */
+    /* ---- 物理常数(逐字对齐 sim/constants.ts,单位/帧@60fps)---- */
+    var PHYS_VX = 5.77000189 * 0.9;             /* 单位/帧,0.9 档 */
+    var PHYS_G = 0.958199024;                   /* 单位/帧²,方块 */
+    var PHYS_V0 = 11.1800318;                   /* 单位/帧,起跳 */
+    var Y_SCALE = 0.9;                          /* Y_TIME_SCALE */
+    /* ---- 关卡 kS38 真色(不压暗:过场看着和真游戏一致)---- */
+    var COL_BG = "rgb(40, 125, 255)";
+    var COL_BG_TOP = "rgb(26, 88, 190)";
+    var COL_GND = "rgb(0, 102, 255)";
+    var COL_GND_DK = "rgb(0, 68, 178)";
+    var COL_LINE = "rgba(255, 255, 255, 0.95)";
+    var COL_PLAYER1 = "#7dff00";                /* kS38 1005:P1 亮绿 */
+    var COL_PLAYER2 = "#00ffff";                /* kS38 1006:P2 青(方块内芯) */
+    function hash(i) { var x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
+    var snapCv = null;
+
+    /* 与加载器/CD4 同款的结尾关屏 */
+    function collapse(el) {
+      if (!snapCv) snapCv = document.createElement("canvas");
+      if (snapCv.width !== W || snapCv.height !== H) { snapCv.width = W; snapCv.height = H; }
+      var sg = snapCv.getContext("2d");
+      sg.setTransform(1, 0, 0, 1, 0, 0);
+      sg.clearRect(0, 0, W, H);
+      sg.drawImage(ctx.canvas, 0, 0, W, H);
+      var kk = Math.min(1, (el - T.end) / (T.total - T.end));
+      var ke = kk * kk;
+      var sq = Math.max(0.004, 1 - ke);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = "#04060a";
+      ctx.fillRect(0, 0, W, H);
+      ctx.save();
+      ctx.translate(0, (H / 2) * (1 - sq));
+      ctx.scale(1, sq);
+      ctx.drawImage(snapCv, 0, 0, W, H);
+      ctx.restore();
+      if (ke > 0.55) {
+        ctx.globalCompositeOperation = "lighter";
+        ctx.fillStyle = "rgba(190,245,255," + (0.75 * Math.min(1, (ke - 0.55) / 0.2)).toFixed(3) + ")";
+        ctx.fillRect(0, H / 2 - 1.5 * (1 - ke), W, 3 * (1 - ke) + 1);
+        ctx.globalCompositeOperation = "source-over";
       }
-      g.restore();
     }
 
+    /* 铺面(确定性):按真实节奏排 —— 刺链间隔 = 一跳跨距(4.494 块),
+       cube 落地即刻再起跳,整个过场就是一条节奏匀整的刺链(和游戏里
+       "连跳段"同一观感)。尺度对齐游戏:屏高 = 10.67 块(原版口径),
+       一块 = H/10.67 ⇒ cube 一跳在屏上占 40% 高度的抛物线,看得清。 */
+    var JUMP_SPAN = 4.494;                      /* 块,见文件头换算 */
+    var RUN_START = 900;                        /* 起跑拍:标题亮完后,cube 从左缘起跑 */
+    var SPIKE_START = 6.0;                      /* 第一根刺离起跑点的块数(留足助跑) */
+    var spikes = [];
+    for (var si = 0; si < 5; si++) {
+      spikes.push({ x: SPIKE_START + si * JUMP_SPAN });   /* 块,起跑点起算 */
+    }
+    var LINES = [
+      "> NOW LOADING — WATER",
+      "> BPM 170.00 · FIRST BEAT 0.33s",
+      "> DON'T STOP MOVING"
+    ];
+
     return {
-      total: total,
+      total: T.total,
       blackUntil: 0,
       draw: function (el) {
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.globalCompositeOperation = "source-over";
         ctx.globalAlpha = 1;
-        ctx.clearRect(0, 0, W, H);
 
-        /* ---- 1. GLSL:整屏背景 + 云海 + 火车 ---- */
-        /* ★ 性能:这个着色器有 8 层噪声 fbm × 3 层云,按全分辨率跑在 DPR1.5 下非常重。
-           云是柔和的,半分辨率完全看不出差别 —— 于是按 0.5 倍渲染,再平滑放大。
-           另外给一个分辨率上限,超宽屏也不会失控。 */
-        var gw = Math.round(W * 0.5), gh = Math.round(H * 0.5);
-        var CAP = 960;
-        if (gw > CAP) { gh = Math.round(gh * CAP / gw); gw = CAP; }
-        var gl = window.CDBootGlsl ? window.CDBootGlsl.render("train", URL, el / 1000 * 4.0, gw, gh, {
-          cloud: 1.62,          /* 云层密度:调大 = 更稀 */
-          hue: -3.14,           /* 色相旋转:橙红 → 蓝黑 */
-          dark: 1.0
-        }) : null;
+        /* GD 背景:整屏蓝色(关卡 BG 色真值),带缓慢明暗呼吸 */
+        var pulse = 0.94 + 0.06 * Math.sin(el / 900);
+        var bg = ctx.createLinearGradient(0, 0, 0, H);
+        bg.addColorStop(0, COL_BG_TOP);
+        bg.addColorStop(1, COL_BG);
+        ctx.globalAlpha = pulse;
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, W, H);
+        ctx.globalAlpha = 1;
+        /* GD 背景装饰:大块方形暗纹缓慢横移(GD 经典 bg 方块图案) */
+        ctx.save();
+        ctx.globalAlpha = 0.08 * pulse;
+        ctx.fillStyle = "#000";
+        var bs = Math.min(W, H) * 0.30;
+        var bOff = (el * 0.012) % (bs * 2) - bs * 2;
+        for (var bxg = bOff; bxg < W; bxg += bs * 2) {
+          ctx.fillRect(bxg, H * 0.06, bs, bs * 0.62);
+          ctx.fillRect(bxg + bs, H * 0.30, bs, bs * 0.62);
+        }
+        ctx.restore();
 
-        if (gl) {
-          ctx.imageSmoothingEnabled = true;
-          ctx.drawImage(gl, 0, 0, gw, gh, 0, 0, W, H);
-        } else {
-          /* 着色器还没加载好(或编译失败)时的兜底:蓝黑渐变,不留白 */
-          var g0 = ctx.createLinearGradient(0, 0, 0, H);
-          g0.addColorStop(0, "#05080f");
-          g0.addColorStop(0.6, "#0a1428");
-          g0.addColorStop(1, "#132444");
-          ctx.fillStyle = g0;
-          ctx.fillRect(0, 0, W, H);
+        /* 开屏横线展开(与加载器的关屏压缩互为镜像)—— 由 intro 的 WIPE 统一做,
+           这里不重复画;T.wipe 只用来安排淡入 */
+        var T_WIPE = 320;
+        if (el < 40) return;
+
+        var fs = Math.max(11, Math.round(Math.min(W, H) * 0.019));
+        var groundY = H * 0.76;
+        /* 尺度 = 原版口径:设计高 320 单位、1 块 30 单位 ⇒ 屏高 10.67 块。
+           cube 一跳峰值 2.17 块 = 屏高的 20%,滞空 0.433s —— 在真速度下看得清。 */
+        var unit = H / (320 / 30);              /* 一块的像素数 */
+        var fadeK = Math.min(1, (el - T_WIPE) / 420);   /* 场景淡入 */
+
+        /* 地面:GD 双色地块 + 顶部白线 + 地块竖缝 */
+        ctx.save();
+        var gg = ctx.createLinearGradient(0, groundY, 0, H);
+        gg.addColorStop(0, COL_GND);
+        gg.addColorStop(1, COL_GND_DK);
+        ctx.fillStyle = gg;
+        ctx.fillRect(0, groundY, W, H - groundY);
+        /* 地面竖缝(GD ground 分块) */
+        ctx.globalAlpha = 0.25;
+        ctx.strokeStyle = "#000";
+        ctx.lineWidth = 2;
+        for (var gx2 = 0; gx2 < W; gx2 += unit * 4) {
+          ctx.beginPath();
+          ctx.moveTo(gx2, groundY);
+          ctx.lineTo(gx2, H);
+          ctx.stroke();
+        }
+        /* 顶部白线(GD line) */
+        ctx.globalAlpha = 0.95;
+        ctx.strokeStyle = COL_LINE;
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.moveTo(0, groundY);
+        ctx.lineTo(W, groundY);
+        ctx.stroke();
+        ctx.restore();
+
+        /* 尖刺:官方贴图(gd-art.png spike01,30×30 = 1 格),贴地朝上 */
+        var artOk = !!(_gdArt && _gdArt.complete && _gdArt.naturalWidth);
+        /* 铺面坐标 → 屏幕 x:块 0 = cube 起跑点(左缘外一格) */
+        var X0 = -unit;
+        for (var p = 0; p < spikes.length; p++) {
+          var sxp = X0 + spikes[p].x * unit;
+          if (sxp < -unit || sxp > W + unit) continue;
+          ctx.save();
+          ctx.globalAlpha = 0.98 * fadeK;
+          if (artOk) {
+            ctx.drawImage(_gdArt, 618, 1, 30, 30, sxp - unit / 2, groundY - unit, unit, unit);
+          } else {
+            ctx.fillStyle = "rgba(6, 16, 30, 0.96)";
+            ctx.strokeStyle = "rgba(255,255,255,0.95)";
+            ctx.lineWidth = 1.6;
+            ctx.beginPath();
+            ctx.moveTo(sxp - unit * 0.46, groundY);
+            ctx.lineTo(sxp, groundY - unit);
+            ctx.lineTo(sxp + unit * 0.46, groundY);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+          }
+          ctx.restore();
         }
 
-        /* ---- 2. 雨 ---- */
-        drawRain(ctx, el);
+        /* cube:真速度横穿(10.386 块/秒,块 = H/10.67)。整条动画就是游戏的
+           "连跳段"演示:起跑 → 按节拍连过 5 根刺(每跳都按真物理积分)
+           → 冲出右缘,白线一道横扫收屏。 */
+        var RUN_MS = 2700;                       /* 横穿用时 = 28 块 ÷ 10.386 块/秒 */
+        var runT = el - RUN_START;               /* 起跑后毫秒 */
+        var px = X0 + Math.max(0, runT / RUN_MS) * 28 * unit;
+        var pxBlocks = (px - X0) / unit;         /* cube 起跑点起算的块数 */
+        /* 连跳:每根刺一个起跳点(刺前 跨距/2 块),落点正好接下一跳的起跳点 */
+        var jumpAge = -1;
+        var AIRTIME_S = (2 * PHYS_V0 / (PHYS_G * Y_SCALE)) / 60;   /* 秒,≈0.433 */
+        for (var q = 0; q < spikes.length; q++) {
+          var jumpAtB = spikes[q].x - JUMP_SPAN / 2;    /* 起跳点(块) */
+          if (pxBlocks >= jumpAtB && pxBlocks < jumpAtB + AIRTIME_S * 10.386) {
+            jumpAge = (pxBlocks - jumpAtB) / 10.386 * 1000;   /* 起跳后毫秒 */
+            break;
+          }
+        }
+        var jump = 0, rot = 0;
+        if (jumpAge >= 0) {
+          var tj = jumpAge / 1000;                       /* 起跳后秒数 */
+          var frames = tj * 60;
+          var yu = PHYS_V0 * frames - 0.5 * PHYS_G * Y_SCALE * frames * frames;  /* 单位 */
+          jump = (yu / 30) * unit;                       /* 30 单位 = 1 块 */
+          /* GD 方块空中转半圈:滞空 0.433s 内转 180° */
+          rot = Math.min(1, tj / AIRTIME_S) * Math.PI;
+        }
+        var byy = groundY - unit / 2 - Math.max(0, jump);
+        ctx.save();
+        ctx.translate(px, byy);
+        ctx.rotate(rot);
+        /* 官方 cube 贴图(玩家色已烘好);退化时画 GD 默认方块(绿体+青内芯+白框) */
+        var cubeOk = !!(_gdCube && _gdCube.complete && _gdCube.naturalWidth);
+        if (cubeOk) {
+          ctx.drawImage(_gdCube, -unit / 2, -unit / 2, unit, unit);
+        } else {
+          ctx.fillStyle = COL_PLAYER1;
+          ctx.fillRect(-unit / 2, -unit / 2, unit, unit);
+          ctx.lineWidth = Math.max(2, unit * 0.09);
+          ctx.strokeStyle = "#ffffff";
+          ctx.strokeRect(-unit / 2, -unit / 2, unit, unit);
+          ctx.fillStyle = COL_PLAYER2;
+          ctx.fillRect(-unit * 0.26, -unit * 0.26, unit * 0.52, unit * 0.52);
+          ctx.fillStyle = "#062033";
+          ctx.fillRect(-unit * 0.20, -unit * 0.16, unit * 0.13, unit * 0.2);
+          ctx.fillRect(unit * 0.07, -unit * 0.16, unit * 0.13, unit * 0.2);
+        }
+        ctx.restore();
 
-        /* ---- 3. 出屏瞬间:以出屏点为圆心扩散清除 ---- */
-        if (el > TRAVEL) {
-          var k = Math.min(1, (el - TRAVEL) / WIPE);
-          var cxp = W + 12, cyp = H * 0.42;
-          var maxR = Math.hypot(W, H) * 1.3;
+        /* 角落登录行 */
+        ctx.font = fs + 'px "Alpha Sector", ui-monospace, Consolas, monospace';
+        ctx.textAlign = "left";
+        ctx.textBaseline = "top";
+        for (var b = 0; b < LINES.length; b++) {
+          var bt = el - T.typeAt - b * 380;
+          if (bt <= 0) continue;
+          var shown2 = LINES[b].slice(0, Math.max(1, Math.round(LINES[b].length * Math.min(1, bt / 320))));
           ctx.save();
-          ctx.globalCompositeOperation = "destination-out";
-          ctx.beginPath();
-          ctx.arc(cxp, cyp, k * maxR, 0, Math.PI * 2);
-          ctx.fillStyle = "#000";
-          ctx.fill();
+          ctx.globalAlpha = 0.62 * Math.min(1, bt / 320) * fadeK;
+          ctx.fillStyle = "#ffffff";
+          ctx.shadowColor = "rgba(255,255,255,0.6)";
+          ctx.shadowBlur = b === LINES.length - 1 ? 8 : 0;
+          ctx.fillText(shown2, W * 0.062, H * 0.07 + b * Math.round(fs * 1.6));
           ctx.restore();
+        }
+
+        /* 结尾:cube 到达右边缘后,白线一道横扫(像 GD 通关白色闪),再关屏 */
+        var outT = (el - (T.end - 460)) / 460;
+        if (outT > 0) {
+          var ok2 = Math.min(1, outT);
           ctx.save();
           ctx.globalCompositeOperation = "lighter";
-          ctx.strokeStyle = "rgba(180, 230, 255, " + (0.8 * (1 - k)).toFixed(2) + ")";
-          ctx.lineWidth = 2.5;
-          ctx.beginPath();
-          ctx.arc(cxp, cyp, k * maxR, 0, Math.PI * 2);
-          ctx.stroke();
+          ctx.globalAlpha = (1 - ok2) * 0.9;
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, H / 2 - 2, W * ok2, 4);
           ctx.restore();
         }
+
+        if (el > T.end) collapse(el);
       }
     };
   }
 
-  /* ---- 云海条带:只生成一次,之后滚动复用(密度低 → 阈值高)---- */
   var _cloudBuf = null;
   function buildCloudStrip(w, h) {
     var stripW = w * 2;
     var cv = document.createElement("canvas");
     cv.width = stripW; cv.height = Math.max(8, h);
     var g = cv.getContext("2d");
-    var low = Math.round(h * 0.56);                       /* 云海从地平线开始 */
+    var low = Math.round(h * 0.56);
     var bandH = Math.max(6, h - low);
     var img = g.createImageData(stripW, bandH);
     var d = img.data;
@@ -358,11 +498,9 @@
       return a * (1 - u) * (1 - v) + b * u * (1 - v) + c * (1 - u) * v + e * u * v;
     }
     for (var y = 0; y < bandH; y++) {
-      var depth = y / bandH;                               /* 0 近地平线,1 最下面 */
+      var depth = y / bandH;
       for (var x = 0; x < stripW; x++) {
-        /* 两层噪声:fbm */
         var n = noise(x * 0.045, y * 0.16) * 0.65 + noise(x * 0.11, y * 0.34) * 0.35;
-        /* 密度低:阈值抬高;越往下越密(形成"云海"的纵深)*/
         var th = 0.62 - depth * 0.20;
         var v = Math.max(0, (n - th) / (1 - th));
         var shade = Math.min(1, v * (0.55 + depth * 0.75));
@@ -378,15 +516,10 @@
     _cloudBuf = { buf: cv, ctx: cv.getContext("2d"), strip: cv, stripW: stripW, w: w, h: h };
   }
 
-  /* ================= 4. 故障(技术) =================
-     先放这张盘的封面,再放 WARING!!!DISK ERROR!!!,两者时长相同;
-     都是"故障"的样子:RGB 分离 + 横向条带错位 + 随机切片 + 扫描线。
-     最后整个画面切成横带向两侧飞走,露出页面。 */
   function sceneGlitch(ctx, W, H, accent) {
     loadTechCover();
     var HALF = 1150, REV = 900;
-    var _glitchEl = 0;   /* 当前时间:绘制回调里要用 */
-    /* 改成"多条小字从右侧滚出":像系统在刷错误日志 */
+    var _glitchEl = 0;
     var WARN_LINES = [
       "E: SECTOR 0x3F2A UNREADABLE",
       "E: TRACK 04 CHECKSUM MISMATCH",
@@ -400,23 +533,19 @@
     function corrupt(drawWhat) {
       ctx.fillStyle = "#05070c";
       ctx.fillRect(0, 0, W, H);
-      /* 随机横向条带错位 */
-      /* 横线:只做"局部的一小段",又细又淡 ——
-         之前是整屏宽的实心条,所以看着很劣质 */
       var step = 34;
       for (var y = 0; y < H; y += step) {
         if (Math.random() > 0.34) continue;
-        var segW = W * rand(0.12, 0.42);                 /* 局部宽度 */
+        var segW = W * rand(0.12, 0.42);
         var segX = Math.random() * (W - segW);
         ctx.save();
-        ctx.globalAlpha = rand(0.03, 0.09);              /* 更淡 */
+        ctx.globalAlpha = rand(0.03, 0.09);
         ctx.fillStyle = Math.random() > 0.5 ? accent : "#ff2d55";
-        ctx.fillRect(segX + (Math.random() - 0.5) * 40, y + rand(4, step - 6), segW, 1);   /* 细到 1px */
+        ctx.fillRect(segX + (Math.random() - 0.5) * 40, y + rand(4, step - 6), segW, 1);
         ctx.restore();
       }
       ctx.globalAlpha = 1;
       drawWhat();
-      /* 随机切片剪裁 */
       for (var k = 0; k < 4; k++) {
         var cx = Math.random() * W * 0.8, cy = Math.random() * H * 0.8;
         ctx.save();
@@ -427,12 +556,10 @@
         ctx.restore();
       }
       ctx.globalAlpha = 1;
-      /* 扫描线 */
       ctx.fillStyle = "rgba(0,0,0,0.32)";
       for (var sy = 0; sy < H; sy += 4) ctx.fillRect(0, sy, W, 1);
     }
 
-    /* 封面 + 警告行同时在场(不再"先图片后文字"分两段)*/
     function coverPlusText() {
       cover();
       errorText();
@@ -440,13 +567,11 @@
 
     function cover() {
       if (_techImg && _techImg.complete && _techImg.naturalWidth) {
-        /* 正方形封面:缩到纵向占屏幕一半,居中放,四周留出黑底 */
         var dh = H * 0.5;
         var dw = dh * (_techImg.naturalWidth / _techImg.naturalHeight);
         var jx = (Math.random() - 0.5) * 10, jy = (Math.random() - 0.5) * 8;
         var dx = (W - dw) / 2, dy = (H - dh) / 2;
         ctx.drawImage(_techImg, dx + jx, dy + jy, dw, dh);
-        /* 通道错位(故障感)*/
         ctx.save();
         ctx.globalCompositeOperation = "screen";
         ctx.globalAlpha = 0.45;
@@ -465,14 +590,13 @@
     }
 
     function errorText() {
-      var big = Math.round(Math.min(W * 0.06, H * 0.18));   /* 多条小字用不到大字,保留一个安全值 */
+      var big = Math.round(Math.min(W * 0.06, H * 0.18));
       var jx = (Math.random() - 0.5) * big * 0.22, jy = (Math.random() - 0.5) * big * 0.14;
       var lw = Math.max(2, big * 0.07);
       ctx.font = "900 " + big + "px Impact, 'Arial Black', sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.lineJoin = "round";
-      /* 多条小字,自右向左滚动划出;每条有自己的速度与纵向位置 */
       var fs3 = Math.max(11, Math.round(Math.min(W, H) * 0.026));
       ctx.font = fs3 + "px \"Alpha Sector\", ui-monospace, Menlo, Consolas, monospace";
       ctx.textAlign = "left";
@@ -480,12 +604,10 @@
       for (var wi = 0; wi < WARN_LINES.length; wi++) {
         var line = WARN_LINES[wi];
         var ly = H * (0.16 + wi * 0.13);
-        /* 每条的速度不同,而且带一点错峰 */
-        var spd = 0.32 + (wi % 3) * 0.10;   /* 滚动速度 ×2 */
+        var spd = 0.32 + (wi % 3) * 0.10;
         var total2 = W + ctx.measureText(line).width + 40;
         var lx = W + 20 - ((_glitchEl * spd + wi * 150) % total2);
         var a = 0.85;
-        /* 红蓝分离的描边重影(幅度小一点,别糊) */
         ctx.globalCompositeOperation = "screen";
         ctx.lineWidth = 2;
         ctx.globalAlpha = a * 0.55;
@@ -505,18 +627,16 @@
       total: HALF * 2 + REV,
       draw: function (el) {
         _glitchEl = el;
-        /* ★ 文字与图片同时在场:封面全程画,警告行从 35% 处叠上来(不再分两段)*/
         if (el < HALF * 0.35) { corrupt(cover); return; }
         if (el < HALF * 2) { corrupt(coverPlusText); return; }
         var p = clamp((el - HALF * 2) / REV, 0, 1);
         var bh = H / bands;
         for (var i = 0; i < bands; i++) {
           var d = clamp((p - (i / bands) * 0.55) / 0.45, 0, 1);
-          if (d >= 1) continue;                            /* 这条已飞走 → 露出页面 */
+          if (d >= 1) continue;
           var dir = i % 2 ? 1 : -1;
           ctx.save();
           ctx.beginPath(); ctx.rect(0, i * bh, W, bh + 0.6); ctx.clip();
-          /* ★ 清除不是"直接消失":先整条染成紫色,再抽走 */
           ctx.save();
           ctx.globalAlpha = (1 - d) * 0.62;
           ctx.fillStyle = "#7b2ff7";
@@ -535,211 +655,258 @@
     };
   }
 
-  /* ================= 5. 暴风雪 + 巨大雪花扫线(未来) =================
-     雪用用户给的 snow.glsl(真 GLSL,半分辨率渲染后平滑放大;
-     流速 speed、密度 scale/grow 都比范例放大过 —— 见下面 SNOW 表)。
-     ★ 收尾是这一张的精髓:
-       · 一朵【巨大的雪花】从【左上角】一路飞到【右下角】;
-       · 它背后同步藏着【一条线】,与雪花同速扫过 ——
-         线扫过的那一侧(左上那半边)整片清掉,雪与雪花一起退场,直接露出底下页面;
-       · 线【画在雪花之前】,所以中段被雪花挡住,只在雪花两侧伸出来。
-     时间轴:0~2.0s 暴风雪 / 2.0~3.5s 扫线收尾 / 总长 3.62s */
-  var SNOW = {
-    snow: 2000,      /* 暴风雪时长 */
-    fin: 1500,       /* 收尾(巨雪 + 扫线)时长 */
-    tail: 120,       /* 扫完停一帧,保证页面完全露出 */
-    speed: 2.6,      /* 流速倍率:着色器里 speed = 2.0 × 这个值(范例是 2.0)*/
-    scale: 1.15,     /* 整体缩放:越大雪越密越细 */
-    grow: 1.45,      /* 密度/饱满度:1.0 = 范例原样,越大雪越多越大 */
-    dark: 1.6,       /* 压暗:1.0 = 范例的亮白,越大底越暗(雪花仍亮)*/
-    bias: 1.0,       /* 底色雾亮度 */
-    sun: 0.5,        /* 太阳强度:1.0 = 范例原样(左上角会曝成一片白)*/
-    size: 0.36       /* 大雪花半径 ÷ 屏幕对角线 */
-  };
-  function sceneSnow(ctx, W, H, accent) {
-    var URL = (window.__SHADERS && window.__SHADERS.snow) || "/shaders/snow.glsl";
-    if (window.CDBootGlsl) window.CDBootGlsl.preload("snow", URL);
+  /* 未来:过场 = 面板的【同一扇窗】——夜空、雪、霜都和 page-frost 面板同源同色,
+     过场从"霜盖满"走到"霜被呵气化开一块、碎片透出来",结束在霜还盖着大半的瞬间;
+     面板接手时盖着同色霜雾进场再散开(css .frost::after),所以过场→面板没有跳变。
+     收尾 = 霜重新合拢(不是关屏压缩):黑场由外层的 is-black 负责。 */
+  function sceneFrost(ctx, W, H) {
+    /* 时间轴:夜空/雪先单独亮 1.4s ⇒ 霜用 2s 慢慢爬上来(带边缘感,不是一帧盖满)
+       ⇒ 呵气化开(碎片透出 1s+)⇒ 合拢淡黑交面板 */
+    var T = { veil: 2000, breath: 2200, melt: 2350, showAt: 2550, reFrost: 3050, end: 3400, total: 3750 };
+    var SHARDS = [
+      "愿未来的你,依然对世界好奇。",
+      "愿你还会为一件与你无关的事停下来。"
+    ];
+    function hash(i) { var x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
+    var snapCv = null;
 
-    var S2 = Math.SQRT1_2;                       /* √2/2:斜向坐标系 */
-    var cx = W * 0.5, cy = H * 0.5;
-    var qMax = (W + H) * 0.5 * S2;               /* 屏幕中心 → 左上/右下角的投影距离 */
-    var BIG = (W + H) * 1.8;                     /* 画线/挖洞用的超大长度 */
-    var FR = Math.hypot(W, H) * SNOW.size;       /* 巨大雪花半径 */
-    var lead = FR * 0.55;                        /* 线的行程比雪花短:
-                                                    起手雪在后、收尾雪在前,全程与线相交 */
-    var feather = Math.min(W, H) * 0.05;         /* 扫线羽化宽度 */
-
-    /* 前景小雪花:给暴风雪一点景深,方向和收尾一致(往右下)*/
-    var flakes = [];
-    for (var i = 0; i < 80; i++) {
-      flakes.push({ x: rand(0, W), y: rand(0, H), r: rand(1.5, 5), v: rand(0.4, 1.1), a: rand(0.2, 0.6) });
-    }
-
-    /* 巨大雪花的几何:6 主臂 + 每臂 3 对分枝 + 六边形核心 + 臂尖菱形。
-       一次建好 Path2D(只在开场景时算),之后每帧只 stroke 两遍(辉光 + 本体)*/
-    var flakePath = null;
-    function buildFlake() {
-      var p = new Path2D();
-      var k, b, j, sgn, ang, dx, dy, bx, by, ba, bl, tip, px, py;
-      for (k = 0; k < 6; k++) {                              /* 核心六边形 */
-        ang = k * Math.PI / 3;
-        px = Math.cos(ang) * FR * 0.13;
-        py = Math.sin(ang) * FR * 0.13;
-        if (k === 0) p.moveTo(px, py); else p.lineTo(px, py);
+    /* 夜空:和面板 buildSky 同一条配方 —— 顶部近黑 rgb(4,7,16),地平线亮到 rgb(16,40,60),
+       雪坡剪影 rgb(26,36,58),前景地 rgb(4,6,12); HOR = 0.73H */
+    function paintSky() {
+      var HOR = H * 0.73;
+      var BANDS = 90;
+      for (var b = 0; b < BANDS; b++) {
+        var t = b / (BANDS - 1);
+        var lift = (0.12 + 0.88 * t * t) * (0.35 + 0.65 * (t * t * (3 - 2 * t)));
+        var r = 4 + 9 * lift, g = 7 + 16 * lift, bl = 16 + 30 * lift;
+        ctx.fillStyle = "rgb(" + (r | 0) + "," + (g | 0) + "," + (bl | 0) + ")";
+        ctx.fillRect(0, Math.floor(b * HOR / BANDS), W, Math.ceil(HOR / BANDS) + 2);
       }
-      p.closePath();
-      for (b = 0; b < 6; b++) {
-        ang = b * Math.PI / 3;
-        dx = Math.cos(ang); dy = Math.sin(ang);
-        p.moveTo(0, 0); p.lineTo(dx * FR, dy * FR);          /* 主臂 */
-        for (j = 0; j < 3; j++) {                            /* 3 对分枝 */
-          bx = dx * FR * (0.30 + j * 0.23);
-          by = dy * FR * (0.30 + j * 0.23);
-          bl = FR * (0.30 - j * 0.065);
-          for (sgn = -1; sgn <= 1; sgn += 2) {
-            ba = ang + sgn * Math.PI / 3 * 0.94;
-            p.moveTo(bx, by);
-            p.lineTo(bx + Math.cos(ba) * bl, by + Math.sin(ba) * bl);
-          }
+      /* 远山剪影(面板 buildSky 的 groundTop 同款三正弦,振幅压到过场尺度) */
+      function groundTop(x, back) {
+        var t = x / W;
+        var h = Math.sin(t * 3.1 + 0.7 - 1.6) * 0.088
+          + Math.sin(t * 7.3 + 2.1 - 1.6) * 0.034
+          + Math.sin(t * 1.6 - 1.6) * 0.070;
+        if (back) {
+          h = h * 0.62 + Math.sin(t * 2.2 + 3.4) * 0.013 - 0.004;
+          h *= 0.55 + 0.45 * Math.sin(Math.PI * t);
         }
-        tip = FR * 0.055;                                    /* 臂尖小菱形 */
-        p.moveTo(dx * FR - dy * tip, dy * FR + dx * tip);
-        p.lineTo(dx * FR * 1.13, dy * FR * 1.13);
-        p.lineTo(dx * FR + dy * tip, dy * FR - dx * tip);
-        p.closePath();
+        return HOR + h * H;
       }
-      return p;
+      var step = Math.max(2, Math.round(W / 400));
+      for (var x = 0; x < W + step; x += step) {
+        var gyb = groundTop(x + step * 0.5, true);
+        ctx.fillStyle = "rgb(26, 36, 58)";
+        ctx.fillRect(x, gyb, step, Math.max(1, H - gyb));
+      }
+      for (var x2 = 0; x2 < W + step; x2 += step) {
+        var gy = groundTop(x2 + step * 0.5, false);
+        var g = ctx.createLinearGradient(0, gy, 0, H);
+        g.addColorStop(0, "rgb(4, 6, 12)");
+        g.addColorStop(1, "rgb(2, 3, 7)");
+        ctx.fillStyle = g;
+        ctx.fillRect(x2, gy, step, Math.max(1, H - gy));
+      }
     }
 
+    /* 霜:面板同色的结晶白(206,226,246),但【从不盖满】——
+       上来就留出中央一块"呵气区"是透明→淡霜的渐变,屏幕四角才浓;
+       clear = 呵气把中央这块也化掉的程度(0=没化,1=全化) */
+    function frost(g, clear, el, veil) {
+      g.save();
+      /* 基底:边缘浓、中央透的径向霜 —— 中央留给夜空和碎片 */
+      var base = g.createRadialGradient(W / 2, H * 0.44, Math.min(W, H) * 0.30, W / 2, H * 0.46, Math.max(W, H) * 0.62);
+      base.addColorStop(0, "rgba(206, 226, 246, " + (0.34 * veil).toFixed(3) + ")");
+      base.addColorStop(0.55, "rgba(200, 222, 244, " + (0.62 * veil).toFixed(3) + ")");
+      base.addColorStop(1, "rgba(196, 220, 242, " + (0.88 * veil).toFixed(3) + ")");
+      g.fillStyle = base;
+      g.fillRect(0, 0, W, H);
+      /* 结晶短线:固定种子 ⇒ 不闪烁;中央少、边缘密(跟基底浓度一致) */
+      g.strokeStyle = "rgba(255, 255, 255, 0.5)";
+      g.lineWidth = 1;
+      for (var i = 0; i < 210; i++) {
+        var x = hash(i * 1.31) * W, y = hash(i * 2.17) * H;
+        var dC = Math.min(1, Math.hypot(x - W / 2, y - H * 0.44) / (Math.min(W, H) * 0.42));
+        var ang = (hash(i * 3.7) * 3 | 0) * (Math.PI / 3) + (hash(i * 5.9) - 0.5) * 0.5;
+        var len = 3 + hash(i * 7.7) * 8;
+        g.globalAlpha = veil * dC * (0.14 + hash(i * 9.1) * 0.2);
+        g.beginPath();
+        g.moveTo(x - Math.cos(ang) * len / 2, y - Math.sin(ang) * len / 2);
+        g.lineTo(x + Math.cos(ang) * len / 2, y + Math.sin(ang) * len / 2);
+        g.stroke();
+      }
+      /* 晶格亮点(同样避开中央) */
+      g.fillStyle = "rgba(248, 252, 255, 0.8)";
+      for (var j = 0; j < 90; j++) {
+        var qx = hash(j * 6.1) * W, qy = hash(j * 8.3) * H;
+        var qd = Math.min(1, Math.hypot(qx - W / 2, qy - H * 0.44) / (Math.min(W, H) * 0.42));
+        g.globalAlpha = veil * qd * (0.2 + hash(j * 4.3) * 0.4);
+        g.fillRect(qx, qy, 1.6, 1.6);
+      }
+      g.restore();
+      /* 化开的中央区:呵气把中央仅剩的淡霜也擦掉,夜空和碎片透出 */
+      if (clear > 0.01) {
+        var mr = Math.min(W, H) * 0.34;
+        var mg = g.createRadialGradient(W / 2, H * 0.44, 0, W / 2, H * 0.44, mr);
+        mg.addColorStop(0, "rgba(0,0,0," + clear.toFixed(3) + ")");
+        mg.addColorStop(0.62, "rgba(0,0,0," + (clear * 0.8).toFixed(3) + ")");
+        mg.addColorStop(1, "rgba(0,0,0,0)");
+        g.save();
+        g.globalCompositeOperation = "destination-out";
+        g.fillStyle = mg;
+        g.fillRect(W / 2 - mr, H * 0.44 - mr, mr * 2, mr * 2);
+        /* 洞缘的水痕:几条往下淌的细水线(化玻璃的真实细节) */
+        g.globalAlpha = clear * 0.5;
+        g.strokeStyle = "rgba(210, 232, 250, 0.9)";
+        g.lineWidth = 1.4;
+        for (var d = 0; d < 6; d++) {
+          var dx = W / 2 + (hash(d * 13.1) - 0.5) * mr * 1.2;
+          var dy0 = H * 0.44 + (hash(d * 17.3) - 0.3) * mr * 0.6;
+          var dl = mr * (0.3 + hash(d * 19.7) * 0.5) * clear;
+          g.beginPath();
+          g.moveTo(dx, dy0);
+          g.lineTo(dx + (hash(d * 23.1) - 0.5) * 6, dy0 + dl);
+          g.stroke();
+        }
+        g.restore();
+      }
+    }
+
+    /* 呵气:一团白雾从屏幕下缘中部升起(比旧版更薄,不抢戏) */
+    function puff(t0) {
+      var t = el0 - t0;
+      if (t < 0 || t > 1100) return;
+      var k = t / 1100;
+      var cy = H * 0.95 - k * H * 0.5;
+      var r = Math.min(W, H) * (0.08 + k * 0.26);
+      var g2 = ctx.createRadialGradient(W / 2, cy, 0, W / 2, cy, r);
+      g2.addColorStop(0, "rgba(215, 235, 250, " + (0.16 * (1 - k)).toFixed(3) + ")");
+      g2.addColorStop(1, "rgba(215, 235, 250, 0)");
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      ctx.fillStyle = g2;
+      ctx.fillRect(W / 2 - r, cy - r, r * 2, r * 2);
+      ctx.restore();
+    }
+
+    var el0 = 0;
     return {
-      total: SNOW.snow + SNOW.fin + SNOW.tail,
-      /* 着色器整屏不透明(兜底渐变也是),所以可以一接手就撤黑屏 */
+      total: T.total,
       blackUntil: 0,
       draw: function (el) {
+        el0 = el;
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.globalCompositeOperation = "source-over";
         ctx.globalAlpha = 1;
-        ctx.clearRect(0, 0, W, H);
 
-        /* ---- 1. GLSL 暴风雪:半分辨率渲染(雪是柔和的,看不出差别),
-                   超宽屏再加个上限,免得着色器按几百万像素跑 ---- */
-        var gw = Math.round(W * 0.5), gh = Math.round(H * 0.5), CAP = 900;
-        if (gw > CAP) { gh = Math.round(gh * CAP / gw); gw = CAP; }
-        var gl = window.CDBootGlsl ? window.CDBootGlsl.render("snow", URL, el / 1000, gw, gh, {
-          speed: SNOW.speed, scale: SNOW.scale, grow: SNOW.grow,
-          dark: SNOW.dark, bias: SNOW.bias, sun: SNOW.sun
-        }) : null;
-        if (gl) {
-          ctx.imageSmoothingEnabled = true;
-          ctx.drawImage(gl, 0, 0, gw, gh, 0, 0, W, H);
-        } else {
-          /* 还没加载好(或编译失败)时的兜底:深蓝雪幕,绝不留白 */
-          var g0 = ctx.createLinearGradient(0, 0, W * 0.6, H);
-          g0.addColorStop(0, "#243550");
-          g0.addColorStop(0.5, "#141f36");
-          g0.addColorStop(1, "#0a1120");
-          ctx.fillStyle = g0;
+        /* 0..veil:夜空先亮出来,雪一直在下 */
+        paintSky();
+
+        /* 极光:面板同款只给极淡一缕(过场不抢,面板里才是主角) */
+        var aurA = 0.16 * Math.min(1, el / 1200);
+        if (aurA > 0.01) {
+          var ag = ctx.createLinearGradient(0, 0, W, H * 0.5);
+          ag.addColorStop(0.2, "rgba(60, 220, 190, 0)");
+          ag.addColorStop(0.5, "rgba(80, 230, 200, " + (aurA * 0.5).toFixed(3) + ")");
+          ag.addColorStop(0.8, "rgba(120, 180, 255, 0)");
+          ctx.save();
+          ctx.globalCompositeOperation = "lighter";
+          ctx.fillStyle = ag;
+          ctx.fillRect(0, 0, W, H * 0.55);
+          ctx.restore();
+        }
+
+        /* 飘雪:细小粒子,近大远小(和面板 SNOW 同口味) */
+        ctx.save();
+        for (var f = 0; f < 80; f++) {
+          var sp2 = 24 + hash(f * 5.1) * 56;
+          var sy = (hash(f * 3.3) * H + el * 0.001 * sp2) % (H + 20) - 10;
+          var sx = (hash(f * 9.9) * W + el * 0.0006 * sp2 * -0.34) % (W + 20) - 10;
+          var dep = 0.3 + hash(f * 7.1) * 0.7;
+          ctx.globalAlpha = (0.16 + 0.4 * dep) * Math.min(1, el / 600);
+          ctx.fillStyle = "#dcefff";
+          ctx.beginPath();
+          ctx.arc(sx, sy, 0.8 + dep * 1.7, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+
+        /* 霜:0..veil 从边缘慢慢爬进来(中央始终留一口"待呵气的窗");
+           melt 后中央化开,reFrost 起重新合拢 */
+        var veil = Math.min(1, el / T.veil);
+        var clear = 0;
+        if (el > T.melt) clear = Math.min(1, (el - T.melt) / 550);
+        if (el > T.reFrost) clear *= Math.max(0, 1 - (el - T.reFrost) / (T.end - T.reFrost));
+        if (veil > 0.01) frost(ctx, clear, el, veil);
+
+        /* 呵气雾(两次) */
+        if (el > T.breath && el < T.melt + 1100) puff(T.breath);
+        if (el > T.reFrost - 350) puff(T.reFrost - 350);
+
+        /* 碎片:洞里透出的字 —— 取面板真实碎片的头两句,字体同面板(浅蓝,发光) */
+        if (el > T.showAt && clear > 0.25 && clear < 0.98) {
+          var vis = Math.min(1, (el - T.showAt) / 450) * Math.min(1, clear * 3) * (1 - Math.max(0, (el - T.reFrost) / (T.end - T.reFrost)));
+          var fs = Math.max(13, Math.round(Math.min(W, H) * 0.023));
+          ctx.font = '500 ' + fs + 'px "Alpha Sector", ui-monospace, Consolas, monospace';
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          for (var s3 = 0; s3 < SHARDS.length; s3++) {
+            ctx.save();
+            ctx.globalAlpha = vis * (s3 === 0 ? 0.95 : 0.75);
+            ctx.shadowColor = "rgba(176, 220, 255, 0.9)";
+            ctx.shadowBlur = 12;
+            ctx.fillStyle = "#eaf4ff";
+            ctx.fillText(SHARDS[s3], W / 2, H * (0.40 + s3 * 0.085));
+            ctx.restore();
+          }
+          /* 暗示行:面板的玩法提示,提前一拍出现 */
+          ctx.save();
+          ctx.globalAlpha = vis * 0.55;
+          ctx.fillStyle = "#9fd4ee";
+          ctx.font = Math.max(10, Math.round(fs * 0.72)) + 'px "Alpha Sector", ui-monospace, Consolas, monospace';
+          ctx.fillText("—— 暖一暖,底下写着几句话", W / 2, H * (0.40 + SHARDS.length * 0.085) + fs * 0.5);
+          ctx.restore();
+        }
+
+        /* 角落登录行 */
+        var fs2 = Math.max(11, Math.round(Math.min(W, H) * 0.019));
+        ctx.font = fs2 + 'px "Alpha Sector", ui-monospace, Consolas, monospace';
+        ctx.textAlign = "left";
+        ctx.textBaseline = "top";
+        var TAIL = [
+          "> FROST.LAYER — WINDOW SEALED",
+          "> ONE BREATH, THEN READ"
+        ];
+        for (var b = 0; b < TAIL.length; b++) {
+          var bt = el - 500 - b * 400;
+          if (bt <= 0) continue;
+          var shown2 = TAIL[b].slice(0, Math.max(1, Math.round(TAIL[b].length * Math.min(1, bt / 320))));
+          ctx.save();
+          ctx.globalAlpha = 0.5 * Math.min(1, bt / 320) * Math.min(1, veil * 2);
+          ctx.fillStyle = "#cfeaff";
+          if (b === TAIL.length - 1) { ctx.shadowColor = "rgba(190,230,255,0.7)"; ctx.shadowBlur = 8; }
+          ctx.fillText(shown2, W * 0.062, H * 0.07 + b * Math.round(fs2 * 1.6));
+          ctx.restore();
+        }
+
+        /* 收尾 = 霜重新合拢盖满(回到 veil=1、clear=0 的那一帧),然后整帧淡黑交给面板进场霜雾 */
+        if (el > T.end) {
+          var kk = Math.min(1, (el - T.end) / (T.total - T.end));
+          ctx.fillStyle = "rgba(4, 6, 10, " + (kk * kk).toFixed(3) + ")";
           ctx.fillRect(0, 0, W, H);
         }
-
-        /* ---- 2. 前景小雪花 ---- */
-        var tt = el / 1000;
-        ctx.save();
-        ctx.strokeStyle = "#e2f2ff";
-        ctx.lineCap = "round";
-        for (var i = 0; i < flakes.length; i++) {
-          var f = flakes[i];
-          var sp = tt * f.v * 46;
-          var x = (f.x + sp * 0.85) % (W + 60) - 30;
-          var y = (f.y + sp * 0.55) % (H + 60) - 30;
-          if (x < 0) x += W + 60;
-          if (y < 0) y += H + 60;
-          ctx.globalAlpha = f.a;
-          ctx.lineWidth = Math.max(0.7, f.r * 0.26);
-          ctx.beginPath();
-          for (var k = 0; k < 3; k++) {
-            var a = k * Math.PI / 3;
-            ctx.moveTo(x - Math.cos(a) * f.r, y - Math.sin(a) * f.r);
-            ctx.lineTo(x + Math.cos(a) * f.r, y + Math.sin(a) * f.r);
-          }
-          ctx.stroke();
-        }
-        ctx.restore();
-
-        /* ---- 3. 收尾:巨雪 + 那条线 ---- */
-        if (el <= SNOW.snow) { ctx.globalAlpha = 1; return; }
-        var k = clamp((el - SNOW.snow) / SNOW.fin, 0, 1);
-        var ke = easeInOut(k);
-        var qLine = (-qMax - lead) + ke * (qMax * 2 + lead * 2);
-        var qFlake = (-qMax - FR * 0.95) + ke * (qMax * 2 + FR * 1.9);
-
-        /* 3a 线扫过的那一侧整片清掉(destination-out)。
-              旋转 45° 后,局部 +x 就是"左上 → 右下"方向,qLine 就是线的位置 ——
-              于是"局部 x < qLine"正好是线【扫过】的那半边 */
-        ctx.save();
-        ctx.translate(cx, cy);
-        ctx.rotate(Math.PI / 4);
-        ctx.globalCompositeOperation = "destination-out";
-        var gd = ctx.createLinearGradient(qLine - feather, 0, qLine + feather, 0);
-        gd.addColorStop(0, "rgba(0,0,0,1)");
-        gd.addColorStop(1, "rgba(0,0,0,0)");
-        ctx.fillStyle = gd;
-        ctx.fillRect(-BIG, -BIG, qLine + feather + BIG, BIG * 2);
-        ctx.restore();
-
-        /* 3b 那条线:先画它,再画雪花 → 中段自然被雪花挡住 */
-        ctx.save();
-        ctx.translate(cx, cy);
-        ctx.rotate(Math.PI / 4);
-        var lg = ctx.createLinearGradient(qLine, -BIG, qLine, BIG);
-        lg.addColorStop(0.00, "rgba(160, 232, 255, 0)");
-        lg.addColorStop(0.30, "rgba(196, 242, 255, 0.85)");
-        lg.addColorStop(0.50, "rgba(255, 255, 255, 1)");
-        lg.addColorStop(0.70, "rgba(196, 242, 255, 0.85)");
-        lg.addColorStop(1.00, "rgba(160, 232, 255, 0)");
-        ctx.globalCompositeOperation = "lighter";
-        ctx.strokeStyle = "rgba(120, 215, 255, 0.28)";
-        ctx.lineWidth = Math.max(6, feather * 0.9);                 /* 外发光 */
-        ctx.beginPath(); ctx.moveTo(qLine, -BIG); ctx.lineTo(qLine, BIG); ctx.stroke();
-        ctx.globalCompositeOperation = "source-over";
-        ctx.strokeStyle = lg;
-        ctx.lineWidth = Math.max(1.2, Math.min(W, H) * 0.0022);     /* 亮芯 */
-        ctx.beginPath(); ctx.moveTo(qLine, -BIG); ctx.lineTo(qLine, BIG); ctx.stroke();
-        ctx.restore();
-
-        /* 3c 巨大雪花(中心压在线上,略偏前)*/
-        if (!flakePath) flakePath = buildFlake();
-        ctx.save();
-        ctx.translate(cx + qFlake * S2, cy + qFlake * S2);
-        ctx.rotate(-0.35 + ke * 0.85);
-        ctx.lineJoin = "round";
-        ctx.lineCap = "round";
-        ctx.globalCompositeOperation = "lighter";       /* 辉光 */
-        ctx.globalAlpha = 0.5;
-        ctx.strokeStyle = "rgba(140, 218, 255, 0.55)";
-        ctx.lineWidth = FR * 0.045;
-        ctx.stroke(flakePath);
-        ctx.globalCompositeOperation = "source-over";   /* 本体 */
-        ctx.globalAlpha = 1;
-        ctx.strokeStyle = "#f2fbff";
-        ctx.lineWidth = FR * 0.011;
-        ctx.stroke(flakePath);
-        ctx.restore();
-
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-        ctx.globalAlpha = 1;
-        ctx.globalCompositeOperation = "source-over";
       }
     };
   }
 
-  /* ================= 出口 ================= */
+
   var SCENES = {
     emoji: sceneEmoji,
     hex: sceneHex,
     water: sceneWater,
     glitch: sceneGlitch,
-    fractal: sceneSnow
+    fractal: sceneFrost
   };
   var BY_KEY = { self: "emoji", growth: "hex", lost: "water", tech: "glitch", future: "fractal" };
 
@@ -754,7 +921,7 @@
       try {
         return fn(ctx, W, H, accent, cfg);
       } catch (e) {
-        return SCENES.hex(ctx, W, H, accent, cfg);      /* 任何一套出问题都不至于白屏 */
+        return SCENES.hex(ctx, W, H, accent, cfg);
       }
     }
   };

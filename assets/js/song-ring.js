@@ -1,9 +1,3 @@
-/* ============================================================
-   光驱下方的 3D 歌名光环
-     · 外圈文字 = "歌名 - 歌手",按字数决定重复几遍(字数多就少重复)
-     · 内圈两个环 = 音量环,跟着音乐电平缩放
-   参数在 holo.css 的 .holo:--ring-*
-   ============================================================ */
 (function () {
   "use strict";
 
@@ -11,7 +5,6 @@
   var track = document.getElementById("song-ring-track");
   if (!ring || !track) return;
 
-  /* 目标:绕一圈大约 40 个字符的位置;字多就少重复,字少就多重复 */
   var TARGET = 40;
 
   function build(textParts) {
@@ -20,8 +13,7 @@
     var repeats = Math.max(1, Math.min(4, Math.round(TARGET / Math.max(1, full.length))));
     var html = "";
     var idx = 0;
-    /* 每个字符(含空格)一个 span,沿圆周均匀分布 */
-    var unit = full + "   ";                       /* 段与段之间留空隙 */
+    var unit = full + "   ";
     var chars = [];
     for (var r = 0; r < repeats; r++) {
       for (var i = 0; i < unit.length; i++) chars.push({ c: unit[i], artist: false });
@@ -35,7 +27,6 @@
     track.innerHTML = html;
   }
 
-  /* 换盘:取歌名 + 歌手 */
   window.addEventListener("cd-select", function (e) {
     var key = (e && e.detail) || "";
     var btn = document.querySelector('.cd[data-panel="' + key + '"]');
@@ -46,7 +37,6 @@
     build([song, artist].filter(Boolean).join(" - ").split(""));
   });
 
-  /* 首次进入:用当前选中的那张盘渲染一次 */
   function initFromSelected() {
     var sel = document.querySelector(".cd.is-active") || document.querySelector(".cd");
     if (!sel) return;
@@ -57,7 +47,6 @@
   setTimeout(initFromSelected, 1200);
 
 
-  /* ---- 中环:写一遍的状态文字 ---- */
   var midBox = document.getElementById("song-ring-midtext");
   function buildMid(text) {
     if (!midBox) return;
@@ -72,7 +61,6 @@
   }
   setTimeout(function () { buildMid("链接确认 存储稳定"); }, 1400);
 
-  /* 音量环:跟着 --cd-pulse / --cd-bass 缩放 */
   var holo = document.querySelector(".holo") || document.getElementById("rack");
   var v1 = ring.querySelector(".song-ring__vol--1");
   var v2 = ring.querySelector(".song-ring__vol--2");
@@ -92,7 +80,6 @@
     if (v2) v2.style.transform = "translate(-50%, -50%) scale(" + (base + cur * 0.22).toFixed(3) + ")";
     if (v1) v1.style.opacity = (0.5 + cur * 0.5).toFixed(2);
     if (v2) v2.style.opacity = (0.4 + cur * 0.6).toFixed(2);
-    /* 最外环也吃音频:轻微缩放 + 亮度 */
     var gain = parseFloat(cs.getPropertyValue("--ring-outer-gain")) || 0.06;
     var outerPlane = ring.querySelector(".song-ring__plane--outer");
     if (outerPlane) outerPlane.style.setProperty("--ring-outer-scale", (1 + cur * gain).toFixed(4));
@@ -101,7 +88,6 @@
     drawRays(cur, cs);
   }
 
-  /* ---- 最内环左右两端射出两道细线:与竖直方向成 --ring-line-angle,一直连到架子边 ---- */
   var rays = document.getElementById("song-ring-rays");
   var rctx = rays ? rays.getContext("2d") : null;
   function drawRays(cur, cs) {
@@ -118,7 +104,6 @@
     rctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     rctx.clearRect(0, 0, W, H);
 
-    /* 最内环 = .song-ring__vol--2(30%),圆心/半径直接从 DOM 量,永远对得上 */
     var inner = ring.querySelector(".song-ring__vol--2");
     if (!inner) return;
     var rr = inner.getBoundingClientRect();
@@ -126,35 +111,30 @@
     var cx = rr.left - box.left + rr.width / 2;
     var cy = rr.top - box.top + rr.height / 2;
     var rad = rr.width / 2;
-    /* 光环盒子相对架子的偏移 */
     var ox = box.left - rack.getBoundingClientRect().left;
     var oy = box.top - rack.getBoundingClientRect().top;
 
     var ang = (parseFloat(cs.getPropertyValue("--ring-line-angle")) || 30) * Math.PI / 180;
     var col = (cs.getPropertyValue("--ring-line-color") || "rgba(234,243,255,0.35)").trim();
 
-    /* 左右两端点 */
     var pts = [
-      { x: ox + cx - rad, y: oy + cy },     /* 左端 */
-      { x: ox + cx + rad, y: oy + cy }      /* 右端 */
+      { x: ox + cx - rad, y: oy + cy },
+      { x: ox + cx + rad, y: oy + cy }
     ];
-    /* 左端往左下、右端往右下,与竖直方向成 ang,一直连到架子边 */
     var dx = Math.tan(ang);
     rctx.lineWidth = 1;
     rctx.strokeStyle = col;
     pts.forEach(function (pt, i) {
-      var dir = i === 0 ? -1 : 1;                       /* -1 左, +1 右 */
-      var tToSide = (dir < 0 ? pt.x : W - pt.x) / dx;   /* 走到左右边界 */
-      var tToBottom = (H - pt.y);                       /* 走到下边界 */
+      var dir = i === 0 ? -1 : 1;
+      var tToSide = (dir < 0 ? pt.x : W - pt.x) / dx;
+      var tToBottom = (H - pt.y);
       var t = Math.min(tToSide, tToBottom);
       var ex = pt.x + dir * dx * t;
       var ey = pt.y + t;
-      /* 主细线 */
       rctx.beginPath();
       rctx.moveTo(pt.x, pt.y);
       rctx.lineTo(ex, ey);
       rctx.stroke();
-      /* 微弱辉光:再描一遍更粗更淡的 */
       rctx.save();
       rctx.globalAlpha = 0.22 + cur * 0.25;
       rctx.lineWidth = 3.5;
@@ -164,7 +144,6 @@
       rctx.stroke();
       rctx.restore();
       rctx.lineWidth = 1;
-      /* 起点一个小节点 */
       rctx.beginPath();
       rctx.arc(pt.x, pt.y, 2, 0, Math.PI * 2);
       rctx.fillStyle = "rgba(234, 243, 255, 0.8)";

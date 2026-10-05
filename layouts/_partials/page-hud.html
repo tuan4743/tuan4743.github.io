@@ -1,97 +1,16 @@
-{{/* ============================================================
-     右侧 HUD(博客页)—— 第二阶段第三刀:把 7 条改造逐条落位
-     ─────────────────────────────────────────────────────────────
-     用户这一轮的原话(按 1~7 编号),每条都在下面标了落点:
-       1. 拉高框的优先级(不然上滑时会被内容重叠、穿过去)  → .page-hud 的 z-index
-       2. 左上角那个凸起放 LOGO「Tuagfey Blog」              → .hud-logo
-       3. 凸起往下收(再一次凸起之前)那一段放搜索栏          → .hud-search
-       4. 搜索栏右边、右上角那块空白放三枚按钮               → .hud-acts
-       5. 右侧竖栏从"凹下去的地方"起,依次放五个导航按钮      → .hud-nav
-       6. 导航以下、右下角空白:明暗做成圆角矩形长按钮在最下面,
-          两根滑条并排在它上面                               → .hud-ctl
-       7. 下面的横带塞三支笔(荧光笔/记号笔/橡皮擦):
-          可选,按一下激活并展开成滑条调大小,自动重排        → .hud-pens
-
-     ★★ 位置的算法:整层是 position:fixed; inset:0,所以子元素的
-        right / top / bottom 里的百分比【就等于用户坐标制的百分比】——
-        和边框那条折线是同一套数(见下面 CSS 里的 --hud-ledge / --hud-notch 等)。
-        "凸起"= 折线往左伸出到 x≈43 的那块(深 9%);
-        "收窄段"= 折线退回到 y=6 那条浅边、横跨 x 8~28 的那条;
-        "右上角空白"= x<8 且 y<6 的角;  "凹下去的地方"= 竖段起点 y≈11.33。
-     ============================================================ */}}
-{{- /* 参考折线 = gFrame(1920, 1080) 的输出(16:9);真值由 page-hud.js 按实际视口重算。
-       ★ 想手改?改 assets/js/page-hud.js 的 gFrame(),别改这里 ——
-         测试会把两边各算一遍再比,不一致立刻红。
-       ★ ⑨ 是 35(不是最初的 25):底带要装下三支笔 + 展开的尺寸滑条。 */ -}}
 {{- $frame := "M55 0 L57.9228 9 L70 9 L71.6875 6 L92 6 L95 11.3333 L95 88.6667 L92 94 L65 94 L63.0514 100" -}}
-{{- /* ★★ 左下角那个 L 面板的参考折线 = gFrameLB() 的输出。
-       它的形是在【正方形坐标空间】里定的(设计稿 left-band-square.html),不含视口参数:
-       百分比就是百分比 —— 上到 16:9 页面就是横向拉开,顶点【不随视口重算】(和右支相反)。
-       ★ 想手改?改 assets/js/page-hud.js 的 LB 那几个旋钮,别改这里 ——
-         测试会把两边各算一遍再比,不一致立刻红。
-       ★ 走向:页左缘 (100,42) 收口 → 沿左缘往下 → 两道凸起的梯形按钮(平顶 7.5、斜肩 30°)
-         → y=91 拐角 45° 斜切 7 → 下支(= 左支沿对角线 x=y 的镜像,倒序)→ 页底 (42,100)。 */ -}}
 {{- $band := "M0 42 L2 43.1547 L2 51.0238 L6 53.3332 L6 60.8332 L2 63.1426 L2 71.0117 L6 73.3211 L6 80.8211 L2 83.1305 L2 91 L9 98 L16.8695 98 L19.1789 94 L26.6789 94 L28.9883 98 L36.8574 98 L39.1668 94 L46.6668 94 L48.9762 98 L56.8453 98 L58 100" -}}
 {{- $current := . -}}
-{{- /* ★★ ECHO 的提示:来自 world/提示.md(经 scripts/sync-world.mjs 写进 archive.hint)。
-       ★ 为什么放在这里而不是 projection-node.html:那个 partial 是从
-         extend_footer.html 调的,而主题用 partialCached 把整个 footer 按
-         【Layout + Kind】缓存 —— 按页面变的东西放进去会被第一页的值写死
-         (baseof.html 顶上那段就是在讲这个坑,右侧 HUD 当初就是这么搬出来的)。
-         page-hud.html 是 baseof 直接渲染的,没进缓存,安全。 */ -}}
 {{- $echoHint := "" -}}
 {{- with $current.Params.archive }}{{ $echoHint = .hint | default "" }}{{ end -}}
 <div class="page-hud" id="page-hud" data-hud-page="{{ $current.RelPermalink }}" data-echo-hint="{{ $echoHint }}" data-hud-frame="{{ $frame }}" data-hud-band="{{ $band }}">
-    {{/* ★ viewBox="0 0 100 100" 就是用户的坐标制式(一个单位 = 一页的 1%);
-         preserveAspectRatio="none" 把它拉满视口 ⇒ 坐标即百分比。
-         ★★ d 会被 page-hud.js 按【真实视口】重算(45°/60° 是屏幕角度,
-            斜线的水平位移跟长宽比有关)。
-         ★ 三条线都 vector-effect:non-scaling-stroke:线宽【和虚线节拍】都按
-           屏幕像素算,不被 viewBox 的拉伸带跑 —— 所以 --hud-dash 能和 CD 页逐字相同。
-         ★★ .hud-fill 是【底板】:同一圈轮廓的闭合版(沿页底 → 页右缘 → 回到起点),
-            把框里那一块盖住 —— 用户原话:"这个框应该能遮住底下(让底下不显示,
-            不然像现在这样很奇怪)"。盖多少由 CSS 的 --hud-cover 一个数决定。 */}}
     <svg class="page-hud__frame" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-        {{/* ★★★ 底板:折线与页缘之间那圈【防重叠】的带子。
-             用户:"为什么原本右侧面板的不透明背景防重叠?你到底在乱改什么?" —— 我删错了。
-
-             收口写法是 d + " L100 100 L100 0 Z",展开是:
-                 … L63.0514 100      折线末点
-                 L100 100            沿【页底】往右
-                 L100 0              沿【页右缘】往上
-                 Z                   沿【页顶】回到起点 (55,0)
-             三条闭合线【全部贴着页缘】,不穿越正文 —— 所以底板只盖住
-             "折线与页缘之间"那一圈,正文滚进来不会透出去。
-
-             ★ 我当初判断它"斜切正文"是看错了:那条 (100,0) → (55,0) 走的是页顶,
-               不是穿过页面中间。撤掉它的真实后果就是"防重叠没了"。
-             ★ 盖多少由 CSS 的 --hud-cover 一个数决定(默认 rgba(3,3,8,0.92))。 */}}
         <path class="hud-fill" d="{{ $frame }} L100 100 L100 0 Z"></path>
         <path class="hud-halo" d="{{ $frame }}"></path>
         <path class="hud-line" d="{{ $frame }}"></path>
         <path class="hud-run" d="{{ $frame }}"></path>
     </svg>
 
-
-    {{/* ============================================================
-         左下角 UHD 的边框 + 五枚按钮面 —— 一个 L 面板(左支 + 下支)
-         ─────────────────────────────────────────────────────────────
-         用户:"左下角也搞一个 UHD……完成左侧 UHD,实现和右边一样,是先用 SVG 画出边框,
-               再往边框上塞按钮,框都是不规则多边形框。"
-         ★ 所以顺序就是:先这一支 SVG(框 + 按钮的形),再 hud-left.html(能按的按钮)。
-         ★ 画法和右边那支一样:viewBox 0 0 100 100 + preserveAspectRatio=none +
-           4 层(底板 / halo / 虚线 / 跑马灯),线宽与虚线节拍靠 non-scaling-stroke。
-         ★★ 五枚按钮面就是这里这 5 个 polygon(四个梯形 + 左下角一个三角形):
-            它们和凸起共用同一条边 —— 外侧贴到页面边缘,两条斜边是斜肩的平行延长线
-            (用户:"按钮也是梯形的……按钮贴着凸起的边边" + "按钮的底部应该贴近页面边缘")。
-            放在 SVG 里 = 和框同一个正方形盒子、一起缩放,永远不会和框走散。
-            HTML 那层(带 clip-path 的按钮)只负责点击/悬停/图标,形和这里逐点相同。
-         ★★★ 整支 SVG 的盒子是【左下角一个边长 = 视口高度的正方形】(见 page-hud.css
-            的 .page-hud__band)—— 不能铺满视口:那是 16:9 的盒子,会把横向拉长 16/9 倍,
-            斜肩 30° 变 18°、斜切 45° 变 29.4°,按钮位置也跟着跑
-            (用户:"你直接迁移到网页里面就变位置了,因为网页比例不是一个正方形")。
-         ★ 底板收口只走页缘:d + " L0 100 Z" ⇒ 从末点(页底 x=58)沿【页底】往左到左下角,
-           再沿【页左缘】回到起点。两条都是页缘,不穿正文(和右边那条同理)。 */}}
     <svg class="page-hud__band" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
         <path class="hud-fill hud-band-fill" d="{{ $band }} L0 100 Z"></path>
         <polygon class="hud-face hud-face--0 is-on" points="0.3,50.831 5.5,53.8332 5.5,60.3332 0.3,63.3354"></polygon>
@@ -104,33 +23,12 @@
         <path class="hud-run hud-band-run" d="{{ $band }}"></path>
     </svg>
 
-    {{/* 框画好了,往框上塞按钮:四枚梯形模块 + 左下角那枚等腰直角三角形。
-         它们的位置/形状【不是写死的百分比】—— 形在 SVG 里(上面那 5 个 polygon),
-         能按的那层在 hud-left.html,靠 clip-path 和上面逐点相同。 */}}
     {{ partial "hud-left.html" $current }}
 
-    {{/* ============================================================
-         侧边目录(进度条 + 面板 + 收起)—— 用户:"加一个侧边目录,
-         就放在内容页和侧边栏的中间"。
-         ★ 位置:正文占 x 31~69(--main-width: 720px 居中),竖栏在 x 89~95,
-           "中间"就是 x 69~88 —— 具体数值全在 assets/css/hud-toc.css 顶部四个变量里。
-         ★ 只在文章页出现:目录要读 .Fragments(正文标题),列表页没有;
-           标题少于两条时 partial 自己什么都不输出。
-         ============================================================ */}}
     {{ partial "hud-toc.html" $current }}
 
-    {{/* ② 凸起里的 LOGO —— 折线在顶部伸到 x≈43;文字从这里往右排,不能顶穿那条 60° 斜线 */}}
-    {{/* ★ 用户第七轮:"Tuagfey Blog 不需要吸附啊,它只是个 LOGO,也不需要点击跳转首页的
-          功能,因为它那个位置比较敏感。" ⇒ 从 <a> 改成 <span>:不跳转、不拿焦点、
-          也从磁力光标的白名单里删掉(见 magnetic-cursor.js)。 */}}
     <span class="hud-logo">{{- site.Title -}}</span>
 
-    {{/* ③ 收窄段(y=6 那条浅边、x 8~28)里的搜索框。
-         ★ 这里用的是【顶栏原来那套标记】:同一个 id(#header-search-input /
-           #header-search-results)+ data-search —— 组件是按容器找实例的
-           (assets/js/search.js),所以搬过来不用改组件一行。
-         ★ search.js 必须排在 header-search.js 之前加载(后者一进来看到
-           data-search 就让位);见 extend_footer.html 的顺序注释。 */}}
     <div class="hud-search search-widget" id="header-search" data-search>
         <div class="search-box">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
@@ -141,9 +39,6 @@
             </svg>
             <input id="header-search-input" type="search" placeholder="搜索站内…" autocomplete="off"
                 accesskey="/" aria-label="搜索" title="搜索 (Alt + /)" data-search-input>
-            {{/* ★ 自己画一颗 ×:浏览器自带的那颗在很多浏览器里只派发 search 事件,
-                   点了面板不收(用户原话:"右侧的×没用")。这颗直接清空输入框 +
-                   调组件的 clear(),任何浏览器都一样。没有内容时它自己藏起来。 */}}
             <button class="hud-search__clear" type="button" id="hud-search-clear" aria-label="清空搜索" hidden>
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                     stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
@@ -158,13 +53,6 @@
         </div>
     </div>
 
-    {{/* ④ 右上角那三枚按钮:导出 Markdown / GitHub / WeChat(二维码)。
-         ★ 排成【四象限】:左上=导出、右上=GitHub、右下=WeChat,左下那格留空
-           (用户点名的"第一二四象限")。
-         ★ 导出那份 .md 是 Hugo 真生成的输出格式(hugo.toml 的 [outputFormats.markdown]
-           + layouts/_default/single.md / list.md):
-             文章页 → 这篇文章的原文;列表页(分区/分类/标签)→ 这一页的清单。
-           两种都有真文件 ⇒ 三个按钮【永远都在】,不会再出现"列表页只有两个"。 */}}
     {{- $md := printf "%sindex.md" $current.RelPermalink -}}
     {{- $isArticle := eq $current.Kind "page" -}}
     {{- $mdTitle := cond $isArticle "导出这篇文章的 Markdown" "导出这一页的清单(Markdown)" -}}
@@ -185,8 +73,6 @@
                 <path d="M12 2C6.48 2 2 6.58 2 12.26c0 4.5 2.87 8.32 6.84 9.67.5.1.68-.22.68-.49l-.01-1.7c-2.78.62-3.37-1.37-3.37-1.37-.45-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.62.07-.62 1 .07 1.53 1.06 1.53 1.06.9 1.57 2.35 1.12 2.92.85.09-.66.35-1.12.63-1.38-2.22-.26-4.56-1.14-4.56-5.06 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.7 0 0 .84-.28 2.75 1.05a9.3 9.3 0 0 1 5 0c1.91-1.33 2.75-1.05 2.75-1.05.55 1.4.2 2.44.1 2.7.64.72 1.03 1.63 1.03 2.75 0 3.93-2.35 4.8-4.58 5.05.36.32.68.94.68 1.9l-.01 2.82c0 .27.18.6.69.49A10.06 10.06 0 0 0 22 12.26C22 6.58 17.52 2 12 2Z"></path>
             </svg>
         </a>
-        {{/* ★ 用户第八轮:"点微信这个按钮出来的二维码好小,不如干脆复制我的微信号到剪切板算了:tuagfey."
-               ⇒ 去掉二维码面板,改成点一下把微信号复制走,并弹一句"已复制"。 */}}
         <button class="hud-act" id="hud-wechat" data-hud-act="wechat" data-copy="tuagfey"
             aria-label="复制我的微信号" title="复制微信号:tuagfey">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -197,8 +83,6 @@
         <span class="hud-toast" id="hud-toast" role="status" hidden></span>
     </div>
 
-    {{/* ⑤ 竖栏:从"凹下去的地方"(y≈11.33)起,依次五个导航按钮。
-         数据还是 site.Menus.main,图标还是同一个 $m.Pre(和顶栏旧址、平板 APP 同源)。 */}}
     <nav class="hud-nav" aria-label="站点导航">
         {{- $pageURL := $current.Permalink | absLangURL -}}
         {{- range $i, $m := site.Menus.main }}
@@ -221,21 +105,6 @@
         {{- end }}
     </nav>
 
-    {{/* ============================================================
-         ⑥ 左栏:番茄钟(可收起)—— 用户:"可以先继续做番茄钟,番茄钟做成可收起的"。
-         ★ 为什么放在【这里】而不是塞进 extend_footer 那类 partial:
-           它是 HUD 的一部分(.page-hud 的子元素,定位/配色/字体全部沿用
-           page-hud.css 那一套变量),搬出去就成孤儿了。
-         ★ 收起形态是一枚【小胶囊】,不是"整个消失":计时还在跑,得有个地方看。
-         ★ 结构(展开 ⇒ 收起)全部由 CSS 按 .is-min 切,JS 只切类名 + 写文字,
-           免得"布局一半在 JS、一半在 CSS"里外不是人(目录那块踩过)。
-         ★ 只有博客页有它的脚本:extend_footer.html 里那个 if not .IsHome 管着 ——
-           首页那块屏是 CD 架 + 平板那一套,左栏没有位置。
-         ★★ 这一段说明里【故意不写模板定界符】:Go 模板的注释遇到"注释结束"
-           那两字节就收尾,里面再出现一次会【提前收尾】,报的是
-           "comment ends before closing delimiter" —— 而且报错行号指向注释
-           结尾那一行,不是罪魁那一行(本轮真踩了,查了两轮才看出来)。
-           结论:模板注释里写那两个字符,一律用汉字说,不写真身。 */}}
     <div class="hud-timer is-min" id="hud-timer" data-hud-min="25">
         <div class="hud-timer__shell">
             <span class="hud-timer__deco" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
@@ -243,7 +112,7 @@
             <div class="hud-timer__head">
                 <span class="hud-timer__title">番茄钟</span>
                 <span class="hud-timer__en">FOCUS</span>
-                {{/* 收起:这颗按钮【一直在】,展开态是"收到胶囊"、收起态是"展开" */}}
+
                 <button class="hud-timer__min" id="hud-timer-min" type="button" aria-expanded="true"
                     aria-controls="hud-timer-card" title="收起番茄钟" aria-label="收起番茄钟">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -290,20 +159,8 @@
             </div>
         </div>
 
-        {{/* ★★ 原来这里有一枚"收起态胶囊"(25:00 番茄钟)。
-            用户第二轮:"原本的番茄钟按钮没删" —— 删掉。
-            番茄钟现在的家是左下角 UHD 的模块按钮:收起时不飘一个胶囊出来,
-            改成在那枚按钮上显示一个小进度圈(见 hud-left.css 的 .hud-mod__ring)。 */}}
     </div>
 
-    {{/* ⑥b 正文字号 / 字距的【备用位置】—— 用户第五轮之后从 CDP 扫描里发现的:
-         目录面板在 1280 及以下会因为缝太窄整块收掉(.hud-toc.is-tight),
-         而字号控件住在面板里 ⇒ 那些窗口上【根本调不了正文字号】。
-         用户这一轮点名的需求就是"调整内容页的,方便用户",不能在窄屏上没了。
-         ⇒ 目录在的时候用它自己的两行;目录不在的时候,这里这枚胶囊顶上(同一套
-            data 属性、同一个读写逻辑,见 assets/js/hud-toc.js 的 pill 一段)。
-         ★ 默认 hidden:谁该显示由 JS 决定(目录没渲染 / 目录收掉时才显示)。
-         ★ 位置:左栏顶部(番茄钟上面),和番茄钟胶囊一个尺寸,窄屏上不打架。 */}}
     <div class="hud-type" id="hud-type" hidden role="group" aria-label="正文字号与字距">
         <span class="hud-type__lab">字号</span>
         <button class="hud-type__step" type="button" data-hud-toc-size="-1" aria-label="正文字号减小" title="正文字号 −">−</button>
@@ -315,12 +172,6 @@
         <span class="hud-type__val" id="hud-type-track-val"></span>
     </div>
 
-    {{/* ⑦ 右下三件套:两根滑条【并排】在上,明暗做成圆角矩形长按钮压在最下面。
-         ★ 并排是否塞得下:竖栏宽 = 5vw(1920→96px,1440→72px),
-           一根竖滑条横向只需要滑块头那点宽度(24px)+ 标签(两个字 ≈ 22px)
-           ⇒ 每根 36~48px,两根并排够用;再窄就轮到"可展开"那套(还没做)。
-         ★ 明暗那个 id【必须】是 #theme-toggle:主题 footer 末尾那句
-           document.getElementById("theme-toggle").addEventListener(...) 没有判空。 */}}
     <div class="hud-ctl">
         <div class="hud-faders">
             <div class="hud-fader">
@@ -361,11 +212,6 @@
         </button>
     </div>
 
-    {{/* ⑧ 底部横带(y 94~100、往左伸到 x=25)里的三支笔:
-         可选按钮 —— 按一下激活,并且【就地展开】成一条尺寸滑条;
-         同时只开一支(JS 负责),展开/合上时同一行的其它按钮自动重排(flex 的活儿)。
-         ★ 尺寸现在只是记在 localStorage 里(笔还没有落笔的地方);
-           滑条左边那颗圆点会跟着变大 —— 免得成了一个"按了没反应"的控件。 */}}
     <div class="hud-pens" role="group" aria-label="标记工具">
         <div class="hud-pen" data-hud-pen="marker">
             <button class="hud-pen__btn" aria-pressed="false" title="荧光笔">

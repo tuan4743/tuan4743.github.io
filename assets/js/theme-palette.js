@@ -1,9 +1,6 @@
-/* 背景配色:面板预设色块选择,localStorage 持久化
-   另:首页是独立文档(不含主题 footer),明暗切换需要在这里自行绑定 */
 (function () {
   "use strict";
 
-  /* ---------- 明暗切换(仅首页需要,普通页面由主题 footer 绑定,避免重复绑定) ---------- */
   if (document.body.classList.contains("intro-page")) {
     var themeBtn = document.getElementById("theme-toggle");
     if (themeBtn) {
@@ -44,7 +41,6 @@
     if (match) match.classList.add("active");
   }
 
-  /* 触屏设备:点击按钮开关面板;桌面端悬停已由 CSS 处理 */
   btn.addEventListener("click", function (e) {
     e.stopPropagation();
     wrap.classList.toggle("open");
@@ -62,7 +58,6 @@
     wrap.classList.remove("open");
   });
 
-  /* 初始高亮当前配色 */
   var initial = panel.querySelector('.palette-swatch[data-palette="' + current() + '"]');
   if (initial) initial.classList.add("active");
 })();
