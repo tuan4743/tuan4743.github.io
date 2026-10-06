@@ -374,9 +374,11 @@
      震动 0..0.45 渐强;炫光 0..0.45;光带成形 0.30..0.70;
      裂纹 0.30..0.92;覆屏白幕 0.88..1.0 */
   var CRACKS = [];                    /* 裂纹对象池,爆发开始时生成 */
-  /* 裂纹:【从洋流中心向外放射】—— 起点在河道带中心,主方向
-     朝最近的屏幕边缘径向生长,带小折角;沿途小角度劈出岔缝
-     (裂缝被劈开的感觉,不是树杈)。 */
+  /* 裂纹:玻璃被震碎的裂缝 —— 每条裂纹是一条【主缝】,
+     从洋流带中心出发,方向【各自独立随机】(全角度,不统一朝上),
+     折角走(每段 ±0.55rad 内随机偏转,像裂缝撕开);
+     岔缝从主缝的节点上【顺着主缝前进方向】斜着劈出去(小角度),
+     长得像主缝的裂缝分支,不是树杈(不垂直、不丛生)。 */
   function crackSpawn(qStart, tNow) {
     CRACKS.length = 0;
     var n = 4;
@@ -384,11 +386,12 @@
       var ci = (hash(tNow * 0.011 + i * 7.7) * CURRENTS.length) | 0;
       var sx = 0.06 + hash(tNow * 0.017 + i * 3.1) * 0.88;
       var sy = CURRENTS[ci].y0;
-      /* 主方向:朝最近的水平边缘(上/下),小偏角 */
-      var towardBottom = sy < 0.5;
-      var baseA = towardBottom ? Math.PI / 2 : -Math.PI / 2;
-      var a = baseA + (hash(tNow * 0.023 + i * 5.3) - 0.5) * 0.8;
-      var len = 0.30 + hash(tNow * 0.031 + i * 9.9) * 0.24;   /* 更长:向外贯穿 */
+      /* 主方向:全角度随机(不是统一向上/向外),只排除过平(贴河道) */
+      var a;
+      do {
+        a = hash(tNow * 0.029 + i * 11.3) * Math.PI * 2;
+      } while (Math.abs(Math.sin(a)) < 0.25);       /* 避免几乎水平的缝 */
+      var len = 0.34 + hash(tNow * 0.031 + i * 9.9) * 0.22;
       var segs = [];
       var branches = [];
       var x = sx, y = sy;
@@ -397,14 +400,16 @@
         var nx = x + Math.cos(a) * len / N;
         var ny = y + Math.sin(a) * len / N;
         segs.push([x, y, nx, ny]);
-        /* 岔缝:小角度劈开(≤0.5rad),直而短 —— 裂缝劈开状 */
+        /* 岔缝:顺主缝方向斜劈(偏角 ±0.35~0.6rad),直而短 */
         if (s > 1 && s < N - 2 && hash(tNow * 0.041 + i * 13.7 + s) > 0.35) {
-          var ba = a + (hash(tNow * 0.053 + s * 3 + i) > 0.5 ? 1 : -1) * (0.25 + hash(tNow + s) * 0.3);
-          var blen = len * (0.18 + hash(tNow * 0.09 + s) * 0.14);
+          var side = hash(tNow * 0.053 + s * 3 + i) > 0.5 ? 1 : -1;
+          var ba = a + side * (0.35 + hash(tNow + s) * 0.25);
+          var blen = len * (0.16 + hash(tNow * 0.09 + s) * 0.12);
           branches.push([nx, ny, nx + Math.cos(ba) * blen, ny + Math.sin(ba) * blen]);
         }
         x = nx; y = ny;
-        a += (hash(tNow * 0.061 + s * 7 + i * 3) - 0.5) * 0.5;   /* 折角小:总体径直 */
+        /* 折角:裂缝撕开的随机偏转 */
+        a += (hash(tNow * 0.061 + s * 7 + i * 3) - 0.5) * 1.1;
       }
       CRACKS.push({ ci: ci, segs: segs, branches: branches, born: qStart + i * 0.06 });
     }
@@ -554,8 +559,12 @@
            charge>0.55 后单个点拖成短线(运动方向上,长度随 charge 长);
            爆发期(q):真发光 —— shadowBlur + 多层重绘,光晕随 q 变粗,
            q>0.35 光晕互相咬合连成光带。 */
-      var glow = q > 0 ? Math.min(1, q / 0.40) : 0;          /* 炫光强度 0..1(稍早进入) */
-      var band = q > 0.35 ? clamp((q - 0.35) / 0.35, 0, 1) : 0;  /* 光带成形 */
+      /* ★ 炫光强度:不再等爆发 —— 前期最后 25%(p>0.75,q=0)就开始
+         从 0 爬到 0.5,爆发期再从 0.5 爬到 1 —— 两段之间连续无台阶。
+         (charge 封顶后 p 继续走,glowPre 正好利用那段"临门"。) */
+      var glowPre = q === 0 && surge.p > 0.75 ? (surge.p - 0.75) / 0.25 * 0.5 : 0;
+      var glow = q > 0 ? 0.5 + Math.min(1, q / 0.40) * 0.5 : glowPre;
+      var band = q > 0.30 ? clamp((q - 0.30) / 0.35, 0, 1) : 0;  /* 光带成形 */
       ctx.save();
       for (var f = 0; f < flowDots.length; f++) {
         var fd = flowDots[f];
@@ -631,13 +640,17 @@
           ctx.strokeStyle = "rgba(226, 244, 255, " + (0.55 + 0.4 * band).toFixed(2) + ")";
           ctx.lineWidth = lw;
           ctx.lineCap = "round";
-          ctx.beginPath();
-          for (var seg = 0; seg <= 60; seg++) {
-            var ss2 = seg / 60;
-            var yy2 = currentY(cc3, ss2, tS, 0) * H;
-            if (seg === 0) ctx.moveTo(ss2 * W, yy2); else ctx.lineTo(ss2 * W, yy2);
+          /* 3 遍描:每遍贴一条流丝(strand 0/1/2 中心)—— 河道在动,
+             光带用同一时刻的 currentY 采样 ⇒ 位置和粒子完全同步 */
+          for (var st3 = 0; st3 < 3; st3++) {
+            ctx.beginPath();
+            for (var seg = 0; seg <= 60; seg++) {
+              var ss2 = seg / 60;
+              var yy2 = currentY(cc3, ss2, tS, st3) * H;
+              if (seg === 0) ctx.moveTo(ss2 * W, yy2); else ctx.lineTo(ss2 * W, yy2);
+            }
+            ctx.stroke();
           }
-          ctx.stroke();
         }
         ctx.restore();
       }
