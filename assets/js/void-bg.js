@@ -245,6 +245,27 @@
     y += Math.sin(tSec * 0.07 * c.drift + c.y0 * 9.0) * 0.02;
     return y;
   }
+  /* ★ 张力层:过境期间河道本身要"变形"——每帧给 currentY 乘一个
+     涌动放大器 swellAt(s, t, charge, q),三个互相错位的涌包沿河滚,
+     涌到的地方波幅被撑大 2.2~4 倍,其余地方基本原样。
+     这让"加速"有空间结构:不是整条河均匀地抖,而是有可见的
+     "涌峰从下游压过来"—— 看第二遍也有新的涌包走位。 */
+  function swellAt(s, tSec, charge, q) {
+    var k = charge + q * 1.2;
+    if (k < 0.05) return 1;
+    /* 三个涌包:中心以不同速度沿 s 移动、宽度不同;高斯型放大 */
+    var amp = 1 + k * 2.4;
+    var w = 1;
+    for (var i = 0; i < 3; i++) {
+      var ph = hash(i * 13.7 + 3.1) * 10;
+      var sp = (0.05 + hash(i * 7.3) * 0.06) * (1 + k * 2.5);   /* 涌包随张力加速 */
+      var sc = ((tSec * sp + ph) % 1 + 1) % 1;                  /* 包中心位置 */
+      var d = Math.min(Math.abs(s - sc), 1 - Math.abs(s - sc)); /* 环形距离 */
+      var width = 0.10 + hash(i * 5.9) * 0.10;                  /* 半宽 0.10~0.20 */
+      w += (amp - 1) * Math.exp(-(d * d) / (width * width));
+    }
+    return w;
+  }
   /* 每个流点:固定 seed(股/序号),沿流向以微小速度差移动 → 带内有剪流感 */
   var flowDots = [];
   function buildFlow() {
@@ -464,8 +485,12 @@
     /* ★ 帧积分洋流位移:speed 随 charge/q 变化时,s = off + tS*speed
        会让 tS(全程)乘上全新速度 → 整条河瞬移、粒子"消失一段"。
        改为 surge.adv 每帧累加 speed*dt,速度再猛也平滑续接。
-       ★ 极限速度 28 倍基速(charge=1 时 1+27;爆发期同式已含)。 */
-    var flowSpeed = 0.018 * (1 + charge * 27 + q * 3.0);
+       ★ 极限速度 28 倍基速(charge=1 时 1+27;爆发期同式已含)。
+       ★ 张力:洪流脉冲 —— 速度不是平稳爬升,而是叠一个慢波
+         (周期 ~2.7s,幅度 ±22%),涌来涌去;charge 越满脉冲越深。
+         每一遍过境的"冲刺-稍缓"节奏都不一样(涌包走位+时间相位)。 */
+    var surgePulse = 1 + (charge * 0.16 + q * 0.10) * Math.sin(tS * 2.3 + surge.adv * 6.0);
+    var flowSpeed = 0.018 * (1 + charge * 27 + q * 3.0) * surgePulse;
     surge.adv = (surge.adv || 0) + flowSpeed * dt / 1000;
 
     /* ★ 自适应帧率:平时 30fps;演出激活(p>0 或 q>0)提到 60fps
@@ -583,7 +608,8 @@
         if (s < 0) s += 1;
         var cyc = fd.off + (surge.adv * fd.vj) % 1;       /* 用于闪烁 */
         var cxp = s * W;
-        var cyp = currentY(c3, s, tS, fd.strand) * H + fd.lat * c3.width * H;
+        /* ★ 张力:河道变形 —— 涌包扫过的地方波幅被撑大(swellAt) */
+        var cyp = currentY(c3, s, tS, fd.strand) * H * swellAt(s, tS, charge, q) + fd.lat * c3.width * H;
         var fa = 0.18 + 0.26 * (0.5 + 0.5 * Math.sin(tS * 1.1 + fd.tw));
         /* 内容页避开中央阅读区(爆发期取消避让:洪峰盖一切) */
         var dCtr3 = Math.hypot(cxp - W * 0.5, cyp - H * 0.5) / Math.min(W, H);
@@ -616,9 +642,9 @@
           ctx.lineCap = "round";
           if (!jump) {
             ctx.beginPath();
-            ctx.moveTo(sPrevW * W, currentY(c3, sPrevW, tS, fd.strand) * H + fd.lat * c3.width * H);
-            ctx.lineTo(m1s * W, currentY(c3, m1s, tS, fd.strand) * H + fd.lat * c3.width * H);
-            ctx.lineTo(m2s * W, currentY(c3, m2s, tS, fd.strand) * H + fd.lat * c3.width * H);
+            ctx.moveTo(sPrevW * W, currentY(c3, sPrevW, tS, fd.strand) * H * swellAt(sPrevW, tS, charge, q) + fd.lat * c3.width * H);
+            ctx.lineTo(m1s * W, currentY(c3, m1s, tS, fd.strand) * H * swellAt(m1s, tS, charge, q) + fd.lat * c3.width * H);
+            ctx.lineTo(m2s * W, currentY(c3, m2s, tS, fd.strand) * H * swellAt(m2s, tS, charge, q) + fd.lat * c3.width * H);
             ctx.lineTo(cxp, cyp);
             ctx.stroke();
           }
