@@ -111,6 +111,8 @@
   /* ---------- 暗模式:拓扑泡沫白点 ---------- */
   var NDOTS = 1440;
   var dots = [];
+  /* ★ 等高线游走亮点(丰富度层,仅基态) */
+  var walkers = [];
   function buildDots() {
     dots.length = 0;
     for (var i = 0; i < NDOTS; i++) {
@@ -228,6 +230,8 @@
     { y0: 0.88, amp: [0.07, 0.035, 0.05], speed: 0.041, n: 400, width: 0.045, dir: -1, drift: 1.3 }
   ];
   var STRANDS = 7;                       /* 每股内的流丝数 */
+  /* ★ 河面暗涌斑(丰富度层,仅基态/前期初段) */
+  var ripples = [], rippleInit = false;
   /* 河道中心线:s 处(0..1)的 y。多正弦叠加 + 相位速度被慢波调制 → 多变 */
   function currentY(c, s, tSec, strand) {
     var st = strand || 0;
@@ -526,6 +530,40 @@
       }
       ctx.restore();
 
+      /* ★ 基态丰富度 1:等高线上的游走亮点("载流子")
+         每条等值线级别派 3 个亮点,沿 |∇φ| 梯度反向爬等值线
+         (近似:在等值线附近用 φ 的等值性逐步走查太贵 ——
+         改为在 φ≈lv 的网格点上随机驻留/漂移:每帧对每个亮点
+         在其网格邻域找 φ 最接近 lv 的邻居走一步)。视觉:线的
+         "节点"上有光点沿无形的线走,画面多一层慢速生命。 */
+      if (!surge.p && !surge.q) {
+        if (!walkers.length) {
+          for (var wk = 0; wk < 9; wk++) {
+            walkers.push({ lv: LEVELS[wk % 3], gx: (hash(wk * 3.7) * 34) | 0, gy: (hash(wk * 5.9) * 18) | 0, a: 0.10 + hash(wk * 7.1) * 0.14 });
+          }
+        }
+        ctx.save();
+        ctx.fillStyle = "#cfe6ff";
+        for (var wk2 = 0; wk2 < walkers.length; wk2++) {
+          var wk3 = walkers[wk2];
+          /* 在 4 邻域里挑 |φ-lv| 最小的格子走一步(每 0.4s 一步) */
+          if (hash(Math.floor(tS * 2.5) + wk2 * 31.7) > 0.32) {
+            var bw2 = [[1,0],[-1,0],[0,1],[0,-1]][(hash(tS * 0.7 + wk2 * 9.1) * 4) | 0];
+            var ngx = clamp(wk3.gx + bw2[0], 0, cCols - 1), ngy = clamp(wk3.gy + bw2[1], 0, cRows - 1);
+            var cur = Math.abs(phiGrid[wk3.gy * cCols + wk3.gx] - wk3.lv);
+            var nxt = Math.abs(phiGrid[ngy * cCols + ngx] - wk3.lv);
+            if (nxt <= cur + 0.02) { wk3.gx = ngx; wk3.gy = ngy; }
+          }
+          var wpx = wk3.gx * cw, wpy = wk3.gy * ch;
+          var wtw = 0.5 + 0.5 * Math.sin(tS * 0.9 + wk2 * 2.2);
+          ctx.globalAlpha = wk3.a * (0.4 + 0.6 * wtw);
+          ctx.beginPath();
+          ctx.arc(wpx, wpy, 1.4 + wtw * 0.8, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
       /* 拓扑泡沫白点:亮度 = 相位余弦,位置随场涨落 + 自漂移。
          ★ 性能:避让的 currentY 每点 3 股 × 7 丝 = 21 次三角函数 ——
            预计算【每帧每股每丝在采样列上的 y】没用(点 x 各不同),
@@ -561,6 +599,47 @@
         ctx.fill();
       }
       ctx.restore();
+
+      /* ★ 基态丰富度 2:河面"暗涌斑"——每股河道随机时刻泛起一片
+         更亮的碎斑群(像月光在水面碎开),约 14s 一次、随机一股、
+         位置沿河随机,寿命 ~6s:淡入 → 碎闪 → 淡出。
+         实现:预生成 5 个斑(时间相位错开),激活时在该河 s0 附近
+         撒 12 个碎点,亮度 = 群包络 × 每点闪。仅基态与前期初段。 */
+      if (!rippleInit) {
+        rippleInit = true;
+        for (var ri = 0; ri < 5; ri++) {
+          ripples.push({
+            t0: 4 + hash(ri * 7.7) * 14,                    /* 首次出现时刻(s) */
+            per: 12 + hash(ri * 3.1) * 10,                  /* 周期 s */
+            ci: (hash(ri * 5.3) * CURRENTS.length) | 0,
+            s0: 0.15 + hash(ri * 9.7) * 0.7,
+            life: 5 + hash(ri * 11.1) * 3
+          });
+        }
+      }
+      if (charge < 0.55 && q === 0) {
+        ctx.save();
+        ctx.fillStyle = "#eaf4ff";
+        for (var rp = 0; rp < ripples.length; rp++) {
+          var r2 = ripples[rp];
+          var rt = (tS - r2.t0) % r2.per;                   /* 周期内时刻 */
+          if (rt < 0 || rt > r2.life) continue;
+          var env = Math.sin(Math.PI * rt / r2.life);       /* 淡入淡出 */
+          var cR = CURRENTS[r2.ci];
+          for (var rk = 0; rk < 12; rk++) {
+            var rS = r2.s0 + (hash(rp * 31 + rk * 7.3) - 0.5) * 0.16;
+            var rsX = ((rS % 1) + 1) % 1 * W;
+            var rsY = currentY(cR, rsX / W, tS, (hash(rp * 17 + rk * 3.9) * STRANDS) | 0) * H
+                    + (hash(rp * 13 + rk * 5.7) - 0.5) * cR.width * H;
+            var rTw = 0.5 + 0.5 * Math.sin(tS * 3.1 + rk * 2.4 + rp);
+            ctx.globalAlpha = env * 0.16 * (0.35 + 0.65 * rTw);
+            ctx.beginPath();
+            ctx.arc(rsX, rsY, 1.2 + rTw * 1.4, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+        ctx.restore();
+      }
 
       /* 洋流(共识流):3 股河道、480 个小点,沿河道流、横向散布、
          河道本身随时间弯曲摆动漂移。
@@ -936,6 +1015,7 @@
   window.__voidSurge = {
     hold: function (on) { if (!surge.armed) surge.rate = on ? 0.20 : 0.028; },
     release: function () { if (!surge.armed && surge.p > 0) surge.rate = -0.05; },
+    freeze: function () { if (!surge.armed) surge.rate = 0; },   /* 锁定:水位冻结(不再继续涨) */
     p: function () { return surge.p; },
     phase: function () { return surge.armed ? 2 : (surge.p > 0 ? 1 : 0); },
     onReload: function (fn) { surge.reloadCb = fn; }
