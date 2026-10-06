@@ -464,8 +464,8 @@
     /* ★ 帧积分洋流位移:speed 随 charge/q 变化时,s = off + tS*speed
        会让 tS(全程)乘上全新速度 → 整条河瞬移、粒子"消失一段"。
        改为 surge.adv 每帧累加 speed*dt,速度再猛也平滑续接。
-       ★ 极限速度 42 倍基速(前期 charge=1 时 1+41,爆发期同式已含)。 */
-    var flowSpeed = 0.018 * (1 + charge * 41 + q * 3.0);
+       ★ 极限速度 28 倍基速(charge=1 时 1+27;爆发期同式已含)。 */
+    var flowSpeed = 0.018 * (1 + charge * 27 + q * 3.0);
     surge.adv = (surge.adv || 0) + flowSpeed * dt / 1000;
 
     /* ★ 自适应帧率:平时 30fps;演出激活(p>0 或 q>0)提到 60fps
@@ -578,7 +578,7 @@
         var fd = flowDots[f];
         var c3 = CURRENTS[fd.ci];
         /* ★ 速度:用帧积分 surge.adv(上面每帧累加),速度变化不跳相;
-           前期顶速 42 倍基速(charge=1 → 1+41),爆发期在此之上再 +q*3 */
+           前期顶速 28 倍基速(charge=1 → 1+27),爆发期在此之上再 +q*3 */
         var s = (fd.off + surge.adv * fd.vj * c3.dir) % 1;
         if (s < 0) s += 1;
         var cyc = fd.off + (surge.adv * fd.vj) % 1;       /* 用于闪烁 */
