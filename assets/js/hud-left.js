@@ -331,7 +331,7 @@
     });
     var out = "";
     if (worldData.home) {
-      out += '<a class="hud-cat__home" href="' + esc(worldData.home) + '">' +
+      out += '<a class="hud-cat__home" data-magnetic href="' + esc(worldData.home) + '">' +
         '<b>世界观数据库</b><span>' + items.length + ' 份回收档案 · 六幕</span></a>';
     }
     out += '<div class="hud-cat">';

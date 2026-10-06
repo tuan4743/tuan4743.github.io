@@ -119,4 +119,14 @@
 {{- $u := . | fingerprint "sha256" }}
 <script defer src="{{ $u.RelPermalink }}"></script>
 {{- end }}
+{{- /* /world/ 档案页环境响应:HUD 回光 + 读完低语。非 world 页静默退出。 */ -}}
+{{- with resources.Get "js/world-page.js" }}
+{{- $u := . | fingerprint "sha256" }}
+<script defer src="{{ $u.RelPermalink }}"></script>
+{{- end }}
+{{- /* 文章正文:代码块折叠 + 照片点击放大。没有 .post-content 的页面静默退出。 */ -}}
+{{- with resources.Get "js/post-media.js" }}
+{{- $u := . | fingerprint "sha256" }}
+<script defer src="{{ $u.RelPermalink }}"></script>
+{{- end }}
 {{- end }}

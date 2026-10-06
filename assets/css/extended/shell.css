@@ -828,3 +828,33 @@ body.page-out {
     }
     .echo-say { transition: none; }
 }
+
+/* 灵动感层的亮色覆盖:fill 色值换成墨绿系(动画本身共用) */
+html.void-bg-on[data-theme="light"] .page-hud .hud-face {
+    animation-name: hud-face-idle-light !important;
+}
+@keyframes hud-face-idle-light {
+    0%, 100% { fill: rgba(58, 63, 72, 0.05); }
+    38% { fill: rgba(58, 63, 72, 0.10); }
+    55% { fill: rgba(58, 63, 72, 0.04); }
+}
+html.void-bg-on[data-theme="light"] .page-hud .hud-line,
+html.void-bg-on[data-theme="light"] .page-hud .hud-band-line {
+    animation-name: hud-line-breathe !important;
+}
+html.void-bg-on[data-theme="light"] .page-hud .hud-logo {
+    animation: hud-logo-noise-light 8.9s ease-in-out infinite !important;
+}
+@keyframes hud-logo-noise-light {
+    0%, 100% { text-shadow: 0 0 24px rgba(24, 92, 82, 0.14); }
+    47% { text-shadow: 0 0 20px rgba(24, 92, 82, 0.10); }
+    62% { text-shadow: 0 0 26px rgba(24, 92, 82, 0.18); }
+}
+@media (prefers-reduced-motion: reduce) {
+    html.void-bg-on[data-theme="light"] .page-hud .hud-face,
+    html.void-bg-on[data-theme="light"] .page-hud .hud-line,
+    html.void-bg-on[data-theme="light"] .page-hud .hud-band-line,
+    html.void-bg-on[data-theme="light"] .page-hud .hud-logo {
+        animation: none !important;
+    }
+}

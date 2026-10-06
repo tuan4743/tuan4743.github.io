@@ -274,6 +274,12 @@
     color: #ffffff;
 }
 
+/* 按压反馈:下压 1px + 底色加深(按住读取头的手感) */
+.hud-act:active {
+    background: rgba(234, 243, 255, 0.22);
+    transform: translateY(1px);
+}
+
 .hud-act svg {
     width: 52%;
     height: 52%;
@@ -298,6 +304,62 @@
 
 .hud-toast[hidden] {
     display: none;
+}
+
+/* ============================================================
+   右下角三盆花(线稿装饰)
+   —— 坐在 HUD 右侧列(hud-ctl)的正上方、正文区右缘之外:
+      right ≈ 控制列的左边线,left 用 main 右缘 + 余量兜住,
+      高度 ≤ 控制列顶(约视口 80%),不越进 nav / 目录页。
+   线条走 HUD 边框同一套 --hud-line-soft / --hud-line-on,
+   亮模式 shell.css 已把这两个变量翻成墨色,自动跟随。
+   ============================================================ */
+.hud-plants {
+    position: fixed;
+    /* 盆底精确落在 HUD 底边框线上(band 线在底部 2vh≈14px 处,
+       植物构图里盆底在 viewBox y=588/602 → 用 bottom 让它压线)。 */
+    /* 主内容右缘(约 1016)到右侧控制列(约 1202)之间的空带:
+       花坐在空带中部、HUD 底边框折线(y=94 → 6vh)上,不贴边、不撞控制列。 */
+    right: 240px;
+    bottom: 5vh;   /* 盆底精确坐在 HUD 框的底边折线上(frame 路径 y=94 → 离底 6%) */
+    height: min(36vh, 300px);
+    width: auto;
+    aspect-ratio: 472 / 572;
+    opacity: 0.9;
+    pointer-events: none;
+    z-index: 1;
+    transition: opacity 0.2s ease;
+}
+
+.hud-plants__ink {
+    stroke: var(--hud-line-on, rgba(234, 243, 255, 0.55));
+    stroke-width: 2.4;
+    vector-effect: non-scaling-stroke;
+}
+
+.hud-plants__leaf {
+    stroke: var(--hud-line-on, rgba(234, 243, 255, 0.55));
+    stroke-width: 2;
+    vector-effect: non-scaling-stroke;
+}
+
+.hud-plants__core {
+    stroke-width: 2;
+}
+
+/* 鼠标扫过右侧列时,花稍亮一点(只动透明度,克制) */
+.page-hud:hover .hud-plants {
+    opacity: 1;
+}
+
+@media (max-height: 780px) {
+    .hud-plants {
+        height: min(30vh, 240px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .hud-plants { transition: none; }
 }
 
 .hud-nav {
@@ -840,4 +902,90 @@
     .hud-pen__size {
         transition: none;
     }
+}
+
+/* ============================================================
+   灵动感:节奏扰动层
+   —— 不加元素,只让既有的循环"不再匀速"。
+   匀速循环看两眼就是壁纸;活物的动感来自偶发。
+   ============================================================ */
+
+/* 1. 跑灯:偶发"闪断"——大部分时间正常,偶尔极短一暗(继电器抖一下)。
+      12s 基础动画之上叠加一条 7.3s 的 steps 曲线(非整数倍周期,
+      避免两个循环锁定)。★ 改 opacity(path 上唯一可靠的可动画属性;
+      之前用 letter-spacing,SVG path 不认,等于白写 —— bug 修掉)。 */
+.hud-run {
+    animation:
+        hud-run var(--hud-run-dur) linear infinite,
+        hud-run-stutter 7.3s steps(1, end) infinite;
+}
+@keyframes hud-run-stutter {
+    /* 0~63% 正常;63.2% 瞬暗一拍;88% 处再来极短一次。
+        两次间隔不等 → 与基础周期永不同步。 */
+    0%, 63.1% { opacity: calc(0.45 + var(--hud-glow, 0) * 0.45); }
+    63.2%, 63.9% { opacity: 0.06; }
+    64%, 87.9% { opacity: calc(0.45 + var(--hud-glow, 0) * 0.45); }
+    88%, 88.6% { opacity: 0.10; }
+    88.7%, 100% { opacity: calc(0.45 + var(--hud-glow, 0) * 0.45); }
+}
+
+/* 2. HUD 框线:极慢"呼吸"——透明度整体 3% 上下浮动,
+      两条线(框/侧带)周期不同,偶尔同相=整框亮一下,随即散开。 */
+.hud-line {
+    animation: hud-line-breathe 9.7s ease-in-out infinite;
+}
+.hud-band-line {
+    animation: hud-line-breathe 13.1s ease-in-out infinite;
+}
+@keyframes hud-line-breathe {
+    0%, 100% { filter: brightness(1); }
+    43% { filter: brightness(1.28); }
+    61% { filter: brightness(0.94); }
+}
+
+/* 3. 面板小块(hud-face):缓慢错落的明暗游移——
+      像指示灯各自待机,不齐步。五块用五条 delay。 */
+.hud-face--0 { animation: hud-face-idle 11.3s ease-in-out infinite; }
+.hud-face--1 { animation: hud-face-idle 13.7s ease-in-out infinite 2.1s; }
+.hud-face--2 { animation: hud-face-idle 9.1s ease-in-out infinite 4.4s; }
+.hud-face--3 { animation: hud-face-idle 12.9s ease-in-out infinite 6.8s; }
+.hud-face--4 { animation: hud-face-idle 10.7s ease-in-out infinite 8.3s; }
+@keyframes hud-face-idle {
+    0%, 100% { fill: rgba(234, 243, 255, 0.05); }
+    38% { fill: rgba(234, 243, 255, 0.10); }
+    55% { fill: rgba(234, 243, 255, 0.04); }
+}
+
+/* 4. 站名:呼吸只在"极暗处"可感的程度——color 2% 上下,
+      混合 text-shadow 收放,读作"屏幕供电的微噪",不是发光动画。 */
+.hud-logo {
+    animation: hud-logo-noise 8.9s ease-in-out infinite;
+}
+@keyframes hud-logo-noise {
+    0%, 100% { text-shadow: 0 0 24px rgba(160, 235, 255, 0.30); }
+    47% { text-shadow: 0 0 20px rgba(160, 235, 255, 0.24); }
+    62% { text-shadow: 0 0 26px rgba(160, 235, 255, 0.34); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .hud-run,
+    .hud-line,
+    .hud-band-line,
+    .hud-face--0, .hud-face--1, .hud-face--2, .hud-face--3, .hud-face--4,
+    .hud-logo {
+        animation: none !important;
+    }
+}
+
+/* 5. hud-toc 进度条的拇指:待机时极慢地"悬着"——不是匀速滚,
+      而是随阅读走,静止时有一点点残余浮动(呼吸),提示"是活的" */
+.hud-toc__prog-thumb {
+    animation: hud-thumb-breathe 6.1s ease-in-out infinite;
+}
+@keyframes hud-thumb-breathe {
+    0%, 100% { filter: brightness(1); }
+    50% { filter: brightness(1.22); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .hud-toc__prog-thumb { animation: none !important; }
 }

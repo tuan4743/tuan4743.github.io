@@ -55,11 +55,16 @@
     var v = 0;
     for (var i = 0; i < TRAPS.length; i++) {
       var tp = TRAPS[i];
-      var tx = tp.x + Math.sin(tSec * 0.011 * tp.w + i * 2.1) * tp.dx * 60;
-      var ty = tp.y + Math.cos(tSec * 0.009 * tp.w + i * 1.7) * tp.dy * 60;
+      /* ★ 位移尺度:曾经 ×60 —— 漂移半径 ±0.6 屏宽,势阱会整个漂出屏幕,
+         等值线(等高线)随之长时间消失(实测 0.44 档 24h 内 30% 时间整条蒸发)。
+         ×12 把漂移压在 ±0.12 屏宽以内,势阱永远留在画面里。 */
+      var tx = tp.x + Math.sin(tSec * 0.011 * tp.w + i * 2.1) * tp.dx * 12;
+      var ty = tp.y + Math.cos(tSec * 0.009 * tp.w + i * 1.7) * tp.dy * 12;
       var dx = nx - tx, dy = ny - ty;
       var g = Math.exp(-(dx * dx + dy * dy) / (tp.r * tp.r * 0.35));
-      v += tp.amp * g * (0.7 + 0.3 * Math.sin(tSec * 0.02 * tp.w + i * 4.0));
+      /* ★ 呼吸下限 0.7 → 0.85:呼吸过深时三阱同时塌到低幅,phi 峰值
+         跌破 0.44 档,最高那条等值线也会短暂消失。 */
+      v += tp.amp * g * (0.85 + 0.15 * Math.sin(tSec * 0.02 * tp.w + i * 4.0));
     }
     return v;
   }
@@ -194,8 +199,11 @@
       + Math.sin(s * 9.7 + tSec * c.speed * (2.0 + mod * 1.4) + 4.0 + st * 1.3) * c.amp[2];
     /* 流丝自身的微摆(细结构,不改变河道大势) */
     if (st > 0) y += Math.sin(s * 14 + tSec * 0.09 + st * 2.4) * 0.006;
-    /* 整条河缓慢上下漂移(周期 ~90s) */
-    y += Math.sin(tSec * 0.07 * c.drift + c.y0 * 9.0) * 0.05;
+    /* 整条河缓慢上下漂移(周期 ~90s)。
+       ★ 漂移曾是 ×0.05(±3.6% 屏高)—— 太大:河道会被推出原本的 y0 带,
+         视觉上"波动幅度随时间变大"。压到 ×0.02(±1.4% 屏高),
+         只保留"活着"的缓沉浮,不改变带的位置。 */
+    y += Math.sin(tSec * 0.07 * c.drift + c.y0 * 9.0) * 0.02;
     return y;
   }
   /* 每个流点:固定 seed(股/序号),沿流向以微小速度差移动 → 带内有剪流感 */

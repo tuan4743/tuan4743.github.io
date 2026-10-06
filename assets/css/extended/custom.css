@@ -409,6 +409,8 @@ html:not(.has-cd-audio) #sound-toggle {
     view-transition-name: header;
 }
 
+/* 手机顶栏不参与 view-transition(同一时刻只有其一在 DOM 里,但名字别共用) */
+
 ::view-transition-old(header) {
     display: none;
 }
@@ -713,4 +715,540 @@ body {
     box-shadow:
         0 24px 60px rgba(0, 0, 0, 0.35),
         0 0 42px rgba(34, 211, 238, 0.07) inset;
+}
+
+/* ============================================================
+   /world/ 档案库 · 环境响应(轻)
+   —— 只对读者已在做的动作给微观反馈;不加流程、不加门禁。
+   ============================================================ */
+
+/* A1. 著录行(首行 blockquote)悬停:EID/时刻栏位回光 */
+.post-content > blockquote:first-child {
+    transition: border-color 0.18s ease, background-color 0.18s ease;
+}
+.post-content > blockquote:first-child:hover {
+    border-left-color: var(--accent);
+    background: linear-gradient(90deg, rgba(34, 211, 238, 0.10), transparent 70%);
+}
+.post-content > blockquote:first-child code {
+    transition: color 0.18s ease, text-shadow 0.18s ease;
+}
+.post-content > blockquote:first-child:hover code {
+    color: var(--accent);
+    text-shadow: 0 0 8px rgba(34, 211, 238, 0.3);
+}
+
+/* A2. 表格行悬停:行浮起 + 首列(时刻)增亮 */
+.post-content table {
+    border-collapse: collapse;
+    width: 100%;
+}
+.post-content tbody tr {
+    transition: background-color 0.16s ease;
+}
+.post-content tbody tr:hover {
+    background: rgba(34, 211, 238, 0.05);
+}
+.post-content tbody tr:hover td:first-child {
+    color: color-mix(in srgb, var(--accent) 70%, var(--primary));
+}
+
+/* A3. 结尾校订注(hr 后的 em)悬停:完整性数字着色 */
+.post-content > hr {
+    border: 0;
+    border-top: 1px solid rgba(34, 211, 238, 0.16);
+    margin: 2.2em 0 1.4em;
+}
+.post-content > hr + p > em,
+.post-content > p > em:only-child {
+    transition: color 0.18s ease;
+}
+.post-content > hr + p:hover > em {
+    color: color-mix(in srgb, var(--accent) 55%, var(--primary));
+}
+
+/* B1. 目录页表格行悬停(与 A2 同语言,行内档案名加亮) */
+.post-content tbody tr:hover strong,
+.post-content tbody tr:hover b {
+    color: var(--primary);
+}
+
+/* B2. 幕注记(.arc-actnote):HUD 字体 + 时刻轴点 */
+.post-content .arc-actnote {
+    margin: 0.4em 0 0.8em;
+    padding-left: 1em;
+    border-left: 2px solid var(--accent-line);
+    font-family: var(--hud-font, ui-monospace, SFMono-Regular, Menlo, monospace);
+    font-size: 0.72em;
+    letter-spacing: 0.14em;
+    color: color-mix(in srgb, var(--accent) 55%, var(--primary));
+    opacity: 0.9;
+}
+
+/* B3. 页首 text 代码块(著录项/ASCII 方舟)悬停:accent 左边线淡入 */
+.post-content > pre {
+    border-left: 2px solid transparent;
+    transition: border-color 0.25s ease;
+}
+.post-content > pre:hover {
+    border-left-color: var(--accent-line);
+}
+
+/* 亮色模式(旧真空,里世界):正文 accent 换深青,青色发光全部收敛。
+   跟 shell.css 的 .page-hud 亮色覆盖同一口径,但作用在正文侧。 */
+[data-theme="light"] {
+    --accent: rgb(14, 116, 122);
+    --accent-soft: rgba(14, 116, 122, 0.10);
+    --accent-line: rgba(14, 116, 122, 0.34);
+}
+[data-theme="light"] .post-content a:hover {
+    text-shadow: none;
+}
+[data-theme="light"] .post-content > blockquote:first-child:hover code {
+    text-shadow: none;
+}
+
+/* ============================================================
+   明暗整体切换:切换瞬间禁掉全站 color/background 过渡,
+   避免元素明暗依次变化(闪眼)。theme-palette.js 在切换前挂上,
+   切换后两帧摘掉。!important 压过所有 hover/active 的过渡声明。
+   ============================================================ */
+html.theme-snap,
+html.theme-snap *,
+html.theme-snap *::before,
+html.theme-snap *::after {
+    transition: none !important;
+}
+
+/* ============================================================
+   亮色模式(旧真空)漏网的两块:
+   · 字号步进器(.hud-type):page-hud.css 里写死了白系色值,
+     亮模式下还是暗底白字浮在奶白上 —— 翻成墨绿纸片。
+   · 代码块(.chroma / .highlight):chroma 主题是 dracula 暗底
+     (#24273a),亮模式下刺眼;内联 code 的青色也压深。
+   ============================================================ */
+
+/* --- 字号步进器 --- */
+[data-theme="light"] .hud-type {
+    border-color: rgba(58, 63, 72, 0.24);
+    background: rgba(250, 248, 242, 0.92);
+    color: rgba(40, 46, 52, 0.92);
+    box-shadow: 0 2px 10px rgba(60, 70, 80, 0.10);
+}
+[data-theme="light"] .hud-type--lane {
+    border-color: rgba(58, 63, 72, 0.18);
+    box-shadow: inset 2px 0 0 rgb(14, 116, 122);
+}
+[data-theme="light"] .hud-type__step {
+    border-color: rgba(58, 63, 72, 0.26);
+    background: rgba(58, 63, 72, 0.06);
+    color: rgba(40, 46, 52, 0.92);
+}
+[data-theme="light"] .hud-type__step:hover {
+    background: rgba(14, 116, 122, 0.14);
+    border-color: rgba(14, 116, 122, 0.5);
+}
+[data-theme="light"] .hud-type__val {
+    color: rgba(58, 63, 72, 0.62);
+}
+
+/* --- 代码块:暗底 → 纸面浅底 + 墨绿代码色 --- */
+[data-theme="light"] .md-content .highlight:not(table),
+[data-theme="light"] .post-content > pre {
+    background: rgba(240, 238, 230, 0.92) !important;
+    border: 1px solid rgba(58, 63, 72, 0.16);
+}
+[data-theme="light"] .post-content .chroma {
+    color: #3c4450;
+    background-color: transparent;
+}
+/* 真凶:内联 code 的 --code-block-bg 暗底漏进了 pre 里,形成大黑块 */
+.post-content pre code {
+    background: transparent !important;
+    padding: 0;
+}
+[data-theme="light"] .post-content .chroma .line {
+    color: #3c4450;
+}
+/* chroma dracula 的语法色在浅底上一律压深(覆盖常见 token 类) */
+[data-theme="light"] .post-content .chroma .k,
+[data-theme="light"] .post-content .chroma .kd,
+[data-theme="light"] .post-content .chroma .kn,
+[data-theme="light"] .post-content .chroma .nf,
+[data-theme="light"] .post-content .chroma .nt,
+[data-theme="light"] .post-content .chroma .nx {
+    color: rgb(14, 116, 122);
+}
+[data-theme="light"] .post-content .chroma .s,
+[data-theme="light"] .post-content .chroma .s1,
+[data-theme="light"] .post-content .chroma .s2,
+[data-theme="light"] .post-content .chroma .se {
+    color: rgb(122, 88, 20);
+}
+[data-theme="light"] .post-content .chroma .c,
+[data-theme="light"] .post-content .chroma .c1,
+[data-theme="light"] .post-content .chroma .cm {
+    color: rgba(58, 63, 72, 0.55);
+}
+[data-theme="light"] .post-content .chroma .hl {
+    background-color: rgba(14, 116, 122, 0.10);
+}
+/* 行内 code(著录行的 EID/时刻):青色压深,不再发白 */
+[data-theme="light"] .post-content code {
+    color: rgb(14, 116, 122);
+}
+
+/* ============================================================
+   代码块折叠(post-media.js 注入 .code-fold / .code-fold-strip)
+   —— 折起后 .highlight 收成一条窄条;暗/亮通用,色值跟主题变量走。
+   ============================================================ */
+.highlight,
+.post-content > pre {
+    position: relative;
+}
+
+.highlight .code-fold,
+.post-content > pre .code-fold {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    z-index: 3;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(140, 150, 165, 0.35);
+    border-radius: 4px;
+    background: rgba(20, 24, 32, 0.55);
+    color: rgba(220, 228, 240, 0.85);
+    font-size: 11px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.16s ease, background-color 0.16s ease;
+}
+/* copy 按钮让位:fold 占右上,copy 挪到它下面,不再重叠 */
+.highlight .copy-code,
+.post-content > pre .copy-code {
+    top: 32px;
+}
+.post-content > pre .code-fold {
+    background: rgba(240, 238, 230, 0.7);
+    color: rgba(58, 63, 72, 0.8);
+    border-color: rgba(58, 63, 72, 0.3);
+}
+.highlight:hover .code-fold,
+.highlight.is-folded .code-fold,
+.post-content > pre:hover .code-fold,
+.post-content > pre.is-folded .code-fold {
+    opacity: 1;
+}
+/* 展开状态下 hover 才见 fold 钮;折叠时窄条本身就是开关,常亮 */
+.highlight.is-folded .code-fold {
+    opacity: 0.9;
+}
+.highlight .code-fold:hover,
+.post-content > pre .code-fold:hover {
+    background: rgba(34, 211, 238, 0.18);
+}
+
+/* 折叠条:默认藏,折起来才露出来(它同时是展开按钮) */
+.highlight .code-fold-strip,
+.post-content > pre .code-fold-strip {
+    display: none;
+    width: 100%;
+    padding: 6px 12px;
+    border: 0;
+    background: transparent;
+    color: rgba(213, 213, 214, 0.75);
+    font-family: var(--code-font, ui-monospace, monospace);
+    font-size: 12px;
+    text-align: left;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+}
+.highlight.is-folded .code-fold-strip,
+.post-content > pre.is-folded .code-fold-strip {
+    display: block;
+}
+.highlight .code-fold-strip .code-fold-arrow {
+    display: inline-block;
+    margin-right: 2px;
+}
+
+/* 折起状态:内容藏、只剩窄条 */
+.highlight.is-folded pre,
+.highlight.is-folded .copy-code,
+.post-content > pre.is-folded pre,
+.post-content > pre.is-folded .copy-code {
+    display: none;
+}
+.highlight.is-folded,
+.post-content > pre.is-folded {
+    padding: 0;
+}
+/* 折叠条也盖住右上角:给窄条留右内边距,免得文字顶到 fold 钮 */
+.highlight .code-fold-strip,
+.post-content > pre .code-fold-strip {
+    padding-right: 34px;
+}
+
+/* ============================================================
+   照片展示:正文插图(点击放大由 post-media.js 提供)
+   —— 圆角 + 细边 + hover 微亮;光标 zoom-in 暗示可点。
+   ============================================================ */
+.post-content img,
+.md-content img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 1.2rem auto;
+    border-radius: 6px;
+    border: 1px solid rgba(140, 150, 165, 0.22);
+    cursor: zoom-in;
+    transition: filter 0.16s ease;
+}
+.post-content img:hover {
+    filter: brightness(1.06);
+}
+
+/* 图片遮罩放大(lightbox) */
+.img-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 4vh 4vw;
+    background: rgba(4, 6, 10, 0.88);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    opacity: 0;
+    transition: opacity 0.18s ease;
+    cursor: zoom-out;
+}
+.img-lightbox.is-open {
+    opacity: 1;
+}
+.img-lightbox__img {
+    max-width: 92vw;
+    max-height: 82vh;
+    width: auto;
+    height: auto;
+    border-radius: 6px;
+    border: 1px solid rgba(140, 150, 165, 0.3);
+    box-shadow: 0 18px 60px rgba(0, 0, 0, 0.5);
+    cursor: default;
+}
+.img-lightbox__cap {
+    margin: 0;
+    max-width: 70vw;
+    color: rgba(226, 232, 242, 0.85);
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    text-align: center;
+}
+.img-lightbox__close {
+    position: absolute;
+    top: 14px;
+    right: 18px;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(140, 150, 165, 0.4);
+    border-radius: 6px;
+    background: rgba(20, 24, 32, 0.6);
+    color: rgba(226, 232, 242, 0.9);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+}
+.img-lightbox__close:hover {
+    background: rgba(34, 211, 238, 0.18);
+}
+@media (prefers-reduced-motion: reduce) {
+    .img-lightbox,
+    .post-content img,
+    .highlight .code-fold,
+    .post-content > pre .code-fold {
+        transition: none;
+    }
+}
+
+/* 亮模式:折叠条与关闭钮换浅底深字 */
+[data-theme="light"] .highlight .code-fold-strip,
+[data-theme="light"] .post-content > pre .code-fold-strip {
+    color: rgba(58, 63, 72, 0.7);
+}
+[data-theme="light"] .highlight .code-fold {
+    background: rgba(240, 238, 230, 0.7);
+    color: rgba(58, 63, 72, 0.8);
+    border-color: rgba(58, 63, 72, 0.3);
+}
+[data-theme="light"] .highlight .code-fold:hover {
+    background: rgba(14, 116, 122, 0.14);
+}
+[data-theme="light"] .img-lightbox {
+    background: rgba(244, 241, 233, 0.92);
+}
+[data-theme="light"] .img-lightbox__cap {
+    color: rgba(58, 63, 72, 0.85);
+}
+[data-theme="light"] .img-lightbox__close {
+    background: rgba(240, 238, 230, 0.8);
+    color: rgba(58, 63, 72, 0.85);
+    border-color: rgba(58, 63, 72, 0.35);
+}
+
+/* ============================================================
+   手机适配(窄屏 <1181px)
+   ─────────────────────────────────────────────────────────────
+   右侧 HUD 在 max-width:1180 整体退场(page-hud.css),导航/搜索/
+   明暗全在 HUD 里 ⇒ 手机上原本裸奔。这一段补齐窄屏的最小可用集:
+   · 手机顶栏(站名 + 主菜单)——标记在 header-mobile.html,baseof 渲染;
+   · ECHO 摄像头 + 台词气泡:缩小、让开顶栏、气泡宽度贴屏;
+   · void 背景的观感保留,但流点密度交给 canvas 自身,不动 JS。
+   桌面(≥1181px)零改动。
+   ============================================================ */
+.m-header {
+    display: none;
+}
+
+@media (max-width: 1180px) {
+    /* --- 手机顶栏:只有窄屏出现 --- */
+    .m-header {
+        display: block;
+        position: sticky;
+        top: 0;
+        z-index: 90;
+        background: color-mix(in srgb, var(--theme) 82%, transparent);
+        -webkit-backdrop-filter: blur(10px);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--border);
+    }
+
+    .m-header__nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 0 14px;
+        min-height: 44px;
+    }
+
+    .m-header__logo {
+        color: var(--primary);
+        text-decoration: none;
+        font-weight: 700;
+        font-size: 15px;
+        letter-spacing: 0.04em;
+        white-space: nowrap;
+    }
+
+    .m-header__menu {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .m-header__menu::-webkit-scrollbar { display: none; }
+
+    .m-header__menu a {
+        display: block;
+        padding: 7px 9px;
+        color: var(--secondary);
+        text-decoration: none;
+        font-size: 13px;
+        letter-spacing: 0.06em;
+        white-space: nowrap;
+        border-radius: 6px;
+        transition: color 0.16s ease, background-color 0.16s ease;
+    }
+
+    .m-header__menu a:hover,
+    .m-header__menu a:active {
+        color: var(--primary);
+        background: color-mix(in srgb, var(--theme) 40%, transparent);
+    }
+
+    /* 当前页高亮:header-mobile 不带 .active(Hugo 那套要按页缓存),
+       这里用 aria 判断做不到 ⇒ 简化:不加高亮,不误导。 */
+
+    /* --- 正文:PaperMod 的 .main 是 720px 定宽居中,手机上直接满宽 --- */
+    .main {
+        max-width: none;
+        padding: 12px 14px 20px;
+    }
+
+    /* --- ECHO 摄像头:缩小、避让手机顶栏(顶栏 44px + 呼吸) --- */
+    .proj-node {
+        width: clamp(64px, 16vw, 88px);
+    }
+
+    html.void-bg-on .proj-node {
+        position: fixed;
+        left: 6px;
+        top: 54px;
+        z-index: 1;
+    }
+
+    :root[data-theme].shell-page .echo-say {
+        left: 10px;
+        top: calc(54px + clamp(64px, 16vw, 88px) - 14px);
+        max-width: min(240px, calc(100vw - 20px));
+        z-index: 95;
+    }
+
+    /* --- 搜索结果面板(顶栏无搜索,但 /search/ 页的面板同款) --- */
+    .search-results {
+        width: calc(100vw - 28px);
+    }
+
+    /* --- 表格/代码块:窄屏可横向滚,不撑破版心 --- */
+    .post-content table {
+        display: block;
+        max-width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .post-content pre {
+        max-width: 100%;
+        overflow-x: auto;
+    }
+
+    /* --- 触屏:磁力光标已自隐(custom.css pointer:coarse),
+           这里补一条:HUD 那套 hover 增亮类不会来,无需处理 --- */
+}
+
+@media (max-width: 720px) {
+    /* 更窄:顶栏菜单收紧 */
+    .m-header__menu a {
+        padding: 7px 7px;
+        font-size: 12.5px;
+    }
+
+    .m-header__nav {
+        padding: 0 10px;
+    }
+}
+
+/* 横屏矮窗(手机横过来):顶栏不占两行,保持单行 */
+@media (max-width: 1180px) and (max-height: 480px) {
+    .m-header__nav { min-height: 38px; }
+    html.void-bg-on .proj-node { top: 46px; }
+    :root[data-theme].shell-page .echo-say { top: calc(46px + clamp(64px, 16vw, 88px) - 14px); }
 }

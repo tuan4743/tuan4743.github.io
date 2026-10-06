@@ -1,0 +1,21 @@
+{{- /* ============================================================
+     手机顶栏(窄屏专用)
+     ─────────────────────────────────────────────────────────────
+     为什么单独一支 partial、而不是把主题 header.html 放回来:
+     · 桌面端(≥1181px)导航在右侧 HUD 里,顶栏当年是按用户要求"整个删掉"的
+       (baseof.html 里那行注释掉的 partialCached)——直接放回来会把桌面也改掉;
+     · 主题 header 里那颗搜索框和 HUD 里的搜索共用同一批 id/header-search-input,
+       放回来会撞 id、还会和 search.js 的实例守卫互相抢。
+     ⇒ 这一支只有【站名 + 菜单】,零 id、零搜索;渲染在所有 shell 页上,
+       CSS 管"只在 <1181px 显示"——桌面端一个像素都不动。
+     ============================================================ */ -}}
+<header class="m-header" aria-label="移动端导航">
+    <nav class="m-header__nav">
+        <a class="m-header__logo" href="{{ "" | absLangURL }}">{{ site.Title }}</a>
+        <ul class="m-header__menu">
+            {{- range site.Menus.main }}
+            <li><a href="{{ .URL | absLangURL }}" title="{{ .Title | default .Name }}">{{ .Name }}</a></li>
+            {{- end }}
+        </ul>
+    </nav>
+</header>

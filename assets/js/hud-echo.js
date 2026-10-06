@@ -91,6 +91,21 @@
     hoverPen: [
       "别画我。",
       "喂。这儿是镜头,不是纸。"
+    ],
+    reading: [
+      "还在看。……表我帮你盯着。",
+      "看了这么久。……行,你慢慢看。",
+      "这一份是有点长。我等你。"
+    ],
+    deepNight: [
+      "这个点的档案,字都比白天淡。",
+      "凌晨还翻档案。……行,我不问。",
+      "夜班的时段。巧了。"
+    ],
+    manyFragments: [
+      "翻这么多份。……找到想找的了?",
+      "第四份了。你的记忆比我想的能装。",
+      "一份接一份。……行,我陪着。"
     ]
   };
   var TRIG = {
@@ -102,7 +117,10 @@
     pen: { once: true },
     done: { once: true, force: true },
     giveUp: { cool: 180000, force: true },
-    hoverPen: { cool: 60000, force: true }
+    hoverPen: { cool: 60000, force: true },
+    reading: { cool: 600000, force: true },
+    deepNight: { once: true, force: true },
+    manyFragments: { cool: 1800000, force: true }
   };
 
   function get(k, d) { try { return sessionStorage.getItem(k) || d; } catch (e) { return d; } }
@@ -265,6 +283,42 @@
     blackout();
   }
   if (hot) hot.addEventListener("click", poke);
+
+  /* ---------- 陪伴层:读档久 / 深夜 / 连续翻档案 ---------- */
+  var isWorldPage = /^\/world\//.test(location.pathname);
+
+  /* 深夜(02:00–04:59)打开任意档案页 */
+  if (isWorldPage) {
+    (function deepNight() {
+      var h = new Date().getHours();
+      if (h >= 2 && h < 5) setTimeout(function () { say("deepNight"); }, 5200);
+    })();
+
+    /* 同页停留 >90s 且滚动过 → reading */
+    (function readingWatch() {
+      var t0 = Date.now();
+      var scrolled = false;
+      window.addEventListener("scroll", function () { scrolled = true; }, { passive: true, once: true });
+      setTimeout(function () {
+        if (scrolled && Date.now() - t0 > 90000) say("reading");
+      }, 92000);
+    })();
+
+    /* 单会话连续打开 ≥4 份不同碎片 */
+    (function fragmentCount() {
+      var here = location.pathname;
+      var trail = [];
+      try { trail = JSON.parse(sessionStorage.getItem("echo-trail") || "[]"); } catch (e) { }
+      if (trail[trail.length - 1] !== here) {
+        trail.push(here);
+        if (trail.length > 8) trail = trail.slice(-8);
+        try { sessionStorage.setItem("echo-trail", JSON.stringify(trail)); } catch (e) { }
+      }
+      var uniq = {};
+      trail.forEach(function (p) { uniq[p] = 1; });
+      if (Object.keys(uniq).length >= 4) setTimeout(function () { say("manyFragments"); }, 4000);
+    })();
+  }
 
   window.__echo = {
     say: say,
