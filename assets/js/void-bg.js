@@ -52,10 +52,9 @@
    *   光晕"变大变亮"= 贴图尺寸/透明度随 glow 插值 —— 视觉等价。
    * ★ noise sprite:噪点也是一张预渲染的 pattern,整屏一次 drawImage,
    *   替代每帧 140 个 fillRect + hash。
-   * ★ DPR 上限:2(★ 曾压到 1"视觉无差"—— 错。流点直径只有
-   *   0.4~1.1px,DPR=1 的高分屏上全是亚像素,arc 直接画不出来,
-   *   这就是"洋流粒子最开始就没了"的根因。必须保 2。) */
-  var DPR_CAP = 2;
+   * ★ DPR 上限:1(背景是模糊雾带,DPR>1 的成本全在像素填充,
+   *   视觉上几乎无差 —— 高分屏最大头)。 */
+  var DPR_CAP = 1;
   var glowSprite = document.createElement("canvas");
   function buildGlowSprite() {
     var S = 128;                                 /* 贴图边长(px,画时缩放) */
@@ -259,7 +258,7 @@
           off: (i / c.n + hash(k * 1.7) * (1 / c.n)) % 1,      /* 沿河道的固有相位 */
           strand: (hash(k * 2.9) * STRANDS) | 0,                /* 属于哪条流丝 */
           lat: (hash(k * 2.3) + hash(k * 3.1) - 1) * 0.5,      /* 横向高斯散布 [-0.5,0.5] */
-          sz: 0.5 + hash(k * 4.3) * 1.1,       /* ★ 回退到演出前基线 0.5~1.6px;DPR 已恢复 2,不再亚像素 */
+          sz: 0.4 + hash(k * 4.3) * 0.7,
           vj: 0.85 + hash(k * 5.9) * 0.3,                      /* 速度差(剪流) */
           tw: hash(k * 7.7) * Math.PI * 2,                     /* 闪烁相位 */
           k: k
@@ -391,13 +390,15 @@
          最终整条洋流连成光带
        · 光带里长出裂纹(枝干状,底层粗,同时最多 4 条),扩散
        · q 末段:光带突然变宽覆盖全屏 → 白 → 重载 */
-  var surge = { p: 0, rate: 0, q: 0, qStart: 0, armed: false, reloaded: false, reloadCb: null, adv: 0 };
+  var surge = { p: 0, rate: 0, q: 0, qStart: 0, armed: false, reloaded: false, reloadCb: null };
 
-  /* 前期强度:0..1 —— ★ p^1.2:水位一启动就快速起效(p=0.2 已 15%、
-     p=0.5 已 43%),速度/亮度在前半程就能被眼睛读出"在变"。
-     (之前的 ease-in 混合曲线把 80% 的加速度堆在最后 30%,
-     前半程几乎全是基速基亮度 —— 用户读作"什么都没变"。) */
-  function surgeCharge(p) { var c = clamp(p, 0, 1); return Math.pow(c, 1.2); }
+  /* 前期强度:0..1 —— ★ 带 ease-in 曲线(拖尾加速感):
+     c = p²(3-2p)? 不够陡 —— 用 c = p^1.8,前段慢(酝酿)后段陡
+     (冲刺),条快满时速度已经在往爆发级冲,到顶瞬间和 q 的
+     增量项 [q*3] 无缝咬合(爆发起步 = 前期终点,不再跳变)。
+     ★ 配套:爆发期的速度增量从 ×6 压到 ×3 —— 前期终点速度已经
+       拉到位,爆发期只负责"继续推",不负责"从零再加速"。 */
+  function surgeCharge(p) { var c = clamp(p, 0, 1); return c * c * (3 - 2 * c) * 0.35 + Math.pow(c, 1.8) * 0.65; }
 
   /* 爆发期子相位(全部基于 q,0.11/s ≈ 9s 总长):
      震动 0..0.45 渐强;炫光 0..0.45;覆屏白幕 0.88..1.0 */
@@ -442,11 +443,7 @@
     ctx.clearRect(0, 0, W, H);
 
     /* 共流过境:水位推进(前期)。
-       p 到 1 → 武装进入爆发(q 推进);到 0 松劲。
-       ★ 位移必须【帧积分】:s = off + tS*speed 在 speed 随 p 变化时
-         会让相位瞬间跳变(tS 是全程!speed 一变整个 s 重排)——
-         这就是"前期洋流消失一段"的根因(高速档下整条河瞬移)。
-       改:surge.adv(advancer)每帧 += speed*dt,粒子用 off+adv。 */
+       p 到 1 → 武装进入爆发(q 推进);到 0 松劲。 */
     if (surge.q === 0 && surge.rate) {
       surge.p = clamp(surge.p + surge.rate * dt / 1000, 0, 1);
       if (surge.p <= 0) surge.rate = 0;
@@ -464,11 +461,6 @@
     }
     var charge = dark ? surgeCharge(surge.p) : 0;
     var q = dark ? surge.q : 0;
-    /* 帧积分的洋流位移(秒·归一化):速度变化时平滑续接。
-       ★ 前期顶速 9 倍基速(charge=1),爆发期再加到 14 倍。
-         增长从水位一开始就可见(p^1.2 曲线,p=0.2 已 1.9 倍)。 */
-    var flowSpeed = 0.018 * (1 + charge * 8.0 + q * 5.0);
-    surge.adv = (surge.adv || 0) + flowSpeed * dt / 1000;
 
     /* ★ 自适应帧率:平时 30fps;演出激活(p>0 或 q>0)提到 60fps
        (演出细,需要跟手的帧间隔),平时掉回 30 —— rAF 本身是 60,
@@ -575,29 +567,25 @@
          (charge 封顶后 p 继续走,glowPre 正好利用那段"临门"。) */
       var glowPre = q === 0 && surge.p > 0.75 ? (surge.p - 0.75) / 0.25 * 0.5 : 0;
       var glow = q > 0 ? 0.5 + Math.min(1, q / 0.40) * 0.5 : glowPre;
-      /* ★ 洋流风暴感:高水位后整条河道开始【涌动】—— 横向摆动幅度
-         被一个快速波动调制(振幅 ×(1+charge*1.2+q*0.8)),粒子不再
-         平滑滑行而是颠簸;同时全带微微"涌向"下游(视觉上河道在
-         膨胀)。这是风暴的水感,缺了它就只是"快",不是"洪"。 */
-      var swell = 1 + charge * 1.2 + q * 0.8;
       ctx.save();
       for (var f = 0; f < flowDots.length; f++) {
         var fd = flowDots[f];
         var c3 = CURRENTS[fd.ci];
-        /* ★ 位置用帧积分位移(surge.adv):速度变化不跳相 */
-        var s = (fd.off + surge.adv * fd.vj * c3.dir) % 1;
+        /* ★ 速度:charge(ease-in)全程跟水位,终点速度 ≈ 爆发起步;
+           爆发期增量 ×3(从前期终点继续推,不再二次起跳) */
+        var speed = 0.018 * (1 + charge * 8.0 + q * 3.0);
+        var s = (fd.off + tS * speed * fd.vj * c3.dir) % 1;
         if (s < 0) s += 1;
-        var cyc = fd.off + (surge.adv * fd.vj) % 1;       /* 用于闪烁 */
+        var cyc = fd.off + (tS * speed * fd.vj) % 1;      /* 用于闪烁 */
         var cxp = s * W;
-        /* 涌动:横向摆动叠加高频颤(swelling),幅度随风暴涨 */
-        var cyp = currentY(c3, s, tS, fd.strand) * H + fd.lat * c3.width * H
-            + Math.sin(tS * (2.2 + fd.bw * 2) + fd.off * 9.4) * H * 0.012 * (swell - 1) * 2;
-        var fa = 0.18 + 0.26 * (0.5 + 0.5 * Math.sin(tS * 1.1 + fd.tw));   /* ★ 回退基线区间 */
-        /* 内容页避开中央阅读区 —— 演出期间(charge/q)取消 */
+        var cyp = currentY(c3, s, tS, fd.strand) * H + fd.lat * c3.width * H;
+        var fa = 0.18 + 0.26 * (0.5 + 0.5 * Math.sin(tS * 1.1 + fd.tw));
+        /* 内容页避开中央阅读区(爆发期取消避让:洪峰盖一切) */
         var dCtr3 = Math.hypot(cxp - W * 0.5, cyp - H * 0.5) / Math.min(W, H);
-        if (!isHome() && dCtr3 < 0.30 && !charge && !q) fa *= 0.35;
-        /* ★ 前期增亮(演出专用):只在 charge>0 时抬,基态保持原样 */
-        ctx.globalAlpha = fa = Math.min(1, fa + charge * 0.5 + glow * 0.55);
+        if (!isHome() && dCtr3 < 0.30 && !q) fa *= 0.35;
+        /* 前期增亮(不变大);爆发期按发光强度再抬 */
+        fa = Math.min(1, fa + charge * 0.5 + glow * 0.55);
+        ctx.globalAlpha = fa;
         /* ★ 炫光 = 预渲染光晕贴图(替代逐点 shadowBlur):
            核心点照常画,glow 起来后在其上贴 glowSprite,
            尺寸随 glow 膨胀(点本体不变大 —— 光晕大,核不变)。 */
@@ -643,47 +631,27 @@
       }
       ctx.restore();
 
-      /* ★ 缺的那块:激发(白点也被点亮)。
-         洪峰不只是洋流的事 —— 自由白点是"真空密度涨落",带宽胀
-         它们也该被激到:高 charge 时白点整体增亮 + 快闪,
-         爆发期最亮。画面从"三条亮河"变成"整片真空都在响"。 */
-      ctx.save();
-      for (var d2 = 0; d2 < dots.length; d2++) {
-        var dt9 = dots[d2];
-        var tw9 = 0.5 + 0.5 * Math.cos(dt9.ph + tS * dt9.om * Math.PI * 2 * (0.12 + charge * 0.5));
-        if (tw9 < 0.72) continue;                       /* 只挑本来就亮的少数点 */
-        var px9 = (dt9.bx + 0.008 * Math.sin(tS * dt9.bw + d2)) * W;
-        var py9 = (dt9.by + 0.008 * Math.cos(tS * dt9.bw * 0.8 + d2 * 1.3)) * H;
-        var ex = (tw9 - 0.72) / 0.28;                   /* 0..1 */
-        ctx.globalAlpha = Math.min(0.5, ex * (0.12 + charge * 0.35 + glow * 0.3));
-        ctx.drawImage(glowSprite, px9 - 8, py9 - 8, 16, 16);
-      }
-      ctx.restore();
-
       /* (光带与裂纹已删:效果不真实,直接去掉。
          爆发期的视觉落点 = 炫光粒子 + 震动模糊 + 变暗 + 白幕。) */
 
       /* ===== 爆发期:震动 + 全页模糊(body.surge-blur) =====
-         ★ 分支结构:震动/模糊的【启用】在下面三段里各自负责,
-           但【停用】只允许发生在 q===0 && charge≤0.7(演出彻底
-           回落)——之前白幕期(q≥0.88)会掉进 else 把 class 全摘,
-           白光瞬间页面静止。现在 else 的条件本身排除了 q>0。 */
-      if (q > 0) {
-        /* 爆发全程(含白幕):震动 + 模糊保持 */
-        var shakeA = q < 0.45 ? (q / 0.45) : 1;                     /* 0..1 渐强后保持 */
-        var shDamp = q >= 0.88 ? 0.65 : (q < 0.45 ? 1 : 1 - (q - 0.45) / 0.43 * 0.4);
+         ★ 震动/模糊/变暗都挂在 <html> 的 class 上,CSS 里对
+           html 元素本身做 filter —— filter 作用在根元素会连同
+           所有 fixed 面板(HUD/顶栏)一起模糊,这才是"整个页面"。
+         ★ 不能用 <html>.transform 做震动(创建包含块 → fixed 全错位);
+           震动仍走 body.surge-shake(.main/.m-hud/面板都平移)。
+         ★ 裂纹不受模糊影响:裂纹是 canvas 内画的,会跟着模糊 ——
+           把裂纹也搬到独立 DOM?不必:模糊分段,裂纹窗口(0.30+)
+           模糊已封顶稳定,且裂纹 blur 补偿 —— 给 canvas 滤镜在
+           裂纹期适当降低,裂纹靠自身 26px 炫光突出。 */
+      if (q > 0 && q < 0.88) {
+        var shakeA = (q / 0.45) * (q < 0.45 ? 1 : 1 - (q - 0.45) / 0.43 * 0.4);
         document.body.classList.add("surge-shake");
-        docEl.style.setProperty("--surge-shake-x", ((hash(Math.floor(tS * 60)) - 0.5) * 9 * shakeA * shDamp).toFixed(1) + "px");
-        docEl.style.setProperty("--surge-shake-y", ((hash(Math.floor(tS * 60) + 99) - 0.5) * 7 * shakeA * shDamp).toFixed(1) + "px");
+        docEl.style.setProperty("--surge-shake-x", ((hash(Math.floor(tS * 60)) - 0.5) * 9 * shakeA).toFixed(1) + "px");
+        docEl.style.setProperty("--surge-shake-y", ((hash(Math.floor(tS * 60) + 99) - 0.5) * 7 * shakeA).toFixed(1) + "px");
+        /* 全页模糊(含 HUD):blur 挂 body(class 驱动);裂纹画布在 body 外,不参与 */
         document.body.classList.add("surge-blur");
-        docEl.style.setProperty("--surge-blur", ((q >= 0.88 ? 3.2 : shakeA * 3.2 * (q < 0.45 ? 1 : 1 - (q - 0.45) / 0.43 * 0.4)).toFixed(2)));
-      } else if (charge > 0.7) {
-        /* 前期末微震:洪峰将至,页面开始低幅颤 —— 提前给"力量感",
-           幅度只有爆发的 1/6,随 charge 涨 */
-        var pre = (charge - 0.7) / 0.3;
-        document.body.classList.add("surge-shake");
-        docEl.style.setProperty("--surge-shake-x", ((hash(Math.floor(tS * 60)) - 0.5) * 1.5 * pre).toFixed(1) + "px");
-        docEl.style.setProperty("--surge-shake-y", ((hash(Math.floor(tS * 60) + 99) - 0.5) * 1.2 * pre).toFixed(1) + "px");
+        docEl.style.setProperty("--surge-blur", (shakeA * 3.2).toFixed(2) + "px");
       } else {
         document.body.classList.remove("surge-shake");
         document.body.classList.remove("surge-blur");
@@ -694,20 +662,22 @@
       }
 
       /* ===== 爆发期:覆屏白幕(q 0.88..1) =====
-         ★ 白幕必须是【页面级 DOM 层】(canvas 在 body 最底层,
-           画在 canvas 里只盖得住背景,盖不住正文和 HUD)。
-         用 --surge-white 驱动 .surge-white 全屏白层(z 最高,
-         盖住包括 .surge-dim 在内的一切)。 */
+         光带突然变宽盖住一切 → 全白 → 通知触发侧重载 */
       if (q >= 0.88) {
         var wh = clamp((q - 0.88) / 0.10, 0, 1);
-        docEl.style.setProperty("--surge-white", wh.toFixed(2));
+        ctx.globalAlpha = wh;
+        ctx.fillStyle = "#f2f8ff";
+        ctx.fillRect(0, 0, W, H);
         if (q >= 1 && !surge.reloaded) {
           surge.reloaded = true;
+          document.body.classList.remove("surge-shake");
+          document.body.classList.remove("surge-blur");
+          docEl.style.removeProperty("--surge-shake-x");
+          docEl.style.removeProperty("--surge-shake-y");
+          docEl.style.removeProperty("--surge-blur");
           var cb = surge.reloadCb;
           setTimeout(function () { if (cb) { try { cb(); } catch (e) { } } try { location.reload(); } catch (e) { } }, 320);
         }
-      } else {
-        docEl.style.removeProperty("--surge-white");
       }
 
       /* ===== 前期:四周往中心渐暗(环形暗角,页面级) =====
@@ -754,11 +724,8 @@
         coreDraw(ctx, now);
       }
 
-      /* 中央阅读遮罩(内容页):把背景再压暗一点
-         ★ 演出期间(charge>0 或 q>0)必须停 —— 它画在洋流【之后】,
-           0.55 的黑径向罩正好把整个中央区的洋流盖回去,
-           这才是"洋流前半程看不见"的最后一层根因。 */
-      if (!isHome() && !q && !charge) {
+      /* 中央阅读遮罩(内容页):把背景再压暗一点 */
+      if (!isHome() && !q) {
         var mg = ctx.createRadialGradient(W / 2, H * 0.45, Math.min(W, H) * 0.22, W / 2, H * 0.5, Math.max(W, H) * 0.52);
         mg.addColorStop(0, "rgba(2, 4, 9, 0.55)");
         mg.addColorStop(1, "rgba(2, 4, 9, 0)");

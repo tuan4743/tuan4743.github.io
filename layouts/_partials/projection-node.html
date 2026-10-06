@@ -59,7 +59,3 @@
 {{/* 共流过境 · 全页变暗罩:opacity 由 void-bg.js 写 --surge-dim 驱动,
      只在过境期间 >0;常时 0 且 pointer-events:none,不挡任何交互。 */}}
 <div class="surge-dim" aria-hidden="true"></div>
-
-{{/* 共流过境 · 爆发白幕:页面级全屏白层(盖正文+HUD+暗罩一切),
-     opacity 由 --surge-white 驱动,只在爆发最后阶段 >0。 */}}
-<div class="surge-white" aria-hidden="true"></div>
