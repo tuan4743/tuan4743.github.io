@@ -59,3 +59,8 @@
 {{/* 共流过境 · 全页变暗罩:opacity 由 void-bg.js 写 --surge-dim 驱动,
      只在过境期间 >0;常时 0 且 pointer-events:none,不挡任何交互。 */}}
 <div class="surge-dim" aria-hidden="true"></div>
+
+{{/* 共流过境 · 覆屏白幕:canvas 白色 fillRect 只能盖背景(背景画布在
+     body 底层),盖不住正文/HUD —— 补一层 DOM 白幕,z 在暗罩之上,
+     opacity 由 --surge-white 驱动,把【整个页面】盖白再重载。 */}}
+<div class="surge-white" aria-hidden="true"></div>

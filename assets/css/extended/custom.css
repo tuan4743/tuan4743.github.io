@@ -866,6 +866,7 @@ html {
     --surge-shake-y: 0px;
     --surge-blur: 0px;
     --surge-dim: 0;
+    --surge-white: 0;
 }
 
 body.surge-shake .main,
@@ -886,6 +887,22 @@ body.surge-shake .proj-node {
    body 的 filter 会连同 HUD/顶栏/正文/背景一切一起模糊。 */
 body.surge-blur {
     filter: blur(var(--surge-blur));
+}
+
+/* 爆发期锁滚动:震动期间页面内容被平移,滚动会造成滚动条乱跳/错位观感 */
+body.surge-lock {
+    overflow: hidden !important;
+}
+
+/* 覆屏白幕:DOM 层,盖【整个页面】(canvas 白幕只够盖背景)。
+   z 在暗罩(99990)之上,pointer-events:none 不挡交互。 */
+.surge-white {
+    position: fixed;
+    inset: 0;
+    z-index: 99995;
+    pointer-events: none;
+    background: #f2f8ff;
+    opacity: var(--surge-white, 0);
 }
 
 /* 全页变暗:四周往内的环形暗角罩(中心透明 → 四周黑)。

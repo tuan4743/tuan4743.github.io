@@ -461,6 +461,12 @@
     }
     var charge = dark ? surgeCharge(surge.p) : 0;
     var q = dark ? surge.q : 0;
+    /* ★ 帧积分洋流位移:speed 随 charge/q 变化时,s = off + tS*speed
+       会让 tS(全程)乘上全新速度 → 整条河瞬移、粒子"消失一段"。
+       改为 surge.adv 每帧累加 speed*dt,速度再猛也平滑续接。
+       ★ 极限速度 42 倍基速(前期 charge=1 时 1+41,爆发期同式已含)。 */
+    var flowSpeed = 0.018 * (1 + charge * 41 + q * 3.0);
+    surge.adv = (surge.adv || 0) + flowSpeed * dt / 1000;
 
     /* ★ 自适应帧率:平时 30fps;演出激活(p>0 或 q>0)提到 60fps
        (演出细,需要跟手的帧间隔),平时掉回 30 —— rAF 本身是 60,
@@ -571,12 +577,11 @@
       for (var f = 0; f < flowDots.length; f++) {
         var fd = flowDots[f];
         var c3 = CURRENTS[fd.ci];
-        /* ★ 速度:charge(ease-in)全程跟水位,终点速度 ≈ 爆发起步;
-           爆发期增量 ×3(从前期终点继续推,不再二次起跳) */
-        var speed = 0.018 * (1 + charge * 8.0 + q * 3.0);
-        var s = (fd.off + tS * speed * fd.vj * c3.dir) % 1;
+        /* ★ 速度:用帧积分 surge.adv(上面每帧累加),速度变化不跳相;
+           前期顶速 42 倍基速(charge=1 → 1+41),爆发期在此之上再 +q*3 */
+        var s = (fd.off + surge.adv * fd.vj * c3.dir) % 1;
         if (s < 0) s += 1;
-        var cyc = fd.off + (tS * speed * fd.vj) % 1;      /* 用于闪烁 */
+        var cyc = fd.off + (surge.adv * fd.vj) % 1;       /* 用于闪烁 */
         var cxp = s * W;
         var cyp = currentY(c3, s, tS, fd.strand) * H + fd.lat * c3.width * H;
         var fa = 0.18 + 0.26 * (0.5 + 0.5 * Math.sin(tS * 1.1 + fd.tw));
@@ -635,30 +640,31 @@
          爆发期的视觉落点 = 炫光粒子 + 震动模糊 + 变暗 + 白幕。) */
 
       /* ===== 爆发期:震动 + 全页模糊(body.surge-blur) =====
-         ★ 震动/模糊/变暗都挂在 <html> 的 class 上,CSS 里对
-           html 元素本身做 filter —— filter 作用在根元素会连同
-           所有 fixed 面板(HUD/顶栏)一起模糊,这才是"整个页面"。
-         ★ 不能用 <html>.transform 做震动(创建包含块 → fixed 全错位);
-           震动仍走 body.surge-shake(.main/.m-hud/面板都平移)。
-         ★ 裂纹不受模糊影响:裂纹是 canvas 内画的,会跟着模糊 ——
-           把裂纹也搬到独立 DOM?不必:模糊分段,裂纹窗口(0.30+)
-           模糊已封顶稳定,且裂纹 blur 补偿 —— 给 canvas 滤镜在
-           裂纹期适当降低,裂纹靠自身 26px 炫光突出。 */
-      if (q > 0 && q < 0.88) {
+         ★ 白幕期(q≥0.88)震动/模糊必须【保持】—— 之前 q≥0.88 落进
+           else 把 class 全摘,白光一亮页面瞬间静止(白幕期演出消失)。
+           停用只允许发生在 q===0(演出彻底回落)。 */
+      if (q > 0) {
         var shakeA = (q / 0.45) * (q < 0.45 ? 1 : 1 - (q - 0.45) / 0.43 * 0.4);
+        if (q >= 0.88) shakeA *= 0.65;                     /* 白幕期震幅略收,但不为零 */
         document.body.classList.add("surge-shake");
+        document.body.classList.add("surge-lock");         /* 爆发期锁滚动 */
         docEl.style.setProperty("--surge-shake-x", ((hash(Math.floor(tS * 60)) - 0.5) * 9 * shakeA).toFixed(1) + "px");
         docEl.style.setProperty("--surge-shake-y", ((hash(Math.floor(tS * 60) + 99) - 0.5) * 7 * shakeA).toFixed(1) + "px");
-        /* 全页模糊(含 HUD):blur 挂 body(class 驱动);裂纹画布在 body 外,不参与 */
+        /* 全页模糊(含 HUD):blur 挂 body(class 驱动) */
         document.body.classList.add("surge-blur");
         docEl.style.setProperty("--surge-blur", (shakeA * 3.2).toFixed(2) + "px");
+        /* 白幕:canvas 只能盖背景,盖不住正文/HUD —— 用 DOM 白层
+           (z 高于暗罩),随 q 0.88→1 从 0 到 1,盖【整个页面】 */
+        docEl.style.setProperty("--surge-white", clamp((q - 0.88) / 0.10, 0, 1).toFixed(2));
       } else {
         document.body.classList.remove("surge-shake");
         document.body.classList.remove("surge-blur");
+        document.body.classList.remove("surge-lock");
         docEl.style.removeProperty("--surge-shake-x");
         docEl.style.removeProperty("--surge-shake-y");
         docEl.style.removeProperty("--surge-blur");
         docEl.style.removeProperty("--surge-dim");
+        docEl.style.removeProperty("--surge-white");
       }
 
       /* ===== 爆发期:覆屏白幕(q 0.88..1) =====
@@ -668,13 +674,9 @@
         ctx.globalAlpha = wh;
         ctx.fillStyle = "#f2f8ff";
         ctx.fillRect(0, 0, W, H);
+        /* 页面侧白幕由上面 q>0 分支的 --surge-white 驱动(震动/模糊同支保持) */
         if (q >= 1 && !surge.reloaded) {
           surge.reloaded = true;
-          document.body.classList.remove("surge-shake");
-          document.body.classList.remove("surge-blur");
-          docEl.style.removeProperty("--surge-shake-x");
-          docEl.style.removeProperty("--surge-shake-y");
-          docEl.style.removeProperty("--surge-blur");
           var cb = surge.reloadCb;
           setTimeout(function () { if (cb) { try { cb(); } catch (e) { } } try { location.reload(); } catch (e) { } }, 320);
         }
@@ -724,8 +726,10 @@
         coreDraw(ctx, now);
       }
 
-      /* 中央阅读遮罩(内容页):把背景再压暗一点 */
-      if (!isHome() && !q) {
+      /* 中央阅读遮罩(内容页):把背景再压暗一点
+         ★ 过境期间(charge>0 或 q>0)必须停 —— 它画在洋流之后,
+           0.55 的黑径向罩会把整个中央区的洋流盖回去。 */
+      if (!isHome() && !q && !charge) {
         var mg = ctx.createRadialGradient(W / 2, H * 0.45, Math.min(W, H) * 0.22, W / 2, H * 0.5, Math.max(W, H) * 0.52);
         mg.addColorStop(0, "rgba(2, 4, 9, 0.55)");
         mg.addColorStop(1, "rgba(2, 4, 9, 0)");
