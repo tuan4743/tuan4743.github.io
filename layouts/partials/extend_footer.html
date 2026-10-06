@@ -119,4 +119,9 @@
 {{- $u := . | fingerprint "sha256" }}
 <script defer src="{{ $u.RelPermalink }}"></script>
 {{- end }}
+{{- /* 手机顶栏的 [≡] 按钮(菜单开合)。顶栏只在窄屏有 DOM,拿不到就静默退出。 */ -}}
+{{- with resources.Get "js/m-header.js" }}
+{{- $u := . | fingerprint "sha256" }}
+<script defer src="{{ $u.RelPermalink }}"></script>
+{{- end }}
 {{- end }}

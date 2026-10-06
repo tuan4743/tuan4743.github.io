@@ -54,6 +54,12 @@
          ★ 注意:HUD 边框的起点在页面顶部(y=0)横坐标 30 处 ——
            顶栏在的时候会把它第一段斜线盖住,这也是先撤掉它的原因之一。 */}}
     {{/* {{ partialCached "header.html" . .Page -}} */}}
+    {{/* ★★ 手机顶栏(header-mobile.html):窄屏(<1181px)下右侧 HUD 整体退场,
+           导航/明暗全在 HUD 里 ⇒ 手机上补这支顶栏(站名 + [≡] 下拉:菜单+明暗)。
+           CSS 只在窄屏显示,桌面端零改动。零 id 冲突(明暗是 m-hud-theme)。 */}}
+    {{- if not (.Param "isHome") }}
+    {{ partial "header-mobile.html" . }}
+    {{- end }}
     <main class="main">
         {{- block "main" . }}{{ end }}
     </main>

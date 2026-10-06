@@ -86,6 +86,27 @@
 <script>/* 着色器网址带内容指纹:着色器一改网址就变,浏览器不会拿到旧版本 */
 window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}", snow: "{{ with $snowGlsl }}{{ .RelPermalink }}{{ end }}", aurora: "{{ with $auroraGlsl }}{{ .RelPermalink }}{{ end }}" };</script>
 {{/* ============================================================
+     ★★★ 手机闸门(用户:"首页和启动页全部割掉"):
+     平板主界面/启动页是给大屏设计的仿真屏,手机浏览器(顶栏常驻、
+     触摸手势、字体不一)上每家表现都不同,适配不可行 ⇒ 手机直接不进。
+     判据:窄视口(max-width ≤ 900)+ 触摸设备(pointer: coarse)——
+     只掐"真手机",平板横屏(宽视口)照常进。
+     放 <head> 里同步执行:正文一像素都没渲染就跳走,不闪屏。
+     落点 /study/(菜单里 weight 最低的正文页;手机顶栏也在那里)。
+     ============================================================ */ -}}
+<script>
+    (function () {
+        try {
+            var narrow = window.matchMedia("(max-width: 900px)").matches;
+            var touch = window.matchMedia("(pointer: coarse)").matches;
+            if (!narrow || !touch) return;
+            var p = location.pathname.replace(/\/+$/, "");
+            if (p !== "/home" && p !== "/start") return;   /* 只拦这两页 */
+            location.replace("/study/");
+        } catch (e) { }
+    })();
+</script>
+{{/* ============================================================
      ★★★ 开机黑幕:在首帧之前就把 CD 页藏掉
      ─────────────────────────────────────────────────────────────
      用户第二轮:"进入首页的初始化从进入CD页转为直接停在平板上,此时平板是黑屏。"

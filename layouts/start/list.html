@@ -25,6 +25,21 @@
 
 <head>
     {{- partial "head.html" . }}
+    {{/* ★★★ 手机闸门(用户:"首页和启动页全部割掉"):手机不进启动页,
+         直接送去 /study/(那里有窄屏顶栏)。head 同步执行,不闪屏。
+         只拦"窄视口 + 触摸"的真手机;平板/桌面照常进。 */}}
+    <script>
+        (function () {
+            try {
+                var narrow = window.matchMedia("(max-width: 900px)").matches;
+                var touch = window.matchMedia("(pointer: coarse)").matches;
+                if (!narrow || !touch) return;
+                var p = location.pathname.replace(/\/+$/, "");
+                if (p !== "/start" && p !== "/") return;
+                location.replace("/study/");
+            } catch (e) { }
+        })();
+    </script>
     <style>
         /* ============================================================
            启动页样式 —— 全部收在这个 <style> 里,不进主题样式表。
