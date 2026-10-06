@@ -55,3 +55,7 @@
     <span class="echo-black__who">ECHO</span>
     <span class="echo-black__note">正在重新接入……</span>
 </div>
+
+{{/* 共流过境 · 全页变暗罩:opacity 由 void-bg.js 写 --surge-dim 驱动,
+     只在过境期间 >0;常时 0 且 pointer-events:none,不挡任何交互。 */}}
+<div class="surge-dim" aria-hidden="true"></div>

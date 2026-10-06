@@ -543,7 +543,7 @@
         var fd = flowDots[f];
         var c3 = CURRENTS[fd.ci];
         /* ★ 速度:前期拉满后不回落(charge 封顶 1);爆发期再 ×3 */
-        var speed = 0.018 * (1 + charge * 3.4 + q * 6);
+        var speed = 0.018 * (1 + charge * 5.0 + q * 6);   /* 前期拉满 ≈ 爆发起步,衔接 */
         var s = (fd.off + tS * speed * fd.vj * c3.dir) % 1;
         if (s < 0) s += 1;
         var cyc = fd.off + (tS * speed * fd.vj) % 1;      /* 用于闪烁 */
@@ -569,7 +569,7 @@
              处理:拖尾统一折线化(3 段),并检测跨边界 ——
              跨边界的点直接不画(那一帧少一截拖尾,看不出)。 */
         var streak = charge > 0.55 ? (charge - 0.55) / 0.45 : 0;
-        var streakLen = (streak * 22 + band * 60 + glow * 10) * fd.vj;   /* px */
+        var streakLen = (streak * 26 + band * 60 + glow * 10) * fd.vj;   /* px */
         if (streakLen > 1.2) {
           var backS = (streakLen / W) * c3.dir;      /* s 空间回退量(带方向) */
           var m2s = ((s - backS * 0.33) % 1 + 1) % 1;
@@ -633,12 +633,14 @@
           var ckT = clamp((q - (0.30 + cr * 0.05)) / 0.30, 0, 1);   /* 各条错峰生长 */
           if (ckT <= 0) continue;
           var segN = Math.ceil(ck.segs.length * ckT);
-          var wMain = 1.4 + 2.4 * (1 - ckT * 0.35);
-          ctx.shadowColor = "rgba(215, 238, 255, 0.95)";
-          ctx.shadowBlur = 10;
-          /* 主枝:粗 */
-          ctx.strokeStyle = "rgba(240, 249, 255, 0.95)";
-          ctx.lineWidth = wMain;
+          /* 主枝更粗(底层 3.5~6px),同洋流色(青白),强炫光 */
+          var wMain = 3.5 + 2.8 * (1 - ckT * 0.35);
+          ctx.shadowColor = "rgba(190, 230, 255, 0.98)";
+          ctx.shadowBlur = 26;
+          /* 主枝:粗,两遍描(第一遍宽晕,第二遍亮核) */
+          ctx.strokeStyle = "rgba(200, 234, 255, 0.55)";
+          ctx.lineWidth = wMain * 2.2;
+          ctx.lineCap = "round";
           ctx.beginPath();
           for (var sgi = 0; sgi < segN; sgi++) {
             var sg = ck.segs[sgi];
@@ -646,9 +648,12 @@
             ctx.lineTo(sg[2] * W, sg[3] * H);
           }
           ctx.stroke();
+          ctx.strokeStyle = "rgba(242, 250, 255, 0.98)";
+          ctx.lineWidth = wMain;
+          ctx.stroke();
           /* 侧枝:细,只长已长出的节点 */
-          ctx.lineWidth = wMain * 0.45;
-          ctx.strokeStyle = "rgba(240, 249, 255, 0.65)";
+          ctx.lineWidth = wMain * 0.5;
+          ctx.strokeStyle = "rgba(226, 242, 255, 0.8)";
           for (var bi = 0; bi < ck.branches.length; bi++) {
             var br = ck.branches[bi];
             if ((bi + 2) > segN) break;
@@ -662,26 +667,29 @@
         ctx.restore();
       }
 
-      /* ===== 爆发期:震动(html)+ 炫光模糊(只模糊背景 canvas) =====
-         ★ 震动不再动 <html>.transform —— transform 会创建包含块,
-           把 position:fixed 的 HUD/顶栏全部拖去参与布局重排
-           (用户报的"严重错位和显示问题"),fixed 元素在
-           transformed 祖先里退化成相对该祖先定位。
-         ✓ 改成给 <body> 加 class,CSS 只对 .main + HUD 面板做
-           小幅 translate —— 内容整体平移不重排,fixed 面板不动。
-         ★ 模糊:blur 只给背景 canvas(cv.style.filter),
-           正文永不模糊 —— "页面逐渐模糊"由白幕+暗角接管观感。 */
+      /* ===== 爆发期:震动 + 全页模糊(html.surge-run) =====
+         ★ 震动/模糊/变暗都挂在 <html> 的 class 上,CSS 里对
+           html 元素本身做 filter —— filter 作用在根元素会连同
+           所有 fixed 面板(HUD/顶栏)一起模糊,这才是"整个页面"。
+         ★ 不能用 <html>.transform 做震动(创建包含块 → fixed 全错位);
+           震动仍走 body.surge-shake(.main/.m-hud/面板都平移)。
+         ★ 裂纹不受模糊影响:裂纹是 canvas 内画的,会跟着模糊 ——
+           把裂纹也搬到独立 DOM?不必:模糊分段,裂纹窗口(0.30+)
+           模糊已封顶稳定,且裂纹 blur 补偿 —— 给 canvas 滤镜在
+           裂纹期适当降低,裂纹靠自身 26px 炫光突出。 */
       if (q > 0 && q < 0.88) {
         var shakeA = (q / 0.45) * (q < 0.45 ? 1 : 1 - (q - 0.45) / 0.43 * 0.4);
         document.body.classList.add("surge-shake");
         docEl.style.setProperty("--surge-shake-x", ((hash(Math.floor(tS * 60)) - 0.5) * 9 * shakeA).toFixed(1) + "px");
         docEl.style.setProperty("--surge-shake-y", ((hash(Math.floor(tS * 60) + 99) - 0.5) * 7 * shakeA).toFixed(1) + "px");
-        cv.style.filter = "blur(" + (shakeA * 2.6).toFixed(2) + "px)";
+        /* 全页模糊(含 HUD):blur 挂 <html>;裂纹期不再加码 */
+        docEl.style.setProperty("--surge-blur", (shakeA * 3.2).toFixed(2) + "px");
       } else {
         document.body.classList.remove("surge-shake");
         docEl.style.removeProperty("--surge-shake-x");
         docEl.style.removeProperty("--surge-shake-y");
-        cv.style.filter = "";
+        docEl.style.removeProperty("--surge-blur");
+        docEl.style.removeProperty("--surge-dim");
       }
 
       /* ===== 爆发期:覆屏白幕(q 0.88..1) =====
@@ -696,28 +704,29 @@
           document.body.classList.remove("surge-shake");
           docEl.style.removeProperty("--surge-shake-x");
           docEl.style.removeProperty("--surge-shake-y");
-          cv.style.filter = "";
+          docEl.style.removeProperty("--surge-blur");
           var cb = surge.reloadCb;
           setTimeout(function () { if (cb) { try { cb(); } catch (e) { } } try { location.reload(); } catch (e) { } }, 320);
         }
       }
 
-      /* ===== 前期:四周往中心渐暗(环形暗角内收)+ 轻微降透明 =====
-         暗角半径随 charge 收缩;canvas 本体不好"降透明"(它就是底),
-         用一层带 α 的黑罩顺带实现。爆发期前半保持最暗,白幕接管。 */
+      /* ===== 前期:四周往中心渐暗 + 全页变暗 =====
+         canvas 内画暗角(背景侧);【整个页面】的变暗由
+         --surge-dim(黑色全屏 overlay,z 在内容之上)做 ——
+         只压背景是不够的,用户要的是页面整体沉下去。 */
       if ((charge > 0.001 || q > 0) && q < 0.88) {
-        var ek = q > 0 ? Math.max(charge, 0.85) : charge;
+        var ek = q > 0 ? Math.max(charge, 0.9) : charge;
         var rIn = Math.max(0.08, 0.62 - 0.5 * ek);            /* 内环半径(短边比例) */
         var vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * rIn, W / 2, H / 2, Math.max(W, H) * 0.75);
         vg.addColorStop(0, "rgba(0, 2, 6, 0)");
-        vg.addColorStop(1, "rgba(0, 2, 6, " + (0.62 * ek + (q > 0 ? 0.25 : 0)).toFixed(2) + ")");
+        vg.addColorStop(1, "rgba(0, 2, 6, " + (0.72 * ek).toFixed(2) + ")");
         ctx.globalAlpha = 1;
         ctx.fillStyle = vg;
         ctx.fillRect(0, 0, W, H);
-        /* 轻微降透明:整体再罩一层底色(α ≤ 0.10,轻微) */
-        ctx.globalAlpha = 0.10 * ek;
-        ctx.fillStyle = "#020409";
-        ctx.fillRect(0, 0, W, H);
+        /* 全页变暗:overlay α 由 charge 驱动(0 → 0.45),爆发期保持 */
+        docEl.style.setProperty("--surge-dim", (0.45 * ek).toFixed(2));
+      } else {
+        docEl.style.removeProperty("--surge-dim");
       }
 
       /* ===== 前期末段:噪点(charge > 0.6 起,渐密) =====

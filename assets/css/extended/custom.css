@@ -850,21 +850,65 @@ body {
 }
 
 /* ============================================================
-   共流过境 · 爆发期震动(body.surge-shake,由 void-bg.js 驱动)
-   ★ 只对正文列做小幅度 translate(变量每帧更新)——
-     不能动 <html>.transform:那会创建包含块,把 position:fixed
-     的 HUD/顶栏全部拖去重排(错位 bug 的根因)。
+   共流过境 · 爆发期(body.surge-shake / html --surge-* 变量,
+   由 void-bg.js 每帧驱动)
+   ★ 震动:不能动 <html>.transform —— 那会创建包含块,把
+     position:fixed 的 HUD/顶栏全部拖去重排(错位 bug 根因)。
+     改为对正文列 + 各 HUD 面板【分别】平移 —— 视觉上整页都在震,
+     但各自是独立 transform,不重排、不错位。
+   ★ 全页模糊:filter 挂在 <html> 上 —— 根元素的 filter 连同
+     所有 fixed 面板一起模糊,才是真正的"整个页面"。
+   ★ 全页变暗:--surge-dim 驱动一层 z-index 最高的黑罩
+     (pointer-events:none,在内容之上、白幕之下)。
    ============================================================ */
+html {
+    --surge-shake-x: 0px;
+    --surge-shake-y: 0px;
+    --surge-blur: 0px;
+    --surge-dim: 0;
+}
+
 body.surge-shake .main,
 body.surge-shake .post-content,
-body.surge-shake .m-hud {
+body.surge-shake .m-hud,
+body.surge-shake .page-hud,
+body.surge-shake .hud-ctl,
+body.surge-shake .hud-left,
+body.surge-shake .hud-toc,
+body.surge-shake .hud-timer,
+body.surge-shake .echo-say,
+body.surge-shake .proj-node {
     transform: translate(var(--surge-shake-x, 0px), var(--surge-shake-y, 0px));
+}
+
+/* 全页模糊:根元素滤镜(含 HUD/顶栏/正文一切)。
+   ★ 挂在 html 上会连背景 canvas 一起模糊(它也是页面的一部分)——
+     正是"整个页面"的语义。 */
+html {
+    filter: blur(var(--surge-blur));
+}
+
+/* 全页变暗罩:黑,盖在内容上(比白幕 z 低) */
+.surge-dim {
+    position: fixed;
+    inset: 0;
+    z-index: 99990;
+    pointer-events: none;
+    background: #000;
+    opacity: var(--surge-dim, 0);
 }
 
 @media (prefers-reduced-motion: reduce) {
     body.surge-shake .main,
     body.surge-shake .post-content,
-    body.surge-shake .m-hud {
+    body.surge-shake .m-hud,
+    body.surge-shake .page-hud,
+    body.surge-shake .hud-ctl,
+    body.surge-shake .hud-left,
+    body.surge-shake .hud-toc,
+    body.surge-shake .hud-timer,
+    body.surge-shake .echo-say,
+    body.surge-shake .proj-node {
         transform: none;
     }
 }
