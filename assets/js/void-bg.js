@@ -465,8 +465,10 @@
     }
     var charge = dark ? surgeCharge(surge.p) : 0;
     var q = dark ? surge.q : 0;
-    /* 帧积分的洋流位移(秒·归一化):速度变化时平滑续接 */
-    var flowSpeed = 0.018 * (1 + charge * 8.0 + q * 3.0);
+    /* 帧积分的洋流位移(秒·归一化):速度变化时平滑续接。
+       ★ 极限速度 = 平时的 10 倍(爆发前中期即到),再向上不设限 ——
+         用户:至少是现在的 3~5 倍。 */
+    var flowSpeed = 0.018 * (1 + charge * 8.0 + q * 5.0);
     surge.adv = (surge.adv || 0) + flowSpeed * dt / 1000;
 
     /* ★ 自适应帧率:平时 30fps;演出激活(p>0 或 q>0)提到 60fps
@@ -697,18 +699,20 @@
       }
 
       /* ===== 爆发期:覆屏白幕(q 0.88..1) =====
-         光带突然变宽盖住一切 → 全白 → 通知触发侧重载。
-         (震动/模糊由上面的 q>0 分支保持到重载,不再在白幕期被摘。) */
+         ★ 白幕必须是【页面级 DOM 层】(canvas 在 body 最底层,
+           画在 canvas 里只盖得住背景,盖不住正文和 HUD)。
+         用 --surge-white 驱动 .surge-white 全屏白层(z 最高,
+         盖住包括 .surge-dim 在内的一切)。 */
       if (q >= 0.88) {
         var wh = clamp((q - 0.88) / 0.10, 0, 1);
-        ctx.globalAlpha = wh;
-        ctx.fillStyle = "#f2f8ff";
-        ctx.fillRect(0, 0, W, H);
+        docEl.style.setProperty("--surge-white", wh.toFixed(2));
         if (q >= 1 && !surge.reloaded) {
           surge.reloaded = true;
           var cb = surge.reloadCb;
           setTimeout(function () { if (cb) { try { cb(); } catch (e) { } } try { location.reload(); } catch (e) { } }, 320);
         }
+      } else {
+        docEl.style.removeProperty("--surge-white");
       }
 
       /* ===== 前期:四周往中心渐暗(环形暗角,页面级) =====
@@ -755,8 +759,11 @@
         coreDraw(ctx, now);
       }
 
-      /* 中央阅读遮罩(内容页):把背景再压暗一点 */
-      if (!isHome() && !q) {
+      /* 中央阅读遮罩(内容页):把背景再压暗一点
+         ★ 演出期间(charge>0 或 q>0)必须停 —— 它画在洋流【之后】,
+           0.55 的黑径向罩正好把整个中央区的洋流盖回去,
+           这才是"洋流前半程看不见"的最后一层根因。 */
+      if (!isHome() && !q && !charge) {
         var mg = ctx.createRadialGradient(W / 2, H * 0.45, Math.min(W, H) * 0.22, W / 2, H * 0.5, Math.max(W, H) * 0.52);
         mg.addColorStop(0, "rgba(2, 4, 9, 0.55)");
         mg.addColorStop(1, "rgba(2, 4, 9, 0)");

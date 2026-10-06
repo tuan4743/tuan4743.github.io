@@ -866,6 +866,7 @@ html {
     --surge-shake-y: 0px;
     --surge-blur: 0px;
     --surge-dim: 0;
+    --surge-white: 0;
 }
 
 body.surge-shake .main,
@@ -909,6 +910,17 @@ body.surge-blur {
         rgba(0, 2, 6, 0) calc(var(--surge-dim-r, 0.62) * 100%),
         rgba(0, 2, 6, calc(var(--surge-dim, 0) * 1)) 100%);
     opacity: 1;
+}
+
+/* 爆发白幕:页面级全屏白层 —— z 最高(99995,高于暗罩),
+   盖住正文/HUD/背景一切。--surge-white 由爆发期驱动,平时 0。 */
+.surge-white {
+    position: fixed;
+    inset: 0;
+    z-index: 99995;
+    pointer-events: none;
+    background: #f2f8ff;
+    opacity: var(--surge-white, 0);
 }
 
 @media (prefers-reduced-motion: reduce) {
