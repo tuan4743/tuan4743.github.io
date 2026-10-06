@@ -339,20 +339,55 @@
   }
 
   /* ---------- 暗模式:共流过境(手动触发) ----------
-     洪水演出的纯渲染侧:surge.p ∈ [0,1] 是"水位",由触发侧
-     (hud-surge.js)推进。0=平时;涨过阈值后洋流涨密变亮成丝,
-     漫出河道 → 漫过全屏 → 退潮,等高线在洪水里先淹没后重新显影。
-     ★ 不自动播放:默认 p 恒 0,演出完全由持有者开闸。 */
-  var surge = { p: 0, rate: 0 };
-  function surgeEnvelope(p) {
-    /* 三段包络:0..0.45 涨(带内),0.45..0.62 漫出,0.62..0.8 全屏,>0.8 退 */
-    var flood = 0;
-    if (p <= 0) return 0;
-    if (p < 0.45) flood = p / 0.45 * 0.55;                    /* 带内涨密 0..0.55 */
-    else if (p < 0.62) flood = 0.55 + (p - 0.45) / 0.17 * 0.45;  /* 漫出 0.55..1 */
-    else if (p < 0.80) flood = 1;
-    else flood = Math.max(0, 1 - (p - 0.80) / 0.20);           /* 退潮 1..0 */
-    return flood * flood * (3 - 2 * flood);                    /* smoothstep */
+     两段周期:surge.p ∈ [0,1] 是触发条水位(前期),由 hud-surge.js
+     推进;p 到 1 进入爆发段 surge.q ∈ [0,1](独立计时,不可逆,
+     唯一出口是光带覆屏 → 页面重载)。
+     前期(p,0..0.75 区间有效):
+       · 洋流粒子变亮(不变大)、流速加快;快到极限时单个点拖成线
+       · 画面四周往中心渐暗(环形暗角内收),整体轻微降透明度
+       · 末段(p>0.6)屏幕出现噪点
+     爆发期(q):
+       · 页面震动 + 模糊;粒子真发光(shadowBlur 叠加),光晕变粗
+         最终整条洋流连成光带
+       · 光带里长出裂纹(枝干状,底层粗,同时最多 4 条),扩散
+       · q 末段:光带突然变宽覆盖全屏 → 白 → 重载 */
+  var surge = { p: 0, rate: 0, q: 0, qStart: 0, armed: false, reloaded: false, reloadCb: null };
+
+  /* 前期强度:0..1(p 的 0..0.75 段) */
+  function surgeCharge(p) { return clamp(p / 0.75, 0, 1); }
+
+  /* 爆发期子相位(全部基于 q):
+     震动模糊 0..0.30 渐强;发光 0..0.45 渐强;光带成形 0.35..0.70;
+     裂纹 0.45..0.85;覆屏白幕 0.88..1.0 */
+  var CRACKS = [];                    /* 裂纹对象池,爆发开始时生成 */
+  function crackSpawn(qStart, tNow) {
+    CRACKS.length = 0;
+    var n = 4;
+    for (var i = 0; i < n; i++) {
+      /* 起点:光带(三条河道之一)上随机一点 */
+      var ci = (hash(tNow * 0.011 + i * 7.7) * CURRENTS.length) | 0;
+      var sx = 0.06 + hash(tNow * 0.017 + i * 3.1) * 0.88;
+      /* 枝干:主枝折线(逐段随偏角走),分 2 级侧枝 */
+      var segs = [];
+      var ang = (hash(tNow * 0.023 + i * 5.3) * 0.9 + (ci % 2 ? -0.45 : 0.45));
+      var len = 0.16 + hash(tNow * 0.031 + i * 9.9) * 0.14;
+      var branches = [];
+      var x = sx, y = CURRENTS[ci].y0, a = ang;
+      var N = 9;
+      for (var s = 0; s < N; s++) {
+        var nx = x + Math.cos(a) * len / N;
+        var ny = y + Math.sin(a) * len / N * 0.6;
+        segs.push([x, y, nx, ny]);
+        /* 侧枝:中段概率长出,更细更短 */
+        if (s > 1 && s < N - 2 && hash(tNow * 0.041 + i * 13.7 + s) > 0.45) {
+          var ba = a + (hash(tNow * 0.053 + s * 3 + i) > 0.5 ? 1 : -1) * (0.7 + hash(tNow + s) * 0.7);
+          branches.push([nx, ny, nx + Math.cos(ba) * len * 0.28, ny + Math.sin(ba) * len * 0.17]);
+        }
+        x = nx; y = ny;
+        a += (hash(tNow * 0.061 + s * 7 + i * 3) - 0.5) * 1.1;
+      }
+      CRACKS.push({ ci: ci, segs: segs, branches: branches, born: qStart + i * 0.06 });
+    }
   }
 
   /* ---------- 主渲染 ---------- */
@@ -393,14 +428,25 @@
     var tS = now / 1000;
     ctx.clearRect(0, 0, W, H);
 
-    /* 共流过境:推进水位(推进速率由触发侧写进 surge.rate)。
-       帧间积分;到顶不停表 —— 满潮驻留(雾一直罩着),等触发侧
-       调 release() 才转退潮;退到 0 自动停。 */
-    if (surge.rate) {
+    /* 共流过境:水位推进(前期)。
+       p 到 1 → 进入爆发段 q(0.30/s,约 3.3s 走完),不可逆;
+       q 到 1 → 白幕全盖,通知触发侧重载页面。 */
+    if (surge.q > 0) {
+      if (!surge.qStart) surge.qStart = tS;
+      surge.q = clamp(surge.q + 0.30 * dt / 1000, 0, 1);
+      if (surge.p < 1) surge.p = 1;
+    } else if (surge.rate) {
       surge.p = clamp(surge.p + surge.rate * dt / 1000, 0, 1);
-      if (surge.p <= 0) surge.rate = 0;
+      if (surge.p <= 0) { surge.rate = 0; }
+      else if (surge.p >= 1 && !surge.armed) {
+        surge.armed = true;
+        surge.q = 0.0001;
+        surge.qStart = 0;
+        crackSpawn(tS, tS);
+      }
     }
-    var flood = dark ? surgeEnvelope(surge.p) : 0;
+    var charge = dark ? surgeCharge(surge.p) : 0;
+    var q = dark ? surge.q : 0;
 
     if (dark) {
       /* ============ 新真空:缺陷海密度场 ============ */
@@ -473,92 +519,196 @@
       ctx.restore();
 
       /* 洋流(共识流):3 股河道、480 个小点,沿河道流、横向散布、
-         河道本身随时间弯曲摆动漂移 */
+         河道本身随时间弯曲摆动漂移。
+         ★ 过境前期(charge):流速乘 (1+charge*2.2);亮度抬升;
+           charge>0.55 后单个点拖成短线(运动方向上,长度随 charge 长);
+           爆发期(q):真发光 —— shadowBlur + 多层重绘,光晕随 q 变粗,
+           q>0.35 光晕互相咬合连成光带。 */
+      var glow = q > 0 ? Math.min(1, q / 0.45) : 0;          /* 发光强度 0..1 */
+      var band = q > 0.35 ? clamp((q - 0.35) / 0.35, 0, 1) : 0;  /* 光带成形 */
       ctx.save();
       for (var f = 0; f < flowDots.length; f++) {
         var fd = flowDots[f];
         var c3 = CURRENTS[fd.ci];
-        var s = (fd.off + tS * 0.018 * fd.vj * c3.dir) % 1;
+        var speed = 0.018 * (1 + charge * 2.2 + q * 5);
+        var s = (fd.off + tS * speed * fd.vj * c3.dir) % 1;
         if (s < 0) s += 1;
-        var cyc = fd.off + (tS * 0.018 * fd.vj) % 1;      /* 用于闪烁 */
+        var cyc = fd.off + (tS * speed * fd.vj) % 1;      /* 用于闪烁 */
         var cxp = s * W;
         var cyp = currentY(c3, s, tS, fd.strand) * H + fd.lat * c3.width * H;
         var fa = 0.18 + 0.26 * (0.5 + 0.5 * Math.sin(tS * 1.1 + fd.tw));
-        /* 内容页避开中央阅读区 */
+        /* 内容页避开中央阅读区(爆发期取消避让:洪峰盖一切) */
         var dCtr3 = Math.hypot(cxp - W * 0.5, cyp - H * 0.5) / Math.min(W, H);
-        if (!isHome() && dCtr3 < 0.30) fa *= 0.35;
+        if (!isHome() && dCtr3 < 0.30 && !q) fa *= 0.35;
+        /* 前期增亮(不变大);爆发期按发光强度再抬 */
+        fa = Math.min(1, fa + charge * 0.5 + glow * 0.55);
         ctx.globalAlpha = fa;
-        ctx.fillStyle = "#dcecff";
-        ctx.beginPath();
-        ctx.arc(cxp, cyp, fd.sz, 0, Math.PI * 2);
-        ctx.fill();
+        /* 真发光:爆发期给 shadowBlur(点自身半径不变 —— 不变大) */
+        if (glow > 0.01) {
+          ctx.shadowColor = "rgba(160, 220, 255, " + (0.85 * glow).toFixed(2) + ")";
+          ctx.shadowBlur = (4 + 22 * glow) * (0.6 + 0.4 * fd.vj);
+        } else ctx.shadowBlur = 0;
+        ctx.fillStyle = glow > 0.01 ? "#eaf6ff" : "#dcecff";
+        /* 前期末段:点拖成线(沿运动方向);爆发期线更长 → 光带 */
+        var streak = charge > 0.55 ? (charge - 0.55) / 0.45 : 0;
+        var streakLen = (streak * 10 + band * 34 + glow * 6) * fd.vj * c3.dir;
+        if (streakLen > 1.2) {
+          /* 拖尾方向 = 流向;用线段代替 arc */
+          var sPrev = s - (streakLen / W) * (c3.dir > 0 ? 1 : -1);
+          var pyp = currentY(c3, ((sPrev % 1) + 1) % 1, tS, fd.strand) * H + fd.lat * c3.width * H;
+          var pxp = ((sPrev % 1) + 1) % 1 * W;
+          ctx.strokeStyle = glow > 0.01 ? "#eaf6ff" : "#dcecff";
+          ctx.lineWidth = fd.sz * 2;
+          ctx.lineCap = "round";
+          ctx.beginPath();
+          ctx.moveTo(pxp, pyp);
+          ctx.lineTo(cxp, cyp);
+          ctx.stroke();
+        } else {
+          ctx.beginPath();
+          ctx.arc(cxp, cyp, fd.sz, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
+      ctx.shadowBlur = 0;
       ctx.restore();
 
-      /* 成核事件(洪水满时暂停:界面被吞,不给新事件) */
-      if (flood < 0.5) {
+      /* ===== 爆发期:光带成形(q 0.35..0.70) =====
+         沿三条河道中心线画发光粗线(shadowBlur 高强度多层),
+         线宽随 band 变宽 → 整条洋流变成一条连续光带 */
+      if (band > 0.001) {
+        ctx.save();
+        for (var cb = 0; cb < CURRENTS.length; cb++) {
+          var cc3 = CURRENTS[cb];
+          ctx.shadowColor = "rgba(170, 225, 255, 0.95)";
+          ctx.shadowBlur = 30 + 40 * band;
+          ctx.strokeStyle = "rgba(226, 244, 255, " + (0.55 + 0.4 * band).toFixed(2) + ")";
+          ctx.lineWidth = (2 + 26 * band) * (0.5 + cc3.width * 4);
+          ctx.lineCap = "round";
+          ctx.beginPath();
+          for (var seg = 0; seg <= 60; seg++) {
+            var ss2 = seg / 60;
+            var yy2 = currentY(cc3, ss2, tS, 0) * H;
+            if (seg === 0) ctx.moveTo(ss2 * W, yy2); else ctx.lineTo(ss2 * W, yy2);
+          }
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      /* ===== 爆发期:裂纹(q 0.45..0.85) =====
+         枝干状:主枝粗(底层),侧枝细;随 q 从起点向末梢生长;
+         裂纹是"屏被震碎"—— 白色发光细线 + 黑色核缝 */
+      if (q > 0.45 && q < 0.92 && CRACKS.length) {
+        ctx.save();
+        for (var cr = 0; cr < CRACKS.length; cr++) {
+          var ck = CRACKS[cr];
+          var ckT = clamp((q - (0.45 + cr * 0.05)) / 0.28, 0, 1);   /* 各条错峰生长 */
+          if (ckT <= 0) continue;
+          var segN = Math.ceil(ck.segs.length * ckT);
+          var wMain = 1.2 + 2.2 * (1 - ckT * 0.4);
+          ctx.shadowColor = "rgba(210, 235, 255, 0.9)";
+          ctx.shadowBlur = 8;
+          /* 主枝:粗 */
+          ctx.strokeStyle = "rgba(238, 248, 255, 0.92)";
+          ctx.lineWidth = wMain;
+          ctx.beginPath();
+          for (var sgi = 0; sgi < segN; sgi++) {
+            var sg = ck.segs[sgi];
+            if (sgi === 0) ctx.moveTo(sg[0] * W, sg[1] * H);
+            ctx.lineTo(sg[2] * W, sg[3] * H);
+          }
+          ctx.stroke();
+          /* 侧枝:细,只长已长出的节点 */
+          ctx.lineWidth = wMain * 0.45;
+          ctx.strokeStyle = "rgba(238, 248, 255, 0.6)";
+          for (var bi = 0; bi < ck.branches.length; bi++) {
+            var br = ck.branches[bi];
+            if ((bi + 2) > segN) break;
+            ctx.beginPath();
+            ctx.moveTo(br[0] * W, br[1] * H);
+            ctx.lineTo(br[2] * W, br[3] * H);
+            ctx.stroke();
+          }
+        }
+        ctx.shadowBlur = 0;
+        ctx.restore();
+      }
+
+      /* ===== 爆发期:震动 + 模糊(0..0.45 渐强) =====
+         震动画不到 canvas 自己 —— 挪 <html> 上(transform),
+         模糊用 canvas CSS filter。结束时必须复原(见 q 结束分支)。 */
+      if (q > 0 && q < 0.88) {
+        var shakeA = (q / 0.45) * (q < 0.45 ? 1 : 1 - (q - 0.45) / 0.43 * 0.4);
+        var sx2 = (hash(Math.floor(tS * 60)) - 0.5) * 10 * shakeA;
+        var sy2 = (hash(Math.floor(tS * 60) + 99) - 0.5) * 8 * shakeA;
+        docEl.style.transform = "translate(" + sx2.toFixed(1) + "px," + sy2.toFixed(1) + "px)";
+        cv.style.filter = "blur(" + (shakeA * 2.2).toFixed(2) + "px)";
+      } else if (docEl.style.transform) {
+        docEl.style.transform = "";
+        cv.style.filter = "";
+      }
+
+      /* ===== 爆发期:覆屏白幕(q 0.88..1) =====
+         光带突然变宽盖住一切 → 全白 → 通知触发侧重载 */
+      if (q >= 0.88) {
+        var wh = clamp((q - 0.88) / 0.10, 0, 1);
+        ctx.globalAlpha = wh;
+        ctx.fillStyle = "#f2f8ff";
+        ctx.fillRect(0, 0, W, H);
+        if (q >= 1 && !surge.reloaded) {
+          surge.reloaded = true;
+          docEl.style.transform = "";
+          cv.style.filter = "";
+          var cb = surge.reloadCb;
+          setTimeout(function () { if (cb) { try { cb(); } catch (e) { } } try { location.reload(); } catch (e) { } }, 320);
+        }
+      }
+
+      /* ===== 前期:四周往中心渐暗(环形暗角内收)+ 轻微降透明 =====
+         暗角半径随 charge 收缩;canvas 本体不好"降透明"(它就是底),
+         用一层带 α 的黑罩顺带实现。爆发期前半保持最暗,白幕接管。 */
+      if ((charge > 0.001 || q > 0) && q < 0.88) {
+        var ek = q > 0 ? Math.max(charge, 0.85) : charge;
+        var rIn = Math.max(0.08, 0.62 - 0.5 * ek);            /* 内环半径(短边比例) */
+        var vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * rIn, W / 2, H / 2, Math.max(W, H) * 0.75);
+        vg.addColorStop(0, "rgba(0, 2, 6, 0)");
+        vg.addColorStop(1, "rgba(0, 2, 6, " + (0.62 * ek + (q > 0 ? 0.25 : 0)).toFixed(2) + ")");
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = vg;
+        ctx.fillRect(0, 0, W, H);
+        /* 轻微降透明:整体再罩一层底色(α ≤ 0.10,轻微) */
+        ctx.globalAlpha = 0.10 * ek;
+        ctx.fillStyle = "#020409";
+        ctx.fillRect(0, 0, W, H);
+      }
+
+      /* ===== 前期末段:噪点(charge > 0.6 起,渐密) =====
+         预生成噪点雪花:每帧随机取子集闪,密度随 charge 涨。
+         爆发期延续并加剧,直到白幕。 */
+      if ((charge > 0.6 || q > 0) && q < 0.88) {
+        var nk = q > 0 ? 1 : (charge - 0.6) / 0.4;
+        var n = Math.round(140 * nk);
+        ctx.save();
+        ctx.fillStyle = "#cfe4f4";
+        for (var ni = 0; ni < n; ni++) {
+          var seed = Math.floor(tS * 30) * 131 + ni * 7.77;
+          var nx2 = hash(seed) * W;
+          var ny2 = hash(seed + 0.5) * H;
+          ctx.globalAlpha = 0.10 + hash(seed + 0.9) * 0.22 * nk;
+          ctx.fillRect(nx2, ny2, 1 + (hash(seed + 2) > 0.85 ? 1.4 : 0), 1);
+        }
+        ctx.restore();
+      }
+
+      /* 成核事件(过境期间暂停:界面被吞,不给新事件) */
+      if (!charge && !q) {
         if (!core.active && now > core.next) coreSpawn(now);
         coreDraw(ctx, now);
       }
 
-      /* ===== 共流过境层(暗) =====
-         flood ∈ [0,1]:
-         · 0..0.55:三股河道涨密变亮(点加密感 = 提亮度+尺寸),等高线仍在
-         · 0.55..1:洪水漫出河道 —— 以河道中心线为源,向下/全屏漫出
-           一层青白雾坡(floodRise),最高段整个画面被雾吞住
-         · 退潮:雾先撤,河道亮度回落,等高线重新显影(它们全程没停画,
-           只是雾盖住了) */
-      if (flood > 0.001) {
-        /* 河道增亮:现有点层上面再补一遍高亮描(只有 flood 起来才画) */
-        ctx.save();
-        for (var sf = 0; sf < flowDots.length; sf++) {
-          var sd = flowDots[sf];
-          var sc = CURRENTS[sd.ci];
-          var ss = (sd.off + tS * 0.018 * sd.vj * sc.dir) % 1;
-          if (ss < 0) ss += 1;
-          var sx = ss * W;
-          var sy = currentY(sc, ss, tS, sd.strand) * H + sd.lat * sc.width * H;
-          /* 洪水涨时点又大又亮;漫出段(>0.55)整带已经在雾里,可减淡 */
-          var bandK = flood < 0.55 ? flood / 0.55 : 1 - (flood - 0.55) / 0.45 * 0.6;
-          ctx.globalAlpha = 0.55 * bandK;
-          ctx.fillStyle = "#dcecff";
-          ctx.beginPath();
-          ctx.arc(sx, sy, sd.sz * (1 + bandK * 1.6), 0, Math.PI * 2);
-          ctx.fill();
-        }
-        ctx.restore();
-
-        /* 漫出雾:水位 > 0.5 后从河道带往两侧漫(再漫满全屏)。
-           按列 x 采样三股河道中心线,每列从每条河道中心铺一段
-           竖向雾柱,厚度随 rise 增长 —— 三条河同时往外漫。 */
-        if (flood > 0.5) {
-          var rise = (flood - 0.5) / 0.5;                 /* 0..1 漫出程度 */
-          var cols = Math.max(24, Math.round(W / 24));
-          var colW = W / cols;
-          ctx.save();
-          ctx.fillStyle = "#bcd8f0";
-          for (var cc2 = 0; cc2 < CURRENTS.length; cc2++) {
-            for (var ci4 = 0; ci4 < cols; ci4++) {
-              var gx2 = (ci4 + 0.5) / cols;
-              var cyy = currentY(CURRENTS[cc2], gx2, tS, 0) * H;
-              var half = CURRENTS[cc2].width * H * (1 + rise * 9);
-              ctx.globalAlpha = 0.16 * rise;
-              ctx.fillRect(ci4 * colW, cyy - half, colW + 1, half * 2);
-            }
-          }
-          /* 满潮:整屏罩一层青白,把场景"吞"住(α 最高 0.30,不糊字太多) */
-          if (flood > 0.62) {
-            var full = (flood - 0.62) / 0.18;
-            ctx.globalAlpha = 0.30 * full;
-            ctx.fillStyle = "#a8c8e4";
-            ctx.fillRect(0, 0, W, H);
-          }
-          ctx.restore();
-        }
-      }
-
       /* 中央阅读遮罩(内容页):把背景再压暗一点 */
-      if (!isHome()) {
+      if (!isHome() && !q) {
         var mg = ctx.createRadialGradient(W / 2, H * 0.45, Math.min(W, H) * 0.22, W / 2, H * 0.5, Math.max(W, H) * 0.52);
         mg.addColorStop(0, "rgba(2, 4, 9, 0.55)");
         mg.addColorStop(1, "rgba(2, 4, 9, 0)");
@@ -745,13 +895,15 @@
   }
 
   /* ---------- 共流过境:触发侧接口 ----------
-     hud-surge.js 用这三个方法开闸/按住/读水位。
-     涨:0.028/s(不按住,整程约 36s),按住 0.20/s(约 5s 到满);
-     退:release() 后 -0.05/s(约 20s 退干净);到 0 自动停表。 */
+     hold/release/p:水位控制(前期);
+     phase():0=平时 1=前期 2=爆发期(触发条据此关自己的交互);
+     reloadAt():爆发完成回调 —— 触发侧也可自行重载,渲染侧已带兜底。 */
   window.__voidSurge = {
-    hold: function (on) { surge.rate = on ? 0.20 : 0.028; },
-    release: function () { if (surge.p > 0) surge.rate = -0.05; },
-    p: function () { return surge.p; }
+    hold: function (on) { if (!surge.armed) surge.rate = on ? 0.20 : 0.028; },
+    release: function () { if (!surge.armed && surge.p > 0) surge.rate = -0.05; },
+    p: function () { return surge.p; },
+    phase: function () { return surge.armed ? 2 : (surge.p > 0 ? 1 : 0); },
+    onReload: function (fn) { surge.reloadCb = fn; }
   };
 
   function start() {

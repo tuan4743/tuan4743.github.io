@@ -49,6 +49,7 @@
 
 .hud-surge.is-full {
     background: color-mix(in srgb, var(--mc-color, rgb(34, 211, 238)) 14%, rgba(234, 243, 255, 0.05));
+    box-shadow: 0 0 14px color-mix(in srgb, var(--mc-color, rgb(34, 211, 238)) 45%, transparent);
 }
 
 .hud-surge__label {
