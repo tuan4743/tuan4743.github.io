@@ -584,7 +584,7 @@
         var cyc = fd.off + (tS * speed * fd.vj) % 1;      /* 用于闪烁 */
         var cxp = s * W;
         /* 涌动:横向摆动叠加高频颤(swelling),幅度随风暴涨 */
-        cyp = currentY(c3, s, tS, fd.strand) * H + fd.lat * c3.width * H
+        var cyp = currentY(c3, s, tS, fd.strand) * H + fd.lat * c3.width * H
             + Math.sin(tS * (2.2 + fd.bw * 2) + fd.off * 9.4) * H * 0.012 * (swell - 1) * 2;
         var fa = 0.18 + 0.26 * (0.5 + 0.5 * Math.sin(tS * 1.1 + fd.tw));
         /* 内容页避开中央阅读区(爆发期取消避让:洪峰盖一切) */
