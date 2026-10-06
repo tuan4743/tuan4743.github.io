@@ -1,12 +1,12 @@
 /* ============================================================
-   hud-surge.js — 共流过境 · 触发条(两周期模型)
+   hud-surge.js — 共流过境 · 触发条(十阶段)
    ─────────────────────────────────────────────────────────────
    交互(用户定稿):
-   · 单击 = 解锁/锁定。锁定(默认)水位不涨;
-   · 解锁后水位自涨(慢),按住条加速;松手可退(锁定即退)。
-   · 水位满 → 爆发段接管(渲染侧 ~3.3s:发光/光带/裂纹/覆屏),
-     触发条进入 armed:交互全关,只把进度条弹满 → 白幕 → 重载。
-   演出本体在 void-bg.js(暗模式)。拿不到 __voidSurge 就静默退出。
+   · 挂在左上角摄像机(proj-node)下方,斜 45° 贴其斜边;
+   · 条分 10 个阶段(10 格),单击一次进到下一阶段;
+   · 走满 10 阶段 → 爆发段接管(armed):交互全关 → 白幕 → 重载。
+   水位由渲染侧 __voidSurge.setLevel(stage/10) 直接设置,
+   渲染侧不再自走速率(阶段式)。拿不到 __voidSurge 就静默退出。
    ============================================================ */
 (function () {
     "use strict";
@@ -16,76 +16,49 @@
     var lab = document.getElementById("hud-surge-label");
     if (!bar || !fill) return;
 
-    var LOCKED = "pref-surge-locked";
-    var locked = true;
-    try { locked = localStorage.getItem(LOCKED) !== "0"; } catch (e) { }
-
-    var holding = false;
+    var STAGES = 10;
+    var stage = 0;                  /* 0..10;10 = 交给爆发段 */
     var raf = 0;
-    var armed = false;              /* 爆发段接管:交互全关 */
+    var armed = false;
 
-    function paint(p) {
+    function paint() {
+        var p = stage / STAGES;
         fill.style.width = (p * 100).toFixed(1) + "%";
-        bar.classList.toggle("is-live", p > 0.001);
-        bar.classList.toggle("is-full", p >= 0.995 || armed);
-        if (lab) lab.textContent = armed ? "共流 · 爆" : (locked ? "共流 · 闭" : (p > 0 ? "共流 · 开" : "共流 · 开"));
+        bar.classList.toggle("is-live", stage > 0);
+        bar.classList.toggle("is-full", stage >= STAGES || armed);
+        if (lab) lab.textContent = armed ? "共流 · 爆" : "共流 · " + stage + "/10";
+        bar.setAttribute("aria-valuenow", String(stage));
     }
 
     function loop() {
         raf = 0;
         var S = window.__voidSurge;
         if (!S) return;
-        var p = S.p();
-        if (S.phase() === 2) { armed = true; paint(1); raf = requestAnimationFrame(loop); return; }
+        if (S.phase() === 2) { armed = true; paint(); raf = requestAnimationFrame(loop); return; }
         armed = false;
-        if (locked) {
-            if (p > 0) S.release();
-        } else {
-            S.hold(holding);
-        }
-        paint(p);
-        if (p > 0 || (!locked && p < 1) || holding) raf = requestAnimationFrame(loop);
+        paint();
+        /* armed(水位已设到 1)后渲染侧自己推进爆发,不再需要循环 */
+    }
+
+    function setStage(n) {
+        stage = Math.max(0, Math.min(STAGES, n));
+        var S = window.__voidSurge;
+        if (S && S.setLevel) S.setLevel(stage / STAGES);
+        paint();
+        kick();
     }
 
     function kick() { if (!raf) raf = requestAnimationFrame(loop); }
 
-    function setLocked(v) {
-        locked = v;
-        try { localStorage.setItem(LOCKED, v ? "1" : "0"); } catch (e) { }
-        bar.classList.toggle("is-locked", locked);
-        bar.setAttribute("aria-pressed", locked ? "true" : "false");
-        kick();
-    }
-
-    var downAt = 0;
-    bar.addEventListener("pointerdown", function (e) {
-        if (armed) return;
-        e.preventDefault();
-        e.stopPropagation();
-        downAt = Date.now();
-        try { bar.setPointerCapture(e.pointerId); } catch (er) { }
-        if (locked) { setLocked(false); return; }
-        holding = true;
-        kick();
-    });
-    function stopHold() {
-        if (!holding) return;
-        holding = false;
-        kick();
-    }
-    bar.addEventListener("pointerup", stopHold);
-    bar.addEventListener("pointercancel", stopHold);
-    bar.addEventListener("lostpointercapture", stopHold);
-
-    /* 解锁后的短按(<350ms)= 锁定:退潮。避免和按住加速打架。 */
+    /* 单击 = 进到下一阶段;满 10 后渲染侧自动进入爆发。 */
     bar.addEventListener("click", function (e) {
         e.stopPropagation();
         if (armed) return;
-        if (Date.now() - downAt < 350 && !locked) setLocked(true);
+        setStage(stage + 1);
     });
 
     bar.addEventListener("contextmenu", function (e) { e.preventDefault(); });
 
-    setLocked(locked);
-    paint(window.__voidSurge ? window.__voidSurge.p() : 0);
+    /* 初始:阶段 0(渲染侧水位也是 0) */
+    setStage(0);
 })();

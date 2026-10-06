@@ -946,10 +946,22 @@
   }
 
   /* ---------- 共流过境:触发侧接口 ----------
-     hold/release/p:水位控制(前期);
+     setLevel(v):直接把水位设到 v(0..1)—— 十阶段触发条用,
+       每单击一次设到下一阶段,渲染侧只读水位不做自己的推进。
+     hold/release/p:保留(速率推进式,阶段条不用但兜底兼容)。
      phase():0=平时 1=前期 2=爆发期(触发条据此关自己的交互);
-     reloadAt():爆发完成回调 —— 触发侧也可自行重载,渲染侧已带兜底。 */
+     onReload():爆发完成回调 —— 触发侧也可自行重载,渲染侧已带兜底。 */
   window.__voidSurge = {
+    setLevel: function (v) {
+      if (surge.armed) return;
+      surge.p = clamp(v, 0, 1);
+      surge.rate = 0;                       /* 阶段式:水位只由单击设置 */
+      if (surge.p >= 1 && !surge.armed) {
+        surge.armed = true;
+        surge.q = 0.0001;
+        surge.qStart = 0;
+      }
+    },
     hold: function (on) { if (!surge.armed) surge.rate = on ? 0.20 : 0.028; },
     release: function () { if (!surge.armed && surge.p > 0) surge.rate = -0.05; },
     p: function () { return surge.p; },

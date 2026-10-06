@@ -1,14 +1,25 @@
 /* ============================================================
-   hud-surge.css — 共流过境 · 触发条
+   hud-surge.css — 共流过境 · 触发条(十阶段)
    跟 page-hud 同一张皮:细线框、Alpha Sector 字、0.16s 过渡。
-   位置:.hud-ctl 栏最上(右侧控制列,音量/配色/明暗之上)。
+   位置:左上角摄像机(proj-node,等腰直角三角形)斜边下方,
+   斜 45° 与斜边平行、贴着斜边。条身沿斜边走,阶段 +1/击。
    ============================================================ */
 
 .hud-surge {
+    position: fixed;
+    /* 摄像机斜边是 y = x 的对角线(视箱 0,0 → 160,160)。条沿斜边
+       45° 铺开、贴在斜边【左下方】外侧,与斜边平行(间距 ~10px)。
+       transform-origin 取条左上角,rotate(45°) 后左上角落在
+       (left, top),条身向右下方延伸 —— 与斜边平行。 */
+    left: 14px;
+    top: 30px;
+    width: 118px;
+    transform: rotate(45deg);
+    transform-origin: left top;
     display: flex;
     flex-direction: column;
     gap: 4px;
-    padding: 6px 8px 7px;
+    padding: 5px 7px 6px;
     border: 1px solid var(--hud-line-soft, rgba(234, 243, 255, 0.22));
     border-radius: 6px;
     background: rgba(234, 243, 255, 0.05);
@@ -19,8 +30,9 @@
     cursor: pointer;
     user-select: none;
     -webkit-user-select: none;
-    touch-action: none;                       /* 按住加速:别让浏览器当滚动 */
+    touch-action: none;
     -webkit-tap-highlight-color: transparent;
+    z-index: 62;                              /* 高于摄像机(z:-1)、echo-hot(61) */
     transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
 }
 
@@ -36,9 +48,9 @@
     transform: translateY(1px);
 }
 
-/* 锁定态:标签压暗,提示"闭" */
+/* 锁定态已废弃(十阶段):保留 class 兼容,视觉与常态一致 */
 .hud-surge.is-locked {
-    color: rgba(234, 243, 255, 0.4);
+    color: var(--hud-ink-dim, rgba(234, 243, 255, 0.62));
 }
 
 /* 水位动起来 / 满潮:框和字微微亮起 */
@@ -57,11 +69,16 @@
     text-align: center;
 }
 
+/* 十阶段刻度:10 格等分,完成的格子点亮(rail 上覆盖分段刻度线) */
 .hud-surge__rail {
     position: relative;
-    height: 3px;
+    height: 5px;
     border-radius: 2px;
-    background: var(--hud-rail, rgba(234, 243, 255, 0.22));
+    background:
+        repeating-linear-gradient(90deg,
+            transparent 0, transparent calc(10% - 1.5px),
+            rgba(2, 6, 12, 0.85) calc(10% - 1.5px), rgba(2, 6, 12, 0.85) 10%),
+        var(--hud-rail, rgba(234, 243, 255, 0.22));
     overflow: hidden;
 }
 

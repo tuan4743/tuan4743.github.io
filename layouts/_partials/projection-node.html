@@ -1,5 +1,4 @@
-<div class="proj-node" aria-hidden="true">
-    <svg viewBox="0 0 168 168" fill="none" xmlns="http://www.w3.org/2000/svg">
+<div class="proj-node" aria-hidden="true">    <svg viewBox="0 0 168 168" fill="none" xmlns="http://www.w3.org/2000/svg">
         <defs>
 
             <linearGradient id="pnGrad" x1="0" y1="0" x2="1" y2="1">
@@ -41,6 +40,16 @@
             </g>
         </g>
     </svg>
+</div>
+
+{{/* 共流过境 · 十阶段触发条:贴在摄像机(proj-node)斜边下方,
+     斜 45° 与斜边平行。单击一次进一阶段,满 10 阶段进入爆发。
+     演出本体在 void-bg.js;交互逻辑在 hud-surge.js。 */}}
+<div class="hud-surge" id="hud-surge" role="button" tabindex="0"
+    aria-label="共流过境:单击进入下一阶段,共十阶段" aria-valuemin="0" aria-valuemax="10"
+    aria-valuenow="0" title="共流过境(单击 +1 阶段)">
+    <span class="hud-surge__label" id="hud-surge-label">共流 · 0/10</span>
+    <span class="hud-surge__rail"><span class="hud-surge__fill" id="hud-surge-fill"></span></span>
 </div>
 
 <div class="echo-say" id="echo-say">
