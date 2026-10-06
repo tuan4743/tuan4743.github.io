@@ -38,8 +38,20 @@
   var holder = document.querySelector(".intro-bg") || document.querySelector(".page-cosmos");
   if (!holder) { cv.style.cssText = "position:fixed;inset:0;z-index:-1;pointer-events:none;"; (document.body || docEl).appendChild(cv); }
   else { holder.insertBefore(cv, holder.firstChild); }
+  /* 裂纹画布:<html> 直下(body 外)—— 全页模糊挂 body,裂纹不参与 */
+  crisp.style.cssText = "position:fixed;inset:0;z-index:99980;pointer-events:none;";
+  (docEl).appendChild(crisp);
   var ctx = cv.getContext("2d");
   var W = 0, H = 0, DPR = 1;
+
+  /* ---------- 裂纹专用顶层画布(crisp-cv) ----------
+     挂在 <html> 直下(body 外):爆发期的全页模糊滤镜挂 body,
+     这块 canvas 在 body 外 ⇒ 裂纹永不模糊。z-index 高于内容,
+     pointer-events:none。 */
+  var crisp = document.createElement("canvas");
+  crisp.className = "void-bg-crisp";
+  crisp.setAttribute("aria-hidden", "true");
+  var cctx = crisp.getContext("2d");
 
   function hash(n) { var x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
   function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
@@ -353,46 +365,47 @@
        · q 末段:光带突然变宽覆盖全屏 → 白 → 重载 */
   var surge = { p: 0, rate: 0, q: 0, qStart: 0, armed: false, reloaded: false, reloadCb: null };
 
-  /* 前期强度:0..1(p 的 0..0.75 段) */
-  function surgeCharge(p) { return clamp(p / 0.75, 0, 1); }
+  /* 前期强度:0..1 —— ★ 直接吃整个 p(0..1 线性)。
+     曾经 0..0.75 封顶:水位后 25% 视觉全停(速度不变、条还在涨)
+     —— 用户读作"速度复原"。现在速度/亮度/拖尾全程跟条走,
+     到 1 瞬间无缝接爆发(q 的 ×6 项继续加速),没有平台段。 */
+  function surgeCharge(p) { return clamp(p, 0, 1); }
 
   /* 爆发期子相位(全部基于 q,0.11/s ≈ 9s 总长):
-     震动 0..0.45 渐强;炫光 0..0.45;光带成形 0.35..0.70;
+     震动 0..0.45 渐强;炫光 0..0.45;光带成形 0.30..0.70;
      裂纹 0.30..0.92;覆屏白幕 0.88..1.0 */
   var CRACKS = [];                    /* 裂纹对象池,爆发开始时生成 */
+  /* 裂纹:【从洋流中心向外放射】—— 起点在河道带中心,主方向
+     朝最近的屏幕边缘径向生长,带小折角;沿途小角度劈出岔缝
+     (裂缝被劈开的感觉,不是树杈)。 */
   function crackSpawn(qStart, tNow) {
     CRACKS.length = 0;
     var n = 4;
     for (var i = 0; i < n; i++) {
-      /* 起点:光带(三条河道之一)上随机一点;走向朝最近的屏幕边缘 */
       var ci = (hash(tNow * 0.011 + i * 7.7) * CURRENTS.length) | 0;
       var sx = 0.06 + hash(tNow * 0.017 + i * 3.1) * 0.88;
+      var sy = CURRENTS[ci].y0;
+      /* 主方向:朝最近的水平边缘(上/下),小偏角 */
+      var towardBottom = sy < 0.5;
+      var baseA = towardBottom ? Math.PI / 2 : -Math.PI / 2;
+      var a = baseA + (hash(tNow * 0.023 + i * 5.3) - 0.5) * 0.8;
+      var len = 0.30 + hash(tNow * 0.031 + i * 9.9) * 0.24;   /* 更长:向外贯穿 */
       var segs = [];
-      var len = 0.22 + hash(tNow * 0.031 + i * 9.9) * 0.20;
       var branches = [];
-      var x = sx, y = CURRENTS[ci].y0;
-      /* 主枝走向:从河道出发,朝上/下最近的边缘,带随机偏角 */
-      var towardBottom = y < 0.5;
-      var a = (towardBottom ? 0.5 : -0.5) + (hash(tNow * 0.023 + i * 5.3) - 0.5) * 1.2;
-      var N = 10;
+      var x = sx, y = sy;
+      var N = 12;
       for (var s = 0; s < N; s++) {
         var nx = x + Math.cos(a) * len / N;
         var ny = y + Math.sin(a) * len / N;
         segs.push([x, y, nx, ny]);
-        /* 侧枝:中段概率长出,更细更短,分叉角更大(树杈感) */
-        if (s > 1 && s < N - 2 && hash(tNow * 0.041 + i * 13.7 + s) > 0.4) {
-          var ba = a + (hash(tNow * 0.053 + s * 3 + i) > 0.5 ? 1 : -1) * (0.8 + hash(tNow + s) * 0.8);
-          branches.push([nx, ny, nx + Math.cos(ba) * len * 0.30, ny + Math.sin(ba) * len * 0.30]);
-          /* 二级小杈 */
-          if (hash(tNow * 0.071 + s * 5 + i) > 0.6) {
-            var b2a = ba + (hash(tNow * 0.083 + s) > 0.5 ? 0.9 : -0.9);
-            branches.push([nx + Math.cos(ba) * len * 0.15, ny + Math.sin(ba) * len * 0.15,
-              nx + Math.cos(ba) * len * 0.15 + Math.cos(b2a) * len * 0.16,
-              ny + Math.sin(ba) * len * 0.15 + Math.sin(b2a) * len * 0.16]);
-          }
+        /* 岔缝:小角度劈开(≤0.5rad),直而短 —— 裂缝劈开状 */
+        if (s > 1 && s < N - 2 && hash(tNow * 0.041 + i * 13.7 + s) > 0.35) {
+          var ba = a + (hash(tNow * 0.053 + s * 3 + i) > 0.5 ? 1 : -1) * (0.25 + hash(tNow + s) * 0.3);
+          var blen = len * (0.18 + hash(tNow * 0.09 + s) * 0.14);
+          branches.push([nx, ny, nx + Math.cos(ba) * blen, ny + Math.sin(ba) * blen]);
         }
         x = nx; y = ny;
-        a += (hash(tNow * 0.061 + s * 7 + i * 3) - 0.5) * 0.9;
+        a += (hash(tNow * 0.061 + s * 7 + i * 3) - 0.5) * 0.5;   /* 折角小:总体径直 */
       }
       CRACKS.push({ ci: ci, segs: segs, branches: branches, born: qStart + i * 0.06 });
     }
@@ -411,6 +424,12 @@
     cv.style.width = W + "px";
     cv.style.height = H + "px";
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    /* 裂纹画布同尺寸(它挂在 html 下,见定义处) */
+    crisp.width = cv.width;
+    crisp.height = cv.height;
+    crisp.style.width = W + "px";
+    crisp.style.height = H + "px";
+    cctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     buildDots();
     buildFlow();
     buildNodeLines();
@@ -543,7 +562,7 @@
         var fd = flowDots[f];
         var c3 = CURRENTS[fd.ci];
         /* ★ 速度:前期拉满后不回落(charge 封顶 1);爆发期再 ×3 */
-        var speed = 0.018 * (1 + charge * 5.0 + q * 6);   /* 前期拉满 ≈ 爆发起步,衔接 */
+        var speed = 0.018 * (1 + charge * 5.0 + q * 6);   /* charge 全程跟水位,无缝接爆发 */
         var s = (fd.off + tS * speed * fd.vj * c3.dir) % 1;
         if (s < 0) s += 1;
         var cyc = fd.off + (tS * speed * fd.vj) % 1;      /* 用于闪烁 */
@@ -568,8 +587,8 @@
              pxp 会跳到屏幕另一端,两点直连 = 横贯线。
              处理:拖尾统一折线化(3 段),并检测跨边界 ——
              跨边界的点直接不画(那一帧少一截拖尾,看不出)。 */
-        var streak = charge > 0.55 ? (charge - 0.55) / 0.45 : 0;
-        var streakLen = (streak * 26 + band * 60 + glow * 10) * fd.vj;   /* px */
+        var streak = charge > 0.4 ? (charge - 0.4) / 0.6 : 0;   /* 更早开始拖尾,随条全程加深 */
+        var streakLen = (streak * 34 + band * 60 + glow * 10) * fd.vj;   /* px */
         if (streakLen > 1.2) {
           var backS = (streakLen / W) * c3.dir;      /* s 空间回退量(带方向) */
           var m2s = ((s - backS * 0.33) % 1 + 1) % 1;
@@ -599,17 +618,19 @@
       ctx.shadowBlur = 0;
       ctx.restore();
 
-      /* ===== 爆发期:光带成形(q 0.35..0.70) =====
-         沿三条河道中心线画发光粗线(shadowBlur 高强度多层),
-         线宽随 band 变宽 → 整条洋流变成一条连续光带 */
+      /* ===== 爆发期:光带成形(q 0.30..0.70) =====
+         沿三条河道画发光粗线;★ 线宽要盖过洋流整个带宽:
+         河道带宽 = width*H*2(±lat 散布)+ 流丝摆动 →
+         lineWidth 用 width*H*2.6 起步(实测覆盖),不 then 点缀 */
       if (band > 0.001) {
         ctx.save();
         for (var cb = 0; cb < CURRENTS.length; cb++) {
           var cc3 = CURRENTS[cb];
+          var lw = (cc3.width * H * 2.6) * (0.25 + 0.75 * band);   /* 满档:带宽 2.6 倍 */
           ctx.shadowColor = "rgba(170, 228, 255, 0.98)";
           ctx.shadowBlur = 46 + 70 * band;
           ctx.strokeStyle = "rgba(226, 244, 255, " + (0.55 + 0.4 * band).toFixed(2) + ")";
-          ctx.lineWidth = (2 + 26 * band) * (0.5 + cc3.width * 4);
+          ctx.lineWidth = lw;
           ctx.lineCap = "round";
           ctx.beginPath();
           for (var seg = 0; seg <= 60; seg++) {
@@ -623,48 +644,54 @@
       }
 
       /* ===== 爆发期:裂纹(q 0.30..0.92) =====
-         枝干状:主枝粗(底层),侧枝细;随 q 从起点向末梢生长。
-         裂纹从光带出发向屏幕外侧延伸(像屏被震碎):
-         端点落在河道上,走向朝最近的屏幕边缘。 */
+         ★ 裂纹画在独立顶层 canvas(crisp-cv,CSS 不给它 blur)
+           —— 全页模糊(html filter)会让根元素下所有东西都糊,
+           唯独顶层第二 canvas 同样在 html 下也会糊 ⇒ 用
+           【反向补锐】不行;真解法:模糊滤镜挂 body 而不是 html,
+           裂纹 canvas 挂在 html 直下(body 外)→ 不参与模糊。
+         裂纹形态:【从洋流中心向外放射】的裂纹 —— 每条裂纹起点在
+         河道带中心,径直朝屏幕外生长(允许轻微折角),不断分叉
+         (岔口角度小,呈裂缝劈开状,非树杈)。 */
       if (q > 0.30 && q < 0.92 && CRACKS.length) {
-        ctx.save();
+        cctx.save();
+        cctx.clearRect(0, 0, W, H);
         for (var cr = 0; cr < CRACKS.length; cr++) {
           var ck = CRACKS[cr];
           var ckT = clamp((q - (0.30 + cr * 0.05)) / 0.30, 0, 1);   /* 各条错峰生长 */
           if (ckT <= 0) continue;
           var segN = Math.ceil(ck.segs.length * ckT);
-          /* 主枝更粗(底层 3.5~6px),同洋流色(青白),强炫光 */
           var wMain = 3.5 + 2.8 * (1 - ckT * 0.35);
-          ctx.shadowColor = "rgba(190, 230, 255, 0.98)";
-          ctx.shadowBlur = 26;
-          /* 主枝:粗,两遍描(第一遍宽晕,第二遍亮核) */
-          ctx.strokeStyle = "rgba(200, 234, 255, 0.55)";
-          ctx.lineWidth = wMain * 2.2;
-          ctx.lineCap = "round";
-          ctx.beginPath();
+          cctx.shadowColor = "rgba(190, 230, 255, 0.98)";
+          cctx.shadowBlur = 26;
+          cctx.strokeStyle = "rgba(200, 234, 255, 0.55)";
+          cctx.lineWidth = wMain * 2.2;
+          cctx.lineCap = "round";
+          cctx.beginPath();
           for (var sgi = 0; sgi < segN; sgi++) {
             var sg = ck.segs[sgi];
-            if (sgi === 0) ctx.moveTo(sg[0] * W, sg[1] * H);
-            ctx.lineTo(sg[2] * W, sg[3] * H);
+            if (sgi === 0) cctx.moveTo(sg[0] * W, sg[1] * H);
+            cctx.lineTo(sg[2] * W, sg[3] * H);
           }
-          ctx.stroke();
-          ctx.strokeStyle = "rgba(242, 250, 255, 0.98)";
-          ctx.lineWidth = wMain;
-          ctx.stroke();
-          /* 侧枝:细,只长已长出的节点 */
-          ctx.lineWidth = wMain * 0.5;
-          ctx.strokeStyle = "rgba(226, 242, 255, 0.8)";
+          cctx.stroke();
+          cctx.strokeStyle = "rgba(242, 250, 255, 0.98)";
+          cctx.lineWidth = wMain;
+          cctx.stroke();
+          /* 岔缝:细、直劈(小角度分叉,非树杈) */
+          cctx.lineWidth = wMain * 0.5;
+          cctx.strokeStyle = "rgba(226, 242, 255, 0.8)";
           for (var bi = 0; bi < ck.branches.length; bi++) {
             var br = ck.branches[bi];
             if ((bi + 2) > segN) break;
-            ctx.beginPath();
-            ctx.moveTo(br[0] * W, br[1] * H);
-            ctx.lineTo(br[2] * W, br[3] * H);
-            ctx.stroke();
+            cctx.beginPath();
+            cctx.moveTo(br[0] * W, br[1] * H);
+            cctx.lineTo(br[2] * W, br[3] * H);
+            cctx.stroke();
           }
         }
-        ctx.shadowBlur = 0;
-        ctx.restore();
+        cctx.shadowBlur = 0;
+        cctx.restore();
+      } else if (cctx) {
+        cctx.clearRect(0, 0, W, H);
       }
 
       /* ===== 爆发期:震动 + 全页模糊(html.surge-run) =====
@@ -682,10 +709,12 @@
         document.body.classList.add("surge-shake");
         docEl.style.setProperty("--surge-shake-x", ((hash(Math.floor(tS * 60)) - 0.5) * 9 * shakeA).toFixed(1) + "px");
         docEl.style.setProperty("--surge-shake-y", ((hash(Math.floor(tS * 60) + 99) - 0.5) * 7 * shakeA).toFixed(1) + "px");
-        /* 全页模糊(含 HUD):blur 挂 <html>;裂纹期不再加码 */
+        /* 全页模糊(含 HUD):blur 挂 body(class 驱动);裂纹画布在 body 外,不参与 */
+        document.body.classList.add("surge-blur");
         docEl.style.setProperty("--surge-blur", (shakeA * 3.2).toFixed(2) + "px");
       } else {
         document.body.classList.remove("surge-shake");
+        document.body.classList.remove("surge-blur");
         docEl.style.removeProperty("--surge-shake-x");
         docEl.style.removeProperty("--surge-shake-y");
         docEl.style.removeProperty("--surge-blur");
@@ -702,6 +731,7 @@
         if (q >= 1 && !surge.reloaded) {
           surge.reloaded = true;
           document.body.classList.remove("surge-shake");
+          document.body.classList.remove("surge-blur");
           docEl.style.removeProperty("--surge-shake-x");
           docEl.style.removeProperty("--surge-shake-y");
           docEl.style.removeProperty("--surge-blur");
@@ -710,23 +740,28 @@
         }
       }
 
-      /* ===== 前期:四周往中心渐暗 + 全页变暗 =====
-         canvas 内画暗角(背景侧);【整个页面】的变暗由
-         --surge-dim(黑色全屏 overlay,z 在内容之上)做 ——
-         只压背景是不够的,用户要的是页面整体沉下去。 */
+      /* ===== 前期:四周往中心渐暗(环形暗角,页面级) =====
+         ★ 用户:变暗是【四周往内】,不是糊一层黑罩。
+         实现:mask 渐进 —— .surge-dim 罩不用纯色 fill,改用
+         径向渐变(中心透明 → 四周黑),随 charge 内环收缩,
+         且罩在页面内容之上 ⇒ 正文和 HUD 的四周一起沉,中心可读。
+         canvas 内的暗角同步(背景侧同形)。 */
       if ((charge > 0.001 || q > 0) && q < 0.88) {
         var ek = q > 0 ? Math.max(charge, 0.9) : charge;
         var rIn = Math.max(0.08, 0.62 - 0.5 * ek);            /* 内环半径(短边比例) */
+        /* 背景侧:canvas 暗角 */
         var vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * rIn, W / 2, H / 2, Math.max(W, H) * 0.75);
         vg.addColorStop(0, "rgba(0, 2, 6, 0)");
         vg.addColorStop(1, "rgba(0, 2, 6, " + (0.72 * ek).toFixed(2) + ")");
         ctx.globalAlpha = 1;
         ctx.fillStyle = vg;
         ctx.fillRect(0, 0, W, H);
-        /* 全页变暗:overlay α 由 charge 驱动(0 → 0.45),爆发期保持 */
-        docEl.style.setProperty("--surge-dim", (0.45 * ek).toFixed(2));
+        /* 页面侧:环形渐变暗罩(中心透明四周黑),深度 0 → 0.55 */
+        docEl.style.setProperty("--surge-dim", (0.55 * ek).toFixed(2));
+        docEl.style.setProperty("--surge-dim-r", rIn.toFixed(3));
       } else {
         docEl.style.removeProperty("--surge-dim");
+        docEl.style.removeProperty("--surge-dim-r");
       }
 
       /* ===== 前期末段:噪点(charge > 0.6 起,渐密) =====
