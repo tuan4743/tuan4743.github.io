@@ -356,35 +356,43 @@
   /* 前期强度:0..1(p 的 0..0.75 段) */
   function surgeCharge(p) { return clamp(p / 0.75, 0, 1); }
 
-  /* 爆发期子相位(全部基于 q):
-     震动模糊 0..0.30 渐强;发光 0..0.45 渐强;光带成形 0.35..0.70;
-     裂纹 0.45..0.85;覆屏白幕 0.88..1.0 */
+  /* 爆发期子相位(全部基于 q,0.11/s ≈ 9s 总长):
+     震动 0..0.45 渐强;炫光 0..0.45;光带成形 0.35..0.70;
+     裂纹 0.30..0.92;覆屏白幕 0.88..1.0 */
   var CRACKS = [];                    /* 裂纹对象池,爆发开始时生成 */
   function crackSpawn(qStart, tNow) {
     CRACKS.length = 0;
     var n = 4;
     for (var i = 0; i < n; i++) {
-      /* 起点:光带(三条河道之一)上随机一点 */
+      /* 起点:光带(三条河道之一)上随机一点;走向朝最近的屏幕边缘 */
       var ci = (hash(tNow * 0.011 + i * 7.7) * CURRENTS.length) | 0;
       var sx = 0.06 + hash(tNow * 0.017 + i * 3.1) * 0.88;
-      /* 枝干:主枝折线(逐段随偏角走),分 2 级侧枝 */
       var segs = [];
-      var ang = (hash(tNow * 0.023 + i * 5.3) * 0.9 + (ci % 2 ? -0.45 : 0.45));
-      var len = 0.16 + hash(tNow * 0.031 + i * 9.9) * 0.14;
+      var len = 0.22 + hash(tNow * 0.031 + i * 9.9) * 0.20;
       var branches = [];
-      var x = sx, y = CURRENTS[ci].y0, a = ang;
-      var N = 9;
+      var x = sx, y = CURRENTS[ci].y0;
+      /* 主枝走向:从河道出发,朝上/下最近的边缘,带随机偏角 */
+      var towardBottom = y < 0.5;
+      var a = (towardBottom ? 0.5 : -0.5) + (hash(tNow * 0.023 + i * 5.3) - 0.5) * 1.2;
+      var N = 10;
       for (var s = 0; s < N; s++) {
         var nx = x + Math.cos(a) * len / N;
-        var ny = y + Math.sin(a) * len / N * 0.6;
+        var ny = y + Math.sin(a) * len / N;
         segs.push([x, y, nx, ny]);
-        /* 侧枝:中段概率长出,更细更短 */
-        if (s > 1 && s < N - 2 && hash(tNow * 0.041 + i * 13.7 + s) > 0.45) {
-          var ba = a + (hash(tNow * 0.053 + s * 3 + i) > 0.5 ? 1 : -1) * (0.7 + hash(tNow + s) * 0.7);
-          branches.push([nx, ny, nx + Math.cos(ba) * len * 0.28, ny + Math.sin(ba) * len * 0.17]);
+        /* 侧枝:中段概率长出,更细更短,分叉角更大(树杈感) */
+        if (s > 1 && s < N - 2 && hash(tNow * 0.041 + i * 13.7 + s) > 0.4) {
+          var ba = a + (hash(tNow * 0.053 + s * 3 + i) > 0.5 ? 1 : -1) * (0.8 + hash(tNow + s) * 0.8);
+          branches.push([nx, ny, nx + Math.cos(ba) * len * 0.30, ny + Math.sin(ba) * len * 0.30]);
+          /* 二级小杈 */
+          if (hash(tNow * 0.071 + s * 5 + i) > 0.6) {
+            var b2a = ba + (hash(tNow * 0.083 + s) > 0.5 ? 0.9 : -0.9);
+            branches.push([nx + Math.cos(ba) * len * 0.15, ny + Math.sin(ba) * len * 0.15,
+              nx + Math.cos(ba) * len * 0.15 + Math.cos(b2a) * len * 0.16,
+              ny + Math.sin(ba) * len * 0.15 + Math.sin(b2a) * len * 0.16]);
+          }
         }
         x = nx; y = ny;
-        a += (hash(tNow * 0.061 + s * 7 + i * 3) - 0.5) * 1.1;
+        a += (hash(tNow * 0.061 + s * 7 + i * 3) - 0.5) * 0.9;
       }
       CRACKS.push({ ci: ci, segs: segs, branches: branches, born: qStart + i * 0.06 });
     }
@@ -429,21 +437,25 @@
     ctx.clearRect(0, 0, W, H);
 
     /* 共流过境:水位推进(前期)。
-       p 到 1 → 进入爆发段 q(0.30/s,约 3.3s 走完),不可逆;
-       q 到 1 → 白幕全盖,通知触发侧重载页面。 */
-    if (surge.q > 0) {
-      if (!surge.qStart) surge.qStart = tS;
-      surge.q = clamp(surge.q + 0.30 * dt / 1000, 0, 1);
-      if (surge.p < 1) surge.p = 1;
-    } else if (surge.rate) {
+       ★ 爆发段入口放在帧尾(q 推进处),这里只管涨落:
+         后 25%(0.75..1)charge 已封顶,速度/亮度【不回落】——
+         p 继续走向 1 只是"临门"的呼吸段,所有前期效果保持在满档。 */
+    if (surge.q === 0 && surge.rate) {
       surge.p = clamp(surge.p + surge.rate * dt / 1000, 0, 1);
-      if (surge.p <= 0) { surge.rate = 0; }
-      else if (surge.p >= 1 && !surge.armed) {
+      if (surge.p <= 0) surge.rate = 0;
+      /* 到顶:武装,进入爆发(帧尾推进 q) */
+      if (surge.p >= 1 && !surge.armed) {
         surge.armed = true;
         surge.q = 0.0001;
         surge.qStart = 0;
         crackSpawn(tS, tS);
       }
+    }
+    /* 爆发段推进:0.11/s ≈ 9s 走完(用户:爆发期不要这么快) */
+    if (surge.q > 0) {
+      if (!surge.qStart) surge.qStart = tS;
+      surge.q = clamp(surge.q + 0.11 * dt / 1000, 0, 1);
+      if (surge.p < 1) surge.p = 1;
     }
     var charge = dark ? surgeCharge(surge.p) : 0;
     var q = dark ? surge.q : 0;
@@ -524,13 +536,14 @@
            charge>0.55 后单个点拖成短线(运动方向上,长度随 charge 长);
            爆发期(q):真发光 —— shadowBlur + 多层重绘,光晕随 q 变粗,
            q>0.35 光晕互相咬合连成光带。 */
-      var glow = q > 0 ? Math.min(1, q / 0.45) : 0;          /* 发光强度 0..1 */
+      var glow = q > 0 ? Math.min(1, q / 0.40) : 0;          /* 炫光强度 0..1(稍早进入) */
       var band = q > 0.35 ? clamp((q - 0.35) / 0.35, 0, 1) : 0;  /* 光带成形 */
       ctx.save();
       for (var f = 0; f < flowDots.length; f++) {
         var fd = flowDots[f];
         var c3 = CURRENTS[fd.ci];
-        var speed = 0.018 * (1 + charge * 2.2 + q * 5);
+        /* ★ 速度:前期拉满后不回落(charge 封顶 1);爆发期再 ×3 */
+        var speed = 0.018 * (1 + charge * 3.4 + q * 6);
         var s = (fd.off + tS * speed * fd.vj * c3.dir) % 1;
         if (s < 0) s += 1;
         var cyc = fd.off + (tS * speed * fd.vj) % 1;      /* 用于闪烁 */
@@ -543,27 +556,40 @@
         /* 前期增亮(不变大);爆发期按发光强度再抬 */
         fa = Math.min(1, fa + charge * 0.5 + glow * 0.55);
         ctx.globalAlpha = fa;
-        /* 真发光:爆发期给 shadowBlur(点自身半径不变 —— 不变大) */
+        /* ★ 炫光:shadowBlur 本体 + 一层放大重描(外晕)。
+           单靠 shadowBlur 在小点上不显眼 —— 炫光=核心亮 + 外圈大晕。 */
         if (glow > 0.01) {
-          ctx.shadowColor = "rgba(160, 220, 255, " + (0.85 * glow).toFixed(2) + ")";
-          ctx.shadowBlur = (4 + 22 * glow) * (0.6 + 0.4 * fd.vj);
+          ctx.shadowColor = "rgba(150, 215, 255, 0.95)";
+          ctx.shadowBlur = (10 + 46 * glow) * (0.6 + 0.4 * fd.vj);
         } else ctx.shadowBlur = 0;
-        ctx.fillStyle = glow > 0.01 ? "#eaf6ff" : "#dcecff";
-        /* 前期末段:点拖成线(沿运动方向);爆发期线更长 → 光带 */
+        ctx.fillStyle = glow > 0.01 ? "#f2f9ff" : "#dcecff";
+        /* 前期末段:点拖成线(沿运动方向);爆发期线更长 → 光带。
+           ★ 贯穿全屏直线的根因:回退点跨过 x=0/1 屏幕边界时,
+             pxp 会跳到屏幕另一端,两点直连 = 横贯线。
+             处理:拖尾统一折线化(3 段),并检测跨边界 ——
+             跨边界的点直接不画(那一帧少一截拖尾,看不出)。 */
         var streak = charge > 0.55 ? (charge - 0.55) / 0.45 : 0;
-        var streakLen = (streak * 10 + band * 34 + glow * 6) * fd.vj * c3.dir;
+        var streakLen = (streak * 22 + band * 60 + glow * 10) * fd.vj;   /* px */
         if (streakLen > 1.2) {
-          /* 拖尾方向 = 流向;用线段代替 arc */
-          var sPrev = s - (streakLen / W) * (c3.dir > 0 ? 1 : -1);
-          var pyp = currentY(c3, ((sPrev % 1) + 1) % 1, tS, fd.strand) * H + fd.lat * c3.width * H;
-          var pxp = ((sPrev % 1) + 1) % 1 * W;
-          ctx.strokeStyle = glow > 0.01 ? "#eaf6ff" : "#dcecff";
+          var backS = (streakLen / W) * c3.dir;      /* s 空间回退量(带方向) */
+          var m2s = ((s - backS * 0.33) % 1 + 1) % 1;
+          var m1s = ((s - backS * 0.66) % 1 + 1) % 1;
+          var sPrevW = ((s - backS) % 1 + 1) % 1;
+          /* 跨屏边界检测:任一相邻采样点的 |Δs| 超过回退量一半即视为跨边界 */
+          var jump = Math.abs(s - m2s) > Math.abs(backS) * 0.55 ||
+                     Math.abs(m2s - m1s) > Math.abs(backS) * 0.55 ||
+                     Math.abs(m1s - sPrevW) > Math.abs(backS) * 0.55;
+          ctx.strokeStyle = glow > 0.01 ? "#f2f9ff" : "#dcecff";
           ctx.lineWidth = fd.sz * 2;
           ctx.lineCap = "round";
-          ctx.beginPath();
-          ctx.moveTo(pxp, pyp);
-          ctx.lineTo(cxp, cyp);
-          ctx.stroke();
+          if (!jump) {
+            ctx.beginPath();
+            ctx.moveTo(sPrevW * W, currentY(c3, sPrevW, tS, fd.strand) * H + fd.lat * c3.width * H);
+            ctx.lineTo(m1s * W, currentY(c3, m1s, tS, fd.strand) * H + fd.lat * c3.width * H);
+            ctx.lineTo(m2s * W, currentY(c3, m2s, tS, fd.strand) * H + fd.lat * c3.width * H);
+            ctx.lineTo(cxp, cyp);
+            ctx.stroke();
+          }
         } else {
           ctx.beginPath();
           ctx.arc(cxp, cyp, fd.sz, 0, Math.PI * 2);
@@ -580,8 +606,8 @@
         ctx.save();
         for (var cb = 0; cb < CURRENTS.length; cb++) {
           var cc3 = CURRENTS[cb];
-          ctx.shadowColor = "rgba(170, 225, 255, 0.95)";
-          ctx.shadowBlur = 30 + 40 * band;
+          ctx.shadowColor = "rgba(170, 228, 255, 0.98)";
+          ctx.shadowBlur = 46 + 70 * band;
           ctx.strokeStyle = "rgba(226, 244, 255, " + (0.55 + 0.4 * band).toFixed(2) + ")";
           ctx.lineWidth = (2 + 26 * band) * (0.5 + cc3.width * 4);
           ctx.lineCap = "round";
@@ -596,21 +622,22 @@
         ctx.restore();
       }
 
-      /* ===== 爆发期:裂纹(q 0.45..0.85) =====
-         枝干状:主枝粗(底层),侧枝细;随 q 从起点向末梢生长;
-         裂纹是"屏被震碎"—— 白色发光细线 + 黑色核缝 */
-      if (q > 0.45 && q < 0.92 && CRACKS.length) {
+      /* ===== 爆发期:裂纹(q 0.30..0.92) =====
+         枝干状:主枝粗(底层),侧枝细;随 q 从起点向末梢生长。
+         裂纹从光带出发向屏幕外侧延伸(像屏被震碎):
+         端点落在河道上,走向朝最近的屏幕边缘。 */
+      if (q > 0.30 && q < 0.92 && CRACKS.length) {
         ctx.save();
         for (var cr = 0; cr < CRACKS.length; cr++) {
           var ck = CRACKS[cr];
-          var ckT = clamp((q - (0.45 + cr * 0.05)) / 0.28, 0, 1);   /* 各条错峰生长 */
+          var ckT = clamp((q - (0.30 + cr * 0.05)) / 0.30, 0, 1);   /* 各条错峰生长 */
           if (ckT <= 0) continue;
           var segN = Math.ceil(ck.segs.length * ckT);
-          var wMain = 1.2 + 2.2 * (1 - ckT * 0.4);
-          ctx.shadowColor = "rgba(210, 235, 255, 0.9)";
-          ctx.shadowBlur = 8;
+          var wMain = 1.4 + 2.4 * (1 - ckT * 0.35);
+          ctx.shadowColor = "rgba(215, 238, 255, 0.95)";
+          ctx.shadowBlur = 10;
           /* 主枝:粗 */
-          ctx.strokeStyle = "rgba(238, 248, 255, 0.92)";
+          ctx.strokeStyle = "rgba(240, 249, 255, 0.95)";
           ctx.lineWidth = wMain;
           ctx.beginPath();
           for (var sgi = 0; sgi < segN; sgi++) {
@@ -621,7 +648,7 @@
           ctx.stroke();
           /* 侧枝:细,只长已长出的节点 */
           ctx.lineWidth = wMain * 0.45;
-          ctx.strokeStyle = "rgba(238, 248, 255, 0.6)";
+          ctx.strokeStyle = "rgba(240, 249, 255, 0.65)";
           for (var bi = 0; bi < ck.branches.length; bi++) {
             var br = ck.branches[bi];
             if ((bi + 2) > segN) break;
@@ -635,17 +662,25 @@
         ctx.restore();
       }
 
-      /* ===== 爆发期:震动 + 模糊(0..0.45 渐强) =====
-         震动画不到 canvas 自己 —— 挪 <html> 上(transform),
-         模糊用 canvas CSS filter。结束时必须复原(见 q 结束分支)。 */
+      /* ===== 爆发期:震动(html)+ 炫光模糊(只模糊背景 canvas) =====
+         ★ 震动不再动 <html>.transform —— transform 会创建包含块,
+           把 position:fixed 的 HUD/顶栏全部拖去参与布局重排
+           (用户报的"严重错位和显示问题"),fixed 元素在
+           transformed 祖先里退化成相对该祖先定位。
+         ✓ 改成给 <body> 加 class,CSS 只对 .main + HUD 面板做
+           小幅 translate —— 内容整体平移不重排,fixed 面板不动。
+         ★ 模糊:blur 只给背景 canvas(cv.style.filter),
+           正文永不模糊 —— "页面逐渐模糊"由白幕+暗角接管观感。 */
       if (q > 0 && q < 0.88) {
         var shakeA = (q / 0.45) * (q < 0.45 ? 1 : 1 - (q - 0.45) / 0.43 * 0.4);
-        var sx2 = (hash(Math.floor(tS * 60)) - 0.5) * 10 * shakeA;
-        var sy2 = (hash(Math.floor(tS * 60) + 99) - 0.5) * 8 * shakeA;
-        docEl.style.transform = "translate(" + sx2.toFixed(1) + "px," + sy2.toFixed(1) + "px)";
-        cv.style.filter = "blur(" + (shakeA * 2.2).toFixed(2) + "px)";
-      } else if (docEl.style.transform) {
-        docEl.style.transform = "";
+        document.body.classList.add("surge-shake");
+        docEl.style.setProperty("--surge-shake-x", ((hash(Math.floor(tS * 60)) - 0.5) * 9 * shakeA).toFixed(1) + "px");
+        docEl.style.setProperty("--surge-shake-y", ((hash(Math.floor(tS * 60) + 99) - 0.5) * 7 * shakeA).toFixed(1) + "px");
+        cv.style.filter = "blur(" + (shakeA * 2.6).toFixed(2) + "px)";
+      } else {
+        document.body.classList.remove("surge-shake");
+        docEl.style.removeProperty("--surge-shake-x");
+        docEl.style.removeProperty("--surge-shake-y");
         cv.style.filter = "";
       }
 
@@ -658,7 +693,9 @@
         ctx.fillRect(0, 0, W, H);
         if (q >= 1 && !surge.reloaded) {
           surge.reloaded = true;
-          docEl.style.transform = "";
+          document.body.classList.remove("surge-shake");
+          docEl.style.removeProperty("--surge-shake-x");
+          docEl.style.removeProperty("--surge-shake-y");
           cv.style.filter = "";
           var cb = surge.reloadCb;
           setTimeout(function () { if (cb) { try { cb(); } catch (e) { } } try { location.reload(); } catch (e) { } }, 320);

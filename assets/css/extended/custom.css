@@ -850,6 +850,26 @@ body {
 }
 
 /* ============================================================
+   共流过境 · 爆发期震动(body.surge-shake,由 void-bg.js 驱动)
+   ★ 只对正文列做小幅度 translate(变量每帧更新)——
+     不能动 <html>.transform:那会创建包含块,把 position:fixed
+     的 HUD/顶栏全部拖去重排(错位 bug 的根因)。
+   ============================================================ */
+body.surge-shake .main,
+body.surge-shake .post-content,
+body.surge-shake .m-hud {
+    transform: translate(var(--surge-shake-x, 0px), var(--surge-shake-y, 0px));
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body.surge-shake .main,
+    body.surge-shake .post-content,
+    body.surge-shake .m-hud {
+        transform: none;
+    }
+}
+
+/* ============================================================
    明暗渐变切换:theme-palette.js 在切换前挂 .theme-fade,
    给全站颜色类属性一条 ~1.1s 的统一过渡,几秒内(切换+余韵)
    整体渐变成新色,不再瞬翻刺眼。切换完成后两帧摘掉,
