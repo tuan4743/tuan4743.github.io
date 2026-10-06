@@ -291,6 +291,7 @@
   /* 亮模式事件:波包(孤立高包络路过,同时最多一个) + 观测注记层 */
   var packet = { active: false, t0: 0, dur: 8, wi: 0, next: 12 };
   var waveNotes = [];
+  var nfs2 = 0;
 
   /* 节点线采样:对每个 (m,n) 模取其竖直/水平节点线的参数化采样 */
   var NODE_LINES = [];
@@ -459,8 +460,8 @@
       surge.q = clamp(surge.q + 0.11 * dt / 1000, 0, 1);
       if (surge.p < 1) surge.p = 1;
     }
-    var charge = dark ? surgeCharge(surge.p) : 0;
-    var q = dark ? surge.q : 0;
+    var charge = surgeCharge(surge.p);
+    var q = surge.q;
     /* ★ 帧积分洋流位移:speed 随 charge/q 变化时,s = off + tS*speed
        会让 tS(全程)乘上全新速度 → 整条河瞬移、粒子"消失一段"。
        改为 surge.adv 每帧累加 speed*dt,速度再猛也平滑续接。
@@ -639,86 +640,8 @@
       /* (光带与裂纹已删:效果不真实,直接去掉。
          爆发期的视觉落点 = 炫光粒子 + 震动模糊 + 变暗 + 白幕。) */
 
-      /* ===== 前期末微震(charge>0.55 起):洪峰将至,页面先低幅发颤
-         —— 压迫感的关键:爆发前页面自己先"怕"。幅度随 charge 涨,
-         到 charge=1 时约爆发的 1/4。 */
-      if (q === 0 && charge > 0.55) {
-        var pre = (charge - 0.55) / 0.45;
-        document.body.classList.add("surge-shake");
-        docEl.style.setProperty("--surge-shake-x", ((hash(Math.floor(tS * 60)) - 0.5) * 2.2 * pre).toFixed(1) + "px");
-        docEl.style.setProperty("--surge-shake-y", ((hash(Math.floor(tS * 60) + 99) - 0.5) * 1.8 * pre).toFixed(1) + "px");
-      } else if (q === 0) {
-        document.body.classList.remove("surge-shake");
-        docEl.style.removeProperty("--surge-shake-x");
-        docEl.style.removeProperty("--surge-shake-y");
-      }
-
-      /* ===== 爆发期:震动 + 全页模糊(body.surge-blur) =====
-         ★ 白幕期(q≥0.88)震动/模糊必须【保持】—— 之前 q≥0.88 落进
-           else 把 class 全摘,白光一亮页面瞬间静止(白幕期演出消失)。
-           停用只允许发生在 q===0(演出彻底回落)。 */
-      if (q > 0) {
-        var shakeA = (q / 0.45) * (q < 0.45 ? 1 : 1 - (q - 0.45) / 0.43 * 0.4);
-        if (q >= 0.88) shakeA *= 0.65;                     /* 白幕期震幅略收,但不为零 */
-        document.body.classList.add("surge-shake");
-        document.body.classList.add("surge-lock");         /* 爆发期锁滚动 */
-        docEl.style.setProperty("--surge-shake-x", ((hash(Math.floor(tS * 60)) - 0.5) * 9 * shakeA).toFixed(1) + "px");
-        docEl.style.setProperty("--surge-shake-y", ((hash(Math.floor(tS * 60) + 99) - 0.5) * 7 * shakeA).toFixed(1) + "px");
-        /* 全页模糊(含 HUD):blur 挂 body(class 驱动) */
-        document.body.classList.add("surge-blur");
-        docEl.style.setProperty("--surge-blur", (shakeA * 3.2).toFixed(2) + "px");
-        /* 白幕:canvas 只能盖背景,盖不住正文/HUD —— 用 DOM 白层
-           (z 高于暗罩),随 q 0.88→1 从 0 到 1,盖【整个页面】 */
-        docEl.style.setProperty("--surge-white", clamp((q - 0.88) / 0.10, 0, 1).toFixed(2));
-      } else {
-        document.body.classList.remove("surge-shake");
-        document.body.classList.remove("surge-blur");
-        document.body.classList.remove("surge-lock");
-        docEl.style.removeProperty("--surge-shake-x");
-        docEl.style.removeProperty("--surge-shake-y");
-        docEl.style.removeProperty("--surge-blur");
-        docEl.style.removeProperty("--surge-dim");
-        docEl.style.removeProperty("--surge-white");
-      }
-
-      /* ===== 爆发期:覆屏白幕(q 0.88..1) =====
-         光带突然变宽盖住一切 → 全白 → 通知触发侧重载 */
-      if (q >= 0.88) {
-        var wh = clamp((q - 0.88) / 0.10, 0, 1);
-        ctx.globalAlpha = wh;
-        ctx.fillStyle = "#f2f8ff";
-        ctx.fillRect(0, 0, W, H);
-        /* 页面侧白幕由上面 q>0 分支的 --surge-white 驱动(震动/模糊同支保持) */
-        if (q >= 1 && !surge.reloaded) {
-          surge.reloaded = true;
-          var cb = surge.reloadCb;
-          setTimeout(function () { if (cb) { try { cb(); } catch (e) { } } try { location.reload(); } catch (e) { } }, 320);
-        }
-      }
-
-      /* ===== 前期:四周往中心渐暗(环形暗角,页面级) =====
-         ★ 用户:变暗是【四周往内】,不是糊一层黑罩。
-         实现:mask 渐进 —— .surge-dim 罩不用纯色 fill,改用
-         径向渐变(中心透明 → 四周黑),随 charge 内环收缩,
-         且罩在页面内容之上 ⇒ 正文和 HUD 的四周一起沉,中心可读。
-         canvas 内的暗角同步(背景侧同形)。 */
-      if ((charge > 0.001 || q > 0) && q < 0.88) {
-        var ek = q > 0 ? Math.max(charge, 0.9) : charge;
-        var rIn = Math.max(0.06, 0.62 - 0.54 * ek);           /* 内环半径(短边比例) */
-        /* 背景侧:canvas 暗角 */
-        var vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * rIn, W / 2, H / 2, Math.max(W, H) * 0.75);
-        vg.addColorStop(0, "rgba(0, 2, 6, 0)");
-        vg.addColorStop(1, "rgba(0, 2, 6, " + (0.80 * ek).toFixed(2) + ")");
-        ctx.globalAlpha = 1;
-        ctx.fillStyle = vg;
-        ctx.fillRect(0, 0, W, H);
-        /* 页面侧:环形渐变暗罩(中心透明四周黑),深度 0 → 0.68 */
-        docEl.style.setProperty("--surge-dim", (0.68 * ek).toFixed(2));
-        docEl.style.setProperty("--surge-dim-r", rIn.toFixed(3));
-      } else {
-        docEl.style.removeProperty("--surge-dim");
-        docEl.style.removeProperty("--surge-dim-r");
-      }
+      /* ===== 页面侧演出(微震/爆发震动/模糊/白幕/暗角罩)已上移到
+         渲染分支外 —— 暗/亮共用同一套 --surge-* 驱动,不再重复。 */
 
       /* ===== 前期末段:噪点(charge > 0.6 起,渐密) =====
          ★ 预渲染噪点纹理整屏平铺两遍(随机相位),α 随 nk 涨 ——
@@ -932,14 +855,137 @@
       }
       ctx.restore();
 
-      /* 中央阅读区轻压(内容页):主波透明度本来低,这里再保一层 */
-      if (!isHome()) {
+      /* 中央阅读区轻压(内容页):主波透明度本来低,这里再保一层。
+         ★ 过境期间(charge/q)必须停 —— 白压罩会把洪峰盖回去。 */
+      if (!isHome() && !charge && !q) {
         var mg2 = ctx.createRadialGradient(W / 2, H * 0.45, Math.min(W, H) * 0.25, W / 2, H * 0.5, Math.max(W, H) * 0.55);
         mg2.addColorStop(0, "rgba(244, 241, 233, 0.45)");
         mg2.addColorStop(1, "rgba(244, 241, 233, 0)");
         ctx.fillStyle = mg2;
         ctx.fillRect(0, 0, W, H);
       }
+
+      /* ===== 亮模式 · 共流过境(charge/q 与暗模式同一套水位) =====
+         世界观:过境对"载体"同样生效 —— 波载体承不住共识流的洪峰。
+         演出口径与暗模式对称但换成亮色语言(墨色 ink,不是白光):
+         前期:波形随水位【统一】变化 —— 振幅抬升、波长缩短(波数
+           增大)、波速加快,三者同用一个 charge 曲线,整体感一致;
+           注记被"冲散"(透明度涨、位移抖动),末段四周往中心压暗;
+         爆发:全波列加深成墨线洪峰,震动+模糊+白幕沿用同一套
+           DOM 侧演出(custom.css 的 --surge-*)。 */
+      if (charge > 0.001 || q > 0) {
+        var lk = Math.max(charge, q > 0 ? 1 : 0);
+        /* 1) 波形加深 + 振幅增益:水在涨,波在被拉高 */
+        var ampBoost = 1 + lk * 0.9;
+        ctx.save();
+        ctx.lineWidth = 1.5 + lk * 1.6;
+        ctx.strokeStyle = "rgba(" + (96 - lk * 52) + ", " + (92 - lk * 46) + ", " + (78 - lk * 30) + ", " + (0.16 + lk * 0.5).toFixed(2) + ")";
+        for (var wvi2 = 0; wvi2 < WAVES.length; wvi2++) {
+          var wv2 = WAVES[wvi2];
+          /* 洪峰口径:过境期间给该列波换压缩后的波数(波长缩短)+
+             提速的时间相位 —— 直接改传参不可行,复制 waveYs 的
+             核心式在此内联,相位项乘 (1 + lk*1.8) */
+          var kSqueeze = 1 + lk * 0.85;                   /* 波长 ↓ 最多 ~46% */
+          var tBoost = 1 + lk * 1.8;                      /* 波速 ↑ 最多 ~2.8x */
+          ctx.beginPath();
+          for (var wx2 = 0; wx2 <= W; wx2 += 6) {
+            var nx2 = wx2 / W;
+            var kk2 = wv2.k * kSqueeze * (1 + 0.35 * clamp(1 - nx2, 0, 1));
+            /* 波向左传:相位 +t·w·2π(tBoost 乘在 t 项上=提速) */
+            var yy2 = Math.sin(nx2 * kk2 * Math.PI * 2 + tS * wv2.w * Math.PI * 2 * tBoost + wv2.ph) * H * wv2.a;
+            if (nx2 < 0.45) {
+              var tear2 = (0.45 - nx2) / 0.45;
+              yy2 += Math.sin(nx2 * wv2.k * 5.7 * Math.PI * 2 - tS * wv2.w * 3.1 * Math.PI * 2 * tBoost) * H * wv2.a * 0.16 * tear2;
+            }
+            var env2 = 0.625 + 0.375 * Math.sin(tS * wv2.dec * Math.PI * 2 + wv2.dph);
+            var wy2 = H * wv2.y0 + yy2 * env2 * waveSwell(wvi2, nx2, tS) * ampBoost;
+            if (wx2 === 0) ctx.moveTo(wx2, wy2); else ctx.lineTo(wx2, wy2);
+          }
+          ctx.stroke();
+        }
+        ctx.restore();
+        /* 2) 注记被冲散:透明度抬升 + 抖动位移(q 期直接糊掉) */
+        if (waveNotes.length) {
+          ctx.save();
+          ctx.font = (nfs2 = nfs2 || Math.max(10, Math.round(Math.min(W, H) * 0.016))) + 'px "Alpha Sector", ui-monospace, Consolas, monospace';
+          for (var wn3 = 0; wn3 < waveNotes.length; wn3++) {
+            var wnn3 = waveNotes[wn3];
+            var jitter = lk * (q > 0 ? 14 : 5);
+            ctx.save();
+            ctx.translate(
+              wnn3.nx * W + (hash(Math.floor(tS * 9) + wn3) - 0.5) * jitter,
+              waveYs(WAVES[wnn3.wi], wnn3.nx, tS, wnn3.wi) + wnn3.lift * nfs2 * 0.9 + (hash(Math.floor(tS * 9) + wn3 * 31) - 0.5) * jitter);
+            ctx.globalAlpha = Math.min(0.85, wnn3.a + lk * 0.5);
+            ctx.fillStyle = "#3d4436";
+            ctx.fillText(wnn3.txt, 0, 0);
+            ctx.restore();
+          }
+          ctx.restore();
+        }
+        /* 3) 背景侧环形暗角(暖褐,亮模式口径;白幕期退出) */
+        if (q < 0.88) {
+          var rIn2 = Math.max(0.06, 0.62 - 0.54 * lk);
+          var vg2 = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * rIn2, W / 2, H / 2, Math.max(W, H) * 0.75);
+          vg2.addColorStop(0, "rgba(64, 54, 30, 0)");
+          vg2.addColorStop(1, "rgba(64, 54, 30, " + (0.62 * lk).toFixed(2) + ")");
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = vg2;
+          ctx.fillRect(0, 0, W, H);
+        }
+        /* 4) 白幕:亮模式也走全白(q 0.88..1),与暗模式同格 */
+        if (q >= 0.88) {
+          ctx.globalAlpha = clamp((q - 0.88) / 0.10, 0, 1);
+          ctx.fillStyle = "#f2f8ff";
+          ctx.fillRect(0, 0, W, H);
+        }
+      }
+    }
+
+    /* ===== 过境·页面侧演出(暗/亮共用,放分支外) =====
+       微震/爆发震动/模糊/白幕/环形暗罩由 --surge-* 驱动;
+       白幕期(q>=0.88)震动/模糊保持,停用只允许在 q===0。 */
+    if (q > 0) {
+      var shakeA = (q / 0.45) * (q < 0.45 ? 1 : 1 - (q - 0.45) / 0.43 * 0.4);
+      if (q >= 0.88) shakeA *= 0.65;
+      document.body.classList.add("surge-shake");
+      document.body.classList.add("surge-lock");
+      docEl.style.setProperty("--surge-shake-x", ((hash(Math.floor(tS * 60)) - 0.5) * 9 * shakeA).toFixed(1) + "px");
+      docEl.style.setProperty("--surge-shake-y", ((hash(Math.floor(tS * 60) + 99) - 0.5) * 7 * shakeA).toFixed(1) + "px");
+      document.body.classList.add("surge-blur");
+      docEl.style.setProperty("--surge-blur", (shakeA * 3.2).toFixed(2) + "px");
+      docEl.style.setProperty("--surge-white", clamp((q - 0.88) / 0.10, 0, 1).toFixed(2));
+    } else {
+      document.body.classList.remove("surge-shake");
+      document.body.classList.remove("surge-blur");
+      document.body.classList.remove("surge-lock");
+      docEl.style.removeProperty("--surge-shake-x");
+      docEl.style.removeProperty("--surge-shake-y");
+      docEl.style.removeProperty("--surge-blur");
+      docEl.style.removeProperty("--surge-white");
+    }
+    /* 环形暗角罩(页面侧):暗模式黑、亮模式暖褐 — 走同一变量,
+       色差交给 CSS 的 data-theme 分支;白幕期与平时摘掉。 */
+    if ((charge > 0.001 || q > 0) && q < 0.88) {
+      var ekP = q > 0 ? Math.max(charge, 0.9) : charge;
+      var rInP = Math.max(0.06, 0.62 - 0.54 * ekP);
+      docEl.style.setProperty("--surge-dim", (0.68 * ekP).toFixed(2));
+      docEl.style.setProperty("--surge-dim-r", rInP.toFixed(3));
+    } else {
+      docEl.style.removeProperty("--surge-dim");
+      docEl.style.removeProperty("--surge-dim-r");
+    }
+    /* 前期末微震(charge>0.55):爆发前页面先"怕" */
+    if (q === 0 && charge > 0.55) {
+      var preP = (charge - 0.55) / 0.45;
+      document.body.classList.add("surge-shake");
+      docEl.style.setProperty("--surge-shake-x", ((hash(Math.floor(tS * 60)) - 0.5) * 2.2 * preP).toFixed(1) + "px");
+      docEl.style.setProperty("--surge-shake-y", ((hash(Math.floor(tS * 60) + 99) - 0.5) * 1.8 * preP).toFixed(1) + "px");
+    }
+    /* 重载触发:q 走满,暗/亮共用 */
+    if (q >= 1 && !surge.reloaded) {
+      surge.reloaded = true;
+      var cbP = surge.reloadCb;
+      setTimeout(function () { if (cbP) { try { cbP(); } catch (e) { } } try { location.reload(); } catch (e) { } }, 320);
     }
 
     requestAnimationFrame(render);

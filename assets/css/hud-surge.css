@@ -1,126 +1,78 @@
 /* ============================================================
-   hud-surge.css — 共流过境 · 触发条(十阶段)
+   hud-surge.css — 共流过境 · 十阶段触发块
    跟 page-hud 同一张皮:细线框、Alpha Sector 字、0.16s 过渡。
-   位置:左上角摄像机(proj-node,等腰直角三角形)斜边下方,
-   斜 45° 与斜边平行、贴着斜边。条身沿斜边走,阶段 +1/击。
+   形态(用户定稿):去文字、去外框、去底色 —— 只留 10 个块,
+   斜 45° 贴在摄像机(proj-node)斜边外侧,块身沿斜边铺满其全长。
+   逻辑见 hud-surge.js。
    ============================================================ */
 
 .hud-surge {
+    /* 摄像机斜边是「/」向对角线:右上 → 左下,即 x+y = C 的直线,
+       C = 160/168 × 摄像机宽。rotate(-45°) 后条的 x 轴指向右上
+       (与斜边同向);左上角锚点放在斜边外侧(左下侧)一点,
+       条身即沿斜边平行铺开。宽 = 斜边全长(摄像机 160/168 × 宽)。 */
+    --cam: clamp(88px, 9vw, 132px);
+    --cam-edge: calc(var(--cam) * 1.3);      /* 斜边在屏幕上的长度 */
+    --blk: calc(var(--cam-edge) / 10);         /* 单块长 = 斜边/10 */
+
     position: fixed;
-    /* 摄像机斜边是 y = x 的对角线(视箱 0,0 → 160,160)。条沿斜边
-       45° 铺开、贴在斜边【左下方】外侧,与斜边平行(间距 ~10px)。
-       transform-origin 取条左上角,rotate(45°) 后左上角落在
-       (left, top),条身向右下方延伸 —— 与斜边平行。 */
-    left: 14px;
-    top: 30px;
-    width: 118px;
-    transform: rotate(45deg);
+    /* 锚点:斜边中点沿法线(+x,-y 方向,即右下侧)外推 9px 处,
+       再沿条自身轴向回退半长 —— 用 top/left 直接给出。 */
+    left: calc(var(--cam) * 0.476 - var(--cam-edge) / 2 + 29px);
+    top: calc(var(--cam) * 0.476 + var(--cam-edge) / 2 - 19px);
+    width: var(--cam-edge);
+    height: var(--blk);
+    transform: rotate(-45deg);
     transform-origin: left top;
     display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 5px 7px 6px;
-    border: 1px solid var(--hud-line-soft, rgba(234, 243, 255, 0.22));
-    border-radius: 6px;
-    background: rgba(234, 243, 255, 0.05);
-    color: var(--hud-ink-dim, rgba(234, 243, 255, 0.62));
-    font-family: var(--hud-font, ui-monospace, monospace);
-    font-size: calc(10px * var(--hud-s, 1));
-    letter-spacing: 0.14em;
+    padding: 0;
+    border: 0;
+    background: transparent;
     cursor: pointer;
     user-select: none;
     -webkit-user-select: none;
     touch-action: none;
     -webkit-tap-highlight-color: transparent;
     z-index: 62;                              /* 高于摄像机(z:-1)、echo-hot(61) */
-    transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
 }
 
-.hud-surge:hover,
-.hud-surge:focus-visible {
-    background: rgba(234, 243, 255, 0.12);
-    border-color: var(--hud-line-on, rgba(234, 243, 255, 0.6));
-    color: var(--hud-ink, #eaf3ff);
-    outline: none;
-}
-
-.hud-surge:active {
-    transform: translateY(1px);
-}
-
-/* 锁定态已废弃(十阶段):保留 class 兼容,视觉与常态一致 */
-.hud-surge.is-locked {
-    color: var(--hud-ink-dim, rgba(234, 243, 255, 0.62));
-}
-
-/* 水位动起来 / 满潮:框和字微微亮起 */
-.hud-surge.is-live {
-    border-color: color-mix(in srgb, var(--mc-color, rgb(34, 211, 238)) 55%, transparent);
-    color: var(--hud-ink, #eaf3ff);
-}
-
-.hud-surge.is-full {
-    background: color-mix(in srgb, var(--mc-color, rgb(34, 211, 238)) 14%, rgba(234, 243, 255, 0.05));
-    box-shadow: 0 0 14px color-mix(in srgb, var(--mc-color, rgb(34, 211, 238)) 45%, transparent);
-}
-
-.hud-surge__label {
-    white-space: nowrap;
-    text-align: center;
-}
-
-/* 十阶段刻度:10 格等分,完成的格子点亮(rail 上覆盖分段刻度线) */
+/* 十个块:等分排布,块间留 3px 缝 */
 .hud-surge__rail {
-    position: relative;
-    height: 5px;
-    border-radius: 2px;
-    background:
-        repeating-linear-gradient(90deg,
-            transparent 0, transparent calc(10% - 1.5px),
-            rgba(2, 6, 12, 0.85) calc(10% - 1.5px), rgba(2, 6, 12, 0.85) 10%),
-        var(--hud-rail, rgba(234, 243, 255, 0.22));
-    overflow: hidden;
-}
-
-.hud-surge__fill {
-    position: absolute;
-    left: 0;
-    top: 0;
+    display: flex;
+    gap: 3px;
+    width: 100%;
     height: 100%;
-    width: 0%;
-    border-radius: 2px;
-    background: linear-gradient(90deg,
-        color-mix(in srgb, var(--mc-color, rgb(34, 211, 238)) 45%, transparent),
-        var(--mc-color, rgb(34, 211, 238)));
-    transition: width 0.12s linear;
+    background: transparent;
 }
 
-/* 亮色模式(HUD 亮色覆盖同口径):框和字翻墨绿 */
-:root[data-theme="light"] .hud-surge {
-    border-color: rgba(58, 63, 72, 0.26);
-    background: rgba(250, 248, 242, 0.9);
-    color: rgba(40, 46, 52, 0.8);
+/* 单块:已完成/进行中 = 青色;未到 = 极淡的线 */
+.hud-surge__cell {
+    flex: 1 1 0;
+    height: 4px;
+    align-self: center;
+    border-radius: 1px;
+    background: var(--hud-rail, rgba(234, 243, 255, 0.16));
+    transition: background-color 0.16s ease;
 }
 
-:root[data-theme="light"] .hud-surge:hover,
-:root[data-theme="light"] .hud-surge:focus-visible {
-    background: rgba(14, 116, 122, 0.12);
-    border-color: rgba(14, 116, 122, 0.55);
-    color: rgba(20, 40, 44, 0.95);
+.hud-surge.is-live .hud-surge__cell.on {
+    background: var(--mc-color, rgb(34, 211, 238));
 }
 
-:root[data-theme="light"] .hud-surge.is-locked {
-    color: rgba(40, 46, 52, 0.45);
+/* 爆发段(armed / 满 10):全块亮起 + 微光 */
+.hud-surge.is-full .hud-surge__cell {
+    background: var(--mc-color, rgb(34, 211, 238));
+    box-shadow: 0 0 6px color-mix(in srgb, var(--mc-color, rgb(34, 211, 238)) 60%, transparent);
 }
 
-:root[data-theme="light"] .hud-surge__rail {
-    background: rgba(58, 63, 72, 0.24);
+/* 亮色模式:未到的块改墨色淡线;已完成的仍走青绿(--mc-color 亮模式已换) */
+:root[data-theme="light"] .hud-surge__cell {
+    background: rgba(58, 63, 72, 0.22);
 }
 
-:root[data-theme="light"] .hud-surge__fill {
-    background: linear-gradient(90deg,
-        color-mix(in srgb, rgb(14, 116, 122) 45%, transparent),
-        rgb(14, 116, 122));
+:root[data-theme="light"] .hud-surge.is-live .hud-surge__cell.on,
+:root[data-theme="light"] .hud-surge.is-full .hud-surge__cell {
+    background: rgb(14, 116, 122);
 }
 
 @media (max-width: 1180px) {
