@@ -592,11 +592,14 @@
         var cyp = currentY(c3, s, tS, fd.strand) * H + fd.lat * c3.width * H
             + Math.sin(tS * (2.2 + fd.bw * 2) + fd.off * 9.4) * H * 0.012 * (swell - 1) * 2;
         var fa = 0.18 + 0.26 * (0.5 + 0.5 * Math.sin(tS * 1.1 + fd.tw));
-        /* 内容页避开中央阅读区(爆发期取消避让:洪峰盖一切) */
+        /* 内容页避开中央阅读区 —— ★ 演出期间取消(charge>0 即取消):
+           中央避让 ×0.35 把三条河的中段全压到 0.06~0.15,前期增亮
+           被 it 吃掉,视觉上"前半程整条洋流根本没出现"。 */
         var dCtr3 = Math.hypot(cxp - W * 0.5, cyp - H * 0.5) / Math.min(W, H);
-        if (!isHome() && dCtr3 < 0.30 && !q) fa *= 0.35;
-        /* 前期增亮(不变大);爆发期按发光强度再抬 */
-        fa = Math.min(1, fa + charge * 0.5 + glow * 0.55);
+        if (!isHome() && dCtr3 < 0.30 && !charge && !q) fa *= 0.35;
+        /* 前期增亮:给一个显式的抬升底价(fa 原区间太低,0.18 起步
+           在暗背景上几乎不可见),charge 一启动洋流必须立刻可感 */
+        fa = Math.min(1, fa + charge * 0.65 + glow * 0.55);
         ctx.globalAlpha = fa;
         /* ★ 炫光 = 预渲染光晕贴图(替代逐点 shadowBlur):
            核心点照常画,glow 起来后在其上贴 glowSprite,
@@ -664,24 +667,20 @@
          爆发期的视觉落点 = 炫光粒子 + 震动模糊 + 变暗 + 白幕。) */
 
       /* ===== 爆发期:震动 + 全页模糊(body.surge-blur) =====
-         ★ 震动/模糊/变暗都挂在 <html> 的 class 上,CSS 里对
-           html 元素本身做 filter —— filter 作用在根元素会连同
-           所有 fixed 面板(HUD/顶栏)一起模糊,这才是"整个页面"。
-         ★ 不能用 <html>.transform 做震动(创建包含块 → fixed 全错位);
-           震动仍走 body.surge-shake(.main/.m-hud/面板都平移)。
-         ★ 裂纹不受模糊影响:裂纹是 canvas 内画的,会跟着模糊 ——
-           把裂纹也搬到独立 DOM?不必:模糊分段,裂纹窗口(0.30+)
-           模糊已封顶稳定,且裂纹 blur 补偿 —— 给 canvas 滤镜在
-           裂纹期适当降低,裂纹靠自身 26px 炫光突出。 */
-      if (q > 0 && q < 0.88) {
-        var shakeA = (q / 0.45) * (q < 0.45 ? 1 : 1 - (q - 0.45) / 0.43 * 0.4);
+         ★ 分支结构:震动/模糊的【启用】在下面三段里各自负责,
+           但【停用】只允许发生在 q===0 && charge≤0.7(演出彻底
+           回落)——之前白幕期(q≥0.88)会掉进 else 把 class 全摘,
+           白光瞬间页面静止。现在 else 的条件本身排除了 q>0。 */
+      if (q > 0) {
+        /* 爆发全程(含白幕):震动 + 模糊保持 */
+        var shakeA = q < 0.45 ? (q / 0.45) : 1;                     /* 0..1 渐强后保持 */
+        var shDamp = q >= 0.88 ? 0.65 : (q < 0.45 ? 1 : 1 - (q - 0.45) / 0.43 * 0.4);
         document.body.classList.add("surge-shake");
-        docEl.style.setProperty("--surge-shake-x", ((hash(Math.floor(tS * 60)) - 0.5) * 9 * shakeA).toFixed(1) + "px");
-        docEl.style.setProperty("--surge-shake-y", ((hash(Math.floor(tS * 60) + 99) - 0.5) * 7 * shakeA).toFixed(1) + "px");
-        /* 全页模糊(含 HUD):blur 挂 body(class 驱动);裂纹画布在 body 外,不参与 */
+        docEl.style.setProperty("--surge-shake-x", ((hash(Math.floor(tS * 60)) - 0.5) * 9 * shakeA * shDamp).toFixed(1) + "px");
+        docEl.style.setProperty("--surge-shake-y", ((hash(Math.floor(tS * 60) + 99) - 0.5) * 7 * shakeA * shDamp).toFixed(1) + "px");
         document.body.classList.add("surge-blur");
-        docEl.style.setProperty("--surge-blur", (shakeA * 3.2).toFixed(2) + "px");
-      } else if (charge > 0.7 && q === 0) {
+        docEl.style.setProperty("--surge-blur", ((q >= 0.88 ? 3.2 : shakeA * 3.2 * (q < 0.45 ? 1 : 1 - (q - 0.45) / 0.43 * 0.4)).toFixed(2)));
+      } else if (charge > 0.7) {
         /* 前期末微震:洪峰将至,页面开始低幅颤 —— 提前给"力量感",
            幅度只有爆发的 1/6,随 charge 涨 */
         var pre = (charge - 0.7) / 0.3;
@@ -699,20 +698,12 @@
 
       /* ===== 爆发期:覆屏白幕(q 0.88..1) =====
          光带突然变宽盖住一切 → 全白 → 通知触发侧重载。
-         ★ 白幕期间震动/模糊【保持到重载】(原来 q≥0.88 就走了
-           else 分支被摘 —— 白光时页面突然静止,很假)。 */
+         (震动/模糊由上面的 q>0 分支保持到重载,不再在白幕期被摘。) */
       if (q >= 0.88) {
         var wh = clamp((q - 0.88) / 0.10, 0, 1);
         ctx.globalAlpha = wh;
         ctx.fillStyle = "#f2f8ff";
         ctx.fillRect(0, 0, W, H);
-        if (q < 1) {
-          document.body.classList.add("surge-shake");
-          document.body.classList.add("surge-blur");
-          docEl.style.setProperty("--surge-shake-x", ((hash(Math.floor(tS * 60)) - 0.5) * 6).toFixed(1) + "px");
-          docEl.style.setProperty("--surge-shake-y", ((hash(Math.floor(tS * 60) + 99) - 0.5) * 5).toFixed(1) + "px");
-          docEl.style.setProperty("--surge-blur", "3.2");
-        }
         if (q >= 1 && !surge.reloaded) {
           surge.reloaded = true;
           var cb = surge.reloadCb;
