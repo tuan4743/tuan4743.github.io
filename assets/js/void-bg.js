@@ -38,11 +38,6 @@
   var holder = document.querySelector(".intro-bg") || document.querySelector(".page-cosmos");
   if (!holder) { cv.style.cssText = "position:fixed;inset:0;z-index:-1;pointer-events:none;"; (document.body || docEl).appendChild(cv); }
   else { holder.insertBefore(cv, holder.firstChild); }
-  /* 裂纹画布:<html> 直下(body 外)—— 全页模糊挂 body,裂纹不参与 */
-  crisp.style.cssText = "position:fixed;inset:0;z-index:99980;pointer-events:none;";
-  (docEl).appendChild(crisp);
-  var ctx = cv.getContext("2d");
-  var W = 0, H = 0, DPR = 1;
 
   /* ---------- 裂纹专用顶层画布(crisp-cv) ----------
      挂在 <html> 直下(body 外):爆发期的全页模糊滤镜挂 body,
@@ -51,7 +46,11 @@
   var crisp = document.createElement("canvas");
   crisp.className = "void-bg-crisp";
   crisp.setAttribute("aria-hidden", "true");
+  crisp.style.cssText = "position:fixed;inset:0;z-index:99980;pointer-events:none;";
+  docEl.appendChild(crisp);
   var cctx = crisp.getContext("2d");
+  var ctx = cv.getContext("2d");
+  var W = 0, H = 0, DPR = 1;
 
   function hash(n) { var x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
   function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
