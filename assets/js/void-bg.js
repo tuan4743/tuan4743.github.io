@@ -866,42 +866,74 @@
       }
 
       /* ===== 亮模式 · 共流过境(charge/q 与暗模式同一套水位) =====
-         世界观:过境对"载体"同样生效 —— 波载体承不住共识流的洪峰。
-         演出口径与暗模式对称但换成亮色语言(墨色 ink,不是白光):
-         前期:波形随水位【统一】变化 —— 振幅抬升、波长缩短(波数
-           增大)、波速加快,三者同用一个 charge 曲线,整体感一致;
-           注记被"冲散"(透明度涨、位移抖动),末段四周往中心压暗;
-         爆发:全波列加深成墨线洪峰,震动+模糊+白幕沿用同一套
-           DOM 侧演出(custom.css 的 --surge-*)。 */
+         世界观:过境对"载体"同样生效 —— 共识流把波载体从行波态
+         【激发到本征态】:四列行波随水位各自坍缩成一阶驻波
+         ψₙ(x,t) = A·sin(nπx/L)·cos(ωt),但保留少量行波残留
+         (系统没锁死,在特征态边缘挣扎):
+           · 频率高、振幅克制 —— 绷紧的弦,不是慢荡的绳
+           · 四列不同频不同相,永不齐摆
+           · 包络带不均匀颤动(hash 驱动,像共振失稳前的抖)
+           · 墨色随水位加深到近黑,线条变粗
+         行波→驻波用 lks(smoothstep)插值坍缩;爆发期沿用同一套
+         DOM 侧演出(震动/模糊/白幕,custom.css 的 --surge-*)。 */
       if (charge > 0.001 || q > 0) {
         var lk = Math.max(charge, q > 0 ? 1 : 0);
-        /* 1) 波形加深 + 振幅增益:水在涨,波在被拉高 */
-        var ampBoost = 1 + lk * 0.9;
+        var lks = lk * lk * (3 - 2 * lk);              /* smoothstep:临界点附近快速坍缩 */
+        var ampBoost = 1 + lk * 0.55;                  /* 腹点振幅:拉高但克制(高频下不显荡) */
+        var wBoost = 1 + lk * 3.2;                     /* 本征频率:共振提速(快而绷,不是慢荡) */
+        var inkR = Math.round(96 - lk * 62), inkG = Math.round(92 - lk * 58), inkB = Math.round(78 - lk * 42);
         ctx.save();
-        ctx.lineWidth = 1.5 + lk * 1.6;
-        ctx.strokeStyle = "rgba(" + (96 - lk * 52) + ", " + (92 - lk * 46) + ", " + (78 - lk * 30) + ", " + (0.16 + lk * 0.5).toFixed(2) + ")";
+        ctx.lineWidth = 1.5 + lk * 2.2;
         for (var wvi2 = 0; wvi2 < WAVES.length; wvi2++) {
           var wv2 = WAVES[wvi2];
-          /* 洪峰口径:过境期间给该列波换压缩后的波数(波长缩短)+
-             提速的时间相位 —— 直接改传参不可行,复制 waveYs 的
-             核心式在此内联,相位项乘 (1 + lk*1.8) */
-          var kSqueeze = 1 + lk * 0.85;                   /* 波长 ↓ 最多 ~46% */
-          var tBoost = 1 + lk * 1.8;                      /* 波速 ↑ 最多 ~2.8x */
+          var mode = wvi2 + 2;                         /* 本征阶数 n = 2..5(各列不同模) */
+          var omN = (2.4 + wvi2 * 0.55) * Math.PI * 2 * wBoost;  /* 各列本征频率不同 */
+          var phN = wvi2 * 1.7;                        /* 各列相位不同,永不齐摆 */
           ctx.beginPath();
-          for (var wx2 = 0; wx2 <= W; wx2 += 6) {
+          for (var wx2 = 0; wx2 <= W; wx2 += 4) {
             var nx2 = wx2 / W;
-            var kk2 = wv2.k * kSqueeze * (1 + 0.35 * clamp(1 - nx2, 0, 1));
-            /* 波向左传:相位 +t·w·2π(tBoost 乘在 t 项上=提速) */
-            var yy2 = Math.sin(nx2 * kk2 * Math.PI * 2 + tS * wv2.w * Math.PI * 2 * tBoost + wv2.ph) * H * wv2.a;
-            if (nx2 < 0.45) {
-              var tear2 = (0.45 - nx2) / 0.45;
-              yy2 += Math.sin(nx2 * wv2.k * 5.7 * Math.PI * 2 - tS * wv2.w * 3.1 * Math.PI * 2 * tBoost) * H * wv2.a * 0.16 * tear2;
-            }
-            var env2 = 0.625 + 0.375 * Math.sin(tS * wv2.dec * Math.PI * 2 + wv2.dph);
-            var wy2 = H * wv2.y0 + yy2 * env2 * waveSwell(wvi2, nx2, tS) * ampBoost;
+            /* 行波分量(原波形,照常行进)——坍缩锚点+残留挣扎 */
+            yTra = waveYs(wv2, nx2, tS, wvi2);
+            /* 本征驻波分量:ψₙ = A'·sin(nπx)·cos(ω't) */
+            var envAmp = H * wv2.a * ampBoost * (0.625 + 0.375 * Math.sin(tS * wv2.dec * Math.PI * 2 + wv2.dph));
+            var standN = Math.sin(nx2 * mode * Math.PI) * Math.cos(tS * omN + phN) * envAmp;
+            /* 共振失稳的抖:包络乘一条 9Hz 的不均匀微颤(各列独立) */
+            var quiver = 1 + lk * 0.22 * (hash(Math.floor(tS * 9) * 13.7 + wvi2 * 41) - 0.5) * Math.sin(nx2 * 9.1 + tS * 2.2);
+            var yN = H * wv2.y0 + standN * quiver;
+            /* 行波 → 驻波插值;坍缩后仍留 18% 行波(系统在挣扎,不齐摆) */
+            var wy2 = yTra * (1 - lks * 0.82) + yN * lks;
             if (wx2 === 0) ctx.moveTo(wx2, wy2); else ctx.lineTo(wx2, wy2);
           }
+          ctx.strokeStyle = "rgba(" + inkR + ", " + inkG + ", " + inkB + ", " + (0.16 + lk * 0.62).toFixed(2) + ")";
           ctx.stroke();
+          /* 特征包络 ±A·sin(nπx):特征态的边界,虚线,随坍缩浮现 */
+          if (lks > 0.05) {
+            ctx.save();
+            ctx.setLineDash([5, 4]);
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = "rgba(" + inkR + ", " + inkG + ", " + inkB + ", " + (0.30 * lks).toFixed(2) + ")";
+            for (var sg2 = -1; sg2 <= 1; sg2 += 2) {
+              ctx.beginPath();
+              for (var ex2 = 0; ex2 <= W; ex2 += 8) {
+                var exn = ex2 / W;
+                var ey2 = H * wv2.y0 + sg2 * Math.sin(exn * mode * Math.PI) * envAmp;
+                if (ex2 === 0) ctx.moveTo(ex2, ey2); else ctx.lineTo(ex2, ey2);
+              }
+              ctx.stroke();
+            }
+            /* 节点:短竖刻度钉死在波节上(固定端的锚,不是圆点) */
+            ctx.setLineDash([]);
+            ctx.strokeStyle = "rgba(" + inkR + ", " + inkG + ", " + inkB + ", " + (0.55 * lks).toFixed(2) + ")";
+            ctx.lineWidth = 1.4;
+            for (var nd = 1; nd < mode; nd++) {
+              var ndx = W * nd / mode;
+              ctx.beginPath();
+              ctx.moveTo(ndx, H * wv2.y0 - 5 - lks * 2);
+              ctx.lineTo(ndx, H * wv2.y0 + 5 + lks * 2);
+              ctx.stroke();
+            }
+            ctx.restore();
+          }
         }
         ctx.restore();
         /* 2) 注记被冲散:透明度抬升 + 抖动位移(q 期直接糊掉) */
