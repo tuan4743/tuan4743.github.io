@@ -567,6 +567,11 @@
          (charge 封顶后 p 继续走,glowPre 正好利用那段"临门"。) */
       var glowPre = q === 0 && surge.p > 0.75 ? (surge.p - 0.75) / 0.25 * 0.5 : 0;
       var glow = q > 0 ? 0.5 + Math.min(1, q / 0.40) * 0.5 : glowPre;
+      /* ★ 洋流风暴感:高水位后整条河道开始【涌动】—— 横向摆动幅度
+         被一个快速波动调制(振幅 ×(1+charge*1.2+q*0.8)),粒子不再
+         平滑滑行而是颠簸;同时全带微微"涌向"下游(视觉上河道在
+         膨胀)。这是风暴的水感,缺了它就只是"快",不是"洪"。 */
+      var swell = 1 + charge * 1.2 + q * 0.8;
       ctx.save();
       for (var f = 0; f < flowDots.length; f++) {
         var fd = flowDots[f];
@@ -578,7 +583,9 @@
         if (s < 0) s += 1;
         var cyc = fd.off + (tS * speed * fd.vj) % 1;      /* 用于闪烁 */
         var cxp = s * W;
-        var cyp = currentY(c3, s, tS, fd.strand) * H + fd.lat * c3.width * H;
+        /* 涌动:横向摆动叠加高频颤(swelling),幅度随风暴涨 */
+        cyp = currentY(c3, s, tS, fd.strand) * H + fd.lat * c3.width * H
+            + Math.sin(tS * (2.2 + fd.bw * 2) + fd.off * 9.4) * H * 0.012 * (swell - 1) * 2;
         var fa = 0.18 + 0.26 * (0.5 + 0.5 * Math.sin(tS * 1.1 + fd.tw));
         /* 内容页避开中央阅读区(爆发期取消避让:洪峰盖一切) */
         var dCtr3 = Math.hypot(cxp - W * 0.5, cyp - H * 0.5) / Math.min(W, H);
@@ -631,6 +638,23 @@
       }
       ctx.restore();
 
+      /* ★ 缺的那块:激发(白点也被点亮)。
+         洪峰不只是洋流的事 —— 自由白点是"真空密度涨落",带宽胀
+         它们也该被激到:高 charge 时白点整体增亮 + 快闪,
+         爆发期最亮。画面从"三条亮河"变成"整片真空都在响"。 */
+      ctx.save();
+      for (var d2 = 0; d2 < dots.length; d2++) {
+        var dt9 = dots[d2];
+        var tw9 = 0.5 + 0.5 * Math.cos(dt9.ph + tS * dt9.om * Math.PI * 2 * (0.12 + charge * 0.5));
+        if (tw9 < 0.72) continue;                       /* 只挑本来就亮的少数点 */
+        var px9 = (dt9.bx + 0.008 * Math.sin(tS * dt9.bw + d2)) * W;
+        var py9 = (dt9.by + 0.008 * Math.cos(tS * dt9.bw * 0.8 + d2 * 1.3)) * H;
+        var ex = (tw9 - 0.72) / 0.28;                   /* 0..1 */
+        ctx.globalAlpha = Math.min(0.5, ex * (0.12 + charge * 0.35 + glow * 0.3));
+        ctx.drawImage(glowSprite, px9 - 8, py9 - 8, 16, 16);
+      }
+      ctx.restore();
+
       /* (光带与裂纹已删:效果不真实,直接去掉。
          爆发期的视觉落点 = 炫光粒子 + 震动模糊 + 变暗 + 白幕。) */
 
@@ -652,6 +676,13 @@
         /* 全页模糊(含 HUD):blur 挂 body(class 驱动);裂纹画布在 body 外,不参与 */
         document.body.classList.add("surge-blur");
         docEl.style.setProperty("--surge-blur", (shakeA * 3.2).toFixed(2) + "px");
+      } else if (charge > 0.7 && q === 0) {
+        /* 前期末微震:洪峰将至,页面开始低幅颤 —— 提前给"力量感",
+           幅度只有爆发的 1/6,随 charge 涨 */
+        var pre = (charge - 0.7) / 0.3;
+        document.body.classList.add("surge-shake");
+        docEl.style.setProperty("--surge-shake-x", ((hash(Math.floor(tS * 60)) - 0.5) * 1.5 * pre).toFixed(1) + "px");
+        docEl.style.setProperty("--surge-shake-y", ((hash(Math.floor(tS * 60) + 99) - 0.5) * 1.2 * pre).toFixed(1) + "px");
       } else {
         document.body.classList.remove("surge-shake");
         document.body.classList.remove("surge-blur");
