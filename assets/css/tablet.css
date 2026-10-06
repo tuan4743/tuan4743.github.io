@@ -714,3 +714,72 @@ html.slot-locked .slot-toggle,
         transform: none;
     }
 }
+
+/* ============================================================
+   手机竖屏提示(rotate-hint.html)
+   ─────────────────────────────────────────────────────────────
+   平板主界面是横向仿真屏,竖屏(~390px)放不下 ⇒ 不阉割、不缩放,
+   盖一层"请横过来"的提示卡;横屏/宽屏这层自动消失,原样演示。
+   纯 CSS 按 orientation 掐,零 JS。
+   ============================================================ */
+.m-rotate { display: none; }
+
+@media (max-width: 900px) and (orientation: portrait) {
+    .m-rotate {
+        display: flex;
+        position: fixed;
+        inset: 0;
+        z-index: 400;                       /* 高过平板(40)/开关(41)/黑屏底衬 */
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background: #05070d;
+        color: #eaf3ff;
+        font-family: "Alpha Sector", "Pixel CN", "PingFang SC", "Microsoft YaHei",
+            "Noto Sans SC", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .m-rotate__card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+        text-align: center;
+        padding: 34px 30px;
+        border: 1px solid rgba(234, 243, 255, 0.18);
+        border-radius: 8px;
+        background: rgba(234, 243, 255, 0.03);
+        max-width: 300px;
+    }
+
+    .m-rotate__ico {
+        width: 44px;
+        height: 44px;
+        color: rgba(160, 220, 255, 0.8);
+        /* 轻微摇摆,示意"转过来" */
+        animation: m-rotate-swing 2.6s ease-in-out infinite;
+    }
+
+    @keyframes m-rotate-swing {
+        0%, 100% { transform: rotate(0deg); }
+        35%      { transform: rotate(-90deg); }
+        65%      { transform: rotate(-90deg); }
+    }
+
+    .m-rotate__t1 {
+        font-size: 15px;
+        letter-spacing: 0.26em;
+        text-indent: 0.26em;
+        color: #eaf3ff;
+    }
+
+    .m-rotate__t2 {
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        color: rgba(198, 220, 246, 0.5);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .m-rotate__ico { animation: none; }
+}

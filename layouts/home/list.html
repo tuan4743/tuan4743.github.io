@@ -468,6 +468,8 @@ window.__SHADERS = { train: "{{ with $trainGlsl }}{{ .RelPermalink }}{{ end }}",
      ★ 数据全部来自真实数据源:APP 来自 site.Menus.main(和顶栏同一份配置,
          图标用同一个 $m.Pre,不会各自漂),最近更新/标签来自站点内容。
      ============================================================ */}}
+{{- /* 手机竖屏:平板主界面不裁也不缩,盖"请横屏"提示层(横屏自动消失) */}}
+{{- partial "rotate-hint.html" . }}
 <button class="statusbar-toggle" id="statusbar-toggle" aria-expanded="false" aria-controls="tablet"
     title="打开平板主界面">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"

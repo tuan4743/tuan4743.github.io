@@ -139,11 +139,21 @@ function wire() {
     e.stopImmediatePropagation();
   }, true);
 
+  /* ★ 手机长按的最后一道保险:选项上压掉系统右键/呼出菜单
+     (Android Chrome 长按即使无可选文本也可能弹链接触摸菜单)。 */
+  document.addEventListener("contextmenu", function (e) {
+    if (e.target.closest && e.target.closest("[data-start-go]")) e.preventDefault();
+  });
+
   document.addEventListener("pointerdown", function (e) {
     var a = e.target.closest ? e.target.closest("[data-start-go]") : null;
     if (!a || going) return;
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
     e.preventDefault();
+    /* ★ 手机:压掉长按手势链(系统选择菜单/放大镜),否则 900ms 按住
+       会被浏览器组件栏抢走,选项永远按不满。配合页面上的
+       touch-action / -webkit-touch-callout / user-select 三重 CSS 压制。 */
+    if (a.setPointerCapture) { try { a.setPointerCapture(e.pointerId); } catch (err) { } }
     startHold(a);
   });
   ["pointerup", "pointercancel", "pointerleave", "blur"].forEach(function (ev) {
