@@ -15,24 +15,25 @@
     }
   }
 
-  /* ---------- 明暗整体切换 ----------
-     页面上散布着大量 0.14~0.3s 的 color/background 过渡(HUD 按钮、
-     行、链接……),直接换 data-theme 时它们【各自】完成过渡 ——
-     表现为元素明暗依次变化,闪眼。
-     做法:切换前给 <html> 挂 .theme-snap(禁掉所有 color 类过渡),
-     下一帧切换 data-theme,再下一帧摘掉 —— 全站一瞬间整体翻转。 */
+  /* ---------- 明暗渐变切换 ----------
+     直接换 data-theme 时所有颜色属性瞬翻,刺眼。
+     做法:切换前给 <html> 挂 .theme-fade(全站颜色属性统一
+     ~1.1s 过渡),下一帧切换 data-theme,过渡走完再摘掉 ——
+     页面整体在几秒内渐变成新色。摘早了悬停微过渡没事,
+     摘晚了也只是渐变期间悬停也是慢的,可接受。 */
+  var fadeTimer = 0;
   function switchTheme(next) {
     var html = document.documentElement;
-    html.classList.add("theme-snap");
-    /* 强制一次 style/layout,确保禁过渡先生效 */
+    if (fadeTimer) clearTimeout(fadeTimer);
+    html.classList.add("theme-fade");
+    /* 强制一次 style,确保过渡规则先于 data-theme 生效 */
     void html.offsetWidth;
     html.dataset.theme = next;
     try { localStorage.setItem("pref-theme", next); } catch (e) { }
-    requestAnimationFrame(function () {
-      requestAnimationFrame(function () {
-        html.classList.remove("theme-snap");
-      });
-    });
+    fadeTimer = setTimeout(function () {
+      html.classList.remove("theme-fade");
+      fadeTimer = 0;
+    }, 1250);
   }
   /* 暴露给主题 footer 里那支 PaperMod 原生脚本对齐用(见 baseof 注释) */
   window.__switchTheme = switchTheme;

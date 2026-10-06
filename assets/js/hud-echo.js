@@ -127,17 +127,35 @@
   function set(k, v) { try { sessionStorage.setItem(k, v); } catch (e) { } }
 
   var hideTimer = 0;
+  var typeTimer = 0;
 
   function hide() {
     if (hideTimer) { clearTimeout(hideTimer); hideTimer = 0; }
+    if (typeTimer) { clearInterval(typeTimer); typeTimer = 0; }
     bubble.classList.remove("is-on");
   }
 
   function show(line, holdMs) {
-    textEl.textContent = line;
+    if (typeTimer) { clearInterval(typeTimer); typeTimer = 0; }
     bubble.classList.add("is-on");
+    /* 逐字浮现:终端吐字,不是对话框弹字。
+       reduced-motion 直接整句上(文案非动效,保留)。 */
+    if (still) {
+      textEl.textContent = line;
+    } else {
+      textEl.textContent = "";
+      var i = 0;
+      typeTimer = setInterval(function () {
+        i += 1;
+        textEl.textContent = line.slice(0, i);
+        if (i >= line.length) {
+          clearInterval(typeTimer);
+          typeTimer = 0;
+        }
+      }, 34);
+    }
     if (hideTimer) clearTimeout(hideTimer);
-    hideTimer = setTimeout(hide, holdMs || Math.min(11000, 4200 + line.length * 90));
+    hideTimer = setTimeout(hide, (holdMs || Math.min(11000, 4200 + line.length * 90)) + (still ? 0 : line.length * 34));
   }
 
   function say(key, opt) {

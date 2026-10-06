@@ -717,9 +717,28 @@
     ctx.globalAlpha = 1;
   }
 
-  /* 主题切换时立即生效( observing data-theme ) */
+  /* 主题切换时:canvas 不吃 CSS 颜色过渡,直接换主题会硬切。
+     把当前帧快照到一张叠在上面的 canvas,让它 1.6s 淡出 ——
+     底下的主 canvas 已经按新主题在画,交叉之后就是渐变。 */
+  var snap = document.createElement("canvas");
+  snap.className = "void-bg";
+  snap.setAttribute("aria-hidden", "true");
+  function crossfade() {
+    if (reduced || !cv.width) return;
+    try {
+      snap.width = cv.width;
+      snap.height = cv.height;
+      snap.getContext("2d").drawImage(cv, 0, 0);
+      if (!snap.parentNode && cv.parentNode) cv.parentNode.insertBefore(snap, cv.nextSibling);
+      snap.style.transition = "none";
+      snap.style.opacity = "1";
+      void snap.offsetWidth;
+      snap.style.transition = "opacity 1.6s ease";
+      snap.style.opacity = "0";
+    } catch (e) { }
+  }
   if (window.MutationObserver) {
-    new MutationObserver(function () { }).observe(docEl, { attributes: true, attributeFilter: ["data-theme"] });
+    new MutationObserver(crossfade).observe(docEl, { attributes: true, attributeFilter: ["data-theme"] });
   }
 
   var rt = 0;

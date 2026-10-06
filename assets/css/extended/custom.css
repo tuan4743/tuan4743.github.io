@@ -794,6 +794,47 @@ body {
     border-left-color: var(--accent-line);
 }
 
+/* ============================================================
+   代码块整理:PaperMod 默认的大圆角深灰块与全站终端语言不搭。
+   收成"数据切片"的样子 —— 小圆角、细线框、HUD 字体、
+   顶部一条代码块自己的语言标注栏(chroma 的 .chroma 块自带语言
+   没有栏,这里只做框;栏由标题代码块的第一行注释自然充当)。
+   暗色:近黑底 + 青线框;亮色:沿用下方已有的纸面浅底。
+   ============================================================ */
+.md-content .highlight:not(table),
+.post-content > pre {
+    border-radius: 3px;
+    border: 1px solid rgba(140, 150, 165, 0.16);
+    font-family: var(--hud-font, ui-monospace, SFMono-Regular, Menlo, monospace);
+    font-size: 0.82em;
+    line-height: 1.6;
+}
+:root[data-theme="dark"] .md-content .highlight:not(table),
+:root[data-theme="dark"] .post-content > pre {
+    border-color: rgba(140, 160, 190, 0.14);
+    box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.35);
+}
+.post-content > pre,
+.md-content .highlight pre {
+    padding: 12px 16px;
+}
+/* 横向滚动条:细,与终端同语言 */
+.md-content .highlight pre::-webkit-scrollbar,
+.post-content > pre::-webkit-scrollbar {
+    height: 6px;
+}
+.md-content .highlight pre::-webkit-scrollbar-thumb,
+.post-content > pre::-webkit-scrollbar-thumb {
+    background: rgba(140, 150, 165, 0.25);
+    border-radius: 3px;
+}
+/* 亮色模式的细线框加深一点(纸面上 0.16 几乎看不见) */
+[data-theme="light"] .md-content .highlight:not(table),
+[data-theme="light"] .post-content > pre {
+    border-color: rgba(58, 63, 72, 0.2);
+    box-shadow: none;
+}
+
 /* 亮色模式(旧真空,里世界):正文 accent 换深青,青色发光全部收敛。
    跟 shell.css 的 .page-hud 亮色覆盖同一口径,但作用在正文侧。 */
 [data-theme="light"] {
@@ -809,15 +850,27 @@ body {
 }
 
 /* ============================================================
-   明暗整体切换:切换瞬间禁掉全站 color/background 过渡,
-   避免元素明暗依次变化(闪眼)。theme-palette.js 在切换前挂上,
-   切换后两帧摘掉。!important 压过所有 hover/active 的过渡声明。
+   明暗渐变切换:theme-palette.js 在切换前挂 .theme-fade,
+   给全站颜色类属性一条 ~1.1s 的统一过渡,几秒内(切换+余韵)
+   整体渐变成新色,不再瞬翻刺眼。切换完成后两帧摘掉,
+   平时不挂 —— 悬停等 0.14~0.3s 微过渡不受影响。
+   只过渡颜色类属性(transform/visibility 等不在列),
+   渐变背景(background 简写)无法插值,随底色一拍切换 —— 可接受。
    ============================================================ */
-html.theme-snap,
-html.theme-snap *,
-html.theme-snap *::before,
-html.theme-snap *::after {
-    transition: none !important;
+html.theme-fade,
+html.theme-fade *,
+html.theme-fade *::before,
+html.theme-fade *::after {
+    transition:
+        color 1.1s ease,
+        background-color 1.1s ease,
+        border-color 1.1s ease,
+        outline-color 1.1s ease,
+        fill 1.1s ease,
+        stroke 1.1s ease,
+        box-shadow 1.1s ease,
+        text-shadow 1.1s ease,
+        opacity 1.1s ease !important;
 }
 
 /* ============================================================

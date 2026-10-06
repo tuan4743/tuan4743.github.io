@@ -775,6 +775,24 @@ html.void-bg-on[data-theme="light"] .top-link svg {
     100% { transform: translate(26px, 18px); opacity: 0; }
 }
 
+/* ECHO 待机呼吸:摄像头整体极低频的亮度起伏(6s 一轮,幅度很小)。
+   它已经会看光标(pn-eye/pupil),这里只加"活着"的那口气;
+   reduced-motion 时关掉(hud-echo.js 的 still 分支不管这个,纯 CSS 媒体查询兜底)。 */
+:root[data-theme].shell-page .proj-node svg {
+    animation: echo-breathe 6s ease-in-out infinite;
+}
+
+@keyframes echo-breathe {
+    0%, 100% { opacity: 0.78; }
+    50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :root[data-theme].shell-page .proj-node svg {
+        animation: none;
+    }
+}
+
 body.intro-page.page-out .scene {
     transform: translateX(-100vw);
 }
