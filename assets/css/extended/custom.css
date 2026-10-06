@@ -1218,12 +1218,34 @@ html.theme-snap *::after {
         display: block;
     }
 
-    /* 下拉菜单:与顶栏同底、细线分隔,行式列表 */
+    /* 下拉菜单:与顶栏同底、细线分隔,行式列表。
+        ★ 展开动画:菜单常驻 DOM,默认收拢(max-height:0 + overflow 裁切
+          + 微降透明度),展开 0.22s 滑出 —— 与 HUD 的过渡时长同款,
+          不再是 hidden 的硬蹦。visibility 兜底:收拢态不响应触摸。 */
     .m-hud__menu {
         margin: 0;
-        padding: 4px 8px 8px;
+        padding: 0 8px;
         list-style: none;
-        border-top: 1px solid var(--border);
+        border-top: 0 solid var(--border);
+        max-height: 0;
+        overflow: hidden;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-4px);
+        transition: max-height 0.22s ease, opacity 0.22s ease,
+            transform 0.22s ease, visibility 0s linear 0.22s,
+            padding 0.22s ease, border-top-width 0.22s ease;
+    }
+
+    .m-hud__menu.is-open {
+        max-height: 320px;
+        padding: 4px 8px 8px;
+        border-top-width: 1px;
+        opacity: 1;
+        visibility: visible;
+        transform: none;
+        transition: max-height 0.22s ease, opacity 0.22s ease,
+            transform 0.22s ease, padding 0.22s ease, border-top-width 0.22s ease;
     }
 
     .m-hud__menu a {
@@ -1294,4 +1316,13 @@ html.theme-snap *::after {
 /* 横屏矮窗(手机横过来):顶栏收窄 */
 @media (max-width: 1180px) and (max-height: 480px) {
     .m-hud__nav { height: 38px; }
+}
+
+/* reduced-motion:菜单展开不再滑出,直接显隐 */
+@media (prefers-reduced-motion: reduce) and (max-width: 1180px) {
+    .m-hud__menu,
+    .m-hud__menu.is-open {
+        transition: none;
+        transform: none;
+    }
 }

@@ -46,7 +46,7 @@
             </button>
         </div>
     </nav>
-    <ul class="m-hud__menu" id="m-hud-menu" hidden>
+    <ul class="m-hud__menu" id="m-hud-menu" aria-hidden="true">
         {{- range site.Menus.main }}
         <li><a href="{{ .URL | absLangURL }}" title="{{ .Title | default .Name }}">{{ .Name }}</a></li>
         {{- end }}
