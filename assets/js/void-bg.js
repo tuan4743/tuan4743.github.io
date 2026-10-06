@@ -392,11 +392,13 @@
        · q 末段:光带突然变宽覆盖全屏 → 白 → 重载 */
   var surge = { p: 0, rate: 0, q: 0, qStart: 0, armed: false, reloaded: false, reloadCb: null };
 
-  /* 前期强度:0..1 —— ★ 直接吃整个 p(0..1 线性)。
-     曾经 0..0.75 封顶:水位后 25% 视觉全停(速度不变、条还在涨)
-     —— 用户读作"速度复原"。现在速度/亮度/拖尾全程跟条走,
-     到 1 瞬间无缝接爆发(q 的 ×6 项继续加速),没有平台段。 */
-  function surgeCharge(p) { return clamp(p, 0, 1); }
+  /* 前期强度:0..1 —— ★ 带 ease-in 曲线(拖尾加速感):
+     c = p²(3-2p)? 不够陡 —— 用 c = p^1.8,前段慢(酝酿)后段陡
+     (冲刺),条快满时速度已经在往爆发级冲,到顶瞬间和 q 的
+     增量项 [q*3] 无缝咬合(爆发起步 = 前期终点,不再跳变)。
+     ★ 配套:爆发期的速度增量从 ×6 压到 ×3 —— 前期终点速度已经
+       拉到位,爆发期只负责"继续推",不负责"从零再加速"。 */
+  function surgeCharge(p) { var c = clamp(p, 0, 1); return c * c * (3 - 2 * c) * 0.35 + Math.pow(c, 1.8) * 0.65; }
 
   /* 爆发期子相位(全部基于 q,0.11/s ≈ 9s 总长):
      震动 0..0.45 渐强;炫光 0..0.45;覆屏白幕 0.88..1.0 */
@@ -569,8 +571,9 @@
       for (var f = 0; f < flowDots.length; f++) {
         var fd = flowDots[f];
         var c3 = CURRENTS[fd.ci];
-        /* ★ 速度:前期拉满后不回落(charge 封顶 1);爆发期再 ×3 */
-        var speed = 0.018 * (1 + charge * 5.0 + q * 6);   /* charge 全程跟水位,无缝接爆发 */
+        /* ★ 速度:charge(ease-in)全程跟水位,终点速度 ≈ 爆发起步;
+           爆发期增量 ×3(从前期终点继续推,不再二次起跳) */
+        var speed = 0.018 * (1 + charge * 8.0 + q * 3.0);
         var s = (fd.off + tS * speed * fd.vj * c3.dir) % 1;
         if (s < 0) s += 1;
         var cyc = fd.off + (tS * speed * fd.vj) % 1;      /* 用于闪烁 */
