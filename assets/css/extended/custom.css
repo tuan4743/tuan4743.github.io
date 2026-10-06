@@ -1109,22 +1109,23 @@ html.theme-snap *::after {
 }
 
 /* ============================================================
-   手机适配(窄屏 <1181px)
+   手机适配(窄屏 <1181px)· 第二稿
    ─────────────────────────────────────────────────────────────
-   右侧 HUD 在 max-width:1180 整体退场(page-hud.css),导航/搜索/
-   明暗全在 HUD 里 ⇒ 手机上原本裸奔。这一段补齐窄屏的最小可用集:
-   · 手机顶栏(站名 + 主菜单)——标记在 header-mobile.html,baseof 渲染;
-   · ECHO 摄像头 + 台词气泡:缩小、让开顶栏、气泡宽度贴屏;
-   · void 背景的观感保留,但流点密度交给 canvas 自身,不动 JS。
-   桌面(≥1181px)零改动。
+   右侧 HUD 在 max-width:1180 整体退场(page-hud.css),导航/明暗
+   全在 HUD 里 ⇒ 手机上原本裸奔。
+   第二稿(用户):顶栏改 HUD 终端语言、组件整理成一颗 [≡] 小按钮
+   (菜单 + 明暗在里面),ECHO 手机上不放。
+   · 手机顶栏 = .m-hud:细线、等宽字、宽字距、0.16s 过渡,颜色走
+     正文变量(--primary/--border),亮暗自动跟随。
+   · 桌面(≥1181px)零改动。
    ============================================================ */
-.m-header {
+.m-hud {
     display: none;
 }
 
 @media (max-width: 1180px) {
-    /* --- 手机顶栏:只有窄屏出现 --- */
-    .m-header {
+    /* --- 手机顶栏:HUD 终端语言 --- */
+    .m-hud {
         display: block;
         position: sticky;
         top: 0;
@@ -1133,59 +1134,116 @@ html.theme-snap *::after {
         -webkit-backdrop-filter: blur(10px);
         backdrop-filter: blur(10px);
         border-bottom: 1px solid var(--border);
+        font-family: "Alpha Sector", "Pixel CN", "PingFang SC", "Microsoft YaHei",
+            "Noto Sans SC", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        color: var(--primary);
     }
 
-    .m-header__nav {
+    .m-hud__nav {
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 10px;
-        padding: 0 14px;
-        min-height: 44px;
+        padding: 0 12px;
+        height: 46px;
     }
 
-    .m-header__logo {
+    .m-hud__logo {
         color: var(--primary);
         text-decoration: none;
-        font-weight: 700;
-        font-size: 15px;
-        letter-spacing: 0.04em;
+        font-size: 14px;
+        letter-spacing: 0.22em;
         white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
-    .m-header__menu {
+    .m-hud__right {
         display: flex;
         align-items: center;
-        gap: 2px;
-        margin: 0;
-        padding: 0;
-        list-style: none;
-        overflow-x: auto;
-        scrollbar-width: none;
+        gap: 6px;
+        flex: 0 0 auto;
     }
 
-    .m-header__menu::-webkit-scrollbar { display: none; }
+    /* 小按钮:方角细线框,与 HUD 按钮同一族 */
+    .m-hud__theme,
+    .m-hud__menu-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 30px;
+        padding: 0;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        background: transparent;
+        color: var(--secondary);
+        cursor: pointer;
+        transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+        -webkit-tap-highlight-color: transparent;
+    }
 
-    .m-header__menu a {
+    .m-hud__theme:hover,
+    .m-hud__theme:active,
+    .m-hud__menu-btn:hover,
+    .m-hud__menu-btn:active {
+        background: color-mix(in srgb, var(--primary) 12%, transparent);
+        border-color: var(--primary);
+        color: var(--primary);
+    }
+
+    .m-hud__theme svg,
+    .m-hud__menu-btn svg {
+        width: 15px;
+        height: 15px;
         display: block;
-        padding: 7px 9px;
+    }
+
+    /* 明暗图标显隐(PaperMod header.css 的 .moon/.sun 规则按 class 命中,
+       这里复用同一套:暗色显示 sun(点去亮),亮色显示 moon) */
+    .m-hud__theme .moon,
+    .m-hud__theme .sun {
+        display: none;
+    }
+
+    [data-theme="dark"] .m-hud__theme .sun {
+        display: block;
+    }
+
+    [data-theme="light"] .m-hud__theme .moon {
+        display: block;
+    }
+
+    [data-theme="auto"] .m-hud__theme .sun {
+        display: block;
+    }
+
+    /* 下拉菜单:与顶栏同底、细线分隔,行式列表 */
+    .m-hud__menu {
+        margin: 0;
+        padding: 4px 8px 8px;
+        list-style: none;
+        border-top: 1px solid var(--border);
+    }
+
+    .m-hud__menu a {
+        display: flex;
+        align-items: center;
+        height: 38px;
+        padding: 0 10px;
         color: var(--secondary);
         text-decoration: none;
         font-size: 13px;
-        letter-spacing: 0.06em;
-        white-space: nowrap;
-        border-radius: 6px;
-        transition: color 0.16s ease, background-color 0.16s ease;
+        letter-spacing: 0.18em;
+        border-radius: 4px;
+        transition: background-color 0.16s ease, color 0.16s ease;
     }
 
-    .m-header__menu a:hover,
-    .m-header__menu a:active {
+    .m-hud__menu a:hover,
+    .m-hud__menu a:active {
+        background: color-mix(in srgb, var(--primary) 10%, transparent);
         color: var(--primary);
-        background: color-mix(in srgb, var(--theme) 40%, transparent);
     }
-
-    /* 当前页高亮:header-mobile 不带 .active(Hugo 那套要按页缓存),
-       这里用 aria 判断做不到 ⇒ 简化:不加高亮,不误导。 */
 
     /* --- 正文:PaperMod 的 .main 是 720px 定宽居中,手机上直接满宽 --- */
     .main {
@@ -1193,26 +1251,17 @@ html.theme-snap *::after {
         padding: 12px 14px 20px;
     }
 
-    /* --- ECHO 摄像头:缩小、避让手机顶栏(顶栏 44px + 呼吸) --- */
-    .proj-node {
-        width: clamp(64px, 16vw, 88px);
-    }
-
-    html.void-bg-on .proj-node {
-        position: fixed;
-        left: 6px;
-        top: 54px;
-        z-index: 1;
+    /* --- ECHO:手机上不放(用户:"放不下干脆就别放了") --- */
+    html.void-bg-on .proj-node,
+    :root[data-theme].shell-page .proj-node {
+        display: none;
     }
 
     :root[data-theme].shell-page .echo-say {
-        left: 10px;
-        top: calc(54px + clamp(64px, 16vw, 88px) - 14px);
-        max-width: min(240px, calc(100vw - 20px));
-        z-index: 95;
+        display: none !important;
     }
 
-    /* --- 搜索结果面板(顶栏无搜索,但 /search/ 页的面板同款) --- */
+    /* --- 搜索结果面板(/search/ 页同款) --- */
     .search-results {
         width: calc(100vw - 28px);
     }
@@ -1229,26 +1278,20 @@ html.theme-snap *::after {
         max-width: 100%;
         overflow-x: auto;
     }
-
-    /* --- 触屏:磁力光标已自隐(custom.css pointer:coarse),
-           这里补一条:HUD 那套 hover 增亮类不会来,无需处理 --- */
 }
 
 @media (max-width: 720px) {
-    /* 更窄:顶栏菜单收紧 */
-    .m-header__menu a {
-        padding: 7px 7px;
-        font-size: 12.5px;
+    .m-hud__nav {
+        padding: 0 10px;
     }
 
-    .m-header__nav {
-        padding: 0 10px;
+    .m-hud__logo {
+        font-size: 13px;
+        letter-spacing: 0.16em;
     }
 }
 
-/* 横屏矮窗(手机横过来):顶栏不占两行,保持单行 */
+/* 横屏矮窗(手机横过来):顶栏收窄 */
 @media (max-width: 1180px) and (max-height: 480px) {
-    .m-header__nav { min-height: 38px; }
-    html.void-bg-on .proj-node { top: 46px; }
-    :root[data-theme].shell-page .echo-say { top: calc(46px + clamp(64px, 16vw, 88px) - 14px); }
+    .m-hud__nav { height: 38px; }
 }

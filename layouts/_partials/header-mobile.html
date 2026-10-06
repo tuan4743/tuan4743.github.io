@@ -1,21 +1,54 @@
 {{- /* ============================================================
-     手机顶栏(窄屏专用)
+     手机顶栏(窄屏 <1181px 专用)
      ─────────────────────────────────────────────────────────────
-     为什么单独一支 partial、而不是把主题 header.html 放回来:
-     · 桌面端(≥1181px)导航在右侧 HUD 里,顶栏当年是按用户要求"整个删掉"的
-       (baseof.html 里那行注释掉的 partialCached)——直接放回来会把桌面也改掉;
-     · 主题 header 里那颗搜索框和 HUD 里的搜索共用同一批 id/header-search-input,
-       放回来会撞 id、还会和 search.js 的实例守卫互相抢。
-     ⇒ 这一支只有【站名 + 菜单】,零 id、零搜索;渲染在所有 shell 页上,
-       CSS 管"只在 <1181px 显示"——桌面端一个像素都不动。
+     第二稿(用户:"风格不一样…组件可以不要,但明暗要保留;ECHO 放不下
+     干脆别放;倾向整理成一个小按钮"):
+     · 一行,HUD 终端语言:细线框、等宽字、宽字距、0.16s 过渡 ——
+       颜色走正文变量(--primary/--border),亮暗模式自动跟随。
+     · 左:站名;右:一颗 [≡] 小按钮,点开下拉 = 菜单 + 明暗切换。
+     · 没有 ECHO/搜索/番茄钟 —— 手机上不放(放不下就别放)。
+     · 明暗按钮 id=m-hud-theme:HUD 里那颗也叫 theme-toggle 的按钮在窄屏
+       只是 display:none,id 仍在 DOM ⇒ 不能重复 id,这颗自己绑
+       (m-header.js,走 theme-palette.js 暴露的 __switchTheme,过渡一致)。
      ============================================================ */ -}}
-<header class="m-header" aria-label="移动端导航">
-    <nav class="m-header__nav">
-        <a class="m-header__logo" href="{{ "" | absLangURL }}">{{ site.Title }}</a>
-        <ul class="m-header__menu">
-            {{- range site.Menus.main }}
-            <li><a href="{{ .URL | absLangURL }}" title="{{ .Title | default .Name }}">{{ .Name }}</a></li>
-            {{- end }}
-        </ul>
+<header class="m-hud" aria-label="站点导航">
+    <nav class="m-hud__nav">
+        <a class="m-hud__logo" href="{{ "" | absLangURL }}">{{ site.Title }}</a>
+        <div class="m-hud__right">
+            <button id="m-hud-theme" class="m-hud__theme" type="button" aria-label="切换明暗" title="明暗">
+                <svg class="moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    aria-hidden="true">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+                <svg class="sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    aria-hidden="true">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+            </button>
+            <button class="m-hud__menu-btn" id="m-hud-menu-btn" type="button" aria-expanded="false"
+                aria-controls="m-hud-menu" aria-label="菜单">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                    <line x1="4" y1="7" x2="20" y2="7"></line>
+                    <line x1="4" y1="12" x2="20" y2="12"></line>
+                    <line x1="4" y1="17" x2="20" y2="17"></line>
+                </svg>
+            </button>
+        </div>
     </nav>
+    <ul class="m-hud__menu" id="m-hud-menu" hidden>
+        {{- range site.Menus.main }}
+        <li><a href="{{ .URL | absLangURL }}" title="{{ .Title | default .Name }}">{{ .Name }}</a></li>
+        {{- end }}
+    </ul>
 </header>
