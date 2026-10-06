@@ -639,6 +639,20 @@
       /* (光带与裂纹已删:效果不真实,直接去掉。
          爆发期的视觉落点 = 炫光粒子 + 震动模糊 + 变暗 + 白幕。) */
 
+      /* ===== 前期末微震(charge>0.55 起):洪峰将至,页面先低幅发颤
+         —— 压迫感的关键:爆发前页面自己先"怕"。幅度随 charge 涨,
+         到 charge=1 时约爆发的 1/4。 */
+      if (q === 0 && charge > 0.55) {
+        var pre = (charge - 0.55) / 0.45;
+        document.body.classList.add("surge-shake");
+        docEl.style.setProperty("--surge-shake-x", ((hash(Math.floor(tS * 60)) - 0.5) * 2.2 * pre).toFixed(1) + "px");
+        docEl.style.setProperty("--surge-shake-y", ((hash(Math.floor(tS * 60) + 99) - 0.5) * 1.8 * pre).toFixed(1) + "px");
+      } else if (q === 0) {
+        document.body.classList.remove("surge-shake");
+        docEl.style.removeProperty("--surge-shake-x");
+        docEl.style.removeProperty("--surge-shake-y");
+      }
+
       /* ===== 爆发期:震动 + 全页模糊(body.surge-blur) =====
          ★ 白幕期(q≥0.88)震动/模糊必须【保持】—— 之前 q≥0.88 落进
            else 把 class 全摘,白光一亮页面瞬间静止(白幕期演出消失)。
@@ -690,16 +704,16 @@
          canvas 内的暗角同步(背景侧同形)。 */
       if ((charge > 0.001 || q > 0) && q < 0.88) {
         var ek = q > 0 ? Math.max(charge, 0.9) : charge;
-        var rIn = Math.max(0.08, 0.62 - 0.5 * ek);            /* 内环半径(短边比例) */
+        var rIn = Math.max(0.06, 0.62 - 0.54 * ek);           /* 内环半径(短边比例) */
         /* 背景侧:canvas 暗角 */
         var vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * rIn, W / 2, H / 2, Math.max(W, H) * 0.75);
         vg.addColorStop(0, "rgba(0, 2, 6, 0)");
-        vg.addColorStop(1, "rgba(0, 2, 6, " + (0.72 * ek).toFixed(2) + ")");
+        vg.addColorStop(1, "rgba(0, 2, 6, " + (0.80 * ek).toFixed(2) + ")");
         ctx.globalAlpha = 1;
         ctx.fillStyle = vg;
         ctx.fillRect(0, 0, W, H);
-        /* 页面侧:环形渐变暗罩(中心透明四周黑),深度 0 → 0.55 */
-        docEl.style.setProperty("--surge-dim", (0.55 * ek).toFixed(2));
+        /* 页面侧:环形渐变暗罩(中心透明四周黑),深度 0 → 0.68 */
+        docEl.style.setProperty("--surge-dim", (0.68 * ek).toFixed(2));
         docEl.style.setProperty("--surge-dim-r", rIn.toFixed(3));
       } else {
         docEl.style.removeProperty("--surge-dim");
@@ -709,8 +723,8 @@
       /* ===== 前期末段:噪点(charge > 0.6 起,渐密) =====
          ★ 预渲染噪点纹理整屏平铺两遍(随机相位),α 随 nk 涨 ——
            替代每帧 140 个 fillRect + 4 次 hash/点。 */
-      if ((charge > 0.6 || q > 0) && q < 0.88) {
-        var nk = q > 0 ? 1 : (charge - 0.6) / 0.4;
+      if ((charge > 0.45 || q > 0) && q < 0.88) {
+        var nk = q > 0 ? 1 : (charge - 0.45) / 0.55;
         var pat = ctx.createPattern(noiseSprite, "repeat");
         ctx.save();
         ctx.globalAlpha = Math.min(1, nk);
