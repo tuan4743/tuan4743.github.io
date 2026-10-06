@@ -21,7 +21,9 @@ html:has(body.intro-page) {
 }
 
 body.intro-page {
-    height: 100vh;
+    /* ★ 手机浏览器自带顶栏(Edge 常驻、其余收缩式):
+       100vh = 【大】视口,常驻顶栏时底部一截在屏外。dvh 跟着可见视口走。 */
+    height: 100dvh;
     overflow: hidden;
     background: var(--theme);
     color: var(--primary);
@@ -42,7 +44,7 @@ body.scene-open .scene {
     left: 0;
     top: 0;
     width: 100vw;
-    height: 100vh;
+    height: 100dvh;
     display: flex;
     flex-direction: column;
     border: 0;

@@ -1137,6 +1137,8 @@ html.theme-snap *::after {
         font-family: "Alpha Sector", "Pixel CN", "PingFang SC", "Microsoft YaHei",
             "Noto Sans SC", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
         color: var(--primary);
+        /* viewport-fit=cover:刘海/打孔屏不盖住顶栏 */
+        padding-top: env(safe-area-inset-top, 0px);
     }
 
     .m-hud__nav {

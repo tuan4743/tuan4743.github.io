@@ -53,10 +53,26 @@
       out.q = q;
     }
 
+    function cellWProbe(px) {
+      /* ★ 实测字宽,别再用 FS*0.6 拍脑袋:
+         等宽字体的 advance 因字体而异(Consolas 0.55em、SF Mono ≈0.6em、
+         厂商定制字体更说不准),估错时 pre 的钉死盒宽与真实渲染宽不等
+         —— overflow:visible 下内容从盒里溢出来,flex 居中的是盒子,
+         眼睛整体偏移(Edge 手机版报的"眼睛不在中间"就是它)。
+         用 canvas measureText 按当前字体量一个字符的真实 advance。 */
+      try {
+        var ctx2 = cellWProbe._c || (cellWProbe._c = document.createElement("canvas").getContext("2d"));
+        ctx2.font = px + 'px ' + getComputedStyle(pre).fontFamily;
+        var w = ctx2.measureText("0").width;
+        if (w > 0.5 && w < px * 1.2) return w;
+      } catch (e) { }
+      return px * 0.6;
+    }
+
     function measure() {
       var vw = window.innerWidth, vh = window.innerHeight;
       FS = Math.max(8, Math.min(22, Math.round(vw / 120)));
-      CELL_W = FS * 0.6;
+      CELL_W = cellWProbe(FS);
       CELL_H = FS * 1.5;
       var eyeW = vw * EYE_W_FRAC;
       COLS = Math.max(40, Math.min(240, Math.round(eyeW / CELL_W)));
@@ -83,7 +99,7 @@
     function fitTo(boxW, boxH) {
       if (!boxW || !boxH) return;
       var fs = Math.max(6, Math.min(22, Math.round(boxW / 26)));
-      CELL_W = fs * 0.6;
+      CELL_W = cellWProbe(fs);
       CELL_H = fs * 1.5;
       FS = fs;
       COLS = Math.max(16, Math.floor(boxW / CELL_W));
