@@ -861,7 +861,23 @@
       function dispK(wv, nx) {
         return wv.k * (1 + 0.35 * clamp(1 - nx, 0, 1));
       }
-      function waveYs(wv, nx, tSec) {
+      /* ★ 张力层 1:浪涌 —— 每列波的波幅被 2 个沿波跑的"涌包"
+         调制(高斯型,涌包处波高局部 ×1.2~2.2),涌包速度不同、
+         相位漂移 → 波形不再均匀,而是有可见的"这一段在鼓、那一段在塌"。
+         涌包初始相位随机 → 每次加载走位不同,第二遍看不重复。 */
+      function waveSwell(wvi, nx, tSec) {
+        var k = 1;
+        for (var si = 0; si < 2; si++) {
+          var ph = hash(wvi * 17.3 + si * 7.7) * 10;
+          var sp = 0.02 + hash(wvi * 5.1 + si * 3.3) * 0.03;     /* 涌包速度(归一化/s) */
+          var sc = (((tSec * sp + ph) % 1) + 1) % 1;
+          var d = Math.min(Math.abs(nx - sc), 1 - Math.abs(nx - sc));
+          var wdt = 0.10 + hash(wvi * 9.7 + si) * 0.10;
+          k += (1.2 + hash(wvi * 3.1 + si * 2.9) * 1.0) * Math.exp(-(d * d) / (wdt * wdt));
+        }
+        return k;
+      }
+      function waveYs(wv, nx, tSec, wvi) {
         var kk = dispK(wv, nx);
         /* 波向左传:相位 +t·w·2π(峰随时间向 -x 移动) */
         var y = Math.sin(nx * kk * Math.PI * 2 + tSec * wv.w * Math.PI * 2 + wv.ph) * H * wv.a;
@@ -870,9 +886,9 @@
           var tear = (0.45 - nx) / 0.45;
           y += Math.sin(nx * wv.k * 5.7 * Math.PI * 2 - tSec * wv.w * 3.1 * Math.PI * 2) * H * wv.a * 0.16 * tear;
         }
-        /* 振幅包络:慢塌慢起(0.25..1) */
+        /* 振幅包络:慢塌慢起(0.25..1),再乘涌包调制 */
         var env = 0.625 + 0.375 * Math.sin(tSec * wv.dec * Math.PI * 2 + wv.dph);
-        return H * wv.y0 + y * env;
+        return H * wv.y0 + y * env * waveSwell(wvi, nx, tSec);
       }
       /* 主波形线稿 + 余辉 */
       for (var wvi = 0; wvi < WAVES.length; wvi++) {
@@ -884,7 +900,7 @@
           ctx.lineWidth = 1.2;
           ctx.beginPath();
           for (var gx = 0; gx <= W; gx += 8) {
-            var gy = waveYs(wv, gx / W, tS - gh * 0.55);
+            var gy = waveYs(wv, gx / W, tS - gh * 0.55, wvi);
             if (gx === 0) ctx.moveTo(gx, gy); else ctx.lineTo(gx, gy);
           }
           ctx.stroke();
@@ -896,7 +912,7 @@
         ctx.lineWidth = 1.5;
         ctx.beginPath();
         for (var wx = 0; wx <= W; wx += 6) {
-          var wy = waveYs(wv, wx / W, tS);
+          var wy = waveYs(wv, wx / W, tS, wvi);
           if (wx === 0) ctx.moveTo(wx, wy); else ctx.lineTo(wx, wy);
         }
         ctx.stroke();
@@ -934,7 +950,7 @@
           ctx.beginPath();
           for (var dx4 = -0.09; dx4 <= 0.09; dx4 += 0.01) {
             var lx = pkX2 + dx4 * W;
-            var ly = waveYs(pw, lx / W, tS) - H * pw.a * 2.2 * pEnv * Math.cos((dx4 / 0.09) * Math.PI / 2);
+            var ly = waveYs(pw, lx / W, tS, packet.wi % WAVES.length) - H * pw.a * 2.2 * pEnv * Math.cos((dx4 / 0.09) * Math.PI / 2);
             if (dx4 === -0.09) ctx.moveTo(lx, ly); else ctx.lineTo(lx, ly);
           }
           ctx.stroke();
@@ -984,7 +1000,7 @@
         var wnn = waveNotes[wn2];
         var na = wnn.a * (0.75 + 0.25 * Math.sin(tS * 0.11 + wnn.blink));
         /* 纵向实时贴波:取该列波在此 x 的瞬时 y,再按 lift 偏移半行 */
-        var waveHere = waveYs(WAVES[wnn.wi], wnn.nx, tS);
+        var waveHere = waveYs(WAVES[wnn.wi], wnn.nx, tS, wnn.wi);
         ctx.save();
         ctx.translate(wnn.nx * W, waveHere + wnn.lift * nfs * 0.9);
         ctx.rotate(wnn.rot);
