@@ -52,9 +52,10 @@
    *   光晕"变大变亮"= 贴图尺寸/透明度随 glow 插值 —— 视觉等价。
    * ★ noise sprite:噪点也是一张预渲染的 pattern,整屏一次 drawImage,
    *   替代每帧 140 个 fillRect + hash。
-   * ★ DPR 上限:1(背景是模糊雾带,DPR>1 的成本全在像素填充,
-   *   视觉上几乎无差 —— 高分屏最大头)。 */
-  var DPR_CAP = 1;
+   * ★ DPR 上限:2(★ 曾压到 1"视觉无差"—— 错。流点直径只有
+   *   0.4~1.1px,DPR=1 的高分屏上全是亚像素,arc 直接画不出来,
+   *   这就是"洋流粒子最开始就没了"的根因。必须保 2。) */
+  var DPR_CAP = 2;
   var glowSprite = document.createElement("canvas");
   function buildGlowSprite() {
     var S = 128;                                 /* 贴图边长(px,画时缩放) */
@@ -258,7 +259,7 @@
           off: (i / c.n + hash(k * 1.7) * (1 / c.n)) % 1,      /* 沿河道的固有相位 */
           strand: (hash(k * 2.9) * STRANDS) | 0,                /* 属于哪条流丝 */
           lat: (hash(k * 2.3) + hash(k * 3.1) - 1) * 0.5,      /* 横向高斯散布 [-0.5,0.5] */
-          sz: 1.0 + hash(k * 4.3) * 0.9,                       /* ★ 1.0~1.9px(DPR 压到 1 后 0.4px 点=亚像素,看不见) */
+          sz: 0.5 + hash(k * 4.3) * 1.1,       /* ★ 回退到演出前基线 0.5~1.6px;DPR 已恢复 2,不再亚像素 */
           vj: 0.85 + hash(k * 5.9) * 0.3,                      /* 速度差(剪流) */
           tw: hash(k * 7.7) * Math.PI * 2,                     /* 闪烁相位 */
           k: k
@@ -591,16 +592,12 @@
         /* 涌动:横向摆动叠加高频颤(swelling),幅度随风暴涨 */
         var cyp = currentY(c3, s, tS, fd.strand) * H + fd.lat * c3.width * H
             + Math.sin(tS * (2.2 + fd.bw * 2) + fd.off * 9.4) * H * 0.012 * (swell - 1) * 2;
-        var fa = 0.22 + 0.30 * (0.5 + 0.5 * Math.sin(tS * 1.1 + fd.tw));   /* ★ 0.22..0.52(DPR=1 下 0.18 起步太暗) */
-        /* 内容页避开中央阅读区 —— ★ 演出期间取消(charge>0 即取消):
-           中央避让 ×0.35 把三条河的中段全压到 0.06~0.15,前期增亮
-           被 it 吃掉,视觉上"前半程整条洋流根本没出现"。 */
+        var fa = 0.18 + 0.26 * (0.5 + 0.5 * Math.sin(tS * 1.1 + fd.tw));   /* ★ 回退基线区间 */
+        /* 内容页避开中央阅读区 —— 演出期间(charge/q)取消 */
         var dCtr3 = Math.hypot(cxp - W * 0.5, cyp - H * 0.5) / Math.min(W, H);
         if (!isHome() && dCtr3 < 0.30 && !charge && !q) fa *= 0.35;
-        /* 前期增亮:给一个显式的抬升底价(fa 原区间太低,0.18 起步
-           在暗背景上几乎不可见),charge 一启动洋流必须立刻可感 */
-        fa = Math.min(1, fa + charge * 0.65 + glow * 0.55);
-        ctx.globalAlpha = fa;
+        /* ★ 前期增亮(演出专用):只在 charge>0 时抬,基态保持原样 */
+        ctx.globalAlpha = fa = Math.min(1, fa + charge * 0.5 + glow * 0.55);
         /* ★ 炫光 = 预渲染光晕贴图(替代逐点 shadowBlur):
            核心点照常画,glow 起来后在其上贴 glowSprite,
            尺寸随 glow 膨胀(点本体不变大 —— 光晕大,核不变)。 */
