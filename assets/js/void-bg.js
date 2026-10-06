@@ -39,16 +39,6 @@
   if (!holder) { cv.style.cssText = "position:fixed;inset:0;z-index:-1;pointer-events:none;"; (document.body || docEl).appendChild(cv); }
   else { holder.insertBefore(cv, holder.firstChild); }
 
-  /* ---------- 裂纹专用顶层画布(crisp-cv) ----------
-     挂在 <html> 直下(body 外):爆发期的全页模糊滤镜挂 body,
-     这块 canvas 在 body 外 ⇒ 裂纹永不模糊。z-index 高于内容,
-     pointer-events:none。 */
-  var crisp = document.createElement("canvas");
-  crisp.className = "void-bg-crisp";
-  crisp.setAttribute("aria-hidden", "true");
-  crisp.style.cssText = "position:fixed;inset:0;z-index:99980;pointer-events:none;";
-  docEl.appendChild(crisp);
-  var cctx = crisp.getContext("2d");
   var ctx = cv.getContext("2d");
   var W = 0, H = 0, DPR = 1;
 
@@ -371,49 +361,7 @@
   function surgeCharge(p) { return clamp(p, 0, 1); }
 
   /* 爆发期子相位(全部基于 q,0.11/s ≈ 9s 总长):
-     震动 0..0.45 渐强;炫光 0..0.45;光带成形 0.30..0.70;
-     裂纹 0.30..0.92;覆屏白幕 0.88..1.0 */
-  var CRACKS = [];                    /* 裂纹对象池,爆发开始时生成 */
-  /* 裂纹:玻璃被震碎的裂缝 —— 每条裂纹是一条【主缝】,
-     从洋流带中心出发,方向【各自独立随机】(全角度,不统一朝上),
-     折角走(每段 ±0.55rad 内随机偏转,像裂缝撕开);
-     岔缝从主缝的节点上【顺着主缝前进方向】斜着劈出去(小角度),
-     长得像主缝的裂缝分支,不是树杈(不垂直、不丛生)。 */
-  function crackSpawn(qStart, tNow) {
-    CRACKS.length = 0;
-    var n = 4;
-    for (var i = 0; i < n; i++) {
-      var ci = (hash(tNow * 0.011 + i * 7.7) * CURRENTS.length) | 0;
-      var sx = 0.06 + hash(tNow * 0.017 + i * 3.1) * 0.88;
-      var sy = CURRENTS[ci].y0;
-      /* 主方向:全角度随机(不是统一向上/向外),只排除过平(贴河道) */
-      var a;
-      do {
-        a = hash(tNow * 0.029 + i * 11.3) * Math.PI * 2;
-      } while (Math.abs(Math.sin(a)) < 0.25);       /* 避免几乎水平的缝 */
-      var len = 0.34 + hash(tNow * 0.031 + i * 9.9) * 0.22;
-      var segs = [];
-      var branches = [];
-      var x = sx, y = sy;
-      var N = 12;
-      for (var s = 0; s < N; s++) {
-        var nx = x + Math.cos(a) * len / N;
-        var ny = y + Math.sin(a) * len / N;
-        segs.push([x, y, nx, ny]);
-        /* 岔缝:顺主缝方向斜劈(偏角 ±0.35~0.6rad),直而短 */
-        if (s > 1 && s < N - 2 && hash(tNow * 0.041 + i * 13.7 + s) > 0.35) {
-          var side = hash(tNow * 0.053 + s * 3 + i) > 0.5 ? 1 : -1;
-          var ba = a + side * (0.35 + hash(tNow + s) * 0.25);
-          var blen = len * (0.16 + hash(tNow * 0.09 + s) * 0.12);
-          branches.push([nx, ny, nx + Math.cos(ba) * blen, ny + Math.sin(ba) * blen]);
-        }
-        x = nx; y = ny;
-        /* 折角:裂缝撕开的随机偏转 */
-        a += (hash(tNow * 0.061 + s * 7 + i * 3) - 0.5) * 1.1;
-      }
-      CRACKS.push({ ci: ci, segs: segs, branches: branches, born: qStart + i * 0.06 });
-    }
-  }
+     震动 0..0.45 渐强;炫光 0..0.45;覆屏白幕 0.88..1.0 */
 
   /* ---------- 主渲染 ---------- */
   var frameT = 0, lastT = 0, running = false;
@@ -428,12 +376,6 @@
     cv.style.width = W + "px";
     cv.style.height = H + "px";
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-    /* 裂纹画布同尺寸(它挂在 html 下,见定义处) */
-    crisp.width = cv.width;
-    crisp.height = cv.height;
-    crisp.style.width = W + "px";
-    crisp.style.height = H + "px";
-    cctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     buildDots();
     buildFlow();
     buildNodeLines();
@@ -460,18 +402,14 @@
     ctx.clearRect(0, 0, W, H);
 
     /* 共流过境:水位推进(前期)。
-       ★ 爆发段入口放在帧尾(q 推进处),这里只管涨落:
-         后 25%(0.75..1)charge 已封顶,速度/亮度【不回落】——
-         p 继续走向 1 只是"临门"的呼吸段,所有前期效果保持在满档。 */
+       p 到 1 → 武装进入爆发(q 推进);到 0 松劲。 */
     if (surge.q === 0 && surge.rate) {
       surge.p = clamp(surge.p + surge.rate * dt / 1000, 0, 1);
       if (surge.p <= 0) surge.rate = 0;
-      /* 到顶:武装,进入爆发(帧尾推进 q) */
       if (surge.p >= 1 && !surge.armed) {
         surge.armed = true;
         surge.q = 0.0001;
         surge.qStart = 0;
-        crackSpawn(tS, tS);
       }
     }
     /* 爆发段推进:0.11/s ≈ 9s 走完(用户:爆发期不要这么快) */
@@ -564,7 +502,6 @@
          (charge 封顶后 p 继续走,glowPre 正好利用那段"临门"。) */
       var glowPre = q === 0 && surge.p > 0.75 ? (surge.p - 0.75) / 0.25 * 0.5 : 0;
       var glow = q > 0 ? 0.5 + Math.min(1, q / 0.40) * 0.5 : glowPre;
-      var band = q > 0.30 ? clamp((q - 0.30) / 0.35, 0, 1) : 0;  /* 光带成形 */
       ctx.save();
       for (var f = 0; f < flowDots.length; f++) {
         var fd = flowDots[f];
@@ -596,7 +533,7 @@
              处理:拖尾统一折线化(3 段),并检测跨边界 ——
              跨边界的点直接不画(那一帧少一截拖尾,看不出)。 */
         var streak = charge > 0.4 ? (charge - 0.4) / 0.6 : 0;   /* 更早开始拖尾,随条全程加深 */
-        var streakLen = (streak * 34 + band * 60 + glow * 10) * fd.vj;   /* px */
+        var streakLen = (streak * 34 + glow * 10) * fd.vj;   /* px */
         if (streakLen > 1.2) {
           var backS = (streakLen / W) * c3.dir;      /* s 空间回退量(带方向) */
           var m2s = ((s - backS * 0.33) % 1 + 1) % 1;
@@ -626,87 +563,10 @@
       ctx.shadowBlur = 0;
       ctx.restore();
 
-      /* ===== 爆发期:光带成形(q 0.30..0.70) =====
-         沿三条河道画发光粗线;★ 线宽要盖过洋流整个带宽:
-         河道带宽 = width*H*2(±lat 散布)+ 流丝摆动 →
-         lineWidth 用 width*H*2.6 起步(实测覆盖),不 then 点缀 */
-      if (band > 0.001) {
-        ctx.save();
-        for (var cb = 0; cb < CURRENTS.length; cb++) {
-          var cc3 = CURRENTS[cb];
-          var lw = (cc3.width * H * 2.6) * (0.25 + 0.75 * band);   /* 满档:带宽 2.6 倍 */
-          ctx.shadowColor = "rgba(170, 228, 255, 0.98)";
-          ctx.shadowBlur = 46 + 70 * band;
-          ctx.strokeStyle = "rgba(226, 244, 255, " + (0.55 + 0.4 * band).toFixed(2) + ")";
-          ctx.lineWidth = lw;
-          ctx.lineCap = "round";
-          /* 3 遍描:每遍贴一条流丝(strand 0/1/2 中心)—— 河道在动,
-             光带用同一时刻的 currentY 采样 ⇒ 位置和粒子完全同步 */
-          for (var st3 = 0; st3 < 3; st3++) {
-            ctx.beginPath();
-            for (var seg = 0; seg <= 60; seg++) {
-              var ss2 = seg / 60;
-              var yy2 = currentY(cc3, ss2, tS, st3) * H;
-              if (seg === 0) ctx.moveTo(ss2 * W, yy2); else ctx.lineTo(ss2 * W, yy2);
-            }
-            ctx.stroke();
-          }
-        }
-        ctx.restore();
-      }
+      /* (光带与裂纹已删:效果不真实,直接去掉。
+         爆发期的视觉落点 = 炫光粒子 + 震动模糊 + 变暗 + 白幕。) */
 
-      /* ===== 爆发期:裂纹(q 0.30..0.92) =====
-         ★ 裂纹画在独立顶层 canvas(crisp-cv,CSS 不给它 blur)
-           —— 全页模糊(html filter)会让根元素下所有东西都糊,
-           唯独顶层第二 canvas 同样在 html 下也会糊 ⇒ 用
-           【反向补锐】不行;真解法:模糊滤镜挂 body 而不是 html,
-           裂纹 canvas 挂在 html 直下(body 外)→ 不参与模糊。
-         裂纹形态:【从洋流中心向外放射】的裂纹 —— 每条裂纹起点在
-         河道带中心,径直朝屏幕外生长(允许轻微折角),不断分叉
-         (岔口角度小,呈裂缝劈开状,非树杈)。 */
-      if (q > 0.30 && q < 0.92 && CRACKS.length) {
-        cctx.save();
-        cctx.clearRect(0, 0, W, H);
-        for (var cr = 0; cr < CRACKS.length; cr++) {
-          var ck = CRACKS[cr];
-          var ckT = clamp((q - (0.30 + cr * 0.05)) / 0.30, 0, 1);   /* 各条错峰生长 */
-          if (ckT <= 0) continue;
-          var segN = Math.ceil(ck.segs.length * ckT);
-          var wMain = 3.5 + 2.8 * (1 - ckT * 0.35);
-          cctx.shadowColor = "rgba(190, 230, 255, 0.98)";
-          cctx.shadowBlur = 26;
-          cctx.strokeStyle = "rgba(200, 234, 255, 0.55)";
-          cctx.lineWidth = wMain * 2.2;
-          cctx.lineCap = "round";
-          cctx.beginPath();
-          for (var sgi = 0; sgi < segN; sgi++) {
-            var sg = ck.segs[sgi];
-            if (sgi === 0) cctx.moveTo(sg[0] * W, sg[1] * H);
-            cctx.lineTo(sg[2] * W, sg[3] * H);
-          }
-          cctx.stroke();
-          cctx.strokeStyle = "rgba(242, 250, 255, 0.98)";
-          cctx.lineWidth = wMain;
-          cctx.stroke();
-          /* 岔缝:细、直劈(小角度分叉,非树杈) */
-          cctx.lineWidth = wMain * 0.5;
-          cctx.strokeStyle = "rgba(226, 242, 255, 0.8)";
-          for (var bi = 0; bi < ck.branches.length; bi++) {
-            var br = ck.branches[bi];
-            if ((bi + 2) > segN) break;
-            cctx.beginPath();
-            cctx.moveTo(br[0] * W, br[1] * H);
-            cctx.lineTo(br[2] * W, br[3] * H);
-            cctx.stroke();
-          }
-        }
-        cctx.shadowBlur = 0;
-        cctx.restore();
-      } else if (cctx) {
-        cctx.clearRect(0, 0, W, H);
-      }
-
-      /* ===== 爆发期:震动 + 全页模糊(html.surge-run) =====
+      /* ===== 爆发期:震动 + 全页模糊(body.surge-blur) =====
          ★ 震动/模糊/变暗都挂在 <html> 的 class 上,CSS 里对
            html 元素本身做 filter —— filter 作用在根元素会连同
            所有 fixed 面板(HUD/顶栏)一起模糊,这才是"整个页面"。
