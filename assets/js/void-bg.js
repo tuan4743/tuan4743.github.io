@@ -390,7 +390,7 @@
          最终整条洋流连成光带
        · 光带里长出裂纹(枝干状,底层粗,同时最多 4 条),扩散
        · q 末段:光带突然变宽覆盖全屏 → 白 → 重载 */
-  var surge = { p: 0, rate: 0, q: 0, qStart: 0, armed: false, reloaded: false, reloadCb: null };
+  var surge = { p: 0, rate: 0, q: 0, qStart: 0, armed: false, reloaded: false, reloadCb: null, adv: 0 };
 
   /* 前期强度:0..1 —— ★ 带 ease-in 曲线(拖尾加速感):
      c = p²(3-2p)? 不够陡 —— 用 c = p^1.8,前段慢(酝酿)后段陡
@@ -443,7 +443,11 @@
     ctx.clearRect(0, 0, W, H);
 
     /* 共流过境:水位推进(前期)。
-       p 到 1 → 武装进入爆发(q 推进);到 0 松劲。 */
+       p 到 1 → 武装进入爆发(q 推进);到 0 松劲。
+       ★ 位移必须【帧积分】:s = off + tS*speed 在 speed 随 p 变化时
+         会让相位瞬间跳变(tS 是全程!speed 一变整个 s 重排)——
+         这就是"前期洋流消失一段"的根因(高速档下整条河瞬移)。
+       改:surge.adv(advancer)每帧 += speed*dt,粒子用 off+adv。 */
     if (surge.q === 0 && surge.rate) {
       surge.p = clamp(surge.p + surge.rate * dt / 1000, 0, 1);
       if (surge.p <= 0) surge.rate = 0;
@@ -461,6 +465,9 @@
     }
     var charge = dark ? surgeCharge(surge.p) : 0;
     var q = dark ? surge.q : 0;
+    /* 帧积分的洋流位移(秒·归一化):速度变化时平滑续接 */
+    var flowSpeed = 0.018 * (1 + charge * 8.0 + q * 3.0);
+    surge.adv = (surge.adv || 0) + flowSpeed * dt / 1000;
 
     /* ★ 自适应帧率:平时 30fps;演出激活(p>0 或 q>0)提到 60fps
        (演出细,需要跟手的帧间隔),平时掉回 30 —— rAF 本身是 60,
@@ -576,12 +583,10 @@
       for (var f = 0; f < flowDots.length; f++) {
         var fd = flowDots[f];
         var c3 = CURRENTS[fd.ci];
-        /* ★ 速度:charge(ease-in)全程跟水位,终点速度 ≈ 爆发起步;
-           爆发期增量 ×3(从前期终点继续推,不再二次起跳) */
-        var speed = 0.018 * (1 + charge * 8.0 + q * 3.0);
-        var s = (fd.off + tS * speed * fd.vj * c3.dir) % 1;
+        /* ★ 位置用帧积分位移(surge.adv):速度变化不跳相 */
+        var s = (fd.off + surge.adv * fd.vj * c3.dir) % 1;
         if (s < 0) s += 1;
-        var cyc = fd.off + (tS * speed * fd.vj) % 1;      /* 用于闪烁 */
+        var cyc = fd.off + (surge.adv * fd.vj) % 1;       /* 用于闪烁 */
         var cxp = s * W;
         /* 涌动:横向摆动叠加高频颤(swelling),幅度随风暴涨 */
         var cyp = currentY(c3, s, tS, fd.strand) * H + fd.lat * c3.width * H
@@ -693,19 +698,23 @@
       }
 
       /* ===== 爆发期:覆屏白幕(q 0.88..1) =====
-         光带突然变宽盖住一切 → 全白 → 通知触发侧重载 */
+         光带突然变宽盖住一切 → 全白 → 通知触发侧重载。
+         ★ 白幕期间震动/模糊【保持到重载】(原来 q≥0.88 就走了
+           else 分支被摘 —— 白光时页面突然静止,很假)。 */
       if (q >= 0.88) {
         var wh = clamp((q - 0.88) / 0.10, 0, 1);
         ctx.globalAlpha = wh;
         ctx.fillStyle = "#f2f8ff";
         ctx.fillRect(0, 0, W, H);
+        if (q < 1) {
+          document.body.classList.add("surge-shake");
+          document.body.classList.add("surge-blur");
+          docEl.style.setProperty("--surge-shake-x", ((hash(Math.floor(tS * 60)) - 0.5) * 6).toFixed(1) + "px");
+          docEl.style.setProperty("--surge-shake-y", ((hash(Math.floor(tS * 60) + 99) - 0.5) * 5).toFixed(1) + "px");
+          docEl.style.setProperty("--surge-blur", "3.2");
+        }
         if (q >= 1 && !surge.reloaded) {
           surge.reloaded = true;
-          document.body.classList.remove("surge-shake");
-          document.body.classList.remove("surge-blur");
-          docEl.style.removeProperty("--surge-shake-x");
-          docEl.style.removeProperty("--surge-shake-y");
-          docEl.style.removeProperty("--surge-blur");
           var cb = surge.reloadCb;
           setTimeout(function () { if (cb) { try { cb(); } catch (e) { } } try { location.reload(); } catch (e) { } }, 320);
         }

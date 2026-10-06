@@ -883,9 +883,17 @@ body.surge-shake .proj-node {
 
 /* 全页模糊:挂 <body>(不是 html)—— 裂纹画布 .void-bg-crisp
    挂在 html 直下、body 外,不参与 body 的 filter ⇒ 裂纹永不模糊。
-   body 的 filter 会连同 HUD/顶栏/正文/背景一切一起模糊。 */
+   body 的 filter 会连同 HUD/顶栏/正文/背景一切一起模糊。
+   ★ body 有 filter 时成为 fixed 后代的包含块 ⇒ 演出期间锁滚动
+     (html overflow hidden),否则页面"可以往下滑动"(bug)。 */
 body.surge-blur {
     filter: blur(var(--surge-blur));
+}
+
+/* 演出期间(震动或模糊激活)锁滚动:爆发期页面不该被用户拖走 */
+body.surge-shake,
+body.surge-blur {
+    overflow: hidden !important;
 }
 
 /* 全页变暗:四周往内的环形暗角罩(中心透明 → 四周黑)。
