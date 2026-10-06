@@ -45,6 +45,44 @@
   function hash(n) { var x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
   function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
 
+  /* ---------- 性能基建(离屏预渲染) ----------
+   * ★ glow sprite:炫光=一张预渲染的高斯光晕贴图,drawImage 贴,
+   *   替代逐点 shadowBlur(shadowBlur 是 canvas 最贵的操作之一,
+   *   480 点 × 每帧 = 灾难;drawImage 贴图几乎免费)。
+   *   光晕"变大变亮"= 贴图尺寸/透明度随 glow 插值 —— 视觉等价。
+   * ★ noise sprite:噪点也是一张预渲染的 pattern,整屏一次 drawImage,
+   *   替代每帧 140 个 fillRect + hash。
+   * ★ DPR 上限:1(背景是模糊雾带,DPR>1 的成本全在像素填充,
+   *   视觉上几乎无差 —— 高分屏最大头)。 */
+  var DPR_CAP = 1;
+  var glowSprite = document.createElement("canvas");
+  function buildGlowSprite() {
+    var S = 128;                                 /* 贴图边长(px,画时缩放) */
+    glowSprite.width = S; glowSprite.height = S;
+    var g = glowSprite.getContext("2d");
+    var grad = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+    grad.addColorStop(0, "rgba(242, 249, 255, 1)");
+    grad.addColorStop(0.25, "rgba(190, 232, 255, 0.55)");
+    grad.addColorStop(0.6, "rgba(150, 215, 255, 0.16)");
+    grad.addColorStop(1, "rgba(150, 215, 255, 0)");
+    g.fillStyle = grad;
+    g.fillRect(0, 0, S, S);
+  }
+  buildGlowSprite();
+  /* 噪点:两帧交替的半透明纹理(128×128,随机白点),画时随机平移 */
+  var noiseSprite = document.createElement("canvas");
+  function buildNoiseSprite() {
+    var S = 160;
+    noiseSprite.width = S; noiseSprite.height = S;
+    var g = noiseSprite.getContext("2d");
+    for (var i = 0; i < 240; i++) {
+      g.globalAlpha = 0.10 + hash(i * 3.7) * 0.30;
+      g.fillStyle = "#cfe4f4";
+      g.fillRect(hash(i * 1.3) * S, hash(i * 2.9) * S, hash(i * 5.1) > 0.85 ? 2.2 : 1, 1);
+    }
+  }
+  buildNoiseSprite();
+
   /* ---------- 共享:密度势场(暗模式等高线的 φ) ----------
      3 个缓慢漂移的高斯势阱叠加,幅度呼吸。φ 值域约 [-1,1]。 */
   var TRAPS = [
@@ -366,9 +404,10 @@
   /* ---------- 主渲染 ---------- */
   var frameT = 0, lastT = 0, running = false;
   var FPS_BG = 30;
+  var phiGridArr = null, phiGridW = 0, phiGridH = 0;   /* φ 网格缓存(marching squares 共用) */
 
   function resize() {
-    DPR = Math.min(2, window.devicePixelRatio || 1);
+    DPR = Math.min(DPR_CAP, window.devicePixelRatio || 1);
     W = Math.max(1, window.innerWidth);
     H = Math.max(1, window.innerHeight);
     cv.width = Math.round(W * DPR);
@@ -421,34 +460,54 @@
     var charge = dark ? surgeCharge(surge.p) : 0;
     var q = dark ? surge.q : 0;
 
+    /* ★ 自适应帧率:平时 30fps;演出激活(p>0 或 q>0)提到 60fps
+       (演出细,需要跟手的帧间隔),平时掉回 30 —— rAF 本身是 60,
+       这里只是节流窗。页面不可见时 rAF 自动暂停,不用管。 */
+    FPS_BG = (charge > 0 || q > 0) ? 60 : 30;
+
     if (dark) {
       /* ============ 新真空:缺陷海密度场 ============ */
       /* 底:纯黑 */
       ctx.fillStyle = "#020409";
       ctx.fillRect(0, 0, W, H);
 
-      /* 等高线:2~4 条 |∇φ|² 等值线(marching squares),加粗到可辨 */
+      /* 等高线:2~4 条 |∇φ|² 等值线(marching squares)。
+         ★ 性能:φ 采样是全脚本最贵的循环(34×~20 网格 × 3 档 × 4 角)。
+           改为【每帧只算一张 φ 网格】(各档共用),角点值查缓存 ——
+           采样次数从 ~8160 → ~2040。 */
       var LEVELS = [0.16, 0.30, 0.44];
       var cells = 34;
-      var cw = W / cells, ch = H / Math.max(10, Math.round(cells * H / W));
+      var cCols = cells + 1, cRows = Math.max(10, Math.round(cells * H / W)) + 1;
+      var cw = W / (cCols - 1), ch = H / Math.max(10, cRows - 1);
+      var phiGrid = phiGridArr || (phiGridArr = new Float32Array(cCols * cRows));
+      if (phiGridW !== cCols || phiGridH !== cRows) { phiGridArr = phiGrid = new Float32Array(cCols * cRows); phiGridW = cCols; phiGridH = cRows; }
+      var gi = 0;
+      for (var gy = 0; gy < cRows; gy++) {
+        var gny = gy * ch / H;
+        for (var gx = 0; gx < cCols; gx++, gi++) {
+          phiGrid[gi] = phi(gx * cw / W, gny, tS);
+        }
+      }
       ctx.save();
       ctx.strokeStyle = "rgba(190, 220, 255, 0.14)";
       ctx.lineWidth = 1.8;
       for (var li = 0; li < LEVELS.length; li++) {
         var lv = LEVELS[li];
         ctx.beginPath();
-        for (var cy = 0; cy < H; cy += ch) {
-          for (var cx = 0; cx < W; cx += cw) {
-            var v00 = phi(cx / W, cy / H, tS) - lv;
-            var v10 = phi((cx + cw) / W, cy / H, tS) - lv;
-            var v01 = phi(cx / W, (cy + ch) / H, tS) - lv;
-            var v11 = phi((cx + cw) / W, (cy + ch) / H, tS) - lv;
-            /* 简易 marching squares:只画穿越线段 */
+        for (var cy = 0; cy < cRows - 1; cy++) {
+          for (var cx = 0; cx < cCols - 1; cx++) {
+            var i00 = cy * cCols + cx;
+            var v00 = phiGrid[i00] - lv;
+            var v10 = phiGrid[i00 + 1] - lv;
+            var v01 = phiGrid[i00 + cCols] - lv;
+            var v11 = phiGrid[i00 + cCols + 1] - lv;
+            if ((v00 > 0) === (v10 > 0) && (v10 > 0) === (v01 > 0) && (v01 > 0) === (v11 > 0)) continue;  /* 无穿越,跳过 */
+            var px0 = cx * cw, py0 = cy * ch;
             var pts = [];
-            if (v00 * v10 < 0) pts.push([cx + cw * (v00 / (v00 - v10)), cy]);
-            if (v10 * v11 < 0) pts.push([cx + cw, cy + ch * (v10 / (v10 - v11))]);
-            if (v01 * v11 < 0) pts.push([cx + cw * (v01 / (v01 - v11)), cy + ch]);
-            if (v00 * v01 < 0) pts.push([cx, cy + ch * (v00 / (v00 - v01))]);
+            if (v00 * v10 < 0) pts.push([px0 + cw * (v00 / (v00 - v10)), py0]);
+            if (v10 * v11 < 0) pts.push([px0 + cw, py0 + ch * (v10 / (v10 - v11))]);
+            if (v01 * v11 < 0) pts.push([px0 + cw * (v01 / (v01 - v11)), py0 + ch]);
+            if (v00 * v01 < 0) pts.push([px0, py0 + ch * (v00 / (v00 - v01))]);
             if (pts.length >= 2) {
               ctx.moveTo(pts[0][0], pts[0][1]);
               ctx.lineTo(pts[1][0], pts[1][1]);
@@ -459,24 +518,28 @@
       }
       ctx.restore();
 
-      /* 拓扑泡沫白点:亮度 = 相位余弦,位置随场涨落 + 自漂移 */
+      /* 拓扑泡沫白点:亮度 = 相位余弦,位置随场涨落 + 自漂移。
+         ★ 性能:避让的 currentY 每点 3 股 × 7 丝 = 21 次三角函数 ——
+           预计算【每帧每股每丝在采样列上的 y】没用(点 x 各不同),
+           改为快速预筛:点先按 y0±带宽粗判"可能进带"才细算 ——
+           带外点(绝大多数)零三角函数。 */
       ctx.save();
       for (var d = 0; d < dots.length; d++) {
         var dt0 = dots[d];
         var tw = 0.5 + 0.5 * Math.cos(dt0.ph + tS * dt0.om * Math.PI * 2 * 0.12);
         var px2 = (dt0.bx + 0.008 * Math.sin(tS * dt0.bw + d) + 0.004 * Math.sin(tS * dt0.dw + dt0.dp)) * W;
         var py2 = (dt0.by + 0.008 * Math.cos(tS * dt0.bw * 0.8 + d * 1.3) + 0.004 * Math.cos(tS * dt0.dw * 1.3 + dt0.dp * 1.7)) * H + Math.sin(tS * dt0.bw * Math.PI * 2 * 0.3 + dt0.ph) * dt0.bob * 0.5;
-        /* 自由点不进洋流:离任一股【任一流丝】中心线近的压暗。
-           ★ 上一版只对 strand=0 那条中心线避让 —— 洋流实际画了 7 条
-             流丝,其余 6 条上自由点照旧出没(= 撞上)。现在对全部流丝取
-             最小余量。 */
+        /* 快速预筛:ny 到任何河道 y0 的距离超过(amp 总和 + 漂移 + 半宽)就直接跳过 */
+        var ny2 = py2 / H;
         var suppress = 1;
         for (var ci2 = 0; ci2 < CURRENTS.length; ci2++) {
-          var stCount = 7;
-          for (var st2 = 0; st2 < stCount; st2++) {
-            var cy2 = currentY(CURRENTS[ci2], px2 / W, tS, st2);
-            var halfW = CURRENTS[ci2].width * 0.55;          /* 单丝半宽 */
-            var dBand = Math.abs(py2 / H - cy2);
+          var cc0 = CURRENTS[ci2];
+          var far = Math.abs(ny2 - cc0.y0) - (cc0.amp[0] + cc0.amp[1] + cc0.amp[2] + 0.022);
+          if (far > cc0.width) continue;                 /* 带外,不可能碰河道 */
+          for (var st2 = 0; st2 < 7; st2++) {
+            var cy2 = currentY(cc0, px2 / W, tS, st2);
+            var halfW = cc0.width * 0.55;                /* 单丝半宽 */
+            var dBand = Math.abs(ny2 - cy2);
             if (dBand < halfW) {
               suppress = Math.min(suppress, Math.max(0, dBand / halfW));
             }
@@ -520,12 +583,9 @@
         /* 前期增亮(不变大);爆发期按发光强度再抬 */
         fa = Math.min(1, fa + charge * 0.5 + glow * 0.55);
         ctx.globalAlpha = fa;
-        /* ★ 炫光:shadowBlur 本体 + 一层放大重描(外晕)。
-           单靠 shadowBlur 在小点上不显眼 —— 炫光=核心亮 + 外圈大晕。 */
-        if (glow > 0.01) {
-          ctx.shadowColor = "rgba(150, 215, 255, 0.95)";
-          ctx.shadowBlur = (10 + 46 * glow) * (0.6 + 0.4 * fd.vj);
-        } else ctx.shadowBlur = 0;
+        /* ★ 炫光 = 预渲染光晕贴图(替代逐点 shadowBlur):
+           核心点照常画,glow 起来后在其上贴 glowSprite,
+           尺寸随 glow 膨胀(点本体不变大 —— 光晕大,核不变)。 */
         ctx.fillStyle = glow > 0.01 ? "#f2f9ff" : "#dcecff";
         /* 前期末段:点拖成线(沿运动方向);爆发期线更长 → 光带。
            ★ 贯穿全屏直线的根因:回退点跨过 x=0/1 屏幕边界时,
@@ -559,8 +619,13 @@
           ctx.arc(cxp, cyp, fd.sz, 0, Math.PI * 2);
           ctx.fill();
         }
+        /* 炫光外晕:预渲染贴图一次 drawImage(点循环末尾统一贴) */
+        if (glow > 0.02) {
+          var gr = (4 + 30 * glow) * (0.6 + 0.4 * fd.vj);
+          ctx.globalAlpha = Math.min(1, fa) * Math.min(1, 0.35 + glow);
+          ctx.drawImage(glowSprite, cxp - gr, cyp - gr, gr * 2, gr * 2);
+        }
       }
-      ctx.shadowBlur = 0;
       ctx.restore();
 
       /* (光带与裂纹已删:效果不真实,直接去掉。
@@ -637,20 +702,16 @@
       }
 
       /* ===== 前期末段:噪点(charge > 0.6 起,渐密) =====
-         预生成噪点雪花:每帧随机取子集闪,密度随 charge 涨。
-         爆发期延续并加剧,直到白幕。 */
+         ★ 预渲染噪点纹理整屏平铺两遍(随机相位),α 随 nk 涨 ——
+           替代每帧 140 个 fillRect + 4 次 hash/点。 */
       if ((charge > 0.6 || q > 0) && q < 0.88) {
         var nk = q > 0 ? 1 : (charge - 0.6) / 0.4;
-        var n = Math.round(140 * nk);
+        var pat = ctx.createPattern(noiseSprite, "repeat");
         ctx.save();
-        ctx.fillStyle = "#cfe4f4";
-        for (var ni = 0; ni < n; ni++) {
-          var seed = Math.floor(tS * 30) * 131 + ni * 7.77;
-          var nx2 = hash(seed) * W;
-          var ny2 = hash(seed + 0.5) * H;
-          ctx.globalAlpha = 0.10 + hash(seed + 0.9) * 0.22 * nk;
-          ctx.fillRect(nx2, ny2, 1 + (hash(seed + 2) > 0.85 ? 1.4 : 0), 1);
-        }
+        ctx.globalAlpha = Math.min(1, nk);
+        ctx.translate(Math.floor(hash(Math.floor(tS * 30)) * 160), Math.floor(hash(Math.floor(tS * 30) + 7) * 160));
+        ctx.fillStyle = pat;
+        ctx.fillRect(-160, -160, W + 320, H + 320);
         ctx.restore();
       }
 
