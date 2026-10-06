@@ -79,6 +79,12 @@
 <link rel="stylesheet" href="{{ $u.RelPermalink }}">
 {{- end }}
 
+{{/* 共流过境触发条:样式跟 page-hud 走(同一张 HUD 皮) */}}
+{{- with resources.Get "css/hud-surge.css" }}
+{{- $u := . | fingerprint "sha256" }}
+<link rel="stylesheet" href="{{ $u.RelPermalink }}">
+{{- end }}
+
 {{- with resources.Get "css/hud-toc.css" }}
 {{- $u := . | fingerprint "sha256" }}
 <link rel="stylesheet" href="{{ $u.RelPermalink }}">

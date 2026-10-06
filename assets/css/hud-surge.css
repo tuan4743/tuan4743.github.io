@@ -1,0 +1,112 @@
+/* ============================================================
+   hud-surge.css — 共流过境 · 触发条
+   跟 page-hud 同一张皮:细线框、Alpha Sector 字、0.16s 过渡。
+   位置:.hud-ctl 栏最上(右侧控制列,音量/配色/明暗之上)。
+   ============================================================ */
+
+.hud-surge {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 6px 8px 7px;
+    border: 1px solid var(--hud-line-soft, rgba(234, 243, 255, 0.22));
+    border-radius: 6px;
+    background: rgba(234, 243, 255, 0.05);
+    color: var(--hud-ink-dim, rgba(234, 243, 255, 0.62));
+    font-family: var(--hud-font, ui-monospace, monospace);
+    font-size: calc(10px * var(--hud-s, 1));
+    letter-spacing: 0.14em;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;                       /* 按住加速:别让浏览器当滚动 */
+    -webkit-tap-highlight-color: transparent;
+    transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+
+.hud-surge:hover,
+.hud-surge:focus-visible {
+    background: rgba(234, 243, 255, 0.12);
+    border-color: var(--hud-line-on, rgba(234, 243, 255, 0.6));
+    color: var(--hud-ink, #eaf3ff);
+    outline: none;
+}
+
+.hud-surge:active {
+    transform: translateY(1px);
+}
+
+/* 锁定态:标签压暗,提示"闭" */
+.hud-surge.is-locked {
+    color: rgba(234, 243, 255, 0.4);
+}
+
+/* 水位动起来 / 满潮:框和字微微亮起 */
+.hud-surge.is-live {
+    border-color: color-mix(in srgb, var(--mc-color, rgb(34, 211, 238)) 55%, transparent);
+    color: var(--hud-ink, #eaf3ff);
+}
+
+.hud-surge.is-full {
+    background: color-mix(in srgb, var(--mc-color, rgb(34, 211, 238)) 14%, rgba(234, 243, 255, 0.05));
+}
+
+.hud-surge__label {
+    white-space: nowrap;
+    text-align: center;
+}
+
+.hud-surge__rail {
+    position: relative;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--hud-rail, rgba(234, 243, 255, 0.22));
+    overflow: hidden;
+}
+
+.hud-surge__fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 0%;
+    border-radius: 2px;
+    background: linear-gradient(90deg,
+        color-mix(in srgb, var(--mc-color, rgb(34, 211, 238)) 45%, transparent),
+        var(--mc-color, rgb(34, 211, 238)));
+    transition: width 0.12s linear;
+}
+
+/* 亮色模式(HUD 亮色覆盖同口径):框和字翻墨绿 */
+:root[data-theme="light"] .hud-surge {
+    border-color: rgba(58, 63, 72, 0.26);
+    background: rgba(250, 248, 242, 0.9);
+    color: rgba(40, 46, 52, 0.8);
+}
+
+:root[data-theme="light"] .hud-surge:hover,
+:root[data-theme="light"] .hud-surge:focus-visible {
+    background: rgba(14, 116, 122, 0.12);
+    border-color: rgba(14, 116, 122, 0.55);
+    color: rgba(20, 40, 44, 0.95);
+}
+
+:root[data-theme="light"] .hud-surge.is-locked {
+    color: rgba(40, 46, 52, 0.45);
+}
+
+:root[data-theme="light"] .hud-surge__rail {
+    background: rgba(58, 63, 72, 0.24);
+}
+
+:root[data-theme="light"] .hud-surge__fill {
+    background: linear-gradient(90deg,
+        color-mix(in srgb, rgb(14, 116, 122) 45%, transparent),
+        rgb(14, 116, 122));
+}
+
+@media (max-width: 1180px) {
+    .hud-surge {
+        display: none;                        /* HUD 整体隐藏的窄屏,它跟着走 */
+    }
+}

@@ -51,6 +51,12 @@
 {{- $voidJs := . | fingerprint "sha256" }}
 <script defer src="{{ $voidJs.RelPermalink }}"></script>
 {{- end }}
+{{- /* 共流过境触发条:必须排在 void-bg.js 之后(defer 按文档顺序执行,
+     它要拿 window.__voidSurge;拿不到就静默退出)。 */ -}}
+{{- with resources.Get "js/hud-surge.js" }}
+{{- $surgeJs := . | fingerprint "sha256" }}
+<script defer src="{{ $surgeJs.RelPermalink }}"></script>
+{{- end }}
 <script>
     (function () {
         var on = true;

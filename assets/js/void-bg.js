@@ -338,6 +338,23 @@
     g.restore();
   }
 
+  /* ---------- 暗模式:共流过境(手动触发) ----------
+     洪水演出的纯渲染侧:surge.p ∈ [0,1] 是"水位",由触发侧
+     (hud-surge.js)推进。0=平时;涨过阈值后洋流涨密变亮成丝,
+     漫出河道 → 漫过全屏 → 退潮,等高线在洪水里先淹没后重新显影。
+     ★ 不自动播放:默认 p 恒 0,演出完全由持有者开闸。 */
+  var surge = { p: 0, rate: 0 };
+  function surgeEnvelope(p) {
+    /* 三段包络:0..0.45 涨(带内),0.45..0.62 漫出,0.62..0.8 全屏,>0.8 退 */
+    var flood = 0;
+    if (p <= 0) return 0;
+    if (p < 0.45) flood = p / 0.45 * 0.55;                    /* 带内涨密 0..0.55 */
+    else if (p < 0.62) flood = 0.55 + (p - 0.45) / 0.17 * 0.45;  /* 漫出 0.55..1 */
+    else if (p < 0.80) flood = 1;
+    else flood = Math.max(0, 1 - (p - 0.80) / 0.20);           /* 退潮 1..0 */
+    return flood * flood * (3 - 2 * flood);                    /* smoothstep */
+  }
+
   /* ---------- 主渲染 ---------- */
   var frameT = 0, lastT = 0, running = false;
   var FPS_BG = 30;
@@ -375,6 +392,15 @@
     var dark = isDark();
     var tS = now / 1000;
     ctx.clearRect(0, 0, W, H);
+
+    /* 共流过境:推进水位(推进速率由触发侧写进 surge.rate)。
+       帧间积分;到顶不停表 —— 满潮驻留(雾一直罩着),等触发侧
+       调 release() 才转退潮;退到 0 自动停。 */
+    if (surge.rate) {
+      surge.p = clamp(surge.p + surge.rate * dt / 1000, 0, 1);
+      if (surge.p <= 0) surge.rate = 0;
+    }
+    var flood = dark ? surgeEnvelope(surge.p) : 0;
 
     if (dark) {
       /* ============ 新真空:缺陷海密度场 ============ */
@@ -469,9 +495,67 @@
       }
       ctx.restore();
 
-      /* 成核事件 */
-      if (!core.active && now > core.next) coreSpawn(now);
-      coreDraw(ctx, now);
+      /* 成核事件(洪水满时暂停:界面被吞,不给新事件) */
+      if (flood < 0.5) {
+        if (!core.active && now > core.next) coreSpawn(now);
+        coreDraw(ctx, now);
+      }
+
+      /* ===== 共流过境层(暗) =====
+         flood ∈ [0,1]:
+         · 0..0.55:三股河道涨密变亮(点加密感 = 提亮度+尺寸),等高线仍在
+         · 0.55..1:洪水漫出河道 —— 以河道中心线为源,向下/全屏漫出
+           一层青白雾坡(floodRise),最高段整个画面被雾吞住
+         · 退潮:雾先撤,河道亮度回落,等高线重新显影(它们全程没停画,
+           只是雾盖住了) */
+      if (flood > 0.001) {
+        /* 河道增亮:现有点层上面再补一遍高亮描(只有 flood 起来才画) */
+        ctx.save();
+        for (var sf = 0; sf < flowDots.length; sf++) {
+          var sd = flowDots[sf];
+          var sc = CURRENTS[sd.ci];
+          var ss = (sd.off + tS * 0.018 * sd.vj * sc.dir) % 1;
+          if (ss < 0) ss += 1;
+          var sx = ss * W;
+          var sy = currentY(sc, ss, tS, sd.strand) * H + sd.lat * sc.width * H;
+          /* 洪水涨时点又大又亮;漫出段(>0.55)整带已经在雾里,可减淡 */
+          var bandK = flood < 0.55 ? flood / 0.55 : 1 - (flood - 0.55) / 0.45 * 0.6;
+          ctx.globalAlpha = 0.55 * bandK;
+          ctx.fillStyle = "#dcecff";
+          ctx.beginPath();
+          ctx.arc(sx, sy, sd.sz * (1 + bandK * 1.6), 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+
+        /* 漫出雾:水位 > 0.5 后从河道带往两侧漫(再漫满全屏)。
+           按列 x 采样三股河道中心线,每列从每条河道中心铺一段
+           竖向雾柱,厚度随 rise 增长 —— 三条河同时往外漫。 */
+        if (flood > 0.5) {
+          var rise = (flood - 0.5) / 0.5;                 /* 0..1 漫出程度 */
+          var cols = Math.max(24, Math.round(W / 24));
+          var colW = W / cols;
+          ctx.save();
+          ctx.fillStyle = "#bcd8f0";
+          for (var cc2 = 0; cc2 < CURRENTS.length; cc2++) {
+            for (var ci4 = 0; ci4 < cols; ci4++) {
+              var gx2 = (ci4 + 0.5) / cols;
+              var cyy = currentY(CURRENTS[cc2], gx2, tS, 0) * H;
+              var half = CURRENTS[cc2].width * H * (1 + rise * 9);
+              ctx.globalAlpha = 0.16 * rise;
+              ctx.fillRect(ci4 * colW, cyy - half, colW + 1, half * 2);
+            }
+          }
+          /* 满潮:整屏罩一层青白,把场景"吞"住(α 最高 0.30,不糊字太多) */
+          if (flood > 0.62) {
+            var full = (flood - 0.62) / 0.18;
+            ctx.globalAlpha = 0.30 * full;
+            ctx.fillStyle = "#a8c8e4";
+            ctx.fillRect(0, 0, W, H);
+          }
+          ctx.restore();
+        }
+      }
 
       /* 中央阅读遮罩(内容页):把背景再压暗一点 */
       if (!isHome()) {
@@ -659,6 +743,16 @@
 
     requestAnimationFrame(render);
   }
+
+  /* ---------- 共流过境:触发侧接口 ----------
+     hud-surge.js 用这三个方法开闸/按住/读水位。
+     涨:0.028/s(不按住,整程约 36s),按住 0.20/s(约 5s 到满);
+     退:release() 后 -0.05/s(约 20s 退干净);到 0 自动停表。 */
+  window.__voidSurge = {
+    hold: function (on) { surge.rate = on ? 0.20 : 0.028; },
+    release: function () { if (surge.p > 0) surge.rate = -0.05; },
+    p: function () { return surge.p; }
+  };
 
   function start() {
     if (running) return;
