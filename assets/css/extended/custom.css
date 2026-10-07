@@ -889,8 +889,13 @@ body.surge-blur {
     filter: blur(var(--surge-blur));
 }
 
-/* 爆发期锁滚动:震动期间页面内容被平移,滚动会造成滚动条乱跳/错位观感 */
+/* 爆发期锁滚动:震动期间页面内容被平移,滚动会造成滚动条乱跳/错位观感。
+   ★ overflow:hidden 锁不住这个站(实测 html overflow:hidden 照样滚,
+     Chromium 对 documentElement 滚动的处理特殊)—— 改用定位法:
+     body 定住 fixed,滚动容器没有可滚的内容 ⇒ 彻底锁死。 */
 body.surge-lock {
+    position: fixed;
+    inset: 0;
     overflow: hidden !important;
 }
 
@@ -1038,6 +1043,27 @@ html.theme-fade *::after {
         box-shadow 1.1s ease,
         text-shadow 1.1s ease,
         opacity 1.1s ease !important;
+}
+/* ★ 背景画布例外:主题切换时 canvas 的交叉淡出由 crossfade() 用
+   .is-fading 类驱动 —— 快照【立即显形】(无过渡,防 theme-fade
+   干扰),摘掉类后 1.6s 淡出;底下主画布已按新主题在画,
+   交叉即渐变。类名用 !important 定死,theme-fade 抢不走。 */
+.void-bg-snap,
+html.theme-fade .void-bg-snap {
+    opacity: 0;
+    transition: none !important;
+}
+.void-bg-snap.is-fading,
+html.theme-fade .void-bg-snap.is-fading {
+    opacity: 1;
+    transition: none !important;
+}
+/* 摘掉 is-fading 的瞬间:回到 0,但这次走 1.6s 淡出 ——
+   用单独的 .is-out 段落过渡,而不是复用基础规则的重启。 */
+.void-bg-snap.is-out,
+html.theme-fade .void-bg-snap.is-out {
+    opacity: 0;
+    transition: opacity 1.6s ease !important;
 }
 
 /* ============================================================

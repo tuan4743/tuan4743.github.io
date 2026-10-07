@@ -916,8 +916,12 @@
                 满屏进入崩塌;
              4) 墨色顶格纯黑,线宽 4.5px。 */
         var qK = q > 0 ? 1 : 0;
-        var uniAmp = 1 + lks * 1.35 + qK * q * 0.75;   /* 爆发再冲:最高 ~3.1x */
-        var uniT = 1 + lk * 2.2;                       /* 波速:爆发不再加(前期已到顶) */
+        /* ★ 爆发不再叠加参数冲顶(q*0.75 等):chase 追满时 lk=1、q 同步
+           在涨,再叠 q 增量 = 同一时刻两次"加强",读作"加速了非常大
+           一段时间"。爆发期参数冻结在前期顶格,只靠 sink/tearGrow/
+           纯黑线三个【空间】变化区分爆发 —— 不再有时间上的加速感。 */
+        var uniAmp = 1 + lks * 1.35;                   /* 波幅顶格 2.35x(爆发不加) */
+        var uniT = 1 + lk * 2.2;                       /* 波速:顶格(爆发不加) */
         var sink = q * H * 0.10;                       /* 爆发:基线下沉最多 10% 屏高 */
         var tearGrow = 0.45 + q * 0.35;                /* 爆发:崩塌区向右吞 */
         for (var wvi2 = 0; wvi2 < WAVES.length; wvi2++) {
@@ -932,13 +936,13 @@
             wpx.push(wx2);
             wpy.push(H * wv2.y0 + sink + rel * aUni);
           }
-          /* 波带填墨:爆发期再压深一档(q 期 0.34,前期顶 0.265) */
+          /* 波带填墨:顶格(爆发不加) */
           ctx.beginPath();
           ctx.moveTo(wpx[0], H * wv2.y0);
           for (var fi2 = 0; fi2 < wpx.length; fi2++) ctx.lineTo(wpx[fi2], wpy[fi2]);
           ctx.lineTo(W, H * wv2.y0);
           ctx.closePath();
-          ctx.fillStyle = "rgba(" + inkR + ", " + inkG + ", " + inkB + ", " + (0.045 + lk * 0.22 + qK * q * 0.12).toFixed(3) + ")";
+          ctx.fillStyle = "rgba(" + inkR + ", " + inkG + ", " + inkB + ", " + (0.045 + lk * 0.22).toFixed(3) + ")";
           ctx.fill();
           /* 主线描深:爆发期顶格纯黑 */
           ctx.beginPath();
@@ -948,7 +952,7 @@
           ctx.strokeStyle = qK
             ? "rgba(8, 10, 8, " + (0.80 + q * 0.18).toFixed(2) + ")"
             : "rgba(" + inkR + ", " + inkG + ", " + inkB + ", " + (0.16 + lk * 0.62).toFixed(2) + ")";
-          ctx.lineWidth = 1.5 + lk * 2.2 + qK * q * 0.8;
+          ctx.lineWidth = 1.5 + lk * 2.2;
           ctx.stroke();
         }
         ctx.restore();
@@ -1161,10 +1165,15 @@
 
   /* 主题切换时:canvas 不吃 CSS 颜色过渡,直接换主题会硬切。
      把当前帧快照到一张叠在上面的 canvas,让它 1.6s 淡出 ——
-     底下的主 canvas 已经按新主题在画,交叉之后就是渐变。 */
+     底下的主 canvas 已经按新主题在画,交叉之后就是渐变。
+     ★ 淡出走类驱动(.is-fading),不走内联 transition ——
+       theme-fade 的全局 !important 过渡会把内联的顶掉/冻住
+       (实测快照 opacity 冻在起点,背景读作"突变")。
+       CSS 里 .void-bg-snap 的过渡规则带 !important,永远赢。 */
   var snap = document.createElement("canvas");
-  snap.className = "void-bg";
+  snap.className = "void-bg void-bg-snap";
   snap.setAttribute("aria-hidden", "true");
+  var snapT = 0;
   function crossfade() {
     if (reduced || !cv.width) return;
     try {
@@ -1172,11 +1181,18 @@
       snap.height = cv.height;
       snap.getContext("2d").drawImage(cv, 0, 0);
       if (!snap.parentNode && cv.parentNode) cv.parentNode.insertBefore(snap, cv.nextSibling);
-      snap.style.transition = "none";
-      snap.style.opacity = "1";
+      clearTimeout(snapT);
+      /* 时序:is-fading(立即显形,无过渡)→ 一帧后换 is-out
+         (1.6s 淡出)。快照内容是【旧主题】的最后一帧,盖在新主题
+         的主画布上淡出,交叉即渐变。 */
+      snap.classList.remove("is-out");
+      snap.classList.add("is-fading");
       void snap.offsetWidth;
-      snap.style.transition = "opacity 1.6s ease";
-      snap.style.opacity = "0";
+      requestAnimationFrame(function () {
+        snap.classList.remove("is-fading");
+        snap.classList.add("is-out");
+      });
+      snapT = setTimeout(function () { snap.classList.remove("is-out"); }, 1750);
     } catch (e) { }
   }
   if (window.MutationObserver) {
