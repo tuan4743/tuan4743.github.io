@@ -391,7 +391,7 @@
          最终整条洋流连成光带
        · 光带里长出裂纹(枝干状,底层粗,同时最多 4 条),扩散
        · q 末段:光带突然变宽覆盖全屏 → 白 → 重载 */
-  var surge = { p: 0, rate: 0, q: 0, qStart: 0, armed: false, reloaded: false, reloadCb: null };
+  var surge = { p: 0, rate: 0, q: 0, qStart: 0, armed: false, reloaded: false, reloadCb: null, target: 0 };
 
   /* 前期强度:0..1 —— ★ 带 ease-in 曲线(拖尾加速感):
      c = p²(3-2p)? 不够陡 —— 用 c = p^1.8,前段慢(酝酿)后段陡
@@ -444,10 +444,24 @@
     ctx.clearRect(0, 0, W, H);
 
     /* 共流过境:水位推进(前期)。
-       p 到 1 → 武装进入爆发(q 推进);到 0 松劲。 */
-    if (surge.q === 0 && surge.rate) {
-      surge.p = clamp(surge.p + surge.rate * dt / 1000, 0, 1);
-      if (surge.p <= 0) surge.rate = 0;
+       ★ chase 模式:单击只设目标 surge.target,水位 p 每帧向目标
+         平滑追赶 —— 时间加速感:差距大时追得快(指数收敛),
+         接近后缓缓泊入,阶段之间连续无跳变。追到 1 才武装爆发。 */
+    if (surge.q === 0) {
+      if (surge.rate) {
+        /* 兜底速率推进(hold/release 路径,阶段条不用) */
+        surge.p = clamp(surge.p + surge.rate * dt / 1000, 0, 1);
+        if (surge.p <= 0) surge.rate = 0;
+      }
+      /* chase:指数趋近(每帧收窄剩余距离的 ~45%,帧率无关) */
+      var tgt = clamp(surge.target || 0, 0, 1);
+      if (tgt > surge.p) {
+        surge.p += (tgt - surge.p) * (1 - Math.exp(-dt / 1000 * 3.4));
+        if (tgt - surge.p < 0.004) surge.p = tgt;      /* 泊入 */
+      } else if (tgt < surge.p) {
+        surge.p -= (surge.p - tgt) * (1 - Math.exp(-dt / 1000 * 2.2));  /* 回落慢些 */
+        if (surge.p - tgt < 0.004) surge.p = tgt;
+      }
       if (surge.p >= 1 && !surge.armed) {
         surge.armed = true;
         surge.q = 0.0001;
@@ -721,18 +735,27 @@
         }
         return k;
       }
-      function waveYs(wv, nx, tSec, wvi) {
+      /* ★ 过境净化水位:由渲染循环每帧写入(平时 0)。只收"涌包"
+         (波包乱鼓,群魔乱舞的主源);谐波撕裂是设定里的色散崩塌,
+         过境保留 —— 崩塌该在过境时更凶,不该消失。 */
+      var lkClean = 0;
+      /* 爆发期崩塌区右界(默认 0.45;渲染循环在 q 期写入更大的值) */
+      var tearEdge = 0.45;
+      function waveYs(wv, nx, tSec, wvi, tEdge) {
         var kk = dispK(wv, nx);
         /* 波向左传:相位 +t·w·2π(峰随时间向 -x 移动) */
         var y = Math.sin(nx * kk * Math.PI * 2 + tSec * wv.w * Math.PI * 2 + wv.ph) * H * wv.a;
-        /* 谐波撕裂:前沿(左)高频毛刺,只在 x<0.45 处起 */
-        if (nx < 0.45) {
-          var tear = (0.45 - nx) / 0.45;
-          y += Math.sin(nx * wv.k * 5.7 * Math.PI * 2 - tSec * wv.w * 3.1 * Math.PI * 2) * H * wv.a * 0.16 * tear;
+        /* 谐波撕裂:前沿高频毛刺,起于左缘、崩塌区右界可扩(爆发吞全屏) */
+        var te = tEdge || tearEdge;
+        if (nx < te) {
+          var tear = (te - nx) / te;
+          y += Math.sin(nx * wv.k * 5.7 * Math.PI * 2 - tSec * wv.w * 3.1 * Math.PI * 2) * H * wv.a * (0.16 + lkClean * 0.14) * tear;
         }
-        /* 振幅包络:慢塌慢起(0.25..1),再乘涌包调制 */
+        /* 振幅包络:慢塌慢起(0.25..1);涌包调制在过境时退场(回 1) */
         var env = 0.625 + 0.375 * Math.sin(tSec * wv.dec * Math.PI * 2 + wv.dph);
-        return H * wv.y0 + y * env * waveSwell(wvi, nx, tSec);
+        var swell = waveSwell(wvi, nx, tSec);
+        swell = 1 + (swell - 1) * (1 - lkClean);
+        return H * wv.y0 + y * env * swell;
       }
       /* 主波形线稿 + 余辉 */
       for (var wvi = 0; wvi < WAVES.length; wvi++) {
@@ -866,77 +889,70 @@
       }
 
       /* ===== 亮模式 · 共流过境(charge/q 与暗模式同一套水位) =====
-         世界观:过境对"载体"同样生效 —— 共识流把波载体从行波态
-         【激发到本征态】:四列行波随水位各自坍缩成一阶驻波
-         ψₙ(x,t) = A·sin(nπx/L)·cos(ωt),但保留少量行波残留
-         (系统没锁死,在特征态边缘挣扎):
-           · 频率高、振幅克制 —— 绷紧的弦,不是慢荡的绳
-           · 四列不同频不同相,永不齐摆
-           · 包络带不均匀颤动(hash 驱动,像共振失稳前的抖)
-           · 墨色随水位加深到近黑,线条变粗
-         行波→驻波用 lks(smoothstep)插值坍缩;爆发期沿用同一套
-         DOM 侧演出(震动/模糊/白幕,custom.css 的 --surge-*)。 */
+         ★ 用户定稿口径(最早就说了,别再自作主张):
+           · 四列振幅统一(不再各压各的,整屏一个节奏)
+           · 波幅拉高(高度就是力道)
+           · 波速加快(行进提速)
+         加上墨色随水位加深 —— 就这四件事,不加线、不加粒子、
+         不加网纹、不搞墨面。
+         ★ "群魔乱舞"根因:常态波形自带的涌包(波包乱鼓)和谐波撕裂
+           (前沿毛刺)在过境时被振幅放大后跟着一起放大 —— 净化水位
+           lkClean 把这两个乱源按水位收掉,过境只剩整齐的大波。
+         爆发期沿用同一套 DOM 侧演出(震动/模糊/白幕,custom.css
+         的 --surge-*)。 */
       if (charge > 0.001 || q > 0) {
         var lk = Math.max(charge, q > 0 ? 1 : 0);
-        var lks = lk * lk * (3 - 2 * lk);              /* smoothstep:临界点附近快速坍缩 */
-        var ampBoost = 1 + lk * 0.55;                  /* 腹点振幅:拉高但克制(高频下不显荡) */
-        var wBoost = 1 + lk * 3.2;                     /* 本征频率:共振提速(快而绷,不是慢荡) */
+        lkClean = lk;                                  /* 写给 waveYs:乱源随水位退场 */
+        var lks = lk * lk * (3 - 2 * lk);              /* smoothstep */
         var inkR = Math.round(96 - lk * 62), inkG = Math.round(92 - lk * 58), inkB = Math.round(78 - lk * 42);
-        ctx.save();
-        ctx.lineWidth = 1.5 + lk * 2.2;
+        /* ★ 爆发期要有自己的"事件的样子",不能只是前期最后阶段的延续:
+           前期(charge):统一大波,高、快、黑 —— 量变;
+           爆发(q):波开始"拍岸"——
+             1) 振幅随 q 再冲一截(2.35x → 3.1x),但相位速度不再加
+                (不是无限加速,是越来越陡);
+             2) 波形整体向下沉:基线随 q 往下压(4 列全部涌向屏幕下沿,
+                像水墙压过来)——爆发最直观的空间变化;
+             3) 撕裂区随 q 从左前沿往右吞:崩塌区宽度 (0.45→0.8),
+                满屏进入崩塌;
+             4) 墨色顶格纯黑,线宽 4.5px。 */
+        var qK = q > 0 ? 1 : 0;
+        var uniAmp = 1 + lks * 1.35 + qK * q * 0.75;   /* 爆发再冲:最高 ~3.1x */
+        var uniT = 1 + lk * 2.2;                       /* 波速:爆发不再加(前期已到顶) */
+        var sink = q * H * 0.10;                       /* 爆发:基线下沉最多 10% 屏高 */
+        var tearGrow = 0.45 + q * 0.35;                /* 爆发:崩塌区向右吞 */
         for (var wvi2 = 0; wvi2 < WAVES.length; wvi2++) {
           var wv2 = WAVES[wvi2];
-          var mode = wvi2 + 2;                         /* 本征阶数 n = 2..5(各列不同模) */
-          var omN = (2.4 + wvi2 * 0.55) * Math.PI * 2 * wBoost;  /* 各列本征频率不同 */
-          var phN = wvi2 * 1.7;                        /* 各列相位不同,永不齐摆 */
-          ctx.beginPath();
+          /* 统一采样:时间提速用统一的 uniT,振幅归一到 uniAmp */
+          var wpx = [], wpy = [];
           for (var wx2 = 0; wx2 <= W; wx2 += 4) {
             var nx2 = wx2 / W;
-            /* 行波分量(原波形,照常行进)——坍缩锚点+残留挣扎 */
-            yTra = waveYs(wv2, nx2, tS, wvi2);
-            /* 本征驻波分量:ψₙ = A'·sin(nπx)·cos(ω't) */
-            var envAmp = H * wv2.a * ampBoost * (0.625 + 0.375 * Math.sin(tS * wv2.dec * Math.PI * 2 + wv2.dph));
-            var standN = Math.sin(nx2 * mode * Math.PI) * Math.cos(tS * omN + phN) * envAmp;
-            /* 共振失稳的抖:包络乘一条 9Hz 的不均匀微颤(各列独立) */
-            var quiver = 1 + lk * 0.22 * (hash(Math.floor(tS * 9) * 13.7 + wvi2 * 41) - 0.5) * Math.sin(nx2 * 9.1 + tS * 2.2);
-            var yN = H * wv2.y0 + standN * quiver;
-            /* 行波 → 驻波插值;坍缩后仍留 18% 行波(系统在挣扎,不齐摆) */
-            var wy2 = yTra * (1 - lks * 0.82) + yN * lks;
-            if (wx2 === 0) ctx.moveTo(wx2, wy2); else ctx.lineTo(wx2, wy2);
+            var yB = waveYs(wv2, nx2, tS * uniT, wvi2, tearGrow);
+            var rel = (yB - H * wv2.y0) / (H * wv2.a);        /* 归一化相对波幅 */
+            var aUni = H * 0.062 * uniAmp;                     /* 统一振幅(屏高 6.2% 基准) */
+            wpx.push(wx2);
+            wpy.push(H * wv2.y0 + sink + rel * aUni);
           }
-          ctx.strokeStyle = "rgba(" + inkR + ", " + inkG + ", " + inkB + ", " + (0.16 + lk * 0.62).toFixed(2) + ")";
+          /* 波带填墨:爆发期再压深一档(q 期 0.34,前期顶 0.265) */
+          ctx.beginPath();
+          ctx.moveTo(wpx[0], H * wv2.y0);
+          for (var fi2 = 0; fi2 < wpx.length; fi2++) ctx.lineTo(wpx[fi2], wpy[fi2]);
+          ctx.lineTo(W, H * wv2.y0);
+          ctx.closePath();
+          ctx.fillStyle = "rgba(" + inkR + ", " + inkG + ", " + inkB + ", " + (0.045 + lk * 0.22 + qK * q * 0.12).toFixed(3) + ")";
+          ctx.fill();
+          /* 主线描深:爆发期顶格纯黑 */
+          ctx.beginPath();
+          for (var fi3 = 0; fi3 < wpx.length; fi3++) {
+            if (fi3 === 0) ctx.moveTo(wpx[fi3], wpy[fi3]); else ctx.lineTo(wpx[fi3], wpy[fi3]);
+          }
+          ctx.strokeStyle = qK
+            ? "rgba(8, 10, 8, " + (0.80 + q * 0.18).toFixed(2) + ")"
+            : "rgba(" + inkR + ", " + inkG + ", " + inkB + ", " + (0.16 + lk * 0.62).toFixed(2) + ")";
+          ctx.lineWidth = 1.5 + lk * 2.2 + qK * q * 0.8;
           ctx.stroke();
-          /* 特征包络 ±A·sin(nπx):特征态的边界,虚线,随坍缩浮现 */
-          if (lks > 0.05) {
-            ctx.save();
-            ctx.setLineDash([5, 4]);
-            ctx.lineWidth = 1;
-            ctx.strokeStyle = "rgba(" + inkR + ", " + inkG + ", " + inkB + ", " + (0.30 * lks).toFixed(2) + ")";
-            for (var sg2 = -1; sg2 <= 1; sg2 += 2) {
-              ctx.beginPath();
-              for (var ex2 = 0; ex2 <= W; ex2 += 8) {
-                var exn = ex2 / W;
-                var ey2 = H * wv2.y0 + sg2 * Math.sin(exn * mode * Math.PI) * envAmp;
-                if (ex2 === 0) ctx.moveTo(ex2, ey2); else ctx.lineTo(ex2, ey2);
-              }
-              ctx.stroke();
-            }
-            /* 节点:短竖刻度钉死在波节上(固定端的锚,不是圆点) */
-            ctx.setLineDash([]);
-            ctx.strokeStyle = "rgba(" + inkR + ", " + inkG + ", " + inkB + ", " + (0.55 * lks).toFixed(2) + ")";
-            ctx.lineWidth = 1.4;
-            for (var nd = 1; nd < mode; nd++) {
-              var ndx = W * nd / mode;
-              ctx.beginPath();
-              ctx.moveTo(ndx, H * wv2.y0 - 5 - lks * 2);
-              ctx.lineTo(ndx, H * wv2.y0 + 5 + lks * 2);
-              ctx.stroke();
-            }
-            ctx.restore();
-          }
         }
         ctx.restore();
-        /* 2) 注记被冲散:透明度抬升 + 抖动位移(q 期直接糊掉) */
+        /* 注记被冲散:透明度抬升 + 抖动位移(q 期直接糊掉) */
         if (waveNotes.length) {
           ctx.save();
           ctx.font = (nfs2 = nfs2 || Math.max(10, Math.round(Math.min(W, H) * 0.016))) + 'px "Alpha Sector", ui-monospace, Consolas, monospace';
@@ -986,6 +1002,15 @@
       document.body.classList.add("surge-blur");
       docEl.style.setProperty("--surge-blur", (shakeA * 3.2).toFixed(2) + "px");
       docEl.style.setProperty("--surge-white", clamp((q - 0.88) / 0.10, 0, 1).toFixed(2));
+      /* 收束期(q>=1):演出停 —— 终端字要清晰,不抖不糊;
+         白幕(覆盖)保持,震动/模糊(演出)摘除。 */
+      if (q >= 1) {
+        document.body.classList.remove("surge-shake");
+        document.body.classList.remove("surge-blur");
+        docEl.style.removeProperty("--surge-shake-x");
+        docEl.style.removeProperty("--surge-shake-y");
+        docEl.style.removeProperty("--surge-blur");
+      }
     } else {
       document.body.classList.remove("surge-shake");
       document.body.classList.remove("surge-blur");
@@ -996,10 +1021,14 @@
       docEl.style.removeProperty("--surge-white");
     }
     /* 环形暗角罩(页面侧):暗模式黑、亮模式暖褐 — 走同一变量,
-       色差交给 CSS 的 data-theme 分支;白幕期与平时摘掉。 */
+       色差交给 CSS 的 data-theme 分支;白幕期与平时摘掉。
+       ★ 底边黑边根因:radial-gradient 的 circle 默认 farthest-corner,
+         屏幕底边距中心最远,dim-r 收缩后底边先到 100% 全黑 —— 读作
+         "页面下面有一条黑边"。修法:暗角渐变改 ellipse farthest-side
+         (custom.css),四边同步收;JS 侧 dim-r 下限放宽不再压到 0.06。 */
     if ((charge > 0.001 || q > 0) && q < 0.88) {
       var ekP = q > 0 ? Math.max(charge, 0.9) : charge;
-      var rInP = Math.max(0.06, 0.62 - 0.54 * ekP);
+      var rInP = Math.max(0.14, 0.62 - 0.54 * ekP);
       docEl.style.setProperty("--surge-dim", (0.68 * ekP).toFixed(2));
       docEl.style.setProperty("--surge-dim-r", rInP.toFixed(3));
     } else {
@@ -1013,31 +1042,57 @@
       docEl.style.setProperty("--surge-shake-x", ((hash(Math.floor(tS * 60)) - 0.5) * 2.2 * preP).toFixed(1) + "px");
       docEl.style.setProperty("--surge-shake-y", ((hash(Math.floor(tS * 60) + 99) - 0.5) * 1.8 * preP).toFixed(1) + "px");
     }
-    /* 重载触发:q 走满,暗/亮共用 */
+    /* 爆发收束:q 走满 → 不直接刷新。相变完成的动画:
+       白幕里亮起一行终端字(新真空重新点亮 / 旧真空已归零,按主题),
+       停 ~1.6s 再淡出刷新 —— 回到正常页面,像重启完成。
+       ★ 收束层出现的同时摘掉震动/模糊 —— 终端字要清晰,白屏上的
+         报文不能跟着页面一起抖/糊。 */
     if (q >= 1 && !surge.reloaded) {
       surge.reloaded = true;
       var cbP = surge.reloadCb;
-      setTimeout(function () { if (cbP) { try { cbP(); } catch (e) { } } try { location.reload(); } catch (e) { } }, 320);
+      try { if (cbP) cbP(); } catch (e) { }
+      surgeFinale();
     }
 
     requestAnimationFrame(render);
   }
 
+  /* ---------- 爆发收束动画(白幕终端字 → 淡出 → 刷新) ---------- */
+  function surgeFinale() {
+    /* 摘震动/模糊(白幕仍在:canvas 白幕 + DOM --surge-white 保持,
+       只停"演出",不停"覆盖") */
+    document.body.classList.remove("surge-shake");
+    document.body.classList.remove("surge-blur");
+    document.body.classList.remove("surge-lock");
+    docEl.style.removeProperty("--surge-shake-x");
+    docEl.style.removeProperty("--surge-shake-y");
+    docEl.style.removeProperty("--surge-blur");
+    var dark = isDark();
+    var el = document.createElement("div");
+    el.className = "surge-finale";
+    el.innerHTML =
+      '<span class="surge-finale__code">' + (dark ? "TOPOLOGICAL DEFECT RE-LIT" : "OLD VACUUM · PHASE TERMINATED") + "</span>" +
+      '<span class="surge-finale__note">' + (dark ? "新真空 · 缺陷中的纠错信息域已点亮" : "旧真空 · 抑制场能量耗尽,相变完成") + "</span>" +
+      '<span class="surge-finale__bar"><i></i></span>';
+    document.body.appendChild(el);
+    requestAnimationFrame(function () { el.classList.add("is-on"); });
+    setTimeout(function () { el.classList.add("is-out"); }, 1900);
+    setTimeout(function () { try { location.reload(); } catch (e) { } }, 2600);
+  }
+
   /* ---------- 共流过境:触发侧接口 ----------
-     setLevel(v):直接把水位设到 v(0..1)—— 十阶段触发条用,
-       每单击一次设到下一阶段,渲染侧只读水位不做自己的推进。
+     setLevel(v):触发条单击设定的【目标水位】(0..1)。渲染侧不再
+       突跳 —— 用 chase 平滑追赶(每帧向目标靠近一段,时间加速式:
+       距离远追得快、接近后减速泊),阶段之间连续无跳变。
      hold/release/p:保留(速率推进式,阶段条不用但兜底兼容)。
      phase():0=平时 1=前期 2=爆发期(触发条据此关自己的交互);
      onReload():爆发完成回调 —— 触发侧也可自行重载,渲染侧已带兜底。 */
   window.__voidSurge = {
     setLevel: function (v) {
       if (surge.armed) return;
-      surge.p = clamp(v, 0, 1);
-      surge.rate = 0;                       /* 阶段式:水位只由单击设置 */
-      if (surge.p >= 1 && !surge.armed) {
-        surge.armed = true;
-        surge.q = 0.0001;
-        surge.qStart = 0;
+      surge.target = clamp(v, 0, 1);        /* 只设目标;水位在渲染循环里追 */
+      if (surge.target >= 1 && !surge.armed) {
+        /* 目标即满:等 chase 追到 1 再武装(见渲染循环),这里不突跳 */
       }
     },
     hold: function (on) { if (!surge.armed) surge.rate = on ? 0.20 : 0.028; },

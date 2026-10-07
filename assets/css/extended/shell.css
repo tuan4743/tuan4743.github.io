@@ -820,6 +820,13 @@ body.page-out {
     background: var(--bg-base, #030307);
 }
 
+/* ★ 亮模式底色:--bg-base 是暗海军蓝,内容页 body 不满一屏时
+     底部露出这条深色带(爆发期暗角一压就读成"页面下面有黑边")。
+     亮模式把 html 底色换成奶白纸色,露边也不再发黑。 */
+:root[data-theme="light"].shell-page {
+    background: #f4f1e9;
+}
+
 :root[data-theme].shell-page body {
     background: transparent;
 }

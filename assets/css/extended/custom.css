@@ -908,6 +908,9 @@ body.surge-lock {
 /* 全页变暗:四周往内的环形暗角罩(中心透明 → 四周黑)。
    内环半径 --surge-dim-r 随前期水位收缩 ⇒ "从四周往中心逐渐变暗"。
    罩在内容之上(白幕之下),不挡交互。
+   ★ ellipse farthest-side:内环半径以"到各边的距离"为 100% 基准,
+     四边同步收 —— 之前 circle(默认 farthest-corner)下底边距中心
+     最远,水位一高底边先到全黑,读作"页面下面有一条黑边"。
    亮模式:同一套变量,色换成暖褐(洪峰压过"载体"的墨色语言)。 */
 .surge-dim {
     position: fixed;
@@ -915,7 +918,7 @@ body.surge-lock {
     z-index: 99990;
     pointer-events: none;
     background: radial-gradient(
-        circle at 50% 50%,
+        ellipse farthest-side at 50% 50%,
         rgba(0, 2, 6, 0) calc(var(--surge-dim-r, 0.62) * 100%),
         rgba(0, 2, 6, calc(var(--surge-dim, 0) * 1)) 100%);
     opacity: 1;
@@ -923,9 +926,79 @@ body.surge-lock {
 
 [data-theme="light"] .surge-dim {
     background: radial-gradient(
-        circle at 50% 50%,
+        ellipse farthest-side at 50% 50%,
         rgba(64, 54, 30, 0) calc(var(--surge-dim-r, 0.62) * 100%),
         rgba(64, 54, 30, calc(var(--surge-dim, 0) * 1)) 100%);
+}
+
+/* ============================================================
+   爆发收束:白幕期的终端字(q 走满后出现,~2.6s 后刷新)
+   —— 相变完成的最后一格:白幕不直接跳回页面,先在白里报一行
+   终端字 + 一条细进度线,再整体淡出到刷新。暗模式白幕偏冷白、
+   青字;亮模式白幕同色,墨绿字(与两模式各自的"事件"同语言)。
+   ============================================================ */
+.surge-finale {
+    position: fixed;
+    inset: 0;
+    z-index: 99997;                    /* 白幕(99995)之上 */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    background: #f2f8ff;               /* 与白幕同色,叠上去无痕 */
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    pointer-events: none;
+    font-family: var(--hud-font, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+    text-align: center;
+}
+.surge-finale.is-on { opacity: 1; }
+.surge-finale.is-out { opacity: 0; transition: opacity 0.7s ease; }
+
+.surge-finale__code {
+    font-size: 13px;
+    letter-spacing: 0.26em;
+    color: rgba(8, 16, 24, 0.88);
+}
+.surge-finale__note {
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    color: rgba(8, 16, 24, 0.45);
+}
+/* 细进度线:走完 = 刷新(与触发条同语言,但不可交互) */
+.surge-finale__bar {
+    width: 180px;
+    height: 1px;
+    background: rgba(8, 16, 24, 0.14);
+    overflow: hidden;
+}
+.surge-finale__bar i {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: rgba(8, 16, 24, 0.6);
+    transform: scaleX(0);
+    transform-origin: left center;
+}
+.surge-finale.is-on .surge-finale__bar i {
+    animation: surge-finale-fill 1.9s linear forwards;
+}
+@keyframes surge-finale-fill {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+}
+
+/* 暗模式:字换青白系(白幕偏冷白,与新真空的"点亮"同语言) */
+:root[data-theme="dark"] .surge-finale__code { color: rgba(34, 211, 238, 0.92); }
+:root[data-theme="dark"] .surge-finale__note { color: rgba(34, 211, 238, 0.5); }
+:root[data-theme="dark"] .surge-finale__bar { background: rgba(34, 211, 238, 0.16); }
+:root[data-theme="dark"] .surge-finale__bar i { background: rgba(34, 211, 238, 0.75); }
+
+@media (prefers-reduced-motion: reduce) {
+    .surge-finale,
+    .surge-finale.is-out { transition: none; }
+    .surge-finale.is-on .surge-finale__bar i { animation: none; transform: scaleX(1); }
 }
 
 @media (prefers-reduced-motion: reduce) {

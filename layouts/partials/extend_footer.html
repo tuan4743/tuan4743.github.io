@@ -117,6 +117,13 @@
 {{- $u := . | fingerprint "sha256" }}
 <script defer src="{{ $u.RelPermalink }}"></script>
 {{- end }}
+{{- /* 正文媒体:代码块折叠 + 照片灯箱(正文 <img> 点击放大)。
+     ★ 图片管理约定:每章的图放 content/<章节>/pictures/,
+       正文里用相对路径引用:`![图注](pictures/xxx.jpg)`。 */ -}}
+{{- with resources.Get "js/post-media.js" }}
+{{- $u := . | fingerprint "sha256" }}
+<script defer src="{{ $u.RelPermalink }}"></script>
+{{- end }}
 {{- /* ECHO:左上角那个三角形的副摄像头 + 它右边的对话框。
      ★ 排在最后:它只【看】别人(点 HUD、拿笔),不要求别人先就位;
        放在末尾可以让前面几个模块先把 DOM 上的开关状态摆好,

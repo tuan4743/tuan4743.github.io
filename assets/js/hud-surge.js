@@ -17,7 +17,8 @@
     if (!rail) return;
 
     var STAGES = 10;
-    var stage = 0;                  /* 0..10;10 = 交给爆发段 */
+    var stage = 0;                  /* 0..10;10 = 交给爆发段(目标值) */
+    var shown = 0;                  /* 展示水位(0..10,连续追赶 stage) */
     var cells = [];                 /* 10 个块 */
     var raf = 0;
     var armed = false;
@@ -31,8 +32,12 @@
     }
 
     function paint() {
+        /* ★ 连续点亮:shown 追 stage(时间加速感)——每块按各自的
+           覆盖比例点亮.第 i 块在 shown ∈ (i, i+1) 期间渐入。 */
         for (var i = 0; i < cells.length; i++) {
-            cells[i].classList.toggle("on", i < stage);
+            var fill = Math.max(0, Math.min(1, shown - i));
+            cells[i].classList.toggle("on", fill >= 0.5);
+            cells[i].style.opacity = fill > 0 ? String(0.25 + 0.75 * fill) : "";
         }
         bar.classList.toggle("is-live", stage > 0);
         bar.classList.toggle("is-full", stage >= STAGES || armed);
@@ -43,16 +48,25 @@
         raf = 0;
         var S = window.__voidSurge;
         if (!S) return;
-        if (S.phase() === 2) { armed = true; paint(); raf = requestAnimationFrame(loop); return; }
+        var ph = S.phase();
+        if (ph === 2) { armed = true; shown = STAGES; paint(); raf = requestAnimationFrame(loop); return; }
         armed = false;
-        paint();
+        /* shown → stage 指数趋近(与渲染侧 chase 同手感:快追缓泊) */
+        var diff = stage - shown;
+        if (Math.abs(diff) > 0.005) {
+            shown += diff * 0.16;
+            paint();
+        } else {
+            shown = stage;
+            paint();
+        }
+        raf = requestAnimationFrame(loop);
     }
 
     function setStage(n) {
         stage = Math.max(0, Math.min(STAGES, n));
         var S = window.__voidSurge;
-        if (S && S.setLevel) S.setLevel(stage / STAGES);
-        paint();
+        if (S && S.setLevel) S.setLevel(stage / STAGES);   /* 只设目标;渲染侧 chase */
         kick();
     }
 
