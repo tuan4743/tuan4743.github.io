@@ -406,9 +406,9 @@
       var sx = cx + px * R * breath;
       var sy = cy + py * R * breath;
       /* 基础闪烁(tw 驱动的慢呼吸)+ 深度调制。
-         ★ 初始透明度抬高(用户:之前几乎看不见)—— 粒子小,
-           密度就是可见度,单点 alpha 顶到 0.85。 */
-      var a = (0.28 + 0.34 * (0.5 + 0.5 * Math.sin(tS * 0.8 + pt.tw))) * (0.55 + 0.45 * depth);
+         ★ 可见度:单点 alpha 0.34~0.62,粒径 0.55~1.1px ——
+           小点+高密度,肉眼成"亮沙"质感。 */
+      var a = (0.34 + 0.28 * (0.5 + 0.5 * Math.sin(tS * 0.8 + pt.tw))) * (0.60 + 0.40 * depth);
       if (!ob.main) a *= 0.85;                        /* 远景略淡,但仍然可读 */
       /* 外扩波:波前经过的粒子径向外抖 + 增亮(所有球都有) */
       for (var wv = 0; wv < ob.waves.length; wv++) {
@@ -451,7 +451,7 @@
       /* 爆发真空壁:壁左侧(x < wallX)的粒子被抹除(快速淡出) */
       if (wallX >= 0 && sx < wallX * W) a *= Math.max(0, 1 - (wallX * W - sx) / (W * 0.06));
       /* 远景失焦:透明度略降(模糊感),粒径不放大(粒子就是点) */
-      if (!ob.main) a *= 0.72;
+      if (!ob.main) a *= 0.78;
       if (a <= 0.004) continue;
       g.globalAlpha = Math.min(0.85, a);
       g.fillStyle = "rgb(" + inkR + "," + inkG + "," + inkB + ")";
@@ -460,6 +460,23 @@
       g.fill();
     }
     g.restore();
+    /* ★ 可见的外扩波纹:粒子抖动之外,沿波前画一圈真实的弧线
+       (细、渐淡、略粗于球面粒子)——"波"本身看得见,
+       不是只有粒子的位移变化。 */
+    var oiS = orbs.indexOf(ob);
+    for (var wvS = 0; wvS < ob.waves.length; wvS++) {
+      var wS = ob.waves[wvS];
+      var wtS2 = (tS - wS.t0) / wS.life;
+      if (wtS2 < 0 || wtS2 > 1) continue;
+      var wRad2 = R * (1 + wtS2 * 0.24) * (1 + Math.sin(tS * 0.5 + ob.brPh) * ob.breathAmp);
+      var wAl = (1 - wtS2) * 0.22;
+      g.beginPath();
+      /* 只画可见半球段的弧(z>0 一侧),远景弧小也照画 */
+      g.arc(cx, cy, wRad2, -1.35, 1.35);
+      g.strokeStyle = "rgba(" + inkR + "," + inkG + "," + inkB + "," + wAl.toFixed(3) + ")";
+      g.lineWidth = 1.4;
+      g.stroke();
+    }
     /* 云/碎片(本球的):cloud 型原地漂浮,裂隙型微飞散 */
     var oi = orbs.indexOf(ob);
     for (var f2 = 0; f2 < orbFrag.length; f2++) {
@@ -509,6 +526,77 @@
       fp.sz = sz;
       return;
     }
+  }
+
+  /* ---------- 自由电子(真空里的游离粒子) ----------
+     设定 28:普朗克尺度下时空是弦网/自旋泡沫,"波—信息—意识"
+     的底层自由度。画面语言:零散的小亮点在空间里做布朗样游移,
+     偶尔被球的外扩波"吹"一把(波前经过时被推一把、亮一下)。
+     爆发期真空壁扫过时同样被抹除。 */
+  var electrons = [];
+  function buildElectrons() {
+    electrons.length = 0;
+    var N = 90;
+    for (var i = 0; i < N; i++) {
+      electrons.push({
+        x: hash(i * 1.31), y: hash(i * 2.17),
+        /* 游移速度:极慢的漂移 + 周期性折向(布朗样) */
+        vx: (hash(i * 3.7) - 0.5) * 0.008,
+        vy: (hash(i * 4.9) - 0.5) * 0.008,
+        turn: 2 + hash(i * 5.3) * 4,          /* 折向周期(s) */
+        t0: hash(i * 6.1) * 10,
+        sz: 0.5 + hash(i * 7.9) * 0.7,
+        tw: hash(i * 8.3) * Math.PI * 2
+      });
+    }
+  }
+
+  function drawElectrons(g, tS, dt, charge, q, wallX, inkR, inkG, inkB) {
+    if (!electrons.length) buildElectrons();
+    g.save();
+    for (var i = 0; i < electrons.length; i++) {
+      var e = electrons[i];
+      /* 布朗样游移:每 turn 秒换一次方向(hash 驱动,确定性) */
+      var ph = Math.floor((tS + e.t0) / e.turn);
+      var ang = hash(ph * 17.3 + i * 7.1) * Math.PI * 2;
+      var spd = 0.006 + hash(ph * 3.1 + i) * 0.012 + charge * 0.02;   /* 失稳 → 游移加速 */
+      e.x += (Math.cos(ang) * spd + e.vx * 0.3) * dt / 1000;
+      e.y += (Math.sin(ang) * spd + e.vy * 0.3) * dt / 1000;
+      /* 环绕(出屏回绕) */
+      if (e.x < -0.02) e.x += 1.04; if (e.x > 1.02) e.x -= 1.04;
+      if (e.y < -0.02) e.y += 1.04; if (e.y > 1.02) e.y -= 1.04;
+      var sx = e.x * W, sy = e.y * H;
+      /* 被球的外扩波吹到:波前经过处推一把、亮一下 */
+      var boost = 0;
+      for (var oi = 0; oi < orbs.length; oi++) {
+        var ob = orbs[oi];
+        if (!ob.waves || !ob.waves.length) continue;
+        var R = ob.r * Math.min(W, H);
+        var dxE = sx - ob.cx * W, dyE = sy - ob.cy * H;
+        var dE = Math.sqrt(dxE * dxE + dyE * dyE);
+        for (var wv = 0; wv < ob.waves.length; wv++) {
+          var ww = ob.waves[wv];
+          var wt = (tS - ww.t0) / ww.life;
+          if (wt < 0 || wt > 1) continue;
+          var wRad = R * (1 + wt * 0.24);
+          if (Math.abs(dE - wRad) < R * 0.06) {
+            boost = Math.max(boost, (1 - wt) * 0.5);
+            sx += (dxE / (dE || 1)) * 3.2 * (1 - wt);
+            sy += (dyE / (dE || 1)) * 3.2 * (1 - wt);
+          }
+        }
+      }
+      /* 爆发真空壁:壁左侧被抹除 */
+      var a = (0.16 + 0.30 * (0.5 + 0.5 * Math.sin(tS * 1.3 + e.tw)) + boost * 0.5 + charge * 0.22);
+      if (wallX >= 0 && sx < wallX * W) a *= Math.max(0, 1 - (wallX * W - sx) / (W * 0.05));
+      if (a <= 0.01) continue;
+      g.globalAlpha = Math.min(0.8, a);
+      g.fillStyle = "rgb(" + inkR + "," + inkG + "," + inkB + ")";
+      g.beginPath();
+      g.arc(sx, sy, e.sz, 0, Math.PI * 2);
+      g.fill();
+    }
+    g.restore();
   }
 
   /* 节点线采样:对每个 (m,n) 模取其竖直/水平节点线的参数化采样 */
@@ -640,6 +728,7 @@
     buildFlow();
     buildNodeLines();
     buildOrbs();          /* 亮模式粒子球(几何依赖视口尺寸) */
+    buildElectrons();     /* 自由电子 */
   }
 
   function isDark() {
@@ -1041,6 +1130,10 @@
         ctx.fillStyle = "rgb(" + inkR + "," + inkG + "," + inkB + ")";
         ctx.fillRect(fdp.x, fdp.y, fdp.sz, fdp.sz);
       }
+      ctx.globalAlpha = 1;
+
+      /* 自由电子:真空里的游离粒子(球体画完后叠上,filling 空白) */
+      drawElectrons(ctx, tS, dt, charge, q, wallX, inkR, inkG, inkB);
       ctx.globalAlpha = 1;
 
       /* 中央阅读区轻压(内容页):平时压淡背景,过境停 */
