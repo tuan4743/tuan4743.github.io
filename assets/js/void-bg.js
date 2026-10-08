@@ -406,9 +406,9 @@
       var sx = cx + px * R * breath;
       var sy = cy + py * R * breath;
       /* 基础闪烁(tw 驱动的慢呼吸)+ 深度调制。
-         ★ 可见度:单点 alpha 0.34~0.62,粒径 0.55~1.1px ——
-           小点+高密度,肉眼成"亮沙"质感。 */
-      var a = (0.34 + 0.28 * (0.5 + 0.5 * Math.sin(tS * 0.8 + pt.tw))) * (0.60 + 0.40 * depth);
+         ★ 可见度:亮模式纸底对比度低,基线 alpha 抬到 0.55~0.90,
+           浓墨小点才读得出"亮沙"质感。 */
+      var a = (0.55 + 0.35 * (0.5 + 0.5 * Math.sin(tS * 0.8 + pt.tw))) * (0.60 + 0.40 * depth);
       if (!ob.main) a *= 0.85;                        /* 远景略淡,但仍然可读 */
       /* 外扩波:波前经过的粒子径向外抖 + 增亮(所有球都有) */
       for (var wv = 0; wv < ob.waves.length; wv++) {
@@ -451,9 +451,9 @@
       /* 爆发真空壁:壁左侧(x < wallX)的粒子被抹除(快速淡出) */
       if (wallX >= 0 && sx < wallX * W) a *= Math.max(0, 1 - (wallX * W - sx) / (W * 0.06));
       /* 远景失焦:透明度略降(模糊感),粒径不放大(粒子就是点) */
-      if (!ob.main) a *= 0.78;
+      if (!ob.main) a *= 0.82;
       if (a <= 0.004) continue;
-      g.globalAlpha = Math.min(0.85, a);
+      g.globalAlpha = Math.min(1, a);
       g.fillStyle = "rgb(" + inkR + "," + inkG + "," + inkB + ")";
       g.beginPath();
       g.arc(sx, sy, pt.sz, 0, Math.PI * 2);
@@ -471,7 +471,7 @@
         var wRad2 = R * (1 + wtS2 * 0.5);
         /* 波带:宽度随波龄展宽(色散),峰值透明度随波龄衰减 */
         var bandW = R * (0.05 + wtS2 * 0.06);
-        var peak = (1 - wtS2) * 0.16;
+        var peak = (1 - wtS2) * 0.30;   /* 亮模式纸上要看得见,峰值必须够浓 */
         var grad = g.createRadialGradient(cx, cy, Math.max(0, wRad2 - bandW), cx, cy, wRad2 + bandW);
         grad.addColorStop(0, "rgba(" + inkR + "," + inkG + "," + inkB + ",0)");
         grad.addColorStop(0.5, "rgba(" + inkR + "," + inkG + "," + inkB + "," + peak.toFixed(3) + ")");
@@ -565,97 +565,8 @@
     }
   }
 
-  /* ---------- 弦网丝(大形态,一等公民) ----------
-     6~8 条缓慢起伏的贝塞尔曲线横贯背景。世界观:设定 28 的
-     "弦网" —— 空间本身的骨架。每条丝:锚点在屏外两侧,中部
-     2~3 个控制点做极慢的正弦漂移;亮度随离主球波前距离调制
-     (波扫过时丝被"拨动"一下:幅度瞬间加大、微亮)。 */
-  var strings = [];
-  function buildStrings() {
-    strings.length = 0;
-    var N = 7;
-    for (var i = 0; i < N; i++) {
-      strings.push({
-        y0: 0.10 + hash(i * 3.1) * 0.80,          /* 基准高度 */
-        amp: 0.02 + hash(i * 5.7) * 0.05,          /* 起伏幅度(H 比例) */
-        freq: 0.4 + hash(i * 7.3) * 0.5,           /* 时间频率 */
-        ph: hash(i * 9.1) * Math.PI * 2,
-        kx: 1 + ((hash(i * 2.9) * 2) | 0),         /* 空间波数(1~2) */
-        tilt: (hash(i * 4.3) - 0.5) * 0.16,        /* 整体倾斜 */
-        tw: hash(i * 6.7) * Math.PI * 2
-      });
-    }
-  }
-
-  function drawStrings(g, tS, charge, q, wallX, inkR, inkG, inkB) {
-    if (!strings.length) buildStrings();
-    g.save();
-    g.lineCap = "round";
-    for (var i = 0; i < strings.length; i++) {
-      var st = strings[i];
-      /* 被主球波前拨动:波前半径附近经过丝的 y 时,幅度+亮度瞬时抬 */
-      var pluck = 0;
-      var ob0 = orbs[0];
-      if (ob0 && ob0.waves) {
-        var R = ob0.r * Math.min(W, H);
-        for (var wv = 0; wv < ob0.waves.length; wv++) {
-          var ww = ob0.waves[wv];
-          var wt = (tS - ww.t0) / ww.life;
-          if (wt < 0 || wt > 1) continue;
-          var wRad = R * (1 + wt * 0.5);
-          var dY = Math.abs(st.y0 * H - ob0.cy * H);
-          if (Math.abs(dY - wRad) < R * 0.15) pluck = Math.max(pluck, (1 - wt) * 0.8);
-        }
-      }
-      g.beginPath();
-      var SEG = 24;
-      var prevX = 0, prevY = 0, prevA = 0;
-      for (var s = 0; s <= SEG; s++) {
-        var nx = s / SEG;
-        var nxT = nx - 0.5;
-        var baseY = st.y0 + st.tilt * nxT;                        /* 倾斜 */
-        var wob = Math.sin(nx * st.kx * Math.PI * 2 + tS * st.freq * Math.PI * 2 + st.ph)
-          * (st.amp + pluck * st.amp * 1.6);                      /* 波扫过 → 拨动 */
-        var sy = (baseY + wob) * H;
-        var sx = nx * W;
-        /* 真空壁:壁左侧的丝段被抹除(按段透明度) */
-        var aS = (0.07 + 0.05 * (0.5 + 0.5 * Math.sin(tS * 0.4 + st.tw)) + pluck * 0.10 + charge * 0.06);
-        if (wallX >= 0 && sx < wallX * W) aS *= Math.max(0, 1 - (wallX * W - sx) / (W * 0.08));
-        if (s > 0) {
-          g.strokeStyle = "rgba(" + inkR + "," + inkG + "," + inkB + "," + Math.min(aS, prevA).toFixed(3) + ")";
-          g.lineWidth = 1 + pluck * 0.6;
-          g.beginPath();
-          g.moveTo(prevX, prevY);
-          g.lineTo(sx, sy);
-          g.stroke();
-        }
-        prevX = sx; prevY = sy; prevA = aS;
-      }
-    }
-    g.restore();
-    /* --- 4) 涨落泡:偶尔一处空间鼓起一个柔光包(径向渐变) --- */
-    var RIP = 3;
-    for (var bi = 0; bi < RIP; bi++) {
-      var bPh = hash(bi * 13.7) * 10;
-      var bPer = 9 + hash(bi * 7.7) * 8;
-      var bt = ((tS + bPh) % bPer) / bPer;                        /* 0..1 周期 */
-      if (bt > 0.45) continue;                                    /* 周期的前半段隐没 */
-      var bx = (0.12 + hash(bi * 3.3) * 0.7) * W;
-      var by = (0.15 + hash(bi * 5.1) * 0.6) * H;
-      var br2 = (30 + hash(bi * 9.9) * 40) * Math.sin(Math.PI * bt / 0.45);   /* 鼓起→收 */
-      if (br2 < 4) continue;
-      var bAl = Math.sin(Math.PI * bt / 0.45) * (0.05 + charge * 0.06);
-      if (wallX >= 0 && bx < wallX * W) continue;
-      var bg2 = g.createRadialGradient(bx, by, 0, bx, by, br2);
-      bg2.addColorStop(0, "rgba(" + inkR + "," + inkG + "," + inkB + "," + (bAl * 0.55).toFixed(3) + ")");
-      bg2.addColorStop(0.7, "rgba(" + inkR + "," + inkG + "," + inkB + "," + (bAl * 0.22).toFixed(3) + ")");
-      bg2.addColorStop(1, "rgba(" + inkR + "," + inkG + "," + inkB + ",0)");
-      g.fillStyle = bg2;
-      g.beginPath();
-      g.arc(bx, by, br2, 0, Math.PI * 2);
-      g.fill();
-    }
-  }
+  /* ---------- 弦网丝(已移除):与粒子球/电子无视觉关联,
+     独立漂浮反而稀释整体 —— 按用户反馈砍掉。 ---------- */
 
   function drawElectrons(g, tS, dt, charge, q, wallX, inkR, inkG, inkB) {
     if (!electrons.length) buildElectrons();
@@ -671,7 +582,7 @@
         var dL = Math.sqrt(dxL * dxL + dyL * dyL);
         if (dL > Math.min(W, H) * 0.22) continue;        /* 只连近邻 */
         /* 两端各连 2 段,端点在电子上 —— 线"系"在电子上而不是悬空 */
-        var lAl = (1 - dL / (Math.min(W, H) * 0.22)) * (0.10 + charge * 0.14);
+        var lAl = (1 - dL / (Math.min(W, H) * 0.22)) * (0.22 + charge * 0.20);   /* 亮纸上必须 0.22 起才可读 */
         if (lAl <= 0.006) continue;
         var x1 = ea.x * W, y1 = ea.y * H, x2 = eb.x * W, y2 = eb.y * H;
         var mxL = (x1 + x2) / 2;
@@ -732,7 +643,7 @@
           var rr2 = 2 + rt2 * 16;
           var rg2 = g.createRadialGradient(sx, sy, Math.max(0, rr2 - 3), sx, sy, rr2 + 3);
           rg2.addColorStop(0, "rgba(" + inkR + "," + inkG + "," + inkB + ",0)");
-          rg2.addColorStop(0.5, "rgba(" + inkR + "," + inkG + "," + inkB + "," + ((1 - rt2) * 0.12).toFixed(3) + ")");
+          rg2.addColorStop(0.5, "rgba(" + inkR + "," + inkG + "," + inkB + "," + ((1 - rt2) * 0.28).toFixed(3) + ")");
           rg2.addColorStop(1, "rgba(" + inkR + "," + inkG + "," + inkB + ",0)");
           g.fillStyle = rg2;
           g.beginPath();
@@ -741,10 +652,10 @@
         } else if (rt2 > 1) e.ripple = 0;
       }
       /* 爆发真空壁:壁左侧被抹除 */
-      var a = (0.22 + 0.34 * (0.5 + 0.5 * Math.sin(tS * 1.3 + e.tw)) + boost * 0.5 + charge * 0.22);
+      var a = (0.42 + 0.38 * (0.5 + 0.5 * Math.sin(tS * 1.3 + e.tw)) + boost * 0.5 + charge * 0.22);
       if (wallX >= 0 && sx < wallX * W) a *= Math.max(0, 1 - (wallX * W - sx) / (W * 0.05));
       if (a <= 0.01) continue;
-      g.globalAlpha = Math.min(0.85, a);
+      g.globalAlpha = Math.min(1, a);
       g.fillStyle = "rgb(" + inkR + "," + inkG + "," + inkB + ")";
       g.beginPath();
       g.arc(sx, sy, e.sz, 0, Math.PI * 2);
@@ -1170,11 +1081,12 @@
 
       /* 真空壁位置:q 期从左往右扫(q 0..0.8 扫完全屏;0.88 后白幕接管) */
       var wallX = q > 0 ? clamp((q - 0.02) / 0.78, 0, 1.15) : -1;
-      /* 墨色:随过境/爆发加深(用户:不加深会因"模糊"看不到)。
-         爆发期直接近黑;前期随 charge 从淡墨压到深墨。 */
-      var inkR = q > 0 ? 8 : Math.round(96 - charge * 62);
-      var inkG = q > 0 ? 10 : Math.round(92 - charge * 58);
-      var inkB = q > 0 ? 8 : Math.round(78 - charge * 42);
+      /* 墨色:随过境/爆发加深。亮模式纸底 #f4f1e9 分辨度本来就低,
+         平时就必须用近黑浓墨(56,54,46),不能靠 charge 才变深 ——
+         灯一打除了字啥也看不到 = 基线太淡,基线就要浓。 */
+      var inkR = q > 0 ? 8 : Math.round(56 - charge * 40);
+      var inkG = q > 0 ? 10 : Math.round(54 - charge * 38);
+      var inkB = q > 0 ? 8 : Math.round(46 - charge * 30);
       var inkOrb = "rgb(" + inkR + "," + inkG + "," + inkB + ")";
 
       /* 每球:推进旋转/呼吸/事件调度,再画 */
@@ -1287,14 +1199,13 @@
       ctx.globalAlpha = 1;
 
       /* 自由电子:真空里的游离粒子(球体画完后叠上,filling 空白) */
-      drawStrings(ctx, tS, charge, q, wallX, inkR, inkG, inkB);   /* 弦网丝+涨落泡 */
       drawElectrons(ctx, tS, dt, charge, q, wallX, inkR, inkG, inkB);
       ctx.globalAlpha = 1;
 
       /* 中央阅读区轻压(内容页):平时压淡背景,过境停 */
       if (!isHome() && !charge && !q) {
         var mg2 = ctx.createRadialGradient(W / 2, H * 0.45, Math.min(W, H) * 0.25, W / 2, H * 0.5, Math.max(W, H) * 0.55);
-        mg2.addColorStop(0, "rgba(244, 241, 233, 0.45)");
+        mg2.addColorStop(0, "rgba(244, 241, 233, 0.30)");
         mg2.addColorStop(1, "rgba(244, 241, 233, 0)");
         ctx.fillStyle = mg2;
         ctx.fillRect(0, 0, W, H);
@@ -1469,7 +1380,7 @@
       ctx.fillRect(0, 0, W, H);
       if (!orbs.length) buildOrbs();
       for (var so = 0; so < orbs.length; so++) {
-        drawOrb(ctx, orbs[so], tS, 0, 0, -1, 96, 92, 78);
+        drawOrb(ctx, orbs[so], tS, 0, 0, -1, 56, 54, 46);
       }
     }
     ctx.globalAlpha = 1;
