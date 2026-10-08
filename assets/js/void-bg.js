@@ -293,6 +293,209 @@
   var waveNotes = [];
   var nfs2 = 0;
 
+  /* ---------- 亮模式:微观粒子球(3D 点云) ----------
+     世界观:微观粒子结构。主体球心在屏幕右侧偏下,半径 > 半屏
+     ⇒ 只露一小段弧;远景散布几颗小球(模糊+小,模拟远近)。
+     球面粒子:斐波那契均匀分布 + 整体旋转 + 呼吸样径向起伏。
+     现象:几秒一次向外扩散波(粒子径向抖出一圈);局部不稳定:
+       · 闪烁:某区域透明度骤变,持续一段后恢复
+       · 裂隙:某区域断裂,少量粒子飞出
+     过境(charge):失稳加剧 + 外扩波越来越快越来越淡;
+       远景球收缩→炸成粒子云。
+     爆发(q):真空壁从左往右扫过 —— 扫过的粒子被"抹除",
+       主体球最终碎裂,白幕重载(变暗/震动沿用 --surge-*)。 */
+  var orbs = [];            /* 所有球:orbs[0] = 主体,其余远景 */
+  var orbFrag = [];         /* 裂隙碎片池(复用) */
+  var ORB_ROT = 0.05;       /* 主体球自转速率(rad/s) */
+
+  function buildOrbs() {
+    orbs.length = 0;
+    orbFrag.length = 0;
+    /* 主体球:球心在屏幕右缘外一点(露出左弧),半径 > 半屏 */
+    orbs.push({
+      main: true,
+      cx: 1.18, cy: 0.62,            /* 球心(归一化):右侧偏下 */
+      r: 0.62,                        /* 半径(min(W,H) 的倍数):>0.5 ⇒ 只露弧 */
+      n: 420,                         /* 球面粒子数 */
+      rotSpd: ORB_ROT,
+      rot: 0,
+      brPh: hash(3.1) * Math.PI * 2,  /* 呼吸相位 */
+      breathAmp: 0.018,               /* 呼吸径向起伏幅度 */
+      waveNext: 3 + hash(7.7) * 4,    /* 下一道外扩波(秒) */
+      waves: [],                      /* 活动的外扩波 [{r0, t0, life}] */
+      flick: null,                    /* 局部闪烁 {dir(单位向量), r, t0, life} */
+      crack: null,                    /* 裂隙 {dir, r, t0, life} */
+      crackNext: 14 + hash(9.3) * 10,
+      flickNext: 9 + hash(5.7) * 8,
+      unstable: 0                     /* 过境失稳水位(渲染循环写入) */
+    });
+    /* 远景球:小、模糊、散布在左侧/上部的"远处" */
+    var REMOTE = [
+      { cx: 0.16, cy: 0.20, r: 0.10, n: 90, blur: 1.4 },
+      { cx: 0.34, cy: 0.78, r: 0.075, n: 70, blur: 1.8 },
+      { cx: 0.06, cy: 0.55, r: 0.055, n: 50, blur: 2.2 },
+      { cx: 0.55, cy: 0.10, r: 0.045, n: 40, blur: 2.6 }
+    ];
+    for (var ri = 0; ri < REMOTE.length; ri++) {
+      var rc = REMOTE[ri];
+      orbs.push({
+        main: false,
+        cx: rc.cx, cy: rc.cy, r: rc.r, n: rc.n, blur: rc.blur,
+        rotSpd: ORB_ROT * (0.5 + hash(ri * 3.7) * 0.8) * (hash(ri * 9.1) > 0.5 ? 1 : -1),
+        rot: hash(ri * 5.3) * Math.PI * 2,
+        brPh: hash(ri * 7.1) * Math.PI * 2,
+        breathAmp: 0.02,
+        waveNext: 5 + hash(ri * 2.9) * 6,
+        waves: [],
+        flick: null, crack: null,
+        crackNext: 18 + hash(ri * 11.7) * 14,
+        flickNext: 12 + hash(ri * 4.3) * 10,
+        unstable: 0,
+        dieT: 0                         /* 过境:碎裂启动时刻(0=未启动) */
+      });
+    }
+    /* 球面粒子:斐波那契球均匀分布 */
+    var GA = Math.PI * (3 - Math.sqrt(5));
+    for (var oi = 0; oi < orbs.length; oi++) {
+      var ob = orbs[oi];
+      ob.pts = [];
+      for (var pi = 0; pi < ob.n; pi++) {
+        var y = 1 - (pi / (ob.n - 1)) * 2;
+        var rr = Math.sqrt(Math.max(0, 1 - y * y));
+        var th = GA * pi;
+        ob.pts.push({
+          dx: Math.cos(th) * rr, dy: y, dz: Math.sin(th) * rr,
+          sz: 0.5 + hash(oi * 131 + pi * 1.7) * 1.1,          /* 粒径(px 基准) */
+          tw: hash(oi * 71 + pi * 2.3) * Math.PI * 2,          /* 闪烁相位 */
+          frag: false
+        });
+      }
+    }
+    /* 裂隙碎片池:每球最多 26 枚,复用 */
+    for (var fi = 0; fi < 26 * orbs.length; fi++) {
+      orbFrag.push({ oi: fi % orbs.length, on: false, x: 0, y: 0, vx: 0, vy: 0, life: 0, t0: 0, sz: 1 });
+    }
+  }
+
+  /* 画一颗粒子球。lk = 过境失稳水位(0 平时), q = 爆发水位,
+     wallX = 爆发真空壁位置(归一化 x,壁右侧的粒子被抹除;-1 = 无壁) */
+  function drawOrb(g, ob, tS, lk, q, wallX, ink) {
+    var R = ob.r * Math.min(W, H);
+    var cx = ob.cx * W, cy = ob.cy * H;
+    var breath = 1 + Math.sin(tS * 0.5 + ob.brPh) * ob.breathAmp;   /* 整体呼吸 */
+    var unstable = Math.max(ob.unstable || 0, lk);
+    g.save();
+    /* 粒子:旋转(绕 y 轴)+ 投影(x=x·cos+ z·sin,z 作深度) */
+    var cosR = Math.cos(ob.rot), sinR = Math.sin(ob.rot);
+    for (var i = 0; i < ob.pts.length; i++) {
+      var pt = ob.pts[i];
+      var px = pt.dx * cosR + pt.dz * sinR;          /* 旋转后的 x */
+      var pz = -pt.dx * sinR + pt.dz * cosR;         /* 深度(-1..1) */
+      var py = pt.dy;
+      /* 呼吸样的球面上下起伏:按纬度加一点正弦位移 */
+      py += Math.sin(py * 4 + tS * 0.7 + ob.brPh) * 0.045 * ob.breathAmp / 0.018 * 0.5;
+      /* 深度缩放:z 越大(靠观察者)越亮越大 */
+      var depth = (pz + 1) / 2;                       /* 0..1 */
+      var sx = cx + px * R * breath;
+      var sy = cy + py * R * breath;
+      /* 基础闪烁(tw 驱动的慢呼吸)+ 深度调制 */
+      var a = (0.10 + 0.22 * (0.5 + 0.5 * Math.sin(tS * 0.8 + pt.tw))) * (0.45 + 0.55 * depth);
+      if (!ob.main) a *= 0.62;                        /* 远景整体更淡 */
+      /* 外扩波:波前经过的粒子径向外抖 + 增亮 */
+      for (var wv = 0; wv < ob.waves.length; wv++) {
+        var ww = ob.waves[wv];
+        var wt = (tS - ww.t0) / ww.life;
+        if (wt < 0 || wt > 1) continue;
+        var wRad = R * (1 + wt * 0.24);               /* 波前半径:略大于球面 */
+        var wBand = R * 0.05;
+        var dEdge = Math.abs(R * breath - wRad);
+        if (dEdge < wBand) {
+          var wk = 1 - dEdge / wBand;
+          var push = wk * (1 - wt) * R * 0.035;
+          sx += px * push; sy += py * push;
+          a += wk * (1 - wt) * 0.30;
+        }
+      }
+      /* 局部闪烁(不稳定):以 (flick.dir×R) 为中心的角域内,透明度高频骤变 */
+      if (ob.flick) {
+        var ft = (tS - ob.flick.t0) / ob.flick.life;
+        if (ft >= 0 && ft < 1) {
+          var fdot = px * ob.flick.dx + py * ob.flick.dy + pz * ob.flick.dz;  /* 夹角余弦 */
+          if (fdot > ob.flick.cos) {
+            var fk = (fdot - ob.flick.cos) / (1 - ob.flick.cos);
+            var envF = Math.sin(Math.PI * Math.min(1, ft * 1.15));
+            a *= 1 - fk * envF * (0.55 + 0.45 * Math.sin(tS * 17 + pt.tw * 3));
+          }
+        }
+      }
+      /* 裂隙:裂口角域内的粒子标记为 frag(不再画在球上,交给碎片池) */
+      if (ob.crack && !pt.frag) {
+        var ct = (tS - ob.crack.t0) / ob.crack.life;
+        if (ct >= 0 && ct < 0.4) {
+          var cdot = px * ob.crack.dx + py * ob.crack.dy + pz * ob.crack.dz;
+          if (cdot > ob.crack.cos) {
+            pt.frag = true;                            /* 永久脱落(直到重建) */
+            spawnFrag(ob, sx, sy, px, py, ink);
+          }
+        }
+      }
+      /* 爆发真空壁:壁左侧(x < wallX)的粒子被抹除(快速淡出) */
+      if (wallX >= 0 && sx < wallX * W) a *= Math.max(0, 1 - (wallX * W - sx) / (W * 0.06));
+      /* 远景模糊:粒子画大而淡(失焦感) */
+      var sz = pt.sz * (ob.main ? 1 : (1 + (ob.blur || 1) * 0.8));
+      if (!ob.main) a *= 0.55 / (ob.blur || 1);
+      if (a <= 0.004) continue;
+      g.globalAlpha = Math.min(0.6, a);
+      g.fillStyle = ink;
+      g.beginPath();
+      g.arc(sx, sy, sz, 0, Math.PI * 2);
+      g.fill();
+    }
+    g.restore();
+    /* 碎片(裂隙飞出的粒子) */
+    for (var f2 = 0; f2 < orbFrag.length; f2++) {
+      var fp = orbFrag[f2];
+      if (!fp.on || fp.oi !== orbs.indexOf(ob)) continue;
+      var fpt = (tS - fp.t0) / fp.life;
+      if (fpt >= 1) { fp.on = false; continue; }
+      g.globalAlpha = (1 - fpt) * 0.5;
+      g.fillStyle = ink;
+      g.fillRect(fp.x, fp.y, fp.sz, fp.sz);
+    }
+  }
+
+  function spawnFrag(ob, sx, sy, px, py, ink) {
+    var oi = orbs.indexOf(ob);
+    for (var i = 0; i < orbFrag.length; i++) {
+      var fp = orbFrag[i];
+      if (fp.on || fp.oi !== oi) continue;
+      fp.on = true;
+      fp.x = sx; fp.y = sy;
+      fp.vx = px * 46 + (hash(i * 3.3) - 0.5) * 34;
+      fp.vy = py * 46 + (hash(i * 7.7) - 0.5) * 34 - 12;
+      fp.life = 1.6 + hash(i * 9.1) * 1.4;
+      fp.t0 = frameT / 1000;
+      fp.sz = 1 + hash(i * 5.5) * 1.6;
+      return;
+    }
+  }
+
+  /* 显式速度/寿命版:远景球炸云、主体球碎裂用(全员一次进池) */
+  function spawnFragAt(ob, x, y, vx, vy, sz) {
+    var oi = orbs.indexOf(ob);
+    for (var i = 0; i < orbFrag.length; i++) {
+      var fp = orbFrag[i];
+      if (fp.on || fp.oi !== oi) continue;
+      fp.on = true;
+      fp.x = x; fp.y = y;
+      fp.vx = vx; fp.vy = vy;
+      fp.life = 2.4 + hash(oi * 13.7 + i) * 1.6;
+      fp.t0 = frameT / 1000;
+      fp.sz = sz;
+      return;
+    }
+  }
+
   /* 节点线采样:对每个 (m,n) 模取其竖直/水平节点线的参数化采样 */
   var NODE_LINES = [];
   function buildNodeLines() {
@@ -421,6 +624,7 @@
     buildDots();
     buildFlow();
     buildNodeLines();
+    buildOrbs();          /* 亮模式粒子球(几何依赖视口尺寸) */
   }
 
   function isDark() {
@@ -688,198 +892,137 @@
         ctx.fillRect(0, 0, W, H);
       }
     } else {
-      /* ============ 亮模式:波(载体) ============
-         画成【看得出的正弦波】:真正的波形线(正弦曲线描出来),
-         几列波横过屏幕,各自波长/振幅/速度,肉眼可辨地在传播。
-         · 底:奶白
-         · 4 列主波:清晰的正弦曲线线稿(深灰,1.5px,0.16),
-           振幅 4~9% 屏高,波长 1/3~1/2 屏宽,整条波形向右行进
-         · 每列波下方 2 道淡淡的余辉(前几个时刻的样子,扩散感)
-         · 波峰上撒极小的亮点(波峰的"高光",不是暗模式那种密度点,
-           是跟随波峰运动的少量高光,共 ~40 个)
-         · 波包:20~40s 一次,某列上鼓起一个明显的峰包从左跑到右
-         全部元素一眼读出"这是波"。 */
+      /* ============ 亮模式:微观粒子球 ============
+         世界观:微观粒子结构(设定 28:普朗克尺度下时空是弦网,
+         集体激发 = "波—信息—意识"的底层自由度)。
+         · 主体球:屏幕右侧偏下,半径 > 半屏 ⇒ 只露一小段弧;
+           球面 ~420 粒子,斐波那契均匀分布,整体自转 + 呼吸样起伏
+         · 远景:散布 4 颗小球(小/淡/粒子更散 = 失焦),模拟远近
+         · 现象(平时):几秒一次向外扩散波;局部闪烁(某角域透明度
+           骤变后恢复);裂隙(某角域断裂,少量粒子飞出)
+         · 过境(charge):失稳加剧——闪烁/裂隙更频、外扩波越来越快
+           越来越淡;远景球先向中心收缩再炸成一片粒子云
+         · 爆发(q):无形的真空壁从屏幕左侧往右扫,扫过的元素被抹除;
+           壁到达时主体球碎裂 → 白幕 → 重载(收束动画沿用)。
+         变暗/震动/模糊沿用 DOM 侧 --surge-* 演出。 */
       ctx.fillStyle = "#f4f1e9";
       ctx.fillRect(0, 0, W, H);
 
-      /* 4 列主波:基线 y、波长(屏宽)、振幅(屏高)、速度(周期 s)、相位。
-         ★ 波向【左】传播(速度项取负:相位 +t·w → 峰向 -x 移动);
-           色散也反 ---------------------------- 方向:崩溃在【前沿 = 左侧】,
-           右侧是完整的波(源头),越靠左越撕裂 —— 前沿在崩。
-         1) 逐点色散 —— 有效波数随【接近左缘】递增(短波在前沿堆积)。
-         2) 振幅衰减 —— 每列波独立慢塌包络(40~90s),生死不同步。
-         3) 谐波撕裂 —— 前沿区高频毛刺,越靠左越碎。 */
-      var WAVES = [
-        { y0: 0.22, k: 2.2, a: 0.055, w: 0.10, ph: 0.0, dec: 0.023, dph: 0.0 },
-        { y0: 0.42, k: 1.6, a: 0.080, w: 0.07, ph: 2.1, dec: 0.016, dph: 2.4 },
-        { y0: 0.63, k: 2.8, a: 0.045, w: 0.13, ph: 4.2, dec: 0.030, dph: 4.1 },
-        { y0: 0.82, k: 1.9, a: 0.070, w: 0.08, ph: 5.5, dec: 0.019, dph: 1.3 }
-      ];
-      /* 逐点色散:离左缘越近波数越大(前沿堆积短波);dis = 1- 的位置权重 */
-      function dispK(wv, nx) {
-        return wv.k * (1 + 0.35 * clamp(1 - nx, 0, 1));
-      }
-      /* ★ 张力层 1:浪涌 —— 每列波的波幅被 2 个沿波跑的"涌包"
-         调制(高斯型,涌包处波高局部 ×1.2~2.2),涌包速度不同、
-         相位漂移 → 波形不再均匀,而是有可见的"这一段在鼓、那一段在塌"。
-         涌包初始相位随机 → 每次加载走位不同,第二遍看不重复。 */
-      function waveSwell(wvi, nx, tSec) {
-        var k = 1;
-        for (var si = 0; si < 2; si++) {
-          var ph = hash(wvi * 17.3 + si * 7.7) * 10;
-          var sp = 0.02 + hash(wvi * 5.1 + si * 3.3) * 0.03;     /* 涌包速度(归一化/s) */
-          var sc = (((tSec * sp + ph) % 1) + 1) % 1;
-          var d = Math.min(Math.abs(nx - sc), 1 - Math.abs(nx - sc));
-          var wdt = 0.10 + hash(wvi * 9.7 + si) * 0.10;
-          k += (1.2 + hash(wvi * 3.1 + si * 2.9) * 1.0) * Math.exp(-(d * d) / (wdt * wdt));
+      if (!orbs.length) buildOrbs();
+
+      /* 真空壁位置:q 期从左往右扫(q 0..0.8 扫完全屏;0.88 后白幕接管) */
+      var wallX = q > 0 ? clamp((q - 0.02) / 0.78, 0, 1.15) : -1;
+      var inkOrb = q > 0
+        ? "rgb(8, 10, 8)"
+        : "rgb(" + Math.round(96 - charge * 62) + ", " + Math.round(92 - charge * 58) + ", " + Math.round(78 - charge * 42) + ")";
+
+      /* 每球:推进旋转/呼吸/事件调度,再画 */
+      for (var obi = 0; obi < orbs.length; obi++) {
+        var ob = orbs[obi];
+        ob.rot += ob.rotSpd * dt / 1000;
+        /* 过境失稳水位写入(远景球另有 dieT 碎裂时序) */
+        ob.unstable = charge;
+        /* --- 外扩波调度:平时几秒一次;过境越来越快、越来越淡 --- */
+        if (tS > ob.waveNext) {
+          ob.waves.push({ t0: tS, life: 1.6 });
+          if (ob.waves.length > 4) ob.waves.shift();
+          var wGap = 3.5 + hash(Math.floor(tS * 1.7) + obi) * 4 - charge * 2.6;   /* 失稳 → 间隔缩短 */
+          ob.waveNext = tS + Math.max(0.8, wGap);
         }
-        return k;
-      }
-      /* ★ 过境净化水位:由渲染循环每帧写入(平时 0)。只收"涌包"
-         (波包乱鼓,群魔乱舞的主源);谐波撕裂是设定里的色散崩塌,
-         过境保留 —— 崩塌该在过境时更凶,不该消失。 */
-      var lkClean = 0;
-      /* 爆发期崩塌区右界(默认 0.45;渲染循环在 q 期写入更大的值) */
-      var tearEdge = 0.45;
-      function waveYs(wv, nx, tSec, wvi, tEdge) {
-        var kk = dispK(wv, nx);
-        /* 波向左传:相位 +t·w·2π(峰随时间向 -x 移动) */
-        var y = Math.sin(nx * kk * Math.PI * 2 + tSec * wv.w * Math.PI * 2 + wv.ph) * H * wv.a;
-        /* 谐波撕裂:前沿高频毛刺,起于左缘、崩塌区右界可扩(爆发吞全屏) */
-        var te = tEdge || tearEdge;
-        if (nx < te) {
-          var tear = (te - nx) / te;
-          y += Math.sin(nx * wv.k * 5.7 * Math.PI * 2 - tSec * wv.w * 3.1 * Math.PI * 2) * H * wv.a * (0.16 + lkClean * 0.14) * tear;
+        for (var wdi = ob.waves.length - 1; wdi >= 0; wdi--) {
+          if (tS - ob.waves[wdi].t0 > ob.waves[wdi].life) ob.waves.splice(wdi, 1);
         }
-        /* 振幅包络:慢塌慢起(0.25..1);涌包调制在过境时退场(回 1) */
-        var env = 0.625 + 0.375 * Math.sin(tSec * wv.dec * Math.PI * 2 + wv.dph);
-        var swell = waveSwell(wvi, nx, tSec);
-        swell = 1 + (swell - 1) * (1 - lkClean);
-        return H * wv.y0 + y * env * swell;
-      }
-      /* 主波形线稿 + 余辉 */
-      for (var wvi = 0; wvi < WAVES.length; wvi++) {
-        var wv = WAVES[wvi];
-        /* 余辉 2 道(0.5s / 1.1s 前的波形,更淡) */
-        for (var gh = 2; gh >= 1; gh--) {
-          ctx.save();
-          ctx.strokeStyle = "rgba(110, 104, 88, " + (0.05 * (3 - gh) / 2).toFixed(3) + ")";
-          ctx.lineWidth = 1.2;
-          ctx.beginPath();
-          for (var gx = 0; gx <= W; gx += 8) {
-            var gy = waveYs(wv, gx / W, tS - gh * 0.55, wvi);
-            if (gx === 0) ctx.moveTo(gx, gy); else ctx.lineTo(gx, gy);
+        /* --- 局部闪烁调度 --- */
+        if (!ob.flick && tS > ob.flickNext) {
+          var fa = hash(Math.floor(tS * 3.1) + obi * 17) * Math.PI * 2;
+          var fb = (hash(Math.floor(tS * 5.3) + obi * 29) - 0.5) * 2;
+          var fc = Math.sqrt(Math.max(0.02, 1 - fb * fb));
+          ob.flick = { dx: Math.cos(fa) * fc, dy: fb, dz: Math.sin(fa) * fc, cos: 0.82, t0: tS, life: 1.2 + hash(Math.floor(tS) + obi) * 1.6 };
+          var flickGap = 9 + hash(Math.floor(tS * 2.3) + obi * 7) * 8 - ob.unstable * 7.5;   /* 失稳 → 更频 */
+          ob.flickNext = tS + Math.max(1.6, flickGap);
+        }
+        if (ob.flick && tS - ob.flick.t0 > ob.flick.life) ob.flick = null;
+        /* --- 裂隙调度(过境时更频) --- */
+        if (!ob.crack && tS > ob.crackNext) {
+          var ka = hash(Math.floor(tS * 7.9) + obi * 13) * Math.PI * 2;
+          var kb = (hash(Math.floor(tS * 2.7) + obi * 5) - 0.5) * 1.6;
+          var kc = Math.sqrt(Math.max(0.05, 1 - kb * kb));
+          ob.crack = { dx: Math.cos(ka) * kc, dy: kb, dz: Math.sin(ka) * kc, cos: 0.86, t0: tS, life: 1.0 };
+          var crackGap = 16 + hash(Math.floor(tS * 1.3) + obi * 3) * 14 - ob.unstable * 12;
+          ob.crackNext = tS + Math.max(3, crackGap);
+        }
+        if (ob.crack && tS - ob.crack.t0 > ob.crack.life) ob.crack = null;
+        /* --- 远景球过境碎裂:先向中心收缩,再炸成一片粒子云 --- */
+        if (!ob.main && charge > 0.55 && !ob.dieT) ob.dieT = tS + hash(obi * 3.9) * (1.1 - charge);   /* 失稳越深死得越早 */
+        if (!ob.main && ob.dieT && !ob.dead) {
+          var dtD = tS - ob.dieT;
+          if (dtD > 0) {
+            /* 阶段 1(0..0.9s):整体收缩;阶段 2:炸开成云(粒子改由云驱动) */
+            if (dtD < 0.9) {
+              ob.shrink = 1 - dtD / 0.9 * 0.55;          /* 收缩到 45% */
+            } else {
+              ob.dead = true;                            /* 不再按球画;云交给 frag 池 */
+              for (var ei = 0; ei < ob.pts.length; ei++) {
+                var ept = ob.pts[ei];
+                var cosE = Math.cos(ob.rot), sinE = Math.sin(ob.rot);
+                var exn = ept.dx * cosE + ept.dz * sinE;
+                var ezn = -ept.dx * sinE + ept.dz * cosE;
+                var erx = ob.cx * W + exn * ob.r * Math.min(W, H) * (ob.shrink || 0.5);
+                var ery = ob.cy * H + ept.dy * ob.r * Math.min(W, H) * (ob.shrink || 0.5);
+                spawnFragAt(ob, erx, ery, exn * 60 + (hash(obi * 31 + ei) - 0.5) * 90,
+                  ept.dy * 60 + (hash(obi * 17 + ei) - 0.5) * 90, 1.4 + hash(obi + ei) * 1.2);
+              }
+            }
           }
-          ctx.stroke();
-          ctx.restore();
         }
-        /* 主线 */
-        ctx.save();
-        ctx.strokeStyle = "rgba(96, 92, 78, 0.16)";
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        for (var wx = 0; wx <= W; wx += 6) {
-          var wy = waveYs(wv, wx / W, tS, wvi);
-          if (wx === 0) ctx.moveTo(wx, wy); else ctx.lineTo(wx, wy);
-        }
-        ctx.stroke();
-        ctx.restore();
-        /* 波峰高光点:只标主频段(x<0.5)的波峰,随峰移动;色散区不标 */
-        ctx.save();
-        ctx.fillStyle = "rgba(150, 138, 110, 0.20)";
-        var nPk = Math.round(wv.k);
-        for (var pk = 0; pk < nPk; pk++) {
-          var peakPh = -tS * wv.w * Math.PI * 2 - wv.ph + pk * Math.PI * 2;
-          var peakX = (peakPh / (wv.k * Math.PI * 2)) * W;
-          peakX = ((peakX % (W * 0.55)) + W * 0.55) % (W * 0.55);   /* 限制在未撕裂区 */
-          var peakY = H * wv.y0 - H * wv.a;
-          ctx.beginPath();
-          ctx.arc(peakX, peakY, 1.3, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        ctx.restore();
-      }
-
-      /* 波包:某列上鼓起一个明显峰包,从右向左跑(波向左传) */
-      if (packet.active) {
-        var pt = (tS - packet.t0) / packet.dur;
-        if (pt > 1) { packet.active = false; packet.next = tS + 20 + hash(tS * 7) * 20; }
-        else {
-          var pw = WAVES[packet.wi % WAVES.length];
-          var pPos = 1 - pt;                              /* 1..0:从右向左 */
-          var pEnv = Math.sin(Math.PI * pt);              /* 鼓起→收平 */
-          var pkX2 = pPos * W;
-          var pkY2 = H * pw.y0 - H * pw.a * 2.2 * pEnv;
-          ctx.save();
-          /* 波包轮廓:一小段高起的弧 */
-          ctx.strokeStyle = "rgba(96, 92, 78, " + (0.22 * pEnv).toFixed(3) + ")";
-          ctx.lineWidth = 1.6;
-          ctx.beginPath();
-          for (var dx4 = -0.09; dx4 <= 0.09; dx4 += 0.01) {
-            var lx = pkX2 + dx4 * W;
-            var ly = waveYs(pw, lx / W, tS, packet.wi % WAVES.length) - H * pw.a * 2.2 * pEnv * Math.cos((dx4 / 0.09) * Math.PI / 2);
-            if (dx4 === -0.09) ctx.moveTo(lx, ly); else ctx.lineTo(lx, ly);
+        /* 真空壁:壁已越过球心右侧 → 主体球碎裂(全部粒子进碎片池) */
+        if (ob.main && wallX >= 0 && wallX > ob.cx - ob.r * 0.4 && !ob.dead) {
+          ob.dead = true;
+          var cosM = Math.cos(ob.rot), sinM = Math.sin(ob.rot);
+          for (var mi = 0; mi < ob.pts.length; mi += 2) {           /* 采样一半,量可控 */
+            var mpt = ob.pts[mi];
+            var mxn = mpt.dx * cosM + mpt.dz * sinM;
+            var mzn = -mpt.dx * sinM + mpt.dz * cosM;
+            var mrx = ob.cx * W + mxn * ob.r * Math.min(W, H);
+            var mry = ob.cy * H + mpt.dy * ob.r * Math.min(W, H);
+            spawnFragAt(ob, mrx, mry, mxn * 40 - 60 + (hash(obi + mi) - 0.5) * 50,
+              mpt.dy * 40 + (hash(mi * 3.1) - 0.5) * 50, 1 + hash(mi * 7.7));
           }
-          ctx.stroke();
-          /* 波包内的高光 */
-          ctx.fillStyle = "rgba(150, 138, 110, " + (0.30 * pEnv).toFixed(3) + ")";
-          ctx.beginPath();
-          ctx.arc(pkX2, pkY2, 2.2, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.restore();
+        }
+        /* --- 画(远景球失焦感 = 粒子画大画淡;dead 球只画碎片云) --- */
+        if (!(ob.dead && !ob.main)) {
+          if (ob.main || !ob.dieT) drawOrb(ctx, ob, tS, charge, q, wallX, inkOrb);
+          else if (!ob.dead) {
+            /* 收缩中的远景球:临时缩半径画 */
+            var saveR = ob.r;
+            ob.r = saveR * (ob.shrink || 1);
+            drawOrb(ctx, ob, tS, charge, q, wallX, inkOrb);
+            ob.r = saveR;
+          }
         }
       }
-      if (!packet.active && tS > packet.next) {
-        packet.active = true;
-        packet.t0 = tS;
-        packet.dur = 7 + hash(tS * 3) * 5;
-        packet.wi = (hash(tS * 5) * WAVES.length) | 0;
+      /* 碎片推进(全局池):重力微下沉 + 阻尼 */
+      for (var fpi = 0; fpi < orbFrag.length; fpi++) {
+        var fgp = orbFrag[fpi];
+        if (!fgp.on) continue;
+        fgp.x += fgp.vx * dt / 1000;
+        fgp.y += fgp.vy * dt / 1000;
+        fgp.vy += 26 * dt / 1000;
+        fgp.vx *= (1 - 0.4 * dt / 1000);
       }
+      /* 全局碎片绘制(drawOrb 内已画各自球的;dead 球的碎片在这补画) */
+      for (var fdx = 0; fdx < orbFrag.length; fdx++) {
+        var fdp = orbFrag[fdx];
+        if (!fdp.on || !orbs[fdp.oi] || !orbs[fdp.oi].dead) continue;
+        var fdt = (tS - fdp.t0) / fdp.life;
+        if (fdt < 0 || fdt >= 1) continue;
+        ctx.globalAlpha = (1 - fdt) * 0.5;
+        ctx.fillStyle = inkOrb;
+        ctx.fillRect(fdp.x, fdp.y, fdp.sz, fdp.sz);
+      }
+      ctx.globalAlpha = 1;
 
-      /* 研究视角的文字层:观测注记【锚在波列上实时演算】——
-         每条注记绑定一列波,横向位置固定、纵向贴着该列波的波形走
-         (标注就在被标注的波上),随波起伏;透明度 0.14~0.20,
-         中央区(内容页)由奶白轻压自然变淡。 */
-      if (!waveNotes.length) {
-        var NOTE_POOL = [
-          "λ = 0.42 m", "v_phase = 0.61c", "∇·φ ≠ 0", "amp ↓ 12.4%",
-          "k² → ω²/c²", "nodes: 7", "f = 41.7 Hz", "包络塌陷中",
-          "Δφ = 0.31 rad", "前沿 x = 0.08", "色散区续宽", "谱宽 +3.2%",
-          "波腹 m=2", "反射系数 ≈ 0", "损耗 0.9%/周期", "驻点消失",
-          "E↓ 渐近", "相干长度 −", "谐波 h3 = 0.16", "边界层湮灭"
-        ];
-        for (var wn = 0; wn < 16; wn++) {
-          waveNotes.push({
-            txt: NOTE_POOL[wn % NOTE_POOL.length],
-            wi: wn % WAVES.length,                       /* 绑定哪列波 */
-            nx: 0.08 + hash(wn * 3.3) * 0.84,            /* 在波上的横向位置 */
-            lift: -1 + hash(wn * 5.1) * 2,               /* 相对波面的上下偏移 */
-            a: 0.14 + hash(wn * 7.7) * 0.06,
-            blink: hash(wn * 9.1) * Math.PI * 2,
-            rot: (hash(wn * 11.3) - 0.5) * 0.06
-          });
-        }
-      }
-      ctx.save();
-      var nfs = Math.max(10, Math.round(Math.min(W, H) * 0.016));
-      ctx.font = nfs + 'px "Alpha Sector", ui-monospace, Consolas, monospace';
-      for (var wn2 = 0; wn2 < waveNotes.length; wn2++) {
-        var wnn = waveNotes[wn2];
-        var na = wnn.a * (0.75 + 0.25 * Math.sin(tS * 0.11 + wnn.blink));
-        /* 纵向实时贴波:取该列波在此 x 的瞬时 y,再按 lift 偏移半行 */
-        var waveHere = waveYs(WAVES[wnn.wi], wnn.nx, tS, wnn.wi);
-        ctx.save();
-        ctx.translate(wnn.nx * W, waveHere + wnn.lift * nfs * 0.9);
-        ctx.rotate(wnn.rot);
-        ctx.globalAlpha = na;
-        ctx.fillStyle = "#5d584a";
-        ctx.fillText(wnn.txt, 0, 0);
-        ctx.restore();
-      }
-      ctx.restore();
-
-      /* 中央阅读区轻压(内容页):主波透明度本来低,这里再保一层。
-         ★ 过境期间(charge/q)必须停 —— 白压罩会把洪峰盖回去。 */
+      /* 中央阅读区轻压(内容页):平时压淡背景,过境停 */
       if (!isHome() && !charge && !q) {
         var mg2 = ctx.createRadialGradient(W / 2, H * 0.45, Math.min(W, H) * 0.25, W / 2, H * 0.5, Math.max(W, H) * 0.55);
         mg2.addColorStop(0, "rgba(244, 241, 233, 0.45)");
@@ -887,109 +1030,22 @@
         ctx.fillStyle = mg2;
         ctx.fillRect(0, 0, W, H);
       }
-
-      /* ===== 亮模式 · 共流过境(charge/q 与暗模式同一套水位) =====
-         ★ 用户定稿口径(最早就说了,别再自作主张):
-           · 四列振幅统一(不再各压各的,整屏一个节奏)
-           · 波幅拉高(高度就是力道)
-           · 波速加快(行进提速)
-         加上墨色随水位加深 —— 就这四件事,不加线、不加粒子、
-         不加网纹、不搞墨面。
-         ★ "群魔乱舞"根因:常态波形自带的涌包(波包乱鼓)和谐波撕裂
-           (前沿毛刺)在过境时被振幅放大后跟着一起放大 —— 净化水位
-           lkClean 把这两个乱源按水位收掉,过境只剩整齐的大波。
-         爆发期沿用同一套 DOM 侧演出(震动/模糊/白幕,custom.css
-         的 --surge-*)。 */
-      if (charge > 0.001 || q > 0) {
-        var lk = Math.max(charge, q > 0 ? 1 : 0);
-        lkClean = lk;                                  /* 写给 waveYs:乱源随水位退场 */
-        var lks = lk * lk * (3 - 2 * lk);              /* smoothstep */
-        var inkR = Math.round(96 - lk * 62), inkG = Math.round(92 - lk * 58), inkB = Math.round(78 - lk * 42);
-        /* ★ 爆发期要有自己的"事件的样子",不能只是前期最后阶段的延续:
-           前期(charge):统一大波,高、快、黑 —— 量变;
-           爆发(q):波开始"拍岸"——
-             1) 振幅随 q 再冲一截(2.35x → 3.1x),但相位速度不再加
-                (不是无限加速,是越来越陡);
-             2) 波形整体向下沉:基线随 q 往下压(4 列全部涌向屏幕下沿,
-                像水墙压过来)——爆发最直观的空间变化;
-             3) 撕裂区随 q 从左前沿往右吞:崩塌区宽度 (0.45→0.8),
-                满屏进入崩塌;
-             4) 墨色顶格纯黑,线宽 4.5px。 */
-        var qK = q > 0 ? 1 : 0;
-        /* ★ 爆发不再叠加参数冲顶(q*0.75 等):chase 追满时 lk=1、q 同步
-           在涨,再叠 q 增量 = 同一时刻两次"加强",读作"加速了非常大
-           一段时间"。爆发期参数冻结在前期顶格,只靠 sink/tearGrow/
-           纯黑线三个【空间】变化区分爆发 —— 不再有时间上的加速感。 */
-        var uniAmp = 1 + lks * 1.35;                   /* 波幅顶格 2.35x(爆发不加) */
-        var uniT = 1 + lk * 2.2;                       /* 波速:顶格(爆发不加) */
-        var sink = q * H * 0.10;                       /* 爆发:基线下沉最多 10% 屏高 */
-        var tearGrow = 0.45 + q * 0.35;                /* 爆发:崩塌区向右吞 */
-        for (var wvi2 = 0; wvi2 < WAVES.length; wvi2++) {
-          var wv2 = WAVES[wvi2];
-          /* 统一采样:时间提速用统一的 uniT,振幅归一到 uniAmp */
-          var wpx = [], wpy = [];
-          for (var wx2 = 0; wx2 <= W; wx2 += 4) {
-            var nx2 = wx2 / W;
-            var yB = waveYs(wv2, nx2, tS * uniT, wvi2, tearGrow);
-            var rel = (yB - H * wv2.y0) / (H * wv2.a);        /* 归一化相对波幅 */
-            var aUni = H * 0.062 * uniAmp;                     /* 统一振幅(屏高 6.2% 基准) */
-            wpx.push(wx2);
-            wpy.push(H * wv2.y0 + sink + rel * aUni);
-          }
-          /* 波带填墨:顶格(爆发不加) */
-          ctx.beginPath();
-          ctx.moveTo(wpx[0], H * wv2.y0);
-          for (var fi2 = 0; fi2 < wpx.length; fi2++) ctx.lineTo(wpx[fi2], wpy[fi2]);
-          ctx.lineTo(W, H * wv2.y0);
-          ctx.closePath();
-          ctx.fillStyle = "rgba(" + inkR + ", " + inkG + ", " + inkB + ", " + (0.045 + lk * 0.22).toFixed(3) + ")";
-          ctx.fill();
-          /* 主线描深:爆发期顶格纯黑 */
-          ctx.beginPath();
-          for (var fi3 = 0; fi3 < wpx.length; fi3++) {
-            if (fi3 === 0) ctx.moveTo(wpx[fi3], wpy[fi3]); else ctx.lineTo(wpx[fi3], wpy[fi3]);
-          }
-          ctx.strokeStyle = qK
-            ? "rgba(8, 10, 8, " + (0.80 + q * 0.18).toFixed(2) + ")"
-            : "rgba(" + inkR + ", " + inkG + ", " + inkB + ", " + (0.16 + lk * 0.62).toFixed(2) + ")";
-          ctx.lineWidth = 1.5 + lk * 2.2;
-          ctx.stroke();
-        }
-        ctx.restore();
-        /* 注记被冲散:透明度抬升 + 抖动位移(q 期直接糊掉) */
-        if (waveNotes.length) {
-          ctx.save();
-          ctx.font = (nfs2 = nfs2 || Math.max(10, Math.round(Math.min(W, H) * 0.016))) + 'px "Alpha Sector", ui-monospace, Consolas, monospace';
-          for (var wn3 = 0; wn3 < waveNotes.length; wn3++) {
-            var wnn3 = waveNotes[wn3];
-            var jitter = lk * (q > 0 ? 14 : 5);
-            ctx.save();
-            ctx.translate(
-              wnn3.nx * W + (hash(Math.floor(tS * 9) + wn3) - 0.5) * jitter,
-              waveYs(WAVES[wnn3.wi], wnn3.nx, tS, wnn3.wi) + wnn3.lift * nfs2 * 0.9 + (hash(Math.floor(tS * 9) + wn3 * 31) - 0.5) * jitter);
-            ctx.globalAlpha = Math.min(0.85, wnn3.a + lk * 0.5);
-            ctx.fillStyle = "#3d4436";
-            ctx.fillText(wnn3.txt, 0, 0);
-            ctx.restore();
-          }
-          ctx.restore();
-        }
-        /* 3) 背景侧环形暗角(暖褐,亮模式口径;白幕期退出) */
-        if (q < 0.88) {
-          var rIn2 = Math.max(0.06, 0.62 - 0.54 * lk);
-          var vg2 = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * rIn2, W / 2, H / 2, Math.max(W, H) * 0.75);
-          vg2.addColorStop(0, "rgba(64, 54, 30, 0)");
-          vg2.addColorStop(1, "rgba(64, 54, 30, " + (0.62 * lk).toFixed(2) + ")");
-          ctx.globalAlpha = 1;
-          ctx.fillStyle = vg2;
-          ctx.fillRect(0, 0, W, H);
-        }
-        /* 4) 白幕:亮模式也走全白(q 0.88..1),与暗模式同格 */
-        if (q >= 0.88) {
-          ctx.globalAlpha = clamp((q - 0.88) / 0.10, 0, 1);
-          ctx.fillStyle = "#f2f8ff";
-          ctx.fillRect(0, 0, W, H);
-        }
+      /* 环形暗角(暖褐;白幕期退出) */
+      if ((charge > 0.001 || q > 0) && q < 0.88) {
+        var ek2 = q > 0 ? Math.max(charge, 0.9) : charge;
+        var rIn2 = Math.max(0.06, 0.62 - 0.54 * ek2);
+        var vg2 = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * rIn2, W / 2, H / 2, Math.max(W, H) * 0.75);
+        vg2.addColorStop(0, "rgba(64, 54, 30, 0)");
+        vg2.addColorStop(1, "rgba(64, 54, 30, " + (0.62 * ek2).toFixed(2) + ")");
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = vg2;
+        ctx.fillRect(0, 0, W, H);
+      }
+      /* 白幕(q 0.88..1),与暗模式同格 */
+      if (q >= 0.88) {
+        ctx.globalAlpha = clamp((q - 0.88) / 0.10, 0, 1);
+        ctx.fillStyle = "#f2f8ff";
+        ctx.fillRect(0, 0, W, H);
       }
     }
 
@@ -1139,25 +1195,12 @@
         ctx.fill();
       }
     } else {
-      /* 波(载体)的凝固帧:4 列静止正弦线稿 */
+      /* 粒子球的凝固帧:铺底 + 各球画一帧(不推进事件) */
       ctx.fillStyle = "#f4f1e9";
       ctx.fillRect(0, 0, W, H);
-      var WAVES0 = [
-        { y0: 0.22, k: 2.2, a: 0.055, ph: 0.0 },
-        { y0: 0.42, k: 1.6, a: 0.080, ph: 2.1 },
-        { y0: 0.63, k: 2.8, a: 0.045, ph: 4.2 },
-        { y0: 0.82, k: 1.9, a: 0.070, ph: 5.5 }
-      ];
-      for (var wv0 = 0; wv0 < WAVES0.length; wv0++) {
-        var w0 = WAVES0[wv0];
-        ctx.strokeStyle = "rgba(96, 92, 78, 0.13)";
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        for (var gx0 = 0; gx0 <= W; gx0 += 6) {
-          var gy0 = H * w0.y0 + Math.sin(gx0 / W * w0.k * Math.PI * 2 + w0.ph) * H * w0.a;
-          if (gx0 === 0) ctx.moveTo(gx0, gy0); else ctx.lineTo(gx0, gy0);
-        }
-        ctx.stroke();
+      if (!orbs.length) buildOrbs();
+      for (var so = 0; so < orbs.length; so++) {
+        drawOrb(ctx, orbs[so], tS, 0, 0, -1, "rgb(96, 92, 78)");
       }
     }
     ctx.globalAlpha = 1;
