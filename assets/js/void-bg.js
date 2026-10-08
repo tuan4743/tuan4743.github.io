@@ -460,29 +460,28 @@
       g.fill();
     }
     g.restore();
-    /* ★ 可见的外扩波纹:只给【主球】画 —— 波前是一圈真实的弧线,
-       从球面荡向屏内,双道(主弧+滞后细弧)增强"波"的读感。
-       远景球太小,弧线画出来就是一个点,不给。 */
+    /* ★ 主球外扩波纹:一条【渐变光带】而不是硬边细线 ——
+       沿波前画一道宽弧带(径向渐变:内透明→峰值→外透明),
+       波前推进时光带整体外移、峰值渐淡。没有生硬的线感。 */
     if (ob.main) {
       for (var wvS = 0; wvS < ob.waves.length; wvS++) {
         var wS = ob.waves[wvS];
         var wtS2 = (tS - wS.t0) / wS.life;
         if (wtS2 < 0 || wtS2 > 1) continue;
-        /* 主弧:从球面荡出到 1.5R,透明度随波龄衰减 */
         var wRad2 = R * (1 + wtS2 * 0.5);
-        var wAl = (1 - wtS2) * 0.30;
+        /* 波带:宽度随波龄展宽(色散),峰值透明度随波龄衰减 */
+        var bandW = R * (0.05 + wtS2 * 0.06);
+        var peak = (1 - wtS2) * 0.16;
+        var grad = g.createRadialGradient(cx, cy, Math.max(0, wRad2 - bandW), cx, cy, wRad2 + bandW);
+        grad.addColorStop(0, "rgba(" + inkR + "," + inkG + "," + inkB + ",0)");
+        grad.addColorStop(0.5, "rgba(" + inkR + "," + inkG + "," + inkB + "," + peak.toFixed(3) + ")");
+        grad.addColorStop(1, "rgba(" + inkR + "," + inkG + "," + inkB + ",0)");
         g.beginPath();
-        g.arc(cx, cy, wRad2, Math.PI * 0.62, Math.PI * 1.42);   /* 朝屏内的可见弧段 */
-        g.strokeStyle = "rgba(" + inkR + "," + inkG + "," + inkB + "," + wAl.toFixed(3) + ")";
-        g.lineWidth = 1.6;
-        g.stroke();
-        /* 滞后细弧:跟在主弧后面 0.06R,更淡 —— 波的"尾巴" */
-        var wRad3 = R * (1 + Math.max(0, wtS2 - 0.10) * 0.5);
-        g.beginPath();
-        g.arc(cx, cy, wRad3, Math.PI * 0.68, Math.PI * 1.36);
-        g.strokeStyle = "rgba(" + inkR + "," + inkG + "," + inkB + "," + ((1 - wtS2) * 0.14).toFixed(3) + ")";
-        g.lineWidth = 1;
-        g.stroke();
+        g.arc(cx, cy, wRad2 + bandW, Math.PI * 0.55, Math.PI * 1.45);
+        g.arc(cx, cy, Math.max(0, wRad2 - bandW), Math.PI * 1.45, Math.PI * 0.55, true);
+        g.closePath();
+        g.fillStyle = grad;
+        g.fill();
       }
     }
     /* 云/碎片(本球的):cloud 型原地漂浮,裂隙型微飞散 */
@@ -567,18 +566,18 @@
   function drawElectrons(g, tS, dt, charge, q, wallX, inkR, inkG, inkB) {
     if (!electrons.length) buildElectrons();
     var i, e;
-    /* --- 2) 电场线:近距电子对之间拉一条极淡的细线 --- */
+    /* --- 2) 电场线:近距电子对之间拉一条细线(可见度:0.10 起) --- */
     g.save();
-    g.lineWidth = 0.7;
-    for (i = 0; i < electrons.length; i += 3) {          /* 采样 1/3,省性能 */
+    g.lineWidth = 1;
+    for (i = 0; i < electrons.length; i += 2) {          /* 采样 1/2 */
       var ea = electrons[i];
-      for (var j = i + 1; j < Math.min(i + 12, electrons.length); j++) {
+      for (var j = i + 1; j < Math.min(i + 14, electrons.length); j++) {
         var eb = electrons[j];
         var dxL = (ea.x - eb.x) * W, dyL = (ea.y - eb.y) * H;
         var dL = Math.sqrt(dxL * dxL + dyL * dyL);
-        if (dL > Math.min(W, H) * 0.18) continue;        /* 只连近邻 */
-        var lAl = (1 - dL / (Math.min(W, H) * 0.18)) * (0.05 + charge * 0.10);
-        if (lAl <= 0.004) continue;
+        if (dL > Math.min(W, H) * 0.22) continue;        /* 只连近邻 */
+        var lAl = (1 - dL / (Math.min(W, H) * 0.22)) * (0.10 + charge * 0.14);
+        if (lAl <= 0.006) continue;
         /* 壁左侧的线被抹除 */
         var mxL = (ea.x + eb.x) / 2 * W;
         if (wallX >= 0 && mxL < wallX * W) continue;
@@ -624,17 +623,21 @@
           }
         }
       }
-      /* 3) 涟漪:每颗电子偶尔原地荡开一圈微弧(确定性调度) */
+      /* 3) 涟漪:电子偶发原地荡开一圈【渐变微光圈】(不是细线弧) */
       var ripT = tS + e.t0;
-      if (!e.ripple && hash(Math.floor(ripT * 0.4) + i * 11.7) < 0.012 + charge * 0.02) e.ripple = ripT;
+      if (!e.ripple && hash(Math.floor(ripT * 0.4) + i * 11.7) < 0.02 + charge * 0.03) e.ripple = ripT;
       if (e.ripple) {
         var rt2 = (ripT - e.ripple) / 1.8;
         if (rt2 >= 0 && rt2 <= 1) {
+          var rr2 = 2 + rt2 * 16;
+          var rg2 = g.createRadialGradient(sx, sy, Math.max(0, rr2 - 3), sx, sy, rr2 + 3);
+          rg2.addColorStop(0, "rgba(" + inkR + "," + inkG + "," + inkB + ",0)");
+          rg2.addColorStop(0.5, "rgba(" + inkR + "," + inkG + "," + inkB + "," + ((1 - rt2) * 0.12).toFixed(3) + ")");
+          rg2.addColorStop(1, "rgba(" + inkR + "," + inkG + "," + inkB + ",0)");
+          g.fillStyle = rg2;
           g.beginPath();
-          g.arc(sx, sy, 3 + rt2 * 14, 0, Math.PI * 2);
-          g.strokeStyle = "rgba(" + inkR + "," + inkG + "," + inkB + "," + ((1 - rt2) * 0.14).toFixed(3) + ")";
-          g.lineWidth = 0.8;
-          g.stroke();
+          g.arc(sx, sy, rr2 + 3, 0, Math.PI * 2);
+          g.fill();
         } else if (rt2 > 1) e.ripple = 0;
       }
       /* 爆发真空壁:壁左侧被抹除 */
