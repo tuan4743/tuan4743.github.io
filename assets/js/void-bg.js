@@ -460,22 +460,30 @@
       g.fill();
     }
     g.restore();
-    /* ★ 可见的外扩波纹:粒子抖动之外,沿波前画一圈真实的弧线
-       (细、渐淡、略粗于球面粒子)——"波"本身看得见,
-       不是只有粒子的位移变化。 */
-    var oiS = orbs.indexOf(ob);
-    for (var wvS = 0; wvS < ob.waves.length; wvS++) {
-      var wS = ob.waves[wvS];
-      var wtS2 = (tS - wS.t0) / wS.life;
-      if (wtS2 < 0 || wtS2 > 1) continue;
-      var wRad2 = R * (1 + wtS2 * 0.24) * (1 + Math.sin(tS * 0.5 + ob.brPh) * ob.breathAmp);
-      var wAl = (1 - wtS2) * 0.22;
-      g.beginPath();
-      /* 只画可见半球段的弧(z>0 一侧),远景弧小也照画 */
-      g.arc(cx, cy, wRad2, -1.35, 1.35);
-      g.strokeStyle = "rgba(" + inkR + "," + inkG + "," + inkB + "," + wAl.toFixed(3) + ")";
-      g.lineWidth = 1.4;
-      g.stroke();
+    /* ★ 可见的外扩波纹:只给【主球】画 —— 波前是一圈真实的弧线,
+       从球面荡向屏内,双道(主弧+滞后细弧)增强"波"的读感。
+       远景球太小,弧线画出来就是一个点,不给。 */
+    if (ob.main) {
+      for (var wvS = 0; wvS < ob.waves.length; wvS++) {
+        var wS = ob.waves[wvS];
+        var wtS2 = (tS - wS.t0) / wS.life;
+        if (wtS2 < 0 || wtS2 > 1) continue;
+        /* 主弧:从球面荡出到 1.5R,透明度随波龄衰减 */
+        var wRad2 = R * (1 + wtS2 * 0.5);
+        var wAl = (1 - wtS2) * 0.30;
+        g.beginPath();
+        g.arc(cx, cy, wRad2, Math.PI * 0.62, Math.PI * 1.42);   /* 朝屏内的可见弧段 */
+        g.strokeStyle = "rgba(" + inkR + "," + inkG + "," + inkB + "," + wAl.toFixed(3) + ")";
+        g.lineWidth = 1.6;
+        g.stroke();
+        /* 滞后细弧:跟在主弧后面 0.06R,更淡 —— 波的"尾巴" */
+        var wRad3 = R * (1 + Math.max(0, wtS2 - 0.10) * 0.5);
+        g.beginPath();
+        g.arc(cx, cy, wRad3, Math.PI * 0.68, Math.PI * 1.36);
+        g.strokeStyle = "rgba(" + inkR + "," + inkG + "," + inkB + "," + ((1 - wtS2) * 0.14).toFixed(3) + ")";
+        g.lineWidth = 1;
+        g.stroke();
+      }
     }
     /* 云/碎片(本球的):cloud 型原地漂浮,裂隙型微飞散 */
     var oi = orbs.indexOf(ob);
@@ -528,15 +536,19 @@
     }
   }
 
-  /* ---------- 自由电子(真空里的游离粒子) ----------
+  /* ---------- 自由电子 + 场线(真空的游离结构) ----------
      设定 28:普朗克尺度下时空是弦网/自旋泡沫,"波—信息—意识"
-     的底层自由度。画面语言:零散的小亮点在空间里做布朗样游移,
-     偶尔被球的外扩波"吹"一把(波前经过时被推一把、亮一下)。
-     爆发期真空壁扫过时同样被抹除。 */
+     的底层自由度。三层语言,填满背景而不是撒一把看不见的沙:
+     1) 电子:可见的小亮点(比球面粒子大而亮),布朗游移,
+        被球的外扩波推亮;数量足够多(150),屏内持续可感
+     2) 电场线:电子之间偶尔拉出一条极淡的"作用线"(细线,
+        两端各系一颗电子,距离近才显形)—— 真空不是空的
+     3) 涟漪:游移的电子偶尔原地荡开一圈微小的波纹(1~2s)
+     爆发期真空壁扫过时全部被抹除。 */
   var electrons = [];
   function buildElectrons() {
     electrons.length = 0;
-    var N = 90;
+    var N = 150;
     for (var i = 0; i < N; i++) {
       electrons.push({
         x: hash(i * 1.31), y: hash(i * 2.17),
@@ -545,17 +557,43 @@
         vy: (hash(i * 4.9) - 0.5) * 0.008,
         turn: 2 + hash(i * 5.3) * 4,          /* 折向周期(s) */
         t0: hash(i * 6.1) * 10,
-        sz: 0.5 + hash(i * 7.9) * 0.7,
-        tw: hash(i * 8.3) * Math.PI * 2
+        sz: 0.7 + hash(i * 7.9) * 0.9,
+        tw: hash(i * 8.3) * Math.PI * 2,
+        ripple: 0                             /* 涟漪启动时刻(0=无) */
       });
     }
   }
 
   function drawElectrons(g, tS, dt, charge, q, wallX, inkR, inkG, inkB) {
     if (!electrons.length) buildElectrons();
+    var i, e;
+    /* --- 2) 电场线:近距电子对之间拉一条极淡的细线 --- */
     g.save();
-    for (var i = 0; i < electrons.length; i++) {
-      var e = electrons[i];
+    g.lineWidth = 0.7;
+    for (i = 0; i < electrons.length; i += 3) {          /* 采样 1/3,省性能 */
+      var ea = electrons[i];
+      for (var j = i + 1; j < Math.min(i + 12, electrons.length); j++) {
+        var eb = electrons[j];
+        var dxL = (ea.x - eb.x) * W, dyL = (ea.y - eb.y) * H;
+        var dL = Math.sqrt(dxL * dxL + dyL * dyL);
+        if (dL > Math.min(W, H) * 0.18) continue;        /* 只连近邻 */
+        var lAl = (1 - dL / (Math.min(W, H) * 0.18)) * (0.05 + charge * 0.10);
+        if (lAl <= 0.004) continue;
+        /* 壁左侧的线被抹除 */
+        var mxL = (ea.x + eb.x) / 2 * W;
+        if (wallX >= 0 && mxL < wallX * W) continue;
+        g.strokeStyle = "rgba(" + inkR + "," + inkG + "," + inkB + "," + lAl.toFixed(3) + ")";
+        g.beginPath();
+        g.moveTo(ea.x * W, ea.y * H);
+        g.lineTo(eb.x * W, eb.y * H);
+        g.stroke();
+      }
+    }
+    g.restore();
+    /* --- 1) 电子本体 + 3) 涟漪 --- */
+    g.save();
+    for (i = 0; i < electrons.length; i++) {
+      e = electrons[i];
       /* 布朗样游移:每 turn 秒换一次方向(hash 驱动,确定性) */
       var ph = Math.floor((tS + e.t0) / e.turn);
       var ang = hash(ph * 17.3 + i * 7.1) * Math.PI * 2;
@@ -578,7 +616,7 @@
           var ww = ob.waves[wv];
           var wt = (tS - ww.t0) / ww.life;
           if (wt < 0 || wt > 1) continue;
-          var wRad = R * (1 + wt * 0.24);
+          var wRad = R * (1 + wt * 0.5);
           if (Math.abs(dE - wRad) < R * 0.06) {
             boost = Math.max(boost, (1 - wt) * 0.5);
             sx += (dxE / (dE || 1)) * 3.2 * (1 - wt);
@@ -586,11 +624,24 @@
           }
         }
       }
+      /* 3) 涟漪:每颗电子偶尔原地荡开一圈微弧(确定性调度) */
+      var ripT = tS + e.t0;
+      if (!e.ripple && hash(Math.floor(ripT * 0.4) + i * 11.7) < 0.012 + charge * 0.02) e.ripple = ripT;
+      if (e.ripple) {
+        var rt2 = (ripT - e.ripple) / 1.8;
+        if (rt2 >= 0 && rt2 <= 1) {
+          g.beginPath();
+          g.arc(sx, sy, 3 + rt2 * 14, 0, Math.PI * 2);
+          g.strokeStyle = "rgba(" + inkR + "," + inkG + "," + inkB + "," + ((1 - rt2) * 0.14).toFixed(3) + ")";
+          g.lineWidth = 0.8;
+          g.stroke();
+        } else if (rt2 > 1) e.ripple = 0;
+      }
       /* 爆发真空壁:壁左侧被抹除 */
-      var a = (0.16 + 0.30 * (0.5 + 0.5 * Math.sin(tS * 1.3 + e.tw)) + boost * 0.5 + charge * 0.22);
+      var a = (0.22 + 0.34 * (0.5 + 0.5 * Math.sin(tS * 1.3 + e.tw)) + boost * 0.5 + charge * 0.22);
       if (wallX >= 0 && sx < wallX * W) a *= Math.max(0, 1 - (wallX * W - sx) / (W * 0.05));
       if (a <= 0.01) continue;
-      g.globalAlpha = Math.min(0.8, a);
+      g.globalAlpha = Math.min(0.85, a);
       g.fillStyle = "rgb(" + inkR + "," + inkG + "," + inkB + ")";
       g.beginPath();
       g.arc(sx, sy, e.sz, 0, Math.PI * 2);
