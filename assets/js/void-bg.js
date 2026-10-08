@@ -470,10 +470,10 @@
         if (wtS2 < 0 || wtS2 > 1) continue;
         var wRad2 = R * (1 + wtS2 * 0.5);
         /* 波带:宽度随波龄展宽(色散),峰值透明度随波龄衰减。
-           峰值压到 0.15 —— 可见但不与球体抢睛;展开放慢(2.4s)、
-           带宽拉宽,读作"球在呼吸推出一圈涟漪"而不是一道扫过去的墙。 */
-        var bandW = R * (0.08 + wtS2 * 0.09);
-        var peak = (1 - wtS2) * 0.15;
+           平时 0.15 —— 可见但不与球体抢睛;过境(失稳)时随水位回升,
+           波变浓变宽,读作"真空开始绷紧"。 */
+        var bandW = R * (0.08 + wtS2 * 0.09) * (1 + lk * 0.6);
+        var peak = (1 - wtS2) * (0.15 + lk * 0.25);
         var grad = g.createRadialGradient(cx, cy, Math.max(0, wRad2 - bandW), cx, cy, wRad2 + bandW);
         grad.addColorStop(0, "rgba(" + inkR + "," + inkG + "," + inkB + ",0)");
         grad.addColorStop(0.5, "rgba(" + inkR + "," + inkG + "," + inkB + "," + peak.toFixed(3) + ")");
@@ -575,16 +575,18 @@
     var i, e;
     /* --- 电场线:近距电子对之间连"作用线"(分段,每段独立透明度) --- */
     g.save();
-    g.lineWidth = 1;
+    /* 失稳水位越高:电子越躁(折向更频、游移更快),作用线越密越浓 */
+    var linkR = Math.min(W, H) * (0.22 + charge * 0.14);          /* 作用线拉结距离随水位扩张 */
+    g.lineWidth = 1 + charge * 0.9;
     for (i = 0; i < electrons.length; i += 2) {          /* 采样 1/2 */
       var ea = electrons[i];
       for (var j = i + 1; j < Math.min(i + 14, electrons.length); j++) {
         var eb = electrons[j];
         var dxL = (ea.x - eb.x) * W, dyL = (ea.y - eb.y) * H;
         var dL = Math.sqrt(dxL * dxL + dyL * dyL);
-        if (dL > Math.min(W, H) * 0.22) continue;        /* 只连近邻 */
+        if (dL > linkR) continue;                        /* 只连近邻 */
         /* 两端各连 2 段,端点在电子上 —— 线"系"在电子上而不是悬空 */
-        var lAl = (1 - dL / (Math.min(W, H) * 0.22)) * (0.22 + charge * 0.20);   /* 亮纸上必须 0.22 起才可读 */
+        var lAl = (1 - dL / linkR) * (0.22 + charge * 0.55);   /* 亮纸上必须 0.22 起才可读 */
         if (lAl <= 0.006) continue;
         var x1 = ea.x * W, y1 = ea.y * H, x2 = eb.x * W, y2 = eb.y * H;
         var mxL = (x1 + x2) / 2;
@@ -606,10 +608,11 @@
     g.save();
     for (i = 0; i < electrons.length; i++) {
       e = electrons[i];
-      /* 布朗样游移:每 turn 秒换一次方向(hash 驱动,确定性) */
-      var ph = Math.floor((tS + e.t0) / e.turn);
+      /* 布朗样游移:每 turn 秒换一次方向(hash 驱动,确定性)。
+         失稳 → 折向周期缩短(躁动)+ 速度加快,画面读作"真空开始沸腾"。 */
+      var ph = Math.floor((tS + e.t0) / Math.max(0.6, e.turn * (1 - charge * 0.7)));
       var ang = hash(ph * 17.3 + i * 7.1) * Math.PI * 2;
-      var spd = 0.006 + hash(ph * 3.1 + i) * 0.012 + charge * 0.02;   /* 失稳 → 游移加速 */
+      var spd = (0.006 + hash(ph * 3.1 + i) * 0.012) * (1 + charge * 2.6);   /* 失稳 → 游移加速 */
       e.x += (Math.cos(ang) * spd + e.vx * 0.3) * dt / 1000;
       e.y += (Math.sin(ang) * spd + e.vy * 0.3) * dt / 1000;
       /* 环绕(出屏回绕) */
@@ -636,16 +639,18 @@
           }
         }
       }
-      /* 3) 涟漪:电子偶发原地荡开一圈【渐变微光圈】(不是细线弧) */
+      /* 3) 涟漪:电子偶发原地荡开一圈【渐变微光圈】(不是细线弧)。
+         失稳时涟漪更频繁、更大更亮。 */
       var ripT = tS + e.t0;
-      if (!e.ripple && hash(Math.floor(ripT * 0.4) + i * 11.7) < 0.02 + charge * 0.03) e.ripple = ripT;
+      if (!e.ripple && hash(Math.floor(ripT * 0.4) + i * 11.7) < 0.02 + charge * 0.10) e.ripple = ripT;
       if (e.ripple) {
         var rt2 = (ripT - e.ripple) / 1.8;
         if (rt2 >= 0 && rt2 <= 1) {
-          var rr2 = 2 + rt2 * 16;
+          var rr2 = 2 + rt2 * (16 + charge * 22);
+          var rpAl = (1 - rt2) * (0.28 + charge * 0.45);
           var rg2 = g.createRadialGradient(sx, sy, Math.max(0, rr2 - 3), sx, sy, rr2 + 3);
           rg2.addColorStop(0, "rgba(" + inkR + "," + inkG + "," + inkB + ",0)");
-          rg2.addColorStop(0.5, "rgba(" + inkR + "," + inkG + "," + inkB + "," + ((1 - rt2) * 0.28).toFixed(3) + ")");
+          rg2.addColorStop(0.5, "rgba(" + inkR + "," + inkG + "," + inkB + "," + rpAl.toFixed(3) + ")");
           rg2.addColorStop(1, "rgba(" + inkR + "," + inkG + "," + inkB + ",0)");
           g.fillStyle = rg2;
           g.beginPath();
@@ -653,14 +658,14 @@
           g.fill();
         } else if (rt2 > 1) e.ripple = 0;
       }
-      /* 爆发真空壁:壁左侧被抹除 */
-      var a = (0.42 + 0.38 * (0.5 + 0.5 * Math.sin(tS * 1.3 + e.tw)) + boost * 0.5 + charge * 0.22);
+      /* 爆发真空壁:壁左侧被抹除;失稳时电子本体更躁更亮 */
+      var a = (0.42 + 0.38 * (0.5 + 0.5 * Math.sin(tS * (1.3 + charge * 2.2) + e.tw)) + boost * 0.5 + charge * 0.35);
       if (wallX >= 0 && sx < wallX * W) a *= Math.max(0, 1 - (wallX * W - sx) / (W * 0.05));
       if (a <= 0.01) continue;
       g.globalAlpha = Math.min(1, a);
       g.fillStyle = "rgb(" + inkR + "," + inkG + "," + inkB + ")";
       g.beginPath();
-      g.arc(sx, sy, e.sz, 0, Math.PI * 2);
+      g.arc(sx, sy, e.sz * (1 + charge * 0.7), 0, Math.PI * 2);
       g.fill();
     }
     g.restore();
@@ -1097,12 +1102,13 @@
         ob.rot += ob.rotSpd * dt / 1000;
         /* 过境失稳水位写入(远景球另有 dieT 碎裂时序) */
         ob.unstable = charge;
-        /* --- 外扩波调度:所有球都有;平时几秒一次;过境越来越快 --- */
+        /* --- 外扩波调度:所有球都有;平时几秒一次;过境越来越快越浓 --- */
         if (tS > ob.waveNext) {
-          ob.waves.push({ t0: tS, life: 2.4 });
-          if (ob.waves.length > 4) ob.waves.shift();
-          var wGap = 4.5 + hash(Math.floor(tS * 1.7) + obi) * 4.5 - charge * 2.6;   /* 失稳 → 间隔缩短 */
-          ob.waveNext = tS + Math.max(1.0, wGap);
+          /* 失稳水位越高,波越浓越急 —— 波本身也参与"过境"演出 */
+          ob.waves.push({ t0: tS, life: 2.4 - charge * 0.9 });
+          if (ob.waves.length > 6) ob.waves.shift();
+          var wGap = 4.5 + hash(Math.floor(tS * 1.7) + obi) * 4.5 - charge * 3.6;   /* 失稳 → 间隔缩短 */
+          ob.waveNext = tS + Math.max(0.7, wGap);
         }
         for (var wdi = ob.waves.length - 1; wdi >= 0; wdi--) {
           if (tS - ob.waves[wdi].t0 > ob.waves[wdi].life) ob.waves.splice(wdi, 1);
