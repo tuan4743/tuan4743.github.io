@@ -469,9 +469,11 @@
         var wtS2 = (tS - wS.t0) / wS.life;
         if (wtS2 < 0 || wtS2 > 1) continue;
         var wRad2 = R * (1 + wtS2 * 0.5);
-        /* 波带:宽度随波龄展宽(色散),峰值透明度随波龄衰减 */
-        var bandW = R * (0.05 + wtS2 * 0.06);
-        var peak = (1 - wtS2) * 0.30;   /* 亮模式纸上要看得见,峰值必须够浓 */
+        /* 波带:宽度随波龄展宽(色散),峰值透明度随波龄衰减。
+           峰值压到 0.15 —— 可见但不与球体抢睛;展开放慢(2.4s)、
+           带宽拉宽,读作"球在呼吸推出一圈涟漪"而不是一道扫过去的墙。 */
+        var bandW = R * (0.08 + wtS2 * 0.09);
+        var peak = (1 - wtS2) * 0.15;
         var grad = g.createRadialGradient(cx, cy, Math.max(0, wRad2 - bandW), cx, cy, wRad2 + bandW);
         grad.addColorStop(0, "rgba(" + inkR + "," + inkG + "," + inkB + ",0)");
         grad.addColorStop(0.5, "rgba(" + inkR + "," + inkG + "," + inkB + "," + peak.toFixed(3) + ")");
@@ -1097,10 +1099,10 @@
         ob.unstable = charge;
         /* --- 外扩波调度:所有球都有;平时几秒一次;过境越来越快 --- */
         if (tS > ob.waveNext) {
-          ob.waves.push({ t0: tS, life: 1.6 });
+          ob.waves.push({ t0: tS, life: 2.4 });
           if (ob.waves.length > 4) ob.waves.shift();
-          var wGap = 3.5 + hash(Math.floor(tS * 1.7) + obi) * 4 - charge * 2.6;   /* 失稳 → 间隔缩短 */
-          ob.waveNext = tS + Math.max(0.8, wGap);
+          var wGap = 4.5 + hash(Math.floor(tS * 1.7) + obi) * 4.5 - charge * 2.6;   /* 失稳 → 间隔缩短 */
+          ob.waveNext = tS + Math.max(1.0, wGap);
         }
         for (var wdi = ob.waves.length - 1; wdi >= 0; wdi--) {
           if (tS - ob.waves[wdi].t0 > ob.waves[wdi].life) ob.waves.splice(wdi, 1);
