@@ -294,19 +294,21 @@
   var nfs2 = 0;
 
   /* ---------- 亮模式:微观粒子球(3D 点云) ----------
-     世界观:微观粒子结构。主体球心在屏幕右侧偏下,半径 > 半屏
+     世界观:微观粒子结构。主体球心贴屏幕右缘,半径 > 半屏
      ⇒ 只露一小段弧;远景散布几颗小球(模糊+小,模拟远近)。
      球面粒子:斐波那契均匀分布 + 整体旋转 + 呼吸样径向起伏。
-     现象:几秒一次向外扩散波(粒子径向抖出一圈);局部不稳定:
-       · 闪烁:某区域透明度骤变,持续一段后恢复
-       · 裂隙:某区域断裂,少量粒子飞出
-     过境(charge):失稳加剧 + 外扩波越来越快越来越淡;
-       远景球收缩→炸成粒子云。
-     爆发(q):真空壁从左往右扫过 —— 扫过的粒子被"抹除",
-       主体球最终碎裂,白幕重载(变暗/震动沿用 --surge-*)。 */
-  var orbs = [];            /* 所有球:orbs[0] = 主体,其余远景 */
-  var orbFrag = [];         /* 裂隙碎片池(复用) */
+     现象(所有球都有,不是主球专属):几秒一次向外扩散波;
+     局部不稳定:闪烁(角域透明度骤变后恢复)/ 裂隙(角域断裂,
+     少量粒子脱落)。
+     过境(charge):失稳加剧 + 外扩波越来越快;
+       远景球按固定顺序逐颗碎裂(碎成云状原地漂浮,不是掉落)。
+     爆发(q):真空壁从左往右扫过,扫过的粒子被"抹除";
+       主体球最后碎裂成云,白幕重载(变暗/震动沿用 --surge-*)。 */
+  var orbs = [];            /* 所有球:orbs[0] = 主体,1..4 远景(从左到右) */
+  var orbFrag = [];         /* 碎片/云粒子池(复用) */
   var ORB_ROT = 0.05;       /* 主体球自转速率(rad/s) */
+  /* 远景球碎裂顺序:水位触发点(对应触发条阶段) — 远景球按数组序 */
+  var REMOTE_DIE_AT = [0.6, 0.8, 0.97, 0.985];   /* 第6/8/10阶段与爆发初 */
 
   function buildOrbs() {
     orbs.length = 0;
@@ -314,9 +316,9 @@
     /* 主体球:球心贴屏幕右缘(露出约 1/3 半径的弧),半径 > 半屏 */
     orbs.push({
       main: true,
-      cx: 1.02, cy: 0.58,            /* 球心(归一化):几乎贴右缘,弧可见 */
-      r: 0.58,                        /* 半径(min(W,H) 的倍数):>0.5 ⇒ 只露弧 */
-      n: 420,                         /* 球面粒子数 */
+      cx: 1.12, cy: 0.5,            /* 球心(归一化):几乎贴右缘,弧可见 */
+      r: 0.78,                        /* 半径(min(W,H) 的倍数):>0.5 ⇒ 只露弧 */
+      n: 2520,                         /* 球面粒子数 */
       rotSpd: ORB_ROT,
       rot: 0,
       brPh: hash(3.1) * Math.PI * 2,  /* 呼吸相位 */
@@ -329,18 +331,19 @@
       flickNext: 9 + hash(5.7) * 8,
       unstable: 0                     /* 过境失稳水位(渲染循环写入) */
     });
-    /* 远景球:小、模糊、散布在左侧/上部的"远处" */
+    /* 远景球:小、模糊、散布在左侧/上部的"远处";数组序 = 碎裂序(从左到右) */
     var REMOTE = [
-      { cx: 0.16, cy: 0.20, r: 0.10, n: 90, blur: 1.4 },
-      { cx: 0.34, cy: 0.78, r: 0.075, n: 70, blur: 1.8 },
-      { cx: 0.06, cy: 0.55, r: 0.055, n: 50, blur: 2.2 },
-      { cx: 0.55, cy: 0.10, r: 0.045, n: 40, blur: 2.6 }
+      { cx: 0.16, cy: 0.20, r: 0.10, n: 270, blur: 1.4 },
+      { cx: 0.34, cy: 0.78, r: 0.075, n: 210, blur: 1.8 },
+      { cx: 0.06, cy: 0.55, r: 0.055, n: 150, blur: 2.2 },
+      { cx: 0.55, cy: 0.10, r: 0.045, n: 120, blur: 2.6 }
     ];
     for (var ri = 0; ri < REMOTE.length; ri++) {
       var rc = REMOTE[ri];
       orbs.push({
         main: false,
         cx: rc.cx, cy: rc.cy, r: rc.r, n: rc.n, blur: rc.blur,
+        dieAt: REMOTE_DIE_AT[ri],     /* 触发碎裂的水位 */
         rotSpd: ORB_ROT * (0.5 + hash(ri * 3.7) * 0.8) * (hash(ri * 9.1) > 0.5 ? 1 : -1),
         rot: hash(ri * 5.3) * Math.PI * 2,
         brPh: hash(ri * 7.1) * Math.PI * 2,
@@ -351,10 +354,11 @@
         crackNext: 18 + hash(ri * 11.7) * 14,
         flickNext: 12 + hash(ri * 4.3) * 10,
         unstable: 0,
-        dieT: 0                         /* 过境:碎裂启动时刻(0=未启动) */
+        dieT: 0                         /* 碎裂启动时刻(0=未启动) */
       });
     }
-    /* 球面粒子:斐波那契球均匀分布 */
+    /* 球面粒子:斐波那契球均匀分布。粒径 = 一个点(0.4~0.9px),
+       远景的模糊靠【低透明度+微散布】表达,不靠放大。 */
     var GA = Math.PI * (3 - Math.sqrt(5));
     for (var oi = 0; oi < orbs.length; oi++) {
       var ob = orbs[oi];
@@ -365,21 +369,24 @@
         var th = GA * pi;
         ob.pts.push({
           dx: Math.cos(th) * rr, dy: y, dz: Math.sin(th) * rr,
-          sz: 0.5 + hash(oi * 131 + pi * 1.7) * 1.1,          /* 粒径(px 基准) */
+          sz: 0.4 + hash(oi * 131 + pi * 1.7) * 0.5,          /* 粒径:小点 */
           tw: hash(oi * 71 + pi * 2.3) * Math.PI * 2,          /* 闪烁相位 */
           frag: false
         });
       }
     }
-    /* 裂隙碎片池:每球最多 26 枚,复用 */
-    for (var fi = 0; fi < 26 * orbs.length; fi++) {
-      orbFrag.push({ oi: fi % orbs.length, on: false, x: 0, y: 0, vx: 0, vy: 0, life: 0, t0: 0, sz: 1 });
+    /* 碎片/云粒子池:碎裂球全员入池(主体球 2520/2 采样 + 4 远景全量) */
+    var poolN = 0;
+    for (var oc = 0; oc < orbs.length; oc++) poolN += Math.ceil(orbs[oc].n * (orbs[oc].main ? 0.6 : 1));
+    for (var fi = 0; fi < poolN; fi++) {
+      orbFrag.push({ oi: fi % orbs.length, on: false, x: 0, y: 0, vx: 0, vy: 0, life: 0, t0: 0, sz: 1, cloud: false });
     }
   }
 
   /* 画一颗粒子球。lk = 过境失稳水位(0 平时), q = 爆发水位,
-     wallX = 爆发真空壁位置(归一化 x,壁右侧的粒子被抹除;-1 = 无壁) */
-  function drawOrb(g, ob, tS, lk, q, wallX, ink) {
+     wallX = 爆发真空壁位置(归一化 x,壁左侧的粒子被抹除;-1 = 无壁)
+     inkR/G/B = 墨色(随爆发加深)。 */
+  function drawOrb(g, ob, tS, lk, q, wallX, inkR, inkG, inkB) {
     var R = ob.r * Math.min(W, H);
     var cx = ob.cx * W, cy = ob.cy * H;
     var breath = 1 + Math.sin(tS * 0.5 + ob.brPh) * ob.breathAmp;   /* 整体呼吸 */
@@ -398,10 +405,12 @@
       var depth = (pz + 1) / 2;                       /* 0..1 */
       var sx = cx + px * R * breath;
       var sy = cy + py * R * breath;
-      /* 基础闪烁(tw 驱动的慢呼吸)+ 深度调制 */
-      var a = (0.10 + 0.22 * (0.5 + 0.5 * Math.sin(tS * 0.8 + pt.tw))) * (0.45 + 0.55 * depth);
-      if (!ob.main) a *= 0.62;                        /* 远景整体更淡 */
-      /* 外扩波:波前经过的粒子径向外抖 + 增亮 */
+      /* 基础闪烁(tw 驱动的慢呼吸)+ 深度调制。
+         ★ 初始透明度抬高(用户:之前几乎看不见)—— 粒子小,
+           密度就是可见度,单点 alpha 顶到 0.85。 */
+      var a = (0.28 + 0.34 * (0.5 + 0.5 * Math.sin(tS * 0.8 + pt.tw))) * (0.55 + 0.45 * depth);
+      if (!ob.main) a *= 0.85;                        /* 远景略淡,但仍然可读 */
+      /* 外扩波:波前经过的粒子径向外抖 + 增亮(所有球都有) */
       for (var wv = 0; wv < ob.waves.length; wv++) {
         var ww = ob.waves[wv];
         var wt = (tS - ww.t0) / ww.life;
@@ -435,61 +444,67 @@
           var cdot = px * ob.crack.dx + py * ob.crack.dy + pz * ob.crack.dz;
           if (cdot > ob.crack.cos) {
             pt.frag = true;                            /* 永久脱落(直到重建) */
-            spawnFrag(ob, sx, sy, px, py, ink);
+            spawnFrag(ob, sx, sy, px, py);
           }
         }
       }
       /* 爆发真空壁:壁左侧(x < wallX)的粒子被抹除(快速淡出) */
       if (wallX >= 0 && sx < wallX * W) a *= Math.max(0, 1 - (wallX * W - sx) / (W * 0.06));
-      /* 远景模糊:粒子画大而淡(失焦感) */
-      var sz = pt.sz * (ob.main ? 1 : (1 + (ob.blur || 1) * 0.8));
-      if (!ob.main) a *= 0.55 / (ob.blur || 1);
+      /* 远景失焦:透明度略降(模糊感),粒径不放大(粒子就是点) */
+      if (!ob.main) a *= 0.72;
       if (a <= 0.004) continue;
-      g.globalAlpha = Math.min(0.6, a);
-      g.fillStyle = ink;
+      g.globalAlpha = Math.min(0.85, a);
+      g.fillStyle = "rgb(" + inkR + "," + inkG + "," + inkB + ")";
       g.beginPath();
-      g.arc(sx, sy, sz, 0, Math.PI * 2);
+      g.arc(sx, sy, pt.sz, 0, Math.PI * 2);
       g.fill();
     }
     g.restore();
-    /* 碎片(裂隙飞出的粒子) */
+    /* 云/碎片(本球的):cloud 型原地漂浮,裂隙型微飞散 */
+    var oi = orbs.indexOf(ob);
     for (var f2 = 0; f2 < orbFrag.length; f2++) {
       var fp = orbFrag[f2];
-      if (!fp.on || fp.oi !== orbs.indexOf(ob)) continue;
+      if (!fp.on || fp.oi !== oi) continue;
       var fpt = (tS - fp.t0) / fp.life;
       if (fpt >= 1) { fp.on = false; continue; }
-      g.globalAlpha = (1 - fpt) * 0.5;
-      g.fillStyle = ink;
+      /* 云型:全程不淡出(原地漂浮);裂隙型:线性淡出 */
+      g.globalAlpha = fp.cloud ? Math.min(0.85, 0.35 + 0.3 * Math.sin(tS * 0.9 + f2)) : (1 - fpt) * 0.5;
+      g.fillStyle = "rgb(" + inkR + "," + inkG + "," + inkB + ")";
       g.fillRect(fp.x, fp.y, fp.sz, fp.sz);
     }
   }
 
-  function spawnFrag(ob, sx, sy, px, py, ink) {
+  function spawnFrag(ob, sx, sy, px, py) {
     var oi = orbs.indexOf(ob);
     for (var i = 0; i < orbFrag.length; i++) {
       var fp = orbFrag[i];
       if (fp.on || fp.oi !== oi) continue;
       fp.on = true;
+      fp.cloud = false;                              /* 裂隙碎片:微飞散淡出 */
       fp.x = sx; fp.y = sy;
-      fp.vx = px * 46 + (hash(i * 3.3) - 0.5) * 34;
-      fp.vy = py * 46 + (hash(i * 7.7) - 0.5) * 34 - 12;
-      fp.life = 1.6 + hash(i * 9.1) * 1.4;
+      fp.vx = px * 26 + (hash(i * 3.3) - 0.5) * 20;
+      fp.vy = py * 26 + (hash(i * 7.7) - 0.5) * 20 - 6;
+      fp.life = 1.8 + hash(i * 9.1) * 1.4;
       fp.t0 = frameT / 1000;
-      fp.sz = 1 + hash(i * 5.5) * 1.6;
+      fp.sz = 1 + hash(i * 5.5) * 0.8;
       return;
     }
   }
 
-  /* 显式速度/寿命版:远景球炸云、主体球碎裂用(全员一次进池) */
-  function spawnFragAt(ob, x, y, vx, vy, sz) {
+  /* 碎成云:粒子原地漂浮(速度极小+往复漂移),寿命长 ——
+     "碎掉不是真碎成碎片掉下去,而是碎成云状仍漂浮在那个位置" */
+  function spawnCloud(ob, x, y, ux, uy, sz) {
     var oi = orbs.indexOf(ob);
     for (var i = 0; i < orbFrag.length; i++) {
       var fp = orbFrag[i];
       if (fp.on || fp.oi !== oi) continue;
       fp.on = true;
+      fp.cloud = true;
       fp.x = x; fp.y = y;
-      fp.vx = vx; fp.vy = vy;
-      fp.life = 2.4 + hash(oi * 13.7 + i) * 1.6;
+      /* 微小速度 + 无重力:云在原地缓缓舒展 */
+      fp.vx = ux * 7 + (hash(oi * 3.3 + i) - 0.5) * 14;
+      fp.vy = uy * 7 + (hash(oi * 7.7 + i) - 0.5) * 14;
+      fp.life = 60;                                  /* 云一直漂到白幕/重载 */
       fp.t0 = frameT / 1000;
       fp.sz = sz;
       return;
@@ -912,9 +927,12 @@
 
       /* 真空壁位置:q 期从左往右扫(q 0..0.8 扫完全屏;0.88 后白幕接管) */
       var wallX = q > 0 ? clamp((q - 0.02) / 0.78, 0, 1.15) : -1;
-      var inkOrb = q > 0
-        ? "rgb(8, 10, 8)"
-        : "rgb(" + Math.round(96 - charge * 62) + ", " + Math.round(92 - charge * 58) + ", " + Math.round(78 - charge * 42) + ")";
+      /* 墨色:随过境/爆发加深(用户:不加深会因"模糊"看不到)。
+         爆发期直接近黑;前期随 charge 从淡墨压到深墨。 */
+      var inkR = q > 0 ? 8 : Math.round(96 - charge * 62);
+      var inkG = q > 0 ? 10 : Math.round(92 - charge * 58);
+      var inkB = q > 0 ? 8 : Math.round(78 - charge * 42);
+      var inkOrb = "rgb(" + inkR + "," + inkG + "," + inkB + ")";
 
       /* 每球:推进旋转/呼吸/事件调度,再画 */
       for (var obi = 0; obi < orbs.length; obi++) {
@@ -922,7 +940,7 @@
         ob.rot += ob.rotSpd * dt / 1000;
         /* 过境失稳水位写入(远景球另有 dieT 碎裂时序) */
         ob.unstable = charge;
-        /* --- 外扩波调度:平时几秒一次;过境越来越快、越来越淡 --- */
+        /* --- 外扩波调度:所有球都有;平时几秒一次;过境越来越快 --- */
         if (tS > ob.waveNext) {
           ob.waves.push({ t0: tS, life: 1.6 });
           if (ob.waves.length > 4) ob.waves.shift();
@@ -952,72 +970,75 @@
           ob.crackNext = tS + Math.max(3, crackGap);
         }
         if (ob.crack && tS - ob.crack.t0 > ob.crack.life) ob.crack = null;
-        /* --- 远景球过境碎裂:先向中心收缩,再炸成一片粒子云 --- */
-        if (!ob.main && charge > 0.55 && !ob.dieT) ob.dieT = tS + hash(obi * 3.9) * (1.1 - charge);   /* 失稳越深死得越早 */
+        /* --- 远景球过境碎裂:按固定顺序(REMOTE_DIE_AT),碎成云状原地漂浮 --- */
+        if (!ob.main && !ob.dieT && charge >= (ob.dieAt || 0.6)) ob.dieT = tS;
         if (!ob.main && ob.dieT && !ob.dead) {
           var dtD = tS - ob.dieT;
           if (dtD > 0) {
-            /* 阶段 1(0..0.9s):整体收缩;阶段 2:炸开成云(粒子改由云驱动) */
+            /* 阶段 1(0..0.9s):整体收缩;阶段 2:碎成云(原地漂浮) */
             if (dtD < 0.9) {
               ob.shrink = 1 - dtD / 0.9 * 0.55;          /* 收缩到 45% */
             } else {
-              ob.dead = true;                            /* 不再按球画;云交给 frag 池 */
+              ob.dead = true;                            /* 不再按球画;云接管 */
+              var cosE = Math.cos(ob.rot), sinE = Math.sin(ob.rot);
               for (var ei = 0; ei < ob.pts.length; ei++) {
                 var ept = ob.pts[ei];
-                var cosE = Math.cos(ob.rot), sinE = Math.sin(ob.rot);
                 var exn = ept.dx * cosE + ept.dz * sinE;
-                var ezn = -ept.dx * sinE + ept.dz * cosE;
-                var erx = ob.cx * W + exn * ob.r * Math.min(W, H) * (ob.shrink || 0.5);
                 var ery = ob.cy * H + ept.dy * ob.r * Math.min(W, H) * (ob.shrink || 0.5);
-                spawnFragAt(ob, erx, ery, exn * 60 + (hash(obi * 31 + ei) - 0.5) * 90,
-                  ept.dy * 60 + (hash(obi * 17 + ei) - 0.5) * 90, 1.4 + hash(obi + ei) * 1.2);
+                var erx = ob.cx * W + exn * ob.r * Math.min(W, H) * (ob.shrink || 0.5);
+                spawnCloud(ob, erx, ery, exn, ept.dy, ept.sz + 0.6);
               }
             }
           }
         }
-        /* 真空壁:壁已越过球心右侧 → 主体球碎裂(全部粒子进碎片池) */
+        /* 真空壁:壁越过主体球露出弧的六成 → 主体球碎成云(原地漂浮) */
         if (ob.main && wallX >= 0 && wallX > ob.cx - ob.r * 0.4 && !ob.dead) {
           ob.dead = true;
           var cosM = Math.cos(ob.rot), sinM = Math.sin(ob.rot);
           for (var mi = 0; mi < ob.pts.length; mi += 2) {           /* 采样一半,量可控 */
             var mpt = ob.pts[mi];
             var mxn = mpt.dx * cosM + mpt.dz * sinM;
-            var mzn = -mpt.dx * sinM + mpt.dz * cosM;
             var mrx = ob.cx * W + mxn * ob.r * Math.min(W, H);
             var mry = ob.cy * H + mpt.dy * ob.r * Math.min(W, H);
-            spawnFragAt(ob, mrx, mry, mxn * 40 - 60 + (hash(obi + mi) - 0.5) * 50,
-              mpt.dy * 40 + (hash(mi * 3.1) - 0.5) * 50, 1 + hash(mi * 7.7));
+            spawnCloud(ob, mrx, mry, mxn, mpt.dy, mpt.sz);
           }
         }
-        /* --- 画(远景球失焦感 = 粒子画大画淡;dead 球只画碎片云) --- */
+        /* --- 画(远景球失焦感 = 透明度略降;dead 球只画云) --- */
         if (!(ob.dead && !ob.main)) {
-          if (ob.main || !ob.dieT) drawOrb(ctx, ob, tS, charge, q, wallX, inkOrb);
+          if (ob.main || !ob.dieT) drawOrb(ctx, ob, tS, charge, q, wallX, inkR, inkG, inkB);
           else if (!ob.dead) {
             /* 收缩中的远景球:临时缩半径画 */
             var saveR = ob.r;
             ob.r = saveR * (ob.shrink || 1);
-            drawOrb(ctx, ob, tS, charge, q, wallX, inkOrb);
+            drawOrb(ctx, ob, tS, charge, q, wallX, inkR, inkG, inkB);
             ob.r = saveR;
           }
         }
       }
-      /* 碎片推进(全局池):重力微下沉 + 阻尼 */
+      /* 云/碎片推进(全局池):cloud 型无重力原地舒展;裂隙型微重力 */
       for (var fpi = 0; fpi < orbFrag.length; fpi++) {
         var fgp = orbFrag[fpi];
         if (!fgp.on) continue;
         fgp.x += fgp.vx * dt / 1000;
         fgp.y += fgp.vy * dt / 1000;
-        fgp.vy += 26 * dt / 1000;
-        fgp.vx *= (1 - 0.4 * dt / 1000);
+        if (fgp.cloud) {
+          fgp.vx *= (1 - 0.8 * dt / 1000);             /* 云:迅速阻尼,原地漂浮 */
+          fgp.vy *= (1 - 0.8 * dt / 1000);
+        } else {
+          fgp.vy += 14 * dt / 1000;                    /* 裂隙碎片:微沉 */
+          fgp.vx *= (1 - 0.4 * dt / 1000);
+        }
       }
-      /* 全局碎片绘制(drawOrb 内已画各自球的;dead 球的碎片在这补画) */
+      /* 全局云/碎片绘制(dead 球的云在这补画) */
       for (var fdx = 0; fdx < orbFrag.length; fdx++) {
         var fdp = orbFrag[fdx];
         if (!fdp.on || !orbs[fdp.oi] || !orbs[fdp.oi].dead) continue;
         var fdt = (tS - fdp.t0) / fdp.life;
         if (fdt < 0 || fdt >= 1) continue;
-        ctx.globalAlpha = (1 - fdt) * 0.5;
-        ctx.fillStyle = inkOrb;
+        ctx.globalAlpha = fdp.cloud
+          ? Math.min(0.85, 0.35 + 0.3 * Math.sin(tS * 0.9 + fdx))
+          : (1 - fdt) * 0.5;
+        ctx.fillStyle = "rgb(" + inkR + "," + inkG + "," + inkB + ")";
         ctx.fillRect(fdp.x, fdp.y, fdp.sz, fdp.sz);
       }
       ctx.globalAlpha = 1;
@@ -1200,7 +1221,7 @@
       ctx.fillRect(0, 0, W, H);
       if (!orbs.length) buildOrbs();
       for (var so = 0; so < orbs.length; so++) {
-        drawOrb(ctx, orbs[so], tS, 0, 0, -1, "rgb(96, 92, 78)");
+        drawOrb(ctx, orbs[so], tS, 0, 0, -1, 96, 92, 78);
       }
     }
     ctx.globalAlpha = 1;
