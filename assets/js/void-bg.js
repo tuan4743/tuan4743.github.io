@@ -537,12 +537,14 @@
 
   /* ---------- 自由电子 + 场线(真空的游离结构) ----------
      设定 28:普朗克尺度下时空是弦网/自旋泡沫,"波—信息—意识"
-     的底层自由度。三层语言,填满背景而不是撒一把看不见的沙:
+     的底层自由度。五种语言,线/面/光俱全,不是一片点:
      1) 电子:可见的小亮点(比球面粒子大而亮),布朗游移,
-        被球的外扩波推亮;数量足够多(150),屏内持续可感
-     2) 电场线:电子之间偶尔拉出一条极淡的"作用线"(细线,
-        两端各系一颗电子,距离近才显形)—— 真空不是空的
-     3) 涟漪:游移的电子偶尔原地荡开一圈微小的波纹(1~2s)
+        被球的外扩波推亮
+     2) 电场线:近距电子对之间拉出"作用线"(真空不是空的)
+     3) 弦网丝:6~8 条缓慢起伏的贝塞尔曲线横贯背景(弦网的"弦",
+        一等公民的大形态,不是点)
+     4) 涨落泡:偶尔一处空间轻微鼓起一个柔光包(自旋泡沫的涨落)
+     5) 涟漪:电子偶发原地荡开微光圈
      爆发期真空壁扫过时全部被抹除。 */
   var electrons = [];
   function buildElectrons() {
@@ -563,10 +565,102 @@
     }
   }
 
+  /* ---------- 弦网丝(大形态,一等公民) ----------
+     6~8 条缓慢起伏的贝塞尔曲线横贯背景。世界观:设定 28 的
+     "弦网" —— 空间本身的骨架。每条丝:锚点在屏外两侧,中部
+     2~3 个控制点做极慢的正弦漂移;亮度随离主球波前距离调制
+     (波扫过时丝被"拨动"一下:幅度瞬间加大、微亮)。 */
+  var strings = [];
+  function buildStrings() {
+    strings.length = 0;
+    var N = 7;
+    for (var i = 0; i < N; i++) {
+      strings.push({
+        y0: 0.10 + hash(i * 3.1) * 0.80,          /* 基准高度 */
+        amp: 0.02 + hash(i * 5.7) * 0.05,          /* 起伏幅度(H 比例) */
+        freq: 0.4 + hash(i * 7.3) * 0.5,           /* 时间频率 */
+        ph: hash(i * 9.1) * Math.PI * 2,
+        kx: 1 + ((hash(i * 2.9) * 2) | 0),         /* 空间波数(1~2) */
+        tilt: (hash(i * 4.3) - 0.5) * 0.16,        /* 整体倾斜 */
+        tw: hash(i * 6.7) * Math.PI * 2
+      });
+    }
+  }
+
+  function drawStrings(g, tS, charge, q, wallX, inkR, inkG, inkB) {
+    if (!strings.length) buildStrings();
+    g.save();
+    g.lineCap = "round";
+    for (var i = 0; i < strings.length; i++) {
+      var st = strings[i];
+      /* 被主球波前拨动:波前半径附近经过丝的 y 时,幅度+亮度瞬时抬 */
+      var pluck = 0;
+      var ob0 = orbs[0];
+      if (ob0 && ob0.waves) {
+        var R = ob0.r * Math.min(W, H);
+        for (var wv = 0; wv < ob0.waves.length; wv++) {
+          var ww = ob0.waves[wv];
+          var wt = (tS - ww.t0) / ww.life;
+          if (wt < 0 || wt > 1) continue;
+          var wRad = R * (1 + wt * 0.5);
+          var dY = Math.abs(st.y0 * H - ob0.cy * H);
+          if (Math.abs(dY - wRad) < R * 0.15) pluck = Math.max(pluck, (1 - wt) * 0.8);
+        }
+      }
+      g.beginPath();
+      var SEG = 24;
+      var prevX = 0, prevY = 0, prevA = 0;
+      for (var s = 0; s <= SEG; s++) {
+        var nx = s / SEG;
+        var nxT = nx - 0.5;
+        var baseY = st.y0 + st.tilt * nxT;                        /* 倾斜 */
+        var wob = Math.sin(nx * st.kx * Math.PI * 2 + tS * st.freq * Math.PI * 2 + st.ph)
+          * (st.amp + pluck * st.amp * 1.6);                      /* 波扫过 → 拨动 */
+        var sy = (baseY + wob) * H;
+        var sx = nx * W;
+        /* 真空壁:壁左侧的丝段被抹除(按段透明度) */
+        var aS = (0.07 + 0.05 * (0.5 + 0.5 * Math.sin(tS * 0.4 + st.tw)) + pluck * 0.10 + charge * 0.06);
+        if (wallX >= 0 && sx < wallX * W) aS *= Math.max(0, 1 - (wallX * W - sx) / (W * 0.08));
+        if (s > 0) {
+          g.strokeStyle = "rgba(" + inkR + "," + inkG + "," + inkB + "," + Math.min(aS, prevA).toFixed(3) + ")";
+          g.lineWidth = 1 + pluck * 0.6;
+          g.beginPath();
+          g.moveTo(prevX, prevY);
+          g.lineTo(sx, sy);
+          g.stroke();
+        }
+        prevX = sx; prevY = sy; prevA = aS;
+      }
+    }
+    g.restore();
+    /* --- 4) 涨落泡:偶尔一处空间鼓起一个柔光包(径向渐变) --- */
+    var RIP = 3;
+    for (var bi = 0; bi < RIP; bi++) {
+      var bPh = hash(bi * 13.7) * 10;
+      var bPer = 9 + hash(bi * 7.7) * 8;
+      var bt = ((tS + bPh) % bPer) / bPer;                        /* 0..1 周期 */
+      if (bt > 0.45) continue;                                    /* 周期的前半段隐没 */
+      var bx = (0.12 + hash(bi * 3.3) * 0.7) * W;
+      var by = (0.15 + hash(bi * 5.1) * 0.6) * H;
+      var br2 = (30 + hash(bi * 9.9) * 40) * Math.sin(Math.PI * bt / 0.45);   /* 鼓起→收 */
+      if (br2 < 4) continue;
+      var bAl = Math.sin(Math.PI * bt / 0.45) * (0.05 + charge * 0.06);
+      if (wallX >= 0 && bx < wallX * W) continue;
+      var bg2 = g.createRadialGradient(bx, by, 0, bx, by, br2);
+      bg2.addColorStop(0, "rgba(" + inkR + "," + inkG + "," + inkB + "," + (bAl * 0.55).toFixed(3) + ")");
+      bg2.addColorStop(0.7, "rgba(" + inkR + "," + inkG + "," + inkB + "," + (bAl * 0.22).toFixed(3) + ")");
+      bg2.addColorStop(1, "rgba(" + inkR + "," + inkG + "," + inkB + ",0)");
+      g.fillStyle = bg2;
+      g.beginPath();
+      g.arc(bx, by, br2, 0, Math.PI * 2);
+      g.fill();
+    }
+  }
+
   function drawElectrons(g, tS, dt, charge, q, wallX, inkR, inkG, inkB) {
     if (!electrons.length) buildElectrons();
     var i, e;
-    /* --- 2) 电场线:近距电子对之间拉一条细线(可见度:0.10 起) --- */
+    /* --- 电场线:近距电子对之间连"作用线"(分段,每段独立透明度) --- */
     g.save();
     g.lineWidth = 1;
     for (i = 0; i < electrons.length; i += 2) {          /* 采样 1/2 */
@@ -576,15 +670,21 @@
         var dxL = (ea.x - eb.x) * W, dyL = (ea.y - eb.y) * H;
         var dL = Math.sqrt(dxL * dxL + dyL * dyL);
         if (dL > Math.min(W, H) * 0.22) continue;        /* 只连近邻 */
+        /* 两端各连 2 段,端点在电子上 —— 线"系"在电子上而不是悬空 */
         var lAl = (1 - dL / (Math.min(W, H) * 0.22)) * (0.10 + charge * 0.14);
         if (lAl <= 0.006) continue;
-        /* 壁左侧的线被抹除 */
-        var mxL = (ea.x + eb.x) / 2 * W;
-        if (wallX >= 0 && mxL < wallX * W) continue;
-        g.strokeStyle = "rgba(" + inkR + "," + inkG + "," + inkB + "," + lAl.toFixed(3) + ")";
+        var x1 = ea.x * W, y1 = ea.y * H, x2 = eb.x * W, y2 = eb.y * H;
+        var mxL = (x1 + x2) / 2;
+        if (wallX >= 0 && mxL < wallX * W) continue;     /* 壁左侧整条抹除 */
+        var al1 = (wallX >= 0 && x1 < wallX * W) ? lAl * Math.max(0, 1 - (wallX * W - x1) / (W * 0.05)) : lAl;
+        var al2 = (wallX >= 0 && x2 < wallX * W) ? lAl * Math.max(0, 1 - (wallX * W - x2) / (W * 0.05)) : lAl;
+        var gradL = g.createLinearGradient(x1, y1, x2, y2);
+        gradL.addColorStop(0, "rgba(" + inkR + "," + inkG + "," + inkB + "," + al1.toFixed(3) + ")");
+        gradL.addColorStop(1, "rgba(" + inkR + "," + inkG + "," + inkB + "," + al2.toFixed(3) + ")");
+        g.strokeStyle = gradL;
         g.beginPath();
-        g.moveTo(ea.x * W, ea.y * H);
-        g.lineTo(eb.x * W, eb.y * H);
+        g.moveTo(x1, y1);
+        g.lineTo(x2, y2);
         g.stroke();
       }
     }
@@ -1187,6 +1287,7 @@
       ctx.globalAlpha = 1;
 
       /* 自由电子:真空里的游离粒子(球体画完后叠上,filling 空白) */
+      drawStrings(ctx, tS, charge, q, wallX, inkR, inkG, inkB);   /* 弦网丝+涨落泡 */
       drawElectrons(ctx, tS, dt, charge, q, wallX, inkR, inkG, inkB);
       ctx.globalAlpha = 1;
 
