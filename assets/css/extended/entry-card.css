@@ -44,6 +44,17 @@
     box-shadow: 0 0 18px color-mix(in srgb, var(--accent, rgb(14, 116, 122)) 14%, transparent);
 }
 
+/* void-bg 模式撤了卡片边框和投影 —— 左侧竖线要留着（放在其后覆盖）。 */
+html.void-bg-on .post-entry {
+    border-left: 2px solid var(--accent-line, rgba(34, 211, 238, 0.38));
+}
+
+html.void-bg-on .post-entry:hover,
+html.void-bg-on .post-entry:focus-within {
+    border-color: transparent;
+    border-left-color: var(--accent, rgb(34, 211, 238));
+}
+
 @media (max-width: 640px) {
     .post-entry {
         padding: calc(var(--gap) * 0.7);

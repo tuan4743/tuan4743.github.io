@@ -73,15 +73,20 @@ html.void-bg-on.shell-page .main,
     box-shadow: none !important;
 }
 
+/* void-bg 撤卡片底色/投影/边框，但给 entry-card.css 的左侧竖线让位：
+   border-left 用 accent-line 竖线（见 entry-card.css 同名规则，那里是后加载的兜底，
+   这里是 void-bg 的主动声明 —— 两处保持一致）。 */
 html.void-bg-on .post-entry {
     background: transparent;
     border: 1px solid transparent;
+    border-left: 2px solid var(--accent-line, rgba(34, 211, 238, 0.38));
     box-shadow: none;
 }
 
 html.void-bg-on .post-entry:hover,
 html.void-bg-on .post-entry:focus-within {
     border-color: transparent;
+    border-left-color: var(--accent, rgb(34, 211, 238));
     transform: none;
 }
 
