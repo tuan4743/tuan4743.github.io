@@ -1,0 +1,84 @@
+/* ============================================================
+   文章卡片 HUD 终端风 + 正文逐块滚动淡入
+   ─────────────────────────────────────────────────────────────
+   · 卡片：/study/ /tech/ 等列表页的 .post-entry，纯 CSS 覆盖
+     PaperMod 原生结构（不动 list.html 模板）。
+   · reveal：html.content-reveal 前提下才隐藏未入场块 —— 渐进增强，
+     脚本没加载/出错时正文照常平铺。
+   ============================================================ */
+
+/* ---------- A. 文章卡片 ---------- */
+
+.post-entry {
+    border-left: 2px solid var(--accent-line, rgba(34, 211, 238, 0.38));
+    transition: transform 0.25s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.post-entry:hover,
+.post-entry:focus-within {
+    border-color: color-mix(in srgb, var(--accent, rgb(34, 211, 238)) 45%, var(--border));
+    border-left-color: var(--accent, rgb(34, 211, 238));
+    box-shadow: 0 0 24px color-mix(in srgb, var(--accent, rgb(34, 211, 238)) 12%, transparent);
+}
+
+.post-entry .entry-header h2 {
+    transition: color 0.16s ease;
+}
+
+.post-entry:hover .entry-header h2,
+.post-entry:focus-within .entry-header h2 {
+    color: color-mix(in srgb, var(--accent) 62%, var(--primary));
+}
+
+/* meta 行：HUD 终端语言 —— 等宽字、小字号、宽字距（不用 Pixel CN，
+   避免正文页为此加载像素字体） */
+.entry-footer {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+}
+
+/* 亮模式：淡色光 */
+[data-theme="light"] .post-entry:hover,
+[data-theme="light"] .post-entry:focus-within {
+    box-shadow: 0 0 18px color-mix(in srgb, var(--accent, rgb(14, 116, 122)) 14%, transparent);
+}
+
+@media (max-width: 640px) {
+    .post-entry {
+        padding: calc(var(--gap) * 0.7);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .post-entry,
+    .post-entry .entry-header h2 {
+        transition: none !important;
+    }
+    .post-entry:hover,
+    .post-entry:focus-within {
+        transform: none;
+    }
+}
+
+/* ---------- B. 正文逐块滚动淡入 ---------- */
+
+/* 只在 html.content-reveal（JS 就位）时隐藏未入场块 */
+html.content-reveal .post-content > *:not(.is-in) {
+    opacity: 0;
+    transform: translateY(10px);
+}
+
+html.content-reveal .post-content > .is-in {
+    opacity: 1;
+    transform: none;
+    transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.2, 0.9, 0.25, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html.content-reveal .post-content > * {
+        opacity: 1 !important;
+        transform: none !important;
+        transition: none !important;
+    }
+}

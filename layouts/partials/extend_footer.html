@@ -124,6 +124,13 @@
 {{- $u := . | fingerprint "sha256" }}
 <script defer src="{{ $u.RelPermalink }}"></script>
 {{- end }}
+{{- /* 正文逐块滚动淡入:只对文章正文有意义,拿不到 .post-content 就静默退出。
+     ★ 排在 KaTeX(defer,head 侧)之后 —— defer 按文档顺序执行,
+       公式先渲染完再观察块,observer 只加类不动 DOM,互不干扰。 */ -}}
+{{- with resources.Get "js/content-reveal.js" }}
+{{- $u := . | fingerprint "sha256" }}
+<script defer src="{{ $u.RelPermalink }}"></script>
+{{- end }}
 {{- /* ECHO:左上角那个三角形的副摄像头 + 它右边的对话框。
      ★ 排在最后:它只【看】别人(点 HUD、拿笔),不要求别人先就位;
        放在末尾可以让前面几个模块先把 DOM 上的开关状态摆好,
