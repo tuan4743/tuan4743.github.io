@@ -32,4 +32,4 @@ summary: "我的博客开张了,简单介绍一下这里会有什么"
 
 欢迎! ✨
 
-![测试](pictures/test.jpg)
+![测试](/study/pictures/test.jpg)
