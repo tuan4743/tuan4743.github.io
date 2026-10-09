@@ -230,6 +230,18 @@
     ctx.clearRect(0, 0, W, H);
     if (mx < -900) return;
 
+    /* ★ 锁定期间每帧用 elementFromPoint 复查指针正下方是什么。
+       giscus 这类 iframe 里的鼠标事件不冒泡到父页面,mouseout/pointerover
+       兜底都依赖"下一次父页面收到鼠标事件",滚动进入 iframe、事件被吞等
+       场景会永远收不到 —— 直接按几何位置解锁,不依赖任何事件。 */
+    if (target) {
+      var under = document.elementFromPoint(mx, my);
+      if (under && (under.tagName === "IFRAME" || (under.closest && under.closest("iframe")))) {
+        target = null;
+        fadeTo = 0;
+        document.documentElement.classList.remove("magnetic-locked");
+      }
+    }
 
     var sb = scriptBox();
     var tx = mx, ty = my, tw = SIZE, th = SIZE;
