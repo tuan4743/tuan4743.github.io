@@ -30,19 +30,31 @@
     void html.offsetWidth;
     html.dataset.theme = next;
     try { localStorage.setItem("pref-theme", next); } catch (e) { }
-    fadeTimer = setTimeout(function () {
-      /* ★ 修"切换末尾文本颜色突然变一下":定时摘 .theme-fade 的时间点
-         (1250ms)晚于部分元素的过渡起点 —— 那些元素 1.1s 过渡还没走完,
-         类一摘,transition 立即失效,颜色"啪"地跳到终值。
-         解法:过渡期给足(1400ms > 1.1s 过渡 + 起始延迟),再等两帧确认
-         渲染已落在过渡终态后才摘类。 */
-      requestAnimationFrame(function () {
-        requestAnimationFrame(function () {
-          html.classList.remove("theme-fade");
-          fadeTimer = 0;
-        });
-      });
-    }, 1400);
+    /* ★ 修"切换末期文字颜色突然变一下":定时摘 .theme-fade 不可靠 ——
+       实测(逐帧采样)部分元素的过渡起点被推迟/重置过,固定 1400ms 摘类时
+       过渡仍在半途,类一摘 transition 失效,颜色"啪"地跳到终值。
+       改成【探活式】摘除:每 120ms 查一次 document.getAnimations(),
+       只在页面里再没有进行中的 CSS transition(时长 > 200ms 的)时才摘;
+       5s 硬上限兜底,避免某个元素永远挂着长过渡把类钉死。 */
+    fadeTimer = setInterval(function () {
+      var busy = false;
+      try {
+        var anims = document.getAnimations ? document.getAnimations() : [];
+        for (var i = 0; i < anims.length; i++) {
+          var a = anims[i];
+          /* 只关心 CSS transition(主题渐变就是它);CSSAnimation(呼吸灯
+             之类的无限动画)不属于本次切换,不挡摘类。 */
+          if (a && a.constructor && a.constructor.name === "CSSTransition") { busy = true; break; }
+          if (a && a.transitionProperty) { busy = true; break; }
+        }
+      } catch (e) { busy = true; }
+      if (!busy || ++switchTheme._guard > 40) {
+        clearInterval(fadeTimer);
+        fadeTimer = 0;
+        switchTheme._guard = 0;
+        html.classList.remove("theme-fade");
+      }
+    }, 120);
   }
   /* 暴露给主题 footer 里那支 PaperMod 原生脚本对齐用(见 baseof 注释) */
   window.__switchTheme = switchTheme;

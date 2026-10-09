@@ -256,8 +256,10 @@
     </div>
 
     {{- /* 字体调节悬浮药丸:只在"有正文的文章页"才有意义。目录页/列表页
-         没有正文可调,以前会在没有目录时不可控地单独出现 —— 直接不渲染。 */ -}}
-    {{- if $isArticle -}}
+         没有正文可调,以前会在没有目录时不可控地单独出现 —— 直接不渲染。
+         ★ 归档/留言这类"有页面但没有可调正文"的页用 hideTypePill 关掉
+           (留言页虽有 .post-content,但正文两行字 + giscus,调字号没意义)。 */ -}}
+    {{- if and $isArticle (not (.Param "hideTypePill")) -}}
     <div class="hud-type" id="hud-type" hidden role="group" aria-label="正文字号与字距">
         <span class="hud-type__lab">字号</span>
         <button class="hud-type__step" type="button" data-hud-toc-size="-1" aria-label="正文字号减小" title="正文字号 −">−</button>

@@ -400,6 +400,19 @@
       document.documentElement.classList.remove("magnetic-locked");
     }
   });
+  /* ★ 兜底二:悬停(不点击)进 iframe 时父文档【不会】失焦,上面的 blur
+     救不了 —— giscus 留言板的框就是这样把磁吸框钉死的。pointerover 的
+     捕获段能拿到"目标就是 iframe"这一跳(跨文档边界的一跳发生在本文档),
+     在这里直接解锁。 */
+  document.addEventListener("pointerover", function (e) {
+    if (!target) return;
+    var t = e.target;
+    if (t && (t.tagName === "IFRAME" || (t.closest && t.closest("iframe")))) {
+      target = null;
+      fadeTo = 0;
+      document.documentElement.classList.remove("magnetic-locked");
+    }
+  }, true);
   window.addEventListener("focus", function () {
     // 回到父文档时恢复可见性(位置跟随下一次 mousemove)
     if (mx > -900) fadeTo = 1;

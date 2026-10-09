@@ -17,6 +17,15 @@
   if (!root && !typePill) return;
 
   var main = document.querySelector("main.main") || document.querySelector("main") || document.body;
+  /* ★ 字号药丸只在"真有正文可调"的页面亮出来:归档/留言/关于这类
+     Kind=page 但没有 .post-content(归档)或无标题锚点(留言短文)的页面,
+     以前在 !root 分支无条件 hidden=false,药丸孤零零地挂在左边。 */
+  var hasBody = !!document.querySelector(".post-content");
+
+  function hidePill() {
+    if (typePill) typePill.hidden = true;
+  }
+  if (typePill && !hasBody) hidePill();
 
   var GAP_BAR = 12;
   var GAP_PANEL = 18;
@@ -75,7 +84,7 @@
   function layout() {
     if (!root) {
       var lb0 = laneBox(document.documentElement.clientHeight);
-      if (typePill) typePill.hidden = false;
+      if (typePill) typePill.hidden = !hasBody;
       placePill(lb0);
       return;
     }
@@ -89,7 +98,7 @@
 
     root.classList.toggle("is-tight", !(w >= MIN_W));
 
-    if (typePill) typePill.hidden = (tocUsable && w >= MIN_W);
+    if (typePill) typePill.hidden = !hasBody || (tocUsable && w >= MIN_W);
     placePill(lb);
     var sig = [Math.round(vw), Math.round(vh), Math.round(mr), Math.round(navLeft)].join("|");
     if (sig !== lastSig) {
@@ -251,7 +260,7 @@
 
   paint();
   } else if (typePill) {
-    typePill.hidden = false;
+    typePill.hidden = !hasBody;
   }
 
   window.__hudToc = {

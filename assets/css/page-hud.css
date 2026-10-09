@@ -711,6 +711,25 @@
     .hud-pen.is-on .hud-pen__dot {
         display: none;
     }
+
+    /* ★ 再窄一档(≤1259px,容器宽只剩约 110px):光收名字/圆点还不够,
+       五个色块仍会被 overflow:hidden 裁掉。色块组允许换行竖排,
+       滑条缩到 40px —— 五色永远完整可见,不再"三个半"。 */
+    .hud-pen.is-on .hud-pen__tools {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        max-width: calc(150px * var(--hud-s, 1));
+        row-gap: 4px;
+    }
+
+    .hud-pen.is-on .hud-pen__range {
+        width: 40px;
+    }
+
+    .hud-pen.is-on .hud-pen__colors {
+        flex-basis: 100%;
+        justify-content: flex-end;
+    }
 }
 
 .hud-pen__size {

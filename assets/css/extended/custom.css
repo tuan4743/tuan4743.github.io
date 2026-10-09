@@ -401,42 +401,15 @@ html:not(.has-cd-audio) #sound-toggle {
     text-decoration: none;
 }
 
-@view-transition {
-    navigation: auto;
-}
-
-.header {
-    view-transition-name: header;
-}
-
-/* 手机顶栏不参与 view-transition(同一时刻只有其一在 DOM 里,但名字别共用) */
-
-::view-transition-old(header) {
-    display: none;
-}
-
-::view-transition-group(header) {
-    background-color: var(--theme);
-}
-
-::view-transition-new(header) {
-    animation: none;
-}
-
-::view-transition-old(root) {
-    animation: none;
-}
-
-::view-transition-new(root) {
-    animation: vt-in 0.75s ease both;
-}
-
-@keyframes vt-in {
-    from {
-        opacity: 0;
-        transform: translateY(6px);
-    }
-}
+/* ============================================================
+   跨文档 View Transition(页面间导航的整页淡入):
+   ★ 已摘掉 —— 用户报告"进入技术/归档/留言/关于会重载两次:
+     第一次是老页面,然后才刷新到新页面"。这就是
+     navigation:auto 的跨文档 VT 在 Chrome 里的表现:
+     导航后先定格显示【旧页快照】,再播 vt-in 把新页淡入,
+     看起来就像"加载了两次"。这组页面本来就有 page-out
+     过场(page-slide.js),双重过场互相打架。
+   ============================================================ */
 
 :root[data-palette="mist"] {
     --theme: rgb(240, 244, 250);
