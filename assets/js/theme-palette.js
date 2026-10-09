@@ -31,9 +31,18 @@
     html.dataset.theme = next;
     try { localStorage.setItem("pref-theme", next); } catch (e) { }
     fadeTimer = setTimeout(function () {
-      html.classList.remove("theme-fade");
-      fadeTimer = 0;
-    }, 1250);
+      /* ★ 修"切换末尾文本颜色突然变一下":定时摘 .theme-fade 的时间点
+         (1250ms)晚于部分元素的过渡起点 —— 那些元素 1.1s 过渡还没走完,
+         类一摘,transition 立即失效,颜色"啪"地跳到终值。
+         解法:过渡期给足(1400ms > 1.1s 过渡 + 起始延迟),再等两帧确认
+         渲染已落在过渡终态后才摘类。 */
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          html.classList.remove("theme-fade");
+          fadeTimer = 0;
+        });
+      });
+    }, 1400);
   }
   /* 暴露给主题 footer 里那支 PaperMod 原生脚本对齐用(见 baseof 注释) */
   window.__switchTheme = switchTheme;

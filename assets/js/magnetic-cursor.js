@@ -375,13 +375,53 @@
   document.addEventListener("mouseout", function (e) {
     if (!target) return;
     var to = e.relatedTarget;
+    /* relatedTarget === null 且目标是 iframe(或文档边缘)→ 鼠标进了 iframe /
+       离开了文档:无条件解锁,否则锁框钉死。 */
+    if (!to && e.target && e.target.tagName === "IFRAME") {
+      target = null;
+      fadeTo = 0;
+      document.documentElement.classList.remove("magnetic-locked");
+      return;
+    }
     if (to && target.contains(to)) return;
     target = null;
     document.documentElement.classList.remove("magnetic-locked");
   }, true);
 
+  /* 兜底:即使 mouseout 没来(部分浏览器进入 iframe 不触发),持续监听
+     document 的 blur —— 焦点进 iframe 时父 document 会失焦,同样解锁。 */
+  window.addEventListener("blur", function () {
+    // 只有当活动元素是 iframe 时才算"进了 iframe",最小化误伤 alt-tab
+    var ae = null;
+    try { ae = document.activeElement; } catch (err) { }
+    if (ae && ae.tagName === "IFRAME") {
+      target = null;
+      fadeTo = 0;
+      document.documentElement.classList.remove("magnetic-locked");
+    }
+  });
+  window.addEventListener("focus", function () {
+    // 回到父文档时恢复可见性(位置跟随下一次 mousemove)
+    if (mx > -900) fadeTo = 1;
+  });
+
   window.addEventListener("mouseleave", function () { fadeTo = 0; });
   window.addEventListener("resize", resize);
+
+  /* ★ bfcache(前进/后退缓存)恢复页面时,鼠标还没动过,fx/fy 仍是
+     上次会话的旧坐标或 -999;而 target 若因导航残留会先吸附到 (0,0) ——
+     表现为"磁吸框锁死在左上角,但鼠标不在那里"。恢复时彻底复位:
+     目标清空、帧位置回到未跟随态,等下一次真实 mousemove 再起笔。 */
+  window.addEventListener("pagehide", function () {
+    target = null;
+    fadeTo = 0;
+    fade = 0;
+    mx = my = fx = fy = -999;
+    document.documentElement.classList.remove("magnetic-locked");
+  });
+  window.addEventListener("pageshow", function () {
+    // fx<0 时 tick() 会在下一次 pointermove 里同步,不需要额外处理
+  });
 
   document.documentElement.classList.add("magnetic-on");
   if (reduced) document.documentElement.classList.add("magnetic-reduced");

@@ -134,6 +134,15 @@
     animation: hud-run var(--hud-run-dur) linear infinite;
 }
 
+/* ★ 左侧竖带(band)的路径只有约 129 用户单位长,与右侧大框共用 3200 的
+   dashoffset 行程会让它的流光只走过一小段就被拉回起点 —— 表现为
+   "右侧走线过程中,左侧开头突然冒出一小段流光然后消失"。给它单独一个
+   行程(与自身路径长度匹配),再整体错开半拍,两侧不再同步也不互相截断。 */
+.hud-run.hud-band-run {
+    --hud-run-total: 150;
+    animation-delay: -6s;
+}
+
 @keyframes hud-run {
     from { stroke-dashoffset: var(--hud-run-total); }
     to { stroke-dashoffset: 0; }
@@ -674,6 +683,34 @@
 .hud-pen.is-on .hud-pen__tools {
     width: clamp(170px, 11vw, calc(250px * var(--hud-s, 1)));
     opacity: 1;
+}
+
+/* ★ 平板宽度(约 1181~1366px)下 11vw ≈ 130~150px < 170px,实际按
+   170px 下限展开,但 .hud-pens 容器宽 = band-x - 7% 只有约 150px,
+   五个色块被 overflow:hidden 裁到只剩"三个半"。窄屏时改为收起
+   名称栏、压缩滑条,保证五个颜色完整可见,而不是裁内容。 */
+@media (max-width: 1459px) {
+    .hud-pen.is-on .hud-pen__name {
+        max-width: 0;
+        opacity: 0;
+    }
+
+    .hud-pen.is-on .hud-pen__tools {
+        width: auto;
+        max-width: calc(250px * var(--hud-s, 1));
+    }
+
+    .hud-pen.is-on .hud-pen__size {
+        flex: 0 0 auto;
+    }
+
+    .hud-pen.is-on .hud-pen__range {
+        width: clamp(48px, 5vw, 90px);
+    }
+
+    .hud-pen.is-on .hud-pen__dot {
+        display: none;
+    }
 }
 
 .hud-pen__size {

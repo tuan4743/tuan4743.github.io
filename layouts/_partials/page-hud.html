@@ -255,6 +255,9 @@
 
     </div>
 
+    {{- /* 字体调节悬浮药丸:只在"有正文的文章页"才有意义。目录页/列表页
+         没有正文可调,以前会在没有目录时不可控地单独出现 —— 直接不渲染。 */ -}}
+    {{- if $isArticle -}}
     <div class="hud-type" id="hud-type" hidden role="group" aria-label="正文字号与字距">
         <span class="hud-type__lab">字号</span>
         <button class="hud-type__step" type="button" data-hud-toc-size="-1" aria-label="正文字号减小" title="正文字号 −">−</button>
@@ -265,6 +268,7 @@
         <button class="hud-type__step" type="button" data-hud-toc-track="1" aria-label="正文字距增大" title="正文字距 +">+</button>
         <span class="hud-type__val" id="hud-type-track-val"></span>
     </div>
+    {{- end -}}
 
     <div class="hud-ctl">
         <div class="hud-faders">

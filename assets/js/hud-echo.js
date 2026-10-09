@@ -135,7 +135,9 @@
     bubble.classList.remove("is-on");
   }
 
+  var lastShown = null;
   function show(line, holdMs) {
+    lastShown = line;
     if (typeTimer) { clearInterval(typeTimer); typeTimer = 0; }
     bubble.classList.add("is-on");
     /* 逐字浮现:终端吐字,不是对话框弹字。
@@ -173,7 +175,11 @@
     if (!(opt && opt.force) && !cfg.force && now - Number(get("echo-last", "0")) < COOL) return false;
     if (cfg.once) set("echo-said", said + "|" + key + "|");
     set("echo-last", String(now));
-    show(pool[Math.floor(Math.random() * pool.length)]);
+    /* 不连续重复:池里多于一句时,跳过上一句刚说过的那句(台词可能连续触发相同台词的修法)。 */
+    var idx = Math.floor(Math.random() * pool.length);
+    if (pool.length > 1 && pool[idx] === lastShown) idx = (idx + 1) % pool.length;
+    lastShown = pool[idx];
+    show(pool[idx]);
     return true;
   }
 
@@ -264,7 +270,10 @@
   var POKE_END = 8;
 
   function pick(pool) {
-    return pool[Math.floor(Math.random() * pool.length)]
+    var idx = Math.floor(Math.random() * pool.length);
+    /* 不连续重复:上一句刚说过的话不再随机到 */
+    if (pool.length > 1 && pool[idx] === lastShown) idx = (idx + 1) % pool.length;
+    return pool[idx]
       .replace("{n}", String(10000 + Math.floor(Math.random() * 989999)));
   }
 
