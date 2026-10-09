@@ -1407,6 +1407,10 @@
   var snapT = 0;
   function crossfade() {
     if (reduced || !cv.width) return;
+    /* View Transitions 接管主题切换后,整页快照已含 canvas 像素,
+       这里再叠一层快照反而会盖住主画布 —— 直接让路。
+       不支持 VT 的浏览器才走本函数的快照交叉淡化。 */
+    if (document.startViewTransition) return;
     try {
       snap.width = cv.width;
       snap.height = cv.height;
