@@ -31,3 +31,5 @@ summary: "我的博客开张了,简单介绍一下这里会有什么"
 你可以在 [GitHub](https://github.com/tuan4743) 上找到我。
 
 欢迎! ✨
+
+![测试](pictures/test.jpg)
