@@ -230,16 +230,19 @@
     ctx.clearRect(0, 0, W, H);
     if (mx < -900) return;
 
-    /* ★ 锁定期间每帧用 elementFromPoint 复查指针正下方是什么。
-       giscus 这类 iframe 里的鼠标事件不冒泡到父页面,mouseout/pointerover
-       兜底都依赖"下一次父页面收到鼠标事件",滚动进入 iframe、事件被吞等
-       场景会永远收不到 —— 直接按几何位置解锁,不依赖任何事件。 */
-    if (target) {
+    /* ★ 指针进入 giscus 区域时无条件断开吸附并淡出光标。
+       不等"先锁上再解锁"—— 每帧都查:只要指针在 .giscus-wrap 内,
+       target 一律清空、光标隐藏;离开后下一次 mouseover 重新吸附。 */
+    if (target || fade > 0) {
+      var overGiscus = false;
       var under = document.elementFromPoint(mx, my);
-      if (under && (under.tagName === "IFRAME" || (under.closest && under.closest("iframe")))) {
-        target = null;
+      if (under && under.closest && under.closest(".giscus-wrap")) overGiscus = true;
+      if (overGiscus) {
+        if (target) {
+          target = null;
+          document.documentElement.classList.remove("magnetic-locked");
+        }
         fadeTo = 0;
-        document.documentElement.classList.remove("magnetic-locked");
       }
     }
 
@@ -380,6 +383,9 @@
   document.addEventListener("mouseover", function (e) {
     var t = e.target && e.target.closest ? e.target.closest(SELECTOR) : null;
     if (!t || t === target) return;
+    /* giscus 容器内元素永不吸附(评论区不需要磁吸,进 iframe 的
+       事件缺口从源头封掉;tick 每帧还会按几何位置兜底)。 */
+    if (t.closest && t.closest(".giscus-wrap")) return;
     target = t;
     document.documentElement.classList.add("magnetic-locked");
   }, true);

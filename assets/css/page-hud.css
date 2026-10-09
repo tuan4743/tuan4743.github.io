@@ -672,6 +672,7 @@
 .hud-pen__tools {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
     gap: 6px;
     width: 0;
     overflow: hidden;
@@ -680,56 +681,19 @@
     transition: width 0.28s cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.22s ease;
 }
 
+/* ★ 展开:回到历史版的 clamp 数值动画(平滑推挤,手感不变)。
+   裁切根因是 flex 链收缩:默认 flex-shrink:1 会把工具层压回容器剩余
+   空间(~150px),再被 overflow:hidden 裁成"三个半"。
+   这里给两层都禁收缩(flex-shrink:0),工具层完整占 clamp 宽度,
+   .hud-pens 无 overflow,向左溢出为自由空间 —— 任何分辨率同一条规则。 */
 .hud-pen.is-on .hud-pen__tools {
     width: clamp(170px, 11vw, calc(250px * var(--hud-s, 1)));
+    flex-shrink: 0;
     opacity: 1;
 }
 
-/* ★ 平板宽度(约 1181~1366px)下 11vw ≈ 130~150px < 170px,实际按
-   170px 下限展开,但 .hud-pens 容器宽 = band-x - 7% 只有约 150px,
-   五个色块被 overflow:hidden 裁到只剩"三个半"。窄屏时改为收起
-   名称栏、压缩滑条,保证五个颜色完整可见,而不是裁内容。 */
-@media (max-width: 1459px) {
-    .hud-pen.is-on .hud-pen__name {
-        max-width: 0;
-        opacity: 0;
-    }
-
-    .hud-pen.is-on .hud-pen__tools {
-        width: auto;
-        max-width: calc(250px * var(--hud-s, 1));
-    }
-
-    .hud-pen.is-on .hud-pen__size {
-        flex: 0 0 auto;
-    }
-
-    .hud-pen.is-on .hud-pen__range {
-        width: clamp(48px, 5vw, 90px);
-    }
-
-    .hud-pen.is-on .hud-pen__dot {
-        display: none;
-    }
-
-    /* ★ 再窄一档(≤1259px,容器宽只剩约 110px):光收名字/圆点还不够,
-       五个色块仍会被 overflow:hidden 裁掉。色块组允许换行竖排,
-       滑条缩到 40px —— 五色永远完整可见,不再"三个半"。 */
-    .hud-pen.is-on .hud-pen__tools {
-        flex-wrap: wrap;
-        justify-content: flex-end;
-        max-width: calc(150px * var(--hud-s, 1));
-        row-gap: 4px;
-    }
-
-    .hud-pen.is-on .hud-pen__range {
-        width: 40px;
-    }
-
-    .hud-pen.is-on .hud-pen__colors {
-        flex-basis: 100%;
-        justify-content: flex-end;
-    }
+.hud-pen.is-on {
+    flex-shrink: 0;
 }
 
 .hud-pen__size {

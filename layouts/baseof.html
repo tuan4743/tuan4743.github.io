@@ -43,6 +43,8 @@
 
 {{- if (or (ne .Kind `page` ) (eq .Layout `archives`) (eq .Layout `search`)) }}
 <body class="list" id="top">
+{{- else if (.Param "noMagnetic") }}
+<body class="giscus-page" id="top">
 {{- else }}
 <body id="top">
 {{- end }}

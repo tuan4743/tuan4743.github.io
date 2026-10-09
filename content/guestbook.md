@@ -3,6 +3,7 @@ title: "留言"
 url: "/guestbook/"
 summary: guestbook
 hideTypePill: true
+noMagnetic: true
 ---
 
 在这里留下你想说的话 ✍️
