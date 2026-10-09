@@ -1,5 +1,9 @@
 baseURL = "https://tuagfey.com/"
 languageCode = "zh-cn"
+# 中文内容必须开：WordCount/ReadingTime 按 CJK 字数算，i18n 走 zh 文案
+# （否则显示 "27 words / 1 min"——按空格分词把整段中文算成 1 个 word）
+hasCJKLanguage = true
+defaultContentLanguage = "zh-cn"
 title = "Tuagfey Blog"
 theme = "PaperMod"
 enableRobotsTXT = true

@@ -1,0 +1,9 @@
+- id: words
+  translation:
+    one: "{{ .Count }} 字"
+    other: "{{ .Count }} 字"
+
+- id: read_time
+  translation:
+    one: "{{ .Count }} 分钟"
+    other: "{{ .Count }} 分钟"
