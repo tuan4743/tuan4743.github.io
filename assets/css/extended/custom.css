@@ -616,6 +616,31 @@ body {
     box-shadow: 0 0 0 2px var(--theme), 0 0 0 4px var(--primary);
 }
 
+/* 正文固定字体栈:桌面与手机同一份。
+   手机上之前裸奔 -apple-system → 中文跟随系统字体、数字落到各系统
+   默认西文字体(有的机型是窄衬线/标号体,观感突兀)。这里钉死:
+   中文 MiYaHei/PingFang/Noto 优先,西文数字用系统 UI 字体兜底,
+   并把数字锁成等宽表格数字,列表编号不再跳动。 */
+.post-content,
+.post-content p,
+.post-content li,
+.post-content blockquote,
+.post-content dd,
+.post-content td,
+.post-content th,
+.post-content h1,
+.post-content h2,
+.post-content h3,
+.post-content h4,
+.post-content h5,
+.post-content h6 {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "PingFang SC", "Microsoft YaHei", "Noto Sans SC", "Source Han Sans SC",
+        sans-serif;
+    font-variant-numeric: tabular-nums lining-nums;
+    font-feature-settings: "onum" 0, "lnum" 1;
+}
+
 .post-content p,
 .post-content li,
 .post-content blockquote,

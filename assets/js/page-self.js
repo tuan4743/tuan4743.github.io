@@ -119,10 +119,10 @@
       pods.forEach(function (p, idx) {
         p.homeX = chosen[idx].x;
         p.homeY = chosen[idx].y;
-        if (!p.placed) {
-          p.btn.style.setProperty("--x", p.homeX.toFixed(1) + "px");
-          p.btn.style.setProperty("--y", p.homeY.toFixed(1) + "px");
-        }
+        /* 已安放的表情在飞行瞬间(is-placed+is-flying)也依赖 --x/--y,
+           不给值会落到 CSS 默认 0px → 飞到视口左上角,所以统一写入。 */
+        p.btn.style.setProperty("--x", p.homeX.toFixed(1) + "px");
+        p.btn.style.setProperty("--y", p.homeY.toFixed(1) + "px");
         p.btn.style.setProperty("--wob", (2.6 + (idx % 5) * 0.55).toFixed(2) + "s");
         p.btn.style.setProperty("--wob-d", (-(idx * 0.47)).toFixed(2) + "s");
       });
@@ -295,6 +295,10 @@
     }
 
     function fly(p, target) {
+      /* scatter() 可能还没跑过(field 尺寸为 0 或尚未 gotoLive),
+         homeX/homeY 仍是 0 —— 先布一次,否则 --fly 会算成 -target,
+         表情从视口左上角起飞。 */
+      if (!p.homeX && !p.homeY) scatter();
       p.btn.style.setProperty("--fly-x", (p.homeX - target.x).toFixed(1) + "px");
       p.btn.style.setProperty("--fly-y", (p.homeY - target.y).toFixed(1) + "px");
       p.btn.classList.remove("is-flown");

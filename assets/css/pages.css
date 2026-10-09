@@ -2459,6 +2459,26 @@
     opacity: 1;
 }
 
+/* 文字多的卡(SS-02 等)在小窗口会比视口还高,placeCard 的夹边就失效了
+   → 限高 + 内部滚动,让 offsetHeight 回到可夹范围,卡片永远出不了屏。 */
+.solar:not(.is-narrow) .solar-card {
+    max-height: calc(100vh - var(--pad, 20px) * 2 - 16px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--intro-accent, #8ad) 45%, transparent) transparent;
+}
+
+.solar:not(.is-narrow) .solar-card::-webkit-scrollbar {
+    width: 4px;
+}
+
+.solar:not(.is-narrow) .solar-card::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--intro-accent, #8ad) 45%, transparent);
+    border-radius: 2px;
+}
+
+
 .solar-code {
     display: inline-block;
     font-family: "Alpha Sector", ui-monospace, Consolas, monospace;

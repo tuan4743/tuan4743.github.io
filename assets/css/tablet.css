@@ -30,6 +30,20 @@
 
 html.frame-fitted .tablet {
     padding: calc(var(--tab-g-t) + var(--tab-gap-y)) calc(var(--tab-g-r) + var(--tab-gap-x)) calc(var(--tab-g-b) + var(--tab-gap-y));
+    /* 平板的 inset 是窗口外接矩形,而贴图窗四周是不规则的(斜角/圆角):
+       平板四角会盖到金属边框上。用 frame 贴图自身做反向蒙版 ——
+       贴图不透明处(金属框)裁掉,只露出窗口形状。蒙版要对齐视口,
+       所以 position 取平板 inset 的负值、size 取整屏。 */
+    -webkit-mask-image: linear-gradient(#fff, #fff), url("/assets/screen/frame.webp");
+    mask-image: linear-gradient(#fff, #fff), url("/assets/screen/frame.webp");
+    -webkit-mask-size: 100vw 100vh, 100vw 100vh;
+    mask-size: 100vw 100vh, 100vw 100vh;
+    -webkit-mask-position: calc(-1 * var(--tab-g-l)) calc(-1 * var(--tab-g-t)), calc(-1 * var(--tab-g-l)) calc(-1 * var(--tab-g-t));
+    mask-position: calc(-1 * var(--tab-g-l)) calc(-1 * var(--tab-g-t)), calc(-1 * var(--tab-g-l)) calc(-1 * var(--tab-g-t));
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
 }
 
 .tablet[hidden] { display: none; }
