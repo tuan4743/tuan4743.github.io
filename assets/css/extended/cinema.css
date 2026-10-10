@@ -1,27 +1,26 @@
 /* ============================================================
    全屏模式(Cinema)—— html.hud-cinema 折叠所有边缘 HUD
    逻辑在 hud-cinema.js;这里只管视觉:
-   · 退场全部走 opacity + visibility,0.28s;进场同样 0.28s 淡入
-     (visibility 延迟只在【退场】方向挂,进场立即可见,两个方向都有过渡);
-   · pointer-events 同步关,退场的元素绝不挡正文;
-   · 目录(hud-toc)【不折叠】—— 目录卡片属于正文阅读的一部分;
+   · 退场/进场都是 0.28s 双向过渡(visibility 延迟只挂退场方向);
+   · ★ .hud-toc 是 .page-hud 的子元素,而 opacity 是父级封顶的 ——
+     所以【不退场 .page-hud 整棵】,只逐个退场它的直接子件;
+     目录卡片和站名保持可见可点。
+   · 入口:站名(hud-logo)。全屏态站名滑到屏幕最右上,再点恢复。
    · 正文容器满屏:去圆角/边框/投影;
-   · prefers-reduced-motion:直接瞬切,不播过渡。
+   · prefers-reduced-motion:直接瞬切。
    ============================================================ */
 
-/* ---- 退场根(统一 0.28s 淡出/淡入) ---- */
-.page-hud,
-.hud-left,
-.proj-node,
-.echo-say,
-.echo-hot,
-.hud-surge,
-.top-link {
-    transition: opacity 0.28s ease;
-}
-
-/* ---- 折叠态:淡出 + 关事件 ---- */
-html.hud-cinema .page-hud,
+/* ---- page-hud 的直接子件退场清单(不含 hud-toc / hud-logo) ---- */
+html.hud-cinema .page-hud__frame,
+html.hud-cinema .page-hud__band,
+html.hud-cinema .hud-plants,
+html.hud-cinema .hud-search,
+html.hud-cinema .hud-acts,
+html.hud-cinema .hud-nav,
+html.hud-cinema .hud-timer,
+html.hud-cinema .hud-type,
+html.hud-cinema .hud-ctl,
+html.hud-cinema .hud-pens,
 html.hud-cinema .hud-left,
 html.hud-cinema .proj-node,
 html.hud-cinema .echo-say,
@@ -34,34 +33,44 @@ html.hud-cinema .top-link {
     transition: opacity 0.28s ease, visibility 0s linear 0.28s;
 }
 
-/* 退场元素内部凡是 pointer-events:auto 的子树一并关死 */
-html.hud-cinema .page-hud *,
-html.hud-cinema .hud-left * {
-    pointer-events: none !important;
-}
-
-/* ---- 入口按钮:全屏态下它必须活着(唯一可见的 HUD 控件) ---- */
-html.hud-cinema .hud-cinema__btn,
-html.hud-cinema .hud-cinema__btn .hud-nav__icon,
-html.hud-cinema .hud-cinema__btn .hud-nav__name {
-    opacity: 1;
-    visibility: visible;
-    pointer-events: auto !important;
-}
-
-/* 全屏态下整个右栏只剩这一个按钮:把导航列钉在原位显示它。
-   其余导航项随 .page-hud 一起退场。 */
-html.hud-cinema .hud-nav {
-    opacity: 1;
-    visibility: visible;
-    pointer-events: auto !important;
+/* ---- 常驻基线:退场目标都有双向过渡(非全屏态也挂,保证进场渐显) ---- */
+.page-hud__frame,
+.page-hud__band,
+.hud-plants,
+.hud-search,
+.hud-acts,
+.hud-nav,
+.hud-timer,
+.hud-type,
+.hud-ctl,
+.hud-pens,
+.hud-left,
+.proj-node,
+.echo-say,
+.echo-hot,
+.hud-surge,
+.top-link {
     transition: opacity 0.28s ease;
 }
 
-html.hud-cinema .hud-nav__item:not(.hud-cinema__btn) {
-    opacity: 0;
-    pointer-events: none !important;
-    transition: opacity 0.28s ease;
+/* ---- 站名 = 全屏开关 ---- */
+.hud-logo--cinema {
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+/* 全屏态:站名滑到屏幕最右上(常驻出口),文字提示随 title 变 */
+html.hud-cinema .hud-logo {
+    left: auto;
+    right: 2.4vw;
+    top: 2.4%;
+    transition: left 0.34s cubic-bezier(0.22, 0.61, 0.36, 1),
+        right 0.34s cubic-bezier(0.22, 0.61, 0.36, 1), top 0.34s ease;
+}
+
+.hud-logo {
+    transition: left 0.34s cubic-bezier(0.22, 0.61, 0.36, 1),
+        right 0.34s cubic-bezier(0.22, 0.61, 0.36, 1), top 0.34s ease;
 }
 
 /* ---- 正文:满屏贴合 ---- */
@@ -81,23 +90,18 @@ html.hud-cinema .main {
 /* ---- reduced-motion:不播过渡 ---- */
 @media (prefers-reduced-motion: reduce) {
 
-    .page-hud,
-    .hud-left,
-    .proj-node,
-    .echo-say,
-    .echo-hot,
-    .hud-surge,
-    .top-link,
-    html.hud-cinema .page-hud,
-    html.hud-cinema .hud-left,
-    html.hud-cinema .proj-node,
-    html.hud-cinema .echo-say,
-    html.hud-cinema .echo-hot,
-    html.hud-cinema .hud-surge,
-    html.hud-cinema .top-link,
-    html.hud-cinema .main,
-    html.hud-cinema .hud-nav,
-    html.hud-cinema .hud-nav__item:not(.hud-cinema__btn) {
+    .page-hud__frame, .page-hud__band, .hud-plants, .hud-search, .hud-acts,
+    .hud-nav, .hud-timer, .hud-type, .hud-ctl, .hud-pens, .hud-left,
+    .proj-node, .echo-say, .echo-hot, .hud-surge, .top-link, .hud-logo,
+    html.hud-cinema .page-hud__frame, html.hud-cinema .page-hud__band,
+    html.hud-cinema .hud-plants, html.hud-cinema .hud-search,
+    html.hud-cinema .hud-acts, html.hud-cinema .hud-nav,
+    html.hud-cinema .hud-timer, html.hud-cinema .hud-type,
+    html.hud-cinema .hud-ctl, html.hud-cinema .hud-pens,
+    html.hud-cinema .hud-left, html.hud-cinema .proj-node,
+    html.hud-cinema .echo-say, html.hud-cinema .echo-hot,
+    html.hud-cinema .hud-surge, html.hud-cinema .top-link,
+    html.hud-cinema .hud-logo, html.hud-cinema .main {
         transition: none;
     }
 }
