@@ -1,0 +1,97 @@
+{{- /* ============================================================
+       /world/ —— 世界观数据库 · 档案回收场景
+      ─────────────────────────────────────────────────────────────
+      世界观:一次真空衰变的广播,漂了 1,100 光年才被收到;
+      51 份碎片 = 六幕的回收档案。这个页面把它排成【一条接收时轴】:
+      · 顶部著录项(源事件 / 距离 / 剩余年数 —— 本库唯一的自检方式);
+      · 六幕沿垂直时轴落下,每幕是时轴上的一段"接收窗口";
+      · 每份档案是一张"回收条目":编号 / 标题 / 记录时间 / 载体 /
+        完整性(integrity 决定条目的"信号强度"渲染)。
+      数据全部来自 content/world/*.md 的 front matter(archive.*),
+      由 sync-world.mjs 编译 —— 这页不手写任何一条档案数据。
+      ★ 是自己的场景:时轴是"方舟接收记录"的语言,不是别的站的样式。
+      ★ 全部逻辑在 define "main" 内:base 模板约定下,define 外的
+        顶层变量对 define 不可见,放外面只会 parse 失败(整页空)。
+      ============================================================ */}}
+{{- define "main" }}
+{{- $acts := slice -}}
+{{- range .Pages -}}
+    {{- with .Params.archive -}}
+        {{- $acts = $acts | append (dict
+            "no" .no
+            "act" .act
+            "title" $.Title
+            "time" .time
+            "carrier" .carrier
+            "integrity" .integrity
+            "eid" .eid
+            "url" $.RelPermalink) -}}
+    {{- end -}}
+{{- end -}}
+{{- /* 按幕分组:幕名保序(第一次出现的顺序 = weight 序) */ -}}
+{{- $actNames := slice -}}
+{{- range $acts -}}
+    {{- if not (in $actNames .act) -}}
+        {{- $actNames = $actNames | append .act -}}
+    {{- end -}}
+{{- end -}}
+<div class="arc" id="arc" data-arc>
+    <header class="arc__head">
+        <p class="arc__kicker">虚界方舟 · 灰烬计划 — 回收档案库</p>
+        <h1 class="arc__title">{{ .Title }}</h1>
+        <div class="arc__meta">
+            <span class="arc__meta-i"><i>源事件</i><b>EID 7C41-0000-0900-3B7E</b></span>
+            <span class="arc__meta-i"><i>中继</i><b>3 跳</b></span>
+            <span class="arc__meta-i"><i>距离</i><b>1,100 光年</b></span>
+            <span class="arc__meta-i"><i>泡壁抵达</i><b>T+1,222</b></span>
+            <span class="arc__meta-i"><i>剩余</i><b>122 年</b></span>
+            <span class="arc__meta-i"><i>收录</i><b>{{ len .Pages }} 份回收档案</b></span>
+        </div>
+        <p class="arc__law">本数据库不提供结论。解码密码在于人。<span>—— 时间和距离可以互相验算,这是本库唯一的自检方式。</span></p>
+    </header>
+
+    <div class="arc__acts">
+        {{- range $actName := $actNames -}}
+            {{- $inAct := where $acts "act" $actName -}}
+            {{- $note := "" -}}
+            {{- with $inAct -}}{{ $note = (index . 0).time }}{{- end -}}
+            <section class="arc-act">
+                <header class="arc-act__head">
+                    <span class="arc-act__dot" aria-hidden="true"></span>
+                    <h2 class="arc-act__name">{{ $actName }}</h2>
+                    <span class="arc-act__note">{{ $note }} · {{ len $inAct }} 份</span>
+                </header>
+                <div class="arc-act__list">
+                    {{- range $it := $inAct -}}
+                        {{- /* 完整性 → 信号强度(integrity 百分比):条目左缘
+                             的接收格数(0-5),99/100% 满格,<90% 留噪点 */ -}}
+                        {{- $iv := 5 -}}
+                        {{- with $it.integrity -}}
+                            {{- $ipct := . | replaceRE "[^0-9]" "" | int -}}
+                            {{- $iv = math.Round (div (mul $ipct 5) 100) -}}
+                        {{- end -}}
+                        <a class="arc-item arc-item--s{{ $iv }}" href="{{ $it.url }}" title="{{ $it.title }}">
+                            <span class="arc-item__sig" aria-hidden="true">
+                                <i></i><i></i><i></i><i></i><i></i>
+                            </span>
+                            <span class="arc-item__no">{{ $it.no }}</span>
+                            <span class="arc-item__body">
+                                <b class="arc-item__title">{{ $it.title }}</b>
+                                <span class="arc-item__meta">
+                                    <em>{{ $it.time }}</em>
+                                    {{- with $it.carrier }}<em>· {{ . }}</em>{{ end -}}
+                                    {{- with $it.integrity }}<em class="arc-item__int">完整性 {{ . }}</em>{{ end -}}
+                                </span>
+                            </span>
+                        </a>
+                    {{- end -}}
+                </div>
+            </section>
+        {{- end -}}
+    </div>
+
+    <footer class="arc__foot">
+        <p>方舟历史审核司 编排 · 发放全体锚点的通用史</p>
+    </footer>
+</div>
+{{- end }}{{/* end main */}}

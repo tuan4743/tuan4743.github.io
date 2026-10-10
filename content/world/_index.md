@@ -1,6 +1,8 @@
 ---
 title: "世界观数据库"
 summary: "虚界方舟 · 灰烬计划 —— 回收档案库"
+layout: "arcscene"
+hideTypePill: true
 ShowShareButtons: false
 ShowReadingTime: false
 ShowWordCount: false
