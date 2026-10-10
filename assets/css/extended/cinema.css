@@ -1,0 +1,74 @@
+/* ============================================================
+   全屏模式(Cinema)—— html.hud-cinema 折叠所有边缘 HUD
+   逻辑在 hud-cinema.js;这里只管视觉:
+   · 退场全部走 opacity + visibility,0.28s,统一缓动;
+   · pointer-events 同步关,退场的元素绝不挡正文;
+   · 正文容器满宽(去 720px 限宽居中的留白感交给原有布局,
+     只去圆角/边框/投影,让 .main 贴合全屏氛围);
+   · prefers-reduced-motion:直接瞬切,不播过渡。
+   ============================================================ */
+
+/* ---- 折叠目标:全部边缘 HUD 根 ---- */
+html.hud-cinema .page-hud,
+html.hud-cinema .hud-left,
+html.hud-cinema .hud-toc,
+html.hud-cinema .proj-node,
+html.hud-cinema .echo-say,
+html.hud-cinema .echo-hot,
+html.hud-cinema .hud-surge,
+html.hud-cinema .top-link {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none !important;
+    transition: opacity 0.28s ease, visibility 0s linear 0.28s;
+}
+
+/* 退场元素内部凡是 pointer-events:auto 的子树一并关死 */
+html.hud-cinema .page-hud *,
+html.hud-cinema .hud-left *,
+html.hud-cinema .hud-toc * {
+    pointer-events: none !important;
+}
+
+/* ---- 右缘热区(只在全屏态存在,零视觉,贴右 6px) ---- */
+.hud-cinema-rail {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 6px;
+    height: 100vh;
+    z-index: 9998;
+    pointer-events: auto;
+    background: transparent;
+}
+
+/* ---- 正文:满屏贴合 ---- */
+html.hud-cinema .main {
+    transition: border-radius 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease;
+}
+
+html.hud-cinema .main,
+html.hud-cinema .main::before {
+    border-radius: 0;
+}
+
+html.hud-cinema :root[data-theme="dark"] .main,
+html.hud-cinema .main {
+    box-shadow: none;
+}
+
+/* ---- reduced-motion:不播过渡 ---- */
+@media (prefers-reduced-motion: reduce) {
+
+    html.hud-cinema .page-hud,
+    html.hud-cinema .hud-left,
+    html.hud-cinema .hud-toc,
+    html.hud-cinema .proj-node,
+    html.hud-cinema .echo-say,
+    html.hud-cinema .echo-hot,
+    html.hud-cinema .hud-surge,
+    html.hud-cinema .top-link,
+    html.hud-cinema .main {
+        transition: none;
+    }
+}

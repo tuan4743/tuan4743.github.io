@@ -150,4 +150,10 @@
 {{- $u := . | fingerprint "sha256" }}
 <script defer src="{{ $u.RelPermalink }}"></script>
 {{- end }}
+{{- /* 全屏模式(Alt+F):折叠所有边缘 HUD,正文满屏。
+     ★ 状态存 localStorage 跨页保持;Esc 或右缘热区退出;不加任何可见新 UI。 */ -}}
+{{- with resources.Get "js/hud-cinema.js" }}
+{{- $u := . | fingerprint "sha256" }}
+<script defer src="{{ $u.RelPermalink }}"></script>
+{{- end }}
 {{- end }}
