@@ -128,6 +128,75 @@
     }
   }
 
+  /* ---------- 触摸落点:写入背景本身的微事件 ----------
+     触屏没有磁吸光标,点按落点由【背景】给出反馈(不用 DOM 涟漪):
+     · 暗模式(缺陷海):一次微型成核 —— 三层粒子朝落点旋进消失,
+       中心一粒光晕亮起再回落(成核事件 coreDraw 的小型同语言版);
+     · 亮模式(粒子球):给最近的球立刻触发一次外扩波(球本就有
+       波的语言,落点只是"敲了一下真空")。
+     挂载:脚本尾部 __voidBgTap(xNorm, yNorm) 暴露给 tap-bridge。 */
+  var taps = [];                                   /* 暗模式活跃落点 */
+  function tapSpawn(nx, ny, now) {
+    if (isDark()) {
+      if (taps.length >= 3) taps.shift();
+      taps.push({ nx: nx, ny: ny, t0: now });
+    } else {
+      /* 亮模式:找最近的球(球心是归一化 cx/cy),把它的下一波立刻敲出来 */
+      var best = null, bd = 9;
+      for (var i = 0; i < orbs.length; i++) {
+        var ob = orbs[i];
+        if (!ob || ob.dieT) continue;               /* 已碎的球不接 */
+        var dx = nx - ob.cx, dy = ny - ob.cy;
+        var d = dx * dx + dy * dy;
+        if (d < bd) { bd = d; best = ob; }
+      }
+      if (best) {
+        best.waves.push({ t0: now / 1000, life: 2.2 });
+        if (best.waves.length > 6) best.waves.shift();
+        best.waveNext = now / 1000 + 5;
+      }
+    }
+  }
+  function tapsDraw(g, now, tSec) {
+    if (!taps.length) return;
+    for (var i = taps.length - 1; i >= 0; i--) {
+      var tp = taps[i];
+      var t = now - tp.t0;
+      var LIFE = 950;                              /* 微成核总时长 ms */
+      if (t > LIFE) { taps.splice(i, 1); continue; }
+      var k = t / LIFE;
+      var cx = tp.nx * W, cy = tp.ny * H;
+      var R = Math.min(W, H) * 0.045;              /* 微型:成核半径的 ~40% */
+      g.save();
+      /* 三层粒子旋进(和 coreDraw 同构:外疏中密内急) */
+      var LAYERS = [
+        { n: 8, r0: 2.1, spin: 2.6, sz: 0.95, al: 0.14 },
+        { n: 6, r0: 1.5, spin: 3.4, sz: 0.8, al: 0.18 },
+        { n: 4, r0: 1.05, spin: 4.4, sz: 0.7, al: 0.24 }
+      ];
+      for (var li = 0; li < LAYERS.length; li++) {
+        var Ly = LAYERS[li];
+        for (var p = 0; p < Ly.n; p++) {
+          var base = hash((p + li * 23) * 11.9) * Math.PI * 2;
+          var spin = base + k * Ly.spin * (1 + hash(p * 3.7) * 0.3);
+          var rad = R * Ly.r0 * (1 - k) * (0.8 + hash((p + li * 9) * 4.7) * 0.4);
+          if (rad < 1) continue;
+          g.globalAlpha = Ly.al * (1 - k * 0.55);
+          g.fillStyle = "#dfeeff";
+          g.beginPath();
+          g.arc(cx + Math.cos(spin) * rad, cy + Math.sin(spin) * rad * 0.86, Ly.sz, 0, Math.PI * 2);
+          g.fill();
+        }
+      }
+      /* 中心一粒光晕:亮起 → 回落(用 glowSprite,真空自己的光) */
+      var ga = Math.sin(Math.PI * Math.min(1, k * 1.25)) * 0.5;
+      var gr = R * (0.5 + k * 0.9);
+      g.globalAlpha = ga;
+      g.drawImage(glowSprite, cx - gr, cy - gr, gr * 2, gr * 2);
+      g.restore();
+    }
+  }
+
   /* ---------- 暗模式:成核事件(漩涡 → 黑盘) ---------- */
   var core = { active: false, t0: 0, x: 0.5, y: 0.5, next: 8000, phase: 0 };
   function coreSpawn(now) {
@@ -1057,6 +1126,9 @@
         coreDraw(ctx, now);
       }
 
+      /* 触摸落点的微成核(过境期间不画:同 core 的暂停规则) */
+      if (!charge && !q) tapsDraw(ctx, now, tS);
+
       /* 中央阅读遮罩(内容页):把背景再压暗一点
          ★ 过境期间(charge>0 或 q>0)必须停 —— 它画在洋流之后,
            0.55 的黑径向罩会把整个中央区的洋流盖回去。 */
@@ -1348,6 +1420,15 @@
     p: function () { return surge.p; },
     phase: function () { return surge.armed ? 2 : (surge.p > 0 ? 1 : 0); },
     onReload: function (fn) { surge.reloadCb = fn; }
+  };
+
+  /* ---------- 触摸落点接口:tap-bridge 调用 ----------
+     传【归一化】坐标(0..1),渲染循环里换算成像素 ——
+     背景画布自会缩放,这里不用关心视口尺寸。 */
+  window.__voidBgTap = function (nx, ny) {
+    if (reduced) return;
+    tapSpawn(clamp(nx, 0, 1), clamp(ny, 0, 1), performance.now());
+    start();                                  /* 若还没跑起来,顺手点火 */
   };
 
   function start() {
