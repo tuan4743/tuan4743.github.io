@@ -386,6 +386,9 @@
     /* giscus 容器内元素永不吸附(评论区不需要磁吸,进 iframe 的
        事件缺口从源头封掉;tick 每帧还会按几何位置兜底)。 */
     if (t.closest && t.closest(".giscus-wrap")) return;
+    /* 档案终端里已展开的卡片不再吸附 —— 展开后要在卡片内部的
+       按钮/链接间移动鼠标,磁吸框钉在卡上反而碍事。 */
+    if (t.closest && t.closest(".arc-it.is-open")) return;
     target = t;
     document.documentElement.classList.add("magnetic-locked");
   }, true);

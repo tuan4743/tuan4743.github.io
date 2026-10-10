@@ -27,12 +27,44 @@
     root.setAttribute("aria-label", "世界观数据库 · 档案终端");
 
     /* 顶栏 */
+    /* 正式著录区内容(解锁后由 gate 替换进来;未锁卡直接渲染) */
+    function detailInner(it) {
+        return "<div>" + (it.carrier ? "载体 <b>" + esc(it.carrier) + "</b> · " : "") +
+            "完整性 <b>" + esc(it.integrity || "未知") + "</b></div>" +
+            /* ECHO 提示:小按钮触发(点开著录不自动吐), 她逐字打 */
+            (it.hint ? '<button type="button" class="arc-it__ask">问 ECHO</button>' +
+            '<div class="arc-it__hint" data-hint="' + esc(it.hint) + '" hidden></div>' : "") +
+            '<a class="arc-it__go" href="' + esc(it.url || "#") + '">打开原文 →</a>';
+    }
+
+    function detailHTML(it) {
+        return '<span class="arc-it__detail">' + detailInner(it) + "</span>";
+    }
+
     var bar = document.createElement("div");
     bar.className = "arc-t__bar";
     var FEED = "源事件 EID 7C41-0000-0900-3B7E · 中继 3 跳 · 距离 1,100 光年 · 泡壁抵达 T+1,222 · 剩余 122 年 · 时间和距离可以互相验算,这是本库唯一的自检方式 · 本数据库不提供结论 · 解码密码在于人 · ";
+    var FEED2 = "收录 " + items.length + " 份回收档案 · 六幕接收窗口 · 弱信号档案以完整性标注 · 相变时间 T = 澜的源事件 · 泡壁速度 0.9c · 方舟内部另用开机后计时 · 本库唯一自检:验算 · ";
+    /* 方舟 LOGO(SVG):三层弧线环(广播扩散)+ 中央一粒源点 */
+    var LOGO =
+        '<svg class="arc-t__logo" viewBox="0 0 48 48" fill="none" aria-hidden="true">' +
+        '<circle cx="24" cy="24" r="3.2" fill="currentColor"/>' +
+        '<circle cx="24" cy="24" r="10" stroke="currentColor" stroke-width="1.6" ' +
+        'stroke-dasharray="42 21" stroke-linecap="round"/>' +
+        '<circle cx="24" cy="24" r="17.5" stroke="currentColor" stroke-width="1.1" ' +
+        'stroke-dasharray="70 40" stroke-linecap="round" opacity="0.7"/>' +
+        '<circle cx="24" cy="24" r="23" stroke="currentColor" stroke-width="0.8" ' +
+        'stroke-dasharray="16 26 9 26" stroke-linecap="round" opacity="0.45"/>' +
+        "</svg>";
+
+    /* 顶栏:LOGO + 双行著录(feed 两行交错滚动)+ 时钟 + 退出 */
     bar.innerHTML =
-        '<span class="arc-t__brand">虚界方舟 · 灰烬计划</span>' +
-        '<span class="arc-t__feed" aria-hidden="true"><i>' + FEED + FEED + "</i></span>" +
+        '<span class="arc-t__brand">' + LOGO +
+        "<span class=\"arc-t__brand-t\"><b>虚界方舟</b><i>灰烬计划 · 回收档案库</i></span></span>" +
+        '<span class="arc-t__feed" aria-hidden="true">' +
+        '<i class="arc-t__feed-l">' + FEED + FEED + "</i>" +
+        '<i class="arc-t__feed-r">' + FEED2 + FEED2 + "</i>" +
+        "</span>" +
         '<span class="arc-t__clock" aria-hidden="true"></span>' +
         '<button type="button" class="arc-t__close" aria-label="关闭档案终端">退出 ESC</button>';
     root.appendChild(bar);
@@ -102,20 +134,66 @@
                 '<span class="arc-it__meta">' + meta + "</span>" +
                 "</span>" +
                 '<span class="arc-it__int">' + esc((it.integrity || "").replace(/^完整性/, "").trim() || "—") + "</span>" +
-                '<span class="arc-it__detail">' +
-                "<div>" + (it.carrier ? "载体 <b>" + esc(it.carrier) + "</b> · " : "") +
-                "完整性 <b>" + esc(it.integrity || "未知") + "</b></div>" +
-                (it.hint ? '<div class="arc-it__hint" data-hint="' + esc(it.hint) + '" hidden></div>' : "") +
-                '<a class="arc-it__go" href="' + esc(it.url || "#") + '">打开原文 →</a>' +
-                "</span>";
+                (gateFor(it.no || "")
+                    ? ""   /* 上锁卡:著录区在下面以解密门注入 */
+                    : '<span class="arc-it__detail">' + detailInner(it) + "</span>");
+            var gate = gateFor(it.no || "");
+            if (gate) {
+                /* 未解密:著录区先显示解密门, 答对才把正式内容换进来 */
+                el.classList.add("is-locked");
+                el.insertAdjacentHTML("beforeend",
+                    '<span class="arc-it__detail arc-it__gate">' +
+                    '<div class="arc-it__gate-q"><b>未解密</b> — ' + esc(gate.q) +
+                    ' <span class="arc-it__gate-tip">(提示:' + esc(gate.tip) + ")</span></div>" +
+                    '<div class="arc-it__gate-row">' +
+                    '<input class="arc-it__gate-in" type="text" placeholder="输入答案…" aria-label="解密答案">' +
+                    '<button type="button" class="arc-it__gate-go">解密</button>' +
+                    "</div>" +
+                    '<div class="arc-it__gate-err" hidden></div>' +
+                    "</span>");
+            }
             el.addEventListener("click", function (e) {
                 if (e.target.closest(".arc-it__go")) return;   /* 链接放行 */
+                /* 「问 ECHO」由它自己的监听处理, 不走展开/收起 */
+                if (e.target.closest(".arc-it__ask")) return;
                 var openNow = el.classList.contains("is-open");
                 list.querySelectorAll(".arc-it.is-open").forEach(function (o) {
                     o.classList.remove("is-open");
                 });
-                if (!openNow) {
-                    el.classList.add("is-open");
+                if (!openNow) el.classList.add("is-open");
+            });
+            /* 解密门提交 */
+            var gateEl = el.querySelector(".arc-it__gate");
+            if (gateEl) {
+                var unlock = function () {
+                    var v = gateEl.querySelector(".arc-it__gate-in").value.trim();
+                    var err = gateEl.querySelector(".arc-it__gate-err");
+                    if (gate.a.indexOf(v) >= 0) {
+                        el.classList.remove("is-locked");
+                        el.classList.add("is-unlocked");
+                        if (err) err.hidden = true;
+                        /* 换上正式著录内容 */
+                        gateEl.outerHTML = detailHTML(it);
+                    } else {
+                        if (err) {
+                            err.textContent = "不对。(" + (v ? "「" + v + "」" : "空") + ")";
+                            err.hidden = false;
+                        }
+                    }
+                };
+                gateEl.querySelector(".arc-it__gate-go").addEventListener("click", function (e) {
+                    e.stopPropagation();
+                    unlock();
+                });
+                gateEl.querySelector(".arc-it__gate-in").addEventListener("keydown", function (e) {
+                    if (e.key === "Enter") { e.stopPropagation(); unlock(); }
+                    e.stopPropagation();
+                });
+            }
+            /* 问 ECHO:委托到卡片上 —— 解锁后新生成的按钮也能用 */
+            el.addEventListener("click", function (e) {
+                if (e.target.closest(".arc-it__ask")) {
+                    e.stopPropagation();
                     typeHint(el);
                 }
             });
@@ -127,11 +205,7 @@
     main.appendChild(flow);
     root.appendChild(main);
 
-    /* 扫描线 */
-    var scan = document.createElement("i");
-    scan.className = "arc-t__scan";
-    scan.setAttribute("aria-hidden", "true");
-    root.appendChild(scan);
+    /* 扫描线撤除(用户定稿:不符合整体语言) */
 
     document.body.appendChild(root);
 
@@ -139,6 +213,13 @@
     var open = false;
     function show() {
         if (open) return;
+        /* 撑开原点 = 左下角 ARCHIVE 按钮的实际位置(按钮没了兜底用左下) */
+        var mod = document.querySelector('[data-hud-mod="world"]');
+        if (mod) {
+            var r = mod.getBoundingClientRect();
+            root.style.setProperty("--arc-ox", Math.round(window.innerWidth - (r.left + r.width / 2)) + "px");
+            root.style.setProperty("--arc-oy", Math.round(window.innerHeight - (r.top + r.height / 2)) + "px");
+        }
         open = true;
         root.hidden = false;
         /* 重触发入场动画 */
@@ -168,9 +249,24 @@
         return R[n - 1] || String(n);
     }
 
+    /* ---- 解密门(按内容定制, 简单不绕):
+       部分档案带着"未解码"标记, 点开著录先给一道小题,
+       答对才正式展开(完整著录 + 问 ECHO + 打开原文)。
+       题目按编号挑:全是档案内容里能直接找到/一眼算的,
+       目的是"回去看一眼原文", 不是脑筋急转弯。 ---- */
+    var GATES = {
+        "01": { q: "这份报告的源事件 EID 尾四位?", a: ["3b7e", "3B7E"], tip: "著录项里就有" },
+        "08": { q: "两份报的讣告栏里, 同一个人出现了几次?", a: ["2", "两", "两次"], tip: "对照 09" },
+        "12": { q: "61 比 39, 差是多少?", a: ["22", "二十二"], tip: "口算" },
+        "18": { q: "最后一行有没有编号?", a: ["没有", "无", "没"], tip: "翻到结尾" },
+        "23": { q: "相变前十一分钟, 他擦的是干抹布还是湿抹布?", a: ["干"], tip: "第 23 份正文" },
+        "26": { q: "答复四十一年没变过。司长想加的那句话, 加上了吗?", a: ["没有", "没", "未"], tip: "答复原文" }
+    };
+    function gateFor(no) { return GATES[no] || null; }
+
     /* ---- ECHO 的提示:不是印在卡片上的字段,是她【不情愿地】打出来的。
-       第一次点开著录:先打一行牢骚,停一拍,才把提示逐字吐出来。
-       同一条第二次展开不再重播(她说过的话不会重复)。语气与
+       点「问 ECHO」:先一行牢骚,停一拍,才把提示逐字吐出来。
+       同一条第二次不再重播(她说过的话不会重复)。语气与
        hud-echo.js 的 ECHO 同一人:短句、省略号、别扭。 ---- */
     var GRUMBLE = [
         "……你要看的是档案,不是我。行吧。",

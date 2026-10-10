@@ -28,10 +28,14 @@
         color-mix(in srgb, var(--theme) 55%, transparent);
     -webkit-backdrop-filter: blur(7px) saturate(1.15);
     backdrop-filter: blur(7px) saturate(1.15);
-    opacity: 0;
+    /* 终端式启闭:不是渐隐 —— 是从左下角(按钮位置)【撑开】的一块
+       屏幕面板:clip-path 从按钮处的小方块张开到全屏,
+       内容跟着 clip 边缘显现,像接通了一块全息屏 */
+    clip-path: circle(0px at calc(100vw - var(--arc-ox, 120px)) calc(100vh - var(--arc-oy, 90px)));
     visibility: hidden;
     pointer-events: none;
-    transition: opacity 0.34s ease, visibility 0s linear 0.34s;
+    transition: clip-path 0.52s cubic-bezier(0.22, 0.61, 0.36, 1),
+        visibility 0s linear 0.52s;
     font-family: var(--hud-font, ui-monospace, SFMono-Regular, Menlo, monospace);
     color: var(--primary);
 }
@@ -49,33 +53,13 @@
 }
 
 .arc-t.is-open {
-    opacity: 1;
+    clip-path: circle(150vmax at calc(100vw - var(--arc-ox, 120px)) calc(100vh - var(--arc-oy, 90px)));
     visibility: visible;
     pointer-events: auto;
-    transition: opacity 0.34s ease;
+    transition: clip-path 0.52s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
-/* 扫描线:一条细亮线缓慢下扫(3.2s 循环),纯装饰 */
-.arc-t__scan {
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: -2px;
-    height: 2px;
-    background: linear-gradient(90deg,
-        transparent,
-        color-mix(in srgb, var(--accent, rgb(34, 211, 238)) 40%, transparent) 30%,
-        color-mix(in srgb, var(--accent, rgb(34, 211, 238)) 40%, transparent) 70%,
-        transparent);
-    opacity: 0.5;
-    animation: arc-t-scan 3.2s linear infinite;
-    pointer-events: none;
-}
-
-@keyframes arc-t-scan {
-    0%   { transform: translateY(0); }
-    100% { transform: translateY(100vh); }
-}
+/* 扫描线:撤(不符合整体语言, 2026-10-11 用户定稿) */
 
 /* ============ 顶栏:状态 + 退出(非对称:状态跑马居左, 退出贴右) ============ */
 .arc-t__bar {
@@ -88,35 +72,83 @@
     background: color-mix(in srgb, var(--theme) 40%, transparent);
 }
 
+/* 品牌:SVG LOGO(三层弧线环, 缓慢自转=广播扩散)+ 双行文字 */
 .arc-t__brand {
-    font-size: 0.72em;
-    letter-spacing: 0.34em;
-    color: color-mix(in srgb, var(--accent) 75%, var(--primary));
-    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 11px;
     white-space: nowrap;
+    color: color-mix(in srgb, var(--accent) 75%, var(--primary));
 }
 
-/* EID 自检跑马:时间和距离互相验算 —— 一行缓慢滚动的著录项 */
+.arc-t__logo {
+    width: 34px;
+    height: 34px;
+    flex: 0 0 auto;
+    animation: arc-logo-spin 26s linear infinite;
+}
+
+@keyframes arc-logo-spin {
+    to { transform: rotate(360deg); }
+}
+
+.arc-t__brand-t {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    line-height: 1.15;
+}
+
+.arc-t__brand-t b {
+    font-size: 0.86em;
+    letter-spacing: 0.3em;
+    font-weight: 700;
+}
+
+.arc-t__brand-t i {
+    font-style: normal;
+    font-size: 0.6em;
+    letter-spacing: 0.24em;
+    color: var(--secondary);
+}
+
+/* EID 自检著录:双行交错滚动(上行左行, 下行右行), 面板式观感 */
 .arc-t__feed {
+    position: relative;
     flex: 1 1 auto;
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
     overflow: hidden;
-    mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
-    -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+    padding: 4px 0;
+    border-left: 1px solid color-mix(in srgb, var(--accent) 16%, transparent);
+    padding-left: 16px;
+    mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
 }
 
 .arc-t__feed i {
     display: inline-block;
     white-space: nowrap;
     font-style: normal;
-    font-size: 0.68em;
-    letter-spacing: 0.22em;
+    font-size: 0.62em;
+    letter-spacing: 0.2em;
     color: var(--secondary);
-    animation: arc-feed 38s linear infinite;
 }
 
-@keyframes arc-feed {
-    0%   { transform: translateX(30%); }
+.arc-t__feed-l { animation: arc-feed-l 46s linear infinite; }
+.arc-t__feed-r { animation: arc-feed-r 52s linear infinite; opacity: 0.75; }
+
+@keyframes arc-feed-l {
+    0%   { transform: translateX(12%); }
     100% { transform: translateX(-100%); }
+}
+
+@keyframes arc-feed-r {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(12%); }
 }
 
 .arc-t__clock {
@@ -387,6 +419,114 @@
     letter-spacing: 0.06em;
 }
 
+/* 「问 ECHO」小按钮 */
+.arc-it__ask {
+    margin-top: 9px;
+    border: 1px solid color-mix(in srgb, var(--accent) 38%, transparent);
+    background: transparent;
+    color: color-mix(in srgb, var(--accent) 70%, var(--primary));
+    font-family: inherit;
+    font-size: 0.88em;
+    letter-spacing: 0.22em;
+    padding: 4px 12px;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: background-color 0.16s ease, color 0.16s ease;
+}
+
+.arc-it__ask:hover {
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+/* ---- 解密门:未解密档案的著录区 ---- */
+.arc-it__gate-q {
+    font-size: 0.92em;
+    letter-spacing: 0.08em;
+}
+
+.arc-it__gate-q b {
+    color: color-mix(in srgb, var(--accent) 75%, var(--primary));
+    letter-spacing: 0.22em;
+    margin-right: 6px;
+}
+
+.arc-it__gate-tip {
+    color: var(--secondary);
+    opacity: 0.75;
+    font-size: 0.9em;
+}
+
+.arc-it__gate-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 9px;
+}
+
+.arc-it__gate-in {
+    flex: 0 1 220px;
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+    background: transparent;
+    color: var(--primary);
+    font-family: inherit;
+    font-size: 0.88em;
+    letter-spacing: 0.1em;
+    padding: 5px 10px;
+    border-radius: 2px;
+    outline: none;
+}
+
+.arc-it__gate-in:focus {
+    border-color: var(--accent, rgb(34, 211, 238));
+}
+
+.arc-it__gate-go {
+    border: 1px solid color-mix(in srgb, var(--accent) 44%, transparent);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    color: color-mix(in srgb, var(--accent) 78%, var(--primary));
+    font-family: inherit;
+    font-size: 0.86em;
+    letter-spacing: 0.26em;
+    padding: 5px 14px;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: background-color 0.16s ease;
+}
+
+.arc-it__gate-go:hover {
+    background: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.arc-it__gate-err {
+    margin-top: 6px;
+    color: #ff8fb1;
+    font-size: 0.85em;
+    letter-spacing: 0.1em;
+}
+
+/* 锁定/解锁卡的状态语言 */
+.arc-it.is-locked {
+    border-left-color: #ff8fb1;
+}
+
+.arc-it.is-locked .arc-it__no {
+    color: color-mix(in srgb, #ff8fb1 60%, var(--primary));
+}
+
+.arc-it.is-locked::after {
+    content: "ENC";
+    position: absolute;
+    right: 10px;
+    top: 6px;
+    font-size: 0.55em;
+    letter-spacing: 0.3em;
+    color: #ff8fb1;
+    opacity: 0.85;
+}
+
+.arc-it.is-unlocked .arc-it__detail {
+    animation: arc-detail-in 0.26s ease;
+}
+
 /* 牢骚行与提示行分行;提示行带光标尾随(打完摘除) */
 .arc-it__hint-line {
     margin-top: 5px;
@@ -502,8 +642,15 @@
     .arc-t,
     .arc-t.is-open {
         transition: none;
+        clip-path: none;
+        visibility: visible;
     }
-    .arc-t__scan,
+    .arc-t {
+        visibility: hidden;
+    }
+    .arc-t.is-open {
+        visibility: visible;
+    }
     .arc-t.is-open .arc-it,
     .arc-it.is-open .arc-it__detail {
         animation: none;
