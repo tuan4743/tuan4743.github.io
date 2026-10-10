@@ -1,17 +1,28 @@
 /* ============================================================
    全屏模式(Cinema)—— html.hud-cinema 折叠所有边缘 HUD
    逻辑在 hud-cinema.js;这里只管视觉:
-   · 退场全部走 opacity + visibility,0.28s,统一缓动;
+   · 退场全部走 opacity + visibility,0.28s;进场同样 0.28s 淡入
+     (visibility 延迟只在【退场】方向挂,进场立即可见,两个方向都有过渡);
    · pointer-events 同步关,退场的元素绝不挡正文;
-   · 正文容器满宽(去 720px 限宽居中的留白感交给原有布局,
-     只去圆角/边框/投影,让 .main 贴合全屏氛围);
+   · 目录(hud-toc)【不折叠】—— 目录卡片属于正文阅读的一部分;
+   · 正文容器满屏:去圆角/边框/投影;
    · prefers-reduced-motion:直接瞬切,不播过渡。
    ============================================================ */
 
-/* ---- 折叠目标:全部边缘 HUD 根 ---- */
+/* ---- 退场根(统一 0.28s 淡出/淡入) ---- */
+.page-hud,
+.hud-left,
+.proj-node,
+.echo-say,
+.echo-hot,
+.hud-surge,
+.top-link {
+    transition: opacity 0.28s ease;
+}
+
+/* ---- 折叠态:淡出 + 关事件 ---- */
 html.hud-cinema .page-hud,
 html.hud-cinema .hud-left,
-html.hud-cinema .hud-toc,
 html.hud-cinema .proj-node,
 html.hud-cinema .echo-say,
 html.hud-cinema .echo-hot,
@@ -25,21 +36,32 @@ html.hud-cinema .top-link {
 
 /* 退场元素内部凡是 pointer-events:auto 的子树一并关死 */
 html.hud-cinema .page-hud *,
-html.hud-cinema .hud-left *,
-html.hud-cinema .hud-toc * {
+html.hud-cinema .hud-left * {
     pointer-events: none !important;
 }
 
-/* ---- 右缘热区(只在全屏态存在,零视觉,贴右 6px) ---- */
-.hud-cinema-rail {
-    position: fixed;
-    top: 0;
-    right: 0;
-    width: 6px;
-    height: 100vh;
-    z-index: 9998;
-    pointer-events: auto;
-    background: transparent;
+/* ---- 入口按钮:全屏态下它必须活着(唯一可见的 HUD 控件) ---- */
+html.hud-cinema .hud-cinema__btn,
+html.hud-cinema .hud-cinema__btn .hud-nav__icon,
+html.hud-cinema .hud-cinema__btn .hud-nav__name {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto !important;
+}
+
+/* 全屏态下整个右栏只剩这一个按钮:把导航列钉在原位显示它。
+   其余导航项随 .page-hud 一起退场。 */
+html.hud-cinema .hud-nav {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto !important;
+    transition: opacity 0.28s ease;
+}
+
+html.hud-cinema .hud-nav__item:not(.hud-cinema__btn) {
+    opacity: 0;
+    pointer-events: none !important;
+    transition: opacity 0.28s ease;
 }
 
 /* ---- 正文:满屏贴合 ---- */
@@ -52,7 +74,6 @@ html.hud-cinema .main::before {
     border-radius: 0;
 }
 
-html.hud-cinema :root[data-theme="dark"] .main,
 html.hud-cinema .main {
     box-shadow: none;
 }
@@ -60,15 +81,23 @@ html.hud-cinema .main {
 /* ---- reduced-motion:不播过渡 ---- */
 @media (prefers-reduced-motion: reduce) {
 
+    .page-hud,
+    .hud-left,
+    .proj-node,
+    .echo-say,
+    .echo-hot,
+    .hud-surge,
+    .top-link,
     html.hud-cinema .page-hud,
     html.hud-cinema .hud-left,
-    html.hud-cinema .hud-toc,
     html.hud-cinema .proj-node,
     html.hud-cinema .echo-say,
     html.hud-cinema .echo-hot,
     html.hud-cinema .hud-surge,
     html.hud-cinema .top-link,
-    html.hud-cinema .main {
+    html.hud-cinema .main,
+    html.hud-cinema .hud-nav,
+    html.hud-cinema .hud-nav__item:not(.hud-cinema__btn) {
         transition: none;
     }
 }
