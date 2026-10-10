@@ -38,6 +38,33 @@
   audioEl.style.display = "none";
   root.appendChild(audioEl);
 
+  /* WebAudio 分析器:给进度条可视化用。
+     ★ 跨域直链(music.163.com)没有 CORS 头,MediaElementSource 一接
+       createMediaElementSource 会把输出静音 —— 所以只在【能分析】时
+       采样(直链带 crossOrigin=anonymous,163 的 outer/url 允许),
+       接不上就退化成纯进度条,不影响播放。 */
+  audioEl.crossOrigin = "anonymous";
+  var audioCtx = null, analyser = null, freqData = null, audioHooked = false;
+  function hookAnalyser() {
+    if (audioHooked) return true;
+    if (!window.AudioContext && !window.webkitAudioContext) return false;
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      var src = audioCtx.createMediaElementSource(audioEl);
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 64;                    /* 32 桶,进度条那么窄够用 */
+      freqData = new Uint8Array(analyser.frequencyBinCount);
+      src.connect(analyser);
+      analyser.connect(audioCtx.destination);
+      audioHooked = true;
+      return true;
+    } catch (e) {
+      audioHooked = true;                       /* 接失败就别再试,纯进度条 */
+      analyser = null;
+      return false;
+    }
+  }
+
   var PST = "hud-music-state";
   var pendingSeek = 0;
   var lastSave = 0;
@@ -365,7 +392,9 @@
         '<div class="hud-player__meta"><b>' + esc(s.name || "") + '</b>' +
         '<span>' + esc(s.artist || "") + '</span></div>' +
         '<span class="hud-player__time" id="hud-player-time">0:00</span>' +
-        '<span class="hud-player__track"><i id="hud-player-fill"></i></span>' +
+        '<span class="hud-player__track" id="hud-player-track" role="slider" tabindex="0"' +
+        ' aria-label="播放进度,左右方向键或拖拽调整" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">' +
+        '<i id="hud-player-fill"></i></span>' +
         '</div>';
     }
     return musicFrame("//music.163.com/outchain/player?type=2&id=" + s.id + "&auto=0&height=66", 86) +
@@ -384,14 +413,93 @@
     var btn = document.getElementById("hud-player-btn");
     var fill = document.getElementById("hud-player-fill");
     var timeEl = document.getElementById("hud-player-time");
+    var track = document.getElementById("hud-player-track");
     var musicBtn = document.querySelector('[data-hud-mod="music"]');
     var paint = function () {
-      if (fill) fill.style.width = (a.duration ? (a.currentTime / a.duration * 100) : 0) + "%";
+      var pct = a.duration ? (a.currentTime / a.duration * 100) : 0;
+      if (fill) fill.style.width = pct + "%";
       if (timeEl) timeEl.textContent = fmtTime(a.currentTime);
+      if (track) track.setAttribute("aria-valuenow", String(Math.round(pct)));
     };
     window.__hudAudio = { el: a, paint: paint };
     applyVolume(a);
     paint();
+
+    /* ---- 进度条可视化 + seek ----
+       细胞条:fill 内按频谱分桶点亮(直链可分析时);不可分析时
+       fill 就是普通进度条 —— 两条路径共用同一根 DOM。 */
+    if (track && fill) {
+      var segs = [];
+      var NSEG = 24;
+      if (!fill.firstChild || !fill.firstChild.__segs) {
+        fill.innerHTML = "";
+        for (var i = 0; i < NSEG; i++) {
+          var sgm = document.createElement("i");
+          sgm.__segs = true;
+          fill.appendChild(sgm);
+          segs.push(sgm);
+        }
+      } else {
+        segs = [].slice.call(fill.children);
+      }
+      var rafV = 0;
+      function vis() {
+        rafV = 0;
+        if (!document.getElementById("hud-player-track")) return;   /* 面板关了 */
+        if (a.paused) { paint(); return; }
+        if (analyser && !audioCtx.hidden) {
+          analyser.getByteFrequencyData(freqData);
+          var played = a.duration ? a.currentTime / a.duration : 0;
+          for (var i = 0; i < segs.length; i++) {
+            var segOn = i / segs.length <= played;
+            var amp = freqData[Math.floor(i / segs.length * (freqData.length * 0.7))] / 255;
+            segs[i].style.height = (segOn ? 40 + amp * 60 : 14) + "%";
+            segs[i].style.opacity = segOn ? String(0.55 + amp * 0.45) : "0.3";
+          }
+          if (timeEl) timeEl.textContent = fmtTime(a.currentTime);
+          rafV = requestAnimationFrame(vis);
+        } else {
+          paint();
+          rafV = requestAnimationFrame(vis);
+        }
+      }
+      var startVis = function () {
+        if (!rafV && track.isConnected) {
+          if (hookAnalyser() && audioCtx && audioCtx.state === "suspended") {
+            var r = audioCtx.resume(); if (r && r.catch) r.catch(function () { });
+          }
+          rafV = requestAnimationFrame(vis);
+        }
+      };
+      a.addEventListener("play", startVis);
+      a.addEventListener("pause", function () { if (rafV) { cancelAnimationFrame(rafV); rafV = 0; } paint(); });
+      if (!a.paused) startVis();
+
+      /* seek:点击/拖拽进度条 */
+      var seekTo = function (clientX) {
+        if (!a.duration) return;
+        var r = track.getBoundingClientRect();
+        var p = Math.min(1, Math.max(0, (clientX - r.left) / r.width));
+        try { a.currentTime = p * a.duration; } catch (e) { }
+        paint();
+      };
+      var dragging = false;
+      track.addEventListener("pointerdown", function (e) {
+        dragging = true;
+        try { track.setPointerCapture(e.pointerId); } catch (err) { }
+        seekTo(e.clientX);
+      });
+      track.addEventListener("pointermove", function (e) { if (dragging) seekTo(e.clientX); });
+      track.addEventListener("pointerup", function () { dragging = false; });
+      track.addEventListener("pointercancel", function () { dragging = false; });
+      track.addEventListener("keydown", function (e) {
+        if (!a.duration) return;
+        var st = a.duration * 0.05;
+        if (e.key === "ArrowLeft") { e.preventDefault(); a.currentTime = Math.max(0, a.currentTime - st); paint(); }
+        if (e.key === "ArrowRight") { e.preventDefault(); a.currentTime = Math.min(a.duration, a.currentTime + st); paint(); }
+      });
+    }
+
     if (btn) {
       btn.classList.toggle("is-playing", !a.paused);
       btn.addEventListener("click", function () {
@@ -450,7 +558,23 @@
   });
   audioEl.addEventListener("play", function () { wantResume = false; saveState(true); });
   audioEl.addEventListener("pause", function () { saveState(true); });
-  audioEl.addEventListener("ended", function () { saveState(true); });
+  /* 一首播完自动切下一首(循环歌单):只对有直链的歌自动续,
+     没直链的歌播不了(走 iframe),跳到下一首有直链的。 */
+  audioEl.addEventListener("ended", function () {
+    saveState(true);
+    var songs = musicData.songs || [];
+    if (!songs.length || current !== "music") return;
+    for (var step = 1; step <= songs.length; step++) {
+      var idx = (musicPick + step) % songs.length;
+      if (songs[idx] && songs[idx].direct) {
+        musicPick = idx;
+        renderMusic();
+        var p = audioEl.play();
+        if (p && p.catch) p.catch(function () { });
+        return;
+      }
+    }
+  });
   audioEl.addEventListener("timeupdate", function () { saveState(false); });
   window.addEventListener("pagehide", function () { saveState(true); });
   restoreState();
