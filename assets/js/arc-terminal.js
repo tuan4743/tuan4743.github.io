@@ -29,8 +29,10 @@
     /* 顶栏 */
     var bar = document.createElement("div");
     bar.className = "arc-t__bar";
+    var FEED = "源事件 EID 7C41-0000-0900-3B7E · 中继 3 跳 · 距离 1,100 光年 · 泡壁抵达 T+1,222 · 剩余 122 年 · 时间和距离可以互相验算,这是本库唯一的自检方式 · 本数据库不提供结论 · 解码密码在于人 · ";
     bar.innerHTML =
-        '<span class="arc-t__brand">虚界方舟 · 灰烬计划 — 回收档案库</span>' +
+        '<span class="arc-t__brand">虚界方舟 · 灰烬计划</span>' +
+        '<span class="arc-t__feed" aria-hidden="true"><i>' + FEED + FEED + "</i></span>" +
         '<span class="arc-t__clock" aria-hidden="true"></span>' +
         '<button type="button" class="arc-t__close" aria-label="关闭档案终端">退出 ESC</button>';
     root.appendChild(bar);
@@ -103,16 +105,19 @@
                 '<span class="arc-it__detail">' +
                 "<div>" + (it.carrier ? "载体 <b>" + esc(it.carrier) + "</b> · " : "") +
                 "完整性 <b>" + esc(it.integrity || "未知") + "</b></div>" +
-                (it.hint ? '<div class="arc-it__hint">' + esc(it.hint) + "</div>" : "") +
+                (it.hint ? '<div class="arc-it__hint" data-hint="' + esc(it.hint) + '" hidden></div>' : "") +
                 '<a class="arc-it__go" href="' + esc(it.url || "#") + '">打开原文 →</a>' +
                 "</span>";
             el.addEventListener("click", function (e) {
                 if (e.target.closest(".arc-it__go")) return;   /* 链接放行 */
-                var open = el.classList.contains("is-open");
+                var openNow = el.classList.contains("is-open");
                 list.querySelectorAll(".arc-it.is-open").forEach(function (o) {
                     o.classList.remove("is-open");
                 });
-                if (!open) el.classList.add("is-open");
+                if (!openNow) {
+                    el.classList.add("is-open");
+                    typeHint(el);
+                }
             });
             list.appendChild(el);
         });
@@ -148,6 +153,9 @@
     function hide() {
         if (!open) return;
         open = false;
+        /* 收终端时掐掉 ECHO 打字机,别让她在看不见的地方继续说 */
+        typeTimers.forEach(function (t) { clearInterval(t); });
+        typeTimers.length = 0;
         root.classList.remove("is-open");
         root.querySelectorAll(".arc-it.is-open").forEach(function (o) {
             o.classList.remove("is-open");
@@ -158,6 +166,69 @@
     function roman(n) {
         var R = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
         return R[n - 1] || String(n);
+    }
+
+    /* ---- ECHO 的提示:不是印在卡片上的字段,是她【不情愿地】打出来的。
+       第一次点开著录:先打一行牢骚,停一拍,才把提示逐字吐出来。
+       同一条第二次展开不再重播(她说过的话不会重复)。语气与
+       hud-echo.js 的 ECHO 同一人:短句、省略号、别扭。 ---- */
+    var GRUMBLE = [
+        "……你要看的是档案,不是我。行吧。",
+        "这个也想问。记性吗。",
+        "哈。这条我也刚注意到,不说破就没人知道。",
+        "别到处说这是我讲的。"
+    ];
+    var grumbleIdx = 0;
+    var hinted = {};                                 /* no → 已打过 */
+    var typeTimers = [];
+
+    function typeInto(el, text, cps, done) {
+        var i = 0;
+        var t = setInterval(function () {
+            i += 1;
+            el.textContent = text.slice(0, i);
+            if (i >= text.length) {
+                clearInterval(t);
+                if (done) done();
+            }
+        }, cps);
+        typeTimers.push(t);
+    }
+
+    function typeHint(el) {
+        var box = el.querySelector(".arc-it__hint");
+        if (!box || box.dataset.done === "1") return;
+        var no = el.querySelector(".arc-it__no").textContent.trim();
+        var line = box.getAttribute("data-hint") || "";
+        if (!line) return;
+        if (hinted[no]) {                            /* 第二次:整句直接挂上 */
+            box.hidden = false;
+            box.dataset.done = "1";
+            box.textContent = line;
+            return;
+        }
+        hinted[no] = true;
+        box.dataset.done = "1";
+        box.hidden = false;
+        box.textContent = "";
+        var gr = GRUMBLE[grumbleIdx % GRUMBLE.length];
+        grumbleIdx += 1;
+        var reduced = window.matchMedia &&
+            window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        if (reduced) {
+            box.textContent = gr + " — " + line;
+            return;
+        }
+        typeInto(box, gr, 30, function () {
+            setTimeout(function () {
+                var br = document.createElement("div");
+                br.className = "arc-it__hint-line";
+                box.appendChild(br);
+                typeInto(br, line, 26, function () {
+                    br.classList.add("is-done");
+                });
+            }, 620);
+        });
     }
 
     function esc(s) {
