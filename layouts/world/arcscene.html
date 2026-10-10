@@ -16,16 +16,17 @@
 {{- define "main" }}
 {{- $acts := slice -}}
 {{- range .Pages -}}
+    {{- $page := . -}}
     {{- with .Params.archive -}}
         {{- $acts = $acts | append (dict
             "no" .no
             "act" .act
-            "title" $.Title
+            "title" $page.Title
             "time" .time
             "carrier" .carrier
             "integrity" .integrity
             "eid" .eid
-            "url" $.RelPermalink) -}}
+            "url" $page.RelPermalink) -}}
     {{- end -}}
 {{- end -}}
 {{- /* 按幕分组:幕名保序(第一次出现的顺序 = weight 序) */ -}}

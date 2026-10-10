@@ -1,230 +1,263 @@
 /* ============================================================
-   /world/ 档案回收场景(layouts/world/archive.html)
-   —— 接收时轴:六幕沿垂直时轴落下,每幕一段"接收窗口";
-      每份档案一条"回收条目",左缘 5 格信号强度 = 完整性。
-   —— 语言与全站一致:HUD 字体、细线、--accent 青、亮模式翻墨。
+   /world/ 档案回收场景 —— 视觉层(重建版)
+   设计目标:一眼就是"档案库",不是"一页文档列表":
+   · 页头 = 终端著录面板:HUD 字体大字距、四角角标、网格排布;
+   · 时轴 = 可见的主干:发光渐变竖线 + 脉冲幕节点 + ACT 编号;
+   · 条目 = 档案卡:左侧大号 HUD 编号,右缘大百分比完整性,
+     中缝信息;底部一条信号格弱信号噪动;
+   · 全程走站点主题变量,亮模式自动翻墨。
    ============================================================ */
+
 .arc {
-    max-width: 720px;
+    max-width: 760px;
     margin: 0 auto;
-    padding: 0 4px 40px;
+    padding: 0 4px 56px;
+    font-family: var(--hud-font, ui-monospace, SFMono-Regular, Menlo, monospace);
 }
 
-/* ---- 头部著录项 ---- */
+/* ============ 页头:终端著录面板 ============ */
 .arc__head {
-    margin-bottom: 26px;
+    position: relative;
+    margin-bottom: 34px;
+    padding: 22px 22px 18px;
+    border: 1px solid color-mix(in srgb, var(--accent) 34%, transparent);
+    background:
+        linear-gradient(180deg,
+            color-mix(in srgb, var(--accent) 5%, transparent),
+            transparent 55%);
+}
+
+/* 四角角标 */
+.arc__head::before,
+.arc__head::after {
+    content: "";
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    pointer-events: none;
+}
+
+.arc__head::before {
+    left: -1px;
+    top: -1px;
+    border-left: 2px solid var(--accent, rgb(34, 211, 238));
+    border-top: 2px solid var(--accent, rgb(34, 211, 238));
+}
+
+.arc__head::after {
+    right: -1px;
+    bottom: -1px;
+    border-right: 2px solid var(--accent, rgb(34, 211, 238));
+    border-bottom: 2px solid var(--accent, rgb(34, 211, 238));
 }
 
 .arc__kicker {
-    font-family: var(--hud-font, ui-monospace, SFMono-Regular, Menlo, monospace);
-    font-size: 0.72em;
-    letter-spacing: 0.22em;
-    color: color-mix(in srgb, var(--accent) 60%, var(--primary));
-    margin: 0 0 6px;
+    font-size: 0.7em;
+    letter-spacing: 0.34em;
+    color: color-mix(in srgb, var(--accent) 72%, var(--primary));
+    margin: 0 0 10px;
+    text-transform: uppercase;
 }
 
 .arc__title {
-    font-size: 1.9em;
-    line-height: 1.2;
-    margin: 0 0 16px;
+    font-size: 2em;
+    line-height: 1.15;
+    margin: 0 0 18px;
+    letter-spacing: 0.06em;
+    font-weight: 700;
 }
 
 .arc__meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px 18px;
-    padding: 10px 14px;
-    border: 1px solid var(--accent-line, rgba(34, 211, 238, 0.3));
-    border-radius: 3px;
-    font-family: var(--hud-font, ui-monospace, SFMono-Regular, Menlo, monospace);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px 18px;
+    padding: 0;
+    border: 0;
+    border-top: 1px dashed color-mix(in srgb, var(--accent) 25%, transparent);
+    padding-top: 14px;
     font-size: 0.78em;
 }
 
 .arc__meta-i {
-    display: inline-flex;
-    gap: 7px;
-    align-items: baseline;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
 }
 
 .arc__meta-i i {
     font-style: normal;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.26em;
     color: var(--secondary);
-    font-size: 0.92em;
+    font-size: 0.86em;
 }
 
 .arc__meta-i b {
     font-weight: 600;
     color: var(--primary);
+    letter-spacing: 0.05em;
 }
 
 .arc__law {
-    margin: 12px 2px 0;
-    font-size: 0.88em;
-    color: var(--secondary);
+    margin: 16px 0 0;
+    font-size: 0.8em;
+    letter-spacing: 0.08em;
+    color: color-mix(in srgb, var(--accent) 55%, var(--secondary));
 }
 
 .arc__law span {
     display: block;
-    margin-top: 3px;
-    font-size: 0.86em;
-    opacity: 0.75;
+    margin-top: 4px;
+    color: var(--secondary);
+    opacity: 0.72;
+    letter-spacing: 0.05em;
 }
 
-/* ---- 时轴 ---- */
-.arc__axis {
-    position: relative;
-    height: 0;
-}
-
+/* ============ 时轴 ============ */
 .arc__acts {
     position: relative;
-    padding-left: 26px;
+    padding-left: 44px;
 }
 
-/* 时轴主线:贯穿全部幕 */
+/* 主干:发光渐变竖线(可见,不再几乎隐形) */
 .arc__acts::before {
     content: "";
     position: absolute;
-    left: 7px;
-    top: 8px;
-    bottom: 8px;
-    width: 1px;
+    left: 14px;
+    top: 10px;
+    bottom: 10px;
+    width: 2px;
     background: linear-gradient(180deg,
-        color-mix(in srgb, var(--accent) 55%, transparent),
-        color-mix(in srgb, var(--accent) 18%, transparent) 72%,
+        color-mix(in srgb, var(--accent) 70%, transparent),
+        color-mix(in srgb, var(--accent) 30%, transparent) 65%,
         transparent);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 /* ---- 幕 ---- */
 .arc-act {
     position: relative;
-    margin-bottom: 30px;
+    margin-bottom: 40px;
 }
 
 .arc-act__head {
     display: flex;
     align-items: baseline;
-    gap: 10px;
+    gap: 12px;
     flex-wrap: wrap;
-    margin-bottom: 10px;
+    margin-bottom: 14px;
 }
 
+/* 节点:大一号 + 脉冲环 */
 .arc-act__dot {
     position: absolute;
-    left: -26px;
-    top: 5px;
-    width: 11px;
-    height: 11px;
-    margin-left: 2.5px;
+    left: -44px;
+    top: 4px;
+    width: 14px;
+    height: 14px;
+    margin-left: 8px;
     border-radius: 50%;
-    border: 1.5px solid var(--accent, rgb(34, 211, 238));
+    border: 2px solid var(--accent, rgb(34, 211, 238));
     background: var(--theme);
-    box-shadow: 0 0 10px color-mix(in srgb, var(--accent, rgb(34, 211, 238)) 45%, transparent);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+.arc-act__dot::after {
+    content: "";
+    position: absolute;
+    inset: -7px;
+    border-radius: 50%;
+    border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+    animation: arc-pulse 2.6s ease-out infinite;
+}
+
+@keyframes arc-pulse {
+    0%   { transform: scale(0.55); opacity: 0.9; }
+    70%  { transform: scale(1.5); opacity: 0; }
+    100% { transform: scale(1.5); opacity: 0; }
 }
 
 .arc-act__name {
-    font-size: 1.02em;
+    font-size: 1.12em;
     margin: 0;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+}
+
+/* 幕编号:ACT I..VI 由 CSS 计数器生成 */
+.arc__acts {
+    counter-reset: arc-act;
+}
+
+.arc-act {
+    counter-increment: arc-act;
+}
+
+.arc-act__head::before {
+    content: "ACT " counter(arc-act, upper-roman);
+    font-size: 0.66em;
+    letter-spacing: 0.3em;
+    color: color-mix(in srgb, var(--accent) 70%, var(--primary));
+    border: 1px solid color-mix(in srgb, var(--accent) 34%, transparent);
+    border-radius: 2px;
+    padding: 2px 7px;
+    align-self: center;
 }
 
 .arc-act__note {
-    font-family: var(--hud-font, ui-monospace, SFMono-Regular, Menlo, monospace);
     font-size: 0.7em;
-    letter-spacing: 0.14em;
-    color: color-mix(in srgb, var(--accent) 55%, var(--primary));
-    opacity: 0.9;
-}
-
-/* ---- 回收条目 ---- */
-.arc-act__list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.arc-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 9px 12px;
-    border: 1px solid var(--border, rgba(238, 238, 238, 0.5));
-    border-radius: 4px;
-    background: color-mix(in srgb, var(--theme) 82%, transparent);
-    text-decoration: none;
-    transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
-}
-
-.arc-item:hover {
-    border-color: var(--accent, rgb(34, 211, 238));
-    transform: translateX(3px);
-    box-shadow: -3px 0 0 -0.5px color-mix(in srgb, var(--accent, rgb(34, 211, 238)) 70%, transparent);
-}
-
-.arc-item__no {
-    font-family: var(--hud-font, ui-monospace, SFMono-Regular, Menlo, monospace);
-    font-size: 0.8em;
-    letter-spacing: 0.1em;
-    color: color-mix(in srgb, var(--accent) 65%, var(--primary));
-    min-width: 2.2em;
-}
-
-.arc-item__body {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-}
-
-.arc-item__title {
-    font-weight: 600;
-    color: var(--primary);
-    font-size: 0.95em;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.arc-item:hover .arc-item__title {
-    color: color-mix(in srgb, var(--accent) 60%, var(--primary));
-}
-
-.arc-item__meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 3px 10px;
-    font-family: var(--hud-font, ui-monospace, SFMono-Regular, Menlo, monospace);
-    font-size: 0.68em;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.18em;
     color: var(--secondary);
 }
 
-.arc-item__meta em {
-    font-style: normal;
+/* ============ 档案卡 ============ */
+.arc-act__list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
-.arc-item__int {
-    color: color-mix(in srgb, var(--accent) 50%, var(--secondary));
+.arc-item {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 16px 12px 14px;
+    border: 1px solid var(--border, rgba(238, 238, 238, 0.5));
+    border-left: 2px solid color-mix(in srgb, var(--accent) 42%, transparent);
+    border-radius: 3px;
+    background:
+        linear-gradient(90deg,
+            color-mix(in srgb, var(--accent) 3.5%, transparent),
+            transparent 40%);
+    text-decoration: none;
+    transition: border-color 0.18s ease, background-color 0.18s ease,
+        transform 0.18s ease;
 }
 
-/* 信号强度:5 格小竖条,亮格数 = 完整性档位(integrity/20 四舍五入);
-   <90% 的档位再叠噪点闪烁 —— 弱信号自己会"滋滋" */
+.arc-item:hover {
+    border-left-color: var(--accent, rgb(34, 211, 238));
+    background-color: color-mix(in srgb, var(--accent) 6%, transparent);
+    transform: translateX(4px);
+}
+
+/* 左缘信号格:竖排在卡最左边(贴 border-left),弱信号噪动 */
 .arc-item__sig {
     display: flex;
     align-items: flex-end;
-    gap: 2px;
-    width: 18px;
-    height: 14px;
+    gap: 2.5px;
+    width: 20px;
+    height: 26px;
     flex: 0 0 auto;
 }
 
 .arc-item__sig i {
-    width: 2.5px;
-    background: color-mix(in srgb, var(--accent, rgb(34, 211, 238)) 75%, transparent);
+    width: 3px;
+    background: var(--accent, rgb(34, 211, 238));
     height: 20%;
     border-radius: 1px;
-    opacity: 0.16;
+    opacity: 0.13;
+    transition: opacity 0.2s ease;
 }
 
 .arc-item__sig i:nth-child(2) { height: 40%; }
@@ -237,28 +270,89 @@
 .arc-item--s3 .arc-item__sig i:nth-child(-n+3),
 .arc-item--s4 .arc-item__sig i:nth-child(-n+4),
 .arc-item--s5 .arc-item__sig i:nth-child(-n+5) {
-    opacity: 1;
+    opacity: 0.92;
 }
 
-/* 弱信号(<90% → s1/s2)呼吸噪动 */
 .arc-item--s1 .arc-item__sig,
 .arc-item--s2 .arc-item__sig {
-    animation: arc-sig-noise 2.1s steps(2) infinite;
+    animation: arc-sig-noise 1.7s steps(2) infinite;
 }
 
 @keyframes arc-sig-noise {
     0%, 100% { opacity: 1; }
-    50%      { opacity: 0.45; }
+    50%      { opacity: 0.4; }
 }
 
-/* ---- 页脚 ---- */
+/* 编号:大号 HUD 字 */
+.arc-item__no {
+    font-size: 1.3em;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: color-mix(in srgb, var(--accent) 62%, var(--primary));
+    min-width: 2em;
+    text-align: center;
+}
+
+.arc-item__body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.arc-item__title {
+    font-weight: 600;
+    color: var(--primary);
+    font-size: 0.98em;
+    font-family: var(--body-font, inherit);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.arc-item:hover .arc-item__title {
+    color: color-mix(in srgb, var(--accent) 55%, var(--primary));
+}
+
+.arc-item__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px 12px;
+    font-size: 0.68em;
+    letter-spacing: 0.1em;
+    color: var(--secondary);
+}
+
+.arc-item__meta em {
+    font-style: normal;
+}
+
+/* 右缘:完整性大百分比(HUD 字,视觉锚点) */
+.arc-item__int {
+    font-size: 1.5em;
+    letter-spacing: 0.04em;
+    color: color-mix(in srgb, var(--accent) 58%, var(--primary));
+    font-weight: 600;
+    margin-left: auto;
+}
+
+.arc-item__int::before {
+    content: "完整性";
+    display: block;
+    font-size: 0.44em;
+    letter-spacing: 0.3em;
+    color: var(--secondary);
+    font-weight: 400;
+    text-align: right;
+}
+
+/* ============ 页脚 ============ */
 .arc__foot {
-    margin-top: 34px;
-    padding-top: 14px;
-    border-top: 1px solid var(--border, rgba(238, 238, 238, 0.5));
-    font-family: var(--hud-font, ui-monospace, SFMono-Regular, Menlo, monospace);
-    font-size: 0.7em;
-    letter-spacing: 0.16em;
+    margin-top: 40px;
+    padding-top: 16px;
+    border-top: 1px dashed color-mix(in srgb, var(--accent) 25%, transparent);
+    font-size: 0.68em;
+    letter-spacing: 0.24em;
     color: var(--secondary);
 }
 
@@ -266,25 +360,59 @@
     margin: 0;
 }
 
-/* ---- 手机:时轴贴左,条目内边距收窄 ---- */
+/* ============ 手机 ============ */
 @media (max-width: 640px) {
+    .arc__head {
+        padding: 16px 14px 14px;
+    }
+    .arc__title {
+        font-size: 1.5em;
+    }
+    .arc__meta {
+        grid-template-columns: repeat(2, 1fr);
+    }
     .arc__acts {
-        padding-left: 20px;
+        padding-left: 30px;
+    }
+    .arc-act__dot {
+        left: -30px;
+    }
+    .arc__acts::before {
+        left: 9px;
     }
     .arc-item {
-        gap: 9px;
-        padding: 8px 9px;
+        grid-template-columns: auto 1fr;
+        gap: 10px;
+        padding: 10px 12px 10px 10px;
     }
-    .arc-item__meta {
-        gap: 2px 8px;
+    /* 手机上完整性收进 meta 行,不占右缘 */
+    .arc-item__int {
+        grid-column: 1 / -1;
+        font-size: 0.9em;
+        text-align: left;
+        margin-left: 0;
+    }
+    .arc-item__int::before {
+        display: inline;
+        font-size: 0.85em;
+        letter-spacing: 0.2em;
+        margin-right: 6px;
+        text-align: left;
     }
 }
 
-/* ---- reduced-motion:噪动停 ---- */
+/* ============ reduced-motion ============ */
 @media (prefers-reduced-motion: reduce) {
+
     .arc-item,
-    .arc-item__sig {
+    .arc-item__sig,
+    .arc-item__sig i {
         transition: none;
         animation: none;
+    }
+
+    .arc-act__dot::after {
+        animation: none;
+        opacity: 0;
     }
 }
