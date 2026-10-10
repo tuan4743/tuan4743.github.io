@@ -150,6 +150,12 @@
 {{- $u := . | fingerprint "sha256" }}
 <script defer src="{{ $u.RelPermalink }}"></script>
 {{- end }}
+{{- /* 触摸涟漪:手机/平板没有磁吸光标,点按处一圈细环扩散淡出。
+     ★ 只在 pointer:coarse 挂载,桌面端零开销;reduced-motion 不播。 */ -}}
+{{- with resources.Get "js/tap-ripple.js" }}
+{{- $u := . | fingerprint "sha256" }}
+<script defer src="{{ $u.RelPermalink }}"></script>
+{{- end }}
 {{- /* 全屏模式(Alt+F):折叠所有边缘 HUD,正文满屏。
      ★ 状态存 localStorage 跨页保持;Esc 或右缘热区退出;不加任何可见新 UI。 */ -}}
 {{- with resources.Get "js/hud-cinema.js" }}

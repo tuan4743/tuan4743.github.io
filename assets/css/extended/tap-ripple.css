@@ -1,0 +1,36 @@
+/* ============================================================
+   触摸涟漪(tap-ripple.js)
+   —— 细环从点按处扩散淡出,颜色走站点的 --mc-color(青色 accent,
+      亮模式自动跟随主题变量翻色)。pointer-events:none 纯视觉。
+   ============================================================ */
+.tap-ripple {
+    position: fixed;
+    z-index: 9997;
+    width: 14px;
+    height: 14px;
+    margin: -7px 0 0 -7px;
+    border-radius: 50%;
+    border: 1.5px solid var(--mc-color, rgb(34, 211, 238));
+    opacity: 0;
+    pointer-events: none;
+    box-shadow: 0 0 12px color-mix(in srgb, var(--mc-color, rgb(34, 211, 238)) 45%, transparent);
+}
+
+.tap-ripple.is-run {
+    animation: tap-ripple-run 0.55s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+
+@keyframes tap-ripple-run {
+    0% {
+        opacity: 0.85;
+        transform: scale(0.4);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(4.6);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tap-ripple { display: none; }
+}
