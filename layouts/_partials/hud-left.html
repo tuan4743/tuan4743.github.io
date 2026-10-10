@@ -12,7 +12,10 @@
             "title" .Title
             "url" .RelPermalink
             "time" ($a.time | default "")
-            "act" ($a.act | default "")) -}}
+            "act" ($a.act | default "")
+            "carrier" ($a.carrier | default "")
+            "integrity" ($a.integrity | default "")
+            "hint" ($a.hint | default "")) -}}
     {{- end -}}
 {{- end -}}
 <script type="application/json" id="hud-world-data">{{ dict "home" $worldHome "items" $worldItems | jsonify | safeJS }}</script>

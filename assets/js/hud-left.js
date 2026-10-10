@@ -702,6 +702,11 @@
     if (!b) return;
     e.preventDefault();
     var key = b.getAttribute("data-hud-mod");
+    /* world 不再开左栏面板 —— 拉起全屏档案终端(arc-terminal.js) */
+    if (key === "world" && window.__arcTerminal) {
+      window.__arcTerminal.show();
+      return;
+    }
     if (current === key) close(); else open(key);
   });
 

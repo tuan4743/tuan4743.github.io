@@ -109,6 +109,12 @@
 {{- $u := . | fingerprint "sha256" }}
 <script defer src="{{ $u.RelPermalink }}"></script>
 {{- end }}
+{{- /* 世界观数据库 · 全屏档案终端:左下角 ARCHIVE 按钮原地拉起(不跳页)。
+     ★ 排在 hud-left.js 之后:它改写 world 按钮的分发目标(读 __arcTerminal)。 */ -}}
+{{- with resources.Get "js/arc-terminal.js" }}
+{{- $u := . | fingerprint "sha256" }}
+<script defer src="{{ $u.RelPermalink }}"></script>
+{{- end }}
 {{- /* 三支笔【落笔】的那一层(画布 + 笔画)。用户:"把右下角那两只笔一个橡皮实现了."
      ★ 独立文件:笔的【外观与交互】还在 page-hud.js,这里只管画。
      ★ 排在 page-hud.js 之后:它读那三支笔的 --pen-color / 滑条值,也读 .is-on 判断
