@@ -117,6 +117,12 @@
 {{- $u := . | fingerprint "sha256" }}
 <script defer src="{{ $u.RelPermalink }}"></script>
 {{- end }}
+{{- /* 右下角盆栽互动:悬停起风、点击抖盆、花芯切色。
+     ★ 拿不到 .hud-plants 就静默退出;reduced-motion 下 JS/CSS 双兜底全停。 */ -}}
+{{- with resources.Get "js/hud-plants.js" }}
+{{- $u := . | fingerprint "sha256" }}
+<script defer src="{{ $u.RelPermalink }}"></script>
+{{- end }}
 {{- /* 正文媒体:代码块折叠 + 照片灯箱(正文 <img> 点击放大)。
      ★ 图片管理约定:每章的图放 content/<章节>/pictures/,
        正文里用相对路径引用:`![图注](pictures/xxx.jpg)`。 */ -}}

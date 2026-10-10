@@ -361,14 +361,102 @@
     opacity: 1;
 }
 
+/* ============================================================
+   盆栽互动(hud-plants.js)
+   —— 摇摆:每盆植株包在 .hud-plants__sway 里,绕【自己盆底】转,
+      盆身不动(之前整组动导致盆跟着歪)。
+   —— 抖动:只挂在【花盆】的可见组上(hud-plants__front),
+      之前挂在透明热区 <g> 上,动画把热区的 hit path 边缘描了出来,
+      用户看到的就是那个"黑框"。
+   —— 热区:fill/stroke 全空 + pointer-events:all 按几何命中;
+      不给 tabindex/role —— 可聚焦元素会画焦点矩形,同样是黑框来源。
+   ============================================================ */
+.hud-plants__sway--left  { transform-origin: 316px 588px; transform-box: view-box; }
+.hud-plants__sway--right { transform-origin: 581px 588px; transform-box: view-box; }
+.hud-plants__sway--mid   { transform-origin: 417px 534px; transform-box: view-box; }
+
+/* 风:全局检测鼠标速度/方向(hud-plants.js),快扫过时起风。
+   风向类 wind-r/wind-l 决定叶子先朝哪边让,--wind-amp 是摆幅上限
+   (速度越快越大,JS 写入)。三盆植株一起摆,各自绕盆底。 */
+.hud-plants.is-breeze .hud-plants__sway {
+    animation: hud-plants-sway 1.5s ease-out 1;
+}
+
+.hud-plants.is-breeze.wind-r .hud-plants__sway {
+    animation-name: hud-plants-sway-r;
+}
+
+.hud-plants.is-breeze.wind-l .hud-plants__sway {
+    animation-name: hud-plants-sway-l;
+}
+
+@keyframes hud-plants-sway-r {
+    0%, 100% { transform: rotate(0deg); }
+    22%      { transform: rotate(var(--wind-amp, 1.2deg)); }
+    58%      { transform: rotate(calc(var(--wind-amp, 1.2deg) * -0.55)); }
+    82%      { transform: rotate(calc(var(--wind-amp, 1.2deg) * 0.22)); }
+}
+
+@keyframes hud-plants-sway-l {
+    0%, 100% { transform: rotate(0deg); }
+    22%      { transform: rotate(calc(var(--wind-amp, 1.2deg) * -1)); }
+    58%      { transform: rotate(calc(var(--wind-amp, 1.2deg) * 0.55)); }
+    82%      { transform: rotate(calc(var(--wind-amp, 1.2deg) * -0.22)); }
+}
+
+/* 受击:点击哪盆就抖哪盆的【可见组本身】—— is-shake 由 JS 直接
+   挂在 .hud-plants__ink / .hud-plants__front / .hud-plants__leaf 上,
+   选择器必须对着元素自身,不能用 [data-plant] 后代链(热区已废弃)。 */
+.hud-plants__ink.is-shake,
+.hud-plants__front.is-shake,
+.hud-plants .hud-plants__leaf.is-shake {
+    animation: hud-plants-jolt 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+@keyframes hud-plants-jolt {
+    0%, 100% { transform: translate(0, 0); }
+    20%      { transform: translate(-1.5px, 0); }
+    40%      { transform: translate(1.5px, -1px); }
+    60%      { transform: translate(-1px, 0); }
+    80%      { transform: translate(1px, 0); }
+}
+
+/* 花芯双色:点击中盆花芯在透/实两态间切 */
+.hud-plants__core {
+    fill: transparent;
+    transition: fill 0.25s ease;
+}
+
+.hud-plants__core.is-alt {
+    fill: var(--hud-line-on, rgba(234, 243, 255, 0.6));
+}
+
+/* 热区方案:整棵 svg 接事件,点击用几何换算分盆(hud-plants.js)。
+   之前 fill/stroke 全空的透明热区 path 在部分环境命中不了 ——
+   HTML 元素级 pointer-events 才是百分百可靠的。 */
+.hud-plants {
+    pointer-events: auto;
+}
+
+.hud-plants__hot {
+    display: none; /* 旧热区已废弃,不再渲染(模板里也删,这里兜底) */
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .hud-plants.is-breeze .hud-plants__sway,
+    .hud-plants__ink.is-shake,
+    .hud-plants__front.is-shake,
+    .hud-plants .hud-plants__leaf.is-shake {
+        animation: none;
+    }
+    .hud-plants__core { transition: none; }
+    .hud-plants { transition: none; }
+}
+
 @media (max-height: 780px) {
     .hud-plants {
         height: min(30vh, 240px);
     }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .hud-plants { transition: none; }
 }
 
 .hud-nav {
