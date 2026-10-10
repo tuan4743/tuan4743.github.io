@@ -49,7 +49,13 @@
         return "<div>" + (it.carrier ? "载体 <b>" + esc(it.carrier) + "</b> · " : "") +
             "完整性 <b>" + esc(it.integrity || "未知") + "</b></div>" +
             /* ECHO 提示:小按钮触发(点开著录不自动吐), 她逐字打 */
-            (it.hint ? '<button type="button" class="arc-it__ask">问 ECHO</button>' +
+            (it.hint ? '<button type="button" class="arc-it__ask">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" ' +
+            'stroke-linecap="round" aria-hidden="true">' +
+            '<rect x="3" y="5" width="18" height="12" rx="2"/>' +
+            '<path d="M7 9h.01M11 9h.01M15 9h.01M7 13h10"/>' +
+            '<path d="M9 17l-2 3 5-3"/>' +
+            "</svg><span>ECHO 解密提示</span></button>" +
             '<div class="arc-it__hint" data-hint="' + esc(it.hint) + '" hidden></div>' : "") +
             '<a class="arc-it__go" href="' + esc(it.url || "#") + '">打开原文 →</a>';
     }
@@ -173,6 +179,9 @@
                 if (e.target.closest(".arc-it__go")) return;   /* 链接放行 */
                 /* 「问 ECHO」由它自己的监听处理, 不走展开/收起 */
                 if (e.target.closest(".arc-it__ask")) return;
+                /* 解密门内的一切交互(输入框/解密按钮)不动展开态 ——
+                   点输入框把卡片收起来等于把门拆了 */
+                if (e.target.closest(".arc-it__gate")) return;
                 var openNow = el.classList.contains("is-open");
                 list.querySelectorAll(".arc-it.is-open").forEach(function (o) {
                     o.classList.remove("is-open");

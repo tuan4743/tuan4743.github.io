@@ -237,6 +237,14 @@
       var overGiscus = false;
       var under = document.elementFromPoint(mx, my);
       if (under && under.closest && under.closest(".giscus-wrap")) overGiscus = true;
+      /* 档案终端:已吸附的卡片若【刚刚被展开】,每帧兜底释放 ——
+         mouseover 只在进入时触发一次,点开展开后 target 还钉在卡上,
+         不在这里断开的话要移出再移回才会松。卡内按钮不在此列。 */
+      if (!overGiscus && target && target.classList &&
+          target.classList.contains("arc-it") && target.classList.contains("is-open")) {
+        target = null;
+        document.documentElement.classList.remove("magnetic-locked");
+      }
       if (overGiscus) {
         if (target) {
           target = null;
@@ -386,9 +394,9 @@
     /* giscus 容器内元素永不吸附(评论区不需要磁吸,进 iframe 的
        事件缺口从源头封掉;tick 每帧还会按几何位置兜底)。 */
     if (t.closest && t.closest(".giscus-wrap")) return;
-    /* 档案终端里已展开的卡片不再吸附 —— 展开后要在卡片内部的
-       按钮/链接间移动鼠标,磁吸框钉在卡上反而碍事。 */
-    if (t.closest && t.closest(".arc-it.is-open")) return;
+    /* 档案终端:已展开的卡片本体不吸附;但它内部的按钮/链接照常吸附
+       (否则解锁后没法在「问 ECHO」「打开原文」间移动)。 */
+    if (t.classList && t.classList.contains("arc-it") && t.classList.contains("is-open")) return;
     target = t;
     document.documentElement.classList.add("magnetic-locked");
   }, true);
