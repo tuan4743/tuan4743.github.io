@@ -78,7 +78,7 @@
     lastSave = now;
     try {
       sessionStorage.setItem(PST, JSON.stringify({
-        id: String(s.id),
+        id: String(s.id || s.file || s.name || ""),
         t: audioEl.currentTime || 0,
         playing: !audioEl.paused && !audioEl.ended,
         at: now
@@ -111,19 +111,20 @@
     if (!st || !st.id) return;
     var i = -1;
     for (var k = 0; k < musicData.songs.length; k++) {
-      if (String(musicData.songs[k].id) === String(st.id)) i = k;
+      var sk = musicData.songs[k];
+      if (String(sk.id || sk.file || sk.name || "") === String(st.id)) i = k;
     }
     if (i < 0) return;
     musicPick = i;
     var s = musicData.songs[i];
-    if (!s.direct) return;
+    if (!s.direct && !s.file) return;
     if (!st.playing) {
       audioEl.dataset.song = String(s.id);
       return;
     }
     audioEl.preload = "auto";
     audioEl.dataset.song = String(s.id);
-    audioEl.src = "//music.163.com/song/media/outer/url?id=" + s.id + ".mp3";
+    audioEl.src = songUrl(s);
     pendingSeek = (st.t || 0) + Math.min(2.5, Math.max(0, (Date.now() - (st.at || Date.now())) / 1000));
     wantResume = true;
     try { audioEl.load(); } catch (e) { }
@@ -321,10 +322,12 @@
     }
     if (musicPick >= songs.length) musicPick = 0;
     var cur = songs[musicPick] || {};
+    /* 本地歌(file)和直链歌(direct)都走自己的 <audio>;都没有才 iframe */
+    var playable = cur.direct || cur.file;
     if (audioEl.dataset.song !== String(cur.id)) {
       audioEl.dataset.song = String(cur.id);
-      if (cur.direct) {
-        audioEl.src = "//music.163.com/song/media/outer/url?id=" + cur.id + ".mp3";
+      if (playable) {
+        audioEl.src = songUrl(cur);
       } else {
         pauseAudio();
         audioEl.removeAttribute("src");
@@ -384,7 +387,7 @@
   }
 
   function playerFor(s) {
-    if (s.direct) {
+    if (s.direct || s.file) {
       return '<div class="hud-player">' +
         '<button class="hud-player__btn" type="button" id="hud-player-btn" aria-label="播放或暂停">' +
         '<svg viewBox="0 0 24 24" aria-hidden="true">' +
@@ -399,6 +402,19 @@
     }
     return musicFrame("//music.163.com/outchain/player?type=2&id=" + s.id + "&auto=0&height=66", 86) +
       '<p class="hud-plist__note">这首网易云只给嵌入式播放器(没有直链)⇒ 音量用它自己的。</p>';
+  }
+
+  /* ---------- 音源解析:直链 / 本地文件两用 ----------
+     · direct(网易云 outer/url):写死的外链,没法本地化,照旧;
+     · file(本地音库):song.file 是静态目录相对路径(如 "a.mp3"
+       → /assets/hud-music/a.mp3)。将来扩展音库只要在 hugo.toml
+       的 hudMusicSongs 里加 { name, artist, file = "xxx.mp3",
+       lrc = "xxx.lrc" },文件丢 static/assets/hud-music/ 即可,
+       播放/seek/频谱/连播全部走【自己】的原生链路。
+     lrc 暂存数据里,歌词滚动等播放器下期扩展直接读。 */
+  function songUrl(s) {
+    if (s.file) return "/assets/hud-music/" + String(s.file).replace(/^\/+/, "");
+    return "//music.163.com/song/media/outer/url?id=" + s.id + ".mp3";
   }
 
   function applyVolume(a) {
@@ -566,7 +582,7 @@
     if (!songs.length || current !== "music") return;
     for (var step = 1; step <= songs.length; step++) {
       var idx = (musicPick + step) % songs.length;
-      if (songs[idx] && songs[idx].direct) {
+      if (songs[idx] && (songs[idx].direct || songs[idx].file)) {
         musicPick = idx;
         renderMusic();
         var p = audioEl.play();
