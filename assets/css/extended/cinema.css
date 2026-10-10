@@ -53,24 +53,27 @@ html.hud-cinema .top-link {
     transition: opacity 0.28s ease;
 }
 
-/* ---- 站名 = 全屏开关 ---- */
-.hud-logo--cinema {
+/* ---- 站名 = 全屏开关 ----
+   ★ page-hud.css 在 extended bundle 之后加载,同特异性会翻回
+     pointer-events:none —— 这里用 html 前缀拉高特异性压住它。 */
+html .hud-logo--cinema {
     pointer-events: auto;
     cursor: pointer;
 }
 
-/* 全屏态:站名滑到屏幕最右上(常驻出口),文字提示随 title 变 */
-html.hud-cinema .hud-logo {
-    left: auto;
-    right: 2.4vw;
-    top: 2.4%;
-    transition: left 0.34s cubic-bezier(0.22, 0.61, 0.36, 1),
-        right 0.34s cubic-bezier(0.22, 0.61, 0.36, 1), top 0.34s ease;
+/* 丝滑平移:站名常驻过渡(双向),进全屏从左上原位滑向最右上,
+   退出滑回。left/right 同时插值会瞬跳(left→auto 无法动画),
+   所以基线就用 left 定位,全屏态改为右对齐 + transform 补偿,
+   让浏览器在两个可插值状态间平移。 */
+html .hud-logo {
+    transition: transform 0.45s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
-.hud-logo {
-    transition: left 0.34s cubic-bezier(0.22, 0.61, 0.36, 1),
-        right 0.34s cubic-bezier(0.22, 0.61, 0.36, 1), top 0.34s ease;
+/* 全屏态:不换定位锚,只用 transform 把站名平移到屏幕最右上。
+   translate 的目标点由 JS 写入 --cinema-tx/ty(精确像素,任意视口都对),
+   CSS 只管滑过去的曲线。 */
+html.hud-cinema .hud-logo {
+    transform: translate(var(--cinema-tx, 0px), var(--cinema-ty, 0px));
 }
 
 /* ---- 正文:满屏贴合 ---- */

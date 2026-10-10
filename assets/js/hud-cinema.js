@@ -23,7 +23,21 @@
 
     function paintLogo() {
         var logo = document.querySelector(".hud-logo");
-        if (logo) logo.classList.toggle("is-cinema", docEl.classList.contains("hud-cinema"));
+        if (!logo) return;
+        var on = docEl.classList.contains("hud-cinema");
+        logo.classList.toggle("is-cinema", on);
+        /* 全屏态把站名平移到屏幕最右上:算一次精确位移写进 CSS 变量,
+           transform 过渡丝滑平移;退出归零即滑回原位。 */
+        if (on) {
+            var r = logo.getBoundingClientRect();
+            var tx = window.innerWidth - r.right - Math.round(window.innerWidth * 0.024);
+            var ty = Math.round(window.innerHeight * 0.024) - r.top;
+            logo.style.setProperty("--cinema-tx", tx + "px");
+            logo.style.setProperty("--cinema-ty", ty + "px");
+        } else {
+            logo.style.setProperty("--cinema-tx", "0px");
+            logo.style.setProperty("--cinema-ty", "0px");
+        }
     }
 
     function apply(on) {
@@ -45,6 +59,7 @@
         if (!logo || logo.__cinemaBound) return;
         logo.__cinemaBound = true;
         logo.classList.add("hud-logo--cinema"); /* 开放点击 + 提示 */
+        logo.title = "全屏 (Alt + F)";
         logo.addEventListener("click", function (e) {
             e.preventDefault();
             toggle();
