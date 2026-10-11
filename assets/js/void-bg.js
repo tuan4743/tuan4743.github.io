@@ -118,9 +118,23 @@
   function buildDots() {
     dots.length = 0;
     for (var i = 0; i < NDOTS; i++) {
+      /* 出生 y:全域均匀但【剔除三条急流带】(含摆幅余量)——
+         用户: "自由粒子出现时就在洋流上" = 出生均匀随机, 必有
+         ~15% 落在河里。改为拒绝采样: 落进河带就重摇, 海洋雪
+         只生在急流之间的水层; 之后即使漂进带也只是路过。 */
+      var y = hash(i * 2.17);
+      for (var tries = 0; tries < 24; tries++) {
+        var inBand = false;
+        for (var cb = 0; cb < CURRENTS.length; cb++) {
+          var cB = CURRENTS[cb];
+          if (Math.abs(y - cB.y0) < cB.width * 1.4 + 0.05) { inBand = true; break; }
+        }
+        if (!inBand) break;
+        y = hash(i * 2.17 + (tries + 1) * 3.77);
+      }
       dots.push({
-        x: hash(i * 1.31), y: hash(i * 2.17),             /* 真实位置(归一化) */
-        homeY: hash(i * 2.17),                             /* 固有纬度(弱回拉锚) */
+        x: hash(i * 1.31), y: y,                          /* 真实位置(归一化) */
+        homeY: y,                                          /* 固有纬度(回拉锚=出生水层) */
         vx: 0, vy: 0,
         ph: hash(i * 3.7) * Math.PI * 2,                   /* 闪烁相位 */
         om: 0.15 + hash(i * 5.9) * 0.35,                   /* 闪烁频率 */
