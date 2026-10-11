@@ -438,11 +438,43 @@
   }
 
   /* ---------- 海洋雪步进:自由粒子也走同一片场 ----------
-     与 flowStep 完全同构, 只有三点不同:
-       · 不带航道的固有纬度 —— homeY 弱回拉(k=0.02/s, 比河内弹簧弱
-         一个量级), 只防"整层水团慢慢漂出纬带", 不制造河那种收束;
+     ★ 用 dotField 而不是 flowField —— flowField 里有洋流粒子的
+       "航道弹簧"(向自己所属河的中心线回拉, 系数 0.55), 上版借
+       flowDots[0] 当探针, 等于给全体自由粒子挂了一个朝河1的弹簧
+       → 全被吸到一道洋流上(用户实测)。dotField 只有:
+       · 基础环流 V(y) + 呼吸;
+       · 三条急流的高斯平流(进带加速/带内跟随坡度), 只改速度方向,
+         不拉位置 —— 粒子穿过带还是穿过带, 不会被留下;
+       · 固有纬度极弱回拉(0.02/s)防水团整体漂出纬带;
        · 惯性更小(k=3.0/s) —— 雪花比船轻, 跟场更贴;
        · vj 缩放场速 —— 有的雪跟得紧, 有的拖在后面, 层次感。 */
+  function dotField(x, y, tMod, out) {
+    var base = baseCirculation(y, tMod);
+    var sp0 = 0.014 * (1 + chargeG() * 8 + qG() * 3.0);
+    var fx = base * sp0;
+    var fy = 0.012 * Math.sin(tMod * 0.031 + x * 3.1 + base * 2.0) * sp0;
+    for (var ci = 0; ci < CURRENTS.length; ci++) {
+      var c = CURRENTS[ci];
+      /* 粗筛:离这条河的纬度带太远直接跳过(省 7 丝三角函数) */
+      var farY = Math.abs(y - c.y0);
+      if (farY > 0.16) continue;
+      var jetV = 0.030 * c.dir * (1 + chargeG() * 8 + qG() * 3.0);
+      var e = 0.002;
+      var bestG = 0, slope = 0;
+      for (var st = 0; st < 7; st++) {
+        var cy = currentY(c, x, tMod, st);
+        var d = (y - cy) / (c.width * 1.4);
+        var g = Math.exp(-d * d);
+        if (g <= bestG) continue;
+        bestG = g;
+        slope = (currentY(c, x + e, tMod, st) - currentY(c, x - e, tMod, st)) / (2 * e);
+      }
+      if (bestG <= 0.01) continue;
+      fx += (jetV - fx) * bestG;
+      fy += (jetV - fy) * slope * 0.9 * bestG;
+    }
+    out[0] = fx; out[1] = fy;
+  }
   var dotV = [0, 0];
   function dotsStep(dt, tSec) {
     var n = dots.length;
@@ -452,15 +484,7 @@
     var k = 1 - Math.exp(-dts * 3.0);
     for (var i = 0; i < n; i++) {
       var d = dots[i];
-      /* 复用 flowField:借 flowDots[0] 当探针(场函数不写探针状态) */
-      var probe = flowDots[0];
-      if (probe) {
-        probe.x = d.x; probe.y = d.y;
-        flowField(probe, tMod, dotV);
-      } else {
-        dotV[0] = baseCirculation(d.y, tMod) * 0.014;
-        dotV[1] = 0;
-      }
+      dotField(d.x, d.y, tMod, dotV);
       var fx = dotV[0] * d.vj, fy = dotV[1] * d.vj;
       fy += (d.homeY - d.y) * 0.02;                    /* 固有纬度:极弱回拉 */
       d.vx += (fx - d.vx) * k;
