@@ -46,6 +46,15 @@
     };
     function gateFor(no) { return GATES[no] || null; }
 
+    /* 已解密过的档案不再上锁(localStorage 持久) */
+    var unlockedSet = {};
+    try {
+        (JSON.parse(localStorage.getItem("arc-unlocked") || "[]") || []).forEach(function (n) {
+            unlockedSet[n] = true;
+        });
+    } catch (e) { }
+    function unlockedBefore(no) { return !!unlockedSet[no]; }
+
     /* 正式著录区内容(解锁后由 gate 替换进来;未锁卡直接渲染) */
     function detailInner(it) {
         return "<div>" + (it.carrier ? "载体 <b>" + esc(it.carrier) + "</b> · " : "") +
@@ -160,10 +169,10 @@
                 '<span class="arc-it__meta">' + meta + "</span>" +
                 "</span>" +
                 '<span class="arc-it__int">' + esc((it.integrity || "").replace(/^完整性/, "").trim() || "—") + "</span>" +
-                (gateFor(it.no || "")
+                (gateFor(it.no || "") && !unlockedBefore(it.no)
                     ? ""   /* 上锁卡:著录区在下面以解密门注入 */
                     : '<span class="arc-it__detail">' + detailInner(it) + "</span>");
-            var gate = gateFor(it.no || "");
+            var gate = gateFor(it.no || "") && !unlockedBefore(it.no);
             if (gate) {
                 /* 未解密:著录区先显示解密门, 答对才把正式内容换进来 */
                 el.classList.add("is-locked");
@@ -209,12 +218,26 @@
                         el.classList.remove("is-locked");
                         el.classList.add("is-unlocked");
                         if (err) err.hidden = true;
-                        /* 换上正式著录内容 */
+                        /* 换上正式著录内容;解锁记录持久 —— 下次开终端不再锁 */
+                        try {
+                            var seen = JSON.parse(localStorage.getItem("arc-unlocked") || "[]");
+                            if (seen.indexOf(it.no) < 0) {
+                                seen.push(it.no);
+                                localStorage.setItem("arc-unlocked", JSON.stringify(seen));
+                            }
+                        } catch (e) { }
                         gateEl.outerHTML = detailHTML(it);
                     } else {
                         if (err) {
                             err.textContent = "不对。(" + (v ? "「" + v + "」" : "空") + ")";
                             err.hidden = false;
+                            /* 抖一下输入框:错了要看得见是输入错了 */
+                            var inp = gateEl.querySelector(".arc-it__gate-in");
+                            if (inp) {
+                                inp.classList.remove("is-err");
+                                void inp.offsetWidth;
+                                inp.classList.add("is-err");
+                            }
                         }
                     }
                 };
@@ -248,6 +271,7 @@
 
     /* ---- 状态机 ---- */
     var open = false;
+    var scrollY = 0;
     function show() {
         if (open) return;
         /* 撑开原点 = 左下角 ARCHIVE 按钮的实际位置(按钮没了兜底用左下) */
@@ -259,6 +283,10 @@
         }
         open = true;
         root.hidden = false;
+        /* 终端开着时锁住背后页面滚动(全屏覆盖层, 底下的正文不该跟着滚) */
+        scrollY = window.pageYOffset || 0;
+        document.body.style.top = -scrollY + "px";
+        document.body.classList.add("arc-t-lock");
         /* 重触发入场动画 */
         root.querySelectorAll(".arc-it").forEach(function (el) {
             el.style.animation = "none";
@@ -288,7 +316,15 @@
             o.classList.remove("is-open");
         });
         /* 与 CSS 收回时长(0.52s)对齐再 hidden —— 提前掐会闪 */
-        setTimeout(function () { if (!open) root.hidden = true; }, 560);
+        setTimeout(function () {
+            if (!open) {
+                root.hidden = true;
+                /* 解锁背后页面滚动, 恢复原位置 */
+                document.body.classList.remove("arc-t-lock");
+                document.body.style.top = "";
+                window.scrollTo(0, scrollY);
+            }
+        }, 560);
     }
 
     function roman(n) {

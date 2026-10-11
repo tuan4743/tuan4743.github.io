@@ -256,6 +256,20 @@
     scroll-behavior: smooth;
 }
 
+/* 细滚动条, 与全站终端语言一致 */
+.arc-t__flow::-webkit-scrollbar {
+    width: 6px;
+}
+
+.arc-t__flow::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--accent) 30%, transparent);
+    border-radius: 3px;
+}
+
+.arc-t__flow::-webkit-scrollbar-track {
+    background: transparent;
+}
+
 .arc-t__flow::after {
     content: "";
     display: block;
@@ -512,11 +526,31 @@
     background: color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
-.arc-it__gate-err {
+.arc-t__gate-err {
     margin-top: 6px;
     color: #ff8fb1;
     font-size: 0.85em;
     letter-spacing: 0.1em;
+}
+
+/* 答错抖动 */
+.arc-it__gate-in.is-err {
+    animation: arc-gate-shake 0.3s ease;
+    border-color: #ff8fb1;
+}
+
+@keyframes arc-gate-shake {
+    0%, 100% { transform: translateX(0); }
+    30%      { transform: translateX(-4px); }
+    60%      { transform: translateX(4px); }
+}
+
+/* 终端打开期间锁背后页面滚动(body 定位法, 与 surge-lock 同款) */
+body.arc-t-lock {
+    position: fixed;
+    left: 0;
+    right: 0;
+    overflow: hidden;
 }
 
 /* 锁定/解锁卡的状态语言 */
