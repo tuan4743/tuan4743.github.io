@@ -371,15 +371,20 @@
   function flowField(b, tMod, out) {
     var c = CURRENTS[b.ci];
     var py = currentY(c, b.x, tMod, b.strand);
-    var d = (b.y - py) / (c.width * 2.2);
+    /* ★ 每个粒子的平衡点 = 中心线 + 自己的固有纬度(lat, 出生即定):
+       回拉的目标是【自己的航道】而不是公共中心线 —— 否则全体粒子
+       被拉到同一条线上, 洋流只剩几条线。lat ∈ [-0.5,0.5]×width,
+       7 条流丝各自微摆 → 整条带有厚度、有织理。 */
+    var pyLane = py + b.lat * c.width * 0.9;
+    var d = (b.y - pyLane) / (c.width * 1.4);
     var g = Math.exp(-d * d);                     /* 带内强, 带外趋零 */
     var sp = 0.026 * c.dir * (1 + chargeG() * 8 + qG() * 3.0);
     var fx = sp * Math.max(g, 0.18);              /* 带外仍有 18% 巡航底速:永不停滞 */
-    /* 垂向:跟随河道坡度 + 离带回复(离中心线越远, 回拉越强 → 不堆积不成线) */
+    /* 垂向:跟随河道坡度(自己的流丝) + 向自己航道的回拉(软弹簧, 不过中) */
     var e = 0.002;
     var slope = (currentY(c, b.x + e, tMod, b.strand) - currentY(c, b.x - e, tMod, b.strand)) / (2 * e);
     var fy = fx * slope * 0.9;
-    fy += -(b.y - py) * 0.5 * Math.min(1, Math.abs(d));   /* 越偏越拉 */
+    fy += -(b.y - pyLane) * 0.55;                 /* 线性弹簧:均衡点在自己的纬度 */
     out[0] = fx; out[1] = fy;
   }
   var _charge = 0, _q = 0;
