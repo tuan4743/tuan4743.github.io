@@ -108,22 +108,24 @@
     return v;
   }
 
-  /* ---------- 暗模式:拓扑泡沫白点 ---------- */
+  /* ---------- 暗模式:海洋雪(自由粒子) ----------
+     与洋流粒子同一片海、同一套平流物理:有真实位置/速度, 每帧被
+     流场带着走(dotsStep)。不吸附也不避让 —— 场是单值的, 粒子进带
+     被加速、出带回落, 都是场的自然结果。固有纬度弱锚点保证长时
+     运行全域分布不塌缩(水团不跨纬带)。 */
   var NDOTS = 1440;
   var dots = [];
   function buildDots() {
     dots.length = 0;
     for (var i = 0; i < NDOTS; i++) {
       dots.push({
-        bx: hash(i * 1.31), by: hash(i * 2.17),          /* 基准位置(屏幕比例) */
-        ph: hash(i * 3.7) * Math.PI * 2,                  /* 相位 θ */
-        om: 0.15 + hash(i * 5.9) * 0.35,                  /* 固有频率 rad/s */
-        sz: 0.5 + hash(i * 7.1) * 1.1,                    /* 半径 px(小而多) */
-        bob: 5 + hash(i * 9.1) * 14,                      /* 涨落幅度 px */
-        bw: 0.10 + hash(i * 11.3) * 0.25,                 /* 涨落频率 */
-        drift: 2 + hash(i * 13.1) * 9,                    /* 缓慢自漂移幅度 px */
-        dw: 0.02 + hash(i * 15.7) * 0.06,                 /* 自漂移频率 */
-        dp: hash(i * 17.3) * Math.PI * 2                  /* 自漂移相位 */
+        x: hash(i * 1.31), y: hash(i * 2.17),             /* 真实位置(归一化) */
+        homeY: hash(i * 2.17),                             /* 固有纬度(弱回拉锚) */
+        vx: 0, vy: 0,
+        ph: hash(i * 3.7) * Math.PI * 2,                   /* 闪烁相位 */
+        om: 0.15 + hash(i * 5.9) * 0.35,                   /* 闪烁频率 */
+        sz: 0.5 + hash(i * 7.1) * 1.1,                     /* 半径 px(小而多) */
+        vj: 0.7 + hash(i * 9.1) * 0.6                      /* 个性(轻重, 被场带动的程度) */
       });
     }
   }
@@ -432,6 +434,43 @@
       /* y 不 clamp 成线:柔和回弹(超过可视界后往回推, 场的回拉项也在做这件事) */
       if (b.y > 1.06) b.vy -= (b.y - 1.06) * 2.0;
       else if (b.y < -0.06) b.vy += (-0.06 - b.y) * 2.0;
+    }
+  }
+
+  /* ---------- 海洋雪步进:自由粒子也走同一片场 ----------
+     与 flowStep 完全同构, 只有三点不同:
+       · 不带航道的固有纬度 —— homeY 弱回拉(k=0.02/s, 比河内弹簧弱
+         一个量级), 只防"整层水团慢慢漂出纬带", 不制造河那种收束;
+       · 惯性更小(k=3.0/s) —— 雪花比船轻, 跟场更贴;
+       · vj 缩放场速 —— 有的雪跟得紧, 有的拖在后面, 层次感。 */
+  var dotV = [0, 0];
+  function dotsStep(dt, tSec) {
+    var n = dots.length;
+    if (!n) return;
+    var tMod = tSec % 86400;
+    var dts = dt / 1000;
+    var k = 1 - Math.exp(-dts * 3.0);
+    for (var i = 0; i < n; i++) {
+      var d = dots[i];
+      /* 复用 flowField:借 flowDots[0] 当探针(场函数不写探针状态) */
+      var probe = flowDots[0];
+      if (probe) {
+        probe.x = d.x; probe.y = d.y;
+        flowField(probe, tMod, dotV);
+      } else {
+        dotV[0] = baseCirculation(d.y, tMod) * 0.014;
+        dotV[1] = 0;
+      }
+      var fx = dotV[0] * d.vj, fy = dotV[1] * d.vj;
+      fy += (d.homeY - d.y) * 0.02;                    /* 固有纬度:极弱回拉 */
+      d.vx += (fx - d.vx) * k;
+      d.vy += (fy - d.vy) * k;
+      d.x += d.vx * dts;
+      d.y += d.vy * dts;
+      if (d.x > 1) d.x -= 1; else if (d.x < 0) d.x += 1;
+      if (d.y > 1.04) { d.y = 1.04; d.vy = -Math.abs(d.vy) * 0.3; }
+      else if (d.y < -0.04) { d.y = -0.04; d.vy = Math.abs(d.vy) * 0.3; }
+      if (d.homeY > 1) d.homeY -= 1; else if (d.homeY < 0) d.homeY += 1;
     }
   }
 
@@ -1085,34 +1124,18 @@
       }
       ctx.restore();
 
-      /* 拓扑泡沫白点:亮度 = 相位余弦,位置随场涨落 + 自漂移。
-         ★ 性能:避让的 currentY 每点 3 股 × 7 丝 = 21 次三角函数 ——
-           预计算【每帧每股每丝在采样列上的 y】没用(点 x 各不同),
-           改为快速预筛:点先按 y0±带宽粗判"可能进带"才细算 ——
-           带外点(绝大多数)零三角函数。 */
+      /* 海洋雪(自由粒子):同一片海, 同一套场平流(dotsStep 更新,
+         这里只读位置画点)。不再有独立"漂浮层"与避让消隐 ——
+         粒子进急流带被加速变亮(与洋流粒子同一物理), 出带回落;
+         洋流带密度由出生分布决定, 场不改变总粒子数。 */
       ctx.save();
+      dotsStep(dt, tS);
       for (var d = 0; d < dots.length; d++) {
         var dt0 = dots[d];
         var tw = 0.5 + 0.5 * Math.cos(dt0.ph + tS * dt0.om * Math.PI * 2 * 0.12);
-        var px2 = (dt0.bx + 0.008 * Math.sin(tS * dt0.bw + d) + 0.004 * Math.sin(tS * dt0.dw + dt0.dp)) * W;
-        var py2 = (dt0.by + 0.008 * Math.cos(tS * dt0.bw * 0.8 + d * 1.3) + 0.004 * Math.cos(tS * dt0.dw * 1.3 + dt0.dp * 1.7)) * H + Math.sin(tS * dt0.bw * Math.PI * 2 * 0.3 + dt0.ph) * dt0.bob * 0.5;
-        /* 快速预筛:ny 到任何河道 y0 的距离超过(amp 总和 + 漂移 + 半宽)就直接跳过 */
-        var ny2 = py2 / H;
-        var suppress = 1;
-        for (var ci2 = 0; ci2 < CURRENTS.length; ci2++) {
-          var cc0 = CURRENTS[ci2];
-          var far = Math.abs(ny2 - cc0.y0) - (cc0.amp[0] + cc0.amp[1] + cc0.amp[2] + 0.022);
-          if (far > cc0.width) continue;                 /* 带外,不可能碰河道 */
-          for (var st2 = 0; st2 < 7; st2++) {
-            var cy2 = currentY(cc0, px2 / W, tS, st2);
-            var halfW = cc0.width * 0.55;                /* 单丝半宽 */
-            var dBand = Math.abs(ny2 - cy2);
-            if (dBand < halfW) {
-              suppress = Math.min(suppress, Math.max(0, dBand / halfW));
-            }
-          }
-        }
-        var a = (0.07 + 0.38 * tw * tw) * suppress;       /* ≤0.45 */
+        var px2 = dt0.x * W;
+        var py2 = dt0.y * H;
+        var a = 0.07 + 0.38 * tw * tw;                    /* ≤0.45 */
         ctx.globalAlpha = a;
         ctx.fillStyle = "#e8f2ff";
         ctx.beginPath();
@@ -1540,7 +1563,7 @@
         ctx.globalAlpha = 0.04 + 0.26 * tw * tw;
         ctx.fillStyle = "#e8f2ff";
         ctx.beginPath();
-        ctx.arc(dt0.bx * W, dt0.by * H, dt0.sz, 0, Math.PI * 2);
+        ctx.arc(dt0.x * W, dt0.y * H, dt0.sz, 0, Math.PI * 2);
         ctx.fill();
       }
     } else {
