@@ -314,7 +314,18 @@
     y += Math.sin(tSec * 0.07 * c.drift + c.y0 * 9.0) * 0.02;
     return y;
   }
-  /* 每个流点:固定 seed(股/序号),沿流向以微小速度差移动 → 带内有剪流感 */
+  /* 每个流点:固定 seed(股/序号),沿流向以微小速度差移动 → 带内有剪流感
+     ★ boids 化(2026-10-11):洋流粒子从"沿参数相位的确定性点"改成
+     【受推荐路线引导的鸟群】—— 每个粒子有真实的位置/速度,每帧:
+       · separation:近邻排开(不叠成一坨)
+       · alignment:与邻居同向(群体流动感)
+       · cohesion:向邻居质心轻靠(成群)
+       · 路线引导:向当前 x 处的河道中心线 y 吸引 + 沿 dir 的巡航推力
+       · 离群减速:可见邻居少于阈值 → 巡航速度上限降低、引导权重升高
+         → 自然而然落回群体/路线,"离群的鱼会慢下来找组织"
+     自由漂浮粒子(dots,1440 白点)不动 —— 保留"洋流 + 自由漂浮"双层。
+     长时稳定性:位置 wrap 在 [0,1]、速度 clamp、引导相位取 tSec%86400
+     (一天周期,sin 大参数精度衰减消失)—— 跑几天也不出怪。 */
   var flowDots = [];
   function buildFlow() {
     flowDots.length = 0;
@@ -324,16 +335,105 @@
       for (var i = 0; i < c.n; i++) {
         flowDots.push({
           ci: ci,
-          off: (i / c.n + hash(k * 1.7) * (1 / c.n)) % 1,      /* 沿河道的固有相位 */
+          x: hash(k * 1.7),                                     /* 归一化位置 */
+          y: currentY(c, hash(k * 1.7), 0, (hash(k * 2.9) * STRANDS) | 0) + (hash(k * 2.3) + hash(k * 3.1) - 1) * 0.5 * c.width,
+          vx: c.dir * (0.018 + hash(k * 5.9) * 0.008),          /* 归一化速度(屏宽/秒) */
+          vy: 0,
           strand: (hash(k * 2.9) * STRANDS) | 0,                /* 属于哪条流丝 */
-          lat: (hash(k * 2.3) + hash(k * 3.1) - 1) * 0.5,      /* 横向高斯散布 [-0.5,0.5] */
           sz: 0.4 + hash(k * 4.3) * 0.7,
-          vj: 0.85 + hash(k * 5.9) * 0.3,                      /* 速度差(剪流) */
-          tw: hash(k * 7.7) * Math.PI * 2,                     /* 闪烁相位 */
+          vj: 0.85 + hash(k * 5.9) * 0.3,                       /* 个性速度差(剪流) */
+          tw: hash(k * 7.7) * Math.PI * 2,                      /* 闪烁相位 */
+          off: (i / c.n + hash(k * 1.7) * (1 / c.n)) % 1,       /* 兼容旧闪烁路径 */
+          lat: (hash(k * 2.3) + hash(k * 3.1) - 1) * 0.5,
           k: k
         });
         k++;
       }
+    }
+  }
+
+  /* ---- boids 单步(每帧对每粒子调用) ----
+     dt 秒;charge/q 为过境水位(加速用)。邻域搜索:洋流粒子多(1440),
+     邻居表按【股内 + 网格桶】粗筛 —— 每帧 O(n·邻桶), 实测 30fps 预算内。 */
+  var boidGrid = null, boidGridCols = 0, boidGridRows = 0, boidCell = 0.06;
+  function boidStep(dt, tSec, charge, q) {
+    var n = flowDots.length;
+    if (!n) return;
+    /* 网格桶重建(位置分桶,只查 3×3 邻桶) */
+    boidCell = 0.06;
+    boidGridCols = Math.max(1, Math.ceil(1 / boidCell));
+    boidGridRows = boidGridCols;
+    if (!boidGrid || boidGrid.length !== boidGridCols * boidGridRows) {
+      boidGrid = new Array(boidGridCols * boidGridRows);
+      for (var g = 0; g < boidGrid.length; g++) boidGrid[g] = [];
+    } else {
+      for (var g2 = 0; g2 < boidGrid.length; g2++) boidGrid[g2].length = 0;
+    }
+    for (var i = 0; i < n; i++) {
+      var p = flowDots[i];
+      var gcx = Math.min(boidGridCols - 1, (p.x * boidGridCols) | 0);
+      var gcy = Math.min(boidGridRows - 1, (p.y * boidGridRows) | 0);
+      var gci = gcy * boidGridCols + gcx;
+      if (!boidGrid[gci]) boidGrid[gci] = [];
+      boidGrid[gci].push(i);
+      p._gc = gci;
+    }
+    var tMod = tSec % 86400;                     /* 引导相位一天一循环:大参数精度安全 */
+    /* 过境加速(比旧 28 倍收敛, 群体语义下太快会散) — 直接进 cruise 公式 */
+    for (var f = 0; f < n; f++) {
+      var b = flowDots[f];
+      var c = CURRENTS[b.ci];
+      /* --- 邻居(3×3 桶,同股优先) --- */
+      var gx = (b._gc % boidGridCols) | 0, gy = (b._gc / boidGridCols) | 0;
+      var sepX = 0, sepY = 0, aliX = 0, aliY = 0, cohX = 0, cohY = 0, cnt = 0;
+      for (var oy = -1; oy <= 1; oy++) {
+        var yy = gy + oy;
+        if (yy < 0 || yy >= boidGridRows) continue;
+        for (var ox = -1; ox <= 1; ox++) {
+          var xx = gx + ox;
+          if (xx < 0 || xx >= boidGridCols) continue;
+          var bucket = boidGrid[yy * boidGridCols + xx];
+          for (var bi = 0; bi < bucket.length; bi++) {
+            var o = flowDots[bucket[bi]];
+            if (o === b) continue;
+            var dx = o.x - b.x, dy = o.y - b.y;
+            /* 环形边界上的 dx 修正(粒子 wrap, 最近映像) */
+            if (dx > 0.5) dx -= 1; else if (dx < -0.5) dx += 1;
+            var d2 = dx * dx + dy * dy;
+            if (d2 > 0.0036 || d2 < 1e-8) continue;           /* 感知半径 0.06 */
+            if (d2 < 0.0004) {                                 /* <0.02:分离优先 */
+              sepX -= dx / d2; sepY -= dy / d2;
+            }
+            aliX += o.vx; aliY += o.vy;
+            cohX += dx; cohY += dy;
+            cnt++;
+          }
+        }
+      }
+      var cruise = 0.022 * b.vj * (1 + charge * 8 + q * 3.0);
+      var ax = 0, ay = 0;
+      if (cnt > 0) {
+        ax += sepX * 0.05 + (aliX / cnt - b.vx) * 1.6 + (cohX / cnt) * 0.5;
+        ay += sepY * 0.05 + (aliY / cnt - b.vy) * 1.6 + (cohY / cnt) * 0.5;
+      } else {
+        /* 离群:减速 + 强引导(慢下来的鱼会找回路) */
+        cruise *= 0.45;
+      }
+      /* 路线引导:向河道中心线的 y 吸引 + 沿 dir 的巡航推力 */
+      var pathY = currentY(c, b.x, tMod, b.strand);
+      ay += (pathY - b.y) * (cnt > 0 ? 1.2 : 3.2);
+      ax += (c.dir * cruise - b.vx) * (cnt > 0 ? 0.6 : 2.2);
+      ay += -b.vy * 0.35;                                     /* 垂向阻尼:贴带 */
+      /* 积分(dt 是毫秒 → 秒) */
+      var dts = dt / 1000;
+      b.vx += ax * dts; b.vy += ay * dts;
+      var sp = Math.hypot(b.vx, b.vy);
+      var cap = cruise * 2.2 + 0.004;
+      if (sp > cap) { b.vx = b.vx / sp * cap; b.vy = b.vy / sp * cap; }
+      b.x += b.vx * dts; b.y += b.vy * dts;
+      /* 环形 wrap(x 越界从另一侧回来 = 川流不息) */
+      if (b.x > 1) b.x -= 1; else if (b.x < 0) b.x += 1;
+      if (b.y > 1.08) b.y = 1.08; else if (b.y < -0.08) b.y = -0.08;
     }
   }
 
@@ -925,12 +1025,9 @@
     }
     var charge = surgeCharge(surge.p);
     var q = surge.q;
-    /* ★ 帧积分洋流位移:speed 随 charge/q 变化时,s = off + tS*speed
-       会让 tS(全程)乘上全新速度 → 整条河瞬移、粒子"消失一段"。
-       改为 surge.adv 每帧累加 speed*dt,速度再猛也平滑续接。
-       ★ 极限速度 28 倍基速(charge=1 时 1+27;爆发期同式已含)。 */
-    var flowSpeed = 0.018 * (1 + charge * 27 + q * 3.0);
-    surge.adv = (surge.adv || 0) + flowSpeed * dt / 1000;
+    /* 洋流位移已由 boids 群体模拟承担(每粒子真实位置/速度积分),
+       不再有全局相位积分 surge.adv —— 无限增长的浮点累加正是
+       长时运行出现诡异行为的来源(精度丢失 + %1 相位跳变)。 */
 
     /* ★ 自适应帧率:平时 30fps;演出激活(p>0 或 q>0)提到 60fps
        (演出细,需要跟手的帧间隔),平时掉回 30 —— rAF 本身是 60,
@@ -1038,16 +1135,14 @@
       var glowPre = q === 0 && surge.p > 0.75 ? (surge.p - 0.75) / 0.25 * 0.5 : 0;
       var glow = q > 0 ? 0.5 + Math.min(1, q / 0.40) * 0.5 : glowPre;
       ctx.save();
+      /* ★ boids 单步:群体模拟推进(位置/速度在此更新, 下面只读) */
+      boidStep(dt, tS, charge, q);
       for (var f = 0; f < flowDots.length; f++) {
         var fd = flowDots[f];
         var c3 = CURRENTS[fd.ci];
-        /* ★ 速度:用帧积分 surge.adv(上面每帧累加),速度变化不跳相;
-           前期顶速 28 倍基速(charge=1 → 1+27),爆发期在此之上再 +q*3 */
-        var s = (fd.off + surge.adv * fd.vj * c3.dir) % 1;
-        if (s < 0) s += 1;
-        var cyc = fd.off + (surge.adv * fd.vj) % 1;       /* 用于闪烁 */
-        var cxp = s * W;
-        var cyp = currentY(c3, s, tS, fd.strand) * H + fd.lat * c3.width * H;
+        /* ★ 位置 = boid 的真实状态(不再是相位参数);x wrap 由 boidStep 管 */
+        var cxp = fd.x * W;
+        var cyp = fd.y * H;
         var fa = 0.18 + 0.26 * (0.5 + 0.5 * Math.sin(tS * 1.1 + fd.tw));
         /* 内容页避开中央阅读区(爆发期取消避让:洪峰盖一切) */
         var dCtr3 = Math.hypot(cxp - W * 0.5, cyp - H * 0.5) / Math.min(W, H);
@@ -1055,37 +1150,19 @@
         /* 前期增亮(不变大);爆发期按发光强度再抬 */
         fa = Math.min(1, fa + charge * 0.5 + glow * 0.55);
         ctx.globalAlpha = fa;
-        /* ★ 炫光 = 预渲染光晕贴图(替代逐点 shadowBlur):
-           核心点照常画,glow 起来后在其上贴 glowSprite,
-           尺寸随 glow 膨胀(点本体不变大 —— 光晕大,核不变)。 */
         ctx.fillStyle = glow > 0.01 ? "#f2f9ff" : "#dcecff";
-        /* 前期末段:点拖成线(沿运动方向);爆发期线更长 → 光带。
-           ★ 贯穿全屏直线的根因:回退点跨过 x=0/1 屏幕边界时,
-             pxp 会跳到屏幕另一端,两点直连 = 横贯线。
-             处理:拖尾统一折线化(3 段),并检测跨边界 ——
-             跨边界的点直接不画(那一帧少一截拖尾,看不出)。 */
-        var streak = charge > 0.4 ? (charge - 0.4) / 0.6 : 0;   /* 更早开始拖尾,随条全程加深 */
+        /* 前期末段:点拖成线(沿【速度反方向】—— boid 自己的轨迹,真实);
+           速度近零(离群慢速)不拖,不会有跨屏直线 —— 尾巴只在身后 0.06 屏内 */
+        var streak = charge > 0.4 ? (charge - 0.4) / 0.6 : 0;
         var streakLen = (streak * 34 + glow * 10) * fd.vj;   /* px */
-        if (streakLen > 1.2) {
-          var backS = (streakLen / W) * c3.dir;      /* s 空间回退量(带方向) */
-          var m2s = ((s - backS * 0.33) % 1 + 1) % 1;
-          var m1s = ((s - backS * 0.66) % 1 + 1) % 1;
-          var sPrevW = ((s - backS) % 1 + 1) % 1;
-          /* 跨屏边界检测:任一相邻采样点的 |Δs| 超过回退量一半即视为跨边界 */
-          var jump = Math.abs(s - m2s) > Math.abs(backS) * 0.55 ||
-                     Math.abs(m2s - m1s) > Math.abs(backS) * 0.55 ||
-                     Math.abs(m1s - sPrevW) > Math.abs(backS) * 0.55;
+        if (streakLen > 1.2 && Math.hypot(fd.vx, fd.vy) > 0.001) {
           ctx.strokeStyle = glow > 0.01 ? "#f2f9ff" : "#dcecff";
           ctx.lineWidth = fd.sz * 2;
           ctx.lineCap = "round";
-          if (!jump) {
-            ctx.beginPath();
-            ctx.moveTo(sPrevW * W, currentY(c3, sPrevW, tS, fd.strand) * H + fd.lat * c3.width * H);
-            ctx.lineTo(m1s * W, currentY(c3, m1s, tS, fd.strand) * H + fd.lat * c3.width * H);
-            ctx.lineTo(m2s * W, currentY(c3, m2s, tS, fd.strand) * H + fd.lat * c3.width * H);
-            ctx.lineTo(cxp, cyp);
-            ctx.stroke();
-          }
+          ctx.beginPath();
+          ctx.moveTo(cxp - fd.vx * streakLen * W, cyp - fd.vy * streakLen * H);
+          ctx.lineTo(cxp, cyp);
+          ctx.stroke();
         } else {
           ctx.beginPath();
           ctx.arc(cxp, cyp, fd.sz, 0, Math.PI * 2);
