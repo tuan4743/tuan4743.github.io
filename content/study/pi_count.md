@@ -4,6 +4,7 @@ date: 2026-09-18T10:00:00+08:00
 draft: false
 tags: ["学习","HPC","MPI","算法优化","高精度"]
 summary: "比较神的一次练手项目"
+comments: true
 ---
 
 # 零\-\-环境:

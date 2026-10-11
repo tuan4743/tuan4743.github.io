@@ -1,0 +1,81 @@
+{{- /* ============================================================
+     文章页评论区(评论区项, 2026-10-11)
+     ─────────────────────────────────────────────────
+     PaperMod 的 single.html 在 `.Param "comments"` 为真时调这个
+     partial(hugo.toml 里 comments=false 是全站默认, 由文章
+     front matter 的 comments: true 逐篇打开 —— 全站默认关,
+     避免老文章/随手记一粒评论框)。
+
+     组件与留言板共用同一套 giscus 配置(params.giscus)和同语言:
+     · .giscus-wrap 类 → 磁吸光标每帧检测该区域并断开吸附
+       (magnetic-cursor.js 现成逻辑, 无需改);
+     · 主题跟随: giscus 主题同步脚本在 shortcodes/giscus.html 里,
+       那份是留言板内联的; 这里抽成同样的内联(与留言板行为一致:
+       data-theme 用 preferred_color_scheme 初始化 + postMessage
+       setConfig 跟随 data-theme 切换)。
+     ============================================================ */ -}}
+{{- $repo := site.Params.giscus.repo | default "tuan4743/tuan4743.github.io" -}}
+<div class="giscus-wrap giscus-wrap--post">
+    <h2>评论</h2>
+    <p>评论基于 GitHub Discussions,需要先登录 GitHub 账号。</p>
+    <script src="https://giscus.app/client.js"
+        data-repo="{{ $repo }}"
+        data-repo-id="{{ site.Params.giscus.repoId }}"
+        data-category="{{ site.Params.giscus.category }}"
+        data-category-id="{{ site.Params.giscus.categoryId }}"
+        data-mapping="pathname"
+        data-strict="0"
+        data-reactions-enabled="1"
+        data-emit-metadata="0"
+        data-input-position="top"
+        data-theme="preferred_color_scheme"
+        data-lang="zh-CN"
+        crossorigin="anonymous"
+        async>
+    </script>
+    <script>
+        /* 主题跟随(与留言板同一份逻辑): 轮询 iframe 就绪 + postMessage
+           setConfig; MutationObserver 监听 data-theme 变化即时切换。 */
+        (function () {
+            var frame = null;
+            function find() {
+                if (!frame) frame = document.querySelector("iframe.giscus-frame");
+                return frame;
+            }
+            function currentTheme() {
+                var t = document.documentElement.dataset.theme;
+                return t === "dark" ? "transparent_dark" : "light";
+            }
+            function send() {
+                var f = find();
+                if (f && f.contentWindow) {
+                    f.contentWindow.postMessage(
+                        { giscus: { setConfig: { theme: currentTheme() } } },
+                        "https://giscus.app"
+                    );
+                    return true;
+                }
+                return false;
+            }
+            function attachLoad() {
+                var f = find();
+                if (f && !f.__giscusSyncAttached) {
+                    f.__giscusSyncAttached = true;
+                    f.addEventListener("load", function () { send(); });
+                }
+            }
+            var tries = 0;
+            var timer = setInterval(function () {
+                tries++;
+                attachLoad();
+                send();
+                if (tries > 120) clearInterval(timer);
+            }, 500);
+            new MutationObserver(function () { send(); })
+                .observe(document.documentElement, {
+                    attributes: true,
+                    attributeFilter: ["data-theme", "data-palette"],
+                });
+        })();
+    </script>
+</div>
