@@ -172,7 +172,11 @@
                 (gateFor(it.no || "") && !unlockedBefore(it.no)
                     ? ""   /* 上锁卡:著录区在下面以解密门注入 */
                     : '<span class="arc-it__detail">' + detailInner(it) + "</span>");
-            var gate = gateFor(it.no || "") && !unlockedBefore(it.no);
+            /* gate 必须是【题目对象】而不是布尔 —— && 链会返回布尔,
+               后面 gate.q/gate.a 全变 undefined(题目显示 undefined、
+               解密按钮抛错没反应的根源) */
+            var gateObj = gateFor(it.no || "");
+            var gate = (gateObj && !unlockedBefore(it.no)) ? gateObj : null;
             if (gate) {
                 /* 未解密:著录区先显示解密门, 答对才把正式内容换进来 */
                 el.classList.add("is-locked");
