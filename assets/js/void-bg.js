@@ -385,6 +385,20 @@
     var slope = (currentY(c, b.x + e, tMod, b.strand) - currentY(c, b.x - e, tMod, b.strand)) / (2 * e);
     var fy = fx * slope * 0.9;
     fy += -(b.y - pyLane) * 0.55;                 /* 线性弹簧:均衡点在自己的纬度 */
+    /* ★ 河间斥力:别的河的强带不是可以穿过的 —— 闯入时被那根河
+       轻柔地沿 y 推出去(推力 ∝ 闯入深度, 上限温和)。
+       两条河"相遇"时彼此让开, 不再互相穿过而无互动。 */
+    for (var oj = 0; oj < CURRENTS.length; oj++) {
+      if (oj === b.ci) continue;
+      var oc = CURRENTS[oj];
+      var opy = currentY(oc, b.x, tMod, 0);
+      var od = b.y - opy;
+      var odN = Math.abs(od) / (oc.width * 1.6);
+      if (odN < 1) {
+        /* 越深入对方核心, 推得越快;方向 = 远离对方中心线 */
+        fy += (od > 0 ? 1 : -1) * (1 - odN) * 0.05;
+      }
+    }
     out[0] = fx; out[1] = fy;
   }
   var _charge = 0, _q = 0;
