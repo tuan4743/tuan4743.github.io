@@ -314,6 +314,10 @@
     y += Math.sin(tSec * 0.07 * c.drift + c.y0 * 9.0) * 0.02;
     return y;
   }
+  /* 头鸟渲染尾长用的实时加速比(show 时 charge 未知, 简化: 全局暂存) */
+  var leaderSpeedMul = 1;
+  function speedMulG() { return leaderSpeedMul; }
+
   /* 每个流点:固定 seed(股/序号),沿流向以微小速度差移动 → 带内有剪流感
      ★ boids 化(2026-10-11):洋流粒子从"沿参数相位的确定性点"改成
      【受推荐路线引导的鸟群】—— 每个粒子有真实的位置/速度,每帧:
@@ -356,6 +360,26 @@
      dt 秒;charge/q 为过境水位(加速用)。邻域搜索:洋流粒子多(1440),
      邻居表按【股内 + 网格桶】粗筛 —— 每帧 O(n·邻桶), 实测 30fps 预算内。 */
   var boidGrid = null, boidGridCols = 0, boidGridRows = 0, boidCell = 0.06;
+  /* ---- 头鸟(3 条):不转向的定位者 ----
+     各带一条:沿河道方向匀速直线巡游, y 锁在河道中心线上
+     (路线本身随时间波动, 头鸟跟着走但不做群体转向)。
+     对粒子起引导作用:粒子在邻域里看见头鸟时,
+     alignment 权重加倍 —— 群体有了稳定的"脊梁"。 */
+  var leaders = [];
+  function buildLeaders() {
+    leaders.length = 0;
+    for (var ci = 0; ci < CURRENTS.length; ci++) {
+      var c = CURRENTS[ci];
+      leaders.push({
+        ci: ci,
+        x: hash(ci * 7.3 + 2) * 1,          /* 起始相位错开 */
+        vx: c.dir * 0.024,                   /* 略快于群体 → 走在前面 */
+        y: currentY(c, 0.5, 0, 0)
+      });
+    }
+  }
+  buildLeaders();
+
   function boidStep(dt, tSec, charge, q) {
     var n = flowDots.length;
     if (!n) return;
@@ -380,6 +404,17 @@
     }
     var tMod = tSec % 86400;                     /* 引导相位一天一循环:大参数精度安全 */
     /* 过境加速(比旧 28 倍收敛, 群体语义下太快会散) — 直接进 cruise 公式 */
+    var speedMul = 1 + charge * 8 + q * 3.0;
+    leaderSpeedMul = speedMul;
+    var speedMul = 1 + charge * 8 + q * 3.0;
+
+    /* 头鸟先行:x 匀速推进(wrap);y 死锁在河道中心线上;方向永不改变 */
+    for (var L = 0; L < leaders.length; L++) {
+      var ld = leaders[L];
+      var lc = CURRENTS[ld.ci];
+      ld.x = ((ld.x + ld.vx * speedMul * dt / 1000) % 1 + 1) % 1;
+      ld.y = currentY(lc, ld.x, tMod, 0);
+    }
     for (var f = 0; f < n; f++) {
       var b = flowDots[f];
       var c = CURRENTS[b.ci];
@@ -412,12 +447,27 @@
       }
       var cruise = 0.022 * b.vj * (1 + charge * 8 + q * 3.0);
       var ax = 0, ay = 0;
+      var leadW = 1;                             /* 头鸟在邻域内 → alignment 加权 */
       if (cnt > 0) {
         ax += sepX * 0.05 + (aliX / cnt - b.vx) * 1.6 + (cohX / cnt) * 0.5;
         ay += sepY * 0.05 + (aliY / cnt - b.vy) * 1.6 + (cohY / cnt) * 0.5;
       } else {
         /* 离群:减速 + 强引导(慢下来的鱼会找回路) */
         cruise *= 0.45;
+      }
+      /* 头鸟引导:看到头鸟 → 头鸟速度方向混入 alignment(权重 1.2),
+         离群的粒子被头鸟"钓"回来的主要途径 */
+      for (var L2 = 0; L2 < leaders.length; L2++) {
+        var ld2 = leaders[L2];
+        if (ld2.ci !== b.ci) continue;
+        var ldx = ld2.x - b.x;
+        if (ldx > 0.5) ldx -= 1; else if (ldx < -0.5) ldx += 1;
+        var ldy = ld2.y - b.y;
+        if (ldx * ldx + ldy * ldy < 0.01) {      /* 感知半径 0.1(比普通邻域宽) */
+          leadW = 2.2;
+          ax += (ld2.vx - b.vx) * 0.5;
+          break;
+        }
       }
       /* 路线引导:向河道中心线的 y 吸引 + 沿 dir 的巡航推力 */
       var pathY = currentY(c, b.x, tMod, b.strand);
@@ -426,10 +476,27 @@
       ay += -b.vy * 0.35;                                     /* 垂向阻尼:贴带 */
       /* 积分(dt 是毫秒 → 秒) */
       var dts = dt / 1000;
-      b.vx += ax * dts; b.vy += ay * dts;
+      b.vx += ax * dts * leadW; b.vy += ay * dts * leadW;
       var sp = Math.hypot(b.vx, b.vy);
       var cap = cruise * 2.2 + 0.004;
       if (sp > cap) { b.vx = b.vx / sp * cap; b.vy = b.vy / sp * cap; }
+      /* ★ 转向阻力:本帧速度方向相对【上一帧方向】最多偏转 2.5°×(dt/16.7ms)
+         —— 粒子是水中的东西,不能瞬间掉头;没有这条,三力合成的
+         高频抖动看起来就是无规则运动 */
+      var spd = Math.hypot(b.vx, b.vy);
+      if (spd > 1e-6) {
+        var ang = Math.atan2(b.vy, b.vx);
+        var prev = b.ang === undefined ? ang : b.ang;
+        var dA = ang - prev;
+        while (dA > Math.PI) dA -= Math.PI * 2;
+        while (dA < -Math.PI) dA += Math.PI * 2;
+        var maxTurn = 2.5 * Math.PI / 180 * Math.max(0.5, dt / 16.7);
+        if (dA > maxTurn) dA = maxTurn; else if (dA < -maxTurn) dA = -maxTurn;
+        ang = prev + dA;
+        b.vx = Math.cos(ang) * spd;
+        b.vy = Math.sin(ang) * spd;
+        b.ang = ang;
+      }
       b.x += b.vx * dts; b.y += b.vy * dts;
       /* 环形 wrap(x 越界从另一侧回来 = 川流不息) */
       if (b.x > 1) b.x -= 1; else if (b.x < 0) b.x += 1;
@@ -1137,6 +1204,21 @@
       ctx.save();
       /* ★ boids 单步:群体模拟推进(位置/速度在此更新, 下面只读) */
       boidStep(dt, tS, charge, q);
+      /* 头鸟:三条河各一, 比粒子大一圈、恒亮、拖一道短尾 —— 可辨识的定位者 */
+      for (var Ld = 0; Ld < leaders.length; Ld++) {
+        var ldx2 = leaders[Ld].x * W, ldy2 = leaders[Ld].y * H;
+        ctx.globalAlpha = 0.85;
+        ctx.fillStyle = "#eaf6ff";
+        ctx.beginPath();
+        ctx.arc(ldx2, ldy2, 1.7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(220, 240, 255, 0.35)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(ldx2 - leaders[Ld].vx * speedMulG() * W, ldy2);
+        ctx.lineTo(ldx2, ldy2);
+        ctx.stroke();
+      }
       for (var f = 0; f < flowDots.length; f++) {
         var fd = flowDots[f];
         var c3 = CURRENTS[fd.ci];
