@@ -568,16 +568,25 @@
 }
 
 .arc-it__go {
-    display: inline-block;
-    margin-top: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 12px;
+    margin-left: 14px;
     color: var(--accent, rgb(34, 211, 238));
     text-decoration: none;
-    letter-spacing: 0.22em;
-    border-bottom: 1px solid transparent;
+    letter-spacing: 0.2em;
+    font-size: 0.95em;
+    padding: 7px 14px;
+    border: 1px solid transparent;
+    border-radius: 2px;
+    transition: border-color 0.16s ease, background-color 0.16s ease;
 }
 
 .arc-it__go:hover {
-    border-bottom-color: var(--accent, rgb(34, 211, 238));
+    border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
+    border-bottom-color: color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
 /* ============ 开机序列:条目解码入场 ============ */

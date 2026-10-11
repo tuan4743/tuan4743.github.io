@@ -35,12 +35,14 @@
        ★ 必须声明在条目构建之前 —— var 提升只提升声明不提升赋值,
          放在调用点之后 GATES 是 undefined, 整个终端建到一半就崩。 ---- */
     var GATES = {
-        "01": { q: "这份报告的源事件 EID 尾四位?", a: ["3b7e", "3B7E"], tip: "著录项里就有" },
-        "08": { q: "两份报的讣告栏里, 同一个人出现了几次?", a: ["2", "两", "两次"], tip: "对照 09" },
-        "12": { q: "61 比 39, 差是多少?", a: ["22", "二十二"], tip: "口算" },
-        "18": { q: "最后一行有没有编号?", a: ["没有", "无", "没"], tip: "翻到结尾" },
-        "23": { q: "相变前十一分钟, 他擦的是干抹布还是湿抹布?", a: ["干"], tip: "第 23 份正文" },
-        "26": { q: "答复四十一年没变过。司长想加的那句话, 加上了吗?", a: ["没有", "没", "未"], tip: "答复原文" }
+        /* ★ 题目必须自包含:题面在终端里就能答(卡片上的编号/时间/完整性),
+           不能依赖原文 —— 否则"看原文要解密、解密要看原文"死锁。 */
+        "01": { q: "本档案编号的两位数字之和?", a: ["1"], tip: "0 + 1" },
+        "08": { q: "把编号 08 的两位数字对调, 得到多少?", a: ["80"], tip: "口算" },
+        "12": { q: "61 比 39, 差是多少?(这条的题面就写在第一幕注记里)", a: ["22", "二十二"], tip: "口算" },
+        "18": { q: "编号 18 倒过来写是多少?", a: ["81"], tip: "口算" },
+        "23": { q: "本卡的完整性百分比, 十位数字是?", a: ["9"], tip: "看右缘" },
+        "26": { q: "编号 26 加上 22, 等于本幕最后一份的编号, 它是多少?", a: ["48"], tip: "口算" }
     };
     function gateFor(no) { return GATES[no] || null; }
 
@@ -57,7 +59,8 @@
             '<path d="M9 17l-2 3 5-3"/>' +
             "</svg><span>ECHO 解密提示</span></button>" +
             '<div class="arc-it__hint" data-hint="' + esc(it.hint) + '" hidden></div>' : "") +
-            '<a class="arc-it__go" href="' + esc(it.url || "#") + '">打开原文 →</a>';
+            /* 跳转前先播收场动画:拦截点击 → hide() → 动画走完再真跳 */
+            '<a class="arc-it__go" href="' + esc(it.url || "#") + '" data-go>打开原文 →</a>';
     }
 
     function detailHTML(it) {
@@ -176,7 +179,15 @@
                     "</span>");
             }
             el.addEventListener("click", function (e) {
-                if (e.target.closest(".arc-it__go")) return;   /* 链接放行 */
+                /* 打开原文:先播收场动画, 走完再真跳 —— 不做就是硬切 */
+                var go = e.target.closest(".arc-it__go");
+                if (go) {
+                    e.preventDefault();
+                    var href = go.getAttribute("href");
+                    hide();
+                    setTimeout(function () { location.href = href; }, 420);
+                    return;
+                }
                 /* 「问 ECHO」由它自己的监听处理, 不走展开/收起 */
                 if (e.target.closest(".arc-it__ask")) return;
                 /* 解密门内的一切交互(输入框/解密按钮)不动展开态 ——
@@ -251,10 +262,19 @@
         /* 重触发入场动画 */
         root.querySelectorAll(".arc-it").forEach(function (el) {
             el.style.animation = "none";
-            void el.offsetWidth;
-            el.style.animation = "";
         });
-        requestAnimationFrame(function () { root.classList.add("is-open"); });
+        /* 双 rAF:先让浏览器把【关闭态】(clip 0)绘制并提交,
+           下一帧才加 is-open 开始撑开 —— 否则关闭态和展开态挤在同一帧,
+           表现为闪一下正常画面再从头播 */
+        requestAnimationFrame(function () {
+            root.querySelectorAll(".arc-it").forEach(function (el) {
+                void el.offsetWidth;
+                el.style.animation = "";
+            });
+            requestAnimationFrame(function () {
+                root.classList.add("is-open");
+            });
+        });
         tickClock();
     }
     function hide() {
@@ -267,7 +287,8 @@
         root.querySelectorAll(".arc-it.is-open").forEach(function (o) {
             o.classList.remove("is-open");
         });
-        setTimeout(function () { if (!open) root.hidden = true; }, 360);
+        /* 与 CSS 收回时长(0.52s)对齐再 hidden —— 提前掐会闪 */
+        setTimeout(function () { if (!open) root.hidden = true; }, 560);
     }
 
     function roman(n) {
