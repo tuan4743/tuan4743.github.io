@@ -1124,16 +1124,21 @@
         fa = Math.min(1, fa + charge * 0.5 + glow * 0.55);
         ctx.globalAlpha = fa;
         ctx.fillStyle = glow > 0.01 ? "#f2f9ff" : "#dcecff";
-        /* 前期末段:点拖成线(沿【速度反方向】—— boid 自己的轨迹,真实);
-           速度近零(离群慢速)不拖,不会有跨屏直线 —— 尾巴只在身后 0.06 屏内 */
+        /* 前期末段:点拖成线(沿【速度反方向】—— 粒子刚走过的真实轨迹)。
+           ★ 尾长 = 速度 × 停留时间的物理语义(不再用无单位的 streakLen×W
+             —— 那个公式在爆发期 glow/charge 双高时给出七万像素的"长线")。
+           尾时 0.04..0.30s 随 charge/glow 增长, 再 clamp 到 64px 硬上限:
+           爆发期是"流星", 不是"横贯线"。 */
         var streak = charge > 0.4 ? (charge - 0.4) / 0.6 : 0;
-        var streakLen = (streak * 34 + glow * 10) * fd.vj;   /* px */
-        if (streakLen > 1.2 && Math.hypot(fd.vx, fd.vy) > 0.001) {
+        var spdN = Math.hypot(fd.vx, fd.vy);
+        var tailSec = 0.04 + streak * 0.22 + glow * 0.10;
+        var streakLen = Math.min(64, spdN * W * tailSec);
+        if (streakLen > 1.2 && spdN > 0.001) {
           ctx.strokeStyle = glow > 0.01 ? "#f2f9ff" : "#dcecff";
           ctx.lineWidth = fd.sz * 2;
           ctx.lineCap = "round";
           ctx.beginPath();
-          ctx.moveTo(cxp - fd.vx * streakLen * W, cyp - fd.vy * streakLen * H);
+          ctx.moveTo(cxp - fd.vx / (spdN || 1) * streakLen, cyp - fd.vy / (spdN || 1) * streakLen * (H / W));
           ctx.lineTo(cxp, cyp);
           ctx.stroke();
         } else {
