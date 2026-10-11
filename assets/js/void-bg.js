@@ -362,21 +362,24 @@
        位置 += v·dt。没有邻居搜索、没有三力、没有抖动源 ——
        运动在数学上就是场线, 天然顺滑, 且必然形成洋流带。
      场是 tSec%86400 + wrap 空间 → 有界, 跑几天不漂。 ---- */
-  function flowField(x, y, tMod, out) {
-    var fx = 0, fy = 0;
-    for (var ci = 0; ci < CURRENTS.length; ci++) {
-      var c = CURRENTS[ci];
-      var py = currentY(c, x, tMod, 0);
-      var d = (y - py) / (c.width * 2.2);           /* 到中心线的归一化距离 */
-      var g = Math.exp(-d * d);                     /* 高斯衰减:带内强, 带外趋零 */
-      /* 沿河方向速度:基速 × 带内增强 × 过境加速;方向 = dir */
-      var sp = 0.026 * c.dir * (1 + chargeG() * 8 + qG() * 3.0) * g;
-      fx += sp;
-      /* 垂向:轻微沿河道坡度(跟随河道的弯), 用中心线的局部斜率 */
-      var e = 0.002;
-      var slope = (currentY(c, x + e, tMod, 0) - currentY(c, x - e, tMod, 0)) / (2 * e);
-      fy += sp * slope * 0.9;
-    }
+  /* ---- 洋流场:【按河归属】----
+     之前三条河的场在全域叠加:相邻反向的两条河(第二/第三条)
+     在中间地带互相抵消出漩涡, 宽河的高斯尾巴把邻河的粒子劫走。
+     改为:每个粒子只受【自己那条河】的场 —— 粒子从出生就属于一条河,
+     场由该河的中心线/坡度/方向决定, 跨河影响为零。
+     漩涡、劫走、堆积在数学上全部消失。 ---- */
+  function flowField(b, tMod, out) {
+    var c = CURRENTS[b.ci];
+    var py = currentY(c, b.x, tMod, b.strand);
+    var d = (b.y - py) / (c.width * 2.2);
+    var g = Math.exp(-d * d);                     /* 带内强, 带外趋零 */
+    var sp = 0.026 * c.dir * (1 + chargeG() * 8 + qG() * 3.0);
+    var fx = sp * Math.max(g, 0.18);              /* 带外仍有 18% 巡航底速:永不停滞 */
+    /* 垂向:跟随河道坡度 + 离带回复(离中心线越远, 回拉越强 → 不堆积不成线) */
+    var e = 0.002;
+    var slope = (currentY(c, b.x + e, tMod, b.strand) - currentY(c, b.x - e, tMod, b.strand)) / (2 * e);
+    var fy = fx * slope * 0.9;
+    fy += -(b.y - py) * 0.5 * Math.min(1, Math.abs(d));   /* 越偏越拉 */
     out[0] = fx; out[1] = fy;
   }
   var _charge = 0, _q = 0;
@@ -392,7 +395,7 @@
     var dts = dt / 1000;
     for (var f = 0; f < n; f++) {
       var b = flowDots[f];
-      flowField(b.x, b.y, tMod, fieldV);
+      flowField(b, tMod, fieldV);
       /* 船的惯性:轻微跟随场(0.08/帧@60fps → 指数趋近, 无抖动源) */
       var k = 1 - Math.exp(-dts * 4.5);
       b.vx += (fieldV[0] - b.vx) * k;
@@ -401,7 +404,9 @@
       b.y += b.vy * dts;
       /* 环形 wrap */
       if (b.x > 1) b.x -= 1; else if (b.x < 0) b.x += 1;
-      if (b.y > 1.1) b.y = 1.1; else if (b.y < -0.1) b.y = -0.1;
+      /* y 不 clamp 成线:柔和回弹(超过可视界后往回推, 场的回拉项也在做这件事) */
+      if (b.y > 1.06) b.vy -= (b.y - 1.06) * 2.0;
+      else if (b.y < -0.06) b.vy += (-0.06 - b.y) * 2.0;
     }
   }
 
