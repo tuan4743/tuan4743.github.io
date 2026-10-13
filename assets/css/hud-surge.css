@@ -7,24 +7,20 @@
    ============================================================ */
 
 .hud-surge {
-    /* 摄像机斜边是「/」向对角线:右上 → 左下,即 x+y = C 的直线,
-       C = 160/168 × 摄像机宽。rotate(-45°) 后条的 x 轴指向右上
-       (与斜边同向);左上角锚点放在斜边外侧(左下侧)一点,
-       条身即沿斜边平行铺开。宽 = 斜边全长(摄像机 160/168 × 宽)。 */
+    /* 摄像机已改圆形安装盘(pn-mount r44): 条不再贴 45° 斜边,
+       改为【竖排】贴盘右缘 —— 十块从上往下堆叠, 贴齐盘的右侧
+       (盘心 56/168 ≈ 0.333 宽, 盘右缘 100/168 ≈ 0.595 宽),
+       条左缘落在盘缘外 8px, 顶与盘心对齐。 */
     --cam: clamp(88px, 9vw, 132px);
-    --cam-edge: calc(var(--cam) * 1.3);      /* 斜边在屏幕上的长度 */
-    --blk: calc(var(--cam-edge) / 10);         /* 单块长 = 斜边/10 */
+    --blk: calc(var(--cam) / 10);              /* 单块高 = 盘径/10 */
 
     position: fixed;
-    /* 锚点:斜边中点沿法线(+x,-y 方向,即右下侧)外推 9px 处,
-       再沿条自身轴向回退半长 —— 用 top/left 直接给出。 */
-    left: calc(var(--cam) * 0.476 - var(--cam-edge) / 2 + 29px);
-    top: calc(var(--cam) * 0.476 + var(--cam-edge) / 2 - 19px);
-    width: var(--cam-edge);
-    height: var(--blk);
-    transform: rotate(-45deg);
-    transform-origin: left top;
+    left: calc(var(--cam) * 0.595 + 8px);
+    top: calc(var(--cam) * 0.333 - var(--cam) * 0.5);
+    width: 5px;
+    height: var(--cam);
     display: flex;
+    flex-direction: column;
     padding: 0;
     border: 0;
     background: transparent;
@@ -36,9 +32,10 @@
     z-index: 62;                              /* 高于摄像机(z:-1)、echo-hot(61) */
 }
 
-/* 十个块:等分排布,块间留 3px 缝 */
+/* 十个块:竖排等分,块间留 3px 缝 */
 .hud-surge__rail {
     display: flex;
+    flex-direction: column;
     gap: 3px;
     width: 100%;
     height: 100%;
@@ -48,8 +45,8 @@
 /* 单块:已完成/进行中 = 青色;未到 = 极淡的线 */
 .hud-surge__cell {
     flex: 1 1 0;
-    height: 4px;
-    align-self: center;
+    width: 4px;
+    justify-self: center;
     border-radius: 1px;
     background: var(--hud-rail, rgba(234, 243, 255, 0.16));
     transition: background-color 0.16s ease;

@@ -396,8 +396,13 @@ html.void-bg-on[data-theme="light"] .pn-ruler {
 }
 
 /* 机械眼球亮模式: 墨绿系(浅底靠"深"显形, 不靠亮) */
+html.void-bg-on[data-theme="light"] .pn-mount__plate {
+    fill: rgba(24, 92, 82, 0.10);
+    stroke: rgba(24, 92, 82, 0.45);
+}
+
 html.void-bg-on[data-theme="light"] .pn-mount__arc {
-    stroke: rgba(24, 92, 82, 0.55);
+    stroke: rgba(8, 110, 130, 0.7);
 }
 
 html.void-bg-on[data-theme="light"] .pn-mount__bolt circle {
@@ -660,13 +665,26 @@ html.void-bg-on[data-theme="light"] .top-link svg {
 }
 
 /* ---- ECHO 机械眼球(2026-10 形象替换) ----
-   底座: 与眼同心的安装环 —— 四段断弧 + 四向螺孔 + 引出线。
-   "眼装在仪表上", 取代旧直角三角框。 */
-.pn-mount__arc {
-    stroke: rgba(160, 235, 255, 0.42);
+   底座: 与眼同心的安装盘 —— 实底圆板(微透出背景) + 外圈刻度环 +
+   四向螺孔, 左侧引出线连到角记号。"眼装在仪表上", 圆对圆。 */
+.pn-mount {
+    transform-box: view-box;
+    transform-origin: 56px 56px;
+}
+
+.pn-mount__plate {
+    fill: rgba(6, 10, 18, 0.55);
+    stroke: rgba(160, 235, 255, 0.35);
     stroke-width: 1;
+}
+
+/* 巡走亮弧: r42 圆用 stroke-dasharray 2/3 实 1/3 断, dashoffset 推着走 */
+.pn-mount__arc {
+    stroke: rgba(34, 211, 238, 0.5);
+    stroke-width: 1.2;
     stroke-linecap: round;
     fill: none;
+    animation: pn-mount-sweep 9s linear infinite;
 }
 
 .pn-mount__bolt circle {
@@ -676,6 +694,11 @@ html.void-bg-on[data-theme="light"] .top-link svg {
 .pn-mount__lead {
     stroke: rgba(160, 235, 255, 0.42);
     stroke-width: 1;
+}
+
+/* 安装环外圈的一道亮弧缓慢巡走(像设备在自检) */
+@keyframes pn-mount-sweep {
+    to { stroke-dashoffset: -264; }   /* 周长 2π×42 ≈ 264 */
 }
 
 /* 眼 · 外环刻度盘: 整组慢转(刻度像仪表自检) */

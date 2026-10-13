@@ -43,19 +43,19 @@
             <path d="M66 0 L0 66" />
         </g>
 
-        {{/* 底座: 与眼球同心的安装环(见下方"眼"之前的注释)。 */}}
+        {{/* 底座: 与眼同心的【安装盘】—— 实底圆板 + 外圈巡走亮弧 +
+             四向螺孔 + 引出线。圆对圆, 读作"眼装在一块仪表上"。 */}}
         <g class="pn-mount">
-            <path class="pn-mount__arc" d="M20 34 A42 42 0 0 1 56 14" />
-            <path class="pn-mount__arc" d="M78 18 A42 42 0 0 1 98 40" />
-            <path class="pn-mount__arc" d="M98 72 A42 42 0 0 1 78 94" />
-            <path class="pn-mount__arc" d="M56 98 A42 42 0 0 1 20 78" />
+            <circle class="pn-mount__plate" cx="56" cy="56" r="44" />
+            <circle class="pn-mount__arc" cx="56" cy="56" r="42"
+                stroke-dasharray="176 88" />
             <g class="pn-mount__bolt">
                 <circle cx="14" cy="56" r="1.7" />
                 <circle cx="56" cy="14" r="1.7" />
                 <circle cx="98" cy="56" r="1.7" />
                 <circle cx="56" cy="98" r="1.7" />
             </g>
-            <path class="pn-mount__lead" d="M14 56 H3" />
+            <path class="pn-mount__lead" d="M12 56 H3" />
         </g>
 
         {{/* 眼 */}}
