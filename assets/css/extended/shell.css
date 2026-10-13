@@ -395,35 +395,29 @@ html.void-bg-on[data-theme="light"] .pn-ruler {
     stroke: rgba(24, 92, 82, 0.45);
 }
 
-/* 反应堆核心亮模式: 墨绿系(浅底靠深显形) */
-html.void-bg-on[data-theme="light"] .pn-hex {
-    stroke: rgba(24, 92, 82, 0.6);
+html.void-bg-on[data-theme="light"] .pn-eye__case {
+    fill: rgba(24, 92, 82, 0.12);
+    stroke: rgba(24, 92, 82, 0.72);
 }
 
-html.void-bg-on[data-theme="light"] .pn-hex-ticks path {
-    stroke: rgba(24, 92, 82, 0.55);
+html.void-bg-on[data-theme="light"] .pn-eye__iris {
+    fill: rgba(24, 92, 82, 0.20);
+    stroke: rgba(24, 92, 82, 0.90);
 }
 
-html.void-bg-on[data-theme="light"] .pn-orbit__ring {
-    stroke: rgba(24, 92, 82, 0.3);
+html.void-bg-on[data-theme="light"] .pn-eye__pupil {
+    fill: rgb(24, 92, 82);
 }
 
-html.void-bg-on[data-theme="light"] .pn-orbit__dot {
-    fill: rgba(8, 110, 130, 0.75);
+html.void-bg-on[data-theme="light"] .pn-eye__glint {
+    fill: rgba(244, 248, 244, 0.9);
 }
 
-html.void-bg-on[data-theme="light"] .pn-orbit__dot--b,
-html.void-bg-on[data-theme="light"] .pn-orbit__dot--c {
-    fill: rgba(24, 92, 82, 0.6);
-}
-
-html.void-bg-on[data-theme="light"] .pn-core {
-    /* pnCoreGrad 的 stop 是 SVG 内部青色, CSS 无法改 —— 用 filter 翻墨绿 */
-    filter: hue-rotate(150deg) saturate(0.6) brightness(0.85);
-}
-
-html.void-bg-on[data-theme="light"] .pn-core__ring {
-    stroke: rgba(8, 110, 130, 0.8);
+/* 渐变填充(pnGrad 硬编码青色 #22d3ee):亮模式换墨绿 ——
+   SVG 渐变 stop-color 只能改 SVG 内部,CSS 对 stop 无效;
+   这里用 filter 把青色调成品绿(色相旋转),暗模式不受影响。 */
+html.void-bg-on[data-theme="light"] .pn-fill {
+    filter: hue-rotate(150deg) saturate(0.55) brightness(0.9);
 }
 
 /* HUD 各处 svg 图标(导航/动作/笔/主题旋钮) */
@@ -595,6 +589,10 @@ html.void-bg-on[data-theme="light"] .top-link svg {
     overflow: visible;
 }
 
+.pn-fill {
+    fill: url(#pnGrad);
+}
+
 .pn-scan path {
     stroke: rgba(34, 211, 238, 0.34);
     stroke-width: 1;
@@ -634,60 +632,26 @@ html.void-bg-on[data-theme="light"] .top-link svg {
     stroke-linecap: round;
 }
 
-/* ---- ECHO 反应堆核心(2026-10 整套重设计, 用户定稿) ----
-   六边形外框 + 轨道环(三颗轨道点绕行) + 中心脉冲核。
-   核与轨道随 #pn-eye/#pn-pupil 被 hud-echo.js 微移 = 在看指针。 */
-.pn-hex {
-    stroke: rgba(160, 235, 255, 0.45);
+.pn-eye__case {
+    fill: rgba(6, 10, 18, 0.7);
+    stroke: rgba(160, 235, 255, 0.5);
+    stroke-width: 1.1;
+}
+
+.pn-eye__iris {
+    fill: rgba(34, 211, 238, 0.16);
+    stroke: rgba(34, 211, 238, 0.85);
     stroke-width: 1;
-    fill: none;
-    stroke-linejoin: round;
-}
-
-.pn-hex-ticks path {
-    stroke: rgba(160, 235, 255, 0.42);
-    stroke-width: 1;
-    stroke-linecap: round;
-}
-
-/* 轨道环: 整组缓转(轨道点随之绕行, 一圈 16s) */
-.pn-orbit {
-    transform-origin: 56px 56px;
-    transform-box: view-box;
-    animation: pn-orbit-spin 16s linear infinite;
-}
-
-.pn-orbit__ring {
-    stroke: rgba(160, 235, 255, 0.22);
-    stroke-width: 1;
-    fill: none;
-    stroke-dasharray: 3 7;
-}
-
-.pn-orbit__dot {
-    fill: var(--glow-dim, rgba(34, 211, 238, 0.6));
-}
-
-.pn-orbit__dot--b,
-.pn-orbit__dot--c {
-    fill: rgba(160, 235, 255, 0.5);
-}
-
-@keyframes pn-orbit-spin {
-    to { transform: rotate(360deg); }
-}
-
-/* 核: 渐变光盘(中心亮青) + 外圈细环, 呼吸 */
-.pn-core {
-    fill: url(#pnCoreGrad);
     animation: pn-pulse 3.4s ease-in-out infinite;
 }
 
-.pn-core__ring {
-    stroke: rgba(34, 211, 238, 0.55);
-    stroke-width: 1;
-    fill: none;
+.pn-eye__pupil {
+    fill: #eaf3ff;
     animation: pn-eye-glow 3.4s ease-in-out infinite;
+}
+
+.pn-eye__glint {
+    fill: rgba(234, 243, 255, 0.8);
 }
 
 @keyframes pn-pulse {
@@ -700,9 +664,6 @@ html.void-bg-on[data-theme="light"] .top-link svg {
     50% { opacity: 1; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-    .pn-orbit { animation: none; }
-}
 .echo-say {
     display: none;
 }
