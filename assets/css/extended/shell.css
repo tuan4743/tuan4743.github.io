@@ -397,7 +397,7 @@ html.void-bg-on[data-theme="light"] .pn-ruler {
 
 /* 机械眼球亮模式: 墨绿系(浅底靠"深"显形, 不靠亮) */
 html.void-bg-on[data-theme="light"] .pn-mount__plate {
-    fill: rgba(24, 92, 82, 0.10);
+    fill: none;
     stroke: rgba(24, 92, 82, 0.45);
 }
 
@@ -673,8 +673,8 @@ html.void-bg-on[data-theme="light"] .top-link svg {
 }
 
 .pn-mount__plate {
-    fill: rgba(6, 10, 18, 0.55);
-    stroke: rgba(160, 235, 255, 0.35);
+    fill: none;
+    stroke: rgba(160, 235, 255, 0.30);
     stroke-width: 1;
 }
 
