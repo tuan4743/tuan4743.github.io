@@ -396,6 +396,18 @@ html.void-bg-on[data-theme="light"] .pn-ruler {
 }
 
 /* 机械眼球亮模式: 墨绿系(浅底靠"深"显形, 不靠亮) */
+html.void-bg-on[data-theme="light"] .pn-mount__arc {
+    stroke: rgba(24, 92, 82, 0.55);
+}
+
+html.void-bg-on[data-theme="light"] .pn-mount__bolt circle {
+    fill: rgba(24, 92, 82, 0.62);
+}
+
+html.void-bg-on[data-theme="light"] .pn-mount__lead {
+    stroke: rgba(24, 92, 82, 0.55);
+}
+
 html.void-bg-on[data-theme="light"] .pn-dial__ring {
     stroke: rgba(24, 92, 82, 0.55);
 }
@@ -426,11 +438,6 @@ html.void-bg-on[data-theme="light"] .pn-pupil__slit {
 
 html.void-bg-on[data-theme="light"] .pn-pupil__glint {
     fill: rgba(244, 248, 244, 0.9);
-}
-
-html.void-bg-on[data-theme="light"] .pn-lid {
-    fill: rgba(250, 248, 242, 0.92);
-    stroke: rgba(24, 92, 82, 0.6);
 }
 
 /* 渐变填充(pnGrad 硬编码青色 #22d3ee):亮模式换墨绿 ——
@@ -653,9 +660,21 @@ html.void-bg-on[data-theme="light"] .top-link svg {
 }
 
 /* ---- ECHO 机械眼球(2026-10 形象替换) ----
-   外角框: 短残段 + 斜边(原 pn-leg/pn-edge/pn-tick 类沿用) */
-.pn-frame .pn-leg {
-    stroke: rgba(160, 235, 255, 0.3);
+   底座: 与眼同心的安装环 —— 四段断弧 + 四向螺孔 + 引出线。
+   "眼装在仪表上", 取代旧直角三角框。 */
+.pn-mount__arc {
+    stroke: rgba(160, 235, 255, 0.42);
+    stroke-width: 1;
+    stroke-linecap: round;
+    fill: none;
+}
+
+.pn-mount__bolt circle {
+    fill: rgba(160, 235, 255, 0.55);
+}
+
+.pn-mount__lead {
+    stroke: rgba(160, 235, 255, 0.42);
     stroke-width: 1;
 }
 
@@ -718,26 +737,24 @@ html.void-bg-on[data-theme="light"] .top-link svg {
     fill: rgba(234, 243, 255, 0.85);
 }
 
-/* 眼睑: 上弦月弧板, 眨眼时从上缘扫下再回。
-   98% 时间藏在上缘(scaleY 0.06 且贴上), 一次眨眼约 320ms。 */
-.pn-lid {
-    fill: rgba(6, 10, 18, 0.88);
-    stroke: rgba(160, 235, 255, 0.55);
-    stroke-width: 1;
-    transform-origin: 56px 33px;
+/* 眨眼: 瞳孔组自身 scaleY 压扁(缝瞳眯一下), 不引入眼睑元素。
+   95% 时间全开, 一次约 280ms; transform 跟随由 JS 写 translate
+   到同一属性 —— 眨眼改用 scale 关键帧, transform-origin 56 56。 */
+#pn-pupil {
+    transform-origin: 56px 56px;
     transform-box: view-box;
     animation: pn-blink 5.4s ease-in-out infinite;
 }
 
 @keyframes pn-blink {
-    0%, 91%, 100% { transform: scaleY(0.06); }
-    94% { transform: scaleY(1); }
-    97% { transform: scaleY(0.06); }
+    0%, 91%, 100% { scale: 1 1; }
+    94% { scale: 1 0.08; }
+    97% { scale: 1 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {
     .pn-dial { animation: none; }
-    .pn-lid { animation: none; transform: scaleY(0.06); }
+    #pn-pupil { animation: none; }
 }
 
 @keyframes pn-pulse {
