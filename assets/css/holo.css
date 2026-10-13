@@ -696,7 +696,7 @@
     text-transform: none;
     display: var(--gd-btn-hint);
 }
-.gd-mode.is-on .gd-mode__label { text-shadow: 0 0 12px rgba(234, 243, 255, .5); }
+.gd-mode.is-on .gd-mode__label { color: #ffffff; }
 .gd-mode.is-on .gd-mode__state { opacity: 1; }
 .gd-mode.is-on .gd-mode__line { opacity: .95; }
 .gd-mode.is-on .gd-mode__lock { opacity: .8; }

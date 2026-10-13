@@ -7,6 +7,13 @@
     --mc-thick: 2px;
     --mc-dot: 6px;
 
+    /* 光效 token(仪器风定调): 发光只属于"通电的仪表", 不属于内容。
+       全站发光色只认这一套 —— 暗模式青, 亮模式自动翻墨青。
+       半径铁律: 单层 ≤12px。 */
+    --glow-c: rgb(34, 211, 238);
+    --glow-dim: rgba(34, 211, 238, 0.45);
+    --glow-soft: rgba(34, 211, 238, 0.18);
+
     --article-fs: 17px;
     --article-lh: 1.72;
     --article-ls: 0em;
@@ -42,7 +49,7 @@
     border-radius: 50%;
     background: var(--mc-color);
     box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35),
-        0 0 8px color-mix(in srgb, var(--mc-color) 70%, transparent);
+        0 0 8px var(--glow-dim);
     pointer-events: none;
     z-index: 10000;
     opacity: 0;
@@ -98,7 +105,7 @@ html.magnetic-locked .magnetic-dot {
 }
 
 .magnetic-cursor.is-locked i {
-    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--mc-color) 65%, transparent));
+    filter: drop-shadow(0 0 6px var(--glow-dim));
 }
 
 html.magnetic-on,
@@ -578,7 +585,7 @@ body {
     border: 1px solid var(--border);
     cursor: pointer;
     padding: 0;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    transition: transform 0.15s ease;
 }
 
 .palette-swatch:hover {
@@ -640,12 +647,11 @@ body {
     color: color-mix(in srgb, var(--accent) 62%, var(--primary));
     text-decoration-color: var(--accent-line);
     text-underline-offset: 3px;
-    transition: color 0.18s ease, text-shadow 0.18s ease;
+    transition: color 0.18s ease;
 }
 
 .post-content a:hover {
     color: var(--accent);
-    text-shadow: 0 0 10px color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
 .post-content ::selection {
@@ -675,7 +681,7 @@ body {
 
 .search-box input:focus {
     border-color: var(--accent-line);
-    box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12);
+    box-shadow: 0 0 0 3px var(--glow-soft);
 }
 
 .sr-title mark,
@@ -710,9 +716,7 @@ body {
 }
 
 :root[data-theme="dark"] .main {
-    box-shadow:
-        0 24px 60px rgba(0, 0, 0, 0.35),
-        0 0 42px rgba(34, 211, 238, 0.07) inset;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
 }
 
 /* ============================================================
@@ -729,11 +733,10 @@ body {
     background: linear-gradient(90deg, rgba(34, 211, 238, 0.10), transparent 70%);
 }
 .post-content > blockquote:first-child code {
-    transition: color 0.18s ease, text-shadow 0.18s ease;
+    transition: color 0.18s ease;
 }
 .post-content > blockquote:first-child:hover code {
     color: var(--accent);
-    text-shadow: 0 0 8px rgba(34, 211, 238, 0.3);
 }
 
 /* A2. 表格行悬停:行浮起 + 首列(时刻)增亮 */
@@ -834,17 +837,16 @@ body {
 }
 
 /* 亮色模式(旧真空,里世界):正文 accent 换深青,青色发光全部收敛。
-   跟 shell.css 的 .page-hud 亮色覆盖同一口径,但作用在正文侧。 */
-[data-theme="light"] {
+   跟 shell.css 的 .page-hud 亮色覆盖同一口径,但作用在正文侧。
+   ★ --glow-* 亮模式翻墨青 —— 发光 token 一起在这翻,
+     所有引 var(--glow-dim) 的组件(计时器/进度点/触发条/档案)自动跟随。 */
+:root[data-theme="light"] {
     --accent: rgb(14, 116, 122);
     --accent-soft: rgba(14, 116, 122, 0.10);
     --accent-line: rgba(14, 116, 122, 0.34);
-}
-[data-theme="light"] .post-content a:hover {
-    text-shadow: none;
-}
-[data-theme="light"] .post-content > blockquote:first-child:hover code {
-    text-shadow: none;
+    --glow-c: rgb(14, 116, 122);
+    --glow-dim: rgba(14, 116, 122, 0.45);
+    --glow-soft: rgba(14, 116, 122, 0.16);
 }
 
 /* ============================================================

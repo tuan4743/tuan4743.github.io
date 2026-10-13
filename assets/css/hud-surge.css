@@ -59,10 +59,10 @@
     background: var(--mc-color, rgb(34, 211, 238));
 }
 
-/* 爆发段(armed / 满 10):全块亮起 + 微光 */
+/* 爆发段(armed / 满 10):全块亮起 + 微光(发光 token, 亮模式自动翻墨青) */
 .hud-surge.is-full .hud-surge__cell {
     background: var(--mc-color, rgb(34, 211, 238));
-    box-shadow: 0 0 6px color-mix(in srgb, var(--mc-color, rgb(34, 211, 238)) 60%, transparent);
+    box-shadow: 0 0 6px var(--glow-dim, rgba(34, 211, 238, 0.45));
 }
 
 /* 亮色模式:未到的块改墨色淡线;已完成的仍走青绿(--mc-color 亮模式已换) */

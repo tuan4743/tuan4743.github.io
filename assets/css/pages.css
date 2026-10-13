@@ -168,7 +168,7 @@
     bottom: -1px;
     height: 1px;
     background: linear-gradient(to right, transparent, var(--self-scan-a) 12%, var(--self-scan-b) 50%, var(--self-scan-a) 88%, transparent);
-    box-shadow: 0 0 10px var(--self-scan-glow), 0 0 26px var(--self-scan-glow2);
+    box-shadow: 0 0 10px var(--self-scan-glow);
 }
 
 .self-scan__line::after {
@@ -232,7 +232,6 @@
     letter-spacing: .12em;
     line-height: 1.1;
     color: var(--self-ink);
-    text-shadow: 0 0 22px rgba(143, 230, 255, .28);
 }
 
 .self-kicker::after {
@@ -294,7 +293,7 @@
 
 .self-pod:hover .self-pod__glyph,
 .self-pod:focus-visible .self-pod__glyph {
-    filter: drop-shadow(0 0 14px rgba(143, 230, 255, .8)) drop-shadow(0 4px 12px rgba(0, 0, 0, .5));
+    filter: drop-shadow(0 0 10px var(--self-scan-glow2, rgba(143, 230, 255, .45))) drop-shadow(0 4px 12px rgba(0, 0, 0, .5));
 }
 
 .self-pod:focus-visible {
@@ -361,7 +360,7 @@
 
 .self-shot.is-hot {
     transform: translate(-50%, -50%) scale(1.35) rotate(0deg);
-    filter: drop-shadow(0 0 18px rgba(143, 230, 255, .95));
+    filter: drop-shadow(0 0 12px var(--self-scan-glow, rgba(143, 230, 255, .5)));
 }
 
 .self-stage {
@@ -452,7 +451,7 @@
 
 .self-facebox.is-done .self-blob {
     stroke-width: 5;
-    filter: drop-shadow(0 0 26px rgba(255, 205, 90, .55));
+    filter: drop-shadow(0 0 18px rgba(255, 205, 90, .55));
 }
 
 

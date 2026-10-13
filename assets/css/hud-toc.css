@@ -73,7 +73,7 @@
     margin: calc(-3.5px * var(--hud-s, 1)) 0 0 calc(-3.5px * var(--hud-s, 1));
     border-radius: 50%;
     background: #eaf3ff;
-    box-shadow: 0 0 8px 2px color-mix(in srgb, var(--hud-toc-cyan) 70%, transparent);
+    box-shadow: 0 0 6px 1px var(--glow-dim, rgba(34, 211, 238, 0.45));
 }
 
 .hud-toc__box {

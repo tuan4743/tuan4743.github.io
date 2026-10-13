@@ -159,7 +159,7 @@
     color: #f4f8ff;
     white-space: nowrap;
     user-select: none;
-    text-shadow: 0 0 24px rgba(160, 235, 255, 0.3);
+    text-shadow: 0 0 24px rgba(234, 243, 255, 0.28);
 }
 
 .hud-logo:hover {
@@ -1037,8 +1037,10 @@
     88.7%, 100% { opacity: calc(0.45 + var(--hud-glow, 0) * 0.45); }
 }
 
-/* 2. HUD 框线:极慢"呼吸"——透明度整体 3% 上下浮动,
-      两条线(框/侧带)周期不同,偶尔同相=整框亮一下,随即散开。 */
+/* 2. HUD 框线:极慢"呼吸"——亮度整体 3% 上下浮动,
+      两条线(框/侧带)周期不同,偶尔同相=整框亮一下,随即散开。
+      ★ 用 opacity 而非 filter: brightness —— opacity 走合成器,
+        filter 逐帧重绘整条 SVG 线,白花帧预算。 */
 .hud-line {
     animation: hud-line-breathe 9.7s ease-in-out infinite;
 }
@@ -1046,9 +1048,9 @@
     animation: hud-line-breathe 13.1s ease-in-out infinite;
 }
 @keyframes hud-line-breathe {
-    0%, 100% { filter: brightness(1); }
-    43% { filter: brightness(1.28); }
-    61% { filter: brightness(0.94); }
+    0%, 100% { opacity: var(--hud-line-a, 0.42); }
+    43% { opacity: calc(var(--hud-line-a, 0.42) + 0.10); }
+    61% { opacity: calc(var(--hud-line-a, 0.42) - 0.06); }
 }
 
 /* 3. 面板小块(hud-face):缓慢错落的明暗游移——
@@ -1064,15 +1066,18 @@
     55% { fill: rgba(234, 243, 255, 0.04); }
 }
 
-/* 4. 站名:呼吸只在"极暗处"可感的程度——color 2% 上下,
-      混合 text-shadow 收放,读作"屏幕供电的微噪",不是发光动画。 */
+/* 4. 站名:呼吸只在"极暗处"可感的程度——
+      光晕收放读作"屏幕供电的微噪",不是发光动画。
+      ★ keyframes 里动 text-shadow 是逐帧重绘文字;改成
+        双层结构太重,这里直接把光晕 alpha 的浮动做进
+        三个关键帧(数值本身即呼吸),其余交给合成。 */
 .hud-logo {
     animation: hud-logo-noise 8.9s ease-in-out infinite;
 }
 @keyframes hud-logo-noise {
-    0%, 100% { text-shadow: 0 0 24px rgba(160, 235, 255, 0.30); }
-    47% { text-shadow: 0 0 20px rgba(160, 235, 255, 0.24); }
-    62% { text-shadow: 0 0 26px rgba(160, 235, 255, 0.34); }
+    0%, 100% { text-shadow: 0 0 24px rgba(234, 243, 255, 0.28); }
+    47% { text-shadow: 0 0 24px rgba(234, 243, 255, 0.22); }
+    62% { text-shadow: 0 0 24px rgba(234, 243, 255, 0.32); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1091,8 +1096,8 @@
     animation: hud-thumb-breathe 6.1s ease-in-out infinite;
 }
 @keyframes hud-thumb-breathe {
-    0%, 100% { filter: brightness(1); }
-    50% { filter: brightness(1.22); }
+    0%, 100% { opacity: 0.85; }
+    50% { opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
     .hud-toc__prog-thumb { animation: none !important; }

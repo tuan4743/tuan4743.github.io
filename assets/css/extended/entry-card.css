@@ -11,14 +11,14 @@
 
 .post-entry {
     border-left: 2px solid var(--accent-line, rgba(34, 211, 238, 0.38));
-    transition: transform 0.25s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+    transition: transform 0.25s ease, border-color 0.16s ease;
 }
 
+/* 仪器风:激活用边线表达, 不用全向辉光 */
 .post-entry:hover,
 .post-entry:focus-within {
     border-color: color-mix(in srgb, var(--accent, rgb(34, 211, 238)) 45%, var(--border));
     border-left-color: var(--accent, rgb(34, 211, 238));
-    box-shadow: 0 0 24px color-mix(in srgb, var(--accent, rgb(34, 211, 238)) 12%, transparent);
 }
 
 .post-entry .entry-header h2 {
@@ -36,12 +36,6 @@
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: 12px;
     letter-spacing: 0.08em;
-}
-
-/* 亮模式：淡色光 */
-[data-theme="light"] .post-entry:hover,
-[data-theme="light"] .post-entry:focus-within {
-    box-shadow: 0 0 18px color-mix(in srgb, var(--accent, rgb(14, 116, 122)) 14%, transparent);
 }
 
 /* void-bg 模式撤了卡片边框和投影 —— 左侧竖线要留着（放在其后覆盖）。 */

@@ -877,8 +877,8 @@ html.void-bg-on[data-theme="light"] .page-hud .hud-logo {
 }
 @keyframes hud-logo-noise-light {
     0%, 100% { text-shadow: 0 0 24px rgba(24, 92, 82, 0.14); }
-    47% { text-shadow: 0 0 20px rgba(24, 92, 82, 0.10); }
-    62% { text-shadow: 0 0 26px rgba(24, 92, 82, 0.18); }
+    47% { text-shadow: 0 0 24px rgba(24, 92, 82, 0.10); }
+    62% { text-shadow: 0 0 24px rgba(24, 92, 82, 0.18); }
 }
 @media (prefers-reduced-motion: reduce) {
     html.void-bg-on[data-theme="light"] .page-hud .hud-face,

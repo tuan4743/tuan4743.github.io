@@ -191,11 +191,11 @@
 
 .hud-timer.is-run .hud-timer__time {
     color: #ffffff;
-    text-shadow: 0 0 10px color-mix(in srgb, var(--hud-timer-cy) 62%, transparent);
+    text-shadow: 0 0 8px var(--glow-dim, rgba(34, 211, 238, 0.45));
 }
 
 .hud-timer.is-run .hud-timer__arc {
-    filter: drop-shadow(0 0 5px color-mix(in srgb, var(--hud-timer-cy) 70%, transparent));
+    filter: drop-shadow(0 0 5px var(--glow-dim, rgba(34, 211, 238, 0.45)));
 }
 
 .hud-timer__modes,
