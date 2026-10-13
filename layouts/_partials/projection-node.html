@@ -1,96 +1,65 @@
 <div class="proj-node" aria-hidden="true">    <svg viewBox="0 0 168 168" fill="none" xmlns="http://www.w3.org/2000/svg">
         <defs>
-            <linearGradient id="pnGrad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0" stop-color="#22d3ee" stop-opacity="0.20" />
-                <stop offset="0.55" stop-color="#22d3ee" stop-opacity="0.06" />
+            <radialGradient id="pnCoreGrad" cx="0.5" cy="0.5" r="0.5">
+                <stop offset="0" stop-color="#eaf3ff" stop-opacity="0.95" />
+                <stop offset="0.25" stop-color="#22d3ee" stop-opacity="0.55" />
+                <stop offset="0.7" stop-color="#22d3ee" stop-opacity="0.12" />
                 <stop offset="1" stop-color="#22d3ee" stop-opacity="0" />
-            </linearGradient>
-            <radialGradient id="pnIrisGrad" cx="0.5" cy="0.5" r="0.5">
-                <stop offset="0" stop-color="#22d3ee" stop-opacity="0.03" />
-                <stop offset="0.7" stop-color="#22d3ee" stop-opacity="0.15" />
-                <stop offset="1" stop-color="#22d3ee" stop-opacity="0.4" />
             </radialGradient>
         </defs>
 
         {{/* ============================================================
-             ECHO · 机械眼球 (2026-10 形象替换)
+             ECHO · 反应堆核心 (2026-10 整套重设计, 用户定稿方向)
              ────────────────────────────────────────────────
+             形态: 六边形轮廓 + 中心脉冲核 + 环绕轨道点。最小仪表体。
              接线锚点(不可改名): #pn-eye / #pn-pupil —— hud-echo.js 的
-             视线跟随直接对这两组 setAttribute("transform");
-             .proj-node 尺寸 clamp(88px,9vw,132px) 与 #echo-hot 的
-             44px 圆形热区定位(echo-say/eye 都从它推导)不动。
-             结构: 底座(与眼同心的安装环: 四段断弧+四向螺孔+引出线,
-                   "眼装在仪表上", 取代旧直角三角框)
-                   + 三层同心: 外环刻度盘(pn-dial, 慢转)
-                              透镜(pn-lens, 径向渐变+呼吸)
-                              瞳孔组(pn-pupil: 竖缝瞳+高光, 跟随)
-                   眨眼 = 瞳孔组 scaleY 压扁(不用眼睑板)。
+             视线跟随仍驱动这两组(核与轨道微移 = 它在"看"指针);
+             .proj-node 尺寸与 #echo-hot/#echo-say/#echo-black 不动。
+             动效: 核 pn-core 呼吸(已有 pn-pulse);
+                   轨道环 pn-orbit 缓转, 三颗轨道点绕行;
+                   外框 pn-hex 六边形细线, 顶角刻度。
              ============================================================ */}}
 
-        {{/* 外角框: 保留残段语言但收短, 给底座让位 */}}
+        {{/* 外角记号(与 HUD 框线呼应, 极短残段) */}}
         <g class="pn-frame">
-            <path class="pn-leg" d="M0 0 H40" />
-            <path class="pn-leg" d="M0 0 V40" />
-            <g class="pn-tick">
-                <path d="M40 0 V5" />
-                <path d="M0 40 H5" />
-            </g>
+            <path class="pn-leg" d="M0 0 H34" />
+            <path class="pn-leg" d="M0 0 V34" />
         </g>
 
-        {{/* 扫描: 底座外圈往复的短扫线(保留原 pn-sweep 动画) */}}
-        <g class="pn-scan">
-            <path d="M96 0 L0 96" />
-            <path d="M66 0 L0 66" />
-        </g>
-
-        {{/* 底座: 与眼同心的【安装盘】—— 实底圆板 + 外圈巡走亮弧 +
-             四向螺孔 + 引出线。圆对圆, 读作"眼装在一块仪表上"。 */}}
-        <g class="pn-mount">
-            <circle class="pn-mount__plate" cx="56" cy="56" r="44" />
-            <circle class="pn-mount__arc" cx="56" cy="56" r="42"
-                stroke-dasharray="176 88" />
-            <g class="pn-mount__bolt">
-                <circle cx="14" cy="56" r="1.7" />
-                <circle cx="56" cy="14" r="1.7" />
-                <circle cx="98" cy="56" r="1.7" />
-                <circle cx="56" cy="98" r="1.7" />
-            </g>
-            <path class="pn-mount__lead" d="M12 56 H3" />
-        </g>
-
-        {{/* 眼 */}}
+        {{/* 反应堆 */}}
         <g class="pn-eye" id="pn-eye">
-            {{/* 外环刻度盘: 8 主刻度 + 双 90° 弧, 整组绕 (56,56) 慢转 */}}
-            <g class="pn-dial">
-                <circle class="pn-dial__ring" cx="56" cy="56" r="24" />
-                <g class="pn-dial__ticks">
-                    <path d="M56 30.5 V34.5" /><path d="M56 77.5 V81.5" />
-                    <path d="M30.5 56 H34.5" /><path d="M77.5 56 H81.5" />
-                    <path d="M38.2 38.2 L41 41" /><path d="M71 71 L73.8 73.8" />
-                    <path d="M38.2 73.8 L41 71" /><path d="M71 41 L73.8 38.2" />
-                </g>
-                <path class="pn-dial__arc" d="M56 27 A29 29 0 0 1 85 56" />
-                <path class="pn-dial__arc pn-dial__arc--b" d="M56 85 A29 29 0 0 1 27 56" />
+            {{/* 六边形外框: 平顶六边形, 外接圆 r44, 心 (56,56) */}}
+            <path class="pn-hex" d="M32 33.9 L56 20 L80 33.9 L80 61.7 L56 75.6 L32 61.7 Z"
+                transform="translate(0 16.2)" />
+            {{/* 六向顶角刻度(在外框顶点外侧, 随 #pn-eye 微移) */}}
+            <g class="pn-hex-ticks">
+                <path d="M56 14.5 V8.5" />
+                <path d="M83.1 52.2 L88.3 49.2" />
+                <path d="M83.1 84.2 L88.3 87.2" />
+                <path d="M56 93.5 V99.5" />
+                <path d="M28.9 84.2 L23.7 87.2" />
+                <path d="M28.9 52.2 L23.7 49.2" />
             </g>
 
-            {{/* 透镜: 径向渐变底盘 + 内圈细线 */}}
-            <circle class="pn-lens" cx="56" cy="56" r="17" />
-            <circle class="pn-lens__inner" cx="56" cy="56" r="12.5" />
+            {{/* 轨道环 + 三颗轨道点(整组缓转, 点在环上) */}}
+            <g class="pn-orbit">
+                <circle class="pn-orbit__ring" cx="56" cy="56" r="30" />
+                <circle class="pn-orbit__dot" cx="56" cy="26" r="1.8" />
+                <circle class="pn-orbit__dot pn-orbit__dot--b" cx="82" cy="71" r="1.3" />
+                <circle class="pn-orbit__dot pn-orbit__dot--c" cx="30" cy="71" r="1.3" />
+            </g>
 
-            {{/* 瞳孔组(hud-echo.js 跟随): 竖缝瞳 + 高光 */}}
+            {{/* 核: 渐变光盘 + 环圈(hud-echo.js 跟随微移, 呼吸) */}}
             <g id="pn-pupil">
-                <path class="pn-pupil__slit" d="M56 49.5 C58.6 52.5 58.6 59.5 56 62.5 C53.4 59.5 53.4 52.5 56 49.5 Z" />
-                <circle class="pn-pupil__glint" cx="52.8" cy="52.8" r="1.6" />
+                <circle class="pn-core" cx="56" cy="56" r="10" />
+                <circle class="pn-core__ring" cx="56" cy="56" r="14.5" />
             </g>
-
-            {{/* 眨眼: 瞳孔组自身 scaleY 压扁成缝再弹开(pn-blink) */}}
         </g>
     </svg>
 </div>
 
-{{/* 共流过境 · 十阶段触发块:贴在摄像机(proj-node)斜边外侧,
-     斜 45° 平行于斜边、铺满其全长。只有 10 个块(块由 hud-surge.js
-     生成),无文字/无框。单击一次点亮下一块,满 10 进入爆发。
+{{/* 共流过境 · 十阶段触发块:贴在反应堆六边形外框的下侧,水平排布。
+     只有 10 个块(块由 hud-surge.js 生成),无文字/无框。
      演出本体在 void-bg.js;交互逻辑在 hud-surge.js。 */}}
 <div class="hud-surge" id="hud-surge" role="button" tabindex="0" data-magnetic
     aria-label="共流过境:单击进入下一阶段,共十阶段" aria-valuemin="0" aria-valuemax="10"

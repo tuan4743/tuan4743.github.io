@@ -7,24 +7,18 @@
    ============================================================ */
 
 .hud-surge {
-    /* 摄像机已改圆形安装盘(pn-mount, 视觉半径 ≈ 盘缘 100/168 宽):
-       条不再有可贴的 45° 斜边, 改为沿盘缘的【切线方向】斜贴 ——
-       即 45° 但锚在盘的右下 45° 点外 10px, 沿切线铺开。
-       盘心 56/168 ≈ 0.333; 盘缘点 45° 方向 ≈ (0.595, 0.595)。 */
+    /* 反应堆形态: 十块水平排在六边形外框正下方(外框下缘 y ≈
+       91.7/168 ≈ 0.546 高, 宽 ≈ 48/168 ≈ 0.286, 居中于 x=56/168)。
+       条与外框同宽对齐, 像设备下沿的状态灯列。 */
     --cam: clamp(88px, 9vw, 132px);
-    --bar-len: calc(var(--cam) * 0.72);        /* 条长 ≈ 盘径的 0.72 */
-    --blk: calc(var(--bar-len) / 10);          /* 单块长 = 条长/10 */
+    --bar-len: calc(var(--cam) * 0.42);        /* 条长 ≈ 六边形宽(48/168≈0.286)略加余量 */
+    --blk: calc(var(--bar-len) / 10);
 
     position: fixed;
-    /* 锚点: 条中心顶点放在盘右下 45° 缘点外推 ~10px 处,
-       transform-origin: center top + rotate(45deg) → 条身沿盘缘
-       切线方向(右上-左下走向的⊥, 即从左上向右下斜)对称铺开 */
-    left: calc(var(--cam) * 0.595 + 7px);
-    top: calc(var(--cam) * 0.595 + 8px);
+    left: calc(var(--cam) * 0.333 - var(--bar-len) / 2);
+    top: calc(var(--cam) * 0.546 + 8px);
     width: var(--bar-len);
     height: var(--blk);
-    transform: rotate(45deg);
-    transform-origin: center top;
     display: flex;
     justify-content: center;
     padding: 0;
@@ -35,7 +29,7 @@
     -webkit-user-select: none;
     touch-action: none;
     -webkit-tap-highlight-color: transparent;
-    z-index: 62;                              /* 高于摄像机(z:-1)、echo-hot(61) */
+    z-index: 62;                              /* 高于反应堆(z:-1)、echo-hot(61) */
 }
 
 /* 十个块:等分排布,块间留 3px 缝 */
