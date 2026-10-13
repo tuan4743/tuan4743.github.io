@@ -146,7 +146,7 @@
     var v = getComputedStyle(document.documentElement).getPropertyValue(name);
     return v && v.trim() ? v.trim() : dflt;
   }
-  var COLOR = cssVar("--mc-color", "#7ff0ff");
+  var COLOR = cssVar("--mc-color", "rgb(34, 211, 238)");
   var SIZE = parseFloat(cssVar("--mc-size", "34px")) || 34;
   var DOT = parseFloat(cssVar("--mc-dot", "6px")) || 6;
   var THICK = parseFloat(cssVar("--mc-thick", "1px")) || 1;

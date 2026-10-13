@@ -452,10 +452,10 @@
       var cx = W / 2, cy = H / 2, rr = Math.min(W, H) * 0.075;
 
       var IS_GLITCH = String(used || "").toLowerCase() === "glitch";
-      var C_CYAN = "#7ff0ff";
+      var C_CYAN = "#9fe8ff";
       var C_ICE = "#bfe9ff";
-      var C_DIM = "rgba(127, 240, 255, 0.45)";
-      var C_ACC = "#7ff0ff";
+      var C_DIM = "rgba(180, 225, 255, 0.45)";
+      var C_ACC = "#bfeaff";
 
       function glowText(txt, x, y, color, blur, aber) {
         staticCtx.save();
@@ -511,7 +511,7 @@
         if (reach < 1) txt = txt.slice(0, Math.max(1, Math.round(txt.length * reach)));
         staticCtx.globalAlpha = outA * (isLast ? 0.72 + 0.28 * Math.abs(Math.sin(el / 150)) : 0.92);
         var col = (li === LOG.length - 1) ? C_ACC : (li === 2 ? C_CYAN : C_ICE);
-        glowText(txt, 0, li * lh, col, isLast ? 12 : 0, 0.6 + glitchAmt * 3.4);
+        glowText(txt, 0, li * lh, col, isLast ? 8 : 0, 0.6 + glitchAmt * 3.4);
 
         if (li === 2 && reach > 0.2) {
           var barW = Math.round(W * 0.13), barH = 3;
@@ -689,7 +689,7 @@
       staticCtx.textAlign = "center";
       staticCtx.textBaseline = "middle";
       staticCtx.globalAlpha = outA;
-      glowText(Math.round(pShow * 100) + "%", cx, cy, stalling ? "#ff4d5e" : C_CYAN, 12);
+      glowText(Math.round(pShow * 100) + "%", cx, cy, stalling ? "#ff4d5e" : C_CYAN, 8);
       staticCtx.restore();
 
       /* 100% 后短暂全环发亮一拍,再交给关屏压缩 */

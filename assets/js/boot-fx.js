@@ -82,7 +82,7 @@
     sizeFrac: 0.087,
     overlap: 1.012,
     tile: "#171717",
-    line: "#7ff0ff",
+    line: "#9fe8ff",
     lineFrac: 0.0011
   };
   function easeOutQuad(t) { var u = 1 - t; return 1 - u * u; }

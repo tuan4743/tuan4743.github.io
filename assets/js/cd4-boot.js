@@ -24,9 +24,9 @@
   var DENY = "permission denied";
   var GARBLE = "▓▒░#@%&$*!?/\\|<>~^¤§µ¶";
 
-  var C_CYAN = "#7ff0ff";
+  var C_CYAN = "#9fe8ff";
   var C_ICE = "#bfe9ff";
-  var C_DIM = "rgba(127, 240, 255, 0.45)";
+  var C_DIM = "rgba(180, 225, 255, 0.45)";
   var C_RED = "#ff4d5e";
 
   function rnd(a, b) { return a + Math.random() * (b - a); }
@@ -252,7 +252,7 @@
       ctx.lineWidth = Math.max(2, rr * 0.12);
       ctx.strokeStyle = st.stalling ? "#ff4d5e" : C_CYAN;
       ctx.shadowColor = st.stalling ? "#ff4d5e" : C_CYAN;
-      ctx.shadowBlur = 10;
+      ctx.shadowBlur = 8;
       ctx.beginPath();
       ctx.arc(0, 0, R4.r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * lit4);
       ctx.stroke();
