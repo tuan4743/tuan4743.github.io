@@ -1,43 +1,77 @@
 <div class="proj-node" aria-hidden="true">    <svg viewBox="0 0 168 168" fill="none" xmlns="http://www.w3.org/2000/svg">
         <defs>
-
             <linearGradient id="pnGrad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0" stop-color="#22d3ee" stop-opacity="0.24" />
-                <stop offset="0.55" stop-color="#22d3ee" stop-opacity="0.07" />
+                <stop offset="0" stop-color="#22d3ee" stop-opacity="0.20" />
+                <stop offset="0.55" stop-color="#22d3ee" stop-opacity="0.06" />
                 <stop offset="1" stop-color="#22d3ee" stop-opacity="0" />
             </linearGradient>
+            <radialGradient id="pnIrisGrad" cx="0.5" cy="0.5" r="0.5">
+                <stop offset="0" stop-color="#22d3ee" stop-opacity="0.03" />
+                <stop offset="0.7" stop-color="#22d3ee" stop-opacity="0.15" />
+                <stop offset="1" stop-color="#22d3ee" stop-opacity="0.4" />
+            </radialGradient>
         </defs>
 
-        <path class="pn-fill" d="M0 0 H160 L0 160 Z" />
+        {{/* ============================================================
+             ECHO · 机械眼球 (2026-10 形象替换)
+             ────────────────────────────────────────────────
+             接线锚点(不可改名): #pn-eye / #pn-pupil —— hud-echo.js 的
+             视线跟随直接对这两组 setAttribute("transform");
+             .proj-node 尺寸 clamp(88px,9vw,132px) 与 #echo-hot 的
+             44px 圆形热区定位(echo-say/eye 都从它推导)不动。
+             结构: 外角框(直角残段+斜边刻度, 保住"贴左上角"的 HUD 语言)
+                   + 三层同心: 外环刻度盘(pn-dial, 慢转)
+                              透镜(pn-lens, 径向渐变+呼吸)
+                              瞳孔组(pn-pupil: 竖缝瞳+高光, 跟随)
+                   眨眼 = pn-lid 弧板从上缘扫下(CSS keyframes)。
+             ============================================================ */}}
 
+        {{/* 外角框 */}}
+        <g class="pn-frame">
+            <path class="pn-leg" d="M0 0 H64" />
+            <path class="pn-leg" d="M0 0 V64" />
+            <path class="pn-edge" d="M160 0 L0 160" />
+            <g class="pn-tick">
+                <path d="M40 0 V5" />
+                <path d="M96 0 L91 5" />
+                <path d="M0 40 H5" />
+                <path d="M0 96 L5 91" />
+            </g>
+        </g>
+
+        {{/* 扫描: 沿斜边往复的一短一长两道(保留原 pn-sweep 动画) */}}
         <g class="pn-scan">
             <path d="M112 0 L0 112" />
             <path d="M74 0 L0 74" />
         </g>
 
-        <path class="pn-dash" d="M148 0 L0 148" />
-
-        <g class="pn-tick">
-            <path d="M112 32 L128 48" />
-            <path d="M72 72 L88 88" />
-            <path d="M32 112 L48 128" />
-        </g>
-
-        <g class="pn-ruler">
-            <path d="M44 0 V6 M84 0 V6 M124 0 V6" />
-            <path d="M0 44 H6 M0 84 H6 M0 124 H6" />
-        </g>
-
-        <path class="pn-leg" d="M0 0 H160" />
-        <path class="pn-leg" d="M0 0 V160" />
-        <path class="pn-edge" d="M160 0 L0 160" />
+        {{/* 眼 */}}
         <g class="pn-eye" id="pn-eye">
-            <circle class="pn-eye__case" cx="56" cy="56" r="15" />
-            <circle class="pn-eye__iris" cx="56" cy="56" r="8.4" />
-            <g id="pn-pupil">
-                <circle class="pn-eye__pupil" cx="56" cy="56" r="3.9" />
-                <circle class="pn-eye__glint" cx="52.5" cy="52.5" r="1.7" />
+            {{/* 外环刻度盘: 8 主刻度 + 双 90° 弧, 整组绕 (56,56) 慢转 */}}
+            <g class="pn-dial">
+                <circle class="pn-dial__ring" cx="56" cy="56" r="24" />
+                <g class="pn-dial__ticks">
+                    <path d="M56 30.5 V34.5" /><path d="M56 77.5 V81.5" />
+                    <path d="M30.5 56 H34.5" /><path d="M77.5 56 H81.5" />
+                    <path d="M38.2 38.2 L41 41" /><path d="M71 71 L73.8 73.8" />
+                    <path d="M38.2 73.8 L41 71" /><path d="M71 41 L73.8 38.2" />
+                </g>
+                <path class="pn-dial__arc" d="M56 27 A29 29 0 0 1 85 56" />
+                <path class="pn-dial__arc pn-dial__arc--b" d="M56 85 A29 29 0 0 1 27 56" />
             </g>
+
+            {{/* 透镜: 径向渐变底盘 + 内圈细线 */}}
+            <circle class="pn-lens" cx="56" cy="56" r="17" />
+            <circle class="pn-lens__inner" cx="56" cy="56" r="12.5" />
+
+            {{/* 瞳孔组(hud-echo.js 跟随): 竖缝瞳 + 高光 */}}
+            <g id="pn-pupil">
+                <path class="pn-pupil__slit" d="M56 49.5 C58.6 52.5 58.6 59.5 56 62.5 C53.4 59.5 53.4 52.5 56 49.5 Z" />
+                <circle class="pn-pupil__glint" cx="52.8" cy="52.8" r="1.6" />
+            </g>
+
+            {{/* 眼睑: 弧板(上弦月形), 眨眼时 scaleY 从上缘扫下再回(pn-blink) */}}
+            <path class="pn-lid" d="M31 56 A25 25 0 0 1 81 56 Z" />
         </g>
     </svg>
 </div>
