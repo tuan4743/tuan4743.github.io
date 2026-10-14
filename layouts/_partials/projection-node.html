@@ -6,6 +6,9 @@
                 <stop offset="0.55" stop-color="#22d3ee" stop-opacity="0.07" />
                 <stop offset="1" stop-color="#22d3ee" stop-opacity="0" />
             </linearGradient>
+            <clipPath id="pnEyeClip">
+                <circle cx="56" cy="56" r="14.5" />
+            </clipPath>
         </defs>
 
         <path class="pn-fill" d="M0 0 H160 L0 160 Z" />
@@ -32,11 +35,20 @@
         <path class="pn-leg" d="M0 0 V160" />
         <path class="pn-edge" d="M160 0 L0 160" />
         <g class="pn-eye" id="pn-eye">
-            <circle class="pn-eye__case" cx="56" cy="56" r="15" />
-            <circle class="pn-eye__iris" cx="56" cy="56" r="8.4" />
-            <g id="pn-pupil">
-                <circle class="pn-eye__pupil" cx="56" cy="56" r="3.9" />
-                <circle class="pn-eye__glint" cx="52.5" cy="52.5" r="1.7" />
+            <circle class="pn-eye__case" cx="56" cy="56" r="15.5" />
+            <g class="pn-eye__iris">
+                <circle cx="56" cy="56" r="13.5" />
+                <g class="pn-eye__faccets">
+                    <path d="M56 43.5 V46.5 M56 65.5 V68.5 M43.5 56 H46.5 M65.5 56 H68.5" />
+                    <path d="M48.2 48.2 L50.3 50.3 M61.7 61.7 L63.8 63.8 M63.8 48.2 L61.7 50.3 M50.3 61.7 L48.2 63.8" />
+                </g>
+            </g>
+            <g clip-path="url(#pnEyeClip)">
+                <g id="pn-pupil">
+                    <path class="pn-eye__pupil" d="M56 48.5 C59.2 48.5 60.6 52 60.6 56 C60.6 60 59.2 63.5 56 63.5 C52.8 63.5 51.4 60 51.4 56 C51.4 52 52.8 48.5 56 48.5 Z" />
+                    <circle class="pn-eye__glint" cx="53.2" cy="52.6" r="1.5" />
+                </g>
+                <rect class="pn-eye__lid" x="38" y="38" width="36" height="36" />
             </g>
         </g>
     </svg>

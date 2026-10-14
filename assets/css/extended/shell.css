@@ -400,9 +400,13 @@ html.void-bg-on[data-theme="light"] .pn-eye__case {
     stroke: rgba(24, 92, 82, 0.72);
 }
 
-html.void-bg-on[data-theme="light"] .pn-eye__iris {
-    fill: rgba(24, 92, 82, 0.20);
-    stroke: rgba(24, 92, 82, 0.90);
+html.void-bg-on[data-theme="light"] .pn-eye__iris circle {
+    fill: rgba(24, 92, 82, 0.10);
+    stroke: rgba(24, 92, 82, 0.65);
+}
+
+html.void-bg-on[data-theme="light"] .pn-eye__faccets path {
+    stroke: rgba(24, 92, 82, 0.85);
 }
 
 html.void-bg-on[data-theme="light"] .pn-eye__pupil {
@@ -411,6 +415,10 @@ html.void-bg-on[data-theme="light"] .pn-eye__pupil {
 
 html.void-bg-on[data-theme="light"] .pn-eye__glint {
     fill: rgba(244, 248, 244, 0.9);
+}
+
+html.void-bg-on[data-theme="light"] .pn-eye__lid {
+    fill: rgba(24, 92, 82, 0.85);
 }
 
 /* 渐变填充(pnGrad 硬编码青色 #22d3ee):亮模式换墨绿 ——
@@ -632,17 +640,28 @@ html.void-bg-on[data-theme="light"] .top-link svg {
     stroke-linecap: round;
 }
 
+/* ECHO 光学组件:外壳 + 光圈(刻面环) + 竖瞳,全部在 pn-eye 坐标系内。
+   视线跟随由 hud-echo.js 平移 #pn-eye(±6) 与 #pn-pupil(±3)。
+   眨眼用 pn-eye__lid 遮板下扫(scaleY 0→1→0),代替上下眼睑——
+   瞳孔本体保持独立 transform,不与 JS 写入的 transform 冲突。 */
 .pn-eye__case {
     fill: rgba(6, 10, 18, 0.7);
     stroke: rgba(160, 235, 255, 0.5);
     stroke-width: 1.1;
 }
 
-.pn-eye__iris {
-    fill: rgba(34, 211, 238, 0.16);
-    stroke: rgba(34, 211, 238, 0.85);
-    stroke-width: 1;
+.pn-eye__iris circle {
+    fill: rgba(34, 211, 238, 0.10);
+    stroke: rgba(34, 211, 238, 0.6);
+    stroke-width: 0.9;
     animation: pn-pulse 3.4s ease-in-out infinite;
+}
+
+.pn-eye__faccets path {
+    stroke: rgba(34, 211, 238, 0.75);
+    stroke-width: 1;
+    stroke-linecap: round;
+    animation: pn-faccet 7s steps(1) infinite;
 }
 
 .pn-eye__pupil {
@@ -654,14 +673,37 @@ html.void-bg-on[data-theme="light"] .top-link svg {
     fill: rgba(234, 243, 255, 0.8);
 }
 
+.pn-eye__lid {
+    fill: rgba(6, 12, 20, 0.88);
+    transform: scaleY(0);
+    transform-origin: 56px 38px;
+    animation: pn-blink 5.6s ease-in-out infinite;
+}
+
 @keyframes pn-pulse {
     0%, 100% { opacity: 0.4; }
     50% { opacity: 1; }
 }
 
+@keyframes pn-faccet {
+    0%, 100% { opacity: 1; }
+    12% { opacity: 0.35; }
+    18% { opacity: 1; }
+    40% { opacity: 1; }
+    46% { opacity: 0.55; }
+    52% { opacity: 1; }
+}
+
 @keyframes pn-eye-glow {
     0%, 100% { opacity: 0.72; }
     50% { opacity: 1; }
+}
+
+@keyframes pn-blink {
+    0%, 92.6%, 100% { transform: scaleY(0); }
+    94.5% { transform: scaleY(1); }
+    96.4% { transform: scaleY(0.15); }
+    98.2% { transform: scaleY(1); }
 }
 
 .echo-say {
@@ -851,8 +893,10 @@ body.page-out {
     .cosmos-nebula,
     .cosmos-nebula::after,
     .cosmos-grid,
-    .pn-eye__iris,
+    .pn-eye__iris circle,
+    .pn-eye__faccets path,
     .pn-eye__pupil,
+    .pn-eye__lid,
     .pn-scan path {
         animation: none !important;
     }
