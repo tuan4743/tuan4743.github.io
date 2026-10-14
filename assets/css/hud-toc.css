@@ -25,6 +25,10 @@
     display: flex;
     align-items: center;
     pointer-events: none;
+    /* ★ 盆栽(.hud-plants, z-index:1)与目录同在 .page-hud 内且 DOM
+       序在前 —— 目录不设 z-index 时被盆栽盖住, 悬停/点击被
+       pointer-events:auto 的盆栽 svg 劫走(bug#18)。目录提到 2。 */
+    z-index: 2;
     font-family: var(--hud-font);
     color: var(--hud-toc-ink);
 }

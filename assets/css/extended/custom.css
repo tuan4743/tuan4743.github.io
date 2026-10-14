@@ -1248,6 +1248,13 @@ body.surge-lock {
     transition: opacity 0.18s ease;
     cursor: zoom-out;
 }
+/* ★ 关闭=置 hidden 属性, 但 UA 的 [hidden]{display:none} 是 UA origin,
+   输给本文件 .img-lightbox{display:flex}(author origin) ——
+   遮罩关不掉, 透明地盖住整屏, 鼠标"全部失灵"(bug#17 根因)。
+   必须显式补一条作者级 [hidden] 规则把它真正藏掉。 */
+.img-lightbox[hidden] {
+    display: none;
+}
 .img-lightbox.is-open {
     opacity: 1;
 }
